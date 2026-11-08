@@ -95,9 +95,12 @@ it. The three stock ways are data given at each start, one derivation
 draws a branch's path, and the watched `ways` read, `see ways`, the
 `View` read and the views `way`, `path`, `proposal` and `charter` in a
 reply are built, with "Use this", "Keep it" and "Yours" in the client's
-domain; Ask temper's page draws none of them until the look request
-`ask-temper-ways` (`domain/forge.md`, 8.13; `protocol/configuration.md`,
-11 and 13.2 to 13.10; `client/README.md`, 5.13, 5.16 and 11;
+domain and drawn on Ask temper's opening, with its lede, tabs, axis,
+path, stop's card, legend and acts from the `ways` read. The old starters,
+own way's card and reference pane are gone; responsive paths share their
+look with replies. Temper/ui's rendered comparison follows landing
+(`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and 13.2 to 13.10;
+`client/README.md`, 5.13, 5.16 and 11;
 `draft/stock-ways.status.md`). Ask temper's first milestone
 stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
