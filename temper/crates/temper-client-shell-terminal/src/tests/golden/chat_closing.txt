@@ -16,15 +16,16 @@ demo:
     [11] Goal
       Agents plan a larger change and land it.
     [12] All ways to start work
-  [13] Settings
+  [13] Away
+  [14] Settings
   * Pat
 Where:
-  [14] Chats
-  [15] demo
-  [16] Chats
-[17] + Draft
+  [15] Chats
+  [16] demo
+  [17] Chats
+[18] + Draft
 * waiting on 1 delegate
-[18] Close
+[19] Close
 0 spent · of 1
 Conversation:
   Today · Thursday 1 January
@@ -43,7 +44,7 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [19] Task 2 ↗
+    [20] Task 2 ↗
   wait:
     `wait`
   the default model
@@ -53,8 +54,8 @@ Close this chat?
   What closing does:
     - The run under way stops now.
     - T2 Export widget's table as CSV is cancelled.
-      [20] Take it instead
+      [21] Take it instead
     - 2 proposals are withdrawn.
     - Changes not yet begun are withdrawn. Those under way settle.
-  [21] Keep it
-  [22] Close chat
+  [22] Keep it
+  [23] Close chat

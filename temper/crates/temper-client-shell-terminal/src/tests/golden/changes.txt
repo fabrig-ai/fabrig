@@ -17,13 +17,14 @@ First:
     [12] Goal
       Agents plan a larger change and land it.
     [13] All ways to start work
-  [14] Settings
+  [14] Away
+  [15] Settings
   * Pat
 First · landing
 1 queued · last landed just now. Each change is checked on top of main before it lands.
 Queue:
   ## Queue
-  - [15] Store: policy record · checking · checks started just now
+  - [16] Store: policy record · checking · checks started just now
 Landed recently:
   ## Landed recently
-  - [16] A landed change · 00:00
+  - [17] A landed change · 00:00

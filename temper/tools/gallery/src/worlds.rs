@@ -694,11 +694,14 @@ fn world_in_layout(
                                 project_ways(&mut root, read, drafts, goals.is_some(), false, false, &mut out);
                                 continue;
                             }
-                            let bytes = settings.map(|name| {
+                            let bytes = settings.and_then(|name| {
+                                if setting.kind() == 8 && name != "settings-away-you-approve" {
+                                    return None;
+                                }
                                 if how && setting.kind() == 7 {
-                                    ways::setting(name)
+                                    Some(ways::setting(name))
                                 } else {
-                                    settings_bytes(name, setting.kind())
+                                    Some(settings_bytes(name, setting.kind()))
                                 }
                             });
                             let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: bytes })
@@ -842,7 +845,7 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Away => {
-                            if settings == Some("settings-away") {
+                            if matches!(settings, Some("settings-away" | "settings-away-you-approve")) {
                                 step(
                                     &mut root,
                                     Event::Client {
@@ -4646,8 +4649,13 @@ pub(super) fn changes_world(name: &str) -> Domain {
                 if let v::Read::Setting(setting) =
                     wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
                 {
-                    assert_eq!(setting.kind(), 7);
-                    project_ways(&mut root, read, false, false, name != "changes-landed-only", false, &mut out);
+                    match setting.kind() {
+                        7 => {
+                            project_ways(&mut root, read, false, false, name != "changes-landed-only", false, &mut out);
+                        }
+                        8 => project_classes(&mut root, read, &mut out),
+                        _ => panic!("gallery setting read"),
+                    }
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
@@ -4701,6 +4709,24 @@ pub(super) fn project_ways(
     ways.encode(&mut writer).expect("measured ways");
     let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: Some(writer.finish()) })
         .expect("gallery setting answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family { family: FORGE, record: Some(wire::setting_answer(&value)) },
+                },
+            },
+        },
+        out,
+    );
+}
+
+pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as v};
+    let value =
+        v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: None }).expect("stock project classes");
     step(
         root,
         Event::Client {
@@ -4847,10 +4873,16 @@ pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1:
     )
 }
 
-/// Settings' delivered kinds 6 and 7 (client/browser.md, 7.2).
+/// Settings' delivered kinds 6, 7 and 8 (temper/docs/design/client/browser.md, 7.2).
 fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::v1 as v;
-    if kind == 7 {
+    if kind == 8 {
+        use temper_protocol_reaches::{Classes, Way, classes_record};
+        let classes = classes_record(&Classes::stock(Way::YouApprove)).expect("You approve's classes");
+        let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
+        classes.encode(&mut writer).expect("measured classes");
+        writer.finish()
+    } else if kind == 7 {
         let shown = name != "settings-all-hidden";
         let all = shown && name != "settings-goals";
         let ways = v::ProjectWays::new(
