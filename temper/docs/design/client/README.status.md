@@ -118,6 +118,21 @@ Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
+Sections 2, 6.11 and 6.12 have the clients' start, one for two binaries:
+`temper [ADDRESS]` and `temper-client [ADDRESS]` run
+`temper-client-shell-tui`'s `start` under their own names, both `ctl`s
+run `temper-client-shell-cli`'s, an argument's address or link is read
+by `temper-client-shell-terminal`'s `address`, and the link file and the
+private directories are `temper-shell`'s. The TUI's start has its table
+of refusals under both names.
+
+- **Departs:** 2, *The crate graph*: `temper-client-domain` also depends on
+  `temper-protocol-records`, because the forge's side encodes and decodes a
+  pasted bundle by it (`forge/forges.rs`), on `skein-ui` for its phrasebooks
+  (`words.rs`) and on `skein-json` to read a call's input (`pages/calls.rs`);
+  the graph names none of them. Through it the
+  deployment's client links the records crate (`../protocol/README.status.md`, 4).
+
 Sections 6.13 and 6.14's no-project command composer has no known
 implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
