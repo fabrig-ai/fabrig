@@ -288,6 +288,14 @@ delegate's phases; the frame's speed changes how long the person waits
   6.1).
 - **The documents' memory bounds** are checked at start as any
   document's are, so a story past them fails its walk.
+- **The native heap at start, in the gate:** `tests/playground`'s `memory`
+  binary holds each process's held and peak bytes at the first step and at
+  start, and the fake disk's and the shared forge's retained bytes, each at
+  most its figure in `../development/playground-memory.md` and a quarter
+  more. This bound catches a regression; it is not section 8's bar, which
+  stays the user's. Story A's high water in the one-process world
+  (`tests/one-process`'s `memory`) is bound the same way once the story
+  walks there.
 - **The wasm32 builds,** in the gate: `temper-playground`, and the web
   shell with `playground`, with clippy's lints as errors for
   `wasm32-unknown-unknown`.
