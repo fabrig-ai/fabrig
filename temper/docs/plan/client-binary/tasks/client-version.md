@@ -118,3 +118,13 @@ Options, each decided:
 `Done:`, `Failed:` or `Question:` first, then the package's files, the version
 line your build printed, what the rerun check showed, the runs and their counts,
 the rule each new test bit on, anything left.
+
+## Rebase (2026-11-08, step merge, foreman client-binary/client-version/foreman-1)
+
+resolve Cargo.toml’s workspace-member conflict by retaining both temper-shell and temper-client.
+The merge refused `Cargo.toml`: both branches insert a member immediately after `"temper/crates/temper"`.
+Task commit `af607596d0` adds `"temper/crates/temper-client"`.
+Integration commit `51a6ebcd65` (merged by `55da55824c`) adds `"temper/crates/temper-shell"` at the same location.
+Rebase onto the landing target, keeping both member lines and integration’s `temper-shell` workspace dependency.
+Preserve the new `temper-client` package and both packages’ entries in `Cargo.lock`, which auto-merged without a reported conflict.
+No package implementation change is needed for this refusal.
