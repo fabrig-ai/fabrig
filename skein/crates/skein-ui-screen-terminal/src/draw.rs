@@ -10,6 +10,7 @@ pub enum Depth {
 
 pub const ENTER: &[u8] = b"\x1b[?1049h\x1b[?25l\x1b[?2004h\x1b[?7l\x1b[2J\x1b[H";
 pub const LEAVE: &[u8] = b"\x1b[?2004l\x1b[0m\x1b[?7h\x1b[?25h\x1b[?1049l";
+pub const ASK_BACKGROUND: &[u8] = b"\x1b]11;?\x1b\\";
 
 pub fn draw(last: Option<&Frame>, next: &Frame, depth: Depth, out: &mut List<u8>) {
     let last = match last {
