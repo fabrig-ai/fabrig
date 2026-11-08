@@ -1,0 +1,6 @@
+draft = "ignored-tiers"
+repo = "fabrig"
+sources = ["temper/docs/plan/ignored-tiers/inputs/request.md", "temper/crates/temper/tests/live_github_managed.rs", "temper/crates/temper/tests/proof_live.rs", "temper/tests/one-process/tests/memory.rs", "temper/tests/playground/tests/memory.rs", "temper/docs/development/playground-memory.md", "temper/scripts/proof-live.sh", "temper/scripts/proof-live-github-managed.sh", ".config/nextest.toml", "temper/crates/temper/tests/live.rs", "temper/crates/temper/tests/live_github.rs", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
