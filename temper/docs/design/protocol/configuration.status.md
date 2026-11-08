@@ -45,6 +45,24 @@ and "Yours", "Use this" refused for too few approvers and "Keep it"
 marking To begin's step done; a 64-seed fuzzy test derives paths over
 random rules.
 
+Sections 13.2 and 13.4 have no known gap in a restore's reset kept
+across a restart: a deployment's rule of kind 1, which has no stock, and
+a project's rule 1 reset to the every-project default, which the forge
+does not report to jig, keep their state, and the forge names at each
+start only the defaults it stored that the stock no longer gives
+(`temper-engine-domain-forge/src/kinds.rs`, `dropped_settings_defaults`;
+jig's `domain/engine.status.md`, its 17.5). The engine's domain world's
+`a_restore_leaves_out_a_deleted_projects_rule` and the client world's
+story of each kind through ctl (`../client/tools.status.md`, 11.2) run.
+
+Section 2 has no known gap in a sign-in's hosts: one that does not
+resolve at start is held at `127.0.0.1:0`
+(`temper-engine-shell/src/serve/accounts_runtime.rs`, `HELD`), as
+`serve/tests.rs`' `accounts_runtime_holds_unresolved_hosts` checks, and
+the process tier's story of a default box starting without DNS,
+`a_default_box_with_a_sign_in_registration_starts_without_dns`, is no
+longer ignored (`../domain/testing.md`, 2.6; `setup.md`, 8.3).
+
 Section 13.9's `project.json` sets its project's rule 1 to main alone,
 with no gate or approval, over the stock's every-branch rule; its two
 deployment rules and its own charter and template editions remain.
