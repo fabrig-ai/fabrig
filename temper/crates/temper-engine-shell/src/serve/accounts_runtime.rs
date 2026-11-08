@@ -1,5 +1,5 @@
 //! Resolve configured sign-in transports before starting the accounts component.
-use crate::{config, server_name, service, trust};
+use super::{config, server_name, service, trust};
 use skein_lib::List;
 use skein_oauth_accounts as driver;
 

@@ -10,6 +10,14 @@ pub fn resolve(
     configured: Option<&[Origin]>,
     lookup: fn(&Address) -> Result<std::net::SocketAddr, String>,
 ) -> Result<List<LogOrigin>, String> {
+    resolve_for("temper", configured, lookup)
+}
+/// Resolve origins while naming the binary that serves them.
+pub fn resolve_for(
+    binary: &str,
+    configured: Option<&[Origin]>,
+    lookup: fn(&Address) -> Result<std::net::SocketAddr, String>,
+) -> Result<List<LogOrigin>, String> {
     let defaults: Vec<_> = (0_u32..20)
         .map(|number| Origin {
             tls: true,
@@ -29,13 +37,13 @@ pub fn resolve(
                 return Err(format!("GitHub log origin {}: {why}", String::from_utf8_lossy(&origin.host)));
             }
             Err(_) => eprintln!(
-                "temper serve: GitHub log origin https://{}:443: unresolved; skipped",
+                "{binary} serve: GitHub log origin https://{}:443: unresolved; skipped",
                 String::from_utf8_lossy(&origin.host)
             ),
         }
     }
     if configured.is_none() && resolved.is_empty() {
-        eprintln!("temper serve: GitHub log origins: none resolved; no job log will be fetched");
+        eprintln!("{binary} serve: GitHub log origins: none resolved; no job log will be fetched");
     }
     Ok(resolved)
 }

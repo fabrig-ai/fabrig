@@ -59,9 +59,6 @@ deferred failure accounting.
 The deployment's binaries (4.1 and 4.2), from `../draft/deployment-binaries.md`,
 are designed and not yet built:
 
-- **Not yet:** 4.1, 5: `temper-engine-shell`, serve: its host and start
-  are `crates/temper`'s (`lib.rs`, `host.rs`, `bundle.rs`), the worker's
-  half inline, with no `WorkerHalf`.
 
 - **Not yet:** 4.2: `crates/temper-engine` doesn't exist: no engine's
   binary, table, refusal of another shape's document, `versions` or
