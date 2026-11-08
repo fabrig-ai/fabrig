@@ -995,6 +995,45 @@ fn changes_panel_round_trips() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn ways_panel_round_trips() {
+    let limits = fixtures::limits();
+    let subject = v1::WaysSubject::new(&limits, v1::WaysSubjectParts { project: 1 }).expect("project");
+    let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Ways(subject) }).expect("watch");
+    let bytes = crate::watching(&watch);
+    assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
+    assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+    for bytes in [
+        include_bytes!("../golden/record_ways_panel_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_ways_panel_full.bin").as_slice(),
+    ] {
+        let record = crate::decode_ways_panel(bytes, &v1::CEILINGS).expect("ways_panel golden");
+        assert_eq!(crate::ways_panel(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_ways_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
+fn view_answer_round_trips() {
+    let limits = fixtures::limits();
+    let view = v1::ViewRead::new(&limits, v1::ViewReadParts { project: 1, address: b"way Quick".as_slice().into() })
+        .expect("view address");
+    let read = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::View(view) }).expect("read");
+    let bytes = crate::reading(&read);
+    assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
+    assert_eq!(crate::decode_reading(&fixtures::trailing(&bytes), &limits), None);
+    for bytes in [
+        include_bytes!("../golden/record_view_answer_smallest.bin").as_slice(),
+        include_bytes!("../golden/record_view_answer_full.bin").as_slice(),
+    ] {
+        let record = crate::decode_view_answer(bytes, &v1::CEILINGS).expect("view_answer golden");
+        assert_eq!(crate::view_answer(&record).as_ref(), bytes);
+        assert_eq!(crate::decode_view_answer(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "committed wire goldens are test inputs")]
 fn project_status_round_trips_and_refuses_trailing_bytes() {
     for bytes in [
         include_bytes!("../golden/record_project_status_smallest.bin").as_slice(),

@@ -146,18 +146,18 @@ enum Opens { nothing, charter: OpensCharter, rule: OpensRule, gate: OpensGate, t
 record Fact { label: text 32 value: text 384 }
 record Card { who: text 128 name: text 64 facts: list 4 Fact }
 record Stop { actor: Actor step: PathStep words: text 64 opens: Opens card: Card }
-record Path { repository: option bytes 2048 branch: bytes 1024 stops: list 32 Stop }
+record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list 32 Stop }
 # A project's stock ways, watched (client/README.md, 4.6; configuration.md, 13.10).
-record StockWay { name: text 64 line: text 256 path: Path items: list 8 ProposalItem delegation: bool }
+record StockWay { name: text 64 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
 record WaysSubject { project: u32 }
-versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: Path may_change: bool }
+versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath may_change: bool }
 # A view, read when shown (client/README.md, 4.6 and 5.16).
 record ViewRead { project: u32 address: text 512 }
-record WayView { name: text 64 line: text 256 path: Path current: bool }
-record ProposalView { before: Path after: Path }
+record WayView { name: text 64 line: text 256 path: BranchPath current: bool }
+record ProposalView { before: BranchPath after: BranchPath }
 record CharterView { charter: u32 card: Card }
 record NotDrawn { words: text 512 }
-enum View { way: WayView, path: Path, proposal: ProposalView, charter: CharterView, not_drawn: NotDrawn }
+enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, not_drawn: NotDrawn }
 versioned record ViewAnswer { view: View }
 
 enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead }

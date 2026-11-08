@@ -703,7 +703,7 @@ fn world_in_layout(
                                 );
                             }
                         }
-                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) | v1::Read::View(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -797,6 +797,7 @@ fn world_in_layout(
                         | w::Watch::Landings(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
+                        | w::Watch::Ways(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals
                         | w::Watch::Changes(_)

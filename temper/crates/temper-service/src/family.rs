@@ -404,7 +404,8 @@ pub fn to_root(
                     read @ (w::Read::Setting(_)
                     | w::Read::RevisionSetting(_)
                     | w::Read::ProposalItems(_)
-                    | w::Read::ProgramEnvironment) => forge_settings_query(read),
+                    | w::Read::ProgramEnvironment
+                    | w::Read::View(_)) => forge_settings_query(read),
                 };
                 if let Some(query) = query {
                     return Ok(root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }));
@@ -477,7 +478,7 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::decided_subject(subject.project())),
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) => {
+                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Ways(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,
@@ -1849,7 +1850,7 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
             revision: value.revision(),
         }),
         w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
-        w::Read::Playground | w::Read::Deployment => None,
+        w::Read::Playground | w::Read::Deployment | w::Read::View(_) => None,
     }
 }
 
