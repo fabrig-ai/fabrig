@@ -237,9 +237,16 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Store(crate::StoreInput::Committed { number, fill }) => {
             crate::committed(&mut domain.journal, number);
-            if !domain.journal.stopped() {
-                domain.durable_commit = number;
+            if domain.journal.stopped() {
+                domain.journal_stop = Some(crate::JournalStop::Refused {
+                    commit: number,
+                    sent: domain.sent_commit,
+                    durable: domain.durable_commit,
+                });
+                out.push(Request::Stop);
+                return;
             }
+            domain.durable_commit = number;
             if domain.start_runtime() {
                 let _filled = core::step(&mut domain.core, &environment_core(env), core::Event::Fill { bytes: fill });
             } else {

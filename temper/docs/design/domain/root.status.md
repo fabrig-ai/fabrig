@@ -58,13 +58,6 @@ kind remains shape.
   `jig/docs/design/domain/engine.md`, 6 has a start judge no record and
   panic at a link it cannot make (the user, 10-28). Which holds is the
   user's, unanswered (that document's section 16).
-- **Not yet:** 4: a stopped journal ends the engine naming why. A store
-  answer the journal refuses stops it in the `StoreInput::Committed` arm
-  of `temper-engine-domain/src/route.rs` with no `Stop`, so the root stays
-  up unready, and every party's input is answered not ready with nothing
-  in the log; a runtime stop that does emit `Stop` reaches `temper serve`
-  as `deployment namespace binding refused` (`temper-service/src/stop.rs`,
-  `root`, which reads no stop but the start's).
 - **Not yet:** 5.7 and 9.1: a deployment's core stopped answering right
   after `project make`, and again after a restart on the same store
   (request `core-after-project`, 2026-11-08). The cause is not yet

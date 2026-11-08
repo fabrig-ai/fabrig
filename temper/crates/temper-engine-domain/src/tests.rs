@@ -383,14 +383,25 @@ fn a_decision_with_more_outputs_than_the_door_releases_them_all_in_order() {
 
 #[test]
 fn a_refused_commit_stops_the_root_once() {
-    for number in [0, 1, u64::MAX] {
+    for (durable, sent, number) in [(0, 0, 0), (0, 0, 1), (0, 0, u64::MAX), (8, 9, 7), (8, 9, 10)] {
         let (mut domain, env) = resume_fixture::root();
+        domain.core.counters = Counters::new(Deployment { commits: durable, ..domain.deployment() });
+        domain.journal = SkeinJournal::uncapped(1, durable);
+        domain.sent_commit = durable;
+        domain.durable_commit = durable;
+        let mut setup = Queue::uncapped();
+        for _ in durable..sent {
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            crate::domain::save(&mut decision, &env.limits, turn(1, 0));
+            crate::domain::close(&mut domain, &env, decision, &mut setup);
+            crate::domain::send_commit(&mut domain, &mut setup);
+        }
         let mut out = Queue::uncapped();
         crate::step(&mut domain, &env, crate::Event::Store(crate::StoreInput::Committed { number, fill: 0 }));
         crate::release(&mut domain, &env, &mut out);
         assert_eq!(out.pop(), Some(crate::Request::Stop), "refused commit {number}");
         assert!(out.is_empty());
-        assert_eq!(domain.journal_stop(), Some(crate::JournalStop::Refused { commit: number, sent: 0, durable: 0 }));
+        assert_eq!(domain.journal_stop(), Some(crate::JournalStop::Refused { commit: number, sent, durable }));
         crate::step(&mut domain, &env, crate::Event::Store(crate::StoreInput::Committed { number, fill: 0 }));
         crate::release(&mut domain, &env, &mut out);
         assert!(out.is_empty(), "the stopped root emits Stop once");
@@ -480,6 +491,22 @@ fn counter_and_commit_overflow_cannot_reuse_names() {
     assert!(j.stopped());
     assert!(out.is_empty());
     assert_eq!(j.deployment().tasks, u64::MAX);
+
+    let (mut domain, env) = resume_fixture::root();
+    domain.core.counters = Counters::new(Deployment { commits: u64::MAX, ..domain.deployment() });
+    domain.journal = SkeinJournal::uncapped(1, u64::MAX);
+    domain.sent_commit = u64::MAX;
+    domain.durable_commit = u64::MAX;
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    crate::domain::save(&mut decision, &env.limits, turn(1, 1));
+    let mut out = Queue::uncapped();
+    crate::domain::close(&mut domain, &env, decision, &mut out);
+    assert_eq!(out.pop(), Some(crate::Request::Stop));
+    assert!(out.is_empty());
+    assert_eq!(domain.journal_stop(), Some(crate::JournalStop::Counter));
+    crate::try_step(&mut domain, &env, crate::Event::Resume).unwrap();
+    crate::release(&mut domain, &env, &mut out);
+    assert!(out.is_empty(), "the counter stop is emitted once");
 }
 
 #[test]
