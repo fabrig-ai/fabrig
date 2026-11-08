@@ -736,7 +736,8 @@ is due again once its dependencies are done.
    child gives with the activation (tasks.md, 8.6), and chooses its
    charter's parts those reasons meet, at the revision its preparation
    began under (17.3), which make its instructions (step 4) and the kinds
-   it is offered; gathers its brief (section 9), for why it runs; has each
+   it is offered (a message or an entry that would add to those reasons,
+   arriving before the claim, prepares it again: tasks.md, 8.6); gathers its brief (section 9), for why it runs; has each
    connector that owns a resource the task
    names gather its workspace items, and name the application's
    credentials they need (connectors.md, section 10); and loads its
@@ -1121,6 +1122,16 @@ call writes over a change its run was not shown.
   that finishes with a failure parks the same way (tasks.md, 5.7). The tasks child decides it, as it
   decides every reason a task may not go on, so the run and its host
   know nothing of it.
+- **Finished while its delegates are live, it parks.** A run that
+  finishes, its finish not asking to cancel them, while its task has live
+  delegates (tasks.md, 5.6), is committed as parked, as a kept one is: its
+  turns first, then its saved state, with no try spent and its finish not
+  taken. Its run has ended by the time its finish is judged, on a program
+  backend and a direct one alike, so a refusal naming the delegates would
+  reach no one, and failing the attempt would cost a whole run and tell
+  the next nothing. The task waits for its delegates, whose results wake
+  it (tasks.md, 8.3), and a later run finishes once they are done. The
+  tasks child decides it.
 - **Waiting holds the slot; parking frees it.** A run that calls `wait`
   keeps its host's slot while it waits, so a run that is talked with
   answers at once. Idle
@@ -1142,7 +1153,8 @@ call writes over a change its run was not shown.
   kind does (tasks.md, 8.2 and 8.6).
 - **An entry left undecided** when a run ends, a proposal or an
   escalation still waiting for the task's decision, wakes the task again,
-  its reasons that entry's kind (tasks.md, 8.6).
+  its reasons that entry's kind, unless the run was offered its kind: then
+  it waits for a change, and is offered at the next wake (tasks.md, 8.6).
 - **The first activation ends** when a run parks idle or finishes: the
   task's next runs hold no `first` among their reasons and take its
   `later` (tasks.md, 8.6). A run parked kept, and a failed attempt, leave it
@@ -1345,7 +1357,8 @@ The fleet child domain knows the hosts and the runs they host:
   attempt as it hears it, and never acknowledges it: one refused as busy
   is placed again, as no failure; one refused as invalid ends its start,
   refused. The task's class comes from the answer's payload: a refused
-  transcript is transient (hosts.md, 6.3). One lost with its channel leaves its attempt unlisted at the
+  transcript is transient, and any other invalid start permanent, an
+  assignment its host found invalid (tasks.md, 5.5; hosts.md, 6.3). One lost with its channel leaves its attempt unlisted at the
   next hello, and the start ends lost; the next attempt is refused again,
   or placed.
 - **Restarting** (section 6): the fleet adopts the claims the store
