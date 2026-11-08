@@ -2,9 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 13.4: charter 12, the drafter's, and template 6, a design
-  session: the stock holds neither, and the rules' and policy 1's
-  delegation don't name charter 12 (`temper-service/src/stock.rs`).
 
 
 Sections 13.2 to 13.4 have the branch-relative project patterns and the
