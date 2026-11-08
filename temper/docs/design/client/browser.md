@@ -463,7 +463,10 @@ replay says the same clocks (`README.md`, 5.12).
   `loading.css`, given to skein's bundler (skein's `ui-web.md`, 4.3), so
   that a person on a slow connection has something to read in a few
   kilobytes. The mark as inline paths, so that no font is fetched and
-  nothing swaps, centred at about 38% of the height; under it a 240 px
+  nothing swaps: the welcome's, the four-point star in the signal,
+  `#c2410c`, with no dot, then the wordmark in the ink (the look request
+  `outside-pages`), and no night,
+  centred at about 38% of the height; under it a 240 px
   `progress`, as `temper-flow-meter` draws one, 4 px, ink over the
   hairline, and one muted line; a phone keeps the 16 px gutter. The lines,
   each in `loading.html`'s data attributes:
@@ -921,21 +924,36 @@ replay says the same clocks (`README.md`, 5.12).
   restores the words' position when lines are read above, including in
   a browser without `overflow-anchor`; Latest or sending on a chat
   returns to its end, reading it again where the window let it go.
-- **The approval page's card** (`README.md`, 3.5, *The approval
-  page*) is the sign-in page's (`../protocol/sign-in.md`, section 7):
-  the main a centred column, `temper-sign-in`, its card, temper's mark
-  and its level-1 heading under the sign-in's rules, and
-  `temper-approve` beside it for its own. The code, `temper-approve-code`,
-  is the card's largest words: the mono face, 28 px, letter-spaced, in
-  the ink, so that a person compares it at a glance with the terminal's;
-  its asked time and the warning below it, the warning in the muted
-  ink. Approve is the card's primary button, in the accent, and Refuse
-  a plain one beside it; the field and Check share a line, the field the
-  mono face at the code's letter-spacing. An alert is the red of the
-  forms' failures. At 600 px and under, the card's padding is the
-  sign-in card's narrow one, and the buttons share the line still. The
-  rules sit in `temper.css` beside the sign-in's, under their own
-  marker.
+- **Outside a project** (`README.md`, 5.1; the look request
+  `outside-pages`, its pages `journeys/outside-pages/01.html` to
+  `08.html`): the welcome's look, on the `--gf-*` tokens, under
+  `temper.css`'s marker `/* ==== ui: outside ==== */`, wherever the
+  rail isn't.
+  - *The top bar,* `temper-top`, the frame's banner: temper's mark at
+    the left, `temper-brand`, "✦" in the signal before "temper", 15 px
+    semibold; at the right, `temper-top-end`, the muted 14 px statuses
+    and the person's name, and "Sign out" an outlined 32 px button.
+    22 px by 32 px padding, 14 px by 16 px at 760 px and under, no rule
+    under it. While it shows, the page's body takes the paper, the ink
+    and IBM Plex Sans at 15 px.
+  - *The column,* `temper-outside`, the main: 400 px wide at most,
+    centred, from `max(40px, 12vh)` down (32 px at 760 px and under); its
+    level-1 heading 28 px semibold; its words muted. The first act,
+    `temper-outside-primary`, is filled, 44 px high, in `--gf-primary`
+    (ink by day, orange by night); the others, `temper-outside-secondary`,
+    outlined on the surface; acts side by side share a row,
+    `temper-outside-acts`, equally; a quiet link, `temper-outside-quiet`,
+    follows them, centred, 14 px, muted and underlined. A form puts its
+    field's name above, and the field and its act on one line; its
+    alert is the forms' red.
+  - *The approval's code,* `temper-approve-code`: 30 px in the mono
+    face, letter-spaced .14em, centred on the surface in a hairline box,
+    so that a person compares it at a glance with the terminal's; the
+    asked time and the warning, `temper-approve-asked`, 14 px; the
+    code's field, `temper-approve-field`, 18 px mono at the code's
+    spacing, in capitals.
+  - *Night* follows the client's look, as on the rail's pages, through
+    `--gf-*`; the server's pages and the boot have none.
 
 ### 2.6 The bundle in the binary
 

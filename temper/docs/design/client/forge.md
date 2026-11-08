@@ -1258,6 +1258,15 @@ manifest from it (`../protocol/forge.md`, the setup's host).
   page rather than posting again; `Cache-Control: no-store` and
   `Referrer-Policy: no-referrer`. It loads nothing, runs nothing but
   that script, and may post only to the forge's `web`.
+- **The pages' look** is the one of a Google sign-in's endings
+  (`../protocol/sign-in.md`, 4.3; the look request `outside-pages`):
+  temper's mark in a `header`, a link to `/`, then the column, its
+  heading level 1, its first act filled (`primary`) and a following
+  link quiet (`quiet`). Their one inline style takes the rules of the
+  bundle's `files/pages.css`, but the `@font-face` rules, since
+  `default-src 'none'` fetches nothing: the system's sans stands in.
+  The manifest's page's "Continue to GitHub" is filled and its "Back to
+  temper" quiet. Each hash, S and H, follows its inline text.
 - **The state is the only authenticator.** A route takes no cookie and
   no credential of jig's: the state, 128 bits or more drawn by the
   setup's host for one connect or one install, is good once, for its
@@ -1265,8 +1274,10 @@ manifest from it (`../protocol/forge.md`, the setup's host).
   most `setup.states` of them, in memory, so a restart forgets them
   (`../protocol/forge.md`, the setup's host).
 - **Where GitHub's way can't go on,** the route answers a short page
-  of its own, temper's name above one card: its heading, why, and
-  "Back to temper", a link, in place of sending the tab back; each with
+  of its own, temper's mark above one column, as a Google sign-in's
+  endings are drawn (`../protocol/sign-in.md`, 4.3): its level-1
+  heading, why, and "Back to temper", a filled link, in place of
+  sending the tab back; each with
   `Content-Security-Policy: default-src 'none'; style-src 'sha256-S'`,
   S the hash of its one inline style, `Cache-Control: no-store` and
   `Referrer-Policy: no-referrer`, and nothing is kept. The pages:

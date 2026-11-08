@@ -1,0 +1,30 @@
+draft = "look-outside-pages"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-outside-pages/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "server-pages"
+title = "A Google sign-in's endings link the bundle's pages.css and the GitHub App's setup pages carry its rules inline, both in the welcome's column"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/sign-in.md, 4.3"
+
+[[part]]
+id = "boot"
+title = "The boot's placeholder draws the welcome's mark: the star in the signal, no dot"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 1
+story = "A Google sign-in's expired ending shows temper's mark, its heading, Continue with Google filled and Back to sign in quiet, on the bundle's pages.css; the boot shows the orange star"
+parts = ["server-pages", "boot"]
+walk = false
