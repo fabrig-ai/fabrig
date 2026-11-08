@@ -2293,7 +2293,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Term, name: "Asked to" },
             Part::Named {
                 role: Role::Description,
-                name: "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against wh”",
+                name: "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.”",
             },
         ],
     },
