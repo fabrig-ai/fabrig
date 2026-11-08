@@ -972,9 +972,6 @@ losslessly by count.
 
 ## 13. Open questions
 
-- **A program-backed burst's panic** (6): diagnosis and the choice of a
-  fix are domain/run.md, section 15's question. Default: keep the declared
-  room and the per-call refusal rules; no speculative increase of a bound.
 - **A cut sub-agent answer's rest** (3.10, 6): retaining it for a
   continuation is domain/run.md, section 15's question. Default: keep
   only the capped answer and tell its asker to ask a new child, narrower;
