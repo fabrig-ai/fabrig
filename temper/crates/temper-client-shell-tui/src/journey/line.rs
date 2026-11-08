@@ -3,7 +3,7 @@
 use skein_lib::{Time, Wall};
 use skein_ui_screen::Size;
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::Scheme;
+use temper_client_tui::{Note, Scheme};
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum Line {
@@ -12,8 +12,10 @@ pub enum Line {
     Clocks { now: Time, wall: Wall },
     Screen { size: Size, scheme: Scheme },
     Address(Box<[u8]>),
+    Local,
     Stored { key: Box<[u8]>, bytes: Box<[u8]> },
     Credential(Box<[u8]>),
+    Noted(Note),
     Turn { now: Time, wall: Wall },
     Start,
     Due,
@@ -27,13 +29,16 @@ pub enum Line {
     Unsaved,
     Kept { written: bool },
     Opened { opened: bool },
+    Found(Option<Box<[u8]>>),
     Send { exchange: u64, message: Sent, credential: Option<Box<[u8]>> },
     Stream(Option<Box<[u8]>>),
     Unstream,
     Save { key: Box<[u8]>, bytes: Box<[u8]> },
     Erase(Box<[u8]>),
     Keep(Option<Box<[u8]>>),
+    Note(Note),
     Signed(Box<[u8]>),
+    Read,
     Browse(Box<[u8]>),
     Quit,
     Deadline(Option<Time>),
@@ -141,7 +146,15 @@ impl Line {
                 w.bytes(key);
                 w.bytes(bytes);
             }
-            Self::Start | Self::Due | Self::Gone | Self::Saved | Self::Unsaved | Self::Unstream | Self::Quit => {}
+            Self::Local
+            | Self::Read
+            | Self::Start
+            | Self::Due
+            | Self::Gone
+            | Self::Saved
+            | Self::Unsaved
+            | Self::Unstream
+            | Self::Quit => {}
             Self::Key { key, event } => {
                 w.key(key);
                 w.optional(event.as_deref());
@@ -174,7 +187,8 @@ impl Line {
                 w.bytes(bytes);
                 w.optional(credential.as_deref());
             }
-            Self::Stream(bytes) | Self::Keep(bytes) => w.optional(bytes.as_deref()),
+            Self::Noted(note) | Self::Note(note) => w.note(*note),
+            Self::Found(bytes) | Self::Stream(bytes) | Self::Keep(bytes) => w.optional(bytes.as_deref()),
             Self::Deadline(deadline) => {
                 if let Some(time) = deadline {
                     w.number(time.as_nanos());
@@ -199,6 +213,11 @@ impl Line {
             Self::Clocks { .. } => "clocks",
             Self::Screen { .. } => "screen",
             Self::Address(_) => "address",
+            Self::Local => "local",
+            Self::Noted(_) => "noted",
+            Self::Found(_) => "found",
+            Self::Note(_) => "note",
+            Self::Read => "read",
             Self::Stored { .. } => "stored",
             Self::Credential(_) => "credential",
             Self::Turn { .. } => "turn",
@@ -280,6 +299,15 @@ impl Text<'_> {
             self.bytes(bytes);
         } else {
             self.word(b"none");
+        }
+    }
+    fn note(&mut self, note: Note) {
+        match note {
+            Note::Until(until) => {
+                self.word(b"until");
+                self.number(until.as_nanos());
+            }
+            Note::SignedOut => self.word(b"signed-out"),
         }
     }
     fn size(&mut self, size: Size) {
@@ -395,6 +423,13 @@ impl Read<'_> {
             Ok(None)
         } else {
             Err("expected bytes or none")
+        }
+    }
+    fn note(&mut self) -> Result<Note, &'static str> {
+        match self.word()? {
+            b"until" => Ok(Note::Until(Wall::from_nanos(self.number()?))),
+            b"signed-out" => Ok(Note::SignedOut),
+            _ => Err("unknown note"),
         }
     }
     fn done(&mut self) -> Result<bool, &'static str> {
@@ -520,6 +555,11 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
                 _ => return Err("unknown scheme"),
             },
         },
+        b"local" => Line::Local,
+        b"noted" => Line::Noted(r.note()?),
+        b"found" => Line::Found(r.optional()?),
+        b"note" => Line::Note(r.note()?),
+        b"read" => Line::Read,
         b"address" => Line::Address(r.bytes()?),
         b"stored" => Line::Stored { key: r.bytes()?, bytes: r.bytes()? },
         b"credential" => Line::Credential(r.bytes()?),

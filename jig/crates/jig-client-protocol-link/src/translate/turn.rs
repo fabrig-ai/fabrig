@@ -77,7 +77,7 @@ pub(crate) fn inspect(
 
 pub(crate) fn archive(record: w::ArchivedTurn, limits: &Limits) -> Result<c::ArchivedTurn, Undecodable> {
     let w::TurnBytes::Carried(carried) = record.turn() else { return Err(Undecodable::TooLarge) };
-    let c::TurnRead::Decoded(turn) = decode(carried.bytes(), limits.turn_read()) else {
+    let c::TurnRead::Decoded(turn) = decode(carried.bytes(), limits.turn_read(), true) else {
         return Err(Undecodable::Malformed);
     };
     Ok(c::ArchivedTurn {
@@ -90,9 +90,14 @@ pub(crate) fn archive(record: w::ArchivedTurn, limits: &Limits) -> Result<c::Arc
     })
 }
 
-pub(crate) fn decode(value: &[u8], limits: &jig_protocol_transcript::Limits) -> c::TurnRead {
+pub(crate) fn decode(value: &[u8], limits: &jig_protocol_transcript::Limits, inspect: bool) -> c::TurnRead {
     let source_bytes = len_u64(value.len());
-    let why = match jig_protocol_transcript::decode(limits, value) {
+    let decoded = if inspect {
+        jig_protocol_transcript::decode(limits, value)
+    } else {
+        jig_protocol_transcript::conversation(limits, value)
+    };
+    let why = match decoded {
         Ok(turn) => return c::TurnRead::Decoded(turn),
         Err(jig_protocol_transcript::Undecodable::Version { found }) => c::TurnProblem::Version { found },
         Err(jig_protocol_transcript::Undecodable::Malformed | jig_protocol_transcript::Undecodable::Unknown) => {

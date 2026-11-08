@@ -850,6 +850,15 @@ temper/ui compares the three requests with main after landing
 
 ## 10. Open questions
 
+- **Ask temper's first-run prints** (9): temper/ui compares
+  `project-landing`, `chat-draft` and `welcome-playground` with the
+  `ask-temper-place` request after landing, at 1440, 1000 and 420 px
+  (`../draft/look-requests.md`, section 4). Include the rail's "Ask
+  temper" row and the phone's "Ask" tab where the page shows navigation;
+  a phone chat hides that navigation (`browser.md`, 2.5). Default:
+  fake-box recordings and their replayed prints; print equality
+  establishes no rendered equality.
+
 - **The chat terminal's comparison** (9): temper/ui compares all four
   `chat-terminal` requests' hand-made pages and named states against
   the shipped view after landing, at 1440, 1000 and 420 px, with menus

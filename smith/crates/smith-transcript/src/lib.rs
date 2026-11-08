@@ -11,12 +11,20 @@ extern crate alloc;
 #[cfg(any(test, feature = "fixture"))]
 pub mod fixture;
 
+/// Archived version-6 codec, without supplied system context.
 #[rustfmt::skip]
-// The schema compiler writes this module to generated/v6.rs.
 #[path = "generated/v6.rs"]
 pub mod v6;
 
-pub use v6::{
+#[rustfmt::skip]
+mod generated {
+    /// Current bounded transcript codec, written from transcript-v7.schema.
+    pub mod v7;
+}
+
+pub use generated::v7;
+
+pub use v7::{
     Affinity, AffinityParts, AfterFailedWrite, AfterFailedWriteParts, AllowedCalls, AllowedCallsParts, Ambiguous,
     AmbiguousParts, Backend, Block, ByteClamp, ByteClampParts, BytesClamp, CEILINGS, Call, CallName, CallNameParts,
     CallParts, CallProblem, CommandEnd, CommandEndParts, CommandRunning, CommandRunningParts, CutProblem,
@@ -33,9 +41,14 @@ pub use v6::{
     WrittenParts,
 };
 
+impl v6::Turn {
+    /// The wire format version this archived codec writes and reads.
+    pub const FORMAT_VERSION: u64 = 6;
+}
+
 impl Turn {
     /// The wire format version this codec writes and reads.
-    pub const FORMAT_VERSION: u64 = 6;
+    pub const FORMAT_VERSION: u64 = 7;
 }
 
 /// The owner of smith's patches, as their headers spell it (smith/docs/design/protocol/transcript.md, 12).
@@ -52,3 +65,17 @@ pub const ROOT: &str = "Turn";
 pub const FRESH_WINDOWS: &str = "fresh-windows";
 
 pub mod patches;
+
+/// Decode an archived version-6 or current turn; version 6 has no supplied system context.
+/// Resuming readers use the current codec directly.
+pub fn decode_archived(limits: &v7::Limits, bytes: &[u8]) -> Result<Turn, v7::Problem> {
+    if bytes.get(..2) != Some(&[0, 6][..]) {
+        return Turn::decode(limits, &mut skein_lib::Reader::new(bytes));
+    }
+    let length = bytes.len().checked_add(1).expect("a slice and one byte fit usize");
+    let mut writer = skein_lib::Writer::new(length);
+    writer.put(&7_u16.to_be_bytes()).expect("version within measured record");
+    writer.put(bytes.get(2..).expect("version present")).expect("body within measured record");
+    writer.put(&[0]).expect("unavailable system context suffix");
+    Turn::decode(limits, &mut skein_lib::Reader::new(&writer.finish()))
+}

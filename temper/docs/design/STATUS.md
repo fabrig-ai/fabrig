@@ -16,6 +16,9 @@ with joint-world approval and refusal stories (`client/README.md`, 7.1).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
+The recorder takes Alt+m and Alt+s beside the Shift forms; without a
+recording, both forms reach the host. The user's manual terminal check
+remains later work (`client/tui/journeys.md`, 3.1 and 11).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 11; `client/browser.md`, section 5).
 Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
@@ -49,6 +52,10 @@ stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1); charter 3 and template 3 remain in
 the stock. Its walk follows landing. The remaining reads, views and
 preferences belong to M2 to M4 (`draft/ask-temper.status.md`).
+Ask temper's bar tag and the first-run gallery's offered templates are
+present, and the three first-run journeys draw its navigation; temper/ui's
+rendered comparison follows landing (`client/browser.md`, section 5;
+`client/journeys.md`, section 10).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -548,10 +555,8 @@ answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
 and scans before it writes, but no real box's recording has been through it,
 `welcome-set-up` keeps its fake box's link secret until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
-directories, not every path; no run on record has `again` walk `project-landing`'s
-setup through a sign-in's new tab, and its words still say the page returns
-(`client/journeys.md`). Conversations are read by their log's edges
-(`client/README.md`, 5.15). A browser's agent page, including a goal's
+directories, not every path (`client/journeys.md`). Conversations are read
+by their log's edges (`client/README.md`, 5.15). A browser's agent page, including a goal's
 untracked page, scrolls its log with the brief through plan inside it;
 focused stylesheet and view tables hold that shape. The keys and layout
 rewalk follows landing, including opening at the end; a PgUp at the head
@@ -642,6 +647,17 @@ form; the others
 record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
+
+Project-making's reproduced client stall is repaired: ctl, native and
+web presets take nine memberships in the mandatory `me`; reduced,
+whole-incident and stored-state stories check answers across a restart.
+The core stayed ready in that reproduction, leaving the reported public
+read's 503 unexplained (`domain/root.md`, section 13). Serve's gate-wait
+and recovery notes and journal-stop exits are built, as is ctl's sign-in
+not-ready line. The accepted distinct watch not-ready refusal and its
+ctl deadline line are absent; wire reasons and the browser membership
+check remain later work (`protocol/README.status.md`, 8.2;
+`client/tools.status.md`, 6.3; `client/tools.md`, section 14).
 
 ## Gaps and departures
 

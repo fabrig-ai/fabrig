@@ -24,43 +24,11 @@ fn the_agent_demands_the_open_before_the_domain_hears_anything() {
 fn saved_turn(place: u32, dialect: u32) -> Box<[u8]> {
     use smith_transcript as wire;
     let limits = wire::CEILINGS;
-    let result = wire::ToolResult::new(
-        &limits,
-        wire::ToolResultParts {
-            id: Box::from(*b"call-1"),
-            returned: wire::Returned::Invalid(
-                wire::Invalid::new(&limits, wire::InvalidParts { problem: wire::CallProblem::UnknownTool })
-                    .expect("bounded invalid result"),
-            ),
-        },
-    )
-    .expect("bounded result");
-    let mut blocks = skein_lib::List::with_capacity(2);
-    blocks
-        .push(wire::Block::Call(
-            wire::Call::new(
-                &limits,
-                wire::CallParts {
-                    id: Box::from(*b"call-1"),
-                    name: Box::from(*b"missing"),
-                    input: Box::from(*b"{}"),
-                    replay: None,
-                },
-            )
-            .expect("bounded call"),
-        ))
-        .expect("first block");
-    blocks.push(wire::Block::Result(result)).expect("second block");
-    let mut messages = skein_lib::List::with_capacity(1);
-    messages
-        .push(
-            wire::Message::new(&limits, wire::MessageParts { role: wire::Role::Assistant, blocks })
-                .expect("bounded message"),
-        )
-        .expect("first message");
+    let messages = saved_messages();
     let turn = wire::Turn::new(
         &limits,
         wire::TurnParts {
+            system: None,
             model: b"model".as_slice().into(),
             effort: None,
             kind: wire::TurnKind::Ordinary,
@@ -249,7 +217,7 @@ fn resolved_failures_round_trip_in_current_version_and_refuse_unnormalized_paths
             }]),
         }]);
         let bytes = crate::encode_turn(&turn, &smith_transcript::CEILINGS, &endpoints).expect("bounded turn");
-        assert_eq!(&bytes[..2], &[0, 6]);
+        assert_eq!(&bytes[..2], &[0, 7]);
         let decoded = crate::decode_turn(&bytes, 1, &smith_transcript::CEILINGS, &endpoints).expect("saved failure");
         assert_eq!(decoded.messages, turn.messages, "typed descriptors survive durable translation");
     }
@@ -329,6 +297,7 @@ fn a_transcript_records_affinity_only_in_its_opening_turn() {
     assert_eq!(
         decoded.turns[0].kind,
         record::Kind::First(Box::new(record::Opener {
+            system: None,
             affinity: smith_domain_session::llm::Affinity { key: [0x42; 16], thread: 7 },
             account: None,
             backend: record::Backend::Direct
@@ -370,6 +339,7 @@ fn a_window_suffix_round_trips_its_noninitial_place_and_rejects_a_second_window(
         ..smith_domain::session::fixture::turn(
             b"model".as_slice().into(),
             record::Kind::Window(Box::new(record::Opener {
+                system: None,
                 affinity: llm::Affinity { key: [0x25; 16], thread: 0 },
                 account: None,
                 backend: record::Backend::Direct,
@@ -506,7 +476,7 @@ fn an_endpoint_number_resolves_its_name_or_is_absent() {
 
 fn decode_saved_transcript(
     bodies: &[Box<[u8]>],
-    limits: &smith_transcript::v6::Limits,
+    limits: &smith_transcript::v7::Limits,
     endpoints: &crate::Endpoints,
 ) -> Result<Option<smith_domain_session::record::Transcript>, smith_domain_session::record::Refusal> {
     crate::decode_transcript(
@@ -833,4 +803,44 @@ fn invalid_limits_are_refused() {
     for (index, limits) in cases.into_iter().enumerate() {
         assert!(!crate::valid(&limits), "invalid channel case {index}");
     }
+}
+
+fn saved_messages() -> skein_lib::List<smith_transcript::Message> {
+    use smith_transcript as wire;
+    let limits = wire::CEILINGS;
+    let result = wire::ToolResult::new(
+        &limits,
+        wire::ToolResultParts {
+            id: Box::from(*b"call-1"),
+            returned: wire::Returned::Invalid(
+                wire::Invalid::new(&limits, wire::InvalidParts { problem: wire::CallProblem::UnknownTool })
+                    .expect("bounded invalid result"),
+            ),
+        },
+    )
+    .expect("bounded result");
+    let mut blocks = skein_lib::List::with_capacity(2);
+    blocks
+        .push(wire::Block::Call(
+            wire::Call::new(
+                &limits,
+                wire::CallParts {
+                    id: Box::from(*b"call-1"),
+                    name: Box::from(*b"missing"),
+                    input: Box::from(*b"{}"),
+                    replay: None,
+                },
+            )
+            .expect("bounded call"),
+        ))
+        .expect("first block");
+    blocks.push(wire::Block::Result(result)).expect("second block");
+    let mut messages = skein_lib::List::with_capacity(1);
+    messages
+        .push(
+            wire::Message::new(&limits, wire::MessageParts { role: wire::Role::Assistant, blocks })
+                .expect("bounded message"),
+        )
+        .expect("first message");
+    messages
 }

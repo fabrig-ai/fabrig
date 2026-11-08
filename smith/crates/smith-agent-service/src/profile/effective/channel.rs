@@ -4,79 +4,10 @@
 use super::list::Inventory;
 use super::{Layer, Value};
 
-pub(super) fn transcript(inventory: &mut Inventory, limits: &smith_transcript::v6::Limits) -> Option<()> {
-    let smith_transcript::v6::Limits {
-        program_name,
-        replay_bytes,
-        text_text,
-        opaque_bytes,
-        call_id,
-        call_name,
-        call_name_name,
-        allowed_calls_names,
-        call_input,
-        entry_name,
-        hit_path,
-        hit_text,
-        read_content,
-        listed_entries,
-        found_hits,
-        command_end_head,
-        command_end_last,
-        command_running_head,
-        command_running_last,
-        job_read_head,
-        job_read_last,
-        ambiguous_lines,
-        working_path_path,
-        other_path_directory,
-        other_path_path,
-        outside_path_path,
-        field_problem_field,
-        said_text,
-        tool_result_id,
-        message_blocks,
-        turn_endpoint,
-        turn_model,
-        turn_effort_some,
-        turn_messages,
-    } = *limits;
+pub(super) fn transcript(inventory: &mut Inventory, limits: &smith_transcript::v7::Limits) -> Option<()> {
     inventory.layer = Layer::Transcript;
-    inventory.value("program_name", Value::Bytes(u64::from(program_name)))?;
-    inventory.value("replay_bytes", Value::Bytes(u64::from(replay_bytes)))?;
-    inventory.value("text_text", Value::Bytes(u64::from(text_text)))?;
-    inventory.value("opaque_bytes", Value::Bytes(u64::from(opaque_bytes)))?;
-    inventory.value("call_id", Value::Bytes(u64::from(call_id)))?;
-    inventory.value("call_name", Value::Bytes(u64::from(call_name)))?;
-    inventory.value("call_name_name", Value::Bytes(u64::from(call_name_name)))?;
-    inventory.value("allowed_calls_names", Value::Count(u64::from(allowed_calls_names)))?;
-    inventory.value("call_input", Value::Bytes(u64::from(call_input)))?;
-    inventory.value("entry_name", Value::Bytes(u64::from(entry_name)))?;
-    inventory.value("hit_path", Value::Bytes(u64::from(hit_path)))?;
-    inventory.value("hit_text", Value::Bytes(u64::from(hit_text)))?;
-    inventory.value("read_content", Value::Bytes(u64::from(read_content)))?;
-    inventory.value("listed_entries", Value::Count(u64::from(listed_entries)))?;
-    inventory.value("found_hits", Value::Bytes(u64::from(found_hits)))?;
-    inventory.value("command_end_head", Value::Bytes(u64::from(command_end_head)))?;
-    inventory.value("command_end_last", Value::Bytes(u64::from(command_end_last)))?;
-    inventory.value("command_running_head", Value::Bytes(u64::from(command_running_head)))?;
-    inventory.value("command_running_last", Value::Bytes(u64::from(command_running_last)))?;
-    inventory.value("job_read_head", Value::Bytes(u64::from(job_read_head)))?;
-    inventory.value("job_read_last", Value::Bytes(u64::from(job_read_last)))?;
-    inventory.value("ambiguous_lines", Value::Count(u64::from(ambiguous_lines)))?;
-    inventory.value("working_path_path", Value::Bytes(u64::from(working_path_path)))?;
-    inventory.value("other_path_directory", Value::Bytes(u64::from(other_path_directory)))?;
-    inventory.value("other_path_path", Value::Bytes(u64::from(other_path_path)))?;
-    inventory.value("outside_path_path", Value::Bytes(u64::from(outside_path_path)))?;
-    inventory.value("field_problem_field", Value::Bytes(u64::from(field_problem_field)))?;
-    inventory.value("said_text", Value::Bytes(u64::from(said_text)))?;
-    inventory.value("tool_result_id", Value::Bytes(u64::from(tool_result_id)))?;
-    inventory.value("message_blocks", Value::Count(u64::from(message_blocks)))?;
-    inventory.value("turn_endpoint", Value::Bytes(u64::from(turn_endpoint)))?;
-    inventory.value("turn_model", Value::Bytes(u64::from(turn_model)))?;
-    inventory.value("turn_effort_some", Value::Bytes(u64::from(turn_effort_some)))?;
-    inventory.value("turn_messages", Value::Count(u64::from(turn_messages)))?;
-    Some(())
+    transcript_bytes(inventory, limits)?;
+    transcript_counts(inventory, limits)
 }
 
 pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) -> Option<()> {
@@ -207,5 +138,48 @@ pub(super) fn framing(inventory: &mut Inventory, limits: &skein_channel::Limits)
     inventory.value("framing.output_bytes", Value::Bytes(u64::from(output_bytes)))?;
     inventory.value("framing.output_frames", Value::Count(u64::from(output_frames)))?;
     inventory.value("framing.kinds", Value::Count(u64::from(kinds)))?;
+    Some(())
+}
+
+fn transcript_bytes(inventory: &mut Inventory, limits: &smith_transcript::v7::Limits) -> Option<()> {
+    inventory.value("program_name", Value::Bytes(u64::from(limits.program_name)))?;
+    inventory.value("replay_bytes", Value::Bytes(u64::from(limits.replay_bytes)))?;
+    inventory.value("text_text", Value::Bytes(u64::from(limits.text_text)))?;
+    inventory.value("opaque_bytes", Value::Bytes(u64::from(limits.opaque_bytes)))?;
+    inventory.value("call_id", Value::Bytes(u64::from(limits.call_id)))?;
+    inventory.value("call_name", Value::Bytes(u64::from(limits.call_name)))?;
+    inventory.value("call_name_name", Value::Bytes(u64::from(limits.call_name_name)))?;
+    inventory.value("call_input", Value::Bytes(u64::from(limits.call_input)))?;
+    inventory.value("entry_name", Value::Bytes(u64::from(limits.entry_name)))?;
+    inventory.value("hit_path", Value::Bytes(u64::from(limits.hit_path)))?;
+    inventory.value("hit_text", Value::Bytes(u64::from(limits.hit_text)))?;
+    inventory.value("read_content", Value::Bytes(u64::from(limits.read_content)))?;
+    inventory.value("found_hits", Value::Bytes(u64::from(limits.found_hits)))?;
+    inventory.value("command_end_head", Value::Bytes(u64::from(limits.command_end_head)))?;
+    inventory.value("command_end_last", Value::Bytes(u64::from(limits.command_end_last)))?;
+    inventory.value("command_running_head", Value::Bytes(u64::from(limits.command_running_head)))?;
+    inventory.value("command_running_last", Value::Bytes(u64::from(limits.command_running_last)))?;
+    inventory.value("job_read_head", Value::Bytes(u64::from(limits.job_read_head)))?;
+    inventory.value("job_read_last", Value::Bytes(u64::from(limits.job_read_last)))?;
+    inventory.value("working_path_path", Value::Bytes(u64::from(limits.working_path_path)))?;
+    inventory.value("other_path_directory", Value::Bytes(u64::from(limits.other_path_directory)))?;
+    inventory.value("other_path_path", Value::Bytes(u64::from(limits.other_path_path)))?;
+    inventory.value("outside_path_path", Value::Bytes(u64::from(limits.outside_path_path)))?;
+    inventory.value("field_problem_field", Value::Bytes(u64::from(limits.field_problem_field)))?;
+    inventory.value("said_text", Value::Bytes(u64::from(limits.said_text)))?;
+    inventory.value("tool_result_id", Value::Bytes(u64::from(limits.tool_result_id)))?;
+    inventory.value("turn_endpoint", Value::Bytes(u64::from(limits.turn_endpoint)))?;
+    inventory.value("turn_model", Value::Bytes(u64::from(limits.turn_model)))?;
+    inventory.value("turn_effort_some", Value::Bytes(u64::from(limits.turn_effort_some)))?;
+    inventory.value("turn_system_some", Value::Bytes(u64::from(limits.turn_system_some)))?;
+    Some(())
+}
+
+fn transcript_counts(inventory: &mut Inventory, limits: &smith_transcript::v7::Limits) -> Option<()> {
+    inventory.value("allowed_calls_names", Value::Count(u64::from(limits.allowed_calls_names)))?;
+    inventory.value("listed_entries", Value::Count(u64::from(limits.listed_entries)))?;
+    inventory.value("ambiguous_lines", Value::Count(u64::from(limits.ambiguous_lines)))?;
+    inventory.value("message_blocks", Value::Count(u64::from(limits.message_blocks)))?;
+    inventory.value("turn_messages", Value::Count(u64::from(limits.turn_messages)))?;
     Some(())
 }

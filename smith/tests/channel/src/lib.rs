@@ -1269,7 +1269,12 @@ pub fn window_turn_fixture() -> smith_domain_session::record::Turn {
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
     smith_domain::session::fixture::turn(
         b"model".as_slice().into(),
-        record::Kind::First(Box::new(record::Opener { affinity, account: None, backend: record::Backend::Direct })),
+        record::Kind::First(Box::new(record::Opener {
+            system: None,
+            affinity,
+            account: None,
+            backend: record::Backend::Direct,
+        })),
         Box::new([llm::Message {
             role: llm::Role::User,
             content: Box::new([llm::Block::Text { text: b"the task and summary".as_slice().into(), replay: None }]),

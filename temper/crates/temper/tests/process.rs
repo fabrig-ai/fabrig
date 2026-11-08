@@ -471,6 +471,7 @@ fn box_terminal_line(line: &str) -> bool {
             "Opened after that, it prints a fresh one here.",
         ]
         .contains(&line)
+        || line.starts_with("In a terminal: ")
         || words.starts_with("box: ")
 }
 
@@ -2485,7 +2486,7 @@ fn a_killed_serve_keeps_its_port_and_prints_a_fresh_link() {
     assert_eq!(box_link::address(&fresh), address, "the restart keeps the clients port");
     assert!(fresh != first, "the restart never replays the block's first link");
     let stderr = boxed.stderr();
-    let block = [box_link::PRELUDE, box_link::FOOTER].concat();
+    let block = [box_link::PRELUDE, box_link::footer(&first).as_slice()].concat();
     let after_block =
         stderr.strip_prefix(block.as_slice()).expect("the first sign-in block precedes restart diagnostics");
     assert!(after_block.ends_with(b"\n\n"), "a fresh link has its own blank line on stderr");

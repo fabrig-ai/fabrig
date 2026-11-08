@@ -773,6 +773,7 @@ fn restored_tail_turn(messages: Box<[smith_domain_session::llm::Message]>) -> sm
         ..smith_domain::session::fixture::turn(
             b"model".as_slice().into(),
             smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
+                system: None,
                 affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
                 account: None,
                 backend: smith_domain_session::record::Backend::Direct,

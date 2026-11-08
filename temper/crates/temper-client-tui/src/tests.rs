@@ -3,6 +3,7 @@ mod event;
 mod fixtures;
 mod goldens;
 mod limits;
+mod note;
 mod screens;
 mod state;
 mod theme;

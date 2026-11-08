@@ -276,6 +276,7 @@ impl Harness {
             }
         }
         let settings = Settings {
+            word: b"temper".as_slice().into(),
             link_form: opening.link_form,
             log_lines: opening.log_lines,
             first_link: opening.first_link,
