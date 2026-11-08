@@ -78,6 +78,28 @@ pub struct Proof {
     pub run: u64,
 }
 
+fn moved_main<'a>(advanced: Option<&'a (String, String)>, previous: Option<&'a Proof>) -> Option<&'a str> {
+    advanced.map(|(_, base)| base.as_str()).or_else(|| previous.map(|proof| proof.moved.as_str()))
+}
+
+/// Witness selection is checked without starting the owned forge or runner.
+pub mod tests {
+    /// A cold retry retains the previous base; a new observation takes precedence.
+    pub fn keeps_the_moved_main_witness_on_retry() {
+        let previous = super::Proof {
+            reads: super::Reads { landing: serde_json::Value::Null, change: serde_json::Value::Null },
+            original: "original".into(),
+            moved: "previous main".into(),
+            run: 1,
+        };
+        let advanced = ("head".into(), "current main".into());
+        assert_eq!(super::moved_main(None, Some(&previous)), Some("previous main"), "retry keeps its base");
+        assert_eq!(super::moved_main(Some(&advanced), None), Some("current main"));
+        assert_eq!(super::moved_main(Some(&advanced), Some(&previous)), Some("current main"));
+        assert_eq!(super::moved_main(None, None), None);
+    }
+}
+
 struct Judge<'a> {
     chat: ChatJudge<'a>,
     root: &'a Path,
@@ -120,35 +142,8 @@ impl Judge<'_> {
             self.advanced = Some((original, main["commit"]["id"].as_str().expect("moved main").to_owned()));
             eprintln!("turn restart: main advanced after the pull opened");
         }
-        let Some(run) = self.barrier.waiting(self.previous.map(|proof| proof.run)) else { return false };
-        let actual = forge.repository_observation("acme", "widget", &format!("actions/runs/{run}"));
-        assert_eq!(actual["id"], run, "marker names the forge's actual run");
-        if actual["workflow_id"] == "check.yaml" && actual["status"] == "cancelled" {
-            self.barrier.release(run);
-            return false;
-        }
-        assert_eq!(actual["status"], "running");
-        if actual["workflow_id"] == "check.yaml" {
-            // The change cannot prepare until its CI passes. Release that job
-            // only after Forgejo has checked the pull against the moved main.
-            let pull = forge.repository_observation("acme", "widget", "pulls/1");
-            if pull["mergeable"] != true || pull["base"]["sha"] != self.advanced.as_ref().expect("main advanced").1 {
-                return false;
-            }
-            self.barrier.release(run);
-            return false;
-        }
-        assert_eq!(actual["workflow_id"], "gate.yaml");
-        let (landing, change) = if let Some(previous) = self.previous {
-            (
-                previous.reads.landing["task"].as_u64().expect("landing task"),
-                previous.reads.change["task"].as_u64().expect("change task"),
-            )
-        } else {
-            let list = read(self.root, &["landing", "list", "--project", "1"]);
-            let row = list["landings"].as_array().expect("landing rows").first().expect("live landing");
-            (row["task"].as_u64().expect("landing task"), row["changes"][0].as_u64().expect("member change"))
-        };
+        let Some(run) = self.waiting_gate(forge) else { return false };
+        let (landing, change) = self.members();
         let reads = reads(self.root, landing, change);
         let gate = &reads.landing["members"][0]["gates"][0];
         if self.retry && (gate["faults"] != 1 || gate["proof"]["dispatched"]["attempt"] != 2) {
@@ -164,18 +159,49 @@ impl Judge<'_> {
         {
             return false;
         }
-        if let Some(previous) = self.previous {
-            self.proof.set(Some(Proof {
-                reads,
-                original: previous.original.clone(),
-                moved: previous.moved.clone(),
-                run,
-            }));
-            return true;
-        }
-        let (original, moved) = self.advanced.clone().expect("main advanced");
+        let (original, moved) = self.previous.map_or_else(
+            || self.advanced.clone().expect("main advanced"),
+            |previous| (previous.original.clone(), previous.moved.clone()),
+        );
         self.proof.set(Some(Proof { reads, original, moved, run }));
         true
+    }
+
+    fn waiting_gate(&self, forge: &Throwaway) -> Option<u64> {
+        let run = self.barrier.waiting(self.previous.map(|proof| proof.run))?;
+        let actual = forge.repository_observation("acme", "widget", &format!("actions/runs/{run}"));
+        assert_eq!(actual["id"], run, "marker names the forge's actual run");
+        if actual["workflow_id"] == "check.yaml" && actual["status"] == "cancelled" {
+            self.barrier.release(run);
+            return None;
+        }
+        assert_eq!(actual["status"], "running");
+        if actual["workflow_id"] == "check.yaml" {
+            // The change cannot prepare until its CI passes. Release that job
+            // only after Forgejo has checked the pull against the moved main.
+            let pull = forge.repository_observation("acme", "widget", "pulls/1");
+            let base = moved_main(self.advanced.as_ref(), self.previous).expect("main advanced");
+            if pull["mergeable"] != true || pull["base"]["sha"] != base {
+                return None;
+            }
+            self.barrier.release(run);
+            return None;
+        }
+        assert_eq!(actual["workflow_id"], "gate.yaml");
+        Some(run)
+    }
+
+    fn members(&self) -> (u64, u64) {
+        if let Some(previous) = self.previous {
+            (
+                previous.reads.landing["task"].as_u64().expect("landing task"),
+                previous.reads.change["task"].as_u64().expect("change task"),
+            )
+        } else {
+            let list = read(self.root, &["landing", "list", "--project", "1"]);
+            let row = list["landings"].as_array().expect("landing rows").first().expect("live landing");
+            (row["task"].as_u64().expect("landing task"), row["changes"][0].as_u64().expect("member change"))
+        }
     }
 }
 impl Judge<'_> {
@@ -190,12 +216,7 @@ impl Judge<'_> {
             | Process::Issuer(_)
             | Process::Visitor(_) => None,
         });
-        self.chat.forge.expect("forge").pull_update_failure(
-            self.advanced
-                .as_ref()
-                .map(|(_, base)| base.as_str())
-                .or_else(|| self.previous.map(|proof| proof.moved.as_str())),
-        );
+        self.chat.forge.expect("forge").pull_update_failure(moved_main(self.advanced.as_ref(), self.previous));
         eprintln!("stalled change: {}", read(self.root, &["change", "show", "3"]));
         eprintln!("stalled landing task: {}", read(self.root, &["task", "show", "5"]));
         eprintln!("stalled landings: {}", read(self.root, &["landing", "list", "--project", "1", "--ended"]));

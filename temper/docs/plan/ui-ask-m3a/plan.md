@@ -75,7 +75,7 @@ For the TUI's owner, who draws views in the TUI (M3b):
   `WaysPanel`: each stock way's name, line, path over the project and
   items, the way the project runs or none, the project's own path, and
   whether the reader may change settings (`client/README.md`, 4.6).
-- **A path:** a list of at most 32 stops, each its actor (person, agent,
+- **A path:** a list of at most 24 stops, each its actor (person, agent,
   code or a branch's bar), its step, its words, what it opens and its
   card (`who`, `name`, at most four facts).
 - **The views' blocks:** a fenced block at a reply's top level, info

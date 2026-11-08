@@ -266,9 +266,9 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn home_limits() -> d::Limits {
     let mut limits = f::domain_limits();
-    // Home, goal presence, Goals, standing Needs, trials and a running trial task (README.md, 3.5).
-    limits.client.domain.handles = 17;
-    limits.client.domain.watches = 15;
+    // Home, stock ways, goal presence, Goals, standing Needs, trials and a running trial task (README.md, 3.5).
+    limits.client.domain.handles = 18;
+    limits.client.domain.watches = 16;
     limits.client.domain.reads = 16;
     limits
 }
@@ -1387,7 +1387,8 @@ fn everyday_headlines_count_known_needs_and_mark_cut_reads() {
 #[test]
 #[expect(
     clippy::disallowed_methods,
-    reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
+    clippy::too_many_lines,
+    reason = "one first-need table inspects semantic nodes, deliveries and both shells"
 )]
 fn first_need_keeps_card_order_navigation_and_terminal_words() {
     for beginning in [false, true] {
@@ -1396,16 +1397,21 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             let tree = view.tree();
             let top = section_styles(tree);
             let expected: &[skein_ui::Style] = if beginning {
-                &[crate::look::HOME_INTRO, crate::look::HOME_BEGIN, crate::look::HOME_NEEDS, crate::look::HOME_CHATS]
+                &[crate::look::HOME_INTRO, crate::look::HOME_BEGIN]
             } else {
                 &[crate::look::HOME_INTRO, crate::look::HOME_NEEDS, crate::look::HOME_CHATS]
             };
             assert_eq!(top.as_ref(), expected);
+            if beginning {
+                absent(&printed(&view), "Needs you · 1");
+                absent(&printed(&view), "Which license?");
+                continue;
+            }
             let region = styled(tree, crate::look::HOME_NEEDS);
             assert_eq!(region.role, Role::Region);
             assert_eq!(region.name.as_deref(), Some(b"Needs you".as_slice()));
             let parts = children(subtree(tree, region.id));
-            assert_eq!(parts.len(), if browser && !beginning { 3 } else { 2 });
+            assert_eq!(parts.len(), if browser { 3 } else { 2 });
             assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
             assert_eq!(parts[1].styles.as_slice(), &[crate::look::ASK]);
             let heading = children(subtree(tree, parts[0].id));
@@ -1422,7 +1428,7 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             let choices = children(subtree(tree, card[2].id));
             assert_eq!(choices.len(), 2);
             assert_eq!(choices[0].styles.as_slice(), &[crate::look::ASK_QUIET]);
-            if browser && !beginning {
+            if browser {
                 assert_eq!(parts[2].styles.as_slice(), &[crate::look::HOME_CTA]);
                 let spans = children(subtree(tree, parts[2].id));
                 assert_eq!(spans.len(), 2);
@@ -1452,7 +1458,11 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
         let print = printed(&f::page_view(&root));
         for words in ["Needs you · 1", "Add a README · a question · under 1 min", "Which license?", "Reply", "Chats"]
         {
-            contains(&print, words);
+            if beginning {
+                absent(&print, words);
+            } else {
+                contains(&print, words);
+            }
         }
         absent(&print, "Answer");
     }
@@ -1460,7 +1470,16 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
         let mut root = everyday(beginning, &[], false, true);
         let row = super::needs::approval_row();
         super::needs::approvals(&mut root, core::slice::from_ref(&row), 0);
+        let terminal = f::page_view(&root);
+        absent(&f::main_text(terminal.tree()), "an approval");
+        absent(&f::main_text(terminal.tree()), "Needs you · 1");
         let mut view = f::browser_page_view(&root);
+        if beginning {
+            assert!(!section_styles(view.tree()).contains(&crate::look::HOME_NEEDS));
+            assert!(!section_styles(view.tree()).contains(&crate::look::HOME_CHATS));
+            absent(&f::main_text(view.tree()), "an approval");
+            continue;
+        }
         let card = styled(view.tree(), crate::look::ASK);
         let parts = children(subtree(view.tree(), card.id));
         assert_eq!(
@@ -1483,9 +1502,6 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             b"Later",
             d::pages::Act::Needs(d::pages::needs::Act::Later { object: c::ObjectKey::Task(row.task) }),
         );
-        let terminal = f::page_view(&root);
-        absent(&f::main_text(terminal.tree()), "an approval");
-        absent(&f::main_text(terminal.tree()), "Needs you · 1");
     }
 }
 #[test]
@@ -1737,26 +1753,50 @@ fn chat_rows_stop_at_five_without_changing_the_total() {
     clippy::disallowed_methods,
     reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
 )]
-fn empty_sections_are_hidden_only_while_to_begin_shows() {
-    for shown in [false, true] {
-        let mut root = home_with_needs(
-            forge_rows(true),
-            false,
-            false,
-            Some(NeedsFixture { objects: &[], cut: false, read: true }),
-        )
-        .0;
-        if !shown {
-            drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
-        }
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            let styles = section_styles(view.tree());
-            assert_eq!(styles.contains(&crate::look::HOME_NEEDS), !shown);
-            assert_eq!(styles.contains(&crate::look::HOME_CHATS), !shown);
+fn sections_are_hidden_while_to_begin_shows() {
+    for (objects, chats_count, need_line, chat_line) in [
+        (&[][..], 0, "Work carries on, and this page tells you what changed when you come back.", "No chats yet."),
+        (&[PARSED][..], 1, "Which license?", "README"),
+        (&[PARSED, QUESTIONS[0], QUESTIONS[1]][..], 1, "Which license?", "README"),
+    ] {
+        for shown in [true, false] {
+            let mut root = home_documents(
+                forge_rows(true),
+                false,
+                false,
+                Some(NeedsFixture { objects, cut: false, read: true }),
+                Some(chat_fixture(chats_count, 0, false, false)),
+            )
+            .0;
             if !shown {
-                main_find(view.tree(), Role::Paragraph, b"No chats yet.");
-                assert!(!main_nodes(view.tree()).iter().any(|node| node.role == Role::Link
-                    && node.name.as_deref().is_some_and(|name| name.starts_with(b"All "))));
+                drive(&mut root, d::Event::Act { action: d::Action::Pages(d::pages::Act::SkipToBegin) });
+            }
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                let styles = section_styles(view.tree());
+                assert_eq!(styles.contains(&crate::look::HOME_NEEDS), !shown, "needs: {objects:?}, shown={shown}");
+                assert_eq!(styles.contains(&crate::look::HOME_CHATS), !shown, "chats: {objects:?}, shown={shown}");
+                let nodes = main_nodes(view.tree());
+                if shown {
+                    assert!(!nodes.iter().any(|node| node.role == Role::Heading { level: 2 }
+                        && node.name.as_deref() == Some("Needs you · 1".as_bytes())));
+                    assert!(
+                        !nodes
+                            .iter()
+                            .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"All 1 chats"))
+                    );
+                    absent(&f::main_text(view.tree()), "Which license?");
+                } else {
+                    let needs = styled(view.tree(), crate::look::HOME_NEEDS);
+                    contains(&f::nodes_text(subtree(view.tree(), needs.id)), need_line);
+                    let chats = styled(view.tree(), crate::look::HOME_CHATS);
+                    contains(&f::nodes_text(subtree(view.tree(), chats.id)), chat_line);
+                    if chats_count == 0 {
+                        assert!(!nodes.iter().any(|node| node.role == Role::Link
+                            && node.name.as_deref().is_some_and(|name| name.starts_with(b"All "))));
+                    } else {
+                        main_find(view.tree(), Role::Link, b"All 1 chats");
+                    }
+                }
             }
         }
     }
@@ -2457,17 +2497,6 @@ fn later_home_card_moves_to_a_line_then_returns_with_its_meta() {
     }
 }
 #[test]
-fn beginning_keeps_only_the_card_and_no_phone_block_or_rows() {
-    let root = everyday(true, &[PARSED, QUESTIONS[0], QUESTIONS[1]], false, true);
-    for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let parts = children(subtree(view.tree(), styled(view.tree(), crate::look::HOME_NEEDS).id));
-        assert_eq!(parts.len(), 2);
-        assert_eq!(parts[0].styles.as_slice(), &[crate::look::HOME_HEAD]);
-        assert_eq!(parts[1].styles.as_slice(), &[crate::look::ASK]);
-        absent(&f::main_text(view.tree()), "Answer in a row");
-    }
-}
-#[test]
 fn phone_block_uses_short_and_the_open_count() {
     for objects in [&[PARSED][..], &[PARSED, QUESTIONS[0]][..]] {
         let root = everyday(false, objects, false, true);
@@ -2713,6 +2742,12 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
         let mut out = drive(&mut root, d::Event::Went { place: d::Place::Address(address.clone()) });
         settle_home(&mut root, &mut out, None, Some(&chat_fixture(0, 0, false, false)), None);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            if address == (Address::Home { project: f::PROJECT }) && !skipped {
+                let styles = section_styles(view.tree());
+                for style in [crate::look::HOME_NEEDS, crate::look::HOME_CHATS, crate::look::GOALS_SECTION] {
+                    assert!(!styles.contains(&style));
+                }
+            }
             let nav = styled(view.tree(), crate::look::RAIL_NAV);
             let entries: Vec<_> =
                 children(subtree(view.tree(), nav.id)).iter().map(|node| node.name.as_deref().unwrap()).collect();
