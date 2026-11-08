@@ -2,6 +2,18 @@
 
 2026-11-08. Where temper's code lags or departs from [agent.md](agent.md).
 
+- **Not yet:** 4.2: a run whose charter names none of `inspect`, `modify`
+  and `shell` is given its project's home and context repositories as any
+  other run that isn't asking (`temper-engine-domain/src/route/forge_route.rs`,
+  `run_workspace`).
+
+- **Not yet:** 4.3: the delegate family's `goal`, `change` and `delegate`
+  are declared whatever the charter names (`temper-engine-smith/src/calls.rs`,
+  `tools_for`).
+
+- **Not yet:** 8.5: the stock holds no drafter's charter and no design
+  session (`temper-service/src/stock.rs`).
+
 Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
 revision, proposal, help and repository-file reads, 6,144-byte parts,

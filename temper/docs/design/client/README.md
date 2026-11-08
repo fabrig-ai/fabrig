@@ -775,9 +775,11 @@ keeps (`../protocol/configuration.md`, section 2).
     the bar (`.btn.small`, while `drafts_offered`, *A chat's document,* below)
     moves there. The empty document in Split, `.meta-line` "A chat that writes a
     draft. Say what it should hold.", the placeholder "What should this draft
-    hold?". The first message starts the chat with, under the person's words
-    after a blank line, "Write this up as a draft beside us."; those words are
-    visible as sent. The chat opens in Split.
+    hold?". The first message starts a design session from template 6 where `me`
+    lists it among the project's templates (`../domain/agent.md`, 8.5), and
+    otherwise a chat from the project's chat template, either with, under the
+    person's words after a blank line, "Write this up as a draft beside us.";
+    those words are visible as sent. The chat opens in Split.
 - **Where the focus stands on a chat** (the request `ui-composer-focus` of
   2026-11-06):
   - *Started by sending:* a chat a person has just started opens with its
@@ -818,6 +820,13 @@ keeps (`../protocol/configuration.md`, section 2).
     no Ask temper chat. An Ask temper chat offers "+ Draft" whatever `drafts` says:
     `pages::chat_offers_draft(root, task)`, which the bar and the domain's taking of
     the act both read, is true on an Ask temper chat and otherwise `drafts_offered`.
+  - *A design session* (`../domain/agent.md`, 8.5): a chat whose chip's executor
+    is the charter of template 6 as `me` lists it, as an Ask temper chat is
+    template 5's (*To begin*), `pages::chats::drafting(me, project, executor)`.
+    It reads as any chat with a document, its bar's modes, its tool lines and
+    "Start goal…" with 5.14's ways, and is offered "+ Draft" as any chat is.
+    Opened from a list or a link, it opens in Split rather than Chat, its document
+    read as any chat's, until the person picks a mode on the page.
   - *Read live, with no new watch:* `Read::Notes { scope: NoteScope::Task {
     project, task }, description: None, after: None }`, on the same retries as an
     activity read, once the task's document has arrived, and again when the
@@ -829,7 +838,7 @@ keeps (`../protocol/configuration.md`, section 2).
     was.
   - *Its mode:* `Mode { Chat, Split, Draft }`, the page's state for that chat, kept
     while the page is open; a chat opened again starts in Chat, unless `NewChat {
-    draft }` opened it in Split. Nothing stores it; the terminal's look, which is
+    draft }` opened it in Split or it is a design session (above). Nothing stores it; the terminal's look, which is
     another thing, is kept per browser (*A chat's terminal*, below).
   - *The tool line:* a `note` call whose answer parses (`../domain/agent.md`,
     8.3) is a `.turn-tool` in the conversation: the pen, "Wrote" for a first
