@@ -243,12 +243,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate_running`):
     the policy's tests hold a failed status and `delegate_running` alone
     (`temper-engine-domain-forge-change/src/tests/green.rs`).
-  - 8.4, 8.5: a goal's landing held past its repairs, then released after
-    a change into its goal branch (`../draft/reference-landing.md`,
-    section 9's second story), is built, but its story is ignored: after
-    the released landing, the restart oracle finds the deployment's
-    `messages` number changed across a restart, its cause not yet found
-    (`tests/engine/domain/tests/suite/forge_routes/goal_landing_held.rs`).
   - 8.4, 10, 11.1: a goal's landing whose update into main conflicts,
     settled by the merge job and a resolution on its goal's branch
     (`../draft/reference-landing.md`, section 9's first story), is built

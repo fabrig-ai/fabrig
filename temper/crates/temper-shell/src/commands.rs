@@ -136,5 +136,77 @@ pub fn row(name: &str, row: &Row) -> String {
     String::from_utf8(text).expect("help is UTF-8")
 }
 
+pub use crate::rows::HELP;
+
+pub const DIRECTORIES: Argument = Argument {
+    shown: "DIRECTORIES",
+    line: "[--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.",
+};
+
+pub struct Table {
+    pub binary: &'static str,
+    pub rows: &'static [Row],
+}
+impl Table {
+    #[must_use]
+    pub fn find(&self, words: &[Box<[u8]>]) -> Option<&'static Row> {
+        find(self.rows, words)
+    }
+    #[must_use]
+    pub fn unknown(&self, words: &[Box<[u8]>]) -> String {
+        unknown(self.binary, self.rows, words)
+    }
+    fn command(&self, row: &Row) -> String {
+        command(self.binary, row)
+    }
+    #[must_use]
+    pub fn forms(&self, row: &Row) -> String {
+        forms(self.binary, row)
+    }
+    #[must_use]
+    pub fn refused(&self, row: &Row, why: &str) -> String {
+        refused(self.binary, row, why)
+    }
+    #[must_use]
+    pub fn help(&self) -> String {
+        help(self.binary, self.rows)
+    }
+    #[must_use]
+    pub fn row(&self, row: &Row) -> String {
+        self::row(self.binary, row)
+    }
+    /// The reference page `commands`, whole, as `docs/help/reference/commands.md` holds it.
+    #[must_use]
+    pub fn reference(&self) -> String {
+        let mut text = format!(
+            "# temper's commands\n\nKind: reference\n\nEvery command of the {} binary, by who runs it: its usage, what it does, its arguments and its notes.\n",
+            self.binary,
+        );
+        for row in self.rows {
+            let command = self.command(row);
+            let heading = if row.words.is_empty() { format!("{command} [ADDRESS]") } else { command.clone() };
+            write!(text, "\n## {heading}\n").expect("writing into a string");
+            for form in row.forms {
+                write!(text, "\n`{command} {form}`\n").expect("writing into a string");
+            }
+            write!(text, "\n{}", row.line).expect("writing into a string");
+            if row.who == Who::Spawned {
+                write!(text, " Spawned by {}; never run by hand.", self.binary).expect("writing into a string");
+            }
+            text.push('\n');
+            if !row.arguments.is_empty() {
+                text.push('\n');
+                for argument in row.arguments {
+                    writeln!(text, "- `{}`: {}", argument.shown, argument.line).expect("writing into a string");
+                }
+            }
+            if !row.notes.is_empty() {
+                write!(text, "\n{}\n", row.notes).expect("writing into a string");
+            }
+        }
+        text
+    }
+}
+
 #[cfg(test)]
 mod tests;
