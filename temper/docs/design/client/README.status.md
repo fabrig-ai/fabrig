@@ -237,10 +237,6 @@ read-once requirement remains section 11's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
 
-- **Not yet:** 10, the joined story of the launchpad as drawn: a need the
-  engine asks walked and answered, and `/change` starting a chat:
-  `world-launchpad` of the plan `tui-whole-t1` writes it.
-
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
 rail and banner totals, and Later under the change's task key. A kind
