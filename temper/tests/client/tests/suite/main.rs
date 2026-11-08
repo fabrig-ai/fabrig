@@ -47,6 +47,7 @@ mod welcome;
 mod fuzzy {
     mod client;
     mod public_address;
+    mod rail_and_work;
 }
 
 mod accounts_edges;
