@@ -88,6 +88,7 @@ pub struct StyleLook {
     pub paint: Paint,
     pub align: Align,
     pub band: bool,
+    pub label: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -25,6 +25,7 @@ const STYLE: StyleLook = StyleLook {
     paint: INK,
     align: crate::Align::Start,
     band: false,
+    label: true,
 };
 const GLYPHS: Glyphs = Glyphs { focus: '>', mask: '●' };
 
