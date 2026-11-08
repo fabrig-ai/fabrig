@@ -64,6 +64,14 @@ How work runs drawing them (`how-words`' rows, `tier-words`' card).
   10 a project's, number 1, its headline and lede together. Bounds: a line and a
   headline 120 bytes, a lede 480, a tier's description 120, so that each fits a
   card's fact or the heading whole and nothing is cut.
+- **Kind 9's numbers are bounded as kind 3's values are,** 1 to jig's
+  `tasks.charters`, the forge's existing reading of that limit
+  (`configuration.md`, 13.2), though jig counts charters by it rather than
+  bounding their numbers; its `per_scope` is the same count. On a box (16) every
+  stock charter's number fits; in a test world sized to the stock's count (9) the
+  stock's lines for charters 10 to 12 still hold, since the forge judges no
+  stock default, and only an owner's change past the figure is refused, as kind
+  3's would be. Reading the limit as a count everywhere is no part of P3e.
 - **A stock way's headline** is the stock's data, carried by the `ways` read
   beside its name and line; its lede is "PROJECT runs the stock way NAME." and the
   way's existing line, so the read grows by three headlines alone. The project's
