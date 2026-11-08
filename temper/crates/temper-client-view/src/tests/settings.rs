@@ -58,27 +58,40 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
             Address::Forges,
             "Where your code lives.",
             "Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
-            2,
+            1,
         ),
         (
             Address::Accounts,
             "What agents run on.",
             "The LLM accounts temper’s agents run on for you. A task keeps its account: while the account is limited, the task waits for it.",
-            3,
+            0,
         ),
         (
             Address::Models { project: f::PROJECT },
             "What the picker offers.",
             "The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has.",
-            4,
+            2,
         ),
         (
             Address::Builders { project: f::PROJECT },
             "Where agents work.",
             "The machines temper’s agents run on, each with its slots and how many are in use.",
+            3,
+        ),
+        (
+            Address::Members,
+            "Who may do what.",
+            "Each project’s people and services, and the role each holds there. Who owns an area of a project is its Team’s.",
+            4,
+        ),
+        (
+            Address::Limits,
+            "What this deployment holds.",
+            "The capacities temper’s engine runs within, as it reports them. Its owner sets them in its configuration.",
             5,
         ),
     ] {
+        let how = address == settings() || address == repositories();
         let root = root(address);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let tree = view.tree();
@@ -88,15 +101,22 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
             let intro = styled(tree, look::SETTINGS_INTRO);
             assert_eq!(col[1].id, intro[0].id);
             let text = String::from_utf8_lossy(&f::nodes_text(intro)).into_owned();
-            assert_eq!(text, format!("Shop · settings{heading}{lede}"));
+            assert_eq!(text, format!("{}{heading}{lede}", if how { "Shop · how work runs" } else { "Deployment" }));
             assert_eq!(intro.iter().filter(|n| n.role == Role::Heading { level: 1 }).count(), 1);
             let nav = styled(tree, look::SETTINGS_TABS);
             assert_eq!(nav[0].role, Role::Navigation);
-            assert_eq!(nav[0].name.as_deref(), Some(b"Settings".as_slice()));
+            assert_eq!(
+                nav[0].name.as_deref(),
+                Some(if how { b"How work runs".as_slice() } else { b"Deployment".as_slice() })
+            );
             let links: Vec<_> = nav.iter().filter(|n| n.role == Role::Link).collect();
             assert_eq!(
                 links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
-                [b"How work runs".as_slice(), b"Repositories", b"Forges", b"Accounts", b"Models", b"Builders"]
+                if how {
+                    vec![b"How work runs".as_slice(), b"Repositories"]
+                } else {
+                    vec![b"Accounts".as_slice(), b"Forges", b"Models", b"Workers", b"Members", b"Limits"]
+                }
             );
             let ids: Vec<_> = links
                 .iter()
@@ -106,14 +126,19 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
                     n.id
                 })
                 .collect();
-            for (id, address) in ids.into_iter().zip([
-                Address::Settings { project: f::PROJECT },
-                repositories(),
-                Address::Forges,
-                Address::Accounts,
-                Address::Models { project: f::PROJECT },
-                Address::Builders { project: f::PROJECT },
-            ]) {
+            let addresses = if how {
+                vec![Address::Settings { project: f::PROJECT }, repositories()]
+            } else {
+                vec![
+                    Address::Accounts,
+                    Address::Forges,
+                    Address::Models { project: f::PROJECT },
+                    Address::Builders { project: f::PROJECT },
+                    Address::Members,
+                    Address::Limits,
+                ]
+            };
+            for (id, address) in ids.into_iter().zip(addresses) {
                 assert_eq!(crate::href(&mut view, id), Some(d::address::print(&address)));
                 assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
             }
@@ -410,7 +435,7 @@ const SWITCHES: [(&str, &str, &str); 4] = [
         "On",
     ),
     ("Goals", "Bigger work from a draft: a plan, tasks, landing.", "Shown"),
-    ("Changes", "The landing queue, as a page.", "Shown"),
+    ("Changes", "The landing queue, as Work's filter.", "Shown"),
     ("Away switch", "Lets agents decide within limits while you’re away.", "Shown"),
 ];
 const QUESTIONS: &str = "Questions a goal can answer from its plan";
@@ -950,12 +975,8 @@ fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
         let path = styled(browser.tree(), look::SETTINGS_PATH);
         assert!(path.iter().any(|n| n.role == Role::Navigation && n.name.as_deref() == Some(b"Where")));
         let links: Vec<_> = path.iter().filter(|n| n.role == Role::Link).map(|n| (n.id, n.name.clone())).collect();
-        let mut expected = vec![
-            choices.unwrap_or((tab, to)),
-            (b"Shop".as_slice(), b"/projects/1".as_slice()),
-            (b"Settings".as_slice(), b"/projects/1/settings".as_slice()),
-            (tab, to),
-        ];
+        let mut expected =
+            vec![choices.unwrap_or((tab, to)), (b"Deployment".as_slice(), b"/accounts".as_slice()), (tab, to)];
         expected.extend(choices);
         assert_eq!(links.len(), expected.len());
         let last = path.iter().find(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)).unwrap();
@@ -971,7 +992,7 @@ fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
         assert!(
             styled(browser.tree(), look::RAIL)
                 .iter()
-                .any(|n| n.name.as_deref() == Some(b"Settings") && n.states.as_slice().contains(&State::Current))
+                .any(|n| n.name.as_deref() == Some(b"Deployment") && n.states.as_slice().contains(&State::Current))
         );
     }
 }

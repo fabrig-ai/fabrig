@@ -121,12 +121,23 @@ impl Control {
         Some(Self { role, name, order: u32::try_from(order).expect("tree count fits u32") })
     }
 }
-/// Replay a save to its end, then find the first control giving the act's event.
+/// Replay a save to its end, then find the first control giving the act's event
+/// outside a menu, which no journey opens (client/journeys.md, 8.1).
 /// # Errors
 /// Returns the save's unreadable or stale refusal.
 pub fn control(save: &[u8], act: &Act, event: &[u8]) -> Result<Option<Control>, Refusal> {
     let mut replay = Replay::new(save)?;
     while replay.next().map_err(Refusal::Stale)?.is_some() {}
     let host = replay.host();
-    Ok(giving(host, act, event).first().and_then(|node| Control::of(host.tree(), *node)))
+    let tree = host.tree();
+    Ok(giving(host, act, event)
+        .into_iter()
+        .find(|node| {
+            let index =
+                tree.nodes().iter().position(|candidate| candidate.id == *node).expect("event's node is in tree");
+            !tree.nodes()[..index].iter().enumerate().any(|(at, ancestor)| {
+                ancestor.role == Role::Menu && index - at < usize::try_from(ancestor.size).expect("subtree fits usize")
+            })
+        })
+        .and_then(|node| Control::of(tree, node)))
 }

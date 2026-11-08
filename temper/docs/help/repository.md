@@ -62,8 +62,8 @@ A repository is a forge's repository adopted into a project: owned, a fork or co
 
 ## Acting on it
 
-- **In Settings:** Repositories opens Add repositories. Adopt picks
-  reachable repositories with checkboxes; search and scrolling read more
+- **In How work runs on the rail:** Repositories opens Add repositories.
+  Adopt picks reachable repositories with checkboxes; search and scrolling read more
   without a Next button. Picks survive a search. Not listed gives the
   forge’s remedy; More shows role, home, branch and CI options. Make
   empty and Copy public appear with an eligible Forgejo; copies take one
