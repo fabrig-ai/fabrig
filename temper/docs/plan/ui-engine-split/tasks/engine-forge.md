@@ -152,3 +152,15 @@ Task commit `14bb0cd96e` removes the adjacent **Not yet** 4.1, 5 entry for `temp
 Resolve the conflict with both entries absent; the deployment-binaries introduction should lead directly to the remaining `temper-engine-shell`, serve entry.
 Preserve all other status entries and the task’s `setup.status.md` deletion.
 `Cargo.toml` and `temper/crates/temper/Cargo.toml` auto-merged; the log reports no conflict there.
+
+## Rebase (2026-11-08, step merge, foreman ui-engine-split/engine-forge/foreman-3)
+
+resolve commands.rs by preserving both shared forge constants and shared client rows
+The merge conflicts only in `temper/crates/temper/src/commands.rs`.
+Integration commit `d759ea43cf` brings main’s shared client rows into this table: `use temper_shell::rows;`, `rows::TUI` and `rows::CTL`.
+Task commit `7854c1855f` replaces the seven forge rows and local `FORGE` definition with imports from `temper_engine_shell::forge`.
+Keep both imports; remove the local `FORGE` definition.
+Keep `FETCH`, `PREPARE`, `RUN`, `REMOVE`, `SOURCE`, `SIGN_IN` in their deployment positions, followed by `rows::TUI` and `rows::CTL`.
+Keep `FORGE_CHILD` in its spawned position.
+Preserve the other rows, the 23-row count, `TABLE` and its wrappers.
+The remaining paths auto-merged; retain their combined changes.
