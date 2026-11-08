@@ -694,6 +694,9 @@ fn smith_login_signs_in_against_the_fake_issuer_and_exits_0() {
     let record = skein_oauth::decode_record(secret.expose(), &smith_local_shell::credentials::token_limits())
         .expect("native record");
     assert!(record.access_token.expose() == b"access-new", "access credential retained");
-    assert!(record.refresh_token.as_ref().map(skein_lib::Secret::expose) == Some(b"refresh-new".as_slice()), "refresh credential retained");
+    assert!(
+        record.refresh_token.as_ref().map(skein_lib::Secret::expose) == Some(b"refresh-new".as_slice()),
+        "refresh credential retained"
+    );
     assert!(!scratch.path().join("state/smith/tokens").exists(), "credentials kept apart from chat state");
 }

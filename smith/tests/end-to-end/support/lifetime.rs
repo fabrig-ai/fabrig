@@ -42,6 +42,19 @@ fn alive(process: &Identity) -> bool {
     identity(process.pid).is_some_and(|current| current.start == process.start)
 }
 
+#[expect(
+    clippy::disallowed_types,
+    reason = "protocol/programs.md, 5.1: SIGKILL targets the agent alone, without ending its tree"
+)]
+fn kill_agent(agent: &Identity) {
+    assert!(alive(agent), "the observed agent identity still holds");
+    let status = std::process::Command::new("/bin/kill")
+        .args(["-KILL", &agent.pid.to_string()])
+        .status()
+        .expect("signal the agent");
+    assert!(status.success(), "SIGKILL delivered to the agent");
+}
+
 struct Judge {
     poll: Time,
     deadline: Time,
@@ -49,6 +62,18 @@ struct Judge {
     found: Option<[Identity; 3]>,
     leftovers: Option<Vec<u32>>,
     cleaning: bool,
+}
+
+impl Judge {
+    fn record_leftovers(&mut self, now: Time) {
+        if let Some(found) = &self.found {
+            let live: Vec<_> =
+                found.iter().skip(1).filter(|process| alive(process)).map(|process| process.pid).collect();
+            if self.leftovers.is_none() && (live.is_empty() || now >= self.deadline) {
+                self.leftovers = Some(live);
+            }
+        }
+    }
 }
 
 impl Referee<Binary> for Judge {
@@ -60,8 +85,11 @@ impl Referee<Binary> for Judge {
         let binary = processes.first_mut().expect("product");
         if self.killed.is_none() && !self.cleaning {
             let members: Vec<_> = binary.tree_status().live_pids.iter().filter_map(|pid| identity(*pid)).collect();
+            let product =
+                members.iter().find(|process| process.arguments.first().is_some_and(|name| name.ends_with(b"/smith")));
             let agent = members.iter().find(|process| {
-                process.arguments.first().is_some_and(|name| name.ends_with(b"/smith-agent"))
+                product.is_some_and(|product| process.parent == product.pid)
+                    && process.arguments.first().is_some_and(|name| name.ends_with(b"/smith-agent"))
                     && !process.arguments.iter().any(|argument| argument == b"--mcp-relay")
             });
             if let Some(agent) = agent {
@@ -80,11 +108,7 @@ impl Referee<Binary> for Judge {
                             "abort tree (pid, start): {:?}",
                             found.iter().map(|process| (process.pid, process.start)).collect::<Vec<_>>()
                         );
-                        let status = std::process::Command::new("/bin/kill")
-                            .args(["-KILL", &agent.pid.to_string()])
-                            .status()
-                            .expect("signal the agent");
-                        assert!(status.success(), "SIGKILL delivered to the agent");
+                        kill_agent(agent);
                         self.found = Some(found);
                         self.killed = Some(now);
                         self.deadline = now.saturating_add(Duration::from_secs(10));
@@ -92,20 +116,29 @@ impl Referee<Binary> for Judge {
                 }
             }
         }
-        if let Some(found) = &self.found {
-            let live: Vec<_> =
-                found.iter().skip(1).filter(|process| alive(process)).map(|process| process.pid).collect();
-            if self.leftovers.is_none() && (live.is_empty() || now >= self.deadline) {
-                self.leftovers = Some(live);
-            }
-        }
+        self.record_leftovers(now);
         if now >= self.deadline && !self.cleaning && !binary.is_empty() {
             self.cleaning = true;
             binary.signal_tree(Signal::Kill);
         }
     }
 
-    fn observe(&mut self, _now: Time, _processes: &[Binary]) {}
+    fn observe(&mut self, now: Time, processes: &[Binary]) {
+        let product = processes.first().expect("product");
+        if product.is_empty() {
+            self.record_leftovers(now);
+            assert!(
+                self.found.is_some(),
+                "agent, print and relay observed: {}",
+                String::from_utf8_lossy(product.stderr())
+            );
+            assert_eq!(
+                self.leftovers.as_deref(),
+                Some([].as_slice()),
+                "the fake print process and its relay must die with the agent"
+            );
+        }
+    }
 
     fn next_deadline(&self) -> Option<Time> {
         Some(self.poll)
@@ -116,13 +149,7 @@ impl Referee<Binary> for Judge {
     }
 
     fn passed(&self) -> bool {
-        assert!(self.found.is_some(), "the agent, print process and relay were observed");
-        assert_eq!(
-            self.leftovers.as_deref(),
-            Some([].as_slice()),
-            "the fake print process and its relay must die with the agent"
-        );
-        true
+        self.leftovers.is_some()
     }
 }
 
