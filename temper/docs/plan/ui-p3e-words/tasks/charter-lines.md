@@ -105,3 +105,18 @@ test checks; a test that sets a small bound to bite on a count gives itself
 forge defaults without kind 9 instead, only where raising would blunt its
 bite. Name each fixture changed in the report. The stock and its kinds stay
 as they are.
+
+## Rebase (2026-11-08, step merge, foreman ui-p3e-words/charter-lines/foreman-2)
+
+resolve Story A’s fixture conflict by regenerating it from the combined code
+The merge conflicts only in `temper/tests/playground/tests/fixtures/story-a.log`.
+Branch commit `f9e68a8319` refreshed its hashes for the nine stock charter lines.
+Integration commit `06e54574b7` (ask-words) refreshed the same hashes for changed Ask temper instructions.
+Preserve both source changes when rebasing onto the landing’s current integration tip.
+Regenerate the fixture; choosing either side’s hashes or combining them by hand leaves the combined state unrecorded.
+The generator is `temper/tests/playground/tests/suite/walk.rs`, enabled by `SKEIN_CODEGEN_WRITE`.
+Run through heavy, with `TEMPER_BUNDLE=none`:
+`SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`
+Then verify the focused replay:
+`heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_kept_log_replays_natively)'`
+Commit the regenerated fixture and report it as the task’s generated-file repair.
