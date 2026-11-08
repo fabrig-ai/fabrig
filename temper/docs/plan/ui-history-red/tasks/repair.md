@@ -121,3 +121,7 @@ Follow the implementer's text. Also give:
 - for a product fix, the focused test you added, the rule you broke by hand, and the failure you saw;
 - every file you changed outside `files`, and why;
 - what you ruled out.
+
+## Answers
+
+2026-11-08. *May the run execute the flagged browser story, given the request's "only focused and fuzzy run" rule?* Yes. The user's own text grants the exception: the request's *One task*, item 1, asks for exactly these runs ("by running the story by name, alone, through the build wrapper, as a red's repair may, as often as needed, under a load you make"), and `AGENTS.md`, 5, under the same 11-06 rule, says "That repair may run the test it repairs, by name, alone." The blanket line in *For every task of this plan* governs every other slow-tier test and every other task; it does not take back the item that names this one. So run `browser_pages::history_keeps_the_chat_focus_and_filter_across_reload_and_back` alone, by its exact name, with Steps, 1's command (`TIERS_WRAPPER=heavy tools/tiers/run temper browser -- -E 'test(=...)'`), as often as acceptance 1 and 3 need, loaded as Steps, 1 says. Check that each run selected exactly one test. Never run the browser tier unfiltered, another story, or another slow tier. Acceptance stays as written.
