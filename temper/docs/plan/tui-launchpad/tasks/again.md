@@ -33,6 +33,7 @@ Acceptance:
     setup 1
     after "project-landing"
     see "work/hello is in Hello"
+    reload "/projects/1"
     ```
 
   - `walk`:
@@ -126,3 +127,18 @@ Acceptance:
 
 As the implementer's text says: each recording's attempts, the frames each journey
 printed, and the account as committed.
+
+## Answers
+
+2026-11-08. **Q:** `launchpad-chat/setup` without `reload` is refused ("missing
+reload"): should `journey-setup` make the setup reader take it, or may this task add a
+`reload`? **A:** add the `reload`; the setup is four lines, as the acceptance now has it
+(`reload "/projects/1"` last, as `project-landing`'s own). A TUI setup is "in the
+browser's format and with its rules" (`temper/docs/design/client/tui/journeys.md`, 8.2),
+and the browser's rules have `reload` once, last of the steps
+(`temper/docs/design/client/journeys.md`, 8.2): the three-line setup this spec gave was
+the spec's error, not the reader's. The reload loads Hello's Home in the signed-in
+browser before the TUI starts, and nothing of it reaches the recording. No code, no
+shared reader and no other task changes; the status file still loses only its **Not
+yet** entry. Keep the pushed `sign-in-approved` work and go on from step 2's `again
+launchpad-chat`.
