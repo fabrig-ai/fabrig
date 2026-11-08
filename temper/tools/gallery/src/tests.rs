@@ -16,7 +16,7 @@ fn names_are_the_promised_ones() {
 
 #[test]
 fn a_later_settings_card_replaces_a_withdrawn_one_without_call_objects() {
-    let sample = samples::samples().into_iter().find(|sample| sample.name == "configure-chat-replaced").unwrap();
+    let sample = samples::samples().into_iter().find(|sample| sample.name == "ask-chat-replaced").unwrap();
     let view = view(&sample);
     assert!(view.tree().nodes().iter().any(|node| node.role == Role::Paragraph && node.name.as_deref() == Some(b"Replaced by the proposal below")));
 }
@@ -2096,7 +2096,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure",
+        name: "ask-first-run",
         heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Region, name: "Ways to begin" },
@@ -2104,7 +2104,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-reference",
+        name: "ask-reference",
         heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
@@ -2116,7 +2116,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-reference-draft",
+        name: "ask-reference-draft",
         heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
@@ -2128,7 +2128,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-typing",
+        name: "ask-typing",
         heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Region, name: "Ways to begin" },
@@ -2140,7 +2140,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-sending",
+        name: "ask-sending",
         heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Region, name: "Ways to begin" },
@@ -2152,7 +2152,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-refused",
+        name: "ask-refused",
         heading: "Ask temper",
         parts: &[
             Part::Named { role: Role::Region, name: "Ways to begin" },
@@ -2164,7 +2164,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-document",
+        name: "ask-chat-document",
         heading: "T10 · Ask temper",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "T10" },
@@ -2176,7 +2176,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-document-split",
+        name: "ask-chat-document-split",
         heading: "T10 · Ask temper",
         parts: &[
             Part::Named { role: Role::Button, name: "Start over" },
@@ -2255,7 +2255,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat",
+        name: "ask-chat",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Named { role: Role::Navigation, name: "Where" },
@@ -2266,7 +2266,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-proposal-deployment",
+        name: "ask-chat-proposal-deployment",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Text { text: "How temper will run your projects" },
@@ -2274,7 +2274,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-proposal-two-projects",
+        name: "ask-chat-proposal-two-projects",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Text { text: "How temper will run tally and 2" },
@@ -2282,7 +2282,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-proposal",
+        name: "ask-chat-proposal",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Text { text: "How temper will run tally" },
@@ -2295,7 +2295,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-accepted",
+        name: "ask-chat-accepted",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Text { text: "How temper will run tally" },
@@ -2307,7 +2307,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-rejected",
+        name: "ask-chat-rejected",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Text { text: "How temper will run tally" },
@@ -2321,7 +2321,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-withdrawn",
+        name: "ask-chat-withdrawn",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Text { text: "How temper will run tally" },
@@ -2335,7 +2335,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chat-replaced",
+        name: "ask-chat-replaced",
         heading: "T10 · Add a --json flag to tally report",
         parts: &[
             Part::Text { text: "How temper will run tally" },
@@ -2347,7 +2347,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "configure-chats-tag",
+        name: "ask-chats-tag",
         heading: "Talk to an agent",
         parts: &[Part::Text { text: "Ask temper" }, Part::Chats { live: SOLO_LIVE, closed: SOLO_CLOSED }],
     },
@@ -2716,7 +2716,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
     },
     Holds {
-        name: "configure-model-open",
+        name: "ask-model-open",
         heading: "Ask temper",
         parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
     },
@@ -3612,12 +3612,12 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
 }
 
 #[test]
-fn configuring_gallery_states_list_the_template_and_send_readiness() {
+fn asking_gallery_states_list_the_template_and_send_readiness() {
     for (name, sending, disabled, refusal) in [
-        ("configure", false, true, false),
-        ("configure-typing", false, false, false),
-        ("configure-sending", true, true, false),
-        ("configure-refused", false, false, true),
+        ("ask-first-run", false, true, false),
+        ("ask-typing", false, false, false),
+        ("ask-sending", true, true, false),
+        ("ask-refused", false, false, true),
     ] {
         let sample = samples::samples().into_iter().find(|s| s.name == name).expect("sample");
         let root = samples::domain(&sample);
@@ -3633,7 +3633,7 @@ fn configuring_gallery_states_list_the_template_and_send_readiness() {
                 .iter()
                 .any(|t| t.number == 5)
         );
-        let chats = root.pages().chats().expect("configure");
+        let chats = root.pages().chats().expect("Ask temper");
         assert_eq!(chats.start.is_some(), sending, "{name}");
         assert_eq!(chats.outcome.is_some(), refusal, "{name}");
         let view = view(&sample);
@@ -4003,8 +4003,8 @@ fn the_browser_draws_each_model_name_once() {
 #[test]
 fn a_settings_cards_later_reply_follows_it() {
     for (name, expected) in [
-        ("configure-chat-accepted", &["Card 1", "Reply"][..]),
-        ("configure-chat-replaced", &["Card 1", "Reply", "Card 2", "Reply"][..]),
+        ("ask-chat-accepted", &["Card 1", "Reply"][..]),
+        ("ask-chat-replaced", &["Card 1", "Reply", "Card 2", "Reply"][..]),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
         let view = view(&sample);
