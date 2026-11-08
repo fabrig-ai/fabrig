@@ -24,6 +24,7 @@ mod inbox;
 mod limits;
 mod look;
 mod needs;
+mod paths;
 mod person_menu;
 mod playground;
 mod playground_start;

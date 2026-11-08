@@ -15,6 +15,7 @@ pub mod frame;
 pub mod limits;
 pub mod look;
 pub mod pages;
+pub mod paths;
 pub mod public;
 mod root;
 pub mod sign_in;
