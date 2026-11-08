@@ -99,6 +99,3 @@ Section 8.3's printed link and approval are enabled in both init
 documents and the owned example. The service table checks that the
 approval setting reaches an ask. The TUI's browser flow and its fresh-box
 walk remain later work in section 15 and `../client/README.md`, section 11.
-
-- **Not yet:** 7.2, *The sign-in block*: its last line, `In a terminal:
-  temper http://HOST:PORT`, is not printed.

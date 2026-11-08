@@ -54,6 +54,8 @@ pub struct Settings {
     pub first_link: Option<FirstLink>,
     /// How the first and fresh links reach stdout (temper/docs/design/protocol/setup.md, 7.2).
     pub link_form: terminal::LinkForm,
+    /// The word running this binary (temper/docs/design/protocol/setup.md, 7.2).
+    pub word: Box<[u8]>,
     /// Whole untimed lines following the first block on stderr (protocol/setup.md, 7.2).
     pub after_block: Box<[u8]>,
     pub signals: Fd,
@@ -75,6 +77,7 @@ impl core::fmt::Debug for Settings {
             .field("log_lines", &self.log_lines)
             .field("first_link", &self.first_link)
             .field("link_form", &self.link_form)
+            .field("word", &self.word)
             .field("after_block_bytes", &self.after_block.len())
             .field("signals", &self.signals)
             .field("stdout", &self.stdout)
@@ -284,7 +287,7 @@ impl Service {
         let capacity =
             io::operations(&bounds).expect("bounded operations").checked_mul(4).expect("queue capacity").max(64);
         let entries = count.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(4);
-        let formatter = Formatter::new(settings.link_form);
+        let formatter = Formatter::new(settings.link_form, settings.word.clone());
         Ok(Self {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds },

@@ -7,6 +7,7 @@ use skein_sim::{Event, Summary};
 use temper_forge_setup::Step;
 
 const FIRST_URL: &[u8] = b"http://local/first";
+const FIRST_FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\nIn a terminal: temper http://local\n";
 const FIRST_SECRET: &[u8] = &[0x83; 32];
 const AFTER_BLOCK: &[u8] = b"Additional startup information.\n";
 fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Harness {
@@ -56,7 +57,7 @@ fn the_block_is_the_terminal_before_any_spawn() {
     h.release_terminal_ack();
     h.run_until_idle();
     assert_eq!(h.stdout().as_ref(), b"http://local/first\n");
-    assert_eq!(h.stderr().as_ref(), crate::lines::joined(&[crate::terminal::FOOTER, AFTER_BLOCK]).as_ref());
+    assert_eq!(h.stderr().as_ref(), crate::lines::joined(&[FIRST_FOOTER, AFTER_BLOCK]).as_ref());
     assert_eq!(h.launches.len(), 1);
     stop_first_link(&mut h);
     assert!(!Harness::contains(&h.terminal_bytes(), crate::terminal::CTRL_C));
@@ -72,7 +73,7 @@ fn a_held_block_holds_the_first_spawn() {
     assert!(h.launches.is_empty(), "even a written prelude still awaits its acknowledgement");
     assert!(!h.service.work_pending(h.sim.now()), "a held write lets the host sleep");
     for (target, expected) in
-        [(h.stdout, b"http://local/first\n".as_slice()), (h.stderr, crate::terminal::FOOTER), (h.stderr, AFTER_BLOCK)]
+        [(h.stdout, b"http://local/first\n".as_slice()), (h.stderr, FIRST_FOOTER), (h.stderr, AFTER_BLOCK)]
     {
         h.release_terminal_ack();
         h.turn();
@@ -82,7 +83,7 @@ fn a_held_block_holds_the_first_spawn() {
         assert!(!h.held_terminal_ack.is_empty());
         assert!(!h.service.work_pending(h.sim.now()));
         let got = if target == h.stdout { h.stdout() } else { h.stderr() };
-        let expected = if expected == crate::terminal::FOOTER {
+        let expected = if expected == FIRST_FOOTER {
             crate::lines::joined(&[crate::terminal::PRELUDE, expected])
         } else {
             bytes::copy_of(expected)
@@ -93,7 +94,7 @@ fn a_held_block_holds_the_first_spawn() {
     h.run_until_idle();
     assert_eq!(
         h.terminal_bytes(),
-        crate::lines::joined(&[crate::terminal::PRELUDE, FIRST_URL, b"\n", crate::terminal::FOOTER, AFTER_BLOCK,])
+        crate::lines::joined(&[crate::terminal::PRELUDE, FIRST_URL, b"\n", FIRST_FOOTER, AFTER_BLOCK,])
     );
     assert_eq!(h.launches.len(), 1);
     stop_first_link(&mut h);
@@ -242,7 +243,7 @@ fn startup_log_and_record_diagnostics_follow_the_block() {
     h.run_until_idle();
     assert_eq!(h.stdout().as_ref(), b"http://local/first\n");
     let stderr = h.stderr();
-    assert!(stderr.starts_with(&crate::lines::joined(&[crate::terminal::FOOTER, AFTER_BLOCK])));
+    assert!(stderr.starts_with(&crate::lines::joined(&[FIRST_FOOTER, AFTER_BLOCK])));
     assert!(Harness::contains(&stderr, b"box: cannot write /data/box/logs/serve.log"));
     assert!(Harness::contains(&stderr, b"box: open box/started/3: permission denied"));
     stop_first_link(&mut h);
@@ -271,7 +272,14 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
     h.write_child(h.child_index(b"serve"), 1, b"http://first\n");
     h.run_until_idle();
     assert_eq!(h.stdout().as_ref(), b"http://first\n");
-    assert_eq!(h.stderr(), crate::lines::joined(&[crate::terminal::PRELUDE, crate::terminal::FOOTER]));
+    assert_eq!(
+        h.stderr(),
+        crate::lines::joined(&[
+            crate::terminal::PRELUDE,
+            crate::terminal::FOOTER,
+            b"In a terminal: temper http://first\n"
+        ])
+    );
     h.write_child(h.child_index(b"serve"), 1, b"http://later\n");
     h.run_until_idle();
     assert_eq!(h.stdout().as_ref(), b"http://later\n");
@@ -1340,6 +1348,7 @@ fn split_links_and_diagnostics_form_ordered_first_fresh_and_restarted_blocks() {
             "http://first/link\n",
             "\nIt signs you in as this temper's owner, once, within 2 hours.\n",
             "Opened after that, it prints a fresh one here.\n",
+            "In a terminal: temper http://first\n",
             "diagnostic: between refresh pieces\n\nhttp://fresh\n",
             "23:59:59Z serve exited 0; restarting in 0.5 s\n",
             "\nhttp://restart\n",
@@ -2066,6 +2075,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
     let link_debug = alloc::fmt::format(format_args!("{link:?}"));
     assert!(link_debug == "FirstLink { .. }", "FirstLink Debug hides both fields");
     let settings = Settings {
+        word: b"temper".as_slice().into(),
         link_form: crate::terminal::LinkForm::Bare,
         first_link: Some(link),
         after_block: Box::new([]),
@@ -2083,13 +2093,14 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
         stderr: Fd::new(2),
     };
     let expected = alloc::fmt::format(format_args!(
-        "Settings {{ program: {:?}, parent: None, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), link_form: Bare, after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
+        "Settings {{ program: {:?}, parent: None, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), link_form: Bare, word: {:?}, after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
         settings.program,
         settings.serve,
         settings.listeners,
         settings.root,
         settings.echo,
         settings.data,
+        settings.word,
         settings.signals,
         settings.stdout,
         settings.stderr,
@@ -2418,14 +2429,7 @@ fn each_link_reads_on_stdout_as_its_form_has_it() {
         assert_eq!(harness.stdout().as_ref(), fresh);
         assert_eq!(
             harness.terminal_bytes(),
-            crate::lines::joined(&[
-                crate::terminal::PRELUDE,
-                first,
-                crate::terminal::FOOTER,
-                AFTER_BLOCK,
-                b"\n",
-                fresh,
-            ])
+            crate::lines::joined(&[crate::terminal::PRELUDE, first, FIRST_FOOTER, AFTER_BLOCK, b"\n", fresh,])
         );
         stop_first_link(&mut harness);
     }
