@@ -47,7 +47,12 @@ fn the_themes_are_valid_and_name_every_look() {
                 Place::Top,
                 Arrange::Lines,
                 Some(Border {
-                    corners: ['╭', '╮', '╰', '╯'], across: '─', down: '│', paint: fore(faint), title: true
+                    corners: ['╭', '╮', '╰', '╯'],
+                    across: '─',
+                    down: '│',
+                    paint: fore(faint),
+                    title: true,
+                    sides: true,
                 }),
             ),
             (look::BOTTOM, b"tui-bottom", Place::Bottom, Arrange::Spread, None),

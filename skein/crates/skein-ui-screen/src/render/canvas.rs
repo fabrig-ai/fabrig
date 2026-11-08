@@ -5,7 +5,7 @@ use skein_lib::{List, usize_of};
 use skein_ui::{EntryKind, Node, Role, Tree};
 
 use super::{Info, words};
-use crate::{Cell, Focus, Frame, Paint, Position, RegionLook, Theme, width};
+use crate::{Align, Cell, Focus, Frame, Paint, Position, RegionLook, Theme, width};
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Viewport {
@@ -76,6 +76,8 @@ pub(super) struct Canvas {
     code: bool,
     quote: bool,
     cut: bool,
+    align: Align,
+    band: Option<Paint>,
 }
 
 impl Canvas {
@@ -109,6 +111,8 @@ impl Canvas {
             code: false,
             quote: false,
             cut: false,
+            align: Align::Start,
+            band: None,
         }
     }
 
@@ -151,6 +155,10 @@ impl Canvas {
     pub fn block(&mut self, code: bool, quote: bool) {
         self.code = code;
         self.quote = quote;
+    }
+    pub fn looks(&mut self, align: Align, band: Option<Paint>) {
+        self.align = align;
+        self.band = band;
     }
     pub fn line(&mut self) {
         self.dirty = self.dirty || self.room() > 0;
@@ -341,7 +349,9 @@ impl Canvas {
                     *cell = Ink::blank(edge.paint);
                 }
             }
-            if let Some(border) = edge.look.border {
+            if let Some(border) = edge.look.border
+                && border.sides
+            {
                 for column in [edge.left, edge.right.saturating_sub(1)] {
                     if column < edge.right
                         && let Some(cell) = self.cells.get_mut(u32::from(column))
@@ -360,6 +370,7 @@ impl Canvas {
         self.cut = false;
     }
     fn commit(&mut self, frame: &mut Frame) {
+        self.lay_line();
         let visible = self.row >= self.viewport.first
             && self.row.saturating_sub(self.viewport.first) < u32::from(self.viewport.height);
         let screen_row = self
@@ -388,6 +399,33 @@ impl Canvas {
         }
         self.row = self.row.saturating_add(1);
         self.reset();
+    }
+    fn lay_line(&mut self) {
+        if let Some(paint) = self.band {
+            let start = self.left.saturating_add(self.indent).min(self.right);
+            for column in self.left..self.right {
+                if (column < start || column >= self.column)
+                    && let Some(ink) = self.cells.get_mut(u32::from(column))
+                {
+                    ink.cell.paint = paint;
+                }
+            }
+        }
+        if self.align == Align::End && !self.single {
+            let start = self.left.saturating_add(self.indent).min(self.right);
+            let offset = self.right.saturating_sub(self.column);
+            if offset > 0 && self.column > start {
+                for column in (start..self.column).rev() {
+                    let ink = *self.cells.get(u32::from(column)).expect("line cell exists");
+                    self.set(column.saturating_add(offset), ink);
+                }
+                let paint = self.band.unwrap_or(self.background());
+                for column in start..start.saturating_add(offset) {
+                    self.set(column, Ink::blank(paint));
+                }
+                self.column = self.right;
+            }
+        }
     }
     pub fn finish(&mut self, frame: &mut Frame) {
         if self.dirty {
@@ -434,13 +472,18 @@ impl Canvas {
 
     pub fn enter_region(&mut self, look: RegionLook, paint: Paint, frame: &mut Frame) {
         self.finish(frame);
+        self.looks(Align::Start, None);
         let edge = Edge { look, paint, left: self.left, right: self.right };
         self.edges.push(edge).expect("open regions fit nodes");
         self.reset();
         if look.border.is_some() {
             self.border(look, true, frame);
         }
-        let inset = look.pad.saturating_add(u16::from(look.border.is_some()));
+        let side = match look.border {
+            Some(border) => border.sides,
+            None => false,
+        };
+        let inset = look.pad.saturating_add(u16::from(side));
         self.left = self.left.saturating_add(inset).min(self.right);
         self.right = self.right.saturating_sub(inset).max(self.left);
         self.column = self.left;
@@ -448,6 +491,7 @@ impl Canvas {
     }
     pub fn leave_region(&mut self, look: RegionLook, frame: &mut Frame) {
         self.finish(frame);
+        self.looks(Align::Start, None);
         if look.border.is_some() {
             self.border(look, false, frame);
         }
@@ -465,7 +509,7 @@ impl Canvas {
             self.set(column, Ink { cell: Cell { glyph: border.across, paint }, focused: false, caret: false });
         }
         let [tl, tr, bl, br] = border.corners;
-        if edge.left < edge.right {
+        if border.sides && edge.left < edge.right {
             self.set(
                 edge.left,
                 Ink { cell: Cell { glyph: if top { tl } else { bl }, paint }, focused: false, caret: false },
@@ -480,13 +524,14 @@ impl Canvas {
         self.column = edge.right;
         self.blank_line(frame);
     }
-    pub fn title(&mut self, title: &Canvas, look: RegionLook, frame: &mut Frame) {
+    pub fn title(&mut self, title: &Canvas, end: &Canvas, look: RegionLook, frame: &mut Frame) {
         // The top border is the row just committed on entry.
         let title_row = self.row.saturating_sub(1);
         let Some(border) = look.border else { return };
         let edge = *self.edges.last().expect("region is open");
-        let limit = edge.right.saturating_sub(1);
-        let mut column = edge.left.saturating_add(2);
+        let side = u16::from(border.sides);
+        let limit = edge.right.saturating_sub(side);
+        let mut column = edge.left.saturating_add(side).saturating_add(1);
         let paint = border.paint.over(edge.paint);
         if title_row < self.viewport.first
             || title_row.saturating_sub(self.viewport.first) >= u32::from(self.viewport.height)
@@ -512,6 +557,17 @@ impl Canvas {
             column = column.saturating_add(1);
         }
         if column < limit {
+            frame.put(Position { row, column }, Cell { glyph: ' ', paint });
+        }
+        // Each part keeps its two spaces and the end keeps one across glyph.
+        let needed = u32::from(title.first_len).saturating_add(u32::from(end.first_len)).saturating_add(6);
+        if end.first_len > 0 && needed <= u32::from(limit.saturating_sub(edge.left.saturating_add(side))) {
+            let mut column = limit.saturating_sub(2).saturating_sub(end.first_len);
+            frame.put(Position { row, column: column.saturating_sub(1) }, Cell { glyph: ' ', paint });
+            for ink in end.first.iter().take(usize::from(end.first_len)) {
+                frame.put(Position { row, column }, ink.cell);
+                column = column.saturating_add(1);
+            }
             frame.put(Position { row, column }, Cell { glyph: ' ', paint });
         }
     }

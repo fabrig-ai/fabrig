@@ -63,6 +63,7 @@ pub struct Border {
     pub down: char,
     pub paint: Paint,
     pub title: bool,
+    pub sides: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -76,9 +77,17 @@ pub struct RegionLook {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Align {
+    Start,
+    End,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StyleLook {
     pub style: Style,
     pub paint: Paint,
+    pub align: Align,
+    pub band: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
