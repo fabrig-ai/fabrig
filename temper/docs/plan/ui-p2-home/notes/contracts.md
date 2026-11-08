@@ -184,13 +184,19 @@ The rules, each part's alone:
 
 ```rust
 // pages.rs
-pub enum Act { /* … as now … */ AskWith { words: Box<[u8]> }, /* … */ }
+pub enum Act { /* … as now … */ AskLine { words: Box<[u8]> }, AskWith { words: Box<[u8]> }, /* … */ }
+impl Pages { #[must_use] pub fn ask_line(&self) -> &[u8]; }
 ```
 
+- `AskLine { words }` writes the Ask temper line's words, held in `Pages`
+  for the page open (bounded as a composer's words are, cut there), and
+  read back by `Pages::ask_line`; leaving the page drops them. The view's
+  field writes through it, as a composer's does through `ChatWords`.
 - `AskWith { words }` with words opens `Address::Ask { project }` on the
   project in view (a project's Home's project; on `AllHome` the open
   project, else `me`'s first) with the words in its composer, unsent, as
-  if typed there; with empty words it does nothing.
+  if typed there, once that page has opened; with empty words it does
+  nothing. The view sends it with `Pages::ask_line`'s words.
 - Closed rows of the wide Needs you open with today's
   `needs::Act::Open { object }`.
 - Overturn stays `away::Act::Overturn { project, number }`, accepted on
