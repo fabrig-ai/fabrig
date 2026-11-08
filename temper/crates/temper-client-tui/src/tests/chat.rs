@@ -118,6 +118,22 @@ impl Input {
         Self { task: None, rows: Box::default(), writing: None, current: false, working: false, older: false }
     }
 }
+fn activity_page(input: &Input, before: Option<c::Cursor>, answered: &mut bool) -> c::ActivityPage {
+    let rows = if before.is_some() {
+        assert!(input.older && *answered, "only the older fixture continues its first page");
+        List::with_capacity(0)
+    } else {
+        assert!(!*answered, "fixture requested its latest activity page twice");
+        *answered = true;
+        List::from_boxed(input.rows.clone())
+    };
+    c::ActivityPage {
+        rows,
+        cut: false,
+        before: if input.older { Some(c::Cursor::new(b"older".as_slice().into(), 32).unwrap()) } else { None },
+        after: None,
+    }
+}
 #[expect(clippy::wildcard_enum_match_arm, reason = "the fixture answers its task, activity and run documents alone")]
 fn root(input: &Input) -> Domain {
     let (mut root, _) = f::live(Some(f::me(&[b"Hello"])));
@@ -188,27 +204,14 @@ fn root(input: &Input) -> Domain {
             d::Request::Unlinked {
                 request:
                     UnlinkedRequest::Down {
-                        down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
+                        down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { before, .. }) },
                     },
-            } => {
-                assert!(!activity_answered, "fixture requested its activity page twice");
-                activity_answered = true;
-                Some(jig_client::Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
-                        c::ActivityPage {
-                            rows: List::from_boxed(input.rows.clone()),
-                            cut: false,
-                            before: if input.older {
-                                Some(c::Cursor::new(b"older".as_slice().into(), 32).unwrap())
-                            } else {
-                                None
-                            },
-                            after: None,
-                        },
-                    )))),
-                })
-            }
+            } => Some(jig_client::Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
+                    activity_page(input, before, &mut activity_answered),
+                )))),
+            }),
             _ => None,
         };
         if let Some(up) = up {
