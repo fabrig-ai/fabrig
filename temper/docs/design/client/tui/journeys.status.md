@@ -11,8 +11,9 @@
   pseudo-terminal and starts the box apart on pipes, reading the printed
   link from the box's stdout (8.2), so it cannot drive a box whose TUI is
   in front, which needs the terminal and prints no link on a stream; the
-  redaction across a wrapped link waits with it. The journey is recorded
-  once `again` can start the box in the pseudo-terminal.
+  redaction across a wrapped link waits with it. Temper/tui owns this
+  `tui-box-front` deferral: the journey is recorded once `again` can start
+  the box in the pseudo-terminal.
 
 Beside those, no known implementation gap. Sections 2 to 8.2 have recording,
 shipped-host replay, proof, shared redaction and scan, themed prints and
