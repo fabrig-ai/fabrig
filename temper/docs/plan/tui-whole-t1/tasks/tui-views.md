@@ -188,3 +188,13 @@ the smaller of it and `paths::STOPS`), keep `paths::WORDS` (64) and
 limits only if that row still doesn't fit, as acceptance 3 says. Say in the
 report that `paths::STOPS` (32) is above the wire's bound. The parent-stack
 walk in the limits assertion stays. Then finish acceptance 4 and 5.
+
+## Rebase (2026-11-08, step merge, foreman tui-whole-t1/tui-views/foreman-2)
+
+resolve the status conflict by keeping both tasks’ completed-gap deletions
+Rebase onto the landing’s current integration tip.
+The sole conflict is `temper/docs/design/client/README.status.md`.
+Task commit `d01d2bf655` deletes the `tui-views` **Not yet** bullet.
+Integration commit `18f1b1eb8d` deletes the adjacent `tui-surface` **Not yet** bullet.
+Resolve by deleting both bullets; preserve every other status line.
+The log reports clean automatic merges for `src/tests/limits.rs` and `src/view.rs`; retain their combined changes.
