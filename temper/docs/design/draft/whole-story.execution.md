@@ -67,7 +67,7 @@ or the nearest thing, and says so in that draft's status.
 | M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | must | done |
 | P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | must | in flight |
 | P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | must | in flight |
-| P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `stock-ways.md`, 4 | M0 | temper/ui | must | not started |
+| P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `stock-ways.md`, 4 | M0 | temper/ui | must | landed; its repair starts (section 5) |
 | P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | nice | not started |
 | P3c | How work runs: Rules by path, and the path's stops for a path set, "if core" and "one of you" | `surfaces.md`, 7; `what-reaches-you.md`, 7 | P3a, N2 | temper/ui | should | not started |
 | P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | not started |
@@ -284,7 +284,8 @@ lands when it's ready.
 
 ## 5. Readiness
 
-As read on 2026-11-08 at 17:14Z, from the areas' work in flight. Plans
+As read on 2026-11-08 at 17:14Z, from the areas' work in flight, and
+P3's rows at 19:45Z, as P3a retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -292,9 +293,9 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | M0 | done | |
 | P1 | in flight | `ui-p1-rail` |
 | P2 | in flight | `ui-p2-home` |
-| P3a | waits | temper/ui's `look-round-24`, the ways page's drawing, which How work runs takes over |
-| P3b, P3c, P3d | wait | P3a, and N1, N2 or F1 and R1, by their needs |
-| P3e, P3f | wait | P3a |
+| P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes; its repair draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles (`surfaces.status.md`, 7 and 13) |
+| P3b, P3c, P3d | wait | N1, N2 or F1 and R1, by their needs |
+| P3e, P3f | start | but for P3e's line on Roles, which waits for P3a's repair to draw Roles |
 | P4a | starts | |
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
 | P5a | waits | P2, by its needs |
@@ -319,5 +320,5 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
-- **Next to start:** P4a now, as temper/ui's places allow; P3a when
-  `look-round-24` lands; T1 when `tui-box-front` does.
+- **Next to start:** P4a now, as temper/ui's places allow; P3a's
+  repair, P3e and P3f; T1 when `tui-box-front` does.

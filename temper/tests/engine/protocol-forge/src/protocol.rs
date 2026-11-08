@@ -34,6 +34,9 @@ pub struct Protocol {
     item_pages: Vec<u64>,
     item_start: u64,
     request_times: Vec<Wall>,
+    merge_cut: Option<usize>,
+    cut_taken: bool,
+    cut_call: Option<(u64, skein_forge::api::Repository, skein_forge::api::Write)>,
 }
 impl Protocol {
     #[must_use]
@@ -116,6 +119,9 @@ impl Protocol {
             item_pages: Vec::new(),
             item_start: 0,
             request_times: Vec::new(),
+            merge_cut: None,
+            cut_taken: false,
+            cut_call: None,
         };
         world.accept_installations();
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -229,9 +235,34 @@ impl Protocol {
         self.joint.fake_env.limits.latency_min = delay;
         self.joint.fake_env.limits.latency_max = delay;
     }
+    /// Stop after the next applied merge, before delivering its answer to the caller
+    /// (temper/docs/design/domain/forge.md, 16).
+    pub fn cut_after_next_merge(&mut self) {
+        self.merge_cut = Some(self.joint.observations.len());
+        self.cut_taken = false;
+        self.cut_call = None;
+    }
+    /// Whether an armed cut stopped the run; cleared by `restart`.
+    #[must_use]
+    pub fn cut_taken(&self) -> bool {
+        self.cut_taken
+    }
+    /// The cut's merge call still awaits delivery for this durable entry's effect.
+    #[must_use]
+    pub fn merge_pending(&self, entry: &skein_forge_client::Entry) -> bool {
+        self.cut_call.as_ref().is_some_and(|(id, repository, write)| {
+            self.pending.contains_key(id) && *repository == entry.repository && *write == entry.effect.write
+        })
+    }
     /// Script a worker's pushed branch through the independent fake git.
     pub fn permission(&mut self, permission: raw::Permission) {
         forge::grant(&mut self.joint.domain, self.fixture.path, self.fixture.writer, permission);
+    }
+
+    /// Write branch protection as the repository's admin, outside the component's requests
+    /// (temper/docs/design/domain/testing.md, 4.2).
+    pub fn protect(&mut self, protection: raw::Protection) {
+        self.external(raw::Op::Write(raw::Write::SetProtection { protection: Some(protection) }), self.fixture.writer);
     }
 
     pub fn produce(&mut self, branch: &[u8]) {
@@ -325,6 +356,9 @@ impl Protocol {
     /// Old calls reach their accounting terminal without delivering an outcome to the new top.
     pub fn restart(&mut self) {
         self.finish();
+        self.merge_cut = None;
+        self.cut_taken = false;
+        self.cut_call = None;
         let component = Component::new(self.fixture.settings(), &fixtures::limits(), &fixtures::protocol_shared())
             .expect("fresh component");
         self.joint.replace(component);
@@ -405,12 +439,22 @@ impl Protocol {
         answer.expect("scripted answer")
     }
     pub fn run_for(&mut self, seconds: u64) {
+        if self.cut_taken {
+            return;
+        }
         let end = self.env.now.saturating_add(Duration::from_secs(seconds));
         // Transport fragments do not change the top's readiness or timers.
         // Refresh its schedule only after an answer or a top step.
         let mut schedule = None;
         for _ in 0..200_000 {
             self.joint.tick();
+            if let Some(after) = self.merge_cut
+                && self.joint.observations.iter().skip(after).any(|o| matches!(o, forge::Observation::Merged { .. }))
+            {
+                self.merge_cut = None;
+                self.cut_taken = true;
+                return;
+            }
             // Only newly completed request lines: recording remains linear in requests.
             let complete = self.joint.request_lines()[self.request_times.len()..]
                 .iter()
@@ -592,6 +636,11 @@ impl Protocol {
             self.writes += 1;
         }
         self.serial += 1;
+        if self.merge_cut.is_some()
+            && let skein_forge::api::Op::Write(write @ skein_forge::api::Write::Merge { .. }) = &op
+        {
+            assert!(self.cut_call.replace((self.serial, repository, write.clone())).is_none(), "one cut merge");
+        }
         let items = matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Items { .. }));
         if matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Items { page: 1, .. })) {
             self.item_start = self.tally().routes.get(&Route::Issues).copied().unwrap_or(0);

@@ -1,5 +1,5 @@
 //! One chat borrows its task and retains jig's bounded conversation projection
-//! (temper/docs/design/client/README.md, 3.5).
+//! (temper/docs/design/client/README.md, 3.5 and 5.15).
 pub mod document;
 mod request;
 pub mod sheet;
@@ -10,7 +10,10 @@ use alloc::boxed::Box;
 use document::{Document, Mode, NoteWrite};
 use jig_client::{
     Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c,
-    thread::{Thread, window::End},
+    thread::{
+        Thread,
+        window::{Edge, End},
+    },
 };
 use skein_lib::{Env, List, Map, Queue, Time, Wall};
 pub use views::Shown;
@@ -66,6 +69,7 @@ pub struct Chat {
     pub next: u64,
     pub thread: Thread,
     to_end: u64,
+    initial_pages: u32,
     pub words: Box<[u8]>,
     pub beyond: u64,
     pub composer_focus: u64,
@@ -144,6 +148,7 @@ impl Chat {
             run: None,
             current_run: None,
             next: first.checked_add(4).expect("chat handles fit"),
+            initial_pages: thread.limits.lines,
             thread,
             to_end: 0,
             words: Box::default(),
@@ -513,11 +518,8 @@ impl Chat {
         let why = super::activity::read_end(client, &page);
         if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = page {
             self.asking.answered();
-            let empty_with_more = page.rows.is_empty() && page.before.is_some();
-            ask_activity(&mut self.asking, self.activity, self.thread.page(*page), out);
-            if empty_with_more {
-                ask_activity(&mut self.asking, self.activity, self.thread.older(), out);
-            }
+            let read = self.accept_activity(*page);
+            ask_activity(&mut self.asking, self.activity, read, out);
         } else if let Readout::Jig(c::ReadResult::None(c::ReadNone::SignedOut)) = page
             && client.link().state == jig_client::Link::Starting
             && super::awaits_first_read(&self.thread)
@@ -532,8 +534,60 @@ impl Chat {
             self.asking.ended(now);
         } else {
             self.asking.answered();
+            self.initial_pages = 0;
             self.thread.failed();
         }
+    }
+    fn accept_activity(&mut self, page: c::ActivityPage) -> Option<c::Read> {
+        let previous = self.thread.lines.edges.after.clone();
+        let empty = page.rows.is_empty();
+        let filling = self.initial_pages > 0;
+        if self.initial_pages > 0 {
+            if let Some(jig_client::thread::Reading::Older) = self.thread.reading {
+                let mut weight = 0_u64;
+                for row in self.thread.lines.rows.iter().chain(page.rows.iter()) {
+                    weight = weight.saturating_add(row.weight());
+                }
+                if weight > self.thread.limits.bytes
+                    || self.thread.lines.rows.len().saturating_add(page.rows.len()) > self.thread.limits.lines
+                {
+                    self.initial_pages = 0;
+                    self.thread.reading = None;
+                    return self.thread.moved(self.thread.committed);
+                }
+            }
+            self.initial_pages = self.initial_pages.saturating_sub(1);
+        }
+        if let Some(read) = self.thread.page(page) {
+            // An empty initial page advances by cursor rather than rereading the tail.
+            if filling && empty && self.thread.loaded == 0 && !self.thread.lines.edges.reaches(End::After) {
+                self.thread.reading = None;
+            } else {
+                return Some(read);
+            }
+        }
+        let mut weight = 0_u64;
+        for row in &self.thread.lines.rows {
+            weight = weight.saturating_add(row.weight());
+        }
+        let more = match &self.thread.lines.edges.after {
+            Edge::More(_) => true,
+            Edge::End | Edge::Dropped => false,
+        };
+        if more
+            && previous != self.thread.lines.edges.after
+            && (self.initial_pages > 0 || (!filling && empty))
+            && self.thread.lines.edges.reaches(End::Before)
+            && self.thread.lines.rows.len() < self.thread.limits.lines
+            && weight < self.thread.limits.bytes
+        {
+            return self.thread.older();
+        }
+        // An empty chat keeps its remaining initial budget for its first committed history.
+        if !empty || self.thread.loaded > 0 {
+            self.initial_pages = 0;
+        }
+        None
     }
     fn run_changed(&mut self, client: &Client, handle: Handle, out: &mut Queue<Request>) {
         match latest(client, handle) {

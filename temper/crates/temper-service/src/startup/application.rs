@@ -158,6 +158,7 @@ pub struct Identity {
 #[derive(Debug)]
 pub struct Worker {
     pub root: Box<[u8]>,
+    #[cfg(feature = "worker")]
     pub git: Option<Box<[u8]>>,
 }
 fn configured_limits(
@@ -254,7 +255,13 @@ fn workers(
                 }
                 if let Some(root) = joined(directories, config::Directory::Data, &root, &path.member(b"root"), problems)
                 {
-                    workers.push(Worker { root, git }).expect("bounded workers");
+                    workers
+                        .push(Worker {
+                            root,
+                            #[cfg(feature = "worker")]
+                            git,
+                        })
+                        .expect("bounded workers");
                 }
             }
         }
