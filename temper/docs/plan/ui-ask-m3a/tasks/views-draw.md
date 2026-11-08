@@ -109,3 +109,16 @@ Combine both changes so that paragraph reads:
   `delegation` adds no policy item.
 ```
 Preserve the landing target’s other status updates and the automatically merged CSS and gallery changes.
+
+## Rebase (2026-11-08, step merge, foreman ui-ask-m3a/views-draw/foreman-2)
+
+resolve the client status conflict by removing both completed gaps.
+Rebase onto the landing target; the sole conflicting path is `temper/docs/design/client/README.status.md`.
+Landing commit `2ef7f7a1c5` removes the 5.13 delegation gap; task commit `c4eab43581` removes the adjacent 5.16 view-drawing gap.
+Combine both removals so the final paragraph reads:
+```markdown
+- **Not yet:** 4.6: the records `BranchPath`, `WaysPanel` and `ViewAnswer`, the
+  subject `ways` and the read `View`.
+```
+This supersedes the previous Rebase instruction to retain the 5.13 gap.
+Preserve all other landing-target updates and task changes.
