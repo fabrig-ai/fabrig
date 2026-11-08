@@ -1190,7 +1190,6 @@ impl World {
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
-                | top::Request::GoalTopic { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingDecision { .. }
