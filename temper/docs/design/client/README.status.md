@@ -2,14 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Decided for you*, *Home on any project* and *Needs
-  you*; 4.6, `decided`: the client watches `decided` on Home alone
-  (`temper-client-domain`'s `pages/home.rs`), its rows carry no reach and no
-  `asked` list, *Needs you* draws no *Decided for you*, Home draws its rows
-  only in the Away form and always with "While you were away", no row says
-  what allowed it, Overturn is offered on Home alone and its toast names a
-  goal. `ui-reaches/decided-client`.
-
 - **Not yet:** 3.5, *Away*; 5.13, *While you're away, agents may decide*,
   *What the client holds*, *Its acts* and *The card in a chat*'s kind 8; 5.8,
   *How it runs*; 5.14, "When it needs you": the client reads no kind 8, the

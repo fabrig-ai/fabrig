@@ -37,6 +37,7 @@ pub mod chats;
 pub mod choice;
 pub mod composer;
 pub mod connect_model;
+pub mod decided;
 pub mod delegation;
 pub mod goal;
 pub mod goals;
@@ -71,6 +72,7 @@ pub struct Pages {
     listing: Option<terminal::Listing>,
     notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
+    decided: decided::Store,
     away: Option<away::Pending>,
     overturns: away::Overturns,
     away_focus: u64,
@@ -333,6 +335,7 @@ impl Pages {
             shown: 0,
             inbox: None,
             home: None,
+            decided: decided::Store::new(),
             changes: None,
             stock_ways: None,
             chats: None,
@@ -1100,6 +1103,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         } else {
             open.failed = Some(outcome.clone());
         }
+    }
+    if pages.decided.told(&told, client, env.limits.forge, out) {
+        return true;
     }
     if away::told(pages, env, client, &told, out) {
         return true;

@@ -59,6 +59,9 @@ pub(crate) fn main(
         ask::text(b, Role::Paragraph, &w.say(Word::NeedsDone, &[]), look::HOME_LEDE);
         b.close();
         ask::answered_lines(b, root, &lines, w, bindings);
+        if let Some(shown) = root.pages().decided(inbox.filter.project, times.now) {
+            super::decided::main(b, root, w, bindings, inbox.filter.project, &shown, times);
+        }
         let project = home_project(root, inbox.filter.project);
         if let Some(project) = project {
             b.open(Role::Paragraph);
@@ -156,6 +159,9 @@ fn flow(
         ask::text(b, Role::Heading { level: 2 }, &w.say(Word::NeedsAnswered, &[]), look::HOME_HEAD);
         ask::answered_lines(b, root, lines, w, bindings);
         b.close();
+    }
+    if let Some(shown) = root.pages().decided(inbox.filter.project, times.now) {
+        super::decided::main(b, root, w, bindings, inbox.filter.project, &shown, times);
     }
 }
 

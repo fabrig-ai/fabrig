@@ -209,6 +209,7 @@ home-copy-failed
 home-copy-offer
 home-copy-one
 home-copying
+home-decided
 home-github
 home-landing-none
 home-landing-red
@@ -239,6 +240,7 @@ models-read
 models-read-failed
 needs-approval
 needs-approval-no-account
+needs-decided
 needs-done
 needs-funds
 needs-held

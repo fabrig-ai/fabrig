@@ -154,9 +154,9 @@ pub fn domain_limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
-                handles: 16,
+                handles: 19, // Holds four projects' decided watches.
                 // Closing page watches overlap the session watches.
-                watches: 15,
+                watches: 18, // Holds four projects' decided watches.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

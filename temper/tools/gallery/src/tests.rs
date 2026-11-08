@@ -617,6 +617,24 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-decided",
+        heading: "57 changes landed. One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
+            Part::Named { role: Role::Text, name: "Allowed: wording choices are decided and listed." },
+        ],
+    },
+    Holds {
+        name: "needs-decided",
+        heading: "The repository has no license. Name one in the README?",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Text, name: "fabrig · welcome-stall · 01:05" },
+            Part::Named { role: Role::Text, name: "Widget · forge-cards · 06:15" },
+        ],
+    },
+    Holds {
         name: "home-away",
         heading: "57 changes landed. Four things were decided for you.",
         parts: &[
@@ -4312,10 +4330,35 @@ fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
 #[test]
 fn home_away_deliveries_draw_the_mock_words_and_off_span() {
     use temper_client_view::look;
-    for (name, count, headline) in [
-        ("home-away", 4, "57 changes landed. Four things were decided for you."),
-        ("home-away-one", 1, "57 changes landed. One thing was decided for you."),
-        ("home-away-overturned", 4, "57 changes landed. Four things were decided for you."),
+    for (name, count, headline, expected_kicker, overturns, landed, overturned) in [
+        ("home-decided", 2, "57 changes landed. One thing needs you.", "Tuesday, 08:04", 2, false, false),
+        (
+            "home-away",
+            4,
+            "57 changes landed. Four things were decided for you.",
+            "While you were away · Mon 23:10 to now",
+            4,
+            false,
+            false,
+        ),
+        (
+            "home-away-one",
+            1,
+            "57 changes landed. One thing was decided for you.",
+            "While you were away · Mon 23:10 to 08:03",
+            0,
+            true,
+            false,
+        ),
+        (
+            "home-away-overturned",
+            4,
+            "57 changes landed. Four things were decided for you.",
+            "While you were away · Mon 23:10 to now",
+            2,
+            true,
+            true,
+        ),
     ] {
         let sample = samples::samples().into_iter().find(|s| s.name == name).expect("Home away sample");
         let view = view(&sample);
@@ -4330,20 +4373,15 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
             tree.nodes().iter().any(|n| n.name.as_deref() == Some("welcome-stall · 01:05".as_bytes())),
             "the decision task read supplies its title"
         );
-        if count == 1 {
+        if landed {
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
                 && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
         }
         let kicker =
             tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::HOME_KICKER)).expect("away kicker");
-        assert_eq!(
-            kicker.name.as_deref(),
-            Some(if count == 4 {
-                "While you were away · Mon 23:10 to now".as_bytes()
-            } else {
-                "While you were away · Mon 23:10 to 08:03".as_bytes()
-            })
-        );
+        assert_eq!(kicker.name.as_deref(), Some(expected_kicker.as_bytes()));
+        assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_ALLOWED)
+            && n.name.as_deref() == Some("Allowed: implementation choices are decided while you’re away.".as_bytes())));
         assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_TOOK)
             && n.name.as_deref() == Some(b"In temper serve".as_slice())));
         assert_eq!(
@@ -4351,13 +4389,9 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
                 .iter()
                 .filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Overturn".as_slice()))
                 .count(),
-            match name {
-                "home-away" => 4,
-                "home-away-overturned" => 2,
-                _ => 0,
-            }
+            overturns
         );
-        if name == "home-away-overturned" {
+        if overturned {
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
                 && n.name.as_deref() == Some(b"Overturned: it asks you again".as_slice())));
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_OVERTURNED)));
