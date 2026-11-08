@@ -1,17 +1,19 @@
 //! Chat entries and hand-written frames (temper/docs/design/client/README.md, 6.14 and 6.15).
-use super::{fixtures as f, goldens};
+use super::{fixtures as f, goldens, printed as p};
 use crate::{
     Scheme, Told, Tui, look,
     view::{
         self,
-        chat::{self, Chat, Entry},
-        foot,
+        chat::{self, Chat, Entry, Piece},
+        foot, printed,
     },
 };
 use jig_client::{Down, UnlinkedRequest, contract as c};
-use skein_lib::{List, Queue, Wall};
+use skein_lib::{Env, List, Queue, Time, Wall};
 use skein_ui::{Role, Style};
-use temper_client_domain::{self as d, Address, Domain, Event, Place};
+use temper_client_domain::pages::chat::Shown;
+use temper_client_domain::{self as d, Address, Domain, Event};
+use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_view::shared;
 
 const TASK: u64 = 2;
@@ -23,7 +25,7 @@ const ANSWER: &[u8] = b"Three changes landed between 22:10 and 06:40:\n\n1. csv-
 const COMMITTED: &[u8] = b"Three changes landed between 22:10 and 06:40:\n\n1. csv-export: the report's columns, the first of its three tasks.\n2. csv-export: the export button on the report page.\n3. fix-login: a session no longer ends when the forge restarts.\n\ncsv-export's last task waits on you: whether the file separates its\nvalues with a comma or a semicolon. Most spreadsheets expect a comma.";
 
 fn text(bytes: &[u8]) -> c::Text {
-    c::Text::new(bytes.into(), f::limits().client.domain.long_text).unwrap()
+    c::Text::new(bytes.into(), chat_limits().client.domain.long_text).unwrap()
 }
 fn line(position: u64, activity: c::Activity) -> c::DecodedActivityLine {
     c::DecodedActivityLine {
@@ -69,8 +71,19 @@ fn turn(blocks: &[c::Block]) -> c::DecodedActivityLine {
     row.decoded = Some(turn);
     row
 }
+fn chat_limits() -> d::Limits {
+    let mut limits = f::limits();
+    limits.client.domain.long_text = 2048;
+    limits.client.domain.turn_text = 2048;
+    limits
+}
+fn chat_event(root: &mut Domain, event: Event) -> Queue<d::Request> {
+    let mut out = Queue::uncapped();
+    d::step(root, &Env { now: Time::ZERO, wall: f::NOW, limits: chat_limits() }, event, &mut out);
+    out
+}
 fn link() -> jig_client_protocol_link::Limits {
-    jig_client_protocol_link::Limits::new(f::limits().client.domain, 8).unwrap()
+    jig_client_protocol_link::Limits::new(chat_limits().client.domain, 8).unwrap()
 }
 fn task() -> c::Task {
     let mut task =
@@ -112,16 +125,68 @@ struct Input {
     current: bool,
     working: bool,
     older: bool,
+    shown: Option<Shown>,
 }
 impl Input {
     fn empty() -> Self {
-        Self { task: None, rows: Box::default(), writing: None, current: false, working: false, older: false }
+        Self {
+            task: None,
+            rows: Box::default(),
+            writing: None,
+            current: false,
+            working: false,
+            older: false,
+            shown: None,
+        }
     }
 }
 #[expect(clippy::wildcard_enum_match_arm, reason = "the fixture answers its task, activity and run documents alone")]
+#[expect(clippy::too_many_lines, reason = "the fixture answers chat and view reads through the root's events")]
+#[expect(clippy::manual_map, reason = "the read answer uses an explicit match rather than a closure")]
 fn root(input: &Input) -> Domain {
-    let (mut root, _) = f::live(Some(f::me(&[b"Hello"])));
-    let mut out = f::event(&mut root, Event::Went { place: Place::Address(Address::Chat { task: TASK }) });
+    let mut root = d::unlinked(&chat_limits(), f::SEED);
+    chat_event(&mut root, Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } });
+    let mut opened = chat_event(
+        &mut root,
+        Event::Start {
+            address: Address::Chat { task: TASK },
+            kept: List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
+    );
+    chat_event(
+        &mut root,
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+    );
+    let mut out = Queue::uncapped();
+    while let Some(request) = opened.pop() {
+        match request {
+            d::Request::Unlinked {
+                request:
+                    UnlinkedRequest::Down {
+                        down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
+                    },
+            } => {
+                let mut replies = chat_event(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Watched {
+                                watch,
+                                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(f::me(&[b"Hello"])))),
+                            },
+                        },
+                    },
+                );
+                while let Some(reply) = replies.pop() {
+                    out.push(reply);
+                }
+            }
+            request => {
+                out.push(request);
+            }
+        }
+    }
     let mut task = match &input.task {
         Some(task) => task.as_ref().clone(),
         None => task(),
@@ -209,10 +274,39 @@ fn root(input: &Input) -> Domain {
                     )))),
                 })
             }
+            d::Request::Unlinked {
+                request:
+                    UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Family { record, .. } } },
+            } => {
+                let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
+                if let w::Read::View(view) = reading.read() {
+                    assert_eq!(view.address(), p::ADDRESS);
+                    let result = match &input.shown {
+                        None | Some(Shown::Asking) => None,
+                        Some(Shown::Failed) => {
+                            Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)))
+                        }
+                        Some(Shown::Drawn(view)) => {
+                            let answer =
+                                w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: *view.clone() }).unwrap();
+                            Some(jig_client::Readout::Family {
+                                family: wire::FORGE,
+                                record: Some(wire::view_answer(&answer)),
+                            })
+                        }
+                    };
+                    match result {
+                        Some(result) => Some(jig_client::Up::ReadDone { read, result }),
+                        None => None,
+                    }
+                } else {
+                    None
+                }
+            }
             _ => None,
         };
         if let Some(up) = up {
-            let mut replies = f::client(&mut root, jig_client::Event::Up { up });
+            let mut replies = chat_event(&mut root, Event::Client { event: jig_client::Event::Up { up } });
             while let Some(reply) = replies.pop() {
                 out.push(reply);
             }
@@ -226,13 +320,16 @@ fn view() -> crate::View {
     crate::View::new(&crate::limits(&f::limits(), &page.tree, 512).unwrap(), words)
 }
 fn draw(part: Chat, list: Option<foot::Options>, columns: u16) -> crate::View {
+    draw_request(part, list, columns, REQUEST)
+}
+fn draw_request(part: Chat, list: Option<foot::Options>, columns: u16, request: &[u8]) -> crate::View {
     let mut view = view();
     let root = f::live(Some(f::me(&[b"Hello"]))).0;
     let mut foot = foot::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW);
     foot.columns = columns;
     foot.rule = Some(foot::Rule {
         project: b"Hello".as_slice().into(),
-        title: chat::cut(&shared::heading(REQUEST), &f::words()),
+        title: chat::cut(&shared::heading(request), &f::words()),
         task: TASK,
         place: f::ADDRESS.into(),
     });
@@ -256,9 +353,10 @@ struct Row {
     end: usize,
     ordered: Option<u32>,
     failed: bool,
+    code: usize,
 }
 fn row(name: &'static str, input: Input, entries: &'static [(Style, &'static str)]) -> Row {
-    Row { name, input: Some(input), data: None, entries, end: 0, ordered: None, failed: false }
+    Row { name, input: Some(input), data: None, entries, end: 0, ordered: None, failed: false, code: 0 }
 }
 #[test]
 #[expect(
@@ -367,6 +465,37 @@ fn the_chat_draws_each_entry() {
             &[(look::SAID, "What landed overnight?"), (look::AGENT, "A paragraphFirstLast")],
         ),
         row(
+            "a reply with a view between two paragraphs",
+            Input {
+                rows: Box::new([turn(&[c::Block::Text(text(p::MIXED))])]),
+                shown: Some(Shown::Drawn(Box::new(p::way(false)))),
+                ..Input::empty()
+            },
+            &[
+                (look::SAID, "What landed overnight?"),
+                (
+                    look::AGENT,
+                    "Under You approve:You approveAn agent makes each change; nothing reaches main until you approve it.○ you ask✦ produce▪ check✦ repair▪ check○ you approve▪ update✦ resolve▪ merge┃ mainNothing lands without you.",
+                ),
+            ],
+        ),
+        row(
+            "a reply with a view still asking",
+            Input { rows: Box::new([turn(&[c::Block::Text(text(p::MIXED))])]), ..Input::empty() },
+            &[
+                (look::SAID, "What landed overnight?"),
+                (look::AGENT, "Under You approve:Drawing way You approve…Nothing lands without you."),
+            ],
+        ),
+        row(
+            "provisional text with a view block",
+            Input { working: true, writing: Some(p::MIXED), ..Input::empty() },
+            &[
+                (look::SAID, "What landed overnight?"),
+                (look::AGENT, "Under You approve:way You approve\nNothing lands without you. "),
+            ],
+        ),
+        row(
             "hidden blocks",
             Input {
                 rows: Box::new([turn(&[
@@ -396,6 +525,7 @@ fn the_chat_draws_each_entry() {
             end: 0,
             ordered: None,
             failed: false,
+            code: 0,
         },
         row(
             "requester cancellation is hidden",
@@ -411,6 +541,8 @@ fn the_chat_draws_each_entry() {
     rows[7].end = 1;
     rows[7].ordered = Some(1);
     rows[8].ordered = Some(1);
+    rows[11].end = 1;
+    rows[11].code = 1;
     let words = f::words();
     let mut failures = List::uncapped();
     for mut row in rows {
@@ -437,13 +569,20 @@ fn the_chat_draws_each_entry() {
         let end = tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::END)).count();
         let ordered = tree.nodes().iter().find_map(|n| n.ordered);
         let failed = tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::RUN_FAILED));
+        let code = tree.nodes().iter().filter(|n| n.role == Role::Code).count();
         let log = tree.nodes().iter().find(|n| n.role == Role::Log);
         let unbound = log.is_some_and(|n| {
             let at = f::index(tree, n.id);
             tree.nodes()[at..at + usize::try_from(n.size).unwrap()].iter().all(|n| n.binding.is_none())
         });
-        if entries != expected || end != row.end || ordered != row.ordered || failed != row.failed || !unbound {
-            failures.push(format!("{}: entries {entries:?}, expected {expected:?}; end {end}/{}, ordered {ordered:?}/{:?}, failed {failed}/{}, unbound {unbound}", row.name,row.end,row.ordered,row.failed)).unwrap();
+        if entries != expected
+            || end != row.end
+            || ordered != row.ordered
+            || failed != row.failed
+            || !unbound
+            || code != row.code
+        {
+            failures.push(format!("{}: entries {entries:?}, expected {expected:?}; end {end}/{}, ordered {ordered:?}/{:?}, failed {failed}/{}, unbound {unbound}, code {code}/{}", row.name,row.end,row.ordered,row.failed,row.code)).unwrap();
         }
     }
     assert!(failures.is_empty(), "{}", failures.as_slice().join("\n"));
@@ -487,6 +626,7 @@ fn request_rule() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the golden rows embed hand-written frame literals")]
+#[expect(clippy::too_many_lines, reason = "one table checks the chat frames and printed views at their review sizes")]
 fn the_chats_are_their_goldens() {
     use skein_ui_screen::{Focus, Size};
     let full = Size { columns: 80, rows: 24 };
@@ -555,6 +695,44 @@ fn the_chats_are_their_goldens() {
                 size: *size,
                 focus: Focus::default(),
                 want,
+            })
+            .unwrap();
+    }
+    goldens::check(checks.as_slice());
+    let view_rows = [
+        ("chat-views-80x24-dark", full, Scheme::Dark, include_bytes!("golden/chat-views-80x24-dark.txt").as_slice()),
+        ("chat-views-80x24-light", full, Scheme::Light, include_bytes!("golden/chat-views-80x24-light.txt").as_slice()),
+        (
+            "chat-views-110x32-dark",
+            Size { columns: 110, rows: 32 },
+            Scheme::Dark,
+            include_bytes!("golden/chat-views-110x32-dark.txt").as_slice(),
+        ),
+    ];
+    let request = b"How does a change land?";
+    let mut views = List::uncapped();
+    for (_, size, _, _) in &view_rows {
+        let part = data(Box::new([
+            Entry::Said(request.as_slice().into()),
+            Entry::Viewed(Box::new([
+                Piece::Text(b"Under You approve:".as_slice().into()),
+                Piece::View(printed::Printed::Drawn(Box::new(p::way(false)))),
+                Piece::Text(b"Nothing lands without you.".as_slice().into()),
+            ])),
+        ]));
+        views.push(draw_request(part, None, size.columns, request)).unwrap();
+    }
+    let mut checks = List::uncapped();
+    for ((name, size, scheme, want), view) in view_rows.iter().zip(&views) {
+        checks
+            .push(goldens::Golden {
+                name,
+                size: *size,
+                scheme: *scheme,
+                want,
+                tree: view.tree(),
+                focus: Focus::default(),
+                background: Some(crate::theme::palette(*scheme)[0].1),
             })
             .unwrap();
     }
