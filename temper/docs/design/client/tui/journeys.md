@@ -108,8 +108,10 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
 | `screen` | rows, columns, `dark` or `light` | the start's size and scheme |
 | `address` | `HOST:PORT` as bytes | the start's address |
+| `local` | none | when the start has an engine's link file to read (`../README.md`, 6.13, `Start.local`) |
 | `stored` | a small-store record's key and bytes | one per record loaded (shared) |
 | `credential` | the credential's bytes | when the start held one |
+| `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`../README.md`, 6.12) |
 | `turn` | now and wall | each turn's clocks (shared) |
 | `start`, `due` | none | the `Start` and `Due` reports (shared) |
 | `key` | the key (below), then its event's print in quotes, or `none` | a `Key` report |
@@ -121,13 +123,16 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `saved`, `unsaved` | none | `Heard(Stored)`, `Heard(NotStored)` |
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
+| `found` | the file's bytes, or `none` | a `Local` report |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
 | `stream` | the credential's bytes or `none` | `Request::OpenStream` |
 | `unstream` | none | `Request::CloseStream` |
 | `save` | a record's key and bytes | `Request::Save`, one per record (shared) |
 | `erase` | a record's key | `Request::Erase`, one per key (shared) |
 | `keep` | the credential's bytes, or `none` | the duty `keep` |
+| `note` | `until` and nanoseconds, or `signed-out` | the duty `note` |
 | `signed` | `HOST:PORT` as bytes | the duty `address` |
+| `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
 | `quit` | none | the duty `close` |
 | `deadline` | nanoseconds, or `none` | each turn's end (shared) |
@@ -149,7 +154,12 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Any other `jig_client::Event`** reaching the host is no native
   shell's, and the recorder refuses it as its defect.
 - **The duties' order:** each request of `asked` in order, then `keep`,
-  `signed`, `browse` and `quit`, each when the duty holds it.
+  `note`, `signed`, `read`, `browse` and `quit`, each when the duty holds
+  it.
+- **The start's facts** are in the table's order, `local` after
+  `address` and `noted` after `credential`. A recording with neither
+  reads as a start with no engine's link file and no note, so one made
+  before them replays as it stands; the version stays `2`.
 - **Unreadable:** another version, a record out of its place, an unknown
   kind or word, a field missing or over, a number out of its type's
   range; it names the line.
@@ -187,7 +197,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 the run does (`Host::new` with `limits::tui()`, the seed and the
 clocks), then, turn by turn, sets the clocks and gives each report:
 `Start` from the facts, a key as recorded, a transport's event, a
-resize, `Kept`, `Opened`. At each mark it yields the host's frame.
+resize, `Kept`, `Opened`, `Local` with the bytes found. At each mark it
+yields the host's frame.
 
 ### 4.2 The check
 
@@ -230,7 +241,10 @@ the TUI's lines.
   - *bearer:* each `send`'s and `stream`'s credential, the bearer every
     exchange carries;
   - *link:* the secret of each `send` of kind `sign-in-link`, as jig's
-    wire reads it, the printed link pasted;
+    wire reads it, the printed link pasted or the engine's link read;
+    and the secret of each `found`'s link, as
+    `jig-client-protocol-http`'s `printed` reads it, so that a file read
+    and never sent is redacted too;
   - *given:* each `--redact TEXT`.
 
   The same bytes under two kinds, a credential kept and carried, are
@@ -241,16 +255,18 @@ the TUI's lines.
 - **Where:** every original in every field of every line. A `reply`'s,
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
-  `key`'s bytes and event, `address`, `signed`, `browse`, `mark` and
-  `end` are text (`../journeys.md`, 3.6, *A form's size*). A TUI's
+  `key`'s bytes and event, `found`'s bytes, `address`, `signed`,
+  `browse`, `mark` and `end` are text (`../journeys.md`, 3.6, *A form's
+  size*). A TUI's
   stream records come whole from the native shell, so no pieces are
   joined.
 - **The proof holds:** the host derives what it asks from what it heard,
   so the take's message holds the redacted secret it was answered, and
   every exchange the redacted credential it kept.
 - **A pasted link's encoding:** the TUI also replaces and scans the
-  link secret's canonical URL-base64 in the pasted address and its
-  decimal byte elements in the `Typed` event's Debug print. Both become
+  link secret's canonical URL-base64 in the pasted address and in a
+  `found`'s, and its decimal byte elements in the `Typed` event's Debug
+  print. Both become
   those encodings of the redacted secret, so the paste and its event
   still replay. This is the TUI's addition; the browser's code and
   encodings stay as `../journeys.md`, 3.6 describes.
@@ -314,11 +330,13 @@ no cursor.
   (`<link rel="prev">`, `<link rel="next">`) and `../tui-journey.js`; in
   its body one `pre` of the classes `tui` and `tui-dark` or `tui-light`,
   the recording's scheme, a row per line.
-- **A row's cells** are runs of one paint: the base's as plain text, any
-  other in a `span` whose classes name its foreground and background by
-  the theme's palette (`f-accent`, `b-sel`; `temper-client-tui`'s
-  `theme::palette`), then its attributes (`bold`, `dim`, `italic`,
-  `underline`, `reverse`). A colour that is no palette's is the span's
+- **A row's cells** are runs of one paint: the base's, the terminal's
+  defaults (`../README.md`, 6.15), as plain text, any other in a `span`
+  whose classes name its foreground and background by the theme's
+  palette (`f-accent`, `f-dim`; `temper-client-tui`'s `theme::palette`),
+  then its attributes (`bold`, `dim`, `italic`, `underline`, `reverse`).
+  A colour that is the terminal's default gets no class: the `pre`'s own
+  colours stand in for it. A colour that is no palette's is the span's
   `style`, `color:#RRGGBB` or `background:#RRGGBB`. The cursor, when the
   frame has one, is a `span` of the class `cursor` around its cell.
   Text escapes `<`, `>`, `&` and `"`.
@@ -330,9 +348,12 @@ no cursor.
   of them. A mark of the mark key leads on by its neighbours alone.
 - **`theme.css`,** from `theme::palette` for both schemes: each
   scheme's palette as custom properties under `.tui-dark` and
-  `.tui-light`, the base's colours on the `pre`, a rule per palette
-  colour for `f-` and `b-`, a rule per attribute, a monospace font and
-  the cursor's look.
+  `.tui-light`; on the `pre`, the scheme's stand-ins for the terminal's
+  default text and background, `ink` and `bg`; a rule per palette colour
+  for `f-` and `b-`, a rule per attribute, a monospace font and the
+  cursor's look. A frame keeps the terminal's default as a colour of its
+  own (skein's `ui-screen.md`, section 3), and only the page draws it,
+  in the stand-ins.
 
 ### 6.5 Opening them
 
@@ -420,7 +441,12 @@ ordinary Rust over skein's harness:
 - **The TUI in a pseudo-terminal** of 80 columns by 24 rows (skein's
   harness starts a binary on one), `temper http://HOST:PORT` at the
   box's address, with `XDG_STATE_HOME` and `HOME` in the scratch
-  directory, `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
+  directory, `XDG_RUNTIME_DIR` a directory of its own there,
+  `tui-runtime`, apart from the box's, so that it finds no engine's link
+  file and the journey walks the approval (`../README.md`, 6.12), no
+  `COLORFGBG`, so that it asks the terminal its background, which the
+  pseudo-terminal leaves unanswered, and draws dark (`../README.md`,
+  6.15), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
   `again`'s or `:0`, and `PATH` led by a scratch directory whose
   `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
   0, and leaves the tab to `again`. Its output is read and dropped.

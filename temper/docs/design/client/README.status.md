@@ -4,7 +4,9 @@
 
 Sections 2 and 6.11 to 6.16 have no known implementation gap in the
 TUI's crates, command, private directory, host seam, pasted-link sign-in,
-live first screen, themes and closing. Section 10's frame goldens,
+live first screen, themes and closing, but for the **Not yet** entries
+of the sign-in from the engine's link and the terminal's own colours
+below. Section 10's frame goldens,
 host rows, simulated loop and joined-client stories are present. The
 post-landing walk and later passes remain section 11's work; no real
 terminal or macOS runtime result is supplied here.
@@ -71,6 +73,32 @@ section 11). The ground, scrollbar and foot repairs are recorded in
 remains intentional: `>_` and the status words leave the path less than
 its 320 px, as the user accepted in `look-round-17`.
 
+- **Not yet:** 6.12, *The engine's link, kept at rest*: `temper`'s
+  `link_file`, serve writing the file at its start under the box and at
+  each `Link`, and removing it at exit, are not built.
+- **Not yet:** 6.12, `sign-in`, and 6.14, *Signed in from the engine's
+  link*, in `temper-client-tui`: `Note`, and the view's "Connecting to
+  HOST:PORT" while the TUI signs in from the file, with no refusal line
+  for the file's link, are not built.
+- **Not yet:** 6.13 and 6.14, *Signed in from the engine's link* and
+  *Expired is not signed out*, in the host: `Start.local` and
+  `Start.note`, `Report::Local`, the duties `local` and `note`, the
+  second read after `link_used` and `link_expired`, and an expiry told
+  from a sign-out, are not built.
+- **Not yet:** 6.15, *The terminal's own colours* and *Its glyphs and
+  its focus*: the base in the terminal's defaults, the palette without
+  `sel`, the focus in the accent, and `Scheme::of_background`, are not
+  built.
+- **Not yet:** 6.16: the run's settings' scheme, link file and note,
+  `Start` awaiting the terminal's background, the file read for `local`
+  and the note written, are not built.
+- **Not yet:** 6.11, 6.12 and 6.15, in the binary: bare `temper`'s
+  address from the engine's link file, the note read at start, and the
+  scheme left to the terminal where `COLORFGBG` declares none, are not
+  built.
+- **Not yet:** 10, *The TUI in the joint world*: the stories of the sign-in
+  from the engine's link, its fallback, its renewal and its refusal
+  after a sign-out are not written.
 - **Departs:** 3.5, *A chat's terminal*: the quiet line says "N spent · of B",
   because `temper-client-view`'s `pages/terminal.rs`, `under`, reuses
   `Word::ChatbarSpend`, including the budget, rather than own spend alone.

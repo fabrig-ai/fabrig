@@ -43,3 +43,7 @@ with secret-safe diagnostics, and never enters the small store.
 Section 12's retrying approval take exposes not ready for a not-ready
 answer and busy for a busy or lost answer, distinguishing a retry from
 an unanswered take for the application's waiting line.
+
+- **Not yet:** 8.2: the link's `expires`, the expiry of the sign-in it
+  holds as the last sign-in's answer said it, is not built: the link
+  layer drops `SignedIn`'s expiry, and `LinkView` names none.

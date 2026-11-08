@@ -1,0 +1,62 @@
+draft = "tui-link-colours"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-link-colours/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/AGENTS.md", "temper/docs/design/client/tui/journeys.md", "skein/docs/design/ui-screen.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "jig-expiry"
+title = "jig-client's link view names the expiry of the sign-in it holds, as the last sign-in's answer said it"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/client.md, 8.2"
+
+[[slice]]
+id = 1
+story = "A link signed in by a link, kept, or by an approval's take names the answer's expiry in link().expires; a held credential names none; signed out drops it"
+parts = ["jig-expiry"]
+walk = false
+
+[[part]]
+id = "skein-background"
+title = "skein's full-screen terminal asks the terminal's background with OSC 11, waits for it, and never reads an answer as a key"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-screen.md, 8"
+
+[[slice]]
+id = 2
+story = "On the simulated machine, a terminal given a wait writes ASK_BACKGROUND after ENTER and says Answered for the colour fed, or Unanswered once the wait passes or the input ends; the answer never reaches the keys"
+parts = ["skein-background"]
+walk = false
+
+[[part]]
+id = "tui-local"
+title = "temper-client-tui's Note of its sign-in, and the view's Connecting while the TUI signs in from the engine's link"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 3
+story = "A Tui told Local Signing on a signed-out root draws Connecting to HOST:PORT; told Ended, the sign-in screen with no refusal line; Note lines print and read back"
+parts = ["tui-local"]
+walk = false
+
+[[part]]
+id = "box-side"
+title = "temper serve keeps its live printed link in a private file, rewritten at each link and removed at exit; the box's block names the TUI's command"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.12"
+
+[[slice]]
+id = 4
+story = "A fresh box prints its block ending In a terminal: temper http://HOST:PORT, keeps its link 0600 in RUNTIME/temper/printed-link-KEY, keeps the fresh link after a spent one is opened, and removes the file when it stops"
+parts = ["box-side"]
+walk = false
