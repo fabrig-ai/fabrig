@@ -406,6 +406,22 @@ pub fn call_in(
                     if value.field(b"words")?.is_some() {
                         return Err(Problem::Range(b"changes"));
                     }
+                    for member in [
+                        b"repository".as_slice(),
+                        b"name",
+                        b"landing",
+                        b"branch",
+                        b"merge",
+                        b"after",
+                        b"producer",
+                        b"llm",
+                        b"repairs",
+                        b"questions",
+                    ] {
+                        if value.field(member)?.is_some() {
+                            return Err(Problem::Beside(member));
+                        }
+                    }
                     let items = changes.array(b"changes")?;
                     if items.is_empty() {
                         return Err(Problem::Range(b"changes"));

@@ -499,6 +499,7 @@ fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> HostAnswe
             | Problem::Needs { .. }
             | Problem::Type(_)
             | Problem::Range(_)
+            | Problem::Beside(_)
             | Problem::UnknownTool,
         ) => HostAnswer::new(bytes::copy_of(b"The recorded answer cannot be rendered as text."), true)
             .expect("fixed host feedback fits"),

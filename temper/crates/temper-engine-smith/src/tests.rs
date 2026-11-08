@@ -2151,30 +2151,19 @@ fn change_refuses_a_producer_or_llm_out_of_range() {
 
 #[test]
 fn change_refuses_words_with_changes_and_empty_members() {
-    let beside: &[(&[u8], &[u8])] = &[
-        (br#"{"repository":true,"changes":[{"words":"a"}]}"#, b"repository"),
-        (br#"{"name":true,"changes":[{"words":"a"}]}"#, b"name"),
-        (br#"{"landing":true,"changes":[{"words":"a"}]}"#, b"landing"),
-        (br#"{"branch":true,"changes":[{"words":"a"}]}"#, b"branch"),
-        (br#"{"merge":true,"changes":[{"words":"a"}]}"#, b"merge"),
-        (br#"{"after":true,"changes":[{"words":"a"}]}"#, b"after"),
-        (br#"{"producer":true,"changes":[{"words":"a"}]}"#, b"producer"),
-        (br#"{"llm":true,"changes":[{"words":"a"}]}"#, b"llm"),
-        (br#"{"repairs":true,"changes":[{"words":"a"}]}"#, b"repairs"),
-        (br#"{"questions":true,"changes":[{"words":"a"}]}"#, b"questions"),
-        (br#"{"landing":"goal","producer":2,"questions":"foreman","llm":{"producer":{"main":{"model":"m","effort":"high"}}},"changes":[{"name":"a","words":"a"},{"name":"b","words":"b"},{"name":"c","words":"c"},{"name":"d","words":"d"}]}"#, b"landing"),
-        (br#"{"questions":"up","producer":2,"changes":[{"words":"a"}]}"#, b"producer"),
-    ];
-    let mut failures = Vec::new();
-    for (input, member) in beside {
-        let actual = decided(b"change", input);
-        let expected = format!("Beside({member:?})");
-        if actual.as_ref().err().map(|problem| format!("{problem:?}")) != Some(expected.clone()) {
-            failures.push(format!("{input:?}: expected {expected}, got {actual:?}"));
-        }
-    }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
     let cases: &[(&[u8], Problem)] = &[
+        (br#"{"repository":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"repository")),
+        (br#"{"name":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"name")),
+        (br#"{"landing":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"landing")),
+        (br#"{"branch":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"branch")),
+        (br#"{"merge":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"merge")),
+        (br#"{"after":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"after")),
+        (br#"{"producer":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"producer")),
+        (br#"{"llm":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"llm")),
+        (br#"{"repairs":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"repairs")),
+        (br#"{"questions":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"questions")),
+        (br#"{"landing":"goal","producer":2,"questions":"foreman","llm":{"producer":{"main":{"model":"m","effort":"high"}}},"changes":[{"name":"a","words":"a"},{"name":"b","words":"b"},{"name":"c","words":"c"},{"name":"d","words":"d"}]}"#, Problem::Beside(b"landing")),
+        (br#"{"questions":"up","producer":2,"changes":[{"words":"a"}]}"#, Problem::Beside(b"producer")),
         (br#"{"words":"a","changes":[{"words":"b"}]}"#, Problem::Range(b"changes")),
         (br#"{"words":"a","landing":"goal","changes":[{"words":"b"}]}"#, Problem::Range(b"changes")),
         (br#"{"changes":[]}"#, Problem::Range(b"changes")),

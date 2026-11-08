@@ -169,12 +169,6 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   refused, because `temper-engine-smith/src/answers.rs` renders
   `model outside the charter` without that detail although the typed
   refusal retains it. No reason is recorded.
-- **Not yet:** 4.3.1: a call with `changes` and another member beside
-  it is decoded, not refused: `temper-engine-smith/src/calls.rs` reads
-  each change from its own object and drops the call's `landing`,
-  `producer`, `questions`, `llm` and the rest unheard, so the batch's
-  changes land on the default branch with the project's route for
-  questions (the request `goal-call-faults` of 2026-11-08, item 1).
 - **Departs:** 4.3: a run that cannot deliver can still change files by a
   command if its charter grants the shell, where the section says it
   cannot: jig's rail narrows `modify` alone (jig's `domain/hosts.md`,
