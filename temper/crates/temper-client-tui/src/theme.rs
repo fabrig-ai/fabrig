@@ -67,6 +67,7 @@ fn style(style: skein_ui::Style, paint: Paint) -> StyleLook {
         label: true,
         mark: None,
         described: None,
+        active_name: None,
         spaced: false,
     }
 }
@@ -80,8 +81,6 @@ pub fn theme(scheme: Scheme) -> Theme {
         Border {
             corners: ['╭', '╮', '╰', '╯'], across: '─', down: '│', paint: fore(faint), title: true, sides: true
         };
-    let star = Some(Mark { glyph: '✦', paint: fore(accent) });
-    let bold = Paint { bold: true, ..Paint::NONE };
     Theme {
         base: Paint::NONE,
         focus: fore(accent),
@@ -96,37 +95,44 @@ pub fn theme(scheme: Scheme) -> Theme {
             region(look::BOX, Place::Bottom, Arrange::Lines, 0, Some(Border { title: false, sides: false, ..border })),
             region(look::LIST, Place::Bottom, Arrange::Lines, 0, None),
         ]),
-        styles: Box::new([
-            style(look::TITLE, Paint { bold: true, ..fore(accent) }),
-            style(look::HINT, fore(dim)),
-            style(look::LIVE, fore(good)),
-            style(look::WAITING, fore(dim)),
-            style(look::DOWN, fore(accent)),
-            style(look::REFUSED, fore(accent)),
-            style(look::NAME, bold),
-            style(look::FAINT, fore(faint)),
-            StyleLook { align: Align::End, ..style(look::ADDRESS, fore(dim)) },
-            StyleLook { align: Align::End, ..style(look::BYLINE, fore(dim)) },
-            style(look::HEAD, bold),
-            style(look::SIGNAL, fore(accent)),
-            style(look::STAR, fore(accent)),
-            StyleLook {
-                band: true,
-                mark: Some(Mark { glyph: '❯', paint: fore(dim) }),
-                ..style(look::SAID, Paint { back: Some(sel), ..Paint::NONE })
-            },
-            StyleLook { mark: star, ..style(look::AGENT, Paint::NONE) },
-            StyleLook { mark: Some(Mark { glyph: '▸', paint: fore(dim) }), ..style(look::RUN, fore(dim)) },
-            style(look::RUN_FAILED, fore(accent)),
-            StyleLook { mark: star, ..style(look::DOTS, fore(faint)) },
-            StyleLook { mark: star, ..style(look::RUNNING, fore(dim)) },
-            style(look::END, Paint { reverse: true, ..Paint::NONE }),
-            StyleLook { label: false, ..style(look::FIELD, Paint::NONE) },
-            style(look::LIST_HEAD, bold),
-            StyleLook { described: Some(fore(dim)), ..style(look::OPTION, bold) },
-            style(look::NOTE, fore(dim)),
-            StyleLook { spaced: true, ..style(look::SPACED, Paint::NONE) },
-        ]),
+        styles: styles(dim, faint, accent, good, sel),
         glyphs: Glyphs { focus: '❯', mask: '•' },
     }
+}
+
+fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, sel: Rgb) -> Box<[StyleLook]> {
+    let star = Some(Mark { glyph: '✦', paint: fore(accent) });
+    let bold = Paint { bold: true, ..Paint::NONE };
+    Box::new([
+        style(look::TITLE, Paint { bold: true, ..fore(accent) }),
+        style(look::HINT, fore(dim)),
+        style(look::LIVE, fore(good)),
+        style(look::WAITING, fore(dim)),
+        style(look::DOWN, fore(accent)),
+        style(look::REFUSED, fore(accent)),
+        style(look::NAME, bold),
+        style(look::FAINT, fore(faint)),
+        StyleLook { align: Align::End, ..style(look::ADDRESS, fore(dim)) },
+        StyleLook { align: Align::End, ..style(look::BYLINE, fore(dim)) },
+        style(look::HEAD, bold),
+        style(look::SIGNAL, fore(accent)),
+        style(look::STAR, fore(accent)),
+        StyleLook {
+            band: true,
+            mark: Some(Mark { glyph: '❯', paint: fore(dim) }),
+            ..style(look::SAID, Paint { back: Some(sel), ..Paint::NONE })
+        },
+        StyleLook { mark: star, ..style(look::AGENT, Paint::NONE) },
+        StyleLook { mark: Some(Mark { glyph: '▸', paint: fore(dim) }), ..style(look::RUN, fore(dim)) },
+        style(look::RUN_FAILED, fore(accent)),
+        StyleLook { mark: star, ..style(look::DOTS, fore(faint)) },
+        StyleLook { mark: star, ..style(look::RUNNING, fore(dim)) },
+        style(look::END, Paint { reverse: true, ..Paint::NONE }),
+        StyleLook { label: false, ..style(look::FIELD, Paint::NONE) },
+        style(look::LIST_HEAD, bold),
+        StyleLook { described: Some(fore(dim)), ..style(look::OPTION, bold) },
+        StyleLook { described: Some(fore(dim)), active_name: Some(Paint::NONE), ..style(look::COMMAND, bold) },
+        style(look::NOTE, fore(dim)),
+        StyleLook { spaced: true, ..style(look::SPACED, Paint::NONE) },
+    ])
 }
