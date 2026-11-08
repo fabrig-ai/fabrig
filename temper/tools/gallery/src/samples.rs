@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 333;
+pub const N: usize = 334;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -159,6 +159,12 @@ pub fn samples() -> [Sample; N] {
             world: Bare,
             address: Address::Inbox { filter: Filter::ALL },
             then: Shown,
+        },
+        Sample {
+            name: "approve-signed-out-google",
+            world: Bare,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Then::GoogleSignIn,
         },
         Sample { name: "approve-busy", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "ask", world: Solo, address: Address::Ask { project: 1 }, then: Shown },
@@ -1440,7 +1446,11 @@ pub fn domain(sample: &Sample) -> Domain {
         return root;
     }
     if sample.name.starts_with("approve-") {
-        return crate::worlds::approve_world(sample.name);
+        return crate::worlds::approve_world(if sample.name == "approve-signed-out-google" {
+            "approve-signed-out"
+        } else {
+            sample.name
+        });
     }
     if sample.name.starts_with("chat-terminal") {
         let mut root = if sample.name == "chat-terminal-question" {

@@ -237,6 +237,16 @@ const HOLDS: [Holds; samples::N] = [
         }],
     },
     Holds {
+        name: "approve-signed-out-google",
+        heading: "Sign in first",
+        parts: &[
+            Part::Text {
+                text: "This browser isn’t signed in to temper. Sign in, and this page comes back with your terminal’s code.",
+            },
+            Part::Links { style: temper_client_view::look::OUTSIDE_PRIMARY, names: &["Continue with Google"] },
+        ],
+    },
+    Holds {
         name: "approve-busy",
         heading: "temper couldn’t answer just now",
         parts: &[Part::Named { role: Role::Button, name: "Try again" }],

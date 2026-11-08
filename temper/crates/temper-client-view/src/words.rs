@@ -1462,6 +1462,7 @@ pub enum Word {
     ApproveUnknownBody,
     ApproveSignedOut,
     ApproveSignedOutBody,
+    ApproveSignedOutGoogle,
     ApproveBusy,
     ApproveBusyBody,
     ApproveCode,
@@ -1544,7 +1545,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2100;
+const PHRASES: u32 = 2101;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1571,10 +1572,10 @@ const PHRASES: u32 = 2100;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3685;
+const SEGMENTS: u32 = 3686;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51870;
-const ALL: [Word; 1418] = [
+const ENGLISH_BYTES: u32 = 51974;
+const ALL: [Word; 1419] = [
     Word::NightMode,
     Word::CloseTitle,
     Word::CloseChat,
@@ -2985,6 +2986,7 @@ const ALL: [Word; 1418] = [
     Word::ApproveUnknownBody,
     Word::ApproveSignedOut,
     Word::ApproveSignedOutBody,
+    Word::ApproveSignedOutGoogle,
     Word::ApproveBusy,
     Word::ApproveBusyBody,
     Word::ApproveCode,
@@ -3047,6 +3049,7 @@ impl Word {
             Self::ApproveUnknownBody => 4166,
             Self::ApproveSignedOut => 4167,
             Self::ApproveSignedOutBody => 4168,
+            Self::ApproveSignedOutGoogle => 4185,
             Self::ApproveBusy => 4169,
             Self::ApproveBusyBody => 4170,
             Self::ApproveCode => 4171,
@@ -4886,6 +4889,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApproveUnknownBody => (&[b"temper doesn\xe2\x80\x99t know this code. Check the code your terminal shows, or ask again there."], &[]),
         Word::ApproveSignedOut => (&[b"Sign in first"], &[]),
         Word::ApproveSignedOutBody => (&[b"This browser isn\xe2\x80\x99t signed in to temper. Open the sign-in link temper printed first, then open this page\xe2\x80\x99s address again: your terminal shows it."], &[]),
+        Word::ApproveSignedOutGoogle => (&[b"This browser isn\xe2\x80\x99t signed in to temper. Sign in, and this page comes back with your terminal\xe2\x80\x99s code."], &[]),
         Word::ApproveBusy => (&[b"temper couldn\xe2\x80\x99t answer just now"], &[]),
         Word::ApproveBusyBody => (&[b"It is starting or stopping, busy, or out of reach. Try again in a moment."], &[]),
         Word::ApproveCode => (&[b"Code"], &[]),

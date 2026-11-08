@@ -18,6 +18,7 @@ approve-expired
 approve-refused
 approve-signed-in
 approve-signed-out
+approve-signed-out-google
 approve-typing
 approve-unknown
 approve-unread

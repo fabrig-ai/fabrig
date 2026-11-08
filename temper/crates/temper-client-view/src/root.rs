@@ -192,7 +192,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_sign_in,
         );
     } else if let Some(page) = root.approval() {
-        crate::approve::main(&mut builder, root, page, &view.forge_words, &mut view.pages, &mut times);
+        crate::approve::main(&mut builder, root, page, &view.forge_words, &view.sign_in, &mut view.pages, &mut times);
     } else if crate::sign_in::offered(root, &view.forge_words, &view.sign_in)
         && let Some(origin) = &view.sign_in.origin
     {
