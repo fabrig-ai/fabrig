@@ -395,6 +395,12 @@ impl Backend {
             || self.startup.owns(owner)
     }
 
+    /// Whether a file answer with this owner answers one of this backend's own file operations (5.1).
+    #[must_use]
+    pub fn owns_file(&self, owner: Token) -> bool {
+        owner == self.token(Owner::Files) || owner == self.token(Owner::Native)
+    }
+
     /// Set the admitted charter's turn guard before its first completion (5.7).
     pub fn turn_limit(&mut self, turns: u32) {
         self.settings.max_turns = turns;

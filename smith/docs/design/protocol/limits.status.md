@@ -38,10 +38,6 @@ runtime outcome is supplied here.
 
 - **Not yet:** 2.4: a host's answer stops at 65,536 rather than 262,144
   bytes (`smith-domain-run/src/host.rs`, `HostAnswer::CAPACITY`).
-- **Not yet:** 6: the reported deployment abort on several
-  `sub_agent` calls is no limit's: its likely cause is a tool's file
-  answer routed to a program backend, carried by programs.status.md,
-  5.1 (plan `program-burst-files`).
 - **Departs:** 2.4: a host's input admits up to 1,048,576 rather than
   262,144 bytes (`smith-domain-run/src/host.rs`, `HostInput::CAPACITY`),
   matching the channel's `host_ask_input` and transcript's `call_input`
