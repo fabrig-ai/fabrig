@@ -56,7 +56,8 @@ host seam, pasted-link sign-in, launchpad, commands, chats, themes,
 closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
 renewal and suppression after a noted sign-out. The expiry is noted once
 the link is live with a party. The base uses the terminal's default colours,
-focus uses the accent, and the run chooses its scheme from COLORFGBG,
+focus uses the accent, active command names are plain while inactive names
+and question choices stay bold, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
 present. The simulated run checks a runtime link outside fresh TUI state
@@ -77,6 +78,10 @@ Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
 implementation gap. Section 10's joined story covers the running line
 before and during provisional text, commitment, navigation and closing.
+The focused view test holds a Writing observation before the first answer,
+through provisional words and commitment: the shared running line and the
+browser terminal say "Working", the chat bar says "Writing", and completion
+removes the running line.
 The generated journeys cover the no-project launchpad and Hello through
 a committed fake answer (`tui/journeys.md`, section 9). The newest goal,
 opened call rows, earlier-page loading, Latest, cards at their calls and

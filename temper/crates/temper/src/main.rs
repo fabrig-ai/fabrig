@@ -15,6 +15,9 @@ fn main() -> ExitCode {
     if env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new(smith_agent_shell::relay::FLAG)) {
         return smith_agent_shell::relay::main();
     }
+    if env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new(smith_agent_shell::PROGRAM_CHILD_FLAG)) {
+        return smith_agent_shell::program_child::main();
+    }
     let arguments = skein_shell::arguments();
     if arguments.as_ref() == [Box::from(b"--help".as_slice())] {
         print!("{}", temper::commands::help());

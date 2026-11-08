@@ -975,8 +975,9 @@ keeps (`../protocol/configuration.md`, section 2).
     the browser draws working dots for (*While it works,* below), whether or not
     the dots stand: the words being written and a call under way keep it. Or
     while the chat waits on its delegates or on an account: "✦",
-    pulsing, then the bar's status words ("working", "waiting on 1 delegate",
-    "Waiting for an account"). It draws no clock.
+    pulsing, then the bar's status words, with "Writing" presented as
+    "Working" (6.14, *The foot*); "waiting on 1 delegate" and "Waiting for
+    an account" keep their words. It draws no clock.
   - *The box:* the composer, "❯" before its text area, its name, placeholder,
     hint's keys and bounds as a chat's (*Where the focus stands*, above), with no
     "Send". On a chat that has ended, which a browser draws with no composer, the
@@ -7378,7 +7379,7 @@ chat, the running line above them.
   region `tui-list`: an options menu after the box (skein's `ui.md`,
   3.2, *options*), named "Commands", with no head, each command offered
   whose name begins with the words, in the domain's `Command::ALL`
-  order, its name and, as its description, its words (`tui-option`), the
+  order, its name and, as its description, its words (`tui-command`), the
   first active. While it stands the box keeps the focus: Up and Down
   move the active command, Enter presses it, Tab completes its name
   (skein's `ui-screen.md`, 6.2), Esc closes the list and clears the
@@ -7628,7 +7629,8 @@ Answer csv-export's question with "Comma"?
   | `tui-end` | reverse | | the end of the words being written |
   | `tui-field` | none | no label | the box's text area |
   | `tui-list-head` | bold | | a list's head |
-  | `tui-option` | bold | its description dim | an option: its name, and its words as its description |
+  | `tui-option` | bold | its description dim | a list choice: its name, and its words as its description |
+  | `tui-command` | bold | active name plain; its description dim | a command: its name, and its words as its description |
   | `tui-note` | dim | | a note |
   | `tui-spaced` | none | a blank row between two children | the launchpad's sections, the conversation's entries |
 
@@ -7638,7 +7640,10 @@ Answer csv-export's question with "Comma"?
   as Claude Code shows it; in a spread row, which keeps no focus
   columns, the accent alone. The active choice of a list is shown as
   skein lays it (`ui-screen.md`, 5.3): the focus's mark and paint over
-  the active paint, a band of `sel` across the list. Reverse video is
+  the active paint, a band of `sel` across the list. Command names use
+  `active_name: Some(Paint::NONE)` (skein's `ui-screen.md`, 3), so the
+  active command name is plain and inactive names are bold in both schemes.
+  Descriptions stay plain; question choices keep their bold names. Reverse video is
   the fallback should the mark and the accent not show the focus
   (section 11).
 - **The scheme,** dark or light, chosen before `Start`, which carries
