@@ -94,7 +94,7 @@ or the nearest thing, and says so in that draft's status.
 | F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | in flight |
 | F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | not started |
 | G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | later | low priority, not for v0.1.0 |
-| T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | not started |
+| T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | landed; its walk follows (`../client/README.md`, 11) |
 | T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | must | not started |
 | T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | nice | not started |
 | E | The whole story on a box, a part for each step (section 4) | `whole-story.md`, 11 | each part, its step's milestones | each owner writes its part of the story | must | not started |
@@ -322,4 +322,5 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
 - **Next to start:** P4a now, as temper/ui's places allow; P3a's
-  repair, P3e and P3f; T1 when `tui-box-front` does.
+  repair, P3e and P3f; T2, whose needs have landed: T1 by
+  `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair.
