@@ -262,6 +262,8 @@ html:root[data-night]:has(#app) {
 }
 
 /* ==== ui: night ==== */
+/* At night the root drops the placeholder's day paper, so that the body's ground fills the window however short the page. */
+:root[data-night]:has(body #app) { background: none; }
 /* A faint glow at the top right, over the whole window, with a fine grain so that it shows no rings. */
 :root[data-night]:has(body #app) body { background: url(files/night-grain.svg), radial-gradient(ellipse 38vw 460px at 100% 120px, var(--gf-glow) 0, var(--gf-glow-fade) 45%, transparent 80%), var(--gf-paper); background-attachment: fixed; }
 :root[data-night] #app, :root[data-night] #app > main:where(:not(.temper-terminal)) { background: transparent; }
@@ -2897,7 +2899,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 .temper-outside :is(a, button):focus-visible { outline: 2px solid var(--gf-signal); outline-offset: 3px; }
 /* A field and its act on one line, the field's name above. */
 .temper-outside form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 24px; }
-.temper-outside form > label { flex-basis: 100%; color: var(--gf-ink-2); font-size: 14px; font-weight: 500; }
+.temper-outside form > label[for]:has(+ input) { flex-basis: 100%; color: var(--gf-ink-2); font-size: 14px; font-weight: 500; }
 .temper-outside form > input { flex: 1 1 10em; min-width: 0; min-height: 44px; padding: 8px 14px; border: 1px solid var(--gf-line-2); border-radius: 9px; background: var(--gf-surface); color: var(--gf-ink); font: 15px/1.4 var(--gf-sans); box-shadow: none; }
 .temper-outside form > input:focus { outline: 2px solid var(--gf-signal-line); outline-offset: 0; border-color: var(--gf-signal); }
 .temper-outside form > button { flex: none; }
