@@ -324,6 +324,7 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
         | Refusal::NotWaiting
         | Refusal::NoFurther
         | Refusal::Unknown
+        | Refusal::ProgramNameReserved
         | Refusal::NotOffered
         | Refusal::Provider
         | Refusal::KeyConflict

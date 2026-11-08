@@ -103,6 +103,7 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
                 let limits = derived.expect("two-model profile derives");
                 assert_eq!(limits.domain.run.run_bytes, run_bytes);
                 assert_eq!(limits.domain.run.outcome_bytes, outcome_bytes);
+                assert_eq!(u64::from(limits.domain.run.answer_bytes), limits.domain.run.outcome_bytes);
                 let turn = limits.channel.bodies.turn_body;
                 assert_eq!(turn, expected);
                 assert!(turn <= TURN_BODY_CEILING);
@@ -115,7 +116,7 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
 
 #[test]
 fn child_answers_follow_the_declared_piece_through_receiving_and_rendering() {
-    for (payload, output) in [(256, 512), (10_662, 8_192), (63_740, 48_000)] {
+    for (payload, output, answer_bytes) in [(256, 512, 4096), (10_662, 8_192, 10_662), (63_740, 48_000, 63_740)] {
         let mut selected = profile();
         selected.declared.tool_payload = payload;
         let mut configuration = declarations();
@@ -124,10 +125,10 @@ fn child_answers_follow_the_declared_piece_through_receiving_and_rendering() {
         let limits = super::derive(&selected, &configuration).expect("survey profile derives");
         let run = limits.domain.run;
         let feedback = limits.domain.session.delegated_result_bytes;
-        assert_eq!(run.answer_bytes, payload);
+        assert_eq!(run.answer_bytes, answer_bytes);
         assert_eq!(feedback, smith_domain::feedback_bound(&run).expect("complete delegated feedback"));
-        assert!(feedback > u64::from(payload), "feedback holds the answer and its marker and usage");
-        assert!(u64::from(limits.channel.transcript.text_text) >= u64::from(payload));
+        assert!(feedback > u64::from(answer_bytes), "feedback holds the answer and its marker and usage");
+        assert!(u64::from(limits.channel.transcript.text_text) >= u64::from(answer_bytes));
         assert!(u64::from(limits.channel.transcript.said_text) >= feedback);
         assert!(
             u64::from(limits.llm.translation.rendered_result)

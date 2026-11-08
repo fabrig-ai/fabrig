@@ -18,6 +18,8 @@ pub enum TraceCase {
     Cancelled,
     /// A real delegated child answers before main's accepted finish.
     ChildAnswered,
+    /// A real delegated child answers 3,000 bytes before main's accepted finish.
+    LongChildAnswered,
     /// One native completion calls three children together, each of which answers.
     ThreeChildren,
     /// The independent provider sends a typed HTTP context rejection.
@@ -29,8 +31,11 @@ pub enum TraceCase {
 impl TraceCase {
     pub(super) fn peer(self, anthropic: bool, credential: skein_llm::Credential) -> skein_fake_peers::llm::Peer {
         use skein_fake_llm_domain::api;
+        if self == Self::LongChildAnswered {
+            return child_peer(anthropic, false, credential, long_child_answer().as_bytes());
+        }
         if self == Self::ChildAnswered || self == Self::ThreeChildren {
-            return child_peer(anthropic, self == Self::ThreeChildren, credential);
+            return child_peer(anthropic, self == Self::ThreeChildren, credential, b"child answer");
         }
         if self == Self::StoppedReasoning {
             return stopped_reasoning_peer();
@@ -52,7 +57,7 @@ impl TraceCase {
             ],
             Self::Failed | Self::Refused | Self::Cancelled => return fake::peer_for(anthropic),
             Self::ProviderRejected => return fake::rejected(),
-            Self::ChildAnswered | Self::ThreeChildren | Self::StoppedReasoning => {
+            Self::ChildAnswered | Self::LongChildAnswered | Self::ThreeChildren | Self::StoppedReasoning => {
                 unreachable!("selected child scripts above")
             }
         };
@@ -64,7 +69,23 @@ impl TraceCase {
     }
 }
 
-fn child_peer(anthropic: bool, three: bool, credential: skein_llm::Credential) -> skein_fake_peers::llm::Peer {
+/// The survey answer, with a final mark that makes a truncated tail visible.
+#[must_use]
+pub fn long_child_answer() -> String {
+    // A 3,000-byte survey fits within the 4,096-byte outcome room.
+    const ANSWER_BYTES: usize = 3_000;
+    const END: &str = "END-OF-SURVEY";
+    let mut answer = "s".repeat(ANSWER_BYTES - END.len());
+    answer.push_str(END);
+    answer
+}
+
+fn child_peer(
+    anthropic: bool,
+    three: bool,
+    credential: skein_llm::Credential,
+    text: &[u8],
+) -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_domain::api;
     let count = if three { 3 } else { 1 };
     let mut scripts = Vec::new();
@@ -73,10 +94,7 @@ fn child_peer(anthropic: bool, three: bool, credential: skein_llm::Credential) -
         let cue = if three { format!("@event-child-{index}") } else { "@event-child".to_owned() };
         scripts.push(api::Script {
             cue: cue.clone().into_bytes().into_boxed_slice(),
-            turns: Box::new([smith_agent_world::fixture::says(
-                Box::new([api::Line::Text { text: b"child answer".as_slice().into() }]),
-                1,
-            )]),
+            turns: Box::new([smith_agent_world::fixture::says(Box::new([api::Line::Text { text: text.into() }]), 1)]),
         });
         calls.push(api::Line::Call {
             name: b"sub_agent".as_slice().into(),

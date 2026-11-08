@@ -1,6 +1,14 @@
 # README: status
 
-2026-11-07. Where temper's code lags or departs from [README.md](README.md).
+2026-11-08. Where temper's code lags or departs from [README.md](README.md).
+
+Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
+in the rail after Chats and as Ask in the phone tabs, returning to the
+newest open Ask temper chat. Template 5 starts its chat; without it no
+chat starts. Section 5.13 offers neither configuring chat nor Ask temper
+on Settings. The opening retains the configuring page's starters and
+reference, as the renamed-page draft specifies. The post-landing walk,
+views and preferences remain section 11's work.
 
 Sections 2 and 6.11 to 6.16 have no known implementation gap in the
 TUI's crates, command, private directory, host seam, pasted-link sign-in,
@@ -72,6 +80,13 @@ section 11). The ground, scrollbar and foot repairs are recorded in
 `browser.status.md`, 2.5. The ordinary bar's two-row title at 1000 px
 remains intentional: `>_` and the status words leave the path less than
 its 320 px, as the user accepted in `look-round-17`.
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief. Its landed run proposal read needs
+  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
+  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 6.12, *The engine's link, kept at rest*: `temper`'s
   `link_file`, serve writing the file at its start under the box and at
@@ -249,7 +264,7 @@ section 11 keeps that observation and the page comparison after landing.
   than 07's hand-made `claude-haiku-5-5`, since the selected provider can differ.
   The final line keeps `.temper-settings-facts` with `.temper-models-ask`,
   rather than 07's `.temper-settings-detail`, as the design specifies; its
-  Configure temper link includes the final period, where 07 leaves it outside.
+  Ask temper link includes the final period, where 07 leaves it outside.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
@@ -365,11 +380,10 @@ read's head explicit.
   decided by the answer that day to `goal-sheet-state`: `drafts_offered` reads kind
   7's `drafts`, true in the stock (5.13), where the request has it true while `me`
   lists a tracked template with no conversation flag. So a project can turn the offer off.
-- **Design departs:** 3.5, *Ask temper's page*, and 5.13, *Ask temper*, from
-  the mock (`greenfield/`), which draws neither Configure temper nor Ask
-  temper on Settings: Ask temper stands beside Configure temper until the
-  user, having tried both, says otherwise. The user's word, 2026-11-07
-  (`../draft/ask-temper.md`, section 9; the request `ui-ask-m1`).
+- **Design departs:** 3.5 and 5.3, from the mock (`greenfield/`):
+  Ask temper has its own project page, rail entry and phone tab, and
+  Settings has no configuring offer. The user's draft, 2026-11-07
+  (`../draft/ask-temper.md`, section 9).
 - **Design departs:** 3.5, *A chat's document*, 5.13, from the mock (`greenfield/`), whose
   fresh projects have `drafts` false (`data.js`) and whose "+ Draft" follows it on every
   chat (`app.js`): a fresh project's chats write drafts, and a configuring chat offers
@@ -465,7 +479,7 @@ read's head explicit.
   `ui-walk-3` pressed both at each width, on a first project and a fresh one, by hand. The fake model
   answers their words with its fallback, so no walk on record has a configuring run
   follow them.
-- **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
+- **Design departs:** 3.5, *Ask temper's page* and *temper's own way, beside the page*,
   from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
   request's plan's cut. The picture and the table's Workers and QA stand in
   `../draft/own-way.status.md`. Beside them:
@@ -683,12 +697,11 @@ read's head explicit.
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Departs:** 3.5, Settings: "Configure temper" chooses among the rows
-  `temper-client-domain`'s `Chats::open_configuring` is delivered, whose
-  live watch holds a window of `limits.client.domain.rows` by latest
-  activity, so a configuring chat not closed but past that window isn't
-  seen and the link opens `Configure { project }`; `configure-temper-name`'s
-  landing accepted it, raising no bound for one link.
+- **Departs:** 3.5 and 5.3: Ask temper chooses among the rows
+  `temper-client-domain`'s `Chats::open_asking` is delivered, whose live
+  watch holds a window of `limits.client.domain.rows` by latest activity.
+  An open Ask temper chat past that window is not seen, so navigation
+  opens `Ask { project }` instead; no bound was raised for this link.
   3.5, With no project yet, and 5.3: where the document
   shows the welcome, with no project, the banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s

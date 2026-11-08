@@ -12,7 +12,7 @@ pub use decision::DecisionWord;
 use skein_lib::List;
 use skein_ui::phrases::{HoleKind, HoleShape, Language, PhraseId, PhraseShape};
 /// Phrase count, for a caller composing a bounded phrasebook.
-pub const PHRASES: u32 = 128;
+pub const PHRASES: u32 = 129;
 /// Owner of jig's public enum vocabulary.
 pub const OWNER: skein_ui::Owner = skein_ui::Owner { number: 65_537 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -75,6 +75,8 @@ pub enum RefusalWord {
     Unknown,
     Provider,
     NotOffered,
+    /// A program source name is reserved for the deployment lifetime.
+    ProgramNameReserved,
     NameTaken,
     KeyConflict,
     Llm,
@@ -173,6 +175,7 @@ impl Word {
             Refusal::Unknown => RefusalWord::Unknown,
             Refusal::NameTaken => RefusalWord::NameTaken,
             Refusal::NotOffered => RefusalWord::NotOffered,
+            Refusal::ProgramNameReserved => RefusalWord::ProgramNameReserved,
             Refusal::KeyConflict => RefusalWord::KeyConflict,
             Refusal::Llm { .. } => RefusalWord::Llm,
             Refusal::SignInRedirect { why } => match why {
@@ -240,7 +243,7 @@ impl Word {
     }
 }
 /// All public words, for composing phrasebook capacities without allocation.
-pub const ALL: [Word; 128] = [
+pub const ALL: [Word; 129] = [
     Word::Refusal(RefusalWord::Judged),
     Word::Refusal(RefusalWord::Stale),
     Word::Refusal(RefusalWord::Forgotten),
@@ -307,6 +310,7 @@ pub const ALL: [Word; 128] = [
     Word::Refusal(RefusalWord::Provider),
     Word::Refusal(RefusalWord::Unknown),
     Word::Refusal(RefusalWord::NotOffered),
+    Word::Refusal(RefusalWord::ProgramNameReserved),
     Word::Refusal(RefusalWord::NameTaken),
     Word::Refusal(RefusalWord::KeyConflict),
     Word::Refusal(RefusalWord::Llm),

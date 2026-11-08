@@ -1124,6 +1124,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::Limit { .. }
         | c::Refusal::Moved { .. }
         | c::Refusal::NameTaken
+        | c::Refusal::ProgramNameReserved
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
         | c::Refusal::Llm { .. } => false,

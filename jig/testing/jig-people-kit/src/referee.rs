@@ -197,6 +197,7 @@ fn filled(why: Refusal) -> bool {
         | Refusal::NameTaken
         | Refusal::Unknown
         | Refusal::Provider
+        | Refusal::ProgramNameReserved
         | Refusal::NotOffered
         | Refusal::Judged { .. }
         | Refusal::NotWellFormed { .. }
