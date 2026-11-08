@@ -193,11 +193,6 @@ establish no rendered equality.
   a numbered list takes the browser's margins and padding. Both are seen by reading
   the sheet: no browser test draws a numbered list, the request `chat-reading-d`
   having the user read one on a real chat and leaving the sheet to the look's owner.
-- **Not yet:** 2.5, *Ask temper's ways*: `temper.css` holds `configure-temper-own-way`'s
-  rules for the opening's sets, starters and own way's card and for the reference's pane,
-  `.temper-doc-flow` among them, and none of `ask-temper-ways`'s but a path's first marks;
-  4.6, story 11 draws no ways; 7.2: `ask-reference` and `ask-reference-draft` stand, and
-  no `ask-ways-*` state does (the plan `look-ask-ways`).
 - **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;
