@@ -104,3 +104,40 @@ Options, each decided:
 As the implementer's text says, with each journey's pages and what each
 shows, every retry of a recording, and where a page departs from the
 mockup and why.
+
+## Answers
+
+2026-11-08. *The `/change` chat cannot `message` its own person, and Ask
+temper has no Message family: a delegated goal asks, or a person task?* A
+delegated goal, as `temper/docs/design/domain/agent.md`, 8.2 has it: "A
+goal a chat calls asks its requester, the chat, with `message` in the
+question form ... jig puts the question in the inbox of the chat's person
+... The chat cannot ask its own person: it says in its reply that a
+question waits for them." The fake box already does this
+(`asked`'s "Start a local away goal." beside `cued`'s "Walk the local away
+decision."); follow it. Acceptance 3 becomes two cues, and the Ask temper
+option under *Options* is dropped:
+
+- **The chat's cue** (`asked`), keyed on "Add a CSV export to the
+  report": it calls `goal` with words of its own (they must not hold the
+  chat's cue, or the chat's cue would match the goal's brief too), then
+  its reply says, in one line, that a question waits for the person.
+- **The goal's cue** (`cued`), keyed on those words: it calls `message`
+  with `target` the requesting chat's task number on the recorded box,
+  `form: "question"`, the words "csv-export: comma or semicolon?" and
+  the two choices, "Comma" recommended and "Semicolon", in the question
+  form's line form; then `wait`; woken by the person's answer, it
+  finishes with a line. No other cue changes.
+
+The walk's "see the fake model's question" waits for the chat's reply
+line, named in the report; the question itself is seen on the walk's
+prompt after `n`.
+
+2026-11-08. *`again launchpad-chat` stopped in `project-landing/setup`,
+line 6 ("Create your project" not done within 60 s).* Not a question
+yet: its cause is unknown. Read the retained scratch's logs for what the
+press waited on; run `again` once more on a fresh fake box (a different
+box is not an unchanged rerun). If it stops there again, the browser
+setup is not this task's files: report `Failed:` with the cause the logs
+show and both logs, under `## Left`, rather than changing setup or the
+browser's journeys.
