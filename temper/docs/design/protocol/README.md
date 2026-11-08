@@ -195,7 +195,7 @@ test doubles   temper fake llm|forge|oauth|git ...
   `temper --help`'s first groups and from every page but `commands`; a
   person or an agent never runs it.
 - **The deployment's client, `temper-client`** (`crates/temper-client`;
-  `../draft/deployment-binaries.md`, sections 4 and 9.1), a binary of its
+  `../draft/deployment-binaries.md`, section 4 and section 9's first item), a binary of its
   own for a person's machine or an automation's. Its table holds three of
   `temper`'s rows, the same rows run by the same code (section 5):
 

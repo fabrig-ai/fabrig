@@ -61,6 +61,6 @@ Section 4's deployment client, `temper-client`, and section 5's
 
 - **Not yet:** 4: `temper-client`: no package, table, `--version` or build script. 5: no `temper-shell`: `temper`'s table, `help`, directories and link file are its own (`crates/temper/src/commands.rs`, `help.rs`, `directories.rs`, `link_file.rs`).
 
-The client's story stands apart, in the process tier:
+Section 4's client story is in the process tier:
 
 - **Not yet:** 4: `temper-client`'s story, `temper-client ctl` signed in to an engine and reading `me`.

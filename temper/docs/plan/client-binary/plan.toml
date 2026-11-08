@@ -36,3 +36,43 @@ id = 1
 story = "temper-client prints its version; the box's temper reads its directories and link file from temper-shell and runs ctl from its shell, unchanged"
 parts = ["local", "ctl", "version"]
 walk = false
+
+[[part]]
+id = "table"
+title = "temper-shell holds a binary's table, the rows two binaries share and help's answers, each printed for the binary's name; the box's table prints byte for byte"
+mode = "direct"
+needs = ["local"]
+design = "temper/docs/design/protocol/README.md, 4"
+
+[[part]]
+id = "tui"
+title = "The TUI's start moves into temper-client-shell-tui and the address parse into temper-client-shell-terminal, its lines naming their binary"
+mode = "direct"
+needs = ["local"]
+design = "temper/docs/design/client/README.md, 6.11"
+
+[[part]]
+id = "story"
+title = "The process tier's story of temper-client ctl signed in to an engine reading me, on the box's serve, compiled"
+mode = "direct"
+needs = ["version"]
+design = "temper/docs/design/protocol/README.md, 4"
+
+[[slice]]
+id = 2
+story = "The box's temper prints its table from temper-shell and runs the TUI from its shell's start, byte for byte; the client's ctl story compiles"
+parts = ["table", "tui", "story"]
+walk = false
+
+[[part]]
+id = "client"
+title = "temper-client's table of help, [ADDRESS] and ctl, its help and refusals, run by the box's code; the plan's status closed"
+mode = "direct"
+needs = ["table", "tui", "ctl", "version"]
+design = "temper/docs/design/protocol/README.md, 4"
+
+[[slice]]
+id = 3
+story = "temper-client runs the TUI and temper ctl by the box's code, with its own help and refusals, and links no engine, worker or agent code"
+parts = ["client"]
+walk = false
