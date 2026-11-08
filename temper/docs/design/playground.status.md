@@ -21,14 +21,12 @@
     high water, which does not say what reserves it. The download:
     6,882,055 B gzipped, within its 8 MB
     (`temper/docs/development/playground-figures.md`).
-  - 9: Story A's walk in the one-process world, by the terminal
-    client, ignored: its `#[ignore]` has it stall at Starting after
-    5 s, forge 1 Kept, the account and the project absent
-    (`temper/tests/one-process/tests/suite/story_a.rs`); whether what
-    lets the web client's walk pass lifts that is unknown.
   - 9: story A's high water in the one-process world:
-    `temper/tests/one-process/tests/memory.rs` is ignored and prints
-    it by hand, the story stalling there (above).
+    `temper/tests/one-process/tests/memory.rs` remains ignored: the
+    story walks, but a service world's observer has no way to keep its
+    storage outside the process's span (`skein/docs/design/testing.md`,
+    5), so process 0's exact release check fails
+    (`temper/docs/development/playground-memory.md`).
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the memory's and the slice's unset
     (section 11); and published.
