@@ -5172,7 +5172,9 @@ repository, and the cues the playground's, copied in from its read:
   repository" (3.5).
   *Where it departs from its mockup, since 2026-11-04* (the user's
   greenfield pass; the mockup is not edited): the frame holds temper
-  box's line and the steps, and no person's name or "Sign out"; the
+  box's line and the steps, then the top bar's right as on every page
+  outside a project, signed in the person's name and "Sign out" (3.5,
+  *Its frame*; the look request `outside-pages`); the
   Welcome step's "Set up temper" card comes first and is the default,
   its words "Your forge: a Forgejo temper runs for you, or GitHub. Your
   model: ChatGPT or Claude.", the playground's card after it, "A
