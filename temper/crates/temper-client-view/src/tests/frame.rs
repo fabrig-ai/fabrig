@@ -1188,14 +1188,16 @@ fn browser_google_sign_in_has_the_mark_heading_and_return_link() {
             Ways { google: true, origin: Some(Box::from(b"https://temper.example.com".as_slice())) },
         );
         assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Sign in").is_some());
-        let brand = fixtures::styles(view.tree(), Role::Paragraph);
-        let mut marked = false;
-        for styles in &brand {
-            marked |= styles.contains(&crate::look::BRAND);
+        assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([crate::look::OUTSIDE])]);
+        assert_eq!(fixtures::styles(view.tree(), Role::Paragraph).as_ref(), [Box::from([crate::look::OUTSIDE_QUIET])]);
+        for styles in &fixtures::styles(view.tree(), Role::Slot) {
+            assert!(!styles.contains(&crate::look::CARD));
         }
-        assert!(marked);
         let link = fixtures::find(view.tree(), Role::Link, b"Continue with Google").unwrap();
+        assert_eq!(view.tree().find(link).unwrap().styles.as_slice(), [crate::look::OUTSIDE_PRIMARY]);
         assert_eq!(crate::href(&mut view, link).as_deref(), Some(expected));
+        let public = fixtures::find(view.tree(), Role::Link, b"Read public projects").unwrap();
+        assert_eq!(crate::href(&mut view, public).as_deref(), Some(b"https://temper.example.com/public".as_slice()));
     }
 }
 #[test]

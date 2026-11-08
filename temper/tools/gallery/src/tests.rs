@@ -2922,7 +2922,16 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "google-sign-in",
         heading: "Sign in",
-        parts: &[Part::Named { role: Role::Link, name: "Continue with Google" }],
+        parts: &[
+            Part::Named { role: Role::Link, name: "Continue with Google" },
+            Part::Links {
+                style: temper_client_view::look::OUTSIDE,
+                names: &["Continue with Google", "Read public projects"],
+            },
+            Part::Links { style: temper_client_view::look::OUTSIDE_PRIMARY, names: &["Continue with Google"] },
+            Part::Links { style: temper_client_view::look::OUTSIDE_QUIET, names: &["Read public projects"] },
+            Part::NoStyle { style: temper_client_view::look::CARD },
+        ],
     },
     Holds {
         name: "signed-out",
