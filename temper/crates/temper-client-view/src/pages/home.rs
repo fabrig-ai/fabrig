@@ -89,7 +89,7 @@ pub(crate) struct Intro {
     lede: Option<Box<[u8]>>,
     byline: Option<Box<[u8]>>,
 }
-pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
+pub(crate) fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box<[u8]> {
     // The kicker is this Home's day and time, not a project's creation time.
     let day = times.say(w, TimeForm::Weekday, times.now);
     let clock = times.say(w, TimeForm::Clock, times.now);
@@ -104,30 +104,41 @@ pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Tim
         None => None,
     };
     times.next = [times.next, next].into_iter().flatten().min();
-    if let Status::Shown(status) = &facts.status
-        && let Some(previous) = status.previous()
-        && times.now.as_nanos().saturating_sub(*previous) > minute.as_nanos()
+    if let Some(previous) = previous
+        && times.now.as_nanos().saturating_sub(previous) > minute.as_nanos()
     {
-        let span = times.say(w, TimeForm::Looked, skein_lib::Wall::from_nanos(*previous));
+        let span = times.say(w, TimeForm::Looked, skein_lib::Wall::from_nanos(previous));
         kicker = w.say(Word::HomeLooked, &[Hole::Name(kicker), Hole::Name(span)]);
     }
+    kicker
+}
+pub(crate) fn needs_sentence(w: &Words, needs: Needs, unknown: &[u8]) -> Box<[u8]> {
+    match needs {
+        Needs::Unknown => unknown.into(),
+        Needs::Count { count, cut: true } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
+        Needs::Count { count: 0, cut: false } => w.say(Word::HomeNeedsNone, &[]),
+        Needs::Count { count: 1, cut: false } => w.say(Word::HomeNeedsOne, &[]),
+        Needs::Count { count, cut: false } => {
+            let number = match number_word(count) {
+                Some(word) => w.say(word, &[]),
+                None => skein_lib::Decimal::of(u64::from(count)).as_bytes().into(),
+            };
+            w.say(Word::HomeNeedsMany, &[Hole::Name(number)])
+        }
+    }
+}
+pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
+    let previous = match &facts.status {
+        Status::Shown(status) => *status.previous(),
+        Status::Unknown => None,
+    };
+    let mut kicker = kicker(w, previous, times);
     let needs = if facts.to_begin() {
         w.say(Word::HomeProjectReady, &[Hole::Name(name.into())])
     } else {
-        match facts.needs {
-            Needs::Unknown => name.into(),
-            Needs::Count { count, cut: true } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
-            Needs::Count { count: 0, cut: false } => w.say(Word::HomeNeedsNone, &[]),
-            Needs::Count { count: 1, cut: false } => w.say(Word::HomeNeedsOne, &[]),
-            Needs::Count { count, cut: false } => {
-                let number = match number_word(count) {
-                    Some(word) => w.say(word, &[]),
-                    None => skein_lib::Decimal::of(u64::from(count)).as_bytes().into(),
-                };
-                w.say(Word::HomeNeedsMany, &[Hole::Name(number)])
-            }
-        }
+        needs_sentence(w, facts.needs, name)
     };
+    let minute = skein_lib::Duration::from_secs(60);
     let landed = if facts.to_begin() { 0 } else { facts.landed_since() };
     let brief = if facts.to_begin() { None } else { facts.brief() };
     let sentence = match brief {
@@ -290,7 +301,7 @@ fn begin_lede(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     }
     if lede.is_empty() { None } else { Some(crate::accounts::words::join(&[&lede, b"."])) }
 }
-fn number_word(count: u32) -> Option<Word> {
+pub(crate) fn number_word(count: u32) -> Option<Word> {
     match count {
         2 => Some(Word::HomeTwo),
         3 => Some(Word::HomeThree),
@@ -328,12 +339,13 @@ fn decided(
     b.open(Role::Slot);
     b.style(look::DECIDED);
     for row in &away.rows {
-        decision(b, w, bindings, project, row, busy, times);
+        decision(b, w, bindings, project, row, busy, times, None);
     }
     b.close();
     b.close();
 }
-fn decision(
+#[expect(clippy::too_many_arguments, reason = "a shared decision row carries its optional project label")]
+pub(crate) fn decision(
     b: &mut Builder,
     w: &Words,
     bindings: &mut Bindings,
@@ -341,18 +353,28 @@ fn decision(
     row: &DecisionLine,
     busy: bool,
     times: &mut Times,
+    name: Option<&[u8]>,
 ) {
     b.open(Role::Slot);
     b.style(look::DECISION);
     if row.overturned {
         b.style(look::DECISION_OVERTURNED);
     }
-    b.open(if w.shell == Shell::Terminal { Role::Paragraph } else { Role::Slot });
     let fallback = w.say(Word::Task, &[Hole::Number(row.task)]);
     let title = row.title.as_deref().unwrap_or(&fallback);
     let at = times.say(w, TimeForm::Clock, row.at);
     let title = crate::accounts::words::join(&[title, &w.say(Word::ToolSeparator, &[]), &at]);
-    text(b, Role::Text, &title, None);
+    let title = match name {
+        Some(name) => crate::accounts::words::join(&[name, &w.say(Word::ToolSeparator, &[]), &title]),
+        None => title,
+    };
+    if w.shell == Shell::Browser && name.is_some() {
+        text(b, Role::Text, &title, None);
+    }
+    b.open(if w.shell == Shell::Terminal { Role::Paragraph } else { Role::Slot });
+    if w.shell == Shell::Terminal || name.is_none() {
+        text(b, Role::Text, &title, None);
+    }
     if w.shell == Shell::Terminal {
         b.text(Run::Plain, b" ");
     }
