@@ -2,8 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.3: `/projects/<project>/work`, `/deployment/members` and
-  `/deployment/limits` read as no page (`temper-client-domain`'s `address.rs`).
 - **Not yet:** 2.5, *The rail as the whole story draws it*, *Work's look* and
   *Deployment's frame*, and 7.2: `temper.css` has no rule of theirs, the tab
   bar is five columns, and the gallery holds none of the states from
