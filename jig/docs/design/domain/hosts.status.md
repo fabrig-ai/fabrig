@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-07. Where jig's code lags or departs from [hosts.md](hosts.md).
+2026-11-08. Where jig's code lags or departs from [hosts.md](hosts.md).
 
 Section 6.4 has no known gap in turn fences taking only offered messages:
 messages withheld by parts or a pace stay in the task's inbox when a
