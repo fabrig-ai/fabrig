@@ -12,8 +12,18 @@ story from the launchpad through the streamed and committed answer
 surfaces remain deferred; the sign-in field takes `q` as text and
 Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
 `draft/tui.status.md`). Browser-approved sign-in's engine configuration,
-native client-root half and web page at `/terminal` are built, with eleven
-gallery states and joint-client stories. The TUI's approval ask, locally
+native client-root half and web page at `/terminal` are built, with twelve
+gallery states and joint-client stories; signed out with Google's way
+given, the page's "Continue with Google" comes back to it with its code.
+Every page outside a project, the server's pages and the boot are in the
+welcome's look, by the look request `outside-pages`: the top bar wherever
+the rail isn't, the column, no project yet's first-project form, and the
+old banner, cards, `files/brand.svg` and `#b8664e` gone, with two focused
+tests keeping them out. The design departs from the request in the top
+bar's link region, which the terminal prints, the GitHub App's setup
+pages' fonts and the stylesheets' accent; temper/ui's rendered comparison
+follows landing (`client/README.status.md`, 5.1; `client/forge.status.md`,
+9.1; `client/browser.status.md`, 2.5). The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
 The local box's private link file, bare command's address discovery,
@@ -571,8 +581,8 @@ hidden tab, or a paste's end on the welcome. It draws the waiting page of the re
 `sign-in-new-tab`; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rail's person's menu departs from the request
-`ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less
-`Accounts` page's "Sign out", which stays the banner's, and the tab's whole row leaving
+`ui-owner-menu` in a press outside that took the focus, which keeps it, "Sign out"
+with no project, which is the top bar's, and the tab's whole row leaving
 over 760 px, the login with it (`client/README.md`). A chat started by sending opens on its
 composer and a send leaves the focus there, but a starter's press asks the same on a phone,
 and no run on record shows what a real phone's keyboard does (`client/README.md`), and no test

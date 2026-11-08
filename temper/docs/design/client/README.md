@@ -8658,7 +8658,8 @@ own tests:
   at a name, Google on the web, the code typed there with the ask's origin
   and age shown, and the web's list of a person's sign-ins, each ended
   from there (`../draft/tui.md`, section 7). Default: loopback, approved
-  by a browser signed in by the printed link.
+  by a browser signed in by the printed link, or by Google's way where it
+  is given (3.5, *The approval page*).
 - **The TUI after landing** (6.11 to 6.16): on a fresh box, start bare
   `temper` in another terminal and read the launchpad with nothing
   pasted; check renewal after expiry and refusal to renew after a
