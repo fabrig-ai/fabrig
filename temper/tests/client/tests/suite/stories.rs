@@ -26,12 +26,16 @@ fn a_double_press_of_send_makes_one_chat() {
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
         person,
-        vec![
-            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
-            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
-            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: Box::from(*b"Hello") },
-        ],
+        fixtures::start_change(false)
+            .into_iter()
+            .chain([
+                Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
+                Step::Type {
+                    find: Find::named(Role::TextArea, b"What do you want done?"),
+                    words: Box::from(*b"Hello"),
+                },
+            ])
+            .collect(),
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     // Both presses reach the domain before the disabled Send is drawn.
@@ -54,15 +58,16 @@ fn enter_in_the_start_composer_starts_one_chat_titled_by_its_first_line() {
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
         person,
-        vec![
-            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
-            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
-            Step::Type {
-                find: Find::named(Role::TextArea, b"What do you want done?"),
-                words: Box::from(*b"Hello\nthere"),
-            },
-        ],
+        fixtures::start_change(false)
+            .into_iter()
+            .chain([
+                Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
+                Step::Type {
+                    find: Find::named(Role::TextArea, b"What do you want done?"),
+                    words: Box::from(*b"Hello\nthere"),
+                },
+            ])
+            .collect(),
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     // Both Enters reach the domain before the view blocks a pending submission.
@@ -96,14 +101,18 @@ fn a_chat_started_on_new_chat_is_answered_by_the_run() {
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
         person,
-        vec![
-            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
-            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
-            Step::Type { find: Find::named(Role::TextArea, b"What do you want done?"), words: Box::from(*b"Hello") },
-            Step::Press { find: Find::named(Role::Button, b"Send") },
-            Step::See { find: Find::text(b"Answered by the run"), within: fixtures::WITHIN },
-        ],
+        fixtures::start_change(false)
+            .into_iter()
+            .chain([
+                Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
+                Step::Type {
+                    find: Find::named(Role::TextArea, b"What do you want done?"),
+                    words: Box::from(*b"Hello"),
+                },
+                Step::Press { find: Find::named(Role::Button, b"Send") },
+                Step::See { find: Find::text(b"Answered by the run"), within: fixtures::WITHIN },
+            ])
+            .collect(),
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     assert_eq!(fixtures::chats(&world.front().engine), 1);
@@ -114,11 +123,13 @@ fn signed_out_mid_request_is_made_once_after_signing_in() {
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
         person,
-        vec![
-            Step::See { find: Find::exactly_named(Role::Link, b"New chat"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"New chat") },
-            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: fixtures::WITHIN },
-        ],
+        fixtures::start_change(false)
+            .into_iter()
+            .chain([Step::See {
+                find: Find::named(Role::TextArea, b"What do you want done?"),
+                within: fixtures::WITHIN,
+            }])
+            .collect(),
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     world.fault(jig_client_kit::harness::FrontFault::SignedOut);

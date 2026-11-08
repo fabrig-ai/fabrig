@@ -28,6 +28,7 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::GOALS);
+    super::work::head(b, root, words, bindings, project, times);
     intro(b, root, words, project);
     list(b, root, words, bindings, project, times);
     b.close();
@@ -38,11 +39,6 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words, project: u32) {
     let page = root.pages().goals();
     b.open(Role::Slot);
     b.style(look::GOALS_INTRO);
-    let name = match super::project_name(me, project) {
-        Some(name) => name,
-        None => words.say(Word::Project, &[Hole::Number(u64::from(project))]),
-    };
-    text(b, Role::Paragraph, look::GOALS_KICKER, &words.say(Word::GoalsKicker, &[Hole::Name(name)]));
     if me.is_some()
         && let Some(page) = page
         && let Some(live) = page.live(root.client())
@@ -76,7 +72,7 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words, project: u32) {
         if word != Word::GoalsNone || page.known(root.client()) {
             text(
                 b,
-                Role::Heading { level: 1 },
+                Role::Heading { level: 2 },
                 look::GOALS_HEADLINE,
                 &words.say(word, if word == Word::GoalsNone { &[] } else { &holes }),
             );
@@ -105,7 +101,7 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words, project: u32) {
 }
 
 #[expect(clippy::disallowed_types, reason = "Unicode lowercasing owns its temporary UTF-8 string")]
-fn lowercase(name: &[u8]) -> Box<[u8]> {
+pub(crate) fn lowercase(name: &[u8]) -> Box<[u8]> {
     use alloc::string::String;
     String::from_utf8_lossy(name).to_lowercase().into_bytes().into_boxed_slice()
 }
@@ -327,7 +323,7 @@ pub(crate) fn row(
     b.close();
 }
 
-fn headline(words: &Words, line: &c::TaskLine, state: State, report: Option<&Report>) -> Box<[u8]> {
+pub(crate) fn headline(words: &Words, line: &c::TaskLine, state: State, report: Option<&Report>) -> Box<[u8]> {
     if let Some(report) = report {
         return report.headline.clone();
     }

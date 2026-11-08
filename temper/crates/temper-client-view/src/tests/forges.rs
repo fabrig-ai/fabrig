@@ -151,7 +151,11 @@ fn the_navigation_has_forges_with_its_dot_and_words() {
                 .tree()
                 .nodes()
                 .iter()
-                .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings"))
+                .find(|n| {
+                    n.role == Role::Link
+                        && n.name.as_deref() == Some(b"Deployment")
+                        && n.states.as_slice().contains(&State::Current)
+                })
                 .unwrap();
             assert!(nav.states.as_slice().contains(&State::Current));
             let dot = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&style)).unwrap();

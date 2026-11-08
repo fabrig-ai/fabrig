@@ -573,7 +573,7 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
 
 fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 2] {
     use jig_client::contract::AuthorityExecutor as Executor;
-    let fifteen = vec![
+    let sixteen = vec![
         Executor::Charter(1),
         Executor::Charter(2),
         Executor::Charter(4),
@@ -582,6 +582,7 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 2] 
         Executor::Charter(DESIGNER),
         Executor::Charter(STATUS),
         Executor::Charter(11),
+        Executor::Charter(12),
         Executor::Procedure(2),
         Executor::Procedure(3),
         Executor::Procedure(4),
@@ -590,8 +591,8 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 2] 
         Executor::Role(1),
         Executor::Role(2),
     ];
-    let fourteen = fifteen.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
-    [fourteen, fifteen]
+    let fifteen = sixteen.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
+    [fifteen, sixteen]
 }
 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {

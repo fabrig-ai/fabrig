@@ -1,4 +1,4 @@
-//! Settings' Builders tab (temper/docs/design/client/README.md, 3.5, Builders).
+//! Deployment's Workers tab (temper/docs/design/client/README.md, 3.5, Workers).
 use super::settings::{self, Tab};
 use crate::{
     frame::Bindings,

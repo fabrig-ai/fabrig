@@ -554,7 +554,8 @@ impl Host {
                 self.went(address);
                 return;
             }
-            Address::Goals { project, .. }
+            Address::Work { project, .. }
+            | Address::Goals { project, .. }
             | Address::Changes { project }
             | Address::Settings { project }
             | Address::Repositories { project }
@@ -567,6 +568,8 @@ impl Host {
             Address::Inbox { filter } => filter.project,
             Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -644,6 +647,7 @@ impl Host {
         if local && self.root.client().link().state == Link::SignedOut {
             match self.root.client().link().not_signed_in {
                 Some(jig_client::NotSignedIn::LinkUsed | jig_client::NotSignedIn::LinkExpired) => self.again_local(),
+                Some(jig_client::NotSignedIn::NotReady | jig_client::NotSignedIn::Busy) if self.state().front() => {}
                 None
                 | Some(
                     jig_client::NotSignedIn::Approval(_)
