@@ -633,8 +633,6 @@ fn asking_opening_and_needs_have_their_css_names() {
         (WAYS_ACTS, b"temper-ways-acts"),
         (WAYS_USE, b"temper-ways-use"),
         (WAYS_REFUSED, b"temper-ways-refused"),
-        (DOC_SUB, b"temper-doc-sub"),
-        (DOC_FLOW, b"temper-doc-flow"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
     ] {

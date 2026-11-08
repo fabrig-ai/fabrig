@@ -473,8 +473,6 @@ impl Task {
             | Act::WayStop { .. }
             | Act::UseWay { .. }
             | Act::KeepWay { .. }
-            | Act::ShowReference
-            | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
             | Act::Playground
@@ -611,8 +609,6 @@ impl Task {
             | Act::WayStop { .. }
             | Act::UseWay { .. }
             | Act::KeepWay { .. }
-            | Act::ShowReference
-            | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground
             | Act::Playground
