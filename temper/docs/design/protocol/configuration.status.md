@@ -22,6 +22,14 @@ established here. Continuation remains deferred in section 11.
 Section 13.9 has the reference's charter 5 as shared instructions and
 four ordered parts, including the cut's no-design rule, and template 4
 at Opus 5.5 xhigh first and high later with the same sub-agents.
+Charter 5's shared, first and result instructions require confirmed design
+landing into g before dispatching dependent coding, and Ask temper's
+stock design-first proposal guidance carries that rule. The focused
+domain story `design_first_waits_for_confirmed_landing_before_coding`
+checks the shipped instructions with the fake-forge scenario: a live
+pushed design permits an early producer start, an ended dependency is
+refused without new work, and coding without that ended dependency starts
+from g containing the design. It establishes no real-model compliance.
 Charters 2, 5 and 7 carry acceptance-to-assertion evidence from producer
 reports through coordinator handoff to close-out, keeping uncovered items
 unresolved despite empty Left lists or passing CI. The domain story

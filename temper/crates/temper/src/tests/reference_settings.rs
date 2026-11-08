@@ -291,7 +291,17 @@ fn coordinator_phrase(texts: &[(String, &str)], phrase: &str, place: &str) {
 }
 
 fn coordinator_dependencies(texts: &[(String, &str)]) {
+    let first = texts.iter().find(|(on, _)| on == "first").expect("first-run instructions").1;
+    assert!(first.contains("Keep coding that uses pending design out of the first batch"));
+    assert!(!first.contains("and the changes the design already specifies, after S where they use its shapes"));
     for (on, text) in texts {
+        if on == "shared" || on == "first" || on == "escalation proposal person_stalled result notice nothing_awaited" {
+            assert!(
+                text.contains("Do not issue dependent coding until all required design is confirmed landed into g"),
+                "{on}: wait for design landing before coding dispatch"
+            );
+            assert!(text.contains("A push, delivery or designer report is insufficient"));
+        }
         if on == "shared" || on == "escalation proposal person_stalled result notice nothing_awaited" {
             assert!(text.contains("Use after only for live prerequisites;"));
             assert!(text.contains(

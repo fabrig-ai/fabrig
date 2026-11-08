@@ -2619,8 +2619,9 @@ that changes the stock changes nothing of them.
     "1. In one page", on the home repository's `main` (13.7);
   - *charter 5's second edition:* the cut as the draft's section 5 has
     it (S, the shared design, a designer's change; one designer's change
-    per family after S; the changes it specifies itself), each family's
-    batch on its designer's result, a revision of the design as a
+    per family after S; changes needing no pending design), each family's
+    coding batch only after every required design change is confirmed
+    landed into g, a revision of the design as a
     designer's change followed by amendments of the live changes it
     concerns, and the close-out, X, a designer's change, before its
     report; each change's `producer` and `llm` (`../domain/agent.md`,
@@ -2774,8 +2775,9 @@ that changes the stock changes nothing of them.
 - **Charter 5 in parts** (`../draft/per-wake.md`, sections 3 and 6;
   jig's `domain/tasks.md`, 8.6). The bullets above say what charter 5's
   instructions hold; they are written as its shared instructions and
-  four parts, in this order, each rule once, in the part that acts on
-  it:
+  four parts, in this order, each rule in the part that acts on it.
+  The confirmed design landing rule is repeated in shared, cut and
+  result instructions to guard each coding dispatch path:
   - *shared,* read by every run: who the goal is, its draft and its
     goal branch; how a change's words are written (a spec citing the
     design in its goal branch by path and section and the status
@@ -2783,7 +2785,13 @@ that changes the stock changes nothing of them.
     checks and its report), each change's `producer`, `llm` and
     `questions` (a designer's change and a coding change, as the second
     edition gives them) and a batch's `change` calls, since every part
-    makes or amends changes; asking its person through a person task,
+    makes or amends changes; before issuing dependent coding changes,
+    confirmation that every required design change landed into g, not
+    a pushed head, delivery or designer report. Once landed, the spec cites its repository path
+    and section in words and omits its ended task from `after`, which
+    keeps other live prerequisites (`../domain/agent.md`, 4.3.1). This
+    charter rule leaves early producer starts as `../domain/forge.md`,
+    8.11 defines them; asking its person through a person task,
     the options as its choices and its recommendation in its words; the
     report note and the notes; reading its report note and the tree
     first at every wake, and parking with `wait` once its decisions are
@@ -2797,9 +2805,10 @@ that changes the stock changes nothing of them.
   - *the cut,* `on` `first`: the first run
     (`../draft/goal-as-designer.md`, section 3): reading the draft, the
     design and the code, with sub-agents for surveys; the plan; S, a
-    designer's change per family and the changes the design already
-    specifies, as the first batch; and a
-    request that needs no design: where a request settles its changes
+    designer's change per family as the first batch. Coding that needs
+    pending design stays out of that batch until every required design
+    change is confirmed landed into g; coding needing no pending design
+    may proceed. Where a request settles its changes
     with no shape for the code to follow, as one made of documents
     does, the cut writes no design, says so in its report note, and
     makes its changes. The cut never waits for or reacts to its
@@ -2815,7 +2824,9 @@ that changes the stock changes nothing of them.
     the answer that the work waits for it, or a question to its person;
   - *results and holds,* `on` `result`, `notice`, `nothing_awaited`,
     `escalation`, `proposal` and `person_stalled`: a designer's result
-    into its family's batch; a person task's result into the answer
+    read for its design and family changes, then its family's coding
+    batch only once every required design change is confirmed landed
+    into g; a person task's result into the answer
     that waited for it; a change's result and its Left list, and a
     ruling that becomes design; an escalation released, amended,
     cancelled or passed up; the plan done, the close-out and the

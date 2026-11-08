@@ -1,6 +1,6 @@
 # reference-code-production: status
 
-2026-11-06. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
+2026-11-08. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
 - **Open:**
   - **1 to 5, 12 to 14:** revised by [`goal-as-designer.md`](goal-as-designer.md), which wins where they differ until its plans fold it into this draft.
@@ -19,3 +19,13 @@
     its foremen's choice, gpt-6.1-sol at medium. Decided
     2026-11-03: the reference sets the foreman's
     model on its charter (`../domain/agent.md`, section 10).
+
+- **Design departs:** 5: `../protocol/configuration.md`, 13.9 requires
+  confirmed landing of every required design change into g before
+  dispatching dependent coding, including the first batch and designer
+  result paths. A pushed head, delivery or designer report does not
+  confirm landing; a spec cites landed design by path and section,
+  omitting its ended task from `after` and keeping other live
+  prerequisites. The finding 459 repair requires this release order
+  (the user, 2026-11-08); early producer scheduling remains
+  `../domain/forge.md`, 8.11's.
