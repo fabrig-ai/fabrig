@@ -75,8 +75,7 @@ and catalogue-number reuse remain section 16's open questions.
 
 - **Not yet:** 7.1: a message or an entry that arrives between a run's
   preparation and its claim, and would add to its reasons, is kept back
-  rather than preparing the run again. 7.4: a finish while the task's
-  delegates are live fails its attempt invalid rather than parking it.
+  rather than preparing the run again.
 
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
