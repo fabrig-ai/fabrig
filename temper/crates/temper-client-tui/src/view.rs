@@ -363,8 +363,8 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
     let mut commands = List::with_capacity(13);
     for command in Command::ALL {
         let screen = match command {
-            Command::Model => project && picker,
-            Command::Effort | Command::Pause => chat,
+            Command::Model | Command::Effort => project && picker,
+            Command::Pause => chat,
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
             Command::Theme | Command::Help | Command::Exit => true,
@@ -375,4 +375,17 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
         }
     }
     commands.into_boxed()
+}
+
+/// The launchpad's selection keys (temper/docs/design/client/README.md, 6.14).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Arrow {
+    Up,
+    Down,
+}
+
+/// The event made on the tree last built, or None for the key reader.
+#[must_use]
+pub fn arrow(_view: &View, _arrow: Arrow) -> Option<Event> {
+    None
 }

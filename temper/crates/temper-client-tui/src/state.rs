@@ -23,6 +23,8 @@ pub struct Tui {
     unknown: Option<Box<[u8]>>,
     focus: u64,
     box_written: u64,
+    left_off: Option<u64>,
+    boxed: bool,
 }
 /// The sign-in from the engine's link (temper/docs/design/client/README.md, 6.14).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -55,6 +57,10 @@ pub enum Told {
         columns: u16,
     },
     Went,
+    LeftOff {
+        task: Option<u64>,
+    },
+    Boxed,
     Cleared,
     Aside {
         object: Option<jig_client::contract::ObjectKey>,
@@ -112,6 +118,8 @@ impl Tui {
             unknown: None,
             focus: 1,
             box_written: 0,
+            left_off: None,
+            boxed: false,
         }
     }
     #[must_use]
@@ -181,6 +189,14 @@ impl Tui {
     #[must_use]
     pub const fn box_written(&self) -> u64 {
         self.box_written
+    }
+    #[must_use]
+    pub const fn left_off(&self) -> Option<u64> {
+        self.left_off
+    }
+    #[must_use]
+    pub const fn boxed(&self) -> bool {
+        self.boxed
     }
     fn empty(&mut self) {
         self.field = copy_of(b"");
@@ -252,6 +268,7 @@ impl Tui {
             }
         }
     }
+    #[expect(clippy::too_many_lines, reason = "one exhaustive match updates the TUI surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
             Told::Size { columns } => {
@@ -262,10 +279,21 @@ impl Tui {
             Told::Went => {
                 let focus = self.focus.saturating_add(1);
                 let written = self.box_written.saturating_add(1);
-                let changed = self.focus != focus || self.box_written != written;
+                let changed = self.focus != focus || self.box_written != written || self.left_off.is_some();
+                self.left_off = None;
                 self.focus = focus;
                 self.command_words = Box::default();
                 self.box_written = written;
+                changed
+            }
+            Told::LeftOff { task } => {
+                let changed = self.left_off != task;
+                self.left_off = task;
+                changed
+            }
+            Told::Boxed => {
+                let changed = !self.boxed;
+                self.boxed = true;
                 changed
             }
             Told::CommandWords { value } => {

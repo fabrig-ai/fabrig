@@ -114,7 +114,7 @@ impl Host {
             out: Queue::uncapped(),
             patches: Queue::with_capacity(limits.view.patches),
             bounds: limits.view,
-            theme: tui::theme(tui::Scheme::Dark),
+            theme: tui::theme(tui::Scheme::Dark, None),
             size: Size { rows: 0, columns: 0 },
             focus: Focus::default(),
             frame: Frame::new(limits.most),
@@ -137,6 +137,7 @@ impl Host {
         self.env.wall = wall;
     }
 
+    #[expect(clippy::too_many_lines, reason = "one report follows the host seam through its ordered duties")]
     pub fn report(&mut self, report: Report) -> Duties {
         if self.state.is_none() {
             assert!(matches!(report, Report::Start(_)), "a report before the TUI's start");
@@ -191,10 +192,13 @@ impl Host {
         {
             self.tell(Told::Aside { object: None });
         }
-        self.theme = tui::theme(match self.root.pages().look().theme {
-            terminal::Theme::Dark => tui::Scheme::Dark,
-            terminal::Theme::Light => tui::Scheme::Light,
-        });
+        self.theme = tui::theme(
+            match self.root.pages().look().theme {
+                terminal::Theme::Dark => tui::Scheme::Dark,
+                terminal::Theme::Light => tui::Scheme::Light,
+            },
+            None,
+        );
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
@@ -366,6 +370,7 @@ impl Host {
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
         match event {
             tui::Event::Typed { value } => self.typed(value),
+            tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
                 self.ask();
             }
