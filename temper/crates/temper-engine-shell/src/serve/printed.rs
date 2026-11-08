@@ -30,7 +30,8 @@ pub(crate) fn program_word(machine: &Machine<'_>) -> Box<[u8]> {
     path_word(executable, machine.home)
 }
 
-pub(crate) fn path_word(path: &[u8], home: Option<&[u8]>) -> Box<[u8]> {
+#[must_use]
+pub fn path_word(path: &[u8], home: Option<&[u8]>) -> Box<[u8]> {
     let path = collapsed(path);
     let home = home.map(collapsed);
     if let Some(home) = home {
@@ -69,7 +70,8 @@ fn quoted_if_needed(value: &[u8]) -> Box<[u8]> {
 }
 
 /// `program_word` of this process: `current_exe`, and `PATH` and `HOME` from ENVIRONMENT.
-pub(crate) fn running_word(environment: &[crate::directories::EnvironmentEntry]) -> Box<[u8]> {
+#[must_use]
+pub fn running_word(environment: &[temper_shell::directories::EnvironmentEntry]) -> Box<[u8]> {
     use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
     let executable = std::env::current_exe().ok();
     program_word(&Machine {

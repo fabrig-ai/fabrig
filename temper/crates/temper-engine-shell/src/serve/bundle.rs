@@ -68,7 +68,7 @@ impl Files {
         let content = skein_shell::read_file(path, left).map_err(|why| match why {
             Unread::TooLarge { .. } => refusal(shown, "past clients.bundle_bytes"),
             why @ (Unread::Absent | Unread::NotAFile | Unread::Unsafe(_) | Unread::Kernel(_)) => {
-                refusal(shown, crate::unread(why))
+                refusal(shown, super::unread(why))
             }
         })?;
         self.account(shown, content.len())?;

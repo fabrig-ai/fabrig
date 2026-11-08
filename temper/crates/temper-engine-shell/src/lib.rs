@@ -9,6 +9,7 @@ pub use temper_shell::directories;
 
 pub mod forge;
 pub mod forge_sign_in;
+pub mod serve;
 pub mod setup;
 const CONFIG_BYTES: u32 = 1 << 20;
 
