@@ -3,8 +3,9 @@
 Provisional, 2026-10-26. How temper reaches a person who did not build
 it: the one Linux binary of a release, its identity and checksum, what
 the machine must have, how a release is made, and the walk that proves
-it on a fresh machine (`draft/v0.1.0.md`, 5 and 9). The site that links
-it is `draft/first-release.md`'s, the user's; macOS is
+it on a fresh machine (`draft/v0.1.0.md`, 5 and 9), and Apple Silicon's
+file the site serves beside it (5.1). The site that links them is
+`draft/first-release.md`'s, the user's; the rest of macOS is
 `draft/macos.md`'s. What is still open is section 7.
 
 ## 1. In one page
@@ -32,6 +33,12 @@ it is `draft/first-release.md`'s, the user's; macOS is
 - **Proved on a fresh machine:** rung A walked from the downloaded file,
   by the help alone, on a machine that has only what section 4 lists
   (section 6).
+- **Apple Silicon's file, for the site:**
+  `.github/workflows/release-macos.yml`, started by a dispatch alone on
+  GitHub's `macos-26`, builds `temper` for release at the commit it is
+  started on, checks that it runs, and leaves it with that commit as the
+  run's artifact `temper-Darwin-arm64`, which the site's host fetches; no
+  tag, no release, no signature but the linker's (5.1).
 
 ## 2. The file
 
@@ -119,6 +126,52 @@ it is `draft/first-release.md`'s, the user's; macOS is
   toolchain give the same checksum; a rebuild that differs is a
   finding.
 
+### 5.1 Apple Silicon's file
+
+The site's install line downloads
+`https://fabrig.ai/temper/$(uname -s)-$(uname -m)`, for x86-64 Linux and
+Apple Silicon. Apple Silicon's, `Darwin-arm64`, needs a Mac to build:
+GitHub's hosted `macos-26` runners, free on the public repository, the
+ones `domain/testing.md`, 2.8 runs on. It is the site's file, not a
+release's: no tag names it and no checksum file goes beside it.
+
+- **One workflow,** `.github/workflows/release-macos.yml`, beside
+  `macos.yml`: started by a dispatch alone (`workflow_dispatch`; no
+  schedule, no push, no pull request), at the commit it is started on.
+  One run at a time; its only permission is `contents: read`, and it
+  uses no secret and writes nothing to the repository.
+- **Its toolchain:** Rust at the workspace's `rust-version`, installed
+  as `macos.yml` installs it, with the `wasm32-unknown-unknown` target
+  the browser's bundle needs (`client/browser.md`, 2.6). Its actions
+  are pinned by full commit, the version in a comment, as `macos.yml`'s
+  are.
+- **Its cache:** the registry may be restored by `macos.yml`'s keys,
+  and nothing is saved; the release's target is never cached, so each
+  file is built from the commit and the registry's sources alone.
+- **The build:** `TEMPER_BUNDLE=embed cargo build --release --locked -p
+  temper --bin temper`, for the runner's own target,
+  `aarch64-apple-darwin`, under the release profile exactly as the
+  workspace's `Cargo.toml` has it: the workflow sets no profile, flag
+  or feature of its own, and builds nothing else.
+- **Its signature is the linker's,** ad hoc, which is all Apple
+  Silicon needs to run a file. No Developer ID, no notarization: curl
+  marks nothing it downloads as quarantined, so Gatekeeper never asks
+  (section 7).
+- **Its checks, before the upload:** `file` names it a Mach-O 64-bit
+  arm64 executable, and `temper --help` exits 0 with its usage line
+  first (`usage: temper COMMAND [ARGUMENT...]`). A failed check
+  annotates the run with what it found and uploads nothing.
+- **What it hands over:** one artifact of the run,
+  `temper-Darwin-arm64`, kept 7 days, holding two files at its root:
+  `temper`, the binary, and `commit`, the full SHA of the commit built,
+  one line. GitHub's artifact is a zip, which keeps no file mode.
+  `commit` names the build beside the file, as section 3's `--version`
+  does within it.
+- **Where it goes is the site's:** the host that serves fabrig.ai
+  fetches the artifact and serves `temper` at `/temper/Darwin-arm64`,
+  and starts the workflow when it wants a newer file; both happen
+  outside the repository.
+
 ## 6. Proved on a fresh machine
 
 - **The walk is rung A's** (`draft/v0.1.0.md`, 2.1), its story's steps
@@ -145,6 +198,10 @@ it is `draft/first-release.md`'s, the user's; macOS is
   Default: x86-64 alone for v0.1.0.
 - **Signing:** a signature beside the checksum. Default: the checksum
   alone, from the release's page.
+- **Apple Silicon at a release:** 5.1's file among a tag's files, with
+  its checksum, and a Developer ID signature and notarization for a
+  file a browser downloads. Default: the site's file alone, signed ad
+  hoc by the linker.
 - **The client and `temper ctl` showing the version** of the
   deployment they reach, which may differ from their own binary's: a
   field of the deployment's document. Default: `--version` alone.

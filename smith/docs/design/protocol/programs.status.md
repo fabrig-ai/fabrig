@@ -18,6 +18,24 @@ session. A workspace run keeps the appended prompt. The fake program records
 these arguments and the initial directory; the MCP-attached size measurement
 remains section 9's work.
 
+Section 5.1 has no known gap in each program's file answers or in an
+answer not asked for. The agent service hands a file answer to main or
+a child by that backend's file owners alone (`Backend::owns_file`), so
+a tool's answer whose owner equals a program's pipe token goes on to
+the machine; the service's table delivers one, with 2, 3 and 5
+children, at seven points before, between and after the children's
+directory answers and status checks. A backend that gets an answer
+with nothing outstanding fails its run with the detail `smith: a
+private file answer the program did not ask for`, or drops it once
+ending; the backend's table checks seven such rows. The request of
+plan `program-burst-files` asked for every order in which the file
+component may deliver children's and main's files: those seven points
+stand for it, not an interleaving of each program's whole sequence of
+run root, instructions and outcome files, since the cause was an
+owner's identity, not an order. The deployment's abort is attributed
+to that cause by reading and by those rows; its evidence is outside
+the repository, and no deployment run since landing is on record.
+
 Section 3 has no known gap in reading a usable status's optional email,
 bounded to 255 bytes, without making usability depend on it. Section 8's
 fake status supplies it; this does not establish a real-login render check.

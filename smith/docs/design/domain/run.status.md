@@ -15,14 +15,15 @@ feedback table checks every stop, zero and maximum cut counts, and the
 usage suffix. Retaining a cut answer's rest for a continuation remains
 section 15's open question; the run keeps no rest beyond the cap.
 
-Section 5.3's room has eight scripted program-world rows: two, four,
-five and six calls at a room of five, with program and credential
+Section 5.3's room has ten scripted program-world rows: two to six
+calls at a room of five, with program and credential
 children. They send all MCP requests before reading replies, mix an
 immediate child with children that read then answer, and put credential
 children on another provider. Each checks the admitted children's
 answers and closure, each excess call's `refused reason=too-many`, main's
-accepted answer and removal of private directories. These rows did not
-reproduce the reported deployment abort; no production bound changed.
+accepted answer and removal of private directories. The reported
+deployment abort on such a burst was no bound's but a file answer's
+routing (protocol/programs.status.md, 5.1); no production bound changed.
 
 Section 5.2 has no known gap in a busy or unanswered host call's retry
 backoff: it doubles from `host_backoff` to 64 times that first wait,
@@ -46,10 +47,6 @@ a silent check still has no output to report (section 15).
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
   7.3; this is a design gap, not an absent implementation.
 
-- **Not yet:** 5.3: the reported deployment abort on five or six
-  `sub_agent` calls remains unexplained. The scripted rows above cover
-  call-by-call admission, but identify no panicking bound and establish
-  no fix for that deployment failure (plan `subagent-burst`).
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
