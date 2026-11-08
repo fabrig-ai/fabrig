@@ -5784,7 +5784,7 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   | first | "First in the queue for LANDING." |
   | updating | "Updating from LANDING." |
   | resolving | "Resolving its conflicts with LANDING." |
-  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes." or, for a semantic conflict, "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with |
+  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes.", for a person's request on the forge "Repairing: a person asked for changes on the forge." (`../domain/forge.md`, 8.3) or, for a semantic conflict, "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with |
   | landing | "Merging at its head." |
   | landed | "Landed · merge commit ABCDEFG", its first seven digits, as a delegation's card says it (5.7) |
 

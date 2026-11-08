@@ -108,7 +108,7 @@ smith's are smith's.
 | landing branch | a branch a project names for temper to land changes into (forge.md, section 4) |
 | prefix | the branch prefix temper writes under in a repository, `temper/` by default (forge.md, sections 4 and 11) |
 | change | a task the forge's change procedure runs: one change to one repository, landed into one branch (forge.md, 8.1) |
-| producing, repair, resolution | a change's agent work: making its head; fixing failed CI, a gate's remarks or a semantic conflict; resolving a conflict from a merge in progress (forge.md, 8.2 and 8.4) |
+| producing, repair, resolution | a change's agent work: making its head; fixing failed CI, a gate's remarks, a person's request for changes on the forge or a semantic conflict; resolving a conflict from a merge in progress (forge.md, 8.2 and 8.4) |
 | update | a change taking its base, made by the forge itself, lazily: when the change is first in its queue, about to get a run, or at its check with its head already behind (forge.md, section 10) |
 | gate | a verdict a change asks for at its exact head: an agent's review, a person's approval, or a repository's check; blocking or advisory (forge.md, 8.3) |
 | landing rule | what configuration requires of landing into a pattern of branches: CI, up to date, gates, approvals (forge.md, 8.7; root.md, section 6) |
