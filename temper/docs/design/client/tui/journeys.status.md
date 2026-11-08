@@ -7,6 +7,10 @@
   doesn't show the dim person's words of `../README.md`, 6.15; it is
   recorded again with that repair.
 
+- **Not yet:** 9's `launchpad-drawn`, and `launchpad-chat` recorded with
+  the launchpad as drawn (`../README.md`, 6.14): neither is recorded yet;
+  `journeys` of the plan `tui-whole-t1` records them.
+
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
   link from the box's stdout (8.2), so it cannot drive a box whose TUI is

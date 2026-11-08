@@ -32,11 +32,13 @@
   - 9: no design holds Tell temper.
   - 10: `../client/README.md`, 5.3, holds the phone's tab bar as above;
     no design holds Tell temper on a phone.
-  - 11: `tui.md`, section 3, and `../client/README.md`, 6.14, hold the
-    launchpad as the look request `tui-launchpad` drew it, with no Where
-    you left off as listed here, no Team, no Start, no design session or
-    drafter, no side pane and no talking with a role; 11.4's added
-    commands have no design.
+  - 11: `../client/README.md`, 6.13 and 6.14, hold the launchpad as
+    11.1 draws it but for its team lines and `/draft` and `/talk` in
+    Start, 11.4's commands but for `/draft`, `/talk` and `/tell`, and
+    11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
+    left off and Needs you are the project's until Home reads every
+    project (3). No design holds 11.2's design session, the drafter in
+    the terminal or the side pane, or 11.3's talking with a role.
   - 12: `../client/README.md`, 5.13, holds "What the project shows" as
     switches, not as overrides of what a way shows; no design derives
     Team's showing; 3.5, *Away*, shows Away by `Domain::away_shown`, not
@@ -47,7 +49,8 @@
   - 14: `../client/browser.md`, section 7, holds none of these states;
     no journey records them.
 - **Open:**
-  - 11.1 and 15: `/chats` or `/resume N` for Where you left off.
+  - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
+    design takes the default, `/chats N` (`../client/README.md`, 6.14).
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
   - 7 and 15: Repositories at How work runs' foot, or in Deployment.
   - 2 and 15: `Chats` kept at its address, or folded away.

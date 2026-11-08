@@ -22,3 +22,23 @@ id = 1
 story = "A reply holding a way, a path, a proposal, a charter or a not_drawn prints it in the TUI's chat, a stop a line, code's stops indented and the branch's bar closing its part"
 parts = ["views"]
 walk = false
+
+[[part]]
+id = "needs"
+title = "The view says each need's mark, question, money, sign-off or other, and what the terminal's walk offers for it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[part]]
+id = "surface"
+title = "The TUI's names for the launchpad as drawn: its own commands' events, the walk's state, the notes, the words, the left-off rows' shape, n, /chats N and the object in focus"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.13"
+
+[[slice]]
+id = 2
+story = "The view reads each need's mark and prompt, and the TUI holds every name the launchpad as drawn is built on, nothing drawn changing"
+parts = ["needs", "surface"]
+walk = false
