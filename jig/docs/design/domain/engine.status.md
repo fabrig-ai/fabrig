@@ -70,6 +70,25 @@ Section 11.1's account-driven marks preserve time-expiring offers: a
 not-due account timer skips account work and leaves its alarm scheduled;
 a due expiry marks and delivers the changed offer.
 
+Section 17.5 has no known gap in a default its connector no longer
+gives: `jig-domain-core/src/settings/application.rs`, `prepare_start`,
+erases, with a removal in the release's revision, only a default-following
+state its connector names in `SettingsDefaults`' `dropped`, and a reset
+to a default no connector reports or names keeps its state, size and
+slot (`jig-domain-core/src/tests/settings/application_start.rs`). temper's two restore
+stories that met it run (`temper/docs/design/protocol/configuration.status.md`).
+
+Section 8 has no known gap in a draining worker leaving placement:
+`jig-domain-fleet/src/channel.rs`, `draining`, marks its channel for
+the rest of its life, beside the busy mark a freed slot lifts, so that
+no run or job is chosen there, and an attempt chosen for it is placed
+again unrefused (the fleet's tests
+`a_draining_worker_takes_nothing_even_once_it_frees_a_slot`,
+`a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused` and
+`a_draining_workers_next_channel_is_placed_on`). temper's process story
+of a restarted workstation, which would show it on processes, stays
+ignored for its fixture (`temper/docs/design/domain/testing.status.md`).
+
 Section 17.12's held worker reads, filtered catalogue changes decided by
 the provider's list, atomic account and settings commits, and retention
 of running work have no known implementation gap. The mark table covers

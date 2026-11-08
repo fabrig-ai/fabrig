@@ -186,6 +186,15 @@ and `real::Outcome::peaks()` report each process's peak alone, and
 `Killed::peak()` reports the ended process's peak. An unchecked run
 reports no measurement, never a ceiling or a sentinel.
 
+**Reuse is counted, never read from an address.** A span also counts
+the allocations its thread made since its start, a reallocation as one
+(`Span::made`). A step test that shows a table kept rather than grown
+or replaced at its size counts none around the call that reuses it, in
+a test binary that declares the counting allocator. It never compares
+the table's address: an allocator may grow a block in place or hand a
+freed one back, as what ran before in the process left its heap
+(testing-strategy.md, 8).
+
 **Who counts a payload handed to a step.** A step's measured heap covers
 what it keeps and what it allocates; what it hands out in its requests
 is the next step's input, and the meter takes it off the step's own. An
