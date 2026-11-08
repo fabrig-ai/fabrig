@@ -62,7 +62,7 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
   installation. An owned Forgejo set up again takes its binaries from
   the cache.
 - **Removed:** `forge remove FORGE`, or Remove on its row in the
-  client's Forges, reached through Settings on the rail. It ends at
+  client's Forges tab in Deployment, at the rail's foot. It ends at
   once and leaves every list; its changes are cancelled, its
   repositories leave their projects, and its
   secrets are erased. An owned Forgejo goes with its directory, its
@@ -85,7 +85,7 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 
 ## Acting on it
 
-- **In Settings:** Forges leads to Connect a forge: Forgejo on this
+- **In Deployment:** Forges leads to Connect a forge: Forgejo on this
   machine, GitHub, or Your Forgejo. Your Forgejo shows either its admin
   form or its bot tokens, with uncommon fields folded. Setup and GitHub’s
   return open the forge’s row on Forges, with its live progress and

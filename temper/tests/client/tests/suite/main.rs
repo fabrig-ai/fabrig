@@ -44,10 +44,12 @@ mod to_begin;
 mod tui;
 mod watch_room;
 mod welcome;
+mod work;
 mod fuzzy {
     mod client;
     mod how;
     mod public_address;
+    mod rail_and_work;
 }
 
 mod accounts_edges;

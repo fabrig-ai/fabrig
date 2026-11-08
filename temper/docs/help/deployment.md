@@ -73,6 +73,9 @@ temper ctl settings apply`.
   command's arguments are its row: temper help commands.
 - **ctl:** `me` reads your party in the deployment; `settings show`
   reads how its work runs.
+- **The client:** Deployment, at the rail's foot, holds Accounts, Forges,
+  Models, Workers, Members and Limits. On a phone, choose Deployment in
+  the project switcher.
 
 **Offering another model** (for example, `claude-haiku-5-5`):
 
@@ -81,9 +84,9 @@ temper ctl settings apply`.
    Without `keep`, that provider reads no list. Drain the stop and restart
    with the same `CONFIG`, `DATA` and `CACHE`. Where the provider has a list,
    temper reads it as an account becomes usable, once a day and on
-   **Read again** in **Settings**, **Models**.
+   **Read again** in **Deployment**, **Models**.
 2. For what a list doesn't show, including a new Claude subscription model,
-   use **Add a model by name** on **Settings**, **Models**: choose a
+   use **Add a model by name** on **Deployment**, **Models**: choose a
    provider and enter the model's name. Prices are estimated until set;
    the first run shows whether the provider serves it.
 3. To set its prices, window or efforts, tell **Ask temper**.

@@ -57,6 +57,8 @@ fn goal(allow_producer: bool) -> (World, engine::Assignment) {
     world.send(event);
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;
+    // Role choices run on main, whose landing rule requires a review.
+    batch[0].symbols = Box::new([]);
     if !allow_producer {
         batch[0].authority.delegation.kinds = Box::new([
             people::Executor::Charter(1),

@@ -28,6 +28,8 @@ fn red_range() -> (World, engine::Assignment, [u64; 3]) {
         unreachable!("goal template creates a batch")
     };
     batch[0].budget = people::Budget::AsAllowed { cap: Some(GOAL_BUDGET) };
+    // Red landings are observed on main, so this goal lands task by task.
+    batch[0].symbols = Box::new([]);
     let goal = assigned_chat(&mut world, GOAL_REQUEST, people::Ask::Create { project, batch });
     let mut landings = Vec::new();
     // The red range's documentation, failing, and unrelated landings use the tiers world's content cues.
