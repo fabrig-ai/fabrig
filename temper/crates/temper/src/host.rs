@@ -200,6 +200,18 @@ pub fn ending(
             Stop::FrameTooLarge { number, task, bytes, limit } => format!(
                 "temper serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes\n"
             ),
+            Stop::Journal { why } => {
+                let why = match why {
+                    temper_service::JournalStop::Refused { commit, sent, durable } => {
+                        format!("the store answered commit {commit}, with {sent} sent and {durable} durable")
+                    }
+                    temper_service::JournalStop::PastEdge { writes } => {
+                        format!("a decision past the store's {writes} writes")
+                    }
+                    temper_service::JournalStop::Counter => "the commit counter at its end".into(),
+                };
+                format!("temper serve: the engine's journal stopped: {why}\n")
+            }
             Stop::CommitFailed { number } => format!("temper serve: commit {number} failed\n"),
             Stop::Hooks => "temper serve: webhooks listener failed\n".into(),
             Stop::Listener { listener, address, error } => {
@@ -318,8 +330,13 @@ fn long_pass_line(long: LongPass) -> String {
     line
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive note match keeps each operator line at the host")]
 pub(crate) fn note_line(note: temper_service::Note) -> String {
     match note {
+        temper_service::Note::CoreWaiting { why } => {
+            format!("temper serve: the core is not answering: {}\n", String::from_utf8_lossy(&why.words()))
+        }
+        temper_service::Note::CoreAnswers => "temper serve: the core answers again\n".into(),
         temper_service::Note::ForgeLink { forge, note } => {
             let words = match note {
                 temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",
@@ -674,6 +691,26 @@ fn other_endings_keep_their_exit_behavior() {
         ),
         (Some(End::Stopped(Stop::Binding)), false, "temper serve: deployment namespace binding refused\n", 1),
         (Some(End::Stopped(Stop::CommitFailed { number: 7 })), false, "temper serve: commit 7 failed\n", 1),
+        (
+            Some(End::Stopped(Stop::Journal {
+                why: temper_service::JournalStop::Refused { commit: 7, sent: 9, durable: 8 },
+            })),
+            false,
+            "temper serve: the engine's journal stopped: the store answered commit 7, with 9 sent and 8 durable\n",
+            1,
+        ),
+        (
+            Some(End::Stopped(Stop::Journal { why: temper_service::JournalStop::PastEdge { writes: 32 } })),
+            false,
+            "temper serve: the engine's journal stopped: a decision past the store's 32 writes\n",
+            1,
+        ),
+        (
+            Some(End::Stopped(Stop::Journal { why: temper_service::JournalStop::Counter })),
+            false,
+            "temper serve: the engine's journal stopped: the commit counter at its end\n",
+            1,
+        ),
         (
             Some(End::Stopped(Stop::FrameTooLarge { number: 7, task: 11, bytes: 79, limit: 78 })),
             false,
@@ -1191,4 +1228,19 @@ fn long_pass_line_counts_the_other_long_passes() {
         long_pass_line(long),
         "temper serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound; 3 more since the last line\n"
     );
+}
+
+#[test]
+fn core_wait_notes_name_the_reason_and_recovery() {
+    use temper_service::{CoreWait, Note};
+    for (note, expected) in [
+        (
+            Note::CoreWaiting { why: CoreWait::Starting { step: None } },
+            "temper serve: the core is not answering: starting: loading the core's records\n",
+        ),
+        (Note::CoreAnswers, "temper serve: the core answers again\n"),
+    ] {
+        assert_eq!(note_line(note), expected);
+        assert!(expected.len() <= 240);
+    }
 }

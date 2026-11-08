@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-07. Where temper's code lags or departs from [README.md](README.md).
+2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
 Section 4's `temper [ADDRESS]` command is present, including bare
 `temper` choosing the TUI only when stdin and stdout are terminals.
