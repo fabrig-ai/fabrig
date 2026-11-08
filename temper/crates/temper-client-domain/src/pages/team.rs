@@ -169,6 +169,10 @@ impl Default for Team {
     }
 }
 impl Team {
+    #[expect(
+        clippy::match_like_matches_macro,
+        reason = "the step crate excludes matches!; its address check uses if let"
+    )]
     pub(crate) fn configure(
         &mut self,
         address: &Address,

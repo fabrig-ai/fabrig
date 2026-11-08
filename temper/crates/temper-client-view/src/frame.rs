@@ -748,6 +748,7 @@ struct Shown {
     how: bool,
     team: bool,
 }
+#[expect(clippy::match_like_matches_macro, reason = "the step crate excludes matches!; its address check uses if let")]
 fn shown(root: &Domain) -> Shown {
     let (home, inbox, work, how) = match root.pages().address() {
         Address::Home { .. } => (true, false, false, false),
