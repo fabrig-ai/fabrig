@@ -202,6 +202,10 @@ pub fn refusal(root: &Domain, w: &Words) -> Option<Box<[u8]>>;
   `terminal::question::under` from `question`; the terminal's delegation card from
   `delegation_line`. The browser's trees are byte for byte what they were: its tests
   and goldens unchanged are the check.
+- **Added for `tui-chat`,** the one writer of `temper-client-view` in its wave:
+  `pub fn working(root: &Domain, w: &Words) -> bool`, the browser's `chats::working` for
+  the open chat (its status active and its words not begun), which a run's line under way
+  and the three dots read.
 - `see`'s phrases are `chat_line`'s table (README.md, 3.5, *its calls*), read from
   `calls::touched`'s `Touched::Other { argument }`, the address; no domain change.
 
