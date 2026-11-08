@@ -56,3 +56,29 @@ id = 3
 story = "Every help page names the rail's entries and Deployment's tabs as the client draws them"
 parts = ["help"]
 walk = false
+
+[[part]]
+id = "deployment"
+title = "Deployment's frame: Accounts, Forges, Models, Workers, Members and Limits, How work runs keeping the project's two tabs"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "checks"
+title = "The fuzz test of section 12's rules, the gallery's new states, the terminal's goldens and the journeys regenerated"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 7.2"
+
+[[slice]]
+id = 4
+story = "Deployment's six tabs draw today's pages in its frame, Members from each project's members and Limits from the deployment's capacities"
+parts = ["deployment"]
+walk = false
+
+[[slice]]
+id = 5
+story = "The fuzz test holds section 12's rules for the rail and Work, the gallery prints their states, the goldens and journeys print the new rail"
+parts = ["checks"]
+walk = false
