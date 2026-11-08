@@ -21,13 +21,6 @@ grant while its read is under way. The hub hears the grant's name alone.
   workers' part's close. 12: the engine's fifty-loss and closing rows, and
   the protocol world's fifty-cut story.
 - **Not yet:** 1, 4.1, 8, 10.1, 10.2: TLS between hosts: the workers' listener and the worker's dial are plaintext on loopback or in-process (`jig/crates/jig-protocol-config/src/hosts.rs`, `address.rs`). 3, 6.4, 8: a worker whose root composes `smith-inline-agent`: none does, so no worker gives a tool begun with its call.
-- **Not yet:** 9: silence counts frames on the worker's side: its
-  component restarts the deadline on a whole body, ping or unsupported
-  only (`jig-protocol-worker-link/src/component.rs`, `received`). 9,
-  10.1: the worker's `Fact` names silence and stall as `Closed::Stream`,
-  and a deadline of the opening, a full cap and its root's fault as
-  `Closed::Owner`. 12: the worker's piece-by-piece row and the joined
-  busy-link rows.
 - **Departs:** 12: the `jig-world-cost` request says no story loses what it
   checks. Root checks at every step cover the six drawn fuzzy stories and
   the replaced-key and application-generation stories, but not the other

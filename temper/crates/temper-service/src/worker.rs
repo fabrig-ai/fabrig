@@ -497,18 +497,27 @@ impl Worker {
             link::Request::Closed => self.closed = true,
             link::Request::Fact { why } => {
                 let reason = match why {
-                    skein_channel::Closed::RefusedPeer(code) => Some(crate::Refusal::Peer(code)),
-                    skein_channel::Closed::RefusedHere(jig_protocol_worker_link::REFUSED_LIMITS) => {
-                        Some(crate::Refusal::Terms)
-                    }
-                    skein_channel::Closed::RefusedHere(jig_protocol_worker_link::REFUSED_FRAMING) => {
-                        Some(crate::Refusal::Malformed)
-                    }
-                    skein_channel::Closed::RefusedHere(_)
-                    | skein_channel::Closed::Owner
-                    | skein_channel::Closed::Framing
-                    | skein_channel::Closed::Stream
-                    | skein_channel::Closed::Truncated => None,
+                    link::Loss::Closed(skein_channel::Closed::RefusedPeer(code)) => Some(crate::Refusal::Peer(code)),
+                    link::Loss::Closed(skein_channel::Closed::RefusedHere(
+                        jig_protocol_worker_link::REFUSED_LIMITS,
+                    )) => Some(crate::Refusal::Terms),
+                    link::Loss::Closed(skein_channel::Closed::RefusedHere(
+                        jig_protocol_worker_link::REFUSED_FRAMING,
+                    )) => Some(crate::Refusal::Malformed),
+                    link::Loss::Closed(
+                        skein_channel::Closed::RefusedHere(_)
+                        | skein_channel::Closed::Owner
+                        | skein_channel::Closed::Framing
+                        | skein_channel::Closed::Stream
+                        | skein_channel::Closed::Truncated,
+                    )
+                    | link::Loss::Silence
+                    | link::Loss::Stall
+                    | link::Loss::Handshake
+                    | link::Loss::Full
+                    | link::Loss::Busy
+                    | link::Loss::Fault
+                    | link::Loss::Unreachable => None,
                 };
                 if let Some(reason) = reason
                     && let Connection::Socket(remote) = &mut self.connection

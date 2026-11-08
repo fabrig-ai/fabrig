@@ -24,6 +24,7 @@ mod net {
         right: Option<Token>,
         events: VecDeque<LowerEvent>,
         ended: bool,
+        grants: Option<usize>,
     }
     impl End {
         fn new(chunk: u32) -> Self {
@@ -34,13 +35,19 @@ mod net {
                 right: None,
                 events: VecDeque::new(),
                 ended: false,
+                grants: None,
             }
         }
         fn tick(&mut self, rng: &mut Rng) -> Option<LowerEvent> {
             if let Some(event) = self.events.pop_front() {
                 return Some(event);
             }
-            if let Some(right) = self.right.take() {
+            if self.grants != Some(0)
+                && let Some(right) = self.right.take()
+            {
+                if let Some(grants) = &mut self.grants {
+                    *grants -= 1;
+                }
                 return Some(LowerEvent::Write(stream::OutputUp::Settled {
                     right,
                     outcome: stream::OutputOutcome::Granted,
@@ -98,6 +105,12 @@ mod net {
         }
         pub fn tick(&mut self, side: usize, rng: &mut Rng) -> Option<LowerEvent> {
             if self.closed[side] { None } else { self.ends[side].tick(rng) }
+        }
+        pub fn grants(&mut self, side: usize, frames: Option<usize>) {
+            self.ends[side].grants = frames;
+        }
+        pub fn waiting(&self, side: usize) -> bool {
+            self.ends[side].right.is_some()
         }
         pub fn close(&mut self, side: usize) -> bool {
             if self.closed[side] {
@@ -221,7 +234,8 @@ impl Joined {
     }
     pub fn worker_up(&mut self, up: host::LinkUp, parts: Box<[Part]>) {
         if let host::LinkUp::Turn { run, attempt, turn } = &up {
-            assert_eq!((*run, *attempt, turn.turn), (fixtures::RUN_SEVEN, fixtures::ATTEMPT_TWO, 1));
+            assert_eq!((*run, *attempt), (fixtures::RUN_SEVEN, fixtures::ATTEMPT_TWO));
+            assert!(turn.turn > 0);
             self.retained_turn = true;
         }
         self.worker_event(Event::Up { up, parts });
@@ -363,6 +377,17 @@ impl Joined {
             self.run();
         }
         self.now = end;
+    }
+    /// Limit each side's next write grants, one grant per frame.
+    pub fn grants(&mut self, worker: Option<usize>, engine: Option<usize>) {
+        let pipe = self.pipe.as_mut().expect("live pipe");
+        pipe.grants(0, worker);
+        pipe.grants(1, engine);
+    }
+    #[must_use]
+    pub fn waiting(&self) -> [bool; 2] {
+        let pipe = self.pipe.as_ref().expect("live pipe");
+        [pipe.waiting(0), pipe.waiting(1)]
     }
     pub fn acknowledge(&mut self, enabled: bool) {
         self.acknowledge = enabled;

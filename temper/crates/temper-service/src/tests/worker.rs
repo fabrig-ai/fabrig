@@ -915,7 +915,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
         (Closed::RefusedHere(jig_protocol_worker_link::REFUSED_LIMITS), crate::Refusal::Terms),
         (Closed::RefusedHere(jig_protocol_worker_link::REFUSED_FRAMING), crate::Refusal::Malformed),
     ] {
-        stand.worker.link(fixtures::NOW, link::Request::Fact { why });
+        stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(why) });
         assert_eq!(
             stand.worker.notes().pop(),
             Some(crate::Note::Refused {
@@ -927,7 +927,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
         stand.worker.link(fixtures::NOW, link::Request::Dial);
         let Some(io::Request::Connect { .. }) = stand.worker.io().pop() else { panic!("redial reaches IO") };
     }
-    stand.worker.link(fixtures::NOW, link::Request::Fact { why: Closed::Stream });
+    stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(Closed::Stream) });
     assert!(stand.worker.notes().is_empty());
 }
 
@@ -1051,16 +1051,16 @@ fn repeated_refusals_are_noted_once_until_the_reason_changes_or_the_worker_links
     const TWO_REFUSALS: u32 = 2;
     let mut stand = socket_stand();
     for _ in 0_u8..2 {
-        stand.worker.link(fixtures::NOW, link::Request::Fact { why: Closed::RefusedPeer(256) });
+        stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(Closed::RefusedPeer(256)) });
     }
     assert_eq!(stand.worker.notes().len(), ONE_REFUSAL);
     stand.worker.link(
         fixtures::NOW,
-        link::Request::Fact { why: Closed::RefusedHere(jig_protocol_worker_link::REFUSED_LIMITS) },
+        link::Request::Fact { why: link::Loss::Closed(Closed::RefusedHere(jig_protocol_worker_link::REFUSED_LIMITS)) },
     );
     assert_eq!(stand.worker.notes().len(), TWO_REFUSALS);
     LinkPeer::new().open(&mut stand.worker);
-    stand.worker.link(fixtures::NOW, link::Request::Fact { why: Closed::RefusedPeer(256) });
+    stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(Closed::RefusedPeer(256)) });
     for reason in [crate::Refusal::Peer(256), crate::Refusal::Terms] {
         assert_eq!(stand.worker.notes().pop(), Some(refusal_note(reason)));
     }
