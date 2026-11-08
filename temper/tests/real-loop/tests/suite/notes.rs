@@ -303,10 +303,7 @@ const FOLLOW_UP_RESULT: &str = "Note 1 revision 2 written · +7 −0 · line 14 
 
 // The two whole-note arguments from the template's cued Away mode scripts.
 fn document_draft() -> Value {
-    json!({
-            "scope": {"kind": "goal", "project": 1, "goal": 1},
-            "description": "Away mode",
-            "body": r"# Away mode
+    let body = r"# Away mode
 
 Draft, 2026-11-05, with the user.
 
@@ -335,15 +332,16 @@ The conversation and its document remain available.
 - How should urgent questions be shown on return?
 
 These choices remain for the person to settle.
-"
-        })
+";
+    json!({
+        "scope": {"kind": "goal", "project": 1, "goal": 1},
+        "description": "Away mode",
+        "body": body
+    })
 }
 
 fn document_revision() -> Value {
-    json!({
-            "scope": {"kind": "goal", "project": 1, "goal": 1},
-            "description": "Away mode",
-            "body": r"# Away mode
+    let body = r"# Away mode
 
 Draft, 2026-11-05, with the user.
 
@@ -379,10 +377,14 @@ The conversation and its document remain available.
 - How should urgent questions be shown on return?
 
 These choices remain for the person to settle.
-",
-            "name": 1,
-            "recalled": 1
-        })
+";
+    json!({
+        "scope": {"kind": "goal", "project": 1, "goal": 1},
+        "description": "Away mode",
+        "body": body,
+        "name": 1,
+        "recalled": 1
+    })
 }
 
 fn document_scripts(_: SocketAddr) -> Box<[api::Script]> {
