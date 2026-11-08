@@ -5083,15 +5083,15 @@ filter, `Goals`, its filter All, `Changes`, `Settings`, `Models`, `Builders`,
 **All projects** (`../draft/surfaces.md`, section 2): the switcher's first
 row while the person is in two projects or more, a button named "All
 projects", in small type at its right how many, "4 projects". Pressed, it
-goes to the page across projects, where a sign-in lands: `/`, `Inbox {
-filter }` with no project; on `Inbox`, its filter with the project taken
-out. While the page is one across projects, `Inbox` with no project, the
-switcher's summary names "All projects" and its row is the one pressed; the
-rail's other entries keep the open project, the one last open, so that
-"Work" and "How work runs" open on it, and the switcher names it again
-there. Whether the page is across projects is one function,
-`temper_client_domain::pages::rail::across(root)`, which Home across projects
-joins once it has an address (`../draft/surfaces.md`, section 3).
+goes to a page across projects: on `Inbox`, its filter with the project
+taken out, where a sign-in lands, `/`, having none; anywhere else
+`AllHome` (3.5, *Home on All projects*). While the page is one across
+projects, `AllHome` or `Inbox` with no project, the switcher's summary
+names "All projects" and its row is the one pressed; the rail's other
+entries keep the open project, the one last open, so that "Work" and "How
+work runs" open on it, and the switcher names it again there. Whether the
+page is across projects is one function,
+`temper_client_domain::pages::rail::across(root)`.
 
 The acts of both, each one act and one request (3.6):
 
@@ -7894,8 +7894,9 @@ words, parts and order bind and whose figures don't), illustrative:
 ```
 
 - **Where it departs from its mockup,** each for a reason: the brief is
-  the project's, not one across projects, and so are the rows, until
-  Home reads every project (`../draft/surfaces.md`, 3; temper/ui's P2);
+  the project's, not one across projects, and so are the rows, since its
+  root is a project's Home, not `AllHome` (3.5, *Home on All projects*;
+  `../draft/surfaces.status.md`, 11);
   the header holds the brief's sentence and `/brief` its whole, since
   the engine keeps a sentence and a lede and no more (`../domain/forge.md`,
   5.7); a chat's row ends with `/chats N`, numbering the rows as the
@@ -7916,9 +7917,9 @@ words, parts and order bind and whose figures don't), illustrative:
   chats through `pages().chats()` and the project's goals through
   `pages().goals()` (3.5, *Home*). The TUI derives none of them again,
   and each is drawn at the next frame after it changes. They are the
-  project's: Home across projects is the browser's to design first
-  (`../draft/surfaces.md`, 3), and the launchpad reads it when the root
-  holds it.
+  project's: the reads across projects are `AllHome`'s, its joined brief
+  `pages::all_home::brief` (3.5, *Home on All projects*), which the
+  launchpad does not take (`../draft/surfaces.status.md`, 11).
 - **The header,** the region `tui-top`, framed, its level-1 heading in
   its border: "temper" (`tui-title`), " · " (`tui-faint`) and the
   project's name (`tui-name`); and, at the border's end, `HOST:PORT`
@@ -10330,6 +10331,26 @@ own tests:
   tabs; and walks them on a box (`../draft/whole-story.execution.md`,
   section 2). Owner: temper/ui. Default: each difference a finding filed
   back to the plan's repair.
+- **Home and Needs you across projects after landing** (3.5, *Home*,
+  *Home on All projects* and *Needs you*): temper/ui compares main with
+  the whole story's `web/whole-story/home.html`, `needs.html`,
+  `phone-home.html` and `phone-need.html`, and `pair/`'s and `team/`'s
+  Home and Needs you, at 1440, 1000 and 390 px, by day and by night; walks
+  them on a box across two projects; and records the journey of Home to a
+  need, answered (`../draft/surfaces.md`, 14). Owner: temper/ui. Default:
+  each difference a finding filed back to the plan's repair.
+- **Home's and Needs you's later parts** (3.5, *Home on All projects*,
+  *Needs you* and *A page's parts*; `../draft/surfaces.md`, sections 3, 4,
+  12 and 15): a project's Now on its row, rolled from its owners', its
+  tiers, a follow's parity and "owned" (R1 to R3, F1); What follows what
+  (F1); who decided, on a Decided for you row, and a need's why with "Stop
+  asking" and "Keep asking", the intro's What reaches you and Only you
+  (N1, N3a); a need's goal, role and asker on its from line; Tell temper
+  at Needs you's foot (P5a); one brief across projects written per person,
+  `../draft/surfaces.md`, 15's open question; and more than 16 projects
+  read. Each joins *A page's parts* with the read that gives it. Default:
+  none is drawn until it is built, the brief is one a project, joined, and
+  the first 16 projects in `me`'s order are read.
 - **How work runs' fuller page** (5.13, *Later: the fuller page*): roles, ways to
   start work, rules, running work and history on the page; `Proposal { proposal
   }`; and the card's "Review", with the grouping of what temper enforces and what

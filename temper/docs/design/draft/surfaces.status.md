@@ -14,17 +14,26 @@
     switch is the open project's, with no "Away on 2 of 4" across
     projects, and on a page across projects the rail's "Needs you" counts
     the open project's needs, where this section counts across what it
-    shows (sections 3 and 4).
+    shows (sections 3 and 4); under All projects the rail's "Home" and
+    "Needs you" open the open project's pages (5.3, *All projects*),
+    where section 1 has both read every project and this section makes
+    only Work, Team and How work runs a project's.
   - 3: `../client/README.md`, 3.5, *Home on All projects*, has no owners'
     Now on a project's row, no tiers, follow's parity or "owned" chip, and
     no What follows what; its Decided for you rows name the task, not who
-    decided; `../domain/forge.md`, 5.7, has
-    the status agent write a project's brief from what the engine keeps,
-    not from owners' Nows, and its byline says nothing of them.
+    decided, and its cards, as a project's Home's, have no why and name no
+    asker (4). Its byline says "Written by the status agent at 07:52",
+    where this section, redrawn after the plan `ui-p2-home` was cut, says
+    "Each project's brief, its first line · the newest, vsr's, by the
+    status agent at 07:52"; and on a phone its headline is the wide
+    page's, "31 changes landed across four projects.", where
+    `phone-home.html` says "31 changes landed.". `../domain/forge.md`,
+    5.7, has the status agent write a project's brief from what the
+    engine keeps, not from owners' Nows.
   - 4: `../client/README.md`, 3.5, *Needs you*, has no why, no "Stop
-    asking" or "Keep asking", no "What reaches you" lede, no Only you, no
-    Tell temper at its foot and no terminal command to talk a need
-    through; its from line names no goal, role or asker; an approval's
+    asking" or "Keep asking", no "What reaches you" lede, no Only you and
+    no Tell temper at its foot; its from line names no goal, role or
+    asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
   - 6: no design holds Team, an area's owner or a role's card
     (`standing-roles.md` has no design yet either).
@@ -55,9 +64,12 @@
     11.1 draws it but for its team lines and `/draft` and `/talk` in
     Start, 11.4's commands but for `/draft`, `/talk` and `/tell`, and
     11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
-    left off and Needs you are the project's until Home reads every
-    project (3). No design holds 11.2's design session, the drafter in
-    the terminal or the side pane, or 11.3's talking with a role.
+    left off and Needs you are the project's, where 11.1 has them across
+    the person's projects: 3.5, *Home on All projects*, reads every
+    project and joins their briefs in `pages::all_home::brief`, which the
+    launchpad doesn't read (3). No design holds 11.2's design session, the
+    drafter in the terminal or the side pane, or 11.3's talking with a
+    role.
   - 12: `../client/README.md`, 3.5, *A page's parts*, holds Home's and
     Needs you's rules, without owners' lines, follows or Away; 5.13,
     *The page*, keeps "What the project shows" at How work runs' foot as
@@ -75,14 +87,22 @@
     line's rise to it in the signal colour, which this section has P3
     turn to ink, and no design marks who acts on the chips.
   - 14: `../client/browser.md`, section 7, holds Home's and Needs you's
-    states, and 7.2 holds How work runs under each stock way and its own,
-    a stop's card and night (`how` to `night-how`), with no rule by path
+    states, but for a red "owned", a project's Home at the standing
+    roles' step, a need with its why and its offer, and Only you, which
+    nothing draws yet (3 and 4); 7.2 holds How work runs under each stock
+    way and its own, a stop's card and night (`how` to `night-how`), with no rule by path
     or follow, and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     none of Team, Tell temper or the phone's tabs at 390 pixels is held,
     and `../client/journeys.md` records none of this section's four
     journeys.
 - **Design departs:**
+  - 3 and 13: `../client/README.md`, 3.5, *Home on All projects*, sets
+    each joined sentence after its project's name and ": " in the strong
+    weight, where `home.html`'s lede names each project in its own words,
+    because each project's brief is written in that project's own words
+    and its first sentence need not name it (15's default). Decided by the
+    cut of `ui-p2-home`.
   - 11.1, 13 and 15: `../client/README.md`, 6.14, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and

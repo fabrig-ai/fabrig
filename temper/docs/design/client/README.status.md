@@ -1176,15 +1176,29 @@ TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
-- **Not yet:** 3.5, *Home on All projects*: no `AllHome` address, no
-  page reading every project's `status` and `decided`, no briefs joined,
-  no Projects rows and no Ask temper line; `parts` holds no rules.
-- **Not yet:** 3.5, *Home*, *The cards*: a project's Home draws its
-  first need as a card and the others as lines, says "Work carries on…"
-  when none waits, and has no Ask temper line.
-- **Not yet:** 3.5, *Needs you*: one card at a time at every width, no
-  intro, no project chip on the unfiltered from line, "Reply…" and
-  "Later" in place of *Tell it something else*, no Decided for you, and
-  Done's "Home" never `AllHome`.
-- **Not yet:** 3.5, *A page's parts*: no `pages::parts`; Home and Needs
-  you decide their parts page by page.
+Sections 3.5, *Home* (its *Needs you* cards, *More* and *The Ask temper
+line*), *Home on All projects*, *Needs you* and *A page's parts*, and
+5.3, *All projects*, have no known implementation gap, by plan
+`ui-p2-home`: `Address::AllHome` at `/home`, reading the first 16
+projects' `status` and `decided` (`all_home::ACROSS`) with the inbox and
+`approvals` across projects, and looking once an entry; `all_home::intro`
+and `all_home::brief`, each new brief's first sentence after its
+project's name, newest first, at most four; Projects' rows with their
+branch's chip; Decided for you across projects, Overturn under the row's
+project; the Ask temper line's `Act::AskWith`; a project's Home's first
+three open cards and "N more"; Needs you's list on a wide page, its
+intro, its head, closed rows opened by `needs::Act::Open`, *Tell it
+something else* always open, Decided for you and no "Later" in the
+browser; Done's "Home" to `AllHome` with two projects or more; the
+switcher's All projects to `AllHome` but from `Inbox`; and
+`pages::parts::home` and `needs`. The domain's tables
+(`temper-client-domain`'s `tests/pages/all_home.rs` and `parts.rs`), the
+view's (`temper-client-view`'s `tests/all_home.rs`, `home.rs`,
+`home_cards.rs` and `needs.rs`), the fuzzy suite's
+`random_facts_and_settings_keep_each_part_and_card`, the joint world's
+five stories across two projects in `status.rs`, `inbox.rs` and
+`away.rs`, and the gallery's thirteen new states (`browser.status.md`,
+7.2) hold it. The render check, the walk and the journey of Home to a
+need, answered, remain section 11's after-landing work (*Home and Needs
+you across projects after landing*); what the draft draws beyond them is
+section 11's *Home's and Needs you's later parts*.
