@@ -149,6 +149,15 @@ table admits 32 changes and refuses 33 at an authority batch bound of 32.
     linear history, code owners and the App's bypass
     (`temper-service/src/family.rs`).
   - 7.1, 12: the findings topic and findings (`findings.md`).
+  - 7.2, *Those are a goal's only topics from the core*: the core still
+    subscribes a goal to CI on each of its live changes' heads
+    (`temper-engine-domain-forge/src/topics.rs`, `subscribe` and
+    `head_changed`, through `Request::GoalTopic`), which no section asks
+    for. Each takes one of the goal's `tasks.subscriptions` (4 in the
+    profiles), so a goal with three changes pushed fills its room with
+    them and its landings, a fourth's is refused unheard, and its run's
+    own `subscribe` is refused (the request `goal-call-faults` of
+    2026-11-08, item 2).
   - 7.3: a hold parked until a landing. An explicit landing subscription
     with no paths receives a known landing as kept news; it does not wake
     a parked hold.
