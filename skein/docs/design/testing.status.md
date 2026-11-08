@@ -18,6 +18,8 @@ and real-loop tests cover the mode and children remove both runner
 variables when checking failure. No implementation gap is known in this
 path. Section 9 leaves caller adoption and suite CPU measurement separate.
 
+- **Not yet:** 5: `skein-heap`'s span counts no allocations
+  (`Span::made`).
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.

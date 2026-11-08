@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/skein-walk-reuse/inputs/request.md", "skein/crates/
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tiers"
 early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "reuse-counted"
+title = "The patcher's reuse checks count the allocations around a reused pass with skein-heap's span and compare rooms, never an address"
+mode = "direct"
+needs = []
+design = "skein/docs/design/codec.md, 11.8"
+
+[[slice]]
+id = 1
+story = "skein-codec's focused tests pass in one process whatever ran before them: a reused pass allocates nothing by the counting allocator's count, and a nested walk's first growth no longer reads as a moved stack"
+parts = ["reuse-counted"]
+walk = false
