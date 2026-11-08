@@ -2,7 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Not yet:** 8.13, *CI's card*: its fact says "the repository's CI, at the change's head", naming neither the required checks nor the workflows (`look-round-24`, `ci-workflows`).
 
 Section 8.9 has no known implementation gap in every-project given
 rules, their project-scoped reads and held values, removal and reset, or

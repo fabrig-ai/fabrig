@@ -359,6 +359,7 @@ fn derive_keeps_the_branch_and_repository() {
                 name: b"name".as_slice().into(),
                 ci: false,
                 checks: Box::default(),
+                contexts: Box::default(),
                 gates: Box::default(),
                 tiers: Box::default(),
             }),
