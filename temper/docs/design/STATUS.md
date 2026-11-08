@@ -36,7 +36,13 @@ uses a minute's slack: a revocation near expiry or a missing note can
 still renew, so unconditional refusal after sign-out remains a departure
 from the request (`draft/tui.status.md`, 4.1). Terminal-default base
 colours, accent focus and scheme selection from COLORFGBG or a bounded
-OSC 11 query are built (`client/README.md`, 6.11 to 6.16).
+OSC 11 query are built (`client/README.md`, 6.11 to 6.16). The user's
+requests of 2026-11-08 and the look request `tui-chat-title-below` are
+built: the band from the terminal's answered background, else dim words
+after an accent "❯"; up to three left-off chats reached by Up and Down;
+`/effort` on the launchpad; a Markdown bullet's "•"; and a chat's title,
+number and place ("box" from the engine's link file) in the rule above
+the box (`client/README.md`, 6.12 to 6.15; `draft/tui.status.md`).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames and `launchpad-chat`'s four frames
@@ -47,8 +53,11 @@ newest goal, call details, earlier-page loading, cards at their calls
 and the shared reader's read-once gap remain explicit
 (`client/README.md`, section 11; `draft/chat-reading.status.md`, 3).
 Both journeys use a runtime directory apart from the box's and no
-COLORFGBG, so they exercise approval and the dark fallback; their pages
-use the theme's stand-ins for terminal-default colours.
+COLORFGBG, so they exercise approval and the dark fallback with no band,
+and a chat's place is its address; their pages use the theme's
+stand-ins for terminal-default colours. `launchpad-chat`'s answered chat
+lacks the person's opening question until finding-465's repair
+(`client/tui/journeys.status.md`, 9).
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
 remains later work (`client/tui/journeys.md`, 3.1 and 11).

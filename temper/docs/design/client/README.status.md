@@ -78,7 +78,8 @@ order, and a second TUI by the next local link (section 10). The base
 uses the terminal's default colours,
 focus uses the accent, active command names are plain while inactive names
 and question choices stay bold, and the run chooses its scheme from COLORFGBG,
-else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
+else OSC 11 with a 200 ms wait, else dark, before Start, asking the
+background at every start and carrying the answer in Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
 present. The simulated run checks a runtime link outside fresh TUI state
 roots, the launchpad without input, no approval request and
@@ -93,6 +94,24 @@ implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
 revision stability, navigation and separation from the sign-in field.
 The help pages name `/exit` and Ctrl+C as closing keys and `q` as typing.
+
+Sections 6.12 to 6.15's parts from the user's requests of 2026-11-08 and
+the look request `tui-chat-title-below` have no known implementation gap:
+the binary reads the engine's link file at start whatever the address,
+for `Start.boxed`; `place` words the engine's place; the band is the
+answered background moved by `BAND_STEP`, with the person's words dim
+after an accent "❯" where none answered, and the palette has no `sel`;
+up to three left-off chats take Up, Down, Enter and Esc while the
+launchpad's box is empty, before skein's key reader; `/effort` is offered
+on the launchpad wherever `/model` is; `tui-bullets` draws a Markdown
+bullet "•"; and a chat's title, cut to 20 characters, its number and the
+place lie in the rule above the box, the top line, `tui-chat-top` and
+`tui-star` gone. View, theme, place, host and golden rows cover each, in
+both schemes and with and without a band. `launchpad-chat` shows the rule
+with its address as the place and lacks its opening question until
+finding-465's repair (`tui/journeys.status.md`, 9). The real-terminal look
+of each, "box" among them, is section 11's after-landing check, owned by
+temper/tui.
 
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known

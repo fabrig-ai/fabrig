@@ -8757,6 +8757,13 @@ own tests:
 - **The TUI's command-line flags** (6.11 and 6.12): choosing another
   deployment and overriding local sign-in or the scheme wait for the
   user's command-line design. The environment names the local deployment.
+- **On a box, told by the box** (6.12, *On a box*; 6.14, *The rule
+  above the box*): the engine's link file names an engine of this
+  machine, so `temper serve` run alone reads as a box too, where the
+  user's request of 2026-11-08 names "box" for a temper box. Default: the
+  file, until `temper box` starting the TUI in front tells it, a later
+  plan's, which draws the place in the box's header by `place`. Owner:
+  temper/tui.
 - **The TUI's design location:** sections 6.11 to 6.16 and 7.1 stay
   here; moving them under `client/tui/`, as `../README.md`, section 6
   assigns them, is a later cleanup that must preserve their citations.
