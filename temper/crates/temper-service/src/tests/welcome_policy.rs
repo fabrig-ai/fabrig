@@ -73,6 +73,7 @@ fn generated() -> (engine::Config, engine::Limits) {
         welcome: false,
         program_environment: Box::new([]),
         host_part: None,
+        ways_stock: crate::stock::ways(),
         kinds_stock: Box::default(),
         landings: parsed.application.landings,
         limits: parsed.application.limits,

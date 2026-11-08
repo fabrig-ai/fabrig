@@ -746,7 +746,7 @@ pub fn root(
     let config = domain::Config {
         host_part: engine.host_part,
         kinds_stock: engine.kinds_stock.clone(),
-        ways_stock: Box::default(),
+        ways_stock: engine.ways_stock.clone(),
         period_span: crate::stock::PERIOD_SPAN,
         playground: crate::system::playground_config(engine.demo.as_ref(), true, engine.limits.setup.deadline),
         core,
