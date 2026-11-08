@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/ignored-engine/inputs/request.md", "temper/docs/des
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tiers"
 early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "restore"
+title = "Temper's four restore stories run again, Restore and ForgetReplaced being on main"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.10"
+
+[[slice]]
+id = 1
+story = "A landing rule and the forge's charter changed then restored, a deleted project's rule left out, replaced rows forgotten, and each kind restored through ctl, all in the focused suite"
+parts = ["restore"]
+walk = false
