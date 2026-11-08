@@ -253,6 +253,8 @@ replay says the same clocks (`README.md`, 5.12).
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Repositories { project }` | `/projects/<project>/settings/repositories` |
   | `Builders { project }` | `/projects/<project>/settings/builders` |
+  | `Role { project, charter }` | `/projects/<project>/settings/roles/<charter>` |
+  | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
   | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter }` | `/chats`, and its filter's query |
@@ -810,6 +812,13 @@ replay says the same clocks (`README.md`, 5.12).
   tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
   SVG laid out by width where the page has two), the selector names what is drawn and
   keeps the request's declarations.
+  A path's marks take no stroke but their own rules', as the request's
+  page has none: skein's default stroke for a scene's marks (skein's
+  `ui-web.md`, 12) gives way under `.temper-ways-path` by one rule of the
+  path's, scoped to its drawn figure, `stroke: none` on the marks skein's
+  rule names, outweighing skein's rule and outweighed by every mark's own
+  (the line's, the boundary's, a person's ring, the halo, the caret, a
+  focused stop's area); skein's rule stays as it is.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
@@ -1859,6 +1868,14 @@ from the engine's own answers, is where the look is tuned.
 - **Static:** no script runs. The opening focus is an `autofocus`
   attribute, and a named sample may hold one disclosure open; caret,
   scroll-following and live updates are not replayed.
+- **A path printed for both widths:** a static page measures no box, so
+  each path's drawing (`README.md`, 5.16) is printed twice in its figure:
+  across, drawn in a box 720 wide, and down the page, drawn in a box 388
+  wide, the box at 420 pixels with a phone's 16 pixels each side
+  (`README.md`, 3.5). The page's own style, in its head, shows the second
+  at 760 pixels and under, the shell's phone width, and the first above
+  it, so that the print at 420 runs the path down the page as the shell
+  does.
 
 ### 7.2 Its states
 

@@ -1,5 +1,6 @@
 //! A stop's words and card (temper/docs/design/domain/forge.md, 8.13).
-use super::{Actor, Card, Fact, Inputs, LABEL, NAME, Opens, Step, Stop, VALUE, WHO, WORDS};
+use super::{ASKED, Actor, Card, Fact, Inputs, LABEL, NAME, Opens, Step, Stop, VALUE, WHO, WORDS};
+use crate::cut_on_word;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
 
@@ -25,7 +26,7 @@ pub(super) fn number(value: u32) -> Box<[u8]> {
 }
 
 pub(super) fn fact(label: &[u8], value: &[u8]) -> Fact {
-    Fact { label: text(label, LABEL), value: text(value, VALUE) }
+    Fact { label: text(label, LABEL), value: cut_on_word(value, VALUE) }
 }
 
 pub(super) fn card(who: &[u8], name: &[u8], facts: Box<[Fact]>) -> Card {
@@ -57,12 +58,19 @@ pub(super) fn agent_card(inputs: &Inputs, charter: u32, who: &[u8], name: &[u8])
         if !agent.usable {
             append(&mut model, " · no account runs it now".as_bytes());
         }
-        let asked =
-            bytes::concat(&["“".as_bytes(), &text(&agent.asked, VALUE.saturating_sub("“”".len())), "”".as_bytes()]);
+        let asked = bytes::concat(&[
+            "“".as_bytes(),
+            &cut_on_word(&agent.asked, ASKED.checked_sub("“”".len()).expect("quote room")),
+            "”".as_bytes(),
+        ]);
         return card(
             who,
             name,
-            Box::new([fact(b"Model", model.as_slice()), fact(b"Can", &agent.can), fact(b"Asked to", &asked)]),
+            Box::new([
+                fact(b"Model", model.as_slice()),
+                fact(b"Can", &agent.can),
+                Fact { label: text(b"Asked to", LABEL), value: asked },
+            ]),
         );
     }
     let value = bytes::concat(&[b"charter ", &number(charter)]);
@@ -71,7 +79,7 @@ pub(super) fn agent_card(inputs: &Inputs, charter: u32, who: &[u8], name: &[u8])
 
 pub(super) fn append(out: &mut List<u8>, value: &[u8]) {
     let room = VALUE.saturating_sub(out.as_slice().len());
-    let value = text(value, room);
+    let value = cut_on_word(value, room);
     for &byte in &value {
         out.push(byte).expect("card value bound");
     }

@@ -8,9 +8,8 @@
   - 3: no design says which pages and sections each step of the
     spectrum shows (`surfaces.md`, section 12).
   - 4: standing roles have no design (`standing-roles.status.md`).
-  - 5.2: no design holds rules by path (`what-reaches-you.status.md`),
-    follows (`follows.status.md`), or goals whose changes span two
-    projects' repositories; what a worker's machine must hold for a
+  - 5.2: no design holds rules by path (`what-reaches-you.status.md`) or
+    follows (`follows.status.md`); what a worker's machine must hold for a
     project's builds is the deployment's, named in no design.
   - 9: the mockups are not in the design yet; they join it with
     `whole-story.execution.md`, M0.

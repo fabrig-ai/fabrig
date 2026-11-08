@@ -28,12 +28,11 @@
     closed work or a waking message its parts don't offer, or a Now written
     before every park.
   - 4 and 9: temper's `../domain/findings.md`, sections 2, 6 and 9 name a
-    project's areas per repository and one triager per project; areas by path
-    with an owner, and routing to that owner, are not designed.
-    `../domain/after-landing.md`, section 7 tells the project's triager of a
-    red of no goal's, not its area's owner.
+    project's areas per repository and one triager per project; areas in
+    words with an owner, and the triager's act handing to that owner, are
+    not designed.
   - 5: no landing rule by path holds a standing role's change that touches
-    another area's paths (`what-reaches-you.status.md`, 7).
+    paths a rule guards (`what-reaches-you.status.md`, 7).
   - 5 and 9: `../domain/agent.md`, section 8 has no row for a standing role,
     and `../protocol/configuration.md`, 13.4 no standing role's charter or
     template.

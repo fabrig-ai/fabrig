@@ -38,12 +38,36 @@ impl Drawing {
         true
     }
 
-    fn ci(&mut self, held: &Held) {
-        let card = card(
-            "code · holds a change until CI passes".as_bytes(),
-            b"CI",
-            Box::new([fact(b"Checks", b"the repository's CI, at the change's head")]),
-        );
+    fn ci(&mut self, inputs: &Inputs, held: &Held) {
+        let mut contexts = List::uncapped();
+        if let Some(repository) = &inputs.repository {
+            for context in &repository.contexts {
+                if bytes::is_utf8(context) {
+                    contexts.push(context.as_ref()).expect("required checks fit memory");
+                }
+            }
+        }
+        let checks = match contexts.as_slice().split_last() {
+            Some((last, preceding)) => {
+                let mut parts = List::uncapped();
+                parts.push(b"the CI workflows' checks ".as_slice()).expect("card words fit memory");
+                let mut separator = b"".as_slice();
+                for context in preceding {
+                    parts.push(separator).expect("card words fit memory");
+                    parts.push(*context).expect("card words fit memory");
+                    separator = b", ";
+                }
+                if !preceding.is_empty() {
+                    parts.push(b" and ").expect("card words fit memory");
+                }
+                parts.push(*last).expect("card words fit memory");
+                parts.push(b", at the change's head").expect("card words fit memory");
+                bytes::concat(parts.as_slice())
+            }
+            None => b"every check the repository's CI workflows report, at the change's head".as_slice().into(),
+        };
+        let card =
+            card("code · holds a change until CI passes".as_bytes(), b"CI", Box::new([fact(b"Checks", &checks)]));
         self.push(stop(Actor::Code, Step::Check, b"check", opens_rule(held), card));
     }
 
@@ -85,7 +109,7 @@ impl Drawing {
             ci = None;
         }
         if let Some(held) = ci {
-            self.ci(held);
+            self.ci(inputs, held);
         }
         let gates = rules::gates(inputs, held.as_slice());
         for gate in gates.as_slice() {
@@ -101,13 +125,13 @@ impl Drawing {
                 (inputs.reviewer, Step::Review, b"review".as_slice(), who.as_bytes().into(), b"the reviewer".as_slice())
             };
             let card = agent_card(inputs, charter, &who, name);
-            self.push(stop(Actor::Agent, step, words, Opens::Gate(gate.number), card));
+            self.push(stop(Actor::Agent, step, words, Opens::Gate { number: gate.number, charter }, card));
         }
         if (ci.is_some() || !gates.is_empty())
             && self.repair(inputs)
             && let Some(held) = ci
         {
-            self.ci(held);
+            self.ci(inputs, held);
         }
         for held in held.as_slice() {
             if held.rule.enforce {
