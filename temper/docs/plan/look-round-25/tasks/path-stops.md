@@ -112,3 +112,19 @@ In `client/README.status.md`, retain main’s updated How work runs and other st
 In `domain/forge.status.md`, retain main’s other status updates, including `228e4d7b0a`’s removal of the ignored goal-landing story gap. Remove the 8.13 `path-stops` Not yet entry. Keep the branch’s invariant wording: “no agent's stop for a conflict, a merge, a catch-up, a prepare, a proof or a turn”.
 
 Resolve individual hunks; taking either whole file would discard required changes. No implementation change is indicated by this refusal.
+
+## Rebase (2026-11-08, step merge, foreman look-round-25/path-stops/foreman-2)
+
+resolve the four merge conflicts, preserving the landing trunk’s changes and combining word totals
+Rebase onto the current landing trunk; inspected `origin/look-round-25/integration` is `c8c8d61c86`.
+The merge refusal names four content conflicts:
+
+- `temper/crates/temper-client-view/src/words.rs`: retain `7eb0644f44`’s `WaysMaybe` (5100), expanded legend and comments. Retain this task’s `HowConflict` (4930) and `HowCatchUp` (4931), deleting `HowUpdate`. Combine both vocabulary increments: `PHRASES = 2111`, `SEGMENTS = 3722`, `ENGLISH_BYTES = 51461`, and `ALL` length 1429. Verify the combined vocabulary counts.
+- `temper/docs/design/STATUS.md`: retain the trunk’s replacement of the old How work runs paragraph and its `domain/forge.status.md`, 4.7 and 8.13 citation. Preserve the branch’s independently merged main updates elsewhere.
+- `temper/docs/design/client/README.status.md`: remove the 4.6 `path-stops` gap, retain `roles-view`, `how-drawing` and `roles-page` gaps, and retain `path-marks`’ removal of the two-tone departure. Do not restore the `ways-misses` gap: `ed6530a1d2` repaired it. Retain the trunk’s replacement of the old How work runs completion paragraph.
+- `temper/docs/design/draft/surfaces.status.md`: retain the trunk’s section 7 wording describing the shared path drawing and Roles, including the remaining P3b–P3e gaps. Preserve independently merged updates in other sections.
+
+Resolve individual hunks rather than taking whole status files. The relevant trunk design changes are `368b464c51` and `1ba9bfdccf`.
+Preserve the task’s `domain/forge.status.md` invariant wording and removal of its `path-stops` gap.
+Check the automatically merged reader fixtures retain the new stop fields and trunk’s legend expectations.
+Regenerate any journey prints made stale by the combined drawing and legend, using their existing tool.
