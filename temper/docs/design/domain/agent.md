@@ -132,7 +132,10 @@ whose charter is an asking one (4.3) is given no repository, whatever
 its project's home and context repositories (`root.md`, 7.1; 8.4), so it
 runs with no workspace: no checkout, no file tools, no shell, and smith
 says nothing of a checkout (smith's `domain/run.md`, 3.3; through Claude
-Code, smith's `protocol/programs.md`, 5.1).
+Code, smith's `protocol/programs.md`, 5.1). A run whose charter names none
+of `inspect`, `modify` and `shell` is given no repository either, whatever
+its project's repositories, since it could neither read, write nor run
+anything in one: the drafter's runs so (8.5), and keep their sub-agents.
 
 ### 4.3 Tools
 
@@ -164,7 +167,11 @@ Code, smith's `protocol/programs.md`, 5.1).
   `domain/engine.md`, 7.1) and its task's authority has it, and the
   charter is no asking one (below): no stock charter, since charter 11 is
   an asking charter, and a charter of a deployment's own that names the
-  family (`../protocol/configuration.md`, 13.4).
+  family (`../protocol/configuration.md`, 13.4). The delegate family's,
+  `goal`, `change` and `delegate`, are declared only where the run's
+  charter names that family in its `tools`, so that a charter that starts
+  nothing, the drafter's (8.5), is offered none of them; where it does, its
+  task's authority decides each call, as below.
 - **A charter that names the asking family is declared its own tools
   alone** (jig's `domain/authority.md`, section 3): an asking charter is
   one whose `tools` name the asking family and no family but it and
@@ -1682,6 +1689,44 @@ its revision and its lines, so that a run names none of them.
   engine's domain world's note tests, each with the stored body and the answer;
   its words as one table of `temper-engine-smith`'s.
 
+### 8.5 The drafter
+
+A design session is a chat with the drafter (`../draft/surfaces.md`, 11.2):
+its person and it design one piece of work, as a draft the person starts a
+goal from. It is template 6, a chat run by charter 12, the drafter's
+(`../protocol/configuration.md`, 13.4), and a chat in every other respect: a
+conversation its person ends, kept, listed among the project's chats.
+
+- **Its instructions** are the `stock` module's `drafter.txt`, held in the
+  binary as every stock charter's, every byte as written: read what the work
+  touches before proposing; ask one question at a time, as numbered choices,
+  the recommendation first with its reason and "Tell me something else" last;
+  take each answer into the draft at once; keep the open points under
+  `## Open questions`; say in one line when none blocks the work; and keep
+  the draft as the chat's document (8.3), a first version whole, then
+  changed by lines. temper/ui writes them, as a chat's.
+- **It reads and starts nothing.** Its charter names every family a chat's
+  does but delegate, so its runs are declared no `goal`, `change` or
+  `delegate` (4.3), and its task's authority, a chat's, would refuse none of
+  them: the declaration is the rail. Its charter names no inspect, modify or
+  shell, so its runs are given no repository (4.2): it reads the project's
+  code through the forge's reads, `read_branch` for a repository's head and
+  then `read_file`, as a chat does (4.3.1), and its model's sub-agents survey
+  where it has them, its charter's `agents` set.
+- **Its draft** is the chat's document (8.3): a `note` in its own task's
+  scope, which its authority's goal scope admits, as a chat's.
+- **A session is kept:** its task is kept and its charter resumes (4.6), so
+  a session opened again continues its conversation; its instructions read
+  the draft and its open points first and take up the first.
+- **A goal starts from its draft** as from a chat's document, by "Start
+  goal…" (`../client/README.md`, 3.5), its ways the project's tracked
+  templates (`../client/README.md`, 5.14); the drafter calls no `goal`.
+- **Where one starts:** on the web, the new chat with a draft where `me`
+  lists template 6 (`../client/README.md`, 3.5, *A new chat*); from `temper
+  ctl`, `chat start --template 6` (`../client/tools.md`, 5.3); in the
+  terminal, `/draft` (`../draft/surfaces.md`, 11.2), which the terminal's
+  design takes up.
+
 ## 9. The world
 
 smith's worlds test the agent itself (smith's documents, each section
@@ -1825,10 +1870,10 @@ host:
   families its charter's `tools` names and its task's authority holds
   (jig's `domain/engine.md`, 7.1), each stock charter's named in
   `../protocol/configuration.md`, 13.4; temper's declares by them the
-  `settings` family alone, an asking charter its own tools alone, and
-  every other host tool in every other charter (4.3), and the authority
-  refuses what it does not allow. Whether to declare only what the charter
-  names for the other families too, which the host part's budget (4.3)
+  `settings` and delegate families alone, an asking charter its own tools
+  alone, and every other host tool in every other charter (4.3), and the
+  authority refuses what it does not allow. Whether to declare only what the
+  charter names for the other families too, which the host part's budget (4.3)
   may force, and how a brief teaches an LLM when to delegate a task rather
   than a sub-agent. `withdraw`, offered to a chat and refused by its
   authority, since policy 1 gives no decide family
