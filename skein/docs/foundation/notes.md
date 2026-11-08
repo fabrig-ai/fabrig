@@ -167,3 +167,18 @@ Also rejected:
   everything builds on stable Rust.
 - **Shared immutable buffers (`Arc<[u8]>`) as the ownership system.** At
   most an optimisation, confined to io.
+
+## Why a binary is a process
+
+The focused and fuzzy suites ran through nextest, a process per test,
+across some 32,000 focused tests, so starting processes was most of what
+the suites spent. A trial on five of temper's binaries, 5,602 tests in one
+build, spent 134.8 CPU s with a process each and 92.6 with a process per
+binary, the tests in sequence, and no test failed that passed alone. So
+the suites run a binary's tests in one process (testing-strategy.md, 8),
+and a test owes the next the process it found.
+
+CPU is measured per process alone, by the user's word: fast tests come
+before precise diagnostics. An outer runner can't measure a test inside a
+shared process: the kernel's per-process times tick at 10 ms, and libtest
+reports a result after it has moved on.

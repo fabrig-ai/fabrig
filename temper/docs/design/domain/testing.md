@@ -2358,8 +2358,10 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 A fuzzy test lives in its world's crate, beside the focused ones, and
 uses that world: a world's settings, random ones included, are the
 world's, not either suite's. The nextest filters select `fuzzy::` modules
-in the `suite` binary. Each test runs in its own process, so a memory
-scenario and a sweep never share an allocator's counters.
+in the `suite` binary. A binary's tests share its process, one at a time
+(testing-strategy.md, 8, *A binary is a process*), so a memory scenario
+meters only what grows within its own spans (skein's `heap`), and reads no
+counter a sweep before it moved.
 
 ### 6.2 The worker's runtime world
 

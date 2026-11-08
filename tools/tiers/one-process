@@ -1,0 +1,54 @@
+#!/usr/bin/env -S python3 -I -B
+"""Run a nextest profile one process per binary (tools/tiers/design.md, 11.9)."""
+
+import argparse
+import contextlib
+from datetime import datetime, timezone
+import io
+import os
+from pathlib import Path
+import runpy
+import signal
+import sys
+
+
+def main():
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--out', type=Path)
+    parser.add_argument('--budgets', type=Path)
+    parser.add_argument('profile')
+    parser.add_argument('arguments', nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    runner = runpy.run_path(str(Path(__file__).with_name('run')))
+    cpu = runpy.run_path(str(Path(__file__).with_name('cpu.py')))
+    env = dict(os.environ)
+    try:
+        limits = cpu['budgets'](args.budgets) if args.budgets else {}
+        directory = args.out
+        if directory is None:
+            with contextlib.redirect_stdout(io.StringIO()):
+                target = runner['target_directory'](env)
+            stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
+            directory = target / 'tiers-one-process' / 'runs' / f'{stamp}-{os.getpid()}'
+            print(directory, flush=True)
+        extra = args.arguments
+        packages = any(arg in ('-p', '--package') or arg.startswith('--package=')
+                       or arg.startswith('-p') for arg in extra)
+        command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'run',
+                   '--profile', args.profile, '--no-fail-fast',
+                   *([] if packages else ['--workspace']), *extra]
+
+        def interrupt(signum, frame):
+            raise KeyboardInterrupt
+
+        signal.signal(signal.SIGTERM, interrupt)
+        signal.signal(signal.SIGHUP, interrupt)
+        return cpu['execute_one_process'](command, env, directory, args.profile, limits)
+    except (OSError, ValueError, KeyError, TypeError, runner['FailedStep']) as error:
+        print(f'one-process: {error}', file=sys.stderr)
+        return 2
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -765,7 +765,7 @@ filter = "binary(=suite)"
 
 # test_cpu.py builds cpu-settlement.c into its private offline supervisor fixture.
 [[fixture]]
-paths = ["tools/tiers/fixtures/*"]
+paths = ["tools/tiers/fixtures/cpu-*.c"]
 [[fixture.reader]]
 suite = "tools/tiers/test_cpu.py"
 
@@ -869,3 +869,8 @@ filter = "binary(=suite)"
 pair = "fuzzy"
 package = "hearth-render-world"
 filter = "binary(=suite)"
+
+# test_one_process.py builds the native libtest fixtures and runs the offline cargo and prefix.
+[[fixture]]
+paths = ["tools/tiers/fixtures/one-process/*"]
+reader = [{ suite = "tools/tiers/test_one_process.py" }]

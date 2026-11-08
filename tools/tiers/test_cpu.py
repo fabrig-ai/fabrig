@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Offline collector checks with private native fixtures (design.md, 7.4)."""
 
+import contextlib
+import copy
+import io
 import json
 import os
 from pathlib import Path
 import resource
 import runpy
+import shutil
 import signal
 import statistics
 import subprocess
@@ -63,6 +67,337 @@ def setUpModule():
     system_s = after.ru_stime - before.ru_stime
     print(f'Native fixture build CPU: user {user_s:.6f}s, system {system_s:.6f}s, '
           f'total {user_s + system_s:.6f}s', flush=True)
+
+
+class OneProcessTests(unittest.TestCase):
+    """One-process result and caller contracts (design.md, 10.2 and 11.9)."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-one-summary-')
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.directory = self.root / 'run with spaces'
+        self.run = dict(profile='default', mode='one-process', finished=True, starved=False,
+                        wall_s=3.0, returncode=0, cancel_code=None, lanes=2)
+        self.results = dict(profile='default', selected=2, no_tests='fail', cancelled=None,
+                            processes=[self.process(['z', 'a'])],
+                            tests=[self.entry('z'), self.entry('a')], unobserved=[])
+
+    def process(self, names, **fields):
+        return dict(dict(binary_id='pkg::suite', kind='tests', tests=names, user_s=1.0,
+                         system_s=0.5, wall_s=2.0, start_s=100.0, exit_code=0,
+                         signal=None, leaked=False), **fields)
+
+    def entry(self, name, **fields):
+        return dict(dict(binary_id='pkg::suite', test_name=name, outcome='passed',
+                         wall_s=0.25, process=0, before=[], alone=None,
+                         output=None if fields.get('outcome', 'passed') == 'passed' else ''), **fields)
+
+    def write(self):
+        self.directory.mkdir(exist_ok=True)
+        CPU['save'](self.directory / 'run.json', self.run)
+        CPU['save'](self.directory / 'results.json', self.results)
+
+    def summary(self, limits=None):
+        self.write()
+        return CPU['summary'](self.directory, limits)
+
+    def cli(self, *arguments):
+        return subprocess.run([sys.executable, '-I', '-B', str(HERE / 'cpu-summary'),
+                               str(self.directory), *arguments], text=True, capture_output=True,
+                              stdin=subprocess.DEVNULL, timeout=10)
+
+    def test_passed_cpu_is_measured_by_process_including_alone(self):
+        self.results['processes'].append(self.process(['z'], kind='alone', user_s=0.25))
+        result = self.summary()
+        self.assertEqual(result['verdict'], 'no budget set')
+        self.assertEqual(result['tests'], [dict(binary_id='pkg::suite', test_name=name,
+                         attempts=1, cpu_s=None, user_s=None, system_s=None, wall_s=0.25,
+                         starved=0, leaked=None, incomplete=None, alone=None, before=[])
+                         for name in ('a', 'z')])
+        self.assertEqual(result['suite'], dict(tests=2, attempts=2, cpu_s=2.25, user_s=1.25,
+                         system_s=1.0, wall_s=3.0, test_wall_s=0.5, starved=0,
+                         starved_run=False, unobserved=0, leaked=None, incomplete=None,
+                         cpu_by='process'))
+        self.assertEqual(result['processes'], [dict((key, value) for key, value in process.items()
+                         if key != 'start_s') | {'cpu_s': process['user_s'] + process['system_s']}
+                         for process in self.results['processes']])
+        self.assertEqual((result['failures'], result['warnings'], result['over_budget'],
+                          result['unobserved']), ([], [], [], []))
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        self.assertIn('pkg::suite a: CPU not measured', output.getvalue())
+        self.assertIn('pkg::suite process alone: CPU 0.750000s', output.getvalue())
+        self.assertIn('tests 1 exit 0', output.getvalue())
+        self.assertLess(output.getvalue().index('pkg::suite z:'),
+                        output.getvalue().index('pkg::suite process tests:'))
+        cli = self.cli('--json')
+        self.assertEqual(cli.returncode, 0, cli.stderr)
+        self.assertEqual(json.loads(cli.stdout), result)
+
+    def test_crash_fresh_process_and_passing_alone_remain_failures(self):
+        self.results['processes'] = [self.process(['z'], exit_code=None, signal=11),
+                                    self.process(['a', 'b'], kind='fresh', exit_code=101),
+                                    self.process(['b'], kind='alone', leaked=True)]
+        self.results['selected'] = 3
+        self.results['tests'] = [self.entry('z', outcome='crashed', output='signal 11'),
+                                self.entry('a', process=1),
+                                self.entry('b', process=1, outcome='failed', before=['a'],
+                                          alone='passed', output='panic')]
+        result = self.summary()
+        self.assertEqual(result['failures'], ['pkg::suite b', 'pkg::suite z'])
+        self.assertEqual(result['warnings'], [
+            'default pkg::suite b: may depend on an earlier test: it passed alone after 1 tests in its process',
+            'default pkg::suite: a process left a descendant holding its output'])
+        self.assertEqual((result['tests'][1]['alone'], result['tests'][1]['before']),
+                         ('passed', ['a']))
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        self.assertIn('signal 11', output.getvalue())
+        self.assertIn('may depend on an earlier test', output.getvalue())
+
+    def test_cancelled_hang_and_unobserved_are_starved(self):
+        self.run.update(starved=True, returncode=100)
+        self.results.update(cancelled='global-timeout', tests=[self.entry('z', outcome='cancelled')],
+                            processes=[self.process(['z'], exit_code=None, signal=15)],
+                            unobserved=[dict(binary_id='pkg::suite', test_name='a')])
+        result = self.summary()
+        self.assertEqual((result['verdict'], result['suite']['starved'],
+                          result['suite']['starved_run'], result['failures']), ('starved', 1, True, []))
+        self.assertEqual((result['suite']['tests'], result['suite']['attempts'],
+                          result['suite']['unobserved']), (1, 1, 1))
+        self.assertEqual(result['unobserved'], [dict(binary_id='pkg::suite', test_name='a', attempt=1)])
+        self.assertEqual(result['warnings'], [
+            'default pkg::suite a: unobserved, the run was cancelled before it'])
+
+    def test_starved_pass_is_a_warning_verdict_without_failure(self):
+        self.results['tests'][0]['outcome'] = 'starved'
+        result = self.summary()
+        self.assertEqual((result['verdict'], result['suite']['starved'], result['failures']),
+                         ('starved', 1, []))
+        self.assertFalse(result['suite']['starved_run'])
+
+    def test_split_binary_retains_both_processes_and_cpu(self):
+        self.results['processes'] = [self.process(['z']), self.process(['a'], user_s=2.0)]
+        self.results['tests'][1]['process'] = 1
+        result = self.summary()
+        self.assertEqual([p['tests'] for p in result['processes']], [['z'], ['a']])
+        self.assertEqual(result['suite']['cpu_s'], 4.0)
+
+    def test_budgets_charge_suite_and_wall_but_refuse_test_cpu(self):
+        for limit, verdict in ((1.5, 'within budget'), (1.0, 'over budget')):
+            with self.subTest(cpu_suite_s=limit):
+                result = self.summary({'default': {'cpu_suite_s': limit}})
+                self.assertEqual(result['verdict'], verdict)
+                self.assertEqual(result['over_budget'], [] if limit == 1.5 else
+                                 ['suite default: 1.500000s > 1.0s'])
+        budget = self.root / 'budget.toml'
+        budget.write_text('[default]\ncpu_suite_s=1.0\n')
+        self.assertEqual(self.cli('--budgets', str(budget)).returncode, 1)
+        with self.assertRaisesRegex(ValueError, 'cpu_test_s'):
+            self.summary({'default': {'cpu_test_s': 1.0}})
+        for wall, starved in ((3.0, False), (2.0, True)):
+            with self.subTest(wall_hard_s=wall):
+                result = self.summary({'default': {'wall_hard_s': wall}})
+                self.assertEqual(result['suite']['starved_run'], starved)
+                self.assertEqual(result['verdict'], 'starved' if starved else 'within budget')
+
+    def test_invalid_results_raise_and_cli_exits_two(self):
+        cases = [
+            ('unfinished', ('run', 'finished'), False),
+            ('mode', ('run', 'mode'), 'other'),
+            ('duplicate coverage', ('results', 'unobserved'), [dict(binary_id='pkg::suite', test_name='a')]),
+            ('duplicate observed', ('results', 'tests', 1, 'test_name'), 'z'),
+            ('selected', ('results', 'selected'), 3),
+            ('outcome', ('results', 'tests', 0, 'outcome'), 'unknown'),
+            ('kind', ('results', 'processes', 0, 'kind'), 'unknown'),
+            ('process index', ('results', 'tests', 0, 'process'), 1),
+            ('negative index', ('results', 'tests', 0, 'process'), -1),
+            ('alone index', ('results', 'processes', 0, 'kind'), 'alone'),
+            ('negative CPU', ('results', 'processes', 0, 'user_s'), -1),
+            ('infinite CPU', ('results', 'processes', 0, 'system_s'), float('inf')),
+            ('nonfinite test wall', ('results', 'tests', 0, 'wall_s'), float('nan')),
+            ('negative process wall', ('results', 'processes', 0, 'wall_s'), -1),
+            ('negative start', ('results', 'processes', 0, 'start_s'), -1),
+            ('cancelled without reason', ('results', 'tests', 0, 'outcome'), 'cancelled'),
+            ('unobserved without reason', ('results', 'unobserved'), [dict(binary_id='pkg::suite', test_name='b')]),
+        ]
+        original_run, original_results = copy.deepcopy((self.run, self.results))
+        for name, path, value in cases:
+            with self.subTest(rule=name):
+                self.run, self.results = copy.deepcopy((original_run, original_results))
+                target = {'run': self.run, 'results': self.results}
+                for part in path[:-1]:
+                    target = target[part]
+                target[path[-1]] = value
+                if name in ('duplicate coverage', 'unobserved without reason'):
+                    self.results['selected'] = 3
+                if name == 'duplicate coverage':
+                    self.results['cancelled'] = 'global-timeout'
+                self.directory.mkdir(exist_ok=True)
+                # Nonfinite JSON is deliberately malformed input, not saved by save.
+                (self.directory / 'run.json').write_text(json.dumps(self.run))
+                (self.directory / 'results.json').write_text(json.dumps(self.results))
+                with self.assertRaises(ValueError):
+                    CPU['summary'](self.directory)
+                cli = self.cli()
+                self.assertEqual(cli.returncode, 2, cli.stdout + cli.stderr)
+
+    def test_nextest_and_tools_add_test_cpu_and_empty_processes(self):
+        item = dict(profile='default', binary_id='pkg::suite', test_name='one', attempt=1,
+                    user_s=1.0, system_s=0.5, wall_s=2.0, start_s=100.0,
+                    wrapper_cpu_s=0.001, complete=True, leaked=0, pending=False,
+                    interrupted=0, exit_code=0, signal=None)
+        self.directory.mkdir()
+        (self.directory / 'records').mkdir()
+        CPU['save'](self.directory / 'run.json', dict(profile='default', finished=True,
+                                                   starved=False, wall_s=3.0, returncode=0))
+        CPU['save'](self.directory / 'records' / 'one', item)
+        (self.directory / 'junit.xml').write_text(
+            '<testsuites><testsuite name="pkg::suite"><testcase name="one"/></testsuite></testsuites>')
+        tools = self.root / 'tools'
+        tools.mkdir()
+        CPU['save'](tools / 'one.json', dict(item, profile='tools', test_name='suite', starved=False))
+        for result in (CPU['summary'](self.directory),
+                       CPU['summary'](tools, pair='tools', expected=['pkg::suite'])):
+            self.assertEqual(result['suite']['cpu_by'], 'test')
+            self.assertEqual(result['processes'], [])
+            self.assertEqual(result['suite']['cpu_s'], 1.5)
+
+    def stand_in(self, path, body=None):
+        path.write_text('import json, os\nfrom pathlib import Path\n'
+                       "def run(command, env, directory, profile, limits, config=Path('.config/nextest.toml')):\n"
+                       + (body if body is not None else
+                       f'    run = {self.run!r}\n    results = {self.results!r}\n'
+                       '    directory = Path(directory)\n    directory.mkdir(parents=True, exist_ok=True)\n'
+                       '    recorded_env = {key: env[key] for key in ("fixture", "TIERS_WRAPPER") if key in env}\n'
+                       '    (directory / "called.json").write_text(json.dumps([command, recorded_env, profile, limits, str(config)]))\n'
+                       '    (directory / "mode").write_text(str(os.umask(0o077)))\n'
+                       '    (directory / "run.json").write_text(json.dumps(run))\n'
+                       '    (directory / "results.json").write_text(json.dumps(results))\n'
+                       '    (directory / "command-output.txt").write_text("runner output\\n")\n'))
+
+    def execute(self, limits=None, body=None):
+        stand_in = self.root / 'stand_in.py'
+        self.stand_in(stand_in, body)
+        execute = CPU['execute_one_process']
+        previous = execute.__globals__['ONE_PROCESS']
+        execute.__globals__['ONE_PROCESS'] = stand_in
+        try:
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = execute(['prefix', 'cargo', 'nextest', 'run'], {'fixture': 'yes'},
+                               self.directory, 'default', limits or {}, self.root / 'config.toml')
+            return code, output.getvalue()
+        finally:
+            execute.__globals__['ONE_PROCESS'] = previous
+
+    def test_execute_status_precedence_and_appended_summary(self):
+        for outcome, starved, cancelled, limit, no_tests, expected in (
+                ('passed', False, None, None, 'fail', 0),
+                ('failed', True, None, None, 'fail', 100),
+                ('crashed', False, None, None, 'fail', 100),
+                ('starved', False, None, None, 'fail', 0),
+                ('cancelled', True, 'global-timeout', None, 'fail', 0),
+                ('passed', False, None, 1.0, 'fail', 1),
+                ('failed', True, None, 1.0, 'fail', 1),
+                (None, False, None, None, 'fail', 4),
+                (None, False, None, None, 'pass', 0),
+                (None, False, None, None, 'warn', 0),
+                (None, True, 'wall-hard', None, 'fail', 0)):
+            with self.subTest(outcome=outcome, limit=limit, no_tests=no_tests, starved=starved):
+                self.run.update(starved=starved, returncode=None if outcome is None else 100)
+                self.results.update(cancelled=cancelled, no_tests=no_tests)
+                self.results['tests'] = [] if outcome is None else [self.entry('a', outcome=outcome)]
+                self.results['selected'] = len(self.results['tests'])
+                self.results['processes'] = [] if outcome is None else [self.process(['a'])]
+                limits = {} if limit is None else {'default': {'cpu_suite_s': limit}}
+                code, output = self.execute(limits)
+                self.assertEqual(code, expected)
+                self.assertIn('default:', output)
+                self.assertEqual((self.directory / 'command-output.txt').read_text(), 'runner output\n' + output)
+                called = json.loads((self.directory / 'called.json').read_text())
+                self.assertEqual(called, [['prefix', 'cargo', 'nextest', 'run'], {'fixture': 'yes'},
+                                         'default', limits, str(self.root / 'config.toml')])
+
+    def test_execute_propagates_runner_errors_and_refuses_test_cpu_before_run(self):
+        for exception in (ValueError, KeyboardInterrupt):
+            with self.subTest(exception=exception):
+                with self.assertRaisesRegex(exception, 'runner refused'):
+                    self.execute(body=f'    raise {exception.__name__}("runner refused")\n')
+        with self.assertRaisesRegex(ValueError, 'cpu_test_s'):
+            self.execute({'default': {'cpu_test_s': 1}}, body='    raise AssertionError("must not run")\n')
+        self.assertFalse(self.directory.exists())
+
+    def command_setup(self):
+        scripts = self.root / 'scripts'
+        scripts.mkdir()
+        for name in ('cpu.py', 'run', 'one-process'):
+            shutil.copy2(HERE / name, scripts / name)
+        fake_bin = self.root / 'bin'
+        fake_bin.mkdir()
+        cargo = fake_bin / 'cargo'
+        cargo.write_text('#!/usr/bin/env python3\nimport json,os,sys\n'
+                         'assert sys.argv[1:] == ["metadata", "--format-version", "1", "--no-deps"]\n'
+                         'print(json.dumps({"target_directory": os.environ["FIXTURE_TARGET"]}))\n')
+        cargo.chmod(0o700)
+        env = clean_env(PATH=str(fake_bin) + os.pathsep + os.environ['PATH'],
+                        FIXTURE_TARGET=str(self.root / 'target with spaces'),
+                        TIERS_WRAPPER='wrap --flag one')
+        return scripts, env
+
+    def command(self, scripts, env, *args):
+        return subprocess.run([str(scripts / 'one-process'), *args], env=env,
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10)
+
+    def test_command_selection_output_directory_budgets_and_status(self):
+        scripts, env = self.command_setup()
+        self.assertTrue(os.access(HERE / 'one-process', os.X_OK))
+        self.assertEqual((HERE / 'one-process').read_text().splitlines()[0],
+                         '#!/usr/bin/env -S python3 -I -B')
+        self.stand_in(scripts / 'one_process.py')
+        budget = self.root / 'budget.toml'
+        budget.write_text('[default]\ncpu_suite_s=1.0\n')
+        for index, extra in enumerate(([], ['-p', 'pkg', '-E', 'test(a)'],
+                                       ['--package', 'pkg'], ['--package=pkg'], ['-ppkg'])):
+            with self.subTest(extra=extra):
+                directory = self.root / f'out {index}'
+                result = self.command(scripts, env, '--out', str(directory), '--budgets', str(budget),
+                                      'default', *extra)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                called = json.loads((directory / 'called.json').read_text())
+                self.assertEqual(called[0], ['wrap', '--flag', 'one', 'cargo', 'nextest', 'run',
+                                            '--profile', 'default', '--no-fail-fast',
+                                            *([] if extra else ['--workspace']), *extra])
+                self.assertEqual(called[2:4], ['default', {'default': {'cpu_suite_s': 1.0}}])
+                self.assertEqual((directory / 'mode').read_text(), str(0o077))
+        self.stand_in(scripts / 'one_process.py', '    raise ValueError("fixture refusal")\n')
+        result = self.command(scripts, env, 'default')
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn('fixture refusal', result.stderr)
+        for sig in ('SIGTERM', 'SIGHUP'):
+            with self.subTest(interruption=sig):
+                self.stand_in(scripts / 'one_process.py',
+                              f'    import signal\n    signal.raise_signal(signal.{sig})\n')
+                result = self.command(scripts, env, 'default')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('KeyboardInterrupt', result.stderr)
+
+    def test_command_default_directory_is_fresh_under_metadata_target_and_printed_first(self):
+        scripts, env = self.command_setup()
+        self.stand_in(scripts / 'one_process.py')
+        directories = []
+        for _ in range(2):
+            result = self.command(scripts, env, 'default')
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            directory = Path(result.stdout.splitlines()[0])
+            self.assertEqual(directory.parent, Path(env['FIXTURE_TARGET']) / 'tiers-one-process' / 'runs')
+            self.assertTrue((directory / 'called.json').exists())
+            self.assertEqual(json.loads((directory / 'called.json').read_text())[3], {})
+            directories.append(directory)
+        self.assertNotEqual(*directories)
 
 
 class CollectorTests(unittest.TestCase):
