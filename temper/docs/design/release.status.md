@@ -6,5 +6,5 @@
   `temper --version` and `temper version`, and the build script that sets
   the commit. 4: `temper box`'s check of git, `/usr/bin/rg` and `/bin/sh` at
   its start; only `temper init` warns of a missing git
-  (`crates/temper/src/init.rs`). 5: `scripts/release.sh`. 5.1:
-  `.github/workflows/release-macos.yml`. 6: the walk on a fresh machine.
+  (`crates/temper/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
+  fresh machine.
