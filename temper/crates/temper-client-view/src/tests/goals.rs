@@ -596,7 +596,7 @@ fn the_lede_names_the_projects_ways() {
         fixtures::deliver_me(&mut page.root, page.me, me.clone());
         for words in [fixtures::words(), fixtures::browser_words()] {
             let (tree, _) = page.tree(&words);
-            assert_eq!(styled_text(&tree, look::GOALS_KICKER).as_ref(), "Shop · goals".as_bytes());
+            assert_eq!(styled_text(&tree, look::WORK_KICKER).as_ref(), "Shop · Work".as_bytes());
             assert_eq!(styled_text(&tree, look::GOALS_LEDE).as_ref(), expected.as_bytes());
             let mut print = skein_ui_text::Print::new(&fixtures::tree_limits()).unwrap();
             skein_ui_text::render(&tree, b"temper", None, &mut print);
@@ -611,7 +611,7 @@ fn the_intro_waits_for_me_and_the_live_watch() {
         page.root = *root;
         for words in [fixtures::words(), fixtures::browser_words()] {
             let (tree, _) = page.tree(&words);
-            assert!(styled_node(&tree, look::GOALS_KICKER).is_some());
+            assert!(styled_node(&tree, look::WORK_KICKER).is_some());
             assert!(styled_node(&tree, look::GOALS_LEDE).is_some());
             assert!(styled_node(&tree, look::GOALS_HEADLINE).is_none());
             assert!(styled_node(&tree, look::GOALS_SECTION).is_none());
@@ -745,7 +745,13 @@ fn the_page_draws_no_spend() {
         for forbidden in [b"spent".as_slice(), b"budget"] {
             assert!(skein_lib::bytes::find(&text, forbidden).is_none());
         }
-        assert_eq!(role_nodes(&tree, Role::Link).len(), row_tasks(&tree, &bindings).len());
+        let mut row_links = 0;
+        for node in tree.nodes() {
+            if node.role == Role::Link && !node.styles.as_slice().contains(&look::WORK_CHIP) {
+                row_links += 1;
+            }
+        }
+        assert_eq!(row_links, row_tasks(&tree, &bindings).len());
         assert_eq!(tree.nodes()[0].styles.as_slice(), [look::MAIN, look::GOALS]);
         let sections = style_order(
             &tree,
