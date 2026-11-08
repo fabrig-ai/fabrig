@@ -38,7 +38,7 @@ skein-ui.workspace = true
 jig-protocol-transcript.workspace = true
 jig-protocol-config.workspace = true
 temper-client-protocol-wire.workspace = true
-temper-service.workspace = true
+temper-service = { workspace = true, features = ["worker"] }
 temper-client-domain.workspace = true
 temper-client-shell-tui.workspace = true
 temper-client-tui.workspace = true

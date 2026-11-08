@@ -1038,7 +1038,10 @@ replay says the same clocks (`README.md`, 5.12).
 
 The `temper` binary holds its bundle, so that `temper box` and `temper
 serve` serve the browser with nothing beside the binary, and `cargo
-build` in a checkout makes that binary. It is a person's convenience:
+build` in a checkout makes that binary. The engine's binary,
+`temper-engine`, holds the same bundle through the same crate, the only
+one of a deployment's binaries that does (`../protocol/README.md`,
+4.2). It is a person's convenience:
 the machine's builds keep building the way that serves their work,
 without it.
 

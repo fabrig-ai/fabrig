@@ -56,6 +56,13 @@ deferred failure accounting.
 - **Not yet:** 4: `temper versions`, `temper upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper/src/commands.rs`). 6: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 9: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
 - **Departs:** 4: a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge.status.md`, 2.8). 6, 7: `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded. 15.5, 15.6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
 
+The deployment's binaries (4.1 and 4.2), from `../draft/deployment-binaries.md`,
+are designed and not yet built:
+
+- **Not yet:** 4.2: `temper-engine upgrade --check` and `--back`: jig's
+  rehearsal and going back (jig's `protocol/store.md`, 10.5) are not
+  built, so neither binary's table has the row.
+
 Section 4's deployment client, `temper-client`, is present: its table
 of `help`, `[ADDRESS]` and `ctl`, the box's rows run by the box's code,
 its help and refusals naming `temper-client`, and `--version` with its

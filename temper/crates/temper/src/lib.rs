@@ -1,22 +1,17 @@
 //! Startup for temper's standalone binary (protocol/configuration.md, section 2).
 // tests::configuration includes the shared integration fixture, which names temper::directories.
 extern crate self as temper;
-use jig_protocol_config::{self as config, read};
-use skein_io::kernel::{Error, Exit, Fd};
-use skein_lib::{List, Secret};
-use skein_shell::{Clock, Config, Kernel};
+use skein_io::kernel::Exit;
+#[cfg(test)]
+use skein_io::kernel::Fd;
+use skein_shell::Clock;
 use std::{
     ffi::OsString,
     fmt::Write,
-    net::ToSocketAddrs,
-    os::unix::{ffi::OsStrExt, fs::FileTypeExt},
+    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
-use temper_forge_setup_shell::process as forge_exec;
-use temper_service::{
-    self as service,
-    settings::{Files, Seeds},
-};
+use temper_service as service;
 
 pub mod directories;
 use directories::{Directories, private_root};
@@ -43,34 +38,31 @@ fn dump_directory(value: Option<OsString>) -> Option<PathBuf> {
     }
 }
 const DUMP_BOUND: u64 = 4_294_967_296;
-mod accounts_runtime;
 mod agent;
 pub mod box_command;
-pub mod bundle;
 pub mod claude_code;
 pub mod commands;
 pub mod ctl;
 pub mod fake;
 mod fake_backends;
 use fake_backends::json;
-pub mod forge;
-mod forge_sign_in;
-pub mod github_logs;
-mod google_runtime;
+pub use temper_engine_shell::forge;
+use temper_engine_shell::{address, forge_sign_in, login_passwd};
+use temper_forge_setup_shell::process as forge_exec;
 pub mod help;
-mod host;
 mod init;
 pub use temper_shell::link_file;
 pub mod open;
-mod printed;
 mod program_login;
-mod restart_fault;
-mod setup;
+pub use temper_engine_shell::setup;
 mod tui;
 mod tui_front;
 mod worker_alone;
-pub use host::{Host, ending as service_ending};
+mod worker_half;
 use json::CONFIG_BYTES;
+#[cfg(test)]
+pub(crate) use serve::host;
+use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
@@ -100,9 +92,6 @@ fn prefixed(command: &str, why: &str) -> String {
     }
     lines
 }
-pub(crate) fn problems(found: &service::startup::Problems) -> String {
-    prefixed("temper serve", &String::from_utf8_lossy(&service::startup::lines(found)))
-}
 pub fn configure(args: impl Iterator<Item = OsString>) -> Result<Command, String> {
     let arguments: Vec<Box<[u8]>> = args.map(|arg| Box::from(arg.as_bytes())).collect();
     let working = std::env::current_dir().map_err(|why| why.to_string())?;
@@ -130,7 +119,6 @@ pub fn configure_with(
     }
     configure_row(row, arguments, environment, working).map_err(|why| commands::refused(row, &why))
 }
-#[expect(clippy::too_many_lines, reason = "the command table forms are configured together")]
 fn configure_row(
     row: &commands::Row,
     arguments: &[Box<[u8]>],
@@ -170,29 +158,16 @@ fn configure_row(
                 _ => Err(invalid()),
             };
         }
-        ["internal", "forge-child"] => {
-            let [flag, parent, signal_flag, signal, separator, program, rest @ ..] = arguments else {
-                return Err(invalid());
-            };
-            if flag.as_ref() != b"--parent"
-                || signal_flag.as_ref() != b"--signal"
-                || separator.as_ref() != b"--"
-                || program.is_empty()
-            {
-                return Err(invalid());
-            }
-            let parent =
-                std::str::from_utf8(parent).ok().and_then(|pid| pid.parse::<u32>().ok()).ok_or_else(invalid)?;
-            let signal = match signal.as_ref() {
-                b"kill" => skein_io::kernel::Signal::Kill,
-                b"terminate" => skein_io::kernel::Signal::Terminate,
-                _ => return Err(invalid()),
-            };
-            return Ok(Command::ForgeChild {
-                parent,
-                signal,
-                program: std::ffi::OsStr::from_bytes(program).into(),
-                arguments: os(rest),
+        ["forge", _] | ["internal", "forge-child"] => {
+            return temper_engine_shell::forge::configure(row, arguments, environment, working).map(|command| {
+                match command {
+                    forge::Command::Forge { directories, arguments, ssl_cert_file } => {
+                        Command::Forge { directories, arguments, ssl_cert_file }
+                    }
+                    forge::Command::ForgeChild { parent, signal, program, arguments } => {
+                        Command::ForgeChild { parent, signal, program, arguments }
+                    }
+                }
             });
         }
         _ => {}
@@ -229,24 +204,6 @@ fn configure_row(
             Ok(Command::BoxFakeBackends { directories, bundle, echo, no_tui })
         }
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
-        ["forge", verb] => {
-            let valid = if *verb == "run" {
-                rest.len() == 2 && (rest[1] == "forgejo" || rest[1] == "runner")
-            } else {
-                rest.len() == 1
-            };
-            if !valid || rest[0].to_str().and_then(|n| n.parse::<u16>().ok()).is_none() {
-                return Err(invalid());
-            }
-            let mut arguments = vec![OsString::from(verb)];
-            arguments.extend(rest);
-            let ssl_cert_file = environment
-                .iter()
-                .find(|(name, _)| name.as_ref() == b"SSL_CERT_FILE")
-                .filter(|(_, value)| !value.is_empty())
-                .map(|(_, value)| path(value).to_path_buf());
-            Ok(Command::Forge { directories, arguments, ssl_cert_file })
-        }
         _ => Err(invalid()),
     }
 }
@@ -260,9 +217,7 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Init { directories, boxed } => {
             return init::run(&directories, boxed).map_err(|why| prefixed("temper init", &why));
         }
-        Command::Serve { directories, boxed } => {
-            serve(&directories, boxed).map_err(|why| prefixed("temper serve", &why))?
-        }
+        Command::Serve { directories, boxed } => serve::run("temper", &directories, boxed, Some(&worker_half::Half))?,
         Command::BoxFakeBackends { directories, bundle, echo, no_tui } => {
             fake_backends::run(&directories, bundle.as_deref(), echo, no_tui)
                 .map_err(|why| prefixed("temper box", &why))?
@@ -295,11 +250,16 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
         Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments)),
         Command::ForgeChild { parent, signal, program, arguments } => {
-            let why = forge_exec::child(parent, signal, &program, &arguments);
-            return Err(prefixed("temper internal forge-child", &why.to_string()));
+            return temper_engine_shell::forge::command(
+                "temper",
+                forge::Command::ForgeChild { parent, signal, program, arguments },
+            );
         }
         Command::Forge { directories, arguments, ssl_cert_file } => {
-            return Ok(forge::run(&directories, &arguments, ssl_cert_file));
+            return temper_engine_shell::forge::command(
+                "temper",
+                forge::Command::Forge { directories, arguments, ssl_cert_file },
+            );
         }
         Command::Help { request } => {
             print!("{}", help::answer(&request)?);
@@ -318,337 +278,37 @@ pub fn run(command: Command) -> Result<u8, String> {
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
-fn member(document: &skein_json::Document, at: u32, key: &[u8]) -> u32 {
-    read::Object::new(document, at).expect("named checked object").member(document, key).expect("named checked member")
-}
-fn errno(error: Error) -> i32 {
-    match error {
-        Error::Refused => 111,
-        Error::Busy => 11,
-        Error::Reset => 104,
-        Error::BrokenPipe => 32,
-        Error::NotConnected => 107,
-        Error::AddressInUse => 98,
-        Error::AddressNotAvailable => 99,
-        Error::Unreachable => 101,
-        Error::TimedOut => 110,
-        Error::TooManyOpenFiles => 24,
-        Error::NoBufferSpace => 12,
-        Error::Cancelled => 125,
-        Error::TooLate | Error::NotFound => 2,
-        Error::Exists => 17,
-        Error::NotADirectory => 20,
-        Error::IsADirectory => 21,
-        Error::NotEmpty => 39,
-        Error::Permission => 13,
-        Error::NoSpace => 28,
-        Error::ReadOnly => 30,
-        Error::TooManyLinks => 40,
-        Error::NameTooLong => 36,
-        Error::Escape => 18,
-        Error::NotAFile => 6,
-        Error::InvalidArgument => 22,
-        Error::Other(number) => number,
-    }
-}
-fn unread(why: skein_shell::Unread) -> String {
-    match why {
-        skein_shell::Unread::Absent => "absent".into(),
-        skein_shell::Unread::NotAFile => "not a file".into(),
-        skein_shell::Unread::TooLarge { max } => format!("past {max} bytes"),
-        skein_shell::Unread::Unsafe(_) => "readable by others or reached through a link".into(),
-        skein_shell::Unread::Kernel(error) => format!("errno {}", errno(error)),
-    }
-}
-fn file_path(at: config::Path) -> String {
-    let mut found = service::startup::Problems::empty();
-    found.push(at, service::startup::What::Jig(config::What::Unreadable));
-    let bytes = service::startup::lines(&found);
-    String::from_utf8_lossy(&bytes).trim_end().strip_suffix(": not read").expect("path and reason").into()
-}
-fn read_files(names: Box<[config::File]>, user: u32) -> Result<Files, String> {
-    read_files_with_asked(names, Box::new([]), user)
-}
-fn read_files_with_asked(names: Box<[config::File]>, asked: Box<[config::File]>, user: u32) -> Result<Files, String> {
-    let count = names.len().checked_add(asked.len()).expect("bounded files");
-    let mut entries = List::with_capacity(u32::try_from(count).expect("bounded files"));
-    let mut refused = String::new();
-    for (file, optional) in
-        names.into_iter().map(|file| (file, false)).chain(asked.into_iter().map(|file| (file, true)))
-    {
-        let resolved = path(&file.path);
-        let value = if file.private {
-            skein_shell::read_private_file(resolved, file.max, user)
-        } else {
-            skein_shell::read_file(resolved, file.max).map(Secret::new)
-        };
-        match value {
-            Ok(value) => entries.push((file.path, value)).expect("named capacity"),
-            Err(skein_shell::Unread::Absent) if optional => {}
-            Err(why) => {
-                writeln!(refused, "{}: {}: {}", file_path(file.at), path(&file.path).display(), unread(why))
-                    .expect("writing into a string");
-            }
-        }
-    }
-    if refused.is_empty() { Ok(Files { entries }) } else { Err(refused) }
-}
-fn address(configured: &config::Address) -> Result<std::net::SocketAddr, String> {
-    match configured {
-        config::Address::Addr(address) => address.socket().ok_or_else(|| "requires a socket address".into()),
-        config::Address::Host { name, port } => (std::str::from_utf8(name).map_err(|why| why.to_string())?, *port)
-            .to_socket_addrs()
-            .map_err(|why| why.to_string())?
-            .next()
-            .ok_or_else(|| "endpoint has no address".into()),
-    }
-}
-fn trust(file: Option<&[u8]>) -> Result<skein_tls::Config, String> {
-    let source = file
-        .map_or(skein_shell::Trust::Machine { ssl_cert_file: None }, |file| skein_shell::Trust::Der(path(file).into()));
-    let roots = skein_shell::read_trust_roots(
-        &source,
-        &skein_shell::RootBounds { bundle_bytes: CONFIG_BYTES, certificates: 1024, certificate_bytes: 65_536 },
-    )
-    .map_err(|why| match why {
-        skein_shell::RootsRefusal::NoBundle => "no trust bundle".into(),
-        skein_shell::RootsRefusal::Unread { path, why } => format!("{}: {}", path.display(), unread(why)),
-        skein_shell::RootsRefusal::TooMany { bound } => format!("past {bound} trust roots"),
-        skein_shell::RootsRefusal::TooLong { index, bound } => format!("trust root {index}: past {bound} bytes"),
-    })?;
-    let (trust, _) = skein_tls::Config::from_der(&roots.certificates, &[]).map_err(|why| match why {
-        skein_tls::Refusal::Roots => "no supported trust roots",
-        skein_tls::Refusal::Alpn => "protocol names refused",
-        skein_tls::Refusal::Provider => "TLS provider refused",
-    })?;
-    Ok(trust)
-}
-fn server_name(bytes: &[u8]) -> Result<skein_tls::Name, String> {
-    skein_tls::Name::new(std::str::from_utf8(bytes).map_err(|why| why.to_string())?)
-        .ok_or_else(|| "invalid server name".into())
-}
-fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String> {
-    accounts_runtime::resolve(engine)
-}
-
-/// Resolve the machine's GitHub host once at start (temper/docs/design/protocol/configuration.md, 3).
-fn github_runtime(
-    machine: Option<&temper_forge_setup::machine::GitHubMachine>,
-    roots: &skein_tls::Config,
-    resolve: fn(&config::Address) -> Result<std::net::SocketAddr, String>,
-) -> Result<service::ForgeRuntime, String> {
-    let default = config::Address::Host { name: Box::from(b"api.github.com".as_slice()), port: 443 };
-    let api = machine.map_or(&default, |machine| &machine.api);
-    let address = resolve(api).unwrap_or(service::forge::HELD_ADDRESS);
-    let transport = if machine.is_none_or(|machine| machine.tls) {
-        let name = match api {
-            config::Address::Host { name, .. } => server_name(name)?,
-            config::Address::Addr(address) => {
-                server_name(address.socket().ok_or("requires a socket address")?.ip().to_string().as_bytes())?
-            }
-        };
-        skein_forge_connection::settings::Transport::Tls { server_name: name, trust: roots.clone() }
-    } else {
-        skein_forge_connection::settings::Transport::Plaintext { name: None }
-    };
-    let log_origins = if machine.is_none() { github_logs::resolve(None, resolve)? } else { List::with_capacity(0) };
-    Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
-}
+pub use serve::host::{Host, ending as service_ending};
+pub(crate) use serve::{close, file_path, held_refusal, listeners_refusal, read_files};
+use temper_engine_shell::serve;
+pub use temper_engine_shell::serve::{bundle, github_logs, printed};
+#[cfg(test)]
 fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
-    prepare_with_store(directories, bytes, owned).map(|(service, _)| service)
+    serve::prepare("temper", Some(&worker_half::Half), directories, bytes, owned)
 }
+#[cfg(test)]
 fn prepare_with_store(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_with_limits(directories, bytes, owned, false, None, None, &service::stock::Given::Stock)
-        .map(|(service, store, _)| (service, store))
-}
-#[expect(clippy::too_many_lines, reason = "startup supplies resolved process facts beside the checked deployment")]
-fn prepare_with_limits(
-    directories: &Directories,
-    bytes: &[u8],
-    owned: &mut Vec<Fd>,
-    under_box: bool,
-    link_secret: Option<Secret>,
-    local_secret: Option<Secret>,
-    given: &service::stock::Given,
-) -> Result<(service::Service, Box<[u8]>, u32), String> {
-    if service::startup::shape_with(bytes, &directories.jig(), given)
-        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
-        == service::startup::Shape::WorkerAlone
-    {
-        return worker_alone::prepare(directories, bytes, owned).map(|service| (service, Box::new([]) as Box<[u8]>, 0));
-    }
-    let setup::Deployment { named, checked, limits, .. } = setup::check_with(bytes, &directories.jig(), given)?;
-    let document =
-        config::document(bytes, &config::DocumentLimits { bytes: CONFIG_BYTES, tokens: CONFIG_BYTES, depth: 32 })
-            .expect("named checked document");
-    let engine =
-        temper_service::startup::engine_with(&document, member(&document, 0, b"engine"), &directories.jig(), given)
-            .expect("named checked engine");
-    let roots = trust(None)?;
-    let github = github_runtime(named.machine.github.as_ref(), &roots, address)?;
-    let forges = List::with_capacity(0);
-    let agent = named.worker.as_ref().map(|_| agent::preflight(&named)).transpose()?;
-    let user = skein_shell::effective_user();
-    let files = read_files_with_asked(named.files, named.asked_files, user)?;
-    let google = google_runtime::resolve(named.sign_in.as_ref())?;
-    let mut bundle = match named.bundle.as_deref() {
-        Some(configured) => Some(bundle::read(configured, named.bundle_limits)?),
-        None => bundle::own(named.bundle_limits)?,
-    };
-    if let Some(bundle) = &mut bundle {
-        bundle.fill_sign_in(named.sign_in.is_some()).ok_or_else(|| {
-            format!(
-                "application.clients.bundle: {}: the page has no </head> for its sign-in metadata",
-                named.bundle.as_deref().map_or("embedded".into(), |name| String::from_utf8_lossy(name))
-            )
-        })?;
-    }
-    let runtime = if let Some(worker) = &named.worker {
-        let root_path = path(&worker.root);
-        if std::fs::symlink_metadata(root_path).is_ok() {
-            private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
-        }
-        let root = skein_shell::make_root(root_path, 0o700)
-            .map_err(|errno| format!("application.workers[0].root: errno {errno}"))?;
-        owned.push(root);
-        private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
-        Some(service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into() })
-    } else {
-        None
-    };
-    let accounts = accounts(&engine)?;
-    let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
-    let crypto = skein_shell::crypto_seed().map_err(|errno| format!("cryptographic seed: errno {errno}"))?;
-    let drawn = skein_shell::crypto_seed().map_err(|errno| format!("deployment id: errno {errno}"))?;
-    let mut deployment = [0_u8; 16];
-    deployment.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
-    // Drawn at every start; the service keeps it at the first and restores
-    // the kept one at every later start (jig's configuration.md 8).
-    let drawn = skein_shell::crypto_seed().map_err(|errno| format!("installation id: errno {errno}"))?;
-    let mut installation = [0_u8; 16];
-    installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
-    let mut service = service::startup::with_setup_given(
-        bytes,
-        &directories.jig(),
-        &files,
-        agent.as_ref(),
-        &Seeds { deployment, installation, seed, crypto, link_secret, local_secret },
-        Some(accounts),
-        runtime,
-        forges,
-        Some(&checked),
-        if under_box { Some(limits.line_bytes) } else { None },
-        program_login::line(
-            directories,
-            &printed::running_word(&skein_shell::environment()),
-            skein_shell::environment()
-                .iter()
-                .find(|(name, _)| name.as_ref() == b"HOME")
-                .map(|(_, value)| value.as_ref()),
-        )
-        .map(|line| line.into_bytes().into_boxed_slice()),
-        given,
-        directories.program_environment(
-            &skein_shell::environment(),
-            std::env::current_dir().map_err(|why| why.to_string())?.as_os_str().as_bytes(),
-            &printed::running_word(&skein_shell::environment()),
-        ),
-    )
-    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    if workspace_reuse() {
-        service.reuse_workspaces();
-    }
-    if let Some(directory) = dump_llm() {
-        service.dump_llm(directory.as_os_str().as_bytes());
-    }
-    service.configure_forge_runtime(github, roots);
-    service.configure_google_endpoints(google);
-    if let Some(agent) = &agent {
-        configure_sources(
-            &mut service,
-            agent,
-            path(&named.worker.as_ref().expect("local agent checked").agent),
-            path(&directories.cache),
-            user,
-        )?;
-    }
-    let root = skein_shell::make_root(path(&named.deployment), 0o700)
-        .map_err(|errno| format!("engine.deployment.directory: errno {errno}"))?;
-    owned.push(root);
-    service.adopt_store(root, user).map_err(|_| "store refused its deployment root")?;
-    if let Some(bundle) = bundle {
-        service.adopt_bundle(bundle);
-    }
-    Ok((service, named.deployment, limits.line_bytes))
-}
-fn configure_sources(
-    service: &mut service::Service,
-    agent: &service::settings::Agent,
-    configuration: &std::path::Path,
-    cache: &std::path::Path,
-    user: u32,
-) -> Result<(), String> {
-    if let Some(program) = agent.programs.first() {
-        if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
-            claude_code::place(path(&program.path).parent().expect("launcher parent"), cache)
-                .map_err(|why| format!("programs.claude_code: {why}"))?;
-        }
-        // Source commands use the agent's explicit command environment.
-        let environment = agent::configuration(configuration)?.service.environment.command_entries();
-        let parent =
-            skein_shell::open_root(path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok();
-        let resources = service::program_sources::configured(program, environment, user, parent)
-            .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
-        service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
-    }
-    Ok(())
-}
-
-fn close(owned: Vec<Fd>) {
-    for fd in owned {
-        skein_shell::close_startup_fd(fd);
-    }
+    serve::prepare_with_store("temper", Some(&worker_half::Half), directories, bytes, owned)
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
 pub fn operations_in(directories: &Directories, config: &[u8]) -> Result<u32, String> {
-    operations_in_mode(directories, config, false)
+    serve::operations_in("temper", Some(&worker_half::Half), directories, config)
 }
 /// The same for a boxed start.
 pub fn boxed_operations_in(directories: &Directories, config: &[u8]) -> Result<u32, String> {
-    operations_in_mode(directories, config, true)
-}
-fn operations_in_mode(directories: &Directories, config: &[u8], boxed: bool) -> Result<u32, String> {
-    directories.open(skein_shell::effective_user())?;
-    let mut owned = Vec::new();
-    let result = prepare_with_limits(directories, config, &mut owned, boxed, None, None, &service::stock::Given::Stock)
-        .map(|(service, _, _)| service.operations());
-    close(owned);
-    result.map_err(|why| prefixed("temper serve", &why))
+    serve::boxed_operations_in("temper", Some(&worker_half::Half), directories, config)
 }
 pub fn prepare_in(directories: &Directories) -> Result<service::Service, String> {
-    let bytes = directories.read().map_err(|why| prefixed("temper serve", &why))?;
-    let mut owned = Vec::new();
-    let result = prepare(directories, &bytes, &mut owned);
-    if result.is_err() {
-        close(owned);
-    }
-    result.map_err(|why| prefixed("temper serve", &why))
+    serve::prepare_in("temper", Some(&worker_half::Half), directories)
 }
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(directories: &Directories, given: &service::stock::Given) -> Result<service::Service, String> {
-    let bytes = directories.read().map_err(|why| prefixed("temper serve", &why))?;
-    let mut owned = Vec::new();
-    let result =
-        prepare_with_limits(directories, &bytes, &mut owned, false, None, None, given).map(|(service, _, _)| service);
-    if result.is_err() {
-        close(owned);
-    }
-    result.map_err(|why| prefixed("temper serve", &why))
+    serve::prepare_in_with("temper", Some(&worker_half::Half), directories, given)
 }
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
@@ -656,154 +316,11 @@ pub fn operations_in_with(
     config: &[u8],
     given: &service::stock::Given,
 ) -> Result<u32, String> {
-    directories.open(skein_shell::effective_user())?;
-    let mut owned = Vec::new();
-    let result = prepare_with_limits(directories, config, &mut owned, false, None, None, given)
-        .map(|(service, _, _)| service.operations());
-    close(owned);
-    result.map_err(|why| prefixed("temper serve", &why))
-}
-fn listeners_refusal(why: skein_shell::ListenersRefusal) -> String {
-    format!("LISTEN_FDS: {}", listener_words(why))
-}
-fn held_refusal(why: skein_shell::ListenersRefusal) -> String {
-    format!("held listener: {}", listener_words(why))
-}
-fn listener_words(why: skein_shell::ListenersRefusal) -> String {
-    use skein_shell::ListenersRefusal as Why;
-    match why {
-        Why::BadCount => "expected a decimal listener count".into(),
-        Why::TooMany { bound } => format!("listener count exceeds {bound}"),
-        Why::NotOpen { fd } => format!("fd {} is not open", fd.raw()),
-        Why::NotSocket { fd, .. } => format!("fd {} is not a socket", fd.raw()),
-        Why::NotStream { fd, .. } => format!("fd {} is not a stream socket", fd.raw()),
-        Why::NotListening { fd } => format!("fd {} is not listening", fd.raw()),
-        Why::NotIp { fd } => format!("fd {} is not an IP listener", fd.raw()),
-        Why::Check { fd, check, errno } => format!("fd {}: {}: errno {errno}", fd.raw(), check.name()),
-        Why::Kernel { fd, errno } => format!("fd {}: close-on-exec: errno {errno}", fd.raw()),
-    }
-}
-fn box_refusal(why: service::system::BoxRefusal) -> String {
-    use service::system::BoxRefusal;
-    let words = match why {
-        BoxRefusal::Sockets { limit } => {
-            format!("the box's pipes need two free socket slots; the service socket limit is {limit}")
-        }
-        BoxRefusal::Adopted => "the box's pipes were already adopted".into(),
-        BoxRefusal::NoEngine => "the box's pipes need an engine".into(),
-        BoxRefusal::ZeroLine => "the box's pipes need a nonzero application.limits.overrides.box.line_bytes".into(),
-    };
-    format!("--box: {words}")
-}
-/// The first links' secrets on a boxed serve's standard input (protocol/setup.md, 7.1).
-fn given_secret(input: &mut impl std::io::Read) -> Result<(Option<Secret>, Option<Secret>), String> {
-    use std::io::Read;
-    let both = service::clients::LINK_SECRET_BYTES.checked_mul(2).expect("two secrets");
-    let limit = both.checked_add(1).expect("small secret bound");
-    let mut bytes = Vec::with_capacity(limit);
-    input
-        .take(u64::try_from(limit).expect("small secret bound"))
-        .read_to_end(&mut bytes)
-        .map_err(|_| "--box: stdin: expected the first link's secret".to_string())?;
-    if bytes.is_empty() {
-        Ok((None, None))
-    } else if bytes.len() == service::clients::LINK_SECRET_BYTES {
-        Ok((Some(Secret::new(bytes.into_boxed_slice())), None))
-    } else if bytes.len() == both {
-        let local = bytes.split_off(service::clients::LINK_SECRET_BYTES);
-        Ok((Some(Secret::new(bytes.into_boxed_slice())), Some(Secret::new(local.into_boxed_slice()))))
-    } else {
-        Err("--box: stdin: expected the first link's secret".into())
-    }
-}
-
-fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
-    let environment = skein_shell::environment();
-    let runtime =
-        environment.iter().find(|(name, _)| name.as_ref() == b"XDG_RUNTIME_DIR").map(|(_, value)| value.as_ref());
-    let link_file = link_file::path(&directories.data, runtime, cfg!(target_os = "linux"));
-    let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
-    let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
-    let answers = requests + 1;
-    if boxed && cfg!(target_os = "linux") {
-        for fd in [requests, answers] {
-            if !std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok_and(|m| m.file_type().is_fifo()) {
-                return Err(format!("--box: fd {fd} is not an open pipe"));
-            }
-        }
-    }
-    let (link_secret, local_secret) = if boxed { given_secret(&mut std::io::stdin().lock())? } else { (None, None) };
-    let bytes = directories.read()?;
-    let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
-    let prepared = prepare_with_limits(
-        directories,
-        &bytes,
-        &mut owned,
-        boxed,
-        link_secret,
-        local_secret,
-        &service::stock::Given::Stock,
-    );
-    let (mut service, store, line_bytes) = match prepared {
-        Ok(prepared) => prepared,
-        Err(why) => {
-            close(owned);
-            return Err(why);
-        }
-    };
-    for (fd, addr) in listeners {
-        if let Err(fd) = service.adopt_listener(fd, addr) {
-            close(owned);
-            return Err(format!("listener: fd {} at {addr} refused", fd.raw()));
-        }
-    }
-    if boxed {
-        owned.extend([Fd::new(requests), Fd::new(answers)]);
-        if let Err(why) = service.adopt_box(Fd::new(requests), Fd::new(answers), line_bytes) {
-            close(owned);
-            return Err(box_refusal(why));
-        }
-    }
-    let opened = skein_shell::open_termination_signals()
-        .map_err(|errno| format!("signals: errno {errno}"))
-        .and_then(|signals| {
-            owned.push(signals);
-            service.adopt_signals(signals).map_err(|_| "signals refused".into())
-        })
-        .and_then(|()| Kernel::open(Config { operations: service.operations() }).map_err(|why| why.to_string()));
-    let mut kernel = match opened {
-        Ok(kernel) => kernel,
-        Err(why) => {
-            close(owned);
-            return Err(why);
-        }
-    };
-    let mut host = Host::new(service, directories.clone());
-    host.store = store;
-    host.link_file = link_file;
-    let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
-    if let Some(path) = &host.link_file {
-        link_file::forget(path);
-    }
-    Ok(exit)
+    serve::operations_in_with("temper", Some(&worker_half::Half), directories, config, given)
 }
 /// The effective user's login (protocol/setup.md, 8.2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
     if cfg!(target_os = "macos") { forge_exec::login_id() } else { login_passwd(user) }
-}
-
-/// The effective user's passwd login; forge commands preserve lookup refusals.
-fn login_passwd(user: u32) -> Result<Box<[u8]>, String> {
-    let passwd = skein_shell::read_file(std::path::Path::new("/etc/passwd"), 1 << 20)
-        .map_err(|why| format!("user: {}", unread(why)))?;
-    for line in passwd.split(|c| *c == b'\n') {
-        let fields: Vec<_> = line.split(|c| *c == b':').collect();
-        if fields.get(2).and_then(|id| std::str::from_utf8(id).ok()).and_then(|id| id.parse::<u32>().ok()) == Some(user)
-        {
-            return Ok(fields[0].into());
-        }
-    }
-    Err(format!("user {user}: no login in /etc/passwd"))
 }
 
 #[cfg(test)]
@@ -811,36 +328,6 @@ mod tests;
 
 #[cfg(test)]
 mod box_tests {
-
-    #[test]
-    fn a_boxed_serve_reads_none_or_a_whole_secret() {
-        use std::io::Cursor;
-        use temper_service::clients::LINK_SECRET_BYTES;
-
-        let mut empty = Cursor::new([]);
-        let (printed, local) = super::given_secret(&mut empty).expect("empty input");
-        assert!(printed.is_none() && local.is_none());
-        let bytes = [23; LINK_SECRET_BYTES];
-        let mut whole = Cursor::new(bytes);
-        let (printed, local) = super::given_secret(&mut whole).expect("whole secret");
-        assert!(printed.expect("given secret").expose() == bytes, "the secret is taken whole");
-        assert!(local.is_none());
-        let mut both = Cursor::new([vec![23; LINK_SECRET_BYTES], vec![37; LINK_SECRET_BYTES]].concat());
-        let (printed, local) = super::given_secret(&mut both).expect("both given secrets");
-        assert!(printed.expect("printed secret").expose() == bytes, "the printed secret comes first");
-        assert!(local.expect("local secret").expose() == [37; LINK_SECRET_BYTES], "the local secret comes second");
-        for length in [LINK_SECRET_BYTES - 1, LINK_SECRET_BYTES + 1, 63, 65] {
-            let mut input = Cursor::new(vec![23; length]);
-            assert_eq!(
-                super::given_secret(&mut input).expect_err("partial or oversized secret"),
-                "--box: stdin: expected the first link's secret"
-            );
-        }
-        let mut oversized = Cursor::new(vec![23; LINK_SECRET_BYTES * 3]);
-        assert!(super::given_secret(&mut oversized).is_err(), "oversized input is refused");
-        assert_eq!(oversized.position(), 65);
-    }
-
     #[test]
     fn serve_box_flag_is_carried_to_the_command() {
         for boxed in [false, true] {
