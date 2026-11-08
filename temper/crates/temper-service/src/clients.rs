@@ -38,6 +38,10 @@ pub mod translation;
 pub(crate) const PLAYGROUND_STARTS: u32 = 8;
 
 #[expect(missing_debug_implementations, reason = "clients hold pending OAuth secrets")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "printed-link use and its pending document mark are independent of client lifecycle"
+)]
 pub struct Clients {
     /// Bound address awaiting the system's note routing.
     pub(crate) listening: Option<::core::net::SocketAddr>,
@@ -70,6 +74,8 @@ pub struct Clients {
 
     secret: Option<skein_lib::Secret>,
     local_secret: Option<skein_lib::Secret>,
+    linked: bool,
+    linked_changed: bool,
     pub(crate) env: Env<kit::Limits>,
     out: Queue<kit::Request>,
     pub(crate) io: Queue<io::Request>,
@@ -95,6 +101,15 @@ pub struct Clients {
     playground_carries: Queue<kit::SecretsRequest>,
 }
 impl Clients {
+    /// The printed link signed a person in since start (client/README.md, 4.6).
+    pub(crate) const fn linked(&self) -> bool {
+        self.linked
+    }
+
+    pub(crate) fn take_linked_changed(&mut self) -> bool {
+        ::core::mem::replace(&mut self.linked_changed, false)
+    }
+
     pub(crate) fn playground_read(&mut self) -> Option<crate::HandoverRead> {
         self.playground_reads.pop()
     }
@@ -214,7 +229,7 @@ impl Clients {
             };
             Ok(kit::Settings {
                 link_secret: seeds.link_secret.clone(),
-                local_secret: None,
+                local_secret: seeds.local_secret.clone(),
                 provider,
                 addresses: match &config.clients.provider {
                     Some(provider) => provider.addresses.clone(),
@@ -278,6 +293,8 @@ impl Clients {
 
             secret: None,
             local_secret: None,
+            linked: false,
+            linked_changed: false,
             env,
             out,
             io: Queue::uncapped(),
@@ -533,7 +550,12 @@ impl Clients {
                 kit::Request::Transport(message) => {
                     self.mount.down(&self.mount_env, http::Event::Component(message));
                 }
-                kit::Request::LinkSignedIn => {}
+                kit::Request::LinkSignedIn => {
+                    if !self.linked {
+                        self.linked = true;
+                        self.linked_changed = true;
+                    }
+                }
                 kit::Request::LocalLink { secret } => {
                     self.local_secret = Some(secret);
                     self.print_link();
