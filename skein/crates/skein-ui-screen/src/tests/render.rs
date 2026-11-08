@@ -487,6 +487,18 @@ fn rendering_honours_focus_paints_scroll_and_frame_bounds() {
     // Rows name semantic edges; sizes expose each complete layout with no padding rows.
     for (name, tree, size, expected) in [
         (
+            "items keep inline runs before nested blocks",
+            inline_items(),
+            Size { columns: 40, rows: 3 },
+            "- How temper works: a box.\n  - nested\n1. use `code` here\n",
+        ),
+        (
+            "item runs wrap at their hanging indentation",
+            inline_items(),
+            Size { columns: 20, rows: 5 },
+            "- How temper works:\n  a box.\n  - nested\n1. use `code` here\n\n",
+        ),
+        (
             "disclosure descriptions",
             fixtures::disclosures(),
             Size { columns: 20, rows: 5 },
@@ -1090,4 +1102,13 @@ fn active_name_paint_replaces_tokens_only_for_the_active_name() {
 fn first_line(text: &[u8]) -> &[u8] {
     let end = skein_lib::bytes::find(text, b"\n").expect("a frame ends every row");
     text.get(..end).expect("the first line ends in the frame")
+}
+
+fn inline_items() -> Tree {
+    let limits = skein_ui::Limits { markdown_depth: 3, ..LIMITS };
+    let mut b = Builder::new(&limits);
+    b.open(Role::Page);
+    skein_ui::markdown::read(b"- **How temper works**: a box.\n  - nested\n\n1. use `code` here", 0, &mut b);
+    b.close();
+    fixtures::finish(b)
 }

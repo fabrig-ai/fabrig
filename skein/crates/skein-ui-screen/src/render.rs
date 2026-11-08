@@ -462,6 +462,10 @@ fn walk(
         let child_indent = node(tree, at, info, theme, focus, number, out, frame);
         match child_indent {
             Some(indent) => {
+                if n.role == Role::Item {
+                    skip = roles::item_text_end(tree, at);
+                    descriptions(tree, at.saturating_add(1), skip, indent, info, theme, focus, out, frame);
+                }
                 if !(n.role.is_list_item() || n.role == Role::Disclosure && n.name.is_some()) {
                     let described_indent = if within_item { description_indent } else { indent };
                     descriptions(tree, at, at.saturating_add(1), described_indent, info, theme, focus, out, frame);
