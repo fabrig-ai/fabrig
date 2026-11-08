@@ -373,11 +373,37 @@ impl skein_world::Referee<Proc> for Judge {
     fn overdue(&self, now: Time) -> Option<String> {
         (!self.stopping && now >= DEADLINE).then(|| {
             format!(
-                "stage {:?}; tasks {:?}",
+                "stage {:?}; {} answers; agent starts {:?}; agent answers {:?}; tasks {:?}",
                 self.stage,
+                self.answered,
+                self.store
+                    .borrow()
+                    .agent_records
+                    .iter()
+                    .filter_map(|record| match record {
+                        referee::AgentRecord::Start { task, attempt, .. } => Some((*task, *attempt)),
+                        referee::AgentRecord::Answer { .. } => None,
+                    })
+                    .collect::<Vec<_>>(),
+                self.store
+                    .borrow()
+                    .agent_records
+                    .iter()
+                    .filter_map(|record| match record {
+                        referee::AgentRecord::Answer { task, attempt, .. } => Some((*task, *attempt)),
+                        referee::AgentRecord::Start { .. } => None,
+                    })
+                    .collect::<Vec<_>>(),
                 self.tasks()
                     .iter()
-                    .map(|task| (task.number, task.executor, &task.phase, task.run_reserved, &task.retry_notice))
+                    .map(|task| (
+                        task.number,
+                        task.executor,
+                        &task.phase,
+                        task.ever_turned,
+                        task.run_reserved,
+                        &task.retry_notice
+                    ))
                     .collect::<Vec<_>>()
             )
         })
