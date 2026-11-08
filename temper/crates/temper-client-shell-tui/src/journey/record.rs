@@ -20,6 +20,7 @@ pub struct Facts {
     pub background: Option<Rgb>,
     pub address: Box<[u8]>,
     pub local: bool,
+    pub front: bool,
     pub boxed: bool,
     pub note: Option<Note>,
     pub kept: Vec<jig_client::Record>,
@@ -38,7 +39,7 @@ impl Facts {
             address: self.address.clone(),
             local: self.local,
             note: self.note,
-            front: false,
+            front: self.front,
             kept: self.kept.clone(),
             credential: self.credential.clone(),
         });
@@ -76,6 +77,9 @@ impl Recorder {
         if facts.local {
             this.keep(&Line::Local);
         }
+        if facts.front {
+            this.keep(&Line::Front);
+        }
         if facts.boxed {
             this.keep(&Line::Box);
         }
@@ -98,7 +102,7 @@ impl Recorder {
 
     pub fn report(&mut self, host: &mut Host, report: Report) -> Duties {
         let line = match &report {
-            Report::Front(_) => return host.report(report),
+            Report::Front(line) => Line::BoxLine(line.print()),
             Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
             Report::Start(_) => Line::Start,
             Report::Due => Line::Due,
@@ -258,6 +262,8 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Background(_)
         | Line::Box
         | Line::Address(_)
+        | Line::Front
+        | Line::BoxLine(_)
         | Line::Local
         | Line::Stored { .. }
         | Line::Credential(_)
