@@ -1468,6 +1468,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 crate::BriefSource::Document => env.limits.client.answer_bytes,
                 crate::BriefSource::Ci { .. } => env.limits.client.answer_bytes.min(ci_budget / 5).max(1),
                 crate::BriefSource::Home { .. }
+                | crate::BriefSource::Request { .. }
                 | crate::BriefSource::Reviews { .. }
                 | crate::BriefSource::Pull { .. } => 0,
             };

@@ -725,6 +725,7 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
                 w::RepairingParts {
                     reason: match reason {
                         change::Repair::Ci => w::Reason::Ci,
+                        change::Repair::Review { .. } => w::Reason::Review,
                         change::Repair::Gate(gate) => {
                             w::Reason::Gate(w::GateReason::new(limits, w::GateReasonParts { gate }).ok()?)
                         }

@@ -79,6 +79,8 @@ pub enum Repair {
     Semantic,
     /// A landing's gate failed at its candidate (domain/landing.md, 7.3).
     Landing { gate: u16 },
+    /// A person's request for changes on the forge, at the head they reviewed (domain/forge.md, 8.3).
+    Review { head: Commit },
 }
 
 /// The part of a change's authority its next delegate needs.

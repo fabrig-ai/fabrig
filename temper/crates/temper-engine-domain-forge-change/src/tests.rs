@@ -389,7 +389,9 @@ fn a_released_failed_ci_repairs_replacement_requires_current_authority() {
 #[test]
 fn a_released_failed_repair_keeps_its_reason_and_checks_the_current_base() {
     let (c, mut f, h, limits) = failed_ci_repair();
-    for why in [Repair::Ci, Repair::Semantic, Repair::Gate(9), Repair::Landing { gate: 3 }] {
+    for why in
+        [Repair::Ci, Repair::Semantic, Repair::Gate(9), Repair::Landing { gate: 3 }, Repair::Review { head: NEW }]
+    {
         let mut held = c.clone();
         held.state = State::Held { was: Box::new(State::Repairing { requested: true, why }), why: Hold::Failed };
         let reset = step(&released(&held, at(3)), &f, &h, at(3), &limits);
@@ -727,7 +729,7 @@ fn a_semantic_repair_keeps_clean_predecessors_until_its_push_is_taken() {
 
 #[test]
 fn ci_and_gate_repairs_clear_clean_predecessors_when_due() {
-    for why in [Repair::Ci, Repair::Gate(9)] {
+    for why in [Repair::Ci, Repair::Gate(9), Repair::Review { head: NEW }] {
         let mut c = change(State::Repairing { requested: false, why });
         c.clean = Box::new([NEW]);
         let mut f = facts();
