@@ -2678,6 +2678,23 @@ that changes the stock changes nothing of them.
   repository's scope, and reads the notes before it triages. Its
   goal's end waits for the landing's result at cleared, repaired or
   not.
+- **Acceptance evidence, from production to close-out.** Charter 2 maps
+  each acceptance item to a named assertion at the lowest tier that
+  shows it, adding or extending tests where existing assertions do not
+  cover the requested behavior. Its report distinguishes assertions
+  added or extended, existing coverage, and checks actually run, with
+  what each assertion proves. Page bounds and link validity do not
+  establish coverage of a new explanation or pointer. Charter 5's
+  results part checks this mapping and carries it and each unresolved
+  coverage gap in the close-out's words, beside the complete reports
+  and Left dispositions. Charter 7 reviews that evidence and retains
+  the mapping and gaps in its report, requesting missing evidence or
+  routing the gap for repair before declaring the item built. Missing
+  coverage remains an unresolved gap even when Left is empty or CI
+  passes; close-out and the goal's landing wait for it to be resolved.
+  The domain world checks the assigned instructions and retained
+  evidence through fake landings and bounded report continuations;
+  scripted choices establish no model compliance.
 - **Charter 5's plan done, and its landing's words**
   (`../draft/reference-code-production.md`, section 12;
   `../draft/reference-landing.md`, section 3, step 2), in its

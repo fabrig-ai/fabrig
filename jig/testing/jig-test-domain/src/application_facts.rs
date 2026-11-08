@@ -13,6 +13,7 @@ pub(super) fn refusal(value: people::Refusal) -> application::Refusal {
             why: people::Malformed::Settings { .. } | people::Malformed::SettingsUnchanged | people::Malformed::Running,
             ..
         }
+        | people::Refusal::ProgramNameReserved
         | people::Refusal::NameTaken
         | people::Refusal::Circle { .. }
         | people::Refusal::Dependency { .. }

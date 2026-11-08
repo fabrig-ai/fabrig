@@ -48,6 +48,7 @@ pub(crate) fn outcome(core: &crate::Core, answer: accounts::Answer) -> people::O
         | accounts::Refusal::NotKept { why: accounts::KeyFailure::NotStored } => {
             return people::Outcome::Again(people::Again::NotReady);
         }
+        accounts::Refusal::ProgramNameReserved => people::Refusal::ProgramNameReserved,
         accounts::Refusal::Limit { bound } => people::Refusal::Limit { which: limit(bound) },
         accounts::Refusal::Numbers => people::Refusal::Limit { which: people::LimitKind::Arithmetic },
         accounts::Refusal::SignInRedirect { why } => people::Refusal::SignInRedirect {
