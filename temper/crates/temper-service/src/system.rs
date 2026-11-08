@@ -122,15 +122,6 @@ impl Service {
         }
     }
 
-    /// The worker domain, for a world to inspect before requesting shutdown.
-    #[must_use]
-    pub fn worker_domain(&self) -> Option<&temper_worker_domain::Domain> {
-        match &self.worker {
-            Some(worker) => Some(&worker.root),
-            None => None,
-        }
-    }
-
     /// Keep matching workspace clones on the worker, when one is present.
     pub fn reuse_workspaces(&mut self) {
         if let Some(worker) = &mut self.worker {
@@ -319,7 +310,7 @@ impl Service {
         let io_limits = settings.jig.limits.io;
         crate::worker_settings::prepare(settings, agent, limits)?;
         let queue = Self::WORKER_ALONE_QUEUE;
-        let worker_operations = crate::worker_settings::operations(&limits.git_component)
+        let worker_operations = crate::worker_settings::configured_operations(&limits.git_component)
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
         let operations = worker_alone_operations(&io_limits, worker_operations)
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;

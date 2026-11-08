@@ -55,6 +55,7 @@ jig-domain-authority.workspace = true
 jig-domain-host.workspace = true
 jig-domain-link.workspace = true
 smith-protocol-channel.workspace = true
+smith-protocol-translate.workspace = true
 smith-channel.workspace = true
 smith-protocol-program.workspace = true
 smith-host-protocol.workspace = true

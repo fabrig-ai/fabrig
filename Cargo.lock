@@ -6037,6 +6037,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
  "temper-box",
  "temper-client-domain",

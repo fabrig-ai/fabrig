@@ -1053,7 +1053,7 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     let part = crate::startup::worker_part(&input, &directories).unwrap();
     let operations = crate::system::worker_alone_operations(
         &part.worker.jig.limits.io,
-        crate::worker_settings::operations(&part.limits.git_component).unwrap(),
+        crate::worker_settings::operations(&part.limits.git_component.into()).unwrap(),
     )
     .unwrap();
     let mut files = settings::Files { entries: List::with_capacity(2) };

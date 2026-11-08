@@ -13,7 +13,7 @@ use temper_protocol_worker_wire as wire;
 #[derive(Debug)]
 pub struct Encoding {
     pub limits: wire::v1::Limits,
-    pub endpoints: smith_protocol_channel::Endpoints,
+    pub endpoints: smith_protocol_translate::Endpoints,
     pub deployment: [u8; 16],
     pub charter_bytes: u64,
 }
@@ -131,7 +131,7 @@ fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -
     let bound = encoding.charter_bytes;
     if charter.owned_bytes()? <= bound {
         let encoded =
-            smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+            smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
         if skein_lib::len_u64(encoded.len()) <= bound {
             return Some(encoded);
         }
@@ -139,7 +139,7 @@ fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -
     let brief = ::core::mem::replace(&mut charter.brief.sections, Box::new([]));
     let fixed_owned = charter.owned_bytes()?;
     let fixed_encoded =
-        smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+        smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
     let fixed_encoded = skein_lib::len_u64(fixed_encoded.len());
     if fixed_owned > bound || fixed_encoded > bound {
         return None;
@@ -148,7 +148,7 @@ fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -
     let owned = bound.saturating_sub(fixed_encoded.saturating_sub(fixed_owned));
     temper_protocol_brief::fit_brief_bytes(&mut charter, owned);
     let encoded =
-        smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+        smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
     if skein_lib::len_u64(encoded.len()) > bound || charter.owned_bytes()? > bound {
         return None;
     }
@@ -224,13 +224,13 @@ mod tests {
         }]);
         let owned = charter.owned_bytes().unwrap();
         let encoded =
-            smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+            smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
         assert!(skein_lib::len_u64(encoded.len()) > owned);
         encoding.charter_bytes = owned;
         let fitted = fitted_charter(charter, &encoding).expect("wire overhead leaves room for a cut brief");
         assert!(skein_lib::len_u64(fitted.len()) <= owned);
         let decoded =
-            smith_protocol_channel::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+            smith_protocol_translate::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
         assert!(decoded.owned_bytes().unwrap() <= owned);
         assert!(decoded.brief.sections[0].text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
     }
