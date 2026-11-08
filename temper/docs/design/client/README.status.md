@@ -88,12 +88,8 @@ its 320 px, as the user accepted in `look-round-17`.
   `pages/home.rs`, `Facts::left`; `temper-client-view`'s `pages/home.rs`,
   `to_begin`, and `frame.rs`, `rail` and `tabbar`). The plan `look-round-19`'s
   task `two-steps` builds them.
-- **Not yet:** 3.5, *Its look, kept per browser*: the look has no `night`,
-  its record is three bytes and no act turns it, and no shell sets
-  `data-night` (`temper-client-domain`'s `pages/terminal.rs`,
-  `temper-client-shell-web`'s `records.rs`); 5.3: the rail draws no night
-  switch. The plan `look-round-19`'s tasks `night-keep` and `night-switch`
-  build them.
+- **Not yet:** 5.3: the rail draws no night switch. The plan
+  `look-round-19`'s task `night-switch` builds it.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
