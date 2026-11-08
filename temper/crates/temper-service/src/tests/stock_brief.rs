@@ -109,7 +109,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (6, false, 33_894, 366_241),
         (9, false, 31_337, 368_798),
         (10, false, 31_052, 369_083),
-        (11, true, 9_767, 390_368),
+        (11, true, 9_960, 390_175),
     ] {
         let assignment = assignment(number, open, 14_592);
         let mut charter = temper_engine_smith::charter(&assignment);

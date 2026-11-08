@@ -296,7 +296,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
             11,
             3072,
             false,
-            7142,
+            7335,
             &["## temper, as you explain it", "## Finding out", "## Answering", "## Configuring", "## Your voice"][..],
             &["## Showing", "## Remembering"][..],
         ),
