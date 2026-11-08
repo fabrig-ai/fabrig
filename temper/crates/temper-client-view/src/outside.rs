@@ -50,6 +50,7 @@ fn box_line(builder: &mut Builder, words: &Words) {
 }
 
 /// The top bar outside a project (temper/docs/design/client/README.md, 5.1).
+#[expect(clippy::collapsible_if, reason = "the welcome keeps its deployment content separate from the shared end")]
 pub(crate) fn top(
     b: &mut Builder,
     root: &temper_client_domain::Domain,
@@ -78,8 +79,6 @@ pub(crate) fn top(
             box_line(b, w);
             crate::pages::welcome::steps(b, root, w, bindings, *step);
         }
-        b.close();
-        return;
     }
     b.open(Role::Slot);
     b.style(look::TOP_END);

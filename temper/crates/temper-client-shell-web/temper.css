@@ -1107,11 +1107,13 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 :root:has(.temper-welcome) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
 #app:has(> .temper-welcome) { --temper-mono: var(--gf-sans); --temper-ink: var(--gf-ink); --temper-muted: var(--gf-muted); --temper-faint: var(--gf-faint); --temper-line: var(--gf-line); --temper-paper: var(--gf-surface); --temper-canvas: var(--gf-paper); }
 /* The top bar: the brand, temper box's line, the steps at its right. */
-#app:has(> .temper-welcome) > .temper-top { position: static; min-height: 0; flex-wrap: wrap; justify-content: space-between; padding: 22px 32px; border: 0; background: var(--gf-paper); gap: 12px 24px; }
+#app:has(> .temper-welcome) > .temper-top { position: static; min-height: 0; flex-wrap: wrap; justify-content: flex-end; padding: 22px 32px; border: 0; background: var(--gf-paper); gap: 12px 24px; }
+/* The end takes the free space when no steps show yet. */
+#app:has(> .temper-welcome) > .temper-top > .temper-brand + .temper-top-end { margin-left: auto; }
 #app:has(> .temper-welcome) .temper-brand { min-height: 34px; gap: 8px; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
 #app:has(> .temper-welcome) .temper-brand::before { content: '✦'; width: auto; height: auto; background: none; color: var(--gf-signal); font-weight: 400; }
 #app:has(> .temper-welcome) .temper-brand::after { display: none; }
-#app:has(> .temper-welcome) .temper-flow-steps { display: flex; align-items: center; gap: 0; margin: 0; padding: 0; counter-reset: gf-step; }
+#app:has(> .temper-welcome) .temper-flow-steps { display: flex; align-items: center; gap: 0; margin: 0 0 0 auto; padding: 0; counter-reset: gf-step; }
 #app:has(> .temper-welcome) .temper-flow-step { display: flex; align-items: center; padding: 0; border: 0; counter-increment: gf-step; color: var(--gf-muted); font: 400 14.5px/1.6 var(--gf-sans); }
 #app:has(> .temper-welcome) .temper-flow-step + .temper-flow-step::before { content: ''; width: 18px; height: 1px; margin: 0 4px; background: var(--gf-line-2); }
 #app:has(> .temper-welcome) .temper-flow-step > a { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 20px; color: inherit; text-decoration: none; }
@@ -1120,7 +1122,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app:has(> .temper-welcome) .temper-flow-step[aria-current] > a::before { border-color: var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); }
 #app:has(> .temper-welcome) .temper-flow-step.temper-flow-done > a::before { content: '✓'; border-color: var(--gf-good-line); background: var(--gf-good-pale); color: var(--gf-good); }
 /* temper box's line, between the brand and the steps; its own row when narrow. */
-#app:has(> .temper-welcome) .temper-welcome-box-line { margin: 0 auto 0 24px; font: 14px/1.6 var(--gf-sans); color: var(--gf-muted); }
+#app:has(> .temper-welcome) .temper-welcome-box-line { margin: 0 0 0 24px; font: 14px/1.6 var(--gf-sans); color: var(--gf-muted); }
 #app:has(> .temper-welcome) .temper-welcome-box-line strong { color: var(--gf-ink); font-weight: 600; }
 #app:has(> .temper-welcome) .temper-welcome-box-line > .temper-flow-quiet { font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app:has(> .temper-welcome) .temper-welcome-box-line > .temper-flow-quiet:hover { text-decoration-color: var(--gf-ink); }
