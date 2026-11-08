@@ -4,3 +4,38 @@ sources = ["temper/docs/plan/core-after-project/inputs/request.md", "AGENTS.md",
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "core-answers"
+title = "A deployment's core keeps answering after a project is made: the incident's acts as a failing story in the lowest world that hangs, before and after a restart on the same store, cut to the smallest sequence, what the core waits on named and fixed, and a store already in that state opening and answering"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/root.md, 9.1"
+
+[[slice]]
+id = 1
+story = "After the incident's acts (a goal run whole, a program account forgotten, settings revision 4 applied over 3, a refused declare, an account list, project 3 made), project show 3, me, account list, settings show and a fresh sign-in each answer within the world's bound, and again after a restart on the same store; the smallest sequence that hung is held beside the whole one"
+parts = ["core-answers"]
+walk = false
+
+[[part]]
+id = "core-says-why"
+title = "A core that does not answer says why: temper serve's log names what its gate waits on once a party's input has waited 1 s, a stopped journal ends the engine with its reason instead of staying up undeciding, and a sign-in answered not ready says temper is not ready"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 8.2"
+
+[[slice]]
+id = 2
+story = "A service whose gate stays shut writes temper serve: the core is not answering: starting: loading the core's records once a party's input has waited 1 s, and the core answers again when it opens; a journal stopped by a refused store answer ends the engine with temper serve: the engine's journal stopped: ...; a sign-in answered not ready to its deadline prints temper is not ready"
+parts = ["core-says-why"]
+walk = false
+
+[[question]]
+id = "not-ready-on-the-wire"
+text = "Request item 4 asks that a client's 30 s wait say what the core is busy with, not only that the link didn't come up. On today's wire the client cannot be told: while the engine's gate is shut (temper/crates/temper-service/src/clients/translation.rs, `not_ready`), a party's act or sign-in is answered `Again::NotReady`, a read `Why::Busy` and every watch, `me`'s among them, `WatchRefusal::Busy` (jig/crates/jig-domain-core/src/vocabulary.rs: no not-ready watch refusal), and no answer carries a reason. So the link, which `me` keeps (jig/docs/design/client/domain/client.md, 8.2), goes offline and `temper ctl` says `the link to the engine at ADDRESS did not come up within 30 s`, or, if `me` was last answered busy, that all the engine's watches are in use, which is false here. This plan builds what needs no wire change: temper serve's log names the reason (protocol/README.md, 8.2, task why-log), and a sign-in answered not ready says temper is not ready and points at that log (client/tools.md, 8.1, task sign-in-line). Telling the client more changes jig's client wire, a protocol, which the request makes a question first. Options: (a, recommended) yes, in place before v0.1.0, as a plan of its own of about three tasks: jig's `WatchRefusal` gains `NotReady` and the not-ready answers a `starting`/`not answering` reason with 8.2's step, in jig's core vocabulary, the clients' component, both translations and the wire (client-v19), with a `watches_full`-like `not_ready` fact on jig's client link; then temper's not-ready translation sends them and `temper ctl`'s deadline lines say `temper is starting: STEP` or `temper's core is not answering: REASON`; (b) the wire gains only `WatchRefusal::NotReady`, so the link's line says not ready without the reason, and the log alone names it; (c) no: the log and the sign-in's line are enough."
+parts = ["core-says-why"]
