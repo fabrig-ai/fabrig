@@ -2012,6 +2012,8 @@ from the engine's own answers, is where the look is tuned.
 | `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red; the whole story's `home.html`, and `phone-home.html` at a phone's width |
 | `all-home-nothing-new` | the four projects with nothing landed since the last look, no brief new and no need: the kicker, "The last change landed SPAN ago.", "Nothing needs you." and Projects |
 | `all-home-one-project` | one project read: no Projects, the headline "N changes landed in PROJECT." |
+| `all-home-away` | `all-home` with Away on for vsr-rs and cowsql: the switch and the chip "Away on 2 of 4", not pressed (`README.md`, 3.5, *Away*, *On All projects*) |
+| `all-home-away-on` | `all-home-away` after a press, each answer Away: the switch "Away until 08:00", pressed, and the toast "Away turned on for 2 projects: agents decide within their limits." |
 | `night-all-home` | `all-home` by night |
 | `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗" and a question (`../draft/surfaces.md`, 12, Pair) |
 | `home-step-team` | a project's Home with Decided for you and a question (12, Team) |
