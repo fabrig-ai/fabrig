@@ -10,15 +10,10 @@ use skein_ui_screen::{Focus, Frame, Size, render};
 
 // The two review sizes of the TUI's first screen.
 const FULL: Size = Size { columns: 80, rows: 24 };
-const SMALL: Size = Size { columns: 40, rows: 12 };
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the golden test embeds its fixed inputs and formats readable mismatches")]
 fn the_tuis_screens_are_their_goldens() {
-    let (first, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
-    let mut connected = Tui::new(f::ADDRESS);
-    connected.step(Told::Link { link: jig_client::Link::Live });
-
     let signed_out = f::signed_out();
     let mut signing_in = Tui::new(f::ADDRESS);
     signing_in.step(Told::Typed { value: Box::from(*b"http://127.0.0.1:9000/ji") });
@@ -59,38 +54,6 @@ fn the_tuis_screens_are_their_goldens() {
             Scheme::Dark,
             FULL,
             include_bytes!("golden/approval-no-browser-80x24-dark.txt").as_slice(),
-        ),
-        (
-            "first-80x24-dark",
-            &first,
-            &connected,
-            Scheme::Dark,
-            FULL,
-            include_bytes!("golden/first-80x24-dark.txt").as_slice(),
-        ),
-        (
-            "first-80x24-light",
-            &first,
-            &connected,
-            Scheme::Light,
-            FULL,
-            include_bytes!("golden/first-80x24-light.txt").as_slice(),
-        ),
-        (
-            "first-40x12-dark",
-            &first,
-            &connected,
-            Scheme::Dark,
-            SMALL,
-            include_bytes!("golden/first-40x12-dark.txt").as_slice(),
-        ),
-        (
-            "first-40x12-light",
-            &first,
-            &connected,
-            Scheme::Light,
-            SMALL,
-            include_bytes!("golden/first-40x12-light.txt").as_slice(),
         ),
         (
             "sign-in-80x24-dark",

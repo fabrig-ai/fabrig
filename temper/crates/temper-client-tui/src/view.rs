@@ -22,7 +22,6 @@ pub(crate) struct Binds {
     events: List<Event>,
 }
 impl Binds {
-    #[expect(dead_code, reason = "read by the task tui-foot of tui-launchpad")]
     pub(crate) fn bind(&mut self, event: Event) -> Binding {
         let token = Token::new(u64::from(self.events.len()).checked_add(4).expect("binding token fits"));
         self.events.push(event).expect("tree binding bound");
@@ -333,12 +332,8 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
             }
         }
         Act::Press => {
-            if bound.binding.token == look::QUIT {
-                Some(Event::Command { command: temper_client_domain::pages::terminal::Command::Exit })
-            } else {
-                let index = u32::try_from(bound.binding.token.raw().checked_sub(4)?).ok()?;
-                view.binds.events.get(index).cloned()
-            }
+            let index = u32::try_from(bound.binding.token.raw().checked_sub(4)?).ok()?;
+            view.binds.events.get(index).cloned()
         }
         Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
     }
