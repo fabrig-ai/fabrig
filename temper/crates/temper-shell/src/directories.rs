@@ -149,7 +149,8 @@ pub fn make_private(path: &Path, user: u32) -> Result<(), String> {
 }
 const CONFIG_BYTES: u32 = 1 << 20;
 
-fn errno(error: Error) -> i32 {
+#[must_use]
+pub fn errno(error: Error) -> i32 {
     match error {
         Error::Refused => 111,
         Error::Busy => 11,

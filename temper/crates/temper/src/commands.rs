@@ -296,6 +296,7 @@ pub fn find(words: &[Box<[u8]>]) -> Option<&'static Row> {
 pub(crate) fn unknown(words: &[Box<[u8]>]) -> String {
     TABLE.unknown(words)
 }
+#[expect(dead_code, reason = "the box keeps its forms wrapper over the shared table")]
 pub(crate) fn forms(row: &Row) -> String {
     TABLE.forms(row)
 }

@@ -70,7 +70,7 @@ mod tui;
 mod worker_alone;
 pub use host::{Host, ending as service_ending};
 use json::CONFIG_BYTES;
-use temper_shell::directories::unread;
+use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
