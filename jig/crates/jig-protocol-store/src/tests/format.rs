@@ -348,7 +348,7 @@ fn whole_file_admission_checks_the_manifests_exact_bound() {
 fn upstream_layouts_equal_the_kept_families_fingerprints() {
     let layouts = format::layouts();
     assert_eq!(layouts.skein_oauth, skein_oauth::FINGERPRINT);
-    let smith = skein_codec::schema::parse(include_bytes!("fixtures/smith-transcript-v6.schema"))
+    let smith = skein_codec::schema::parse(include_bytes!("fixtures/smith-transcript-v7.schema"))
         .expect("checked smith schema");
     assert_eq!(layouts.smith_transcript, smith.fingerprints().family().digest());
 }

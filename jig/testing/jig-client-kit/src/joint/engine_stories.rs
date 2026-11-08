@@ -43,7 +43,7 @@ impl LongTextStory {
         receiving.client.domain.turn_bytes = 1_048_576;
         receiving.client.domain.accounts = jig_client::AccountCounts { accounts: 16, sources: 8, sign_ins: 4 };
         let codec = jig_protocol_transcript::Limits {
-            smith: smith_transcript::v6::CEILINGS,
+            smith: smith_transcript::v7::CEILINGS,
             bytes: 1_048_576,
             turn: client::TurnLimits { messages: 2, blocks: 2, text: 2048, outcome: 2048 },
         };

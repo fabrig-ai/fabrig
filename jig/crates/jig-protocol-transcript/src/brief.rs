@@ -19,7 +19,7 @@ fn blocks(turn: &Turn, output: &mut Output) {
             Speaker::Person => b"person: ",
             Speaker::Assistant => b"assistant: ",
             Speaker::Tool => b"tool: ",
-            Speaker::System => b"system: ",
+            Speaker::System => continue,
         };
         for block in &message.blocks {
             match block {

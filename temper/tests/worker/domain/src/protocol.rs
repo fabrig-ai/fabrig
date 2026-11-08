@@ -80,6 +80,7 @@ pub fn charter() -> Box<[u8]> {
 pub fn session_turn(sequence: u32, spent: u64, length: usize, first: bool) -> record::Turn {
     let kind = if first {
         record::Kind::First(Box::new(record::Opener {
+            system: None,
             affinity: llm::Affinity { key: [5; 16], thread: 0 },
             account: Some(0),
             backend: record::Backend::Direct,

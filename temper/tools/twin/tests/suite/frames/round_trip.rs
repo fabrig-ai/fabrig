@@ -6,7 +6,7 @@ use super::{
 use serde_json::{Value, json};
 use skein_fake_llm_domain::{self as fake, api};
 use skein_fake_llm_protocol::documents;
-use skein_lib::{Env, Queue, Reader, ReplyTo, Time, Token, Wall, Writer};
+use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall, Writer};
 use skein_llm::openai::{self, Output, Part};
 use smith_transcript::{self as smith, Block, Turn, TurnParts};
 use temper_twin::{Input, Replace, twin};
@@ -134,9 +134,8 @@ fn replay(input: &Input, document: &[u8]) {
             assert!(out.is_empty(), "one reply per turn");
             let answer = result.expect("scripted answer");
             let (blocks, usage) = decoded(&answer);
-            let mut parts = Turn::decode(&smith::CEILINGS, &mut Reader::new(&record.transcript))
-                .expect("recorded turn")
-                .into_parts();
+            let mut parts =
+                smith::decode_archived(&smith::CEILINGS, &record.transcript).expect("recorded turn").into_parts();
             completion(&mut parts, blocks);
             parts.usage = usage;
             let turn = Turn::new(&smith::CEILINGS, parts).expect("replayed turn");

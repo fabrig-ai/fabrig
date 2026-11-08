@@ -892,7 +892,7 @@ pub(crate) fn cancel() -> skein_channel::Frame {
 fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = crate::start_workspace_message(charter, 8, false, None, value, None);
     crate::wire::edit_start(&frame, |start| {
-        let source = include_bytes!("../../../crates/smith-transcript/golden/v6/record_turn_smallest.bin");
+        let source = include_bytes!("../../../crates/smith-transcript/golden/v7/record_turn_smallest.bin");
         let mut turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(source))
             .expect("turn fixture")
             .into_parts();
@@ -901,7 +901,7 @@ fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_c
             smith_transcript::Opening::decode(
                 &smith_transcript::CEILINGS,
                 &mut Reader::new(include_bytes!(
-                    "../../../crates/smith-transcript/golden/v6/record_opening_smallest.bin"
+                    "../../../crates/smith-transcript/golden/v7/record_opening_smallest.bin"
                 )),
             )
             .expect("opening fixture"),
