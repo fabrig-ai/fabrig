@@ -5880,6 +5880,9 @@ The settings, their revisions and their proposals are
 `domain/engine.md`, section 17; the draft is `../draft/configuring.md`,
 section 5.
 
+Ask temper is reached from the rail and tab bar (5.3), with no chat offer
+on this tab.
+
 - **The tab,** `Settings { project }` (3.5, *Settings*), under its tabs: its
   sections 44 apart, each a section title and its rows, each row a label,
   small words and a control at its right, a phone stacking them:
@@ -7686,6 +7689,13 @@ own tests:
   (`browser.md`, section 4).
 
 ## 11. Open questions
+
+- **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
+  Claude Code through a proposal and an owner's Accept, then judge its
+  instructions. The opening keeps the configuring page's starters and reference;
+  an opening led by a question remains a separate look decision. Views,
+  sketches and preferences join at M3 and M4 of
+  `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
 
 - **The TUI's later passes** (6.11 to 6.16, 7.1): beyond the first
   screen, the launchpad, chats, the side pane, needs from

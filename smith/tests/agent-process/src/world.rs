@@ -8,8 +8,8 @@ use crate::fake;
 mod coding;
 mod peer;
 mod setup;
-pub use peer::TraceCase;
 use peer::child_charter;
+pub use peer::{TraceCase, long_child_answer};
 pub(crate) use setup::{Mode, ParentOptions, Setup};
 pub(crate) mod orders;
 pub use orders::{Order, OrderSnapshot};
@@ -1065,7 +1065,8 @@ impl World {
     pub fn observe_facts(&mut self, case: TraceCase, frames: u32) {
         self.setup.tracing = Some((case, frames));
         self.cancel = case == TraceCase::Cancelled;
-        if case == TraceCase::ChildAnswered || case == TraceCase::ThreeChildren {
+        if case == TraceCase::ChildAnswered || case == TraceCase::LongChildAnswered || case == TraceCase::ThreeChildren
+        {
             self.charter = child_charter(&self.charter);
         }
         if case == TraceCase::Parked || case == TraceCase::Refused {
@@ -1180,7 +1181,10 @@ impl World {
     fn maximum_queries(&self) -> usize {
         let scenario = if matches!(self.setup.tracing, Some((TraceCase::ThreeChildren, _))) {
             5
-        } else if matches!(self.setup.tracing, Some((TraceCase::ChildAnswered | TraceCase::StoppedReasoning, _))) {
+        } else if matches!(
+            self.setup.tracing,
+            Some((TraceCase::ChildAnswered | TraceCase::LongChildAnswered | TraceCase::StoppedReasoning, _))
+        ) {
             3
         } else if self.environment || self.setup.tracing.is_some() || self.saved_window.is_some() {
             2
