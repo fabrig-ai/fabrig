@@ -1,0 +1,25 @@
+draft = "ui-authorize-red"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-authorize-red/inputs/request.md", "temper/tests/client-browser/tests/browser_all/browser_authorize.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "repair"
+title = "red-71: the cross-site authorization story finds its code again, its cause fixed where it sits"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/sign-in.md, 9.3"
+
+[[slice]]
+id = 1
+story = "browser_authorize::a_cross_site_authorization_returns_a_code_and_the_links_state reaches \"Authorization received\" after the restart, its checks unchanged"
+parts = ["repair"]
+walk = false
