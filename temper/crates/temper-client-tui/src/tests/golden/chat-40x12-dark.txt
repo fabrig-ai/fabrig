@@ -1,4 +1,4 @@
- ✦ Hello / What landed overnight? T2
+  2. csv-export: the export button on
     the report page.
   3. fix-login: a session no longer ends
     when the forge restarts.
@@ -6,28 +6,28 @@
   whether the file separates its
   values with a comma or a
 ✦ working
-────────────────────────────────────────
+───────────── Hello / What landed… T2 ──
 ❯ Reply
 ────────────────────────────────────────
  / for commands · 1 needs you    ● Live
 --
-.aabbbbbcccbbbbbbbbbbbbbbbbbbbbbbddd....
 ........................................
 ........................................
 ........................................
 ........................................
 ........................................
-..........................e.............
-adddddddd...............................
-cccccccccccccccccccccccccccccccccccccccc
-aaccccc.................................
-cccccccccccccccccccccccccccccccccccccccc
-.dddddddddddddddddaaaaaaaaaaa....ffffff.
+........................................
+..........................a.............
+bcccccccc...............................
+ddddddddddddddeeeeedddeeeeeeeeeeeecccddd
+bbddddd.................................
+dddddddddddddddddddddddddddddddddddddddd
+.cccccccccccccccccbbbbbbbbbbb....ffffff.
 --
-a: fore #E08A68
-b: bold
-c: fore #6A655C
-d: fore #9A9388
-e: reverse
+a: reverse
+b: fore #E08A68
+c: fore #9A9388
+d: fore #6A655C
+e: bold
 f: fore #8FC28F
 cursor 9 2

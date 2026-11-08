@@ -56,20 +56,17 @@ fn the_themes_are_valid_and_name_every_look() {
                     1,
                 ),
                 (1, "tui-bottom", Place::Bottom, Arrange::Spread, None, 1),
-                (2, "tui-chat-top", Place::Top, Arrange::Spread, None, 1),
-                (3, "tui-sections", Place::Body, Arrange::Lines, None, 1),
-                (4, "tui-working", Place::Bottom, Arrange::Lines, None, 0),
+                (2, "tui-sections", Place::Body, Arrange::Lines, None, 1),
+                (3, "tui-working", Place::Bottom, Arrange::Lines, None, 0),
                 (
-                    5,
+                    4,
                     "tui-box",
                     Place::Bottom,
                     Arrange::Lines,
-                    Some(Border {
-                        corners, across: '─', down: '│', paint: fore(faint), title: false, sides: false
-                    }),
+                    Some(Border { corners, across: '─', down: '│', paint: fore(faint), title: true, sides: false }),
                     0,
                 ),
-                (6, "tui-list", Place::Bottom, Arrange::Lines, None, 0),
+                (5, "tui-list", Place::Bottom, Arrange::Lines, None, 0),
             ] {
                 let region = Region { owner: look::OWNER, number };
                 let want = RegionLook { region, place, arrange, border, pad, paint: Paint::NONE };
@@ -98,9 +95,8 @@ fn the_themes_are_valid_and_name_every_look() {
                 (9, "tui-byline", fore(dim), Align::End, false, None, None, false, true),
                 (10, "tui-head", Paint { bold: true, ..Paint::NONE }, Align::Start, false, None, None, false, true),
                 (11, "tui-signal", fore(accent), Align::Start, false, None, None, false, true),
-                (12, "tui-star", fore(accent), Align::Start, false, None, None, false, true),
                 (
-                    13,
+                    12,
                     "tui-said",
                     if back.is_some() { Paint { back, ..Paint::NONE } } else { fore(dim) },
                     Align::Start,
@@ -110,15 +106,15 @@ fn the_themes_are_valid_and_name_every_look() {
                     false,
                     true,
                 ),
-                (14, "tui-agent", Paint::NONE, Align::Start, false, star, None, false, true),
-                (15, "tui-run", fore(dim), Align::Start, false, dim_mark, None, false, true),
-                (16, "tui-run-failed", fore(accent), Align::Start, false, None, None, false, true),
-                (17, "tui-dots", fore(faint), Align::Start, false, star, None, false, true),
-                (18, "tui-running", fore(dim), Align::Start, false, star, None, false, true),
-                (19, "tui-end", Paint { reverse: true, ..Paint::NONE }, Align::Start, false, None, None, false, true),
-                (20, "tui-field", Paint::NONE, Align::Start, false, None, None, false, false),
+                (13, "tui-agent", Paint::NONE, Align::Start, false, star, None, false, true),
+                (14, "tui-run", fore(dim), Align::Start, false, dim_mark, None, false, true),
+                (15, "tui-run-failed", fore(accent), Align::Start, false, None, None, false, true),
+                (16, "tui-dots", fore(faint), Align::Start, false, star, None, false, true),
+                (17, "tui-running", fore(dim), Align::Start, false, star, None, false, true),
+                (18, "tui-end", Paint { reverse: true, ..Paint::NONE }, Align::Start, false, None, None, false, true),
+                (19, "tui-field", Paint::NONE, Align::Start, false, None, None, false, false),
                 (
-                    21,
+                    20,
                     "tui-list-head",
                     Paint { bold: true, ..Paint::NONE },
                     Align::Start,
@@ -129,7 +125,7 @@ fn the_themes_are_valid_and_name_every_look() {
                     true,
                 ),
                 (
-                    22,
+                    21,
                     "tui-option",
                     Paint { bold: true, ..Paint::NONE },
                     Align::Start,
@@ -139,10 +135,10 @@ fn the_themes_are_valid_and_name_every_look() {
                     false,
                     true,
                 ),
-                (23, "tui-note", fore(dim), Align::Start, false, None, None, false, true),
-                (24, "tui-spaced", Paint::NONE, Align::Start, false, None, None, true, true),
+                (22, "tui-note", fore(dim), Align::Start, false, None, None, false, true),
+                (23, "tui-spaced", Paint::NONE, Align::Start, false, None, None, true, true),
                 (
-                    25,
+                    24,
                     "tui-command",
                     Paint { bold: true, ..Paint::NONE },
                     Align::Start,
@@ -153,7 +149,7 @@ fn the_themes_are_valid_and_name_every_look() {
                     true,
                 ),
                 (
-                    26,
+                    25,
                     "tui-bullets",
                     Paint::NONE,
                     Align::Start,
@@ -164,7 +160,7 @@ fn the_themes_are_valid_and_name_every_look() {
                     true,
                 ),
                 (
-                    27,
+                    26,
                     "tui-left-off",
                     Paint::NONE,
                     Align::Start,
@@ -175,7 +171,7 @@ fn the_themes_are_valid_and_name_every_look() {
                     true,
                 ),
                 (
-                    28,
+                    27,
                     "tui-picked",
                     Paint { back, ..fore(accent) },
                     Align::Start,
@@ -185,7 +181,7 @@ fn the_themes_are_valid_and_name_every_look() {
                     false,
                     true,
                 ),
-                (29, "tui-rule-title", Paint::NONE, Align::End, false, None, None, false, true),
+                (28, "tui-rule-title", Paint::NONE, Align::End, false, None, None, false, true),
             ] {
                 let style = Style { owner: look::OWNER, token };
                 let active_name = if style == look::COMMAND { Some(Paint::NONE) } else { None };
