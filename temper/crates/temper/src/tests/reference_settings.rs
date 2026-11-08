@@ -169,7 +169,7 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(later.subagents, llm.subagents);
 }
 
-// Every pinned rule belongs to exactly one text, selected by its part's on names.
+// Rules pin the shared instructions or the wake parts selected by their on names.
 fn coordinator_rules(coordinator: &settings_form::view::Charter) {
     let shared = "shared";
     let cut = "first";
@@ -188,6 +188,23 @@ fn coordinator_rules(coordinator: &settings_form::view::Charter) {
         texts.push((on, std::str::from_utf8(part.instructions.bytes()).expect("part")));
     }
     assert_eq!(texts.iter().map(|(on, _)| on.as_str()).collect::<Vec<_>>(), [shared, cut, questions, results, news]);
+    coordinator_shared_rules(&texts);
+    coordinator_part_rules(&texts);
+    coordinator_news_rules(&texts);
+    coordinator_dependencies(&texts);
+    for (on, text) in &texts {
+        assert!(
+            !text.contains("On your first run, once your first batch is made, subscribe with `subscribe_forge` to the landings on main in your repository."),
+            "{on}: the core already subscribes the goal to its changes' landings"
+        );
+    }
+    assert!(texts.iter().find(|(on, _)| on == results).expect("results part").1.ends_with(
+        "If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
+    ));
+}
+
+fn coordinator_shared_rules(texts: &[(String, &str)]) {
+    let shared = "shared";
     for (phrase, place) in [
         (r#""producer": 7"#, shared),
         (r#""questions": "foreman""#, shared),
@@ -212,6 +229,17 @@ fn coordinator_rules(coordinator: &settings_form::view::Charter) {
         ("the lints and the focused tests of the packages it changes", shared),
         ("as charter 2 runs them", shared),
         ("never for a slow tier or a walk, which run after landing", shared),
+        ("with `note`", shared),
+    ] {
+        coordinator_phrase(texts, phrase, place);
+    }
+}
+
+fn coordinator_part_rules(texts: &[(String, &str)]) {
+    let cut = "first";
+    let questions = "question question_answered question_ended question_owed";
+    let results = "escalation proposal person_stalled result notice nothing_awaited";
+    for (phrase, place) in [
         ("Where a request settles its changes with no shape for the code to follow", cut),
         ("write no design, say so in your report note, and make its changes", cut),
         ("The core subscribes you to the landings on each branch your changes target", cut),
@@ -228,10 +256,17 @@ fn coordinator_rules(coordinator: &settings_form::view::Charter) {
             "If you finish without a landing, say why in your report; your goal branch is kept for a person to read.",
             results,
         ),
+    ] {
+        coordinator_phrase(texts, phrase, place);
+    }
+}
+
+fn coordinator_news_rules(texts: &[(String, &str)]) {
+    let news = "news timer";
+    for (phrase, place) in [
         ("delegate its triage to charter 8", news),
         (r#""repairs""#, news),
         ("a red of your goal branch's tier", news),
-        ("with `note`", shared),
         (
             "When main moves under your goal, you hear a landing into main that touches your goal's open work as news.",
             news,
@@ -245,19 +280,27 @@ fn coordinator_rules(coordinator: &settings_form::view::Charter) {
             news,
         ),
     ] {
-        for (on, text) in &texts {
-            assert_eq!(text.contains(phrase), on == place, "{phrase:?}: expected only in {place}, checked {on}");
+        coordinator_phrase(texts, phrase, place);
+    }
+}
+
+fn coordinator_phrase(texts: &[(String, &str)], phrase: &str, place: &str) {
+    for (on, text) in texts {
+        assert_eq!(text.contains(phrase), on == place, "{phrase:?}: expected only in {place}, checked {on}");
+    }
+}
+
+fn coordinator_dependencies(texts: &[(String, &str)]) {
+    for (on, text) in texts {
+        if on == "shared" || on == "escalation proposal person_stalled result notice nothing_awaited" {
+            assert!(text.contains("Use after only for live prerequisites;"));
+            assert!(text.contains(
+                "once design has landed into g, cite its path and section in words and omit its ended task from after"
+            ));
         }
+        assert!(!text.contains("each \"after\" its dependencies, made or in the same call"));
+        assert!(!text.contains("a later call naming an earlier one's changes in \"after\""));
     }
-    for (on, text) in &texts {
-        assert!(
-            !text.contains("On your first run, once your first batch is made, subscribe with `subscribe_forge` to the landings on main in your repository."),
-            "{on}: the core already subscribes the goal to its changes' landings"
-        );
-    }
-    assert!(texts.iter().find(|(on, _)| on == results).expect("results part").1.ends_with(
-        "If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
-    ));
 }
 
 #[test]
