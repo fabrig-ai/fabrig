@@ -76,7 +76,9 @@ pub(crate) struct Referee {
 impl Referee {
     fn story_deadline(&self) -> Time {
         Time::from_nanos(if matches!(self.story, crate::world::Story::PlaygroundA) {
-            30_000_000_000
+            // The paced story takes 44.8 simulated seconds in the playground world
+            // (temper/docs/design/domain/testing.md, 6.1).
+            60_000_000_000
         } else {
             10_000_000_000
         })

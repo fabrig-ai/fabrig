@@ -43,6 +43,8 @@ pub struct Outcome {
     pub stopped: Option<Stopped>,
     pub verdict: skein_world::domain::Verdict,
     pub peaks: Option<Vec<u64>>,
+    /// Names in the same process-index order as `peaks`.
+    pub process_names: Vec<&'static str>,
     pub signed_in: u32,
     pub settings_revision: u32,
     pub chats_answered: u32,
@@ -109,6 +111,21 @@ pub struct Pushed {
     pub branch: Box<[u8]>,
     pub commit: u64,
     pub parents: Vec<u64>,
+}
+
+fn process_name(process: &Proc) -> &'static str {
+    match process {
+        Proc::Service(_) => "service (engine + worker)",
+        Proc::Peer(_) => "fake LLM",
+        Proc::Forge(_) => "fake forge HTTP",
+        Proc::Git(_) | Proc::GitRoute(_) => "git",
+        Proc::Agent(_) | Proc::List(_) => "agent",
+        Proc::Shell(_) => "shell",
+        Proc::Visitor(_) => "visitor",
+        Proc::Other(HarnessProcess::Client(_)) => "terminal client + person",
+        Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => "ctl",
+        Proc::Other(HarnessProcess::ProgramSource(_)) => "fake program provider",
+    }
 }
 // Smaller than the fixture's stored stock policy, while its shape still decodes.
 const REFUSED_POLICY_BYTES: u32 = 512;
@@ -1256,6 +1273,7 @@ fn run_phase(
     let result = Outcome {
         stopped: None,
         peaks: outcome.peaks(),
+        process_names: outcome.procs.iter().map(process_name).collect(),
         verdict: skein_world::domain::Verdict::Passed,
         signed_in,
         settings_revision: settings_revision(&records),

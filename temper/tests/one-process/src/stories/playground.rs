@@ -48,7 +48,7 @@ pub(crate) fn person() -> (Vec<Step<Address>>, Vec<u32>) {
                 if let Some(text) = line["text"].as_str() {
                     steps.push(Step::See {
                         find: Find::text(text.as_bytes()),
-                        within: skein_lib::Duration::from_secs(30),
+                        within: skein_lib::Duration::from_secs(60),
                     });
                 }
             }
