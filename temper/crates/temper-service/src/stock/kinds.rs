@@ -88,6 +88,14 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             per_scope: 1,
             charters: 0,
         },
+        Kind {
+            number: 8,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::Classes(temper_protocol_reaches::largest())),
+            per_scope: 1,
+            charters: 0,
+        },
     ])
 }
 

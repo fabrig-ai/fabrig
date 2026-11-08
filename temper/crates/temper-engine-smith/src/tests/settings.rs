@@ -705,24 +705,42 @@ fn a_runs_proposal_carries_the_forges_charter_number() {
 
 #[test]
 fn settings_proposals_carry_typed_project_questions() {
-    let call = decided(b"propose_settings", br#"{"against":1,"reason":"questions","items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#).expect("questions proposal");
-    let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
-    let value =
-        temper_engine_domain_forge::settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman);
-    let size = u32::try_from(crate::kinds::encode(&value).len()).expect("questions encoding");
-    assert_eq!(
-        kinds.as_ref(),
-        &[engine::KindValue {
-            kind: 6,
-            scope: 7,
-            number: 1,
-            value: temper_engine_domain_forge::settings::SizedValue { value, size }
-        }]
-    );
+    for (input, kind, value) in [
+        (
+            br#"{"against":1,"reason":"questions","items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#.as_slice(),
+            6,
+            temper_engine_domain_forge::settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman),
+        ),
+        (
+            br#"{"against":1,"reason":"classes","items":[{"setting":{"kind":"project-classes","project":7},"set":{"items":[{"kind":"implementation","class":"decide"}],"sets":[]}}]}"#,
+            8,
+            temper_engine_domain_forge::settings::Value::Classes(temper_protocol_reaches::Classes {
+                items: Box::new([temper_protocol_reaches::Item {
+                    subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Implementation),
+                    words: Box::default(),
+                    class: temper_protocol_reaches::Class::Decide,
+                }]),
+                sets: Box::default(),
+            }),
+        ),
+    ] {
+        let call = decided(b"propose_settings", input).expect("project settings proposal");
+        let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
+        let size = u32::try_from(crate::kinds::encode(&value).len()).expect("project setting encoding");
+        assert_eq!(
+            kinds.as_ref(),
+            &[engine::KindValue {
+                kind,
+                scope: 7,
+                number: 1,
+                value: temper_engine_domain_forge::settings::SizedValue { value, size }
+            }]
+        );
+    }
 }
 #[test]
 fn project_settings_reads_require_project_and_refuse_number() {
-    for (kind, number) in [("project-ways", 7), ("project-questions", 6)] {
+    for (kind, number) in [("project-ways", 7), ("project-questions", 6), ("project-classes", 8)] {
         let bytes = format!(r#"{{"setting":{{"kind":"{kind}","project":7}},"revision":2}}"#);
         let call = decided(b"settings", bytes.as_bytes()).expect("project read");
         assert_eq!(
@@ -915,7 +933,7 @@ fn inventory_people_forms_share_repository_pagination() {
     )
     .into_parts();
     assert!(error);
-    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n", "context belongs only to an inventory");
+    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways, project-questions and project-classes take project and no number.\nend\n", "context belongs only to an inventory");
 }
 
 #[test]

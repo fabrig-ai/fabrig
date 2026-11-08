@@ -33,9 +33,9 @@ pub(crate) fn decode(value: &Value) -> Result<Result<Tool, HostAnswer>, Problem>
 /// The most an answer's body holds (domain/agent.md, 8.4.1).
 pub const SEE_PART: u32 = 6_144;
 /// The line of addresses an unknown address answers with, as `ask.txt` gives it.
-pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
+pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions | project-classes] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
 
-const INVENTORY: &[u8] = "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings".as_bytes();
+const INVENTORY: &[u8] = "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings".as_bytes();
 const SETTING: &[u8] = "settings · revisions · help settings-fields".as_bytes();
 const LANDING_RULE: &[u8] = "settings landing · settings · help landing-rule".as_bytes();
 const FILE: &[u8] = "file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME".as_bytes();
@@ -129,7 +129,10 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
         }
         SeeAnswer::Gates(_) => "settings landing · file OWNER/NAME PATH".as_bytes(),
         SeeAnswer::Proposal(_) => "revision N · revisions · help proposal".as_bytes(),
-        SeeAnswer::Ways(_) => "settings rules · settings landing · settings project-ways · help settings".as_bytes(),
+        SeeAnswer::Ways(_) => {
+            "settings rules · settings landing · settings project-ways · settings project-classes · help settings"
+                .as_bytes()
+        }
         SeeAnswer::NotYet | SeeAnswer::Unknown => unreachable!("errors have no following addresses"),
     }
 }
