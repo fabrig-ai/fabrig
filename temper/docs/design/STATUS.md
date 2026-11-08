@@ -729,7 +729,14 @@ and no run on record reads the tier as it stands against its 540 CPU s.
 The fake box keeps two walks, `here_key`
 and the browser tab; the ten others' behaviour runs in the joint world, the
 real loop, the one-process world and the fake's own stories, and the tier's
-CPU without them is read after landing. The copy stories' world and the
+CPU without them is read after landing. B0's two offline proofs and the
+managed sitting's Ready joined the tier by name, with no pass there on
+record, and the sitting's driver still sets up its fake half otherwise
+than the test; the six tests that need a person name what in their
+reasons, and the playground's heap at start and the forge's two-change
+hint profile are bound in the focused suite, the heap on figures past a
+quarter above 11-03's (`domain/testing.md`, 2.6, 2.7 and 11;
+`playground.md`, 9). The copy stories' world and the
 issuer's log story depart from the request `walks-lower`, and polling past a
 hook that delivers nothing stands on the forge's world alone
 (`domain/testing.md`, 2.6 and 11; `protocol/setup.md`, 5.6). Reusable listener ports come from

@@ -7,7 +7,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};
-use skein_ui::{Builder, Role};
+use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::{Domain, pages::terminal::Note};
 use temper_client_view::shared;
 
@@ -38,19 +38,13 @@ fn help_line(name: &[u8], description: &[u8], longest: usize, lines: &mut List<B
     lines.push(join(&[&out.finish(), description])).expect("help lines counted");
 }
 fn help(root: &Domain, tui: &Tui, words: &Words, lines: &mut List<Box<[u8]>>) {
-    let commands = crate::offered(root, words);
+    let commands = super::lists::command_items(root, tui, words);
     let mut longest = 0_usize;
     for command in &commands {
-        longest = longest.max(command.name().len());
-    }
-    if tui.front() {
-        longest = longest.max(crate::LOG_COMMAND.len());
+        longest = longest.max(command.name.len());
     }
     for command in commands {
-        if tui.front() && command == temper_client_domain::pages::terminal::Command::Exit {
-            help_line(crate::LOG_COMMAND, &words.say(Word::LogCommand, &[]), longest, lines);
-        }
-        help_line(command.name(), &super::lists::description(command, words, tui.front()), longest, lines);
+        help_line(&command.name, &command.words, longest, lines);
     }
     for key in [
         Word::KeyEnter,
@@ -60,15 +54,18 @@ fn help(root: &Domain, tui: &Tui, words: &Words, lines: &mut List<Box<[u8]>>) {
         if tui.front() { Word::KeyCloseFront } else { Word::KeyClose },
     ] {
         lines.push(words.say(key, &[])).expect("help keys counted");
+        if key == Word::KeyEsc && crate::offered_own(root, tui).contains(&crate::Own::Needs) {
+            lines.push(words.say(Word::KeyWalk, &[])).expect("walk key counted");
+        }
     }
 }
 pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
     let mut lines = List::with_capacity(
         8_u32
-            .checked_mul(18)
-            .expect("eight notes, thirteen commands and five keys")
-            .checked_add(1)
-            .expect("TUI note fits")
+            .checked_mul(25)
+            .expect("eight notes, nineteen commands and six keys")
+            .checked_add(3)
+            .expect("unknown, walk and opener notes fit")
             .checked_add(limits::BOX_LOG)
             .expect("box log fits")
             .checked_add(2)
@@ -84,6 +81,12 @@ pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
     }
     if let Some(unknown) = tui.unknown() {
         lines.push(shared::note(&Note::Unknown { words: unknown.into() })).expect("TUI note counted");
+    }
+    if tui.walk().is_some() && super::lists::walk(root, tui, words).is_none() {
+        lines.push(words.say(Word::WalkDone, &[])).expect("walk note counted");
+    }
+    if let Some(address) = tui.not_opened() {
+        lines.push(words.say(Word::OpenAt, &[Hole::Name(address.into())])).expect("opener note counted");
     }
     Notes { lines: lines.into_boxed(), gave_up: front::gave_up_note(tui, words), log: front::log_note(tui, words) }
 }

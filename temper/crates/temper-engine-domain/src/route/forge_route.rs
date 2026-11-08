@@ -1789,7 +1789,7 @@ pub(crate) fn run_workspace(
     let modify = match context.executor {
         tasks::Executor::Agent { charter } => match domain.core.charter(charter) {
             Some(charter) => {
-                if crate::asking(charter.policy.tools) {
+                if crate::no_workspace(&charter.policy) {
                     return Some(status_route::workspace(context.task));
                 }
                 charter.policy.modify

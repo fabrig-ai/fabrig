@@ -301,6 +301,10 @@ pub enum FromTransport {
     StreamGone {
         stream: Token,
     },
+    /// An exchange's connection ended before its reply (protocol/client.md, 4.2).
+    ExchangeGone {
+        exchange: Token,
+    },
     PublicRead {
         exchange: Token,
         read: PublicRead,

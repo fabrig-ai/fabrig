@@ -1,0 +1,18 @@
+walk 1
+see "then press Approve."
+approve
+see "Ask for a change, or ask temper."
+key paste "/change Add a CSV export to the report"
+key enter
+see "A CSV export question waits for you."
+key paste "/new"
+key enter
+see "n to walk"
+see "/chats 1"
+mark
+key char "n"
+see "Next"
+mark
+key enter
+see "Nothing else needs you."
+end
