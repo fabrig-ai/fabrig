@@ -92,6 +92,7 @@ pub struct LinkView<'a> {
     pub streams_full: Option<domain::StreamsFull>,
     pub watches_full: bool,
     pub credential: Option<&'a Secret>,
+    pub expires: Option<Wall>,
 }
 #[derive(Debug)]
 pub(crate) struct DeferredRead {
@@ -354,6 +355,10 @@ impl Client {
             not_signed_in: self.not_signed_in,
             credential: match &self.link {
                 Some(link) => link.credential(),
+                None => None,
+            },
+            expires: match &self.link {
+                Some(link) => link.expires(),
                 None => None,
             },
         }

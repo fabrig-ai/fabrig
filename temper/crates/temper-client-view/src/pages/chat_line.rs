@@ -167,7 +167,7 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
         let tool = call.source.tool.bytes();
         let mut earlier = false;
         for previous in calls.get(..at).expect("earlier calls") {
-            if previous.source.tool.bytes() == tool {
+            if same_group(previous, call) {
                 earlier = true;
                 break;
             }
@@ -175,18 +175,16 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
         if earlier {
             continue;
         }
-        let table = tool_words(tool, &call.touched);
+        let table = completed_words(call.source, &call.touched);
         let mut count = 0_u64;
         for (index, other) in calls.iter().enumerate() {
-            if other.source.tool.bytes() != tool {
+            if !same_group(other, call) {
                 continue;
             }
             let mut repeated = false;
             if let Some(table) = &table {
                 for previous in calls.get(..index).expect("earlier calls") {
-                    if previous.source.tool.bytes() == tool
-                        && same_argument(table.count, &previous.touched, &other.touched)
-                    {
+                    if same_group(previous, call) && same_argument(table.count, &previous.touched, &other.touched) {
                         repeated = true;
                         break;
                     }
@@ -215,6 +213,10 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
         out.put(part).expect("measured phrase");
     }
     out.finish()
+}
+fn same_group(first: &Call<'_>, other: &Call<'_>) -> bool {
+    first.source.tool.bytes() == other.source.tool.bytes()
+        && (first.source.tool.bytes() != b"propose_settings" || first.source.failed == other.source.failed)
 }
 #[derive(Clone, Copy)]
 enum Count {
@@ -313,11 +315,23 @@ fn counted(tool: &[u8], table: Option<&ToolWords>, count: u64, words: &Words) ->
         None => words.say(Word::WorkRepeated, &[crate::cards::name(&cut(tool, 256)), Hole::Number(count)]),
     }
 }
+fn completed_words(call: &c::Call, touched: &Touched) -> Option<ToolWords> {
+    let mut table = tool_words(call.tool.bytes(), touched)?;
+    if call.tool.bytes() == b"propose_settings" && call.failed {
+        table.one = Word::WorkProposalFailed;
+        table.many = Word::WorkProposalFailedCount;
+        table.alone = Word::WorkProposalFailed;
+    }
+    Some(table)
+}
 fn alone(call: &c::Call, words: &Words) -> Box<[u8]> {
     let touched = calls::touched(call.tool.bytes(), call.input.bytes());
-    let Some(table) = tool_words(call.tool.bytes(), &touched) else {
+    let Some(table) = completed_words(call, &touched) else {
         return skein_lib::bytes::copy_of(call.tool.bytes());
     };
+    if call.tool.bytes() == b"propose_settings" {
+        return capitalized(counted(call.tool.bytes(), Some(&table), 1, words), true);
+    }
     let argument = match &touched {
         Touched::Doc { topic, .. } => topic.clone(),
         Touched::Search { .. }

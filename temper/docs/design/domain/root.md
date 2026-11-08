@@ -288,6 +288,15 @@ release(root):   (the service's iterate)
   (`Journal::stop`, skein's `lib.md`, 11), and nothing held or at the
   door leaves again; a failed commit fails it as jig's journal says
   (jig's `domain/root.md`, section 4).
+- **A stopped journal ends the engine, naming why.** A store answer the
+  journal refuses (skein's `lib.md`, 11: an answer outside the order the
+  commits were sent) stops it as the stops above do. Whichever stopped
+  it, the root emits `Stop` in the same step, with what stopped it: the
+  commit that failed, the answer refused with the commits sent and
+  durable, the decision past the store's edge, or the counter at its
+  end. A root whose journal has stopped never stays up undeciding: the
+  engine ends with that reason in its log (`../protocol/README.md`,
+  8.2).
 
 ### 4.1 The byte budget
 
@@ -1162,6 +1171,14 @@ testing-strategy.md, 6).
 
 ## 13. Open questions
 
+- **A public read returning 503 after a project is made** (5.7, 9.1):
+  the `core-after-project` request reports it alongside clients whose
+  links never come up, across a restart. A client rejecting `me` for too
+  many memberships explains those links, but not the service refusing
+  that public read. Default: no further core repair without evidence of
+  a shut gate; the service's reason line (`../protocol/README.md`, 8.2)
+  must identify what holds it before attributing another occurrence to
+  the calendar, startup or the journal.
 - **A party's fair share of the watch rooms** (section 10): the
   deployment's room is also one party's. Whether it should have less is
   `../protocol/configuration.md`, section 11's question. Default: the whole

@@ -246,9 +246,9 @@ Before the first durable Load reads `fresh` or `state`, it reads the bounded,
 no-follow `format` file. Its generated `Layouts` record names the
 `smith-local-store` family fingerprint, then `smith-transcript`'s. The
 committed fingerprints cover `schema/local-store-v1.schema` and
-`transcript-v6.schema`; runtime construction parses neither schema. State,
+`transcript-v7.schema`; runtime construction parses neither schema. State,
 fresh metadata, the whole turn envelope and delivery records use the generated
-local-store family version 1. A turn's body remains transcript version 6. Generated envelope decoding owns
+local-store family version 1. A turn's body remains transcript version 7. Generated envelope decoding owns
 one bounded body copy, included in the store scenario's measured total.
 The intermediate body copies are released once their aggregate transcript
 piece is built, before concrete transcript decoding.

@@ -11,12 +11,12 @@ chat show TASK [--before CURSOR]
   TASK (task): a number; required. The chat's task number
   --before CURSOR: a cursor, as a read prints it; optional. The cursor a page printed, to read further back
 Read a chat's conversation from its end
-Prints: The conversation, oldest line first: each turn's words including the brief supplied to the run, each run's start and end, then `read on with: chat show TASK --before CURSOR` or `no more`
+Prints: The conversation, oldest line first: each turn's conversation words, each run's start and end, then `read on with: chat show TASK --before CURSOR` or `no more`
 --json: the record chat.
 Key: none.
 Each page is older than the one before it. A run still writing
-adds its words so far. Archived turn text includes the brief supplied to the run,
-with charter document sections and their recorded commits.
+adds its words so far. Read the brief supplied to the run and its system text with task turn TASK A.T,
+including charter document sections and their recorded commits.
 Read task activity TASK to find its attempt and turn as A.T, then
 task turn TASK A.T for its parts and printed continuations.
 Tool inputs, outcomes and result summaries are read with task turn TASK TURN;

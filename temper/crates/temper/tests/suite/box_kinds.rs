@@ -160,6 +160,7 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
                 &limits,
                 steps,
                 Settings {
+                    word: b"temper".as_slice().into(),
                     link_form: temper_box::terminal::LinkForm::Bare,
                     first_link: None,
                     after_block: Box::new([]),

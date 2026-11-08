@@ -2,6 +2,23 @@
 
 2026-11-08. Where temper's code lags or departs from [root.md](root.md).
 
+Section 4's journal stops carry their reason through the service to an
+exit and a log line, including a refused store answer, a decision past
+the store's write edge and an exhausted commit counter.
+
+Sections 5.7 and 9.1 have no known core wait in the project-making
+reproduction. The one-process world's reduced and whole incident stories
+check the core calls and a fresh client before and after reopening the
+same disk. The reduced sequence makes a third project membership; the
+earlier goal, forget, settings change and refused declare are not needed
+for the reproduced client failure. A client limited to two memberships
+rejects the mandatory `me` while the root stays ready; the native and web
+presets now take nine, as ctl does (`../client/tools.md`, section 12).
+The stored-state row reopens the disk made with that client limit under
+the fixed preset, without changing records. This proves no cause for the
+request's public read of a private project returning 503; that remains unexplained
+(section 13).
+
 Section 7.1 has no known gap in assigning an asking charter no home,
 explicit, saved-work or context repository. Its run therefore has no
 workspace; the other charters keep their repository selection.
@@ -58,3 +75,4 @@ kind remains shape.
   `jig/docs/design/domain/engine.md`, 6 has a start judge no record and
   panic at a link it cannot make (the user, 10-28). Which holds is the
   user's, unanswered (that document's section 16).
+

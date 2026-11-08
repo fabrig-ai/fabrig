@@ -22,6 +22,10 @@ established here. Continuation remains deferred in section 11.
 Section 13.9 has the reference's charter 5 as shared instructions and
 four ordered parts, including the cut's no-design rule, and template 4
 at Opus 5.5 xhigh first and high later with the same sub-agents.
+Charters 2, 5 and 7 carry acceptance-to-assertion evidence from producer
+reports through coordinator handoff to close-out, keeping uncovered items
+unresolved despite empty Left lists or passing CI. The domain story
+checks delivered rules and retained evidence, not real-model compliance.
 Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
 tests check rule placement and hold all five supplied charters to a
 stock worker's bounds and the stored-policy run bound, including parts.
@@ -51,8 +55,12 @@ it unchanged, while temper's own translation refusal counts from 1.
 The silent-check diagnosis is by reading, not a timed deployment run:
 `.temper/pre-pr` emits no progress before its format and baseline work,
 and its 60-second `check_timeout` remains unchanged. Progress output is
-also deferred in section 11; no supplied result establishes the reported
-timeouts' exact phase or duration.
+also deferred in section 11. Section 13.9's delivery hook batches format
+roots by edition and configuration and runs every baseline with the private
+snapshot index. Its focused boundary world models the 69,758 ms formatter
+workload and 17,000 ms baseline workload, checks two uncached design additions
+within 60,000 ms, and refuses formatter, baseline and interrupted checks.
+These deterministic checks do not measure a deployment under load.
 
 Sections 2 and 13.4 have no known gap in the binary's numbered stock,
 model-free configuration documents or `rest` on stock charters. The

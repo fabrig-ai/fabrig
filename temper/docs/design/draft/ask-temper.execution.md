@@ -12,8 +12,9 @@ says so in the draft's status.
   showing, remembering.
 - **M1 first:** the chat takes the configuring chat's place, small, with what
   configuring needs, so that the user can try it from its landing.
-- **M2, then M3:** `see`'s remaining addresses, then the views, which draw
-  from the same reads.
+- **M3a before M2:** the stock ways and the views drawn from settings
+  (`stock-ways.md`), which Ask temper's opening needs; then M2, `see`'s
+  remaining addresses, then M3b, the views drawn from M2's reads.
 - **M4 after M1,** beside the others: the person's preferences, which need
   jig's party scope first.
 - **The instructions are whole from M1** but their Showing part, which joins
@@ -38,7 +39,8 @@ says so in the draft's status.
 |---|---|---|---|---|
 | M1 | Alone and small | 1, 4, 5.1 in part, 5.2, 5.3, 8, 9 | | built: plan `ui-ask-m1`; its walk follows its landing |
 | M2 | Reading | 2, 3, 5.1 | M1 | not started |
-| M3 | Showing | 6 | M2 | not started |
+| M3a | Ways | `stock-ways.md`, sections 4 to 6; 6.2's `path`, `way`, `proposal` and `charter` | M1; `stock-ways.md`, section 7's step 2 | not started |
+| M3b | Showing the rest | 6; the rest of 8's Showing part | M2, M3a | not started |
 | M4 | Remembering | 5.4, 7 | M1 | not started |
 
 ### M1. Alone and small
@@ -81,12 +83,27 @@ says so in the draft's status.
   temper asked "where are we at?" and "how did that change run?".
 - **Done** when it lands.
 
-### M3. Showing
+### M3a. Ways
 
-- **Executes:** `ask-temper.md`, 6.2: the `view` block and its six views,
+- **Executes:** `stock-ways.md`, sections 4 to 6: the stock ways as
+  data, their paths, the forge's `ways` read, `see ways`, the `view`
+  block and the views `path`, `way`, `proposal` and `charter`, drawn by
+  the browser from the same derivation; in `ask-temper.md`, section 8,
+  `ways` on the `see` line and the Showing part's first step.
+- **Needs:** `stock-ways.md`, section 7's step 2 on main, so that "Use
+  this" can set every way.
+- **Tests:** `stock-ways.md`, section 8.
+- **The look request `ask-temper-ways`** lands with it or straight after,
+  never before (`stock-ways.md`, section 7).
+- **Done** when it lands.
+
+### M3b. Showing
+
+- **Executes:** `ask-temper.md`, 6.2: the `view` block's other views,
   drawn by the browser and zoomed by the client; 6.3: flows with `:::code`,
   `:::agent` and `:::person` and their `-strong` forms; the TUI's text drawing
-  of views, with temper/tui; the Showing part of `ask-temper.md`, section 8.
+  of views, with temper/tui; the rest of the Showing part of `ask-temper.md`,
+  section 8.
 - **Needs:** M2's reads, which the views draw from; the look designed with the
   user, as look requests are (`look-requests.md`).
 - **Tests:** each view's address parses and draws from a world's stored state;

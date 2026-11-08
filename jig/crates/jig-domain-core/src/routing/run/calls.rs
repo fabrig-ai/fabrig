@@ -615,6 +615,7 @@ pub(crate) fn named_action(
                         | jig_domain_people::Refusal::SignInRedirect { .. }
                         | jig_domain_people::Refusal::AccountMove { .. }
                         | jig_domain_people::Refusal::NameTaken
+                        | jig_domain_people::Refusal::ProgramNameReserved
                         | jig_domain_people::Refusal::NotOffered
                         | jig_domain_people::Refusal::NotWellFormed { .. }
                         | jig_domain_people::Refusal::NoEscalationHolder

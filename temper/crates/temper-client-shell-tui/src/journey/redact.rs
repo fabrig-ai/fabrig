@@ -72,9 +72,14 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
             fields.extend(event.iter_mut().map(|bytes| (bytes, Text)));
             fields
         }
+        Line::Found(bytes) => bytes.iter_mut().map(|bytes| (bytes, Text)).collect(),
         Line::Address(bytes) | Line::Signed(bytes) | Line::Browse(bytes) => vec![(bytes, Text)],
         Line::Mark(print) | Line::End(print) => print.iter_mut().map(|bytes| (bytes, Text)).collect(),
         Line::Journey { .. }
+        | Line::Local
+        | Line::Noted(_)
+        | Line::Note(_)
+        | Line::Read
         | Line::Seed(_)
         | Line::Clocks { .. }
         | Line::Screen { .. }
@@ -130,7 +135,18 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
                 }
             }
             Line::Stream(Some(bytes)) => candidates.push((Kind::Bearer, bytes.clone())),
-            Line::Journey { .. }
+            Line::Found(Some(bytes)) => {
+                let mapping = jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix");
+                if let Ok(link) = jig_client_protocol_http::printed(&mapping, bytes) {
+                    candidates.push((Kind::Link, link.secret.into_exposed()));
+                }
+            }
+            Line::Found(None)
+            | Line::Journey { .. }
+            | Line::Local
+            | Line::Noted(_)
+            | Line::Note(_)
+            | Line::Read
             | Line::Seed(_)
             | Line::Clocks { .. }
             | Line::Screen { .. }

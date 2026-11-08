@@ -3,7 +3,7 @@ use super::*;
 
 use jig_client_test_domain::DIALECT;
 use skein_fake_person::Target;
-use smith_transcript::v6 as source;
+use smith_transcript::v7 as source;
 
 fn call(id: &[u8], name: &[u8]) -> source::Block {
     source::Block::Call(
@@ -28,44 +28,7 @@ fn result(id: &[u8], value: source::Outcome) -> source::Block {
 
 fn turn() -> Box<[u8]> {
     let limits = source::CEILINGS;
-    let exit = source::Exit::Code(
-        source::ExitCode::new(&limits, source::ExitCodeParts { code: 0 })
-            .expect("job story record fits the transcript schema"),
-    );
-    let end = source::JobEnd::Ended(
-        source::JobExit::new(&limits, source::JobExitParts { exit })
-            .expect("job story record fits the transcript schema"),
-    );
-    let ended = source::Outcome::Job(
-        source::JobRead::new(
-            &limits,
-            source::JobReadParts {
-                job: 1,
-                head: Box::from([]),
-                last: Box::from([]),
-                dropped: 0,
-                output: source::BytesClamp::Within,
-                wait: source::TimeoutClamp::Within,
-                end,
-            },
-        )
-        .expect("job story record fits the transcript schema"),
-    );
-    let running = source::Outcome::Running(
-        source::CommandRunning::new(
-            &limits,
-            source::CommandRunningParts {
-                job: 2,
-                head: Box::from([]),
-                last: Box::from([]),
-                dropped: 0,
-                timeout: source::TimeoutClamp::Within,
-                output: source::BytesClamp::Within,
-                after: source::TimeoutClamp::Within,
-            },
-        )
-        .expect("job story record fits the transcript schema"),
-    );
+    let (ended, running) = job_outcomes(&limits);
     let messages = crate::test::list([
         source::Message::new(
             &limits,
@@ -98,6 +61,7 @@ fn turn() -> Box<[u8]> {
     let value = source::Turn::new(
         &limits,
         source::TurnParts {
+            system: None,
             model: b"model".as_slice().into(),
             effort: None,
             kind: source::TurnKind::Ordinary,
@@ -154,4 +118,46 @@ fn a_job_reads_as_its_calls_outcome() {
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
     assert!(outcome.judged.0 > 0);
+}
+
+fn job_outcomes(limits: &source::Limits) -> (source::Outcome, source::Outcome) {
+    let exit = source::Exit::Code(
+        source::ExitCode::new(limits, source::ExitCodeParts { code: 0 })
+            .expect("job story record fits the transcript schema"),
+    );
+    let end = source::JobEnd::Ended(
+        source::JobExit::new(limits, source::JobExitParts { exit })
+            .expect("job story record fits the transcript schema"),
+    );
+    let ended = source::Outcome::Job(
+        source::JobRead::new(
+            limits,
+            source::JobReadParts {
+                job: 1,
+                head: Box::from([]),
+                last: Box::from([]),
+                dropped: 0,
+                output: source::BytesClamp::Within,
+                wait: source::TimeoutClamp::Within,
+                end,
+            },
+        )
+        .expect("job story record fits the transcript schema"),
+    );
+    let running = source::Outcome::Running(
+        source::CommandRunning::new(
+            limits,
+            source::CommandRunningParts {
+                job: 2,
+                head: Box::from([]),
+                last: Box::from([]),
+                dropped: 0,
+                timeout: source::TimeoutClamp::Within,
+                output: source::BytesClamp::Within,
+                after: source::TimeoutClamp::Within,
+            },
+        )
+        .expect("job story record fits the transcript schema"),
+    );
+    (ended, running)
 }

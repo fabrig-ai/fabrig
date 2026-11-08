@@ -223,3 +223,5 @@ pub(crate) fn account_steps() -> Box<[skein_fake_person::Step<temper_client_doma
         Step::See { find: Find::text(b"Added your"), within: PERSON_WAIT },
     ])
 }
+
+pub mod core_after_project;

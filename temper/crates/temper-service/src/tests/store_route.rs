@@ -551,7 +551,7 @@ fn stored_history(row: Option<core::Record>) -> Option<store::Row> {
 }
 
 fn assistant_turn(words: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v6 as wire;
+    use smith_transcript::v7 as wire;
     let limits = &wire::CEILINGS;
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks
@@ -569,6 +569,7 @@ fn assistant_turn(words: &[u8]) -> Box<[u8]> {
     let turn = wire::Turn::new(
         limits,
         wire::TurnParts {
+            system: None,
             kind: wire::TurnKind::Ordinary,
             opening: None,
             endpoint: b"fake".as_slice().into(),

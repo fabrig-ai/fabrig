@@ -7,8 +7,8 @@ pub use keys::{Decoder, Key};
 mod command;
 pub use command::{Command, command};
 mod draw;
-pub use draw::{Depth, ENTER, LEAVE, draw, draw_bound};
+pub use draw::{ASK_BACKGROUND, Depth, ENTER, LEAVE, draw, draw_bound};
 mod terminal;
-pub use terminal::{Settings, Terminal};
+pub use terminal::{Background, Settings, Terminal};
 #[cfg(test)]
 mod tests;

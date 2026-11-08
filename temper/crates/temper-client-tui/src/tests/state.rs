@@ -1,8 +1,9 @@
 use super::fixtures as f;
-use crate::{Browser, Refusal, Signing, Told, Tui};
+use crate::{Browser, Local, Refusal, Signing, Told, Tui};
 use jig_client::Link;
 
 type Row<'a> = (&'a [Told], Told, Signing, &'a [u8], bool, bool, u64, u64, u64);
+type LocalRow<'a> = (&'a [Told], Told, Local, Signing, &'a [u8], bool, bool);
 type ApprovalRow<'a> = (&'a [Told], Told, Option<Browser>, bool, u64);
 
 #[test]
@@ -126,6 +127,126 @@ fn the_states_steps_are_its_table() {
             (*browser, *pasted, *revision),
             "approval row {index}: {told:?}"
         );
+    }
+    let local_rows: &[LocalRow<'_>] = &[
+        (&[], Told::Local { local: Local::Idle }, Local::Idle, Idle, b"", false, false),
+        (&[], Told::Local { local: Local::Signing }, Local::Signing, Idle, b"", false, true),
+        (&[], Told::Local { local: Local::Ended }, Local::Ended, Idle, b"", false, true),
+        (
+            &[Told::Local { local: Local::Signing }],
+            Told::Local { local: Local::Idle },
+            Local::Idle,
+            Idle,
+            b"",
+            false,
+            true,
+        ),
+        (
+            &[Told::Local { local: Local::Signing }],
+            Told::Local { local: Local::Signing },
+            Local::Signing,
+            Idle,
+            b"",
+            false,
+            false,
+        ),
+        (
+            &[Told::Local { local: Local::Signing }],
+            Told::Local { local: Local::Ended },
+            Local::Ended,
+            Idle,
+            b"",
+            false,
+            true,
+        ),
+        (
+            &[Told::Local { local: Local::Ended }],
+            Told::Local { local: Local::Idle },
+            Local::Idle,
+            Idle,
+            b"",
+            false,
+            true,
+        ),
+        (
+            &[Told::Local { local: Local::Ended }],
+            Told::Local { local: Local::Signing },
+            Local::Signing,
+            Idle,
+            b"",
+            false,
+            true,
+        ),
+        (
+            &[Told::Local { local: Local::Ended }],
+            Told::Local { local: Local::Ended },
+            Local::Ended,
+            Idle,
+            b"",
+            false,
+            false,
+        ),
+        (&[Told::Local { local: Local::Signing }], linked.clone(), Local::Idle, Idle, b"", false, true),
+        (&[Told::Local { local: Local::Ended }], linked.clone(), Local::Idle, Idle, b"", false, true),
+        (&[Told::Local { local: Local::Ended }], Told::Asked, Local::Idle, Asked, b"", true, true),
+        (&[Told::Asked, Told::Local { local: Local::Ended }], Told::Asked, Local::Idle, Asked, b"", true, true),
+        (
+            &[Told::Local { local: Local::Signing }, Told::Asked, answered.clone(), typed.clone()],
+            Told::Local { local: Local::Ended },
+            Local::Ended,
+            Idle,
+            b"",
+            false,
+            true,
+        ),
+        (
+            &[Told::Local { local: Local::Ended }, typed.clone(), refused.clone()],
+            Told::Local { local: Local::Ended },
+            Local::Ended,
+            Idle,
+            b"",
+            false,
+            true,
+        ),
+        (
+            &[Told::Local { local: Local::Signing }, Told::Asked],
+            Told::Local { local: Local::Ended },
+            Local::Ended,
+            Idle,
+            b"",
+            false,
+            true,
+        ),
+        (&[Told::Local { local: Local::Signing }], out.clone(), Local::Signing, Idle, b"", false, false),
+        (&[Told::Local { local: Local::Ended }], out.clone(), Local::Ended, Idle, b"", false, false),
+    ];
+    assert_eq!(tui.local(), Local::Idle);
+    let mut failures = skein_lib::List::with_capacity(u32::try_from(local_rows.len()).unwrap());
+    for (index, (start, told, local, signing, field, pasted, changed)) in local_rows.iter().enumerate() {
+        let mut tui = Tui::new(f::ADDRESS);
+        for step in *start {
+            tui.step(step.clone());
+        }
+        let before = tui.revision();
+        tui.step(told.clone());
+        let found = (tui.local(), tui.signing().clone(), tui.field(), tui.pasted(), tui.revision() - before);
+        let expected = (*local, signing.clone(), *field, *pasted, u64::from(*changed));
+        if found != expected {
+            failures.push((index, (found.0, found.1, Box::<[u8]>::from(found.2), found.3, found.4), expected)).unwrap();
+        }
+    }
+    assert!(failures.is_empty(), "local rows: {failures:?}");
+    for local in [Local::Signing, Local::Ended] {
+        for link in [Link::Starting, Link::Live, Link::Offline, Link::OutOfDate] {
+            let mut tui = Tui::new(f::ADDRESS);
+            tui.step(linked.clone());
+            tui.step(Told::Local { local });
+            let before = tui.revision();
+            tui.step(Told::Link { link });
+            assert_eq!((tui.local(), tui.signing(), tui.revision()), (Local::Idle, &Idle, before + 1));
+            tui.step(out.clone());
+            assert_eq!((tui.signed_out(), tui.openings()), (true, 2));
+        }
     }
     for link in [Link::Starting, Link::Live, Link::Offline, Link::OutOfDate] {
         let mut tui = Tui::new(f::ADDRESS);

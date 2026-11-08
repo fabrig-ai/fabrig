@@ -1,6 +1,6 @@
 # The TUI's journeys
 
-Provisional, 2026-11-07. A TUI journey is a walk through the TUI
+Provisional, 2026-11-08. A TUI journey is a walk through the TUI
 (`../README.md`, 6.11 to 6.16; `../../draft/tui.md`, section 5) recorded
 at its host's seam on a fresh `temper box --fake-backends`, replayed
 natively through the shipped host, and printed as its frames: each as
@@ -80,6 +80,12 @@ the look, 11 what is open.
   approval given in the browser; Alt+Shift+S saves the recording as it
   is then, closed by an end mark of the frame as drawn. A mark is kept
   in a turn of its own (3.2); a save keeps nothing.
+- **Each key in two forms:** Alt+m is the mark key too, and Alt+s the
+  save key, for a terminal that drops the Shift from a Meta key it
+  doesn't bind, as emacs' vterm does: it sends Alt+Shift+M as Alt+m.
+  Only a recording takes them: a run without one, as the shipped
+  `temper`'s always is (section 2), gives Alt+m and Alt+s to the host as
+  any other key.
 - **A save** writes the file whole, `recording` in the TUI's directory
   (`../README.md`, 6.12), `0o600`, a synced temporary replacing it,
   through skein-io's file layer on the run's own io. The recorder goes
@@ -108,8 +114,10 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
 | `screen` | rows, columns, `dark` or `light` | the start's size and scheme |
 | `address` | `HOST:PORT` as bytes | the start's address |
+| `local` | none | when the start has an engine's link file to read (`../README.md`, 6.13, `Start.local`) |
 | `stored` | a small-store record's key and bytes | one per record loaded (shared) |
 | `credential` | the credential's bytes | when the start held one |
+| `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`../README.md`, 6.12) |
 | `turn` | now and wall | each turn's clocks (shared) |
 | `start`, `due` | none | the `Start` and `Due` reports (shared) |
 | `key` | the key (below), then its event's print in quotes, or `none` | a `Key` report |
@@ -121,13 +129,16 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `saved`, `unsaved` | none | `Heard(Stored)`, `Heard(NotStored)` |
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
+| `found` | the file's bytes, or `none` | a `Local` report |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
 | `stream` | the credential's bytes or `none` | `Request::OpenStream` |
 | `unstream` | none | `Request::CloseStream` |
 | `save` | a record's key and bytes | `Request::Save`, one per record (shared) |
 | `erase` | a record's key | `Request::Erase`, one per key (shared) |
 | `keep` | the credential's bytes, or `none` | the duty `keep` |
+| `note` | `until` and nanoseconds, or `signed-out` | the duty `note` |
 | `signed` | `HOST:PORT` as bytes | the duty `address` |
+| `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
 | `quit` | none | the duty `close` |
 | `deadline` | nanoseconds, or `none` | each turn's end (shared) |
@@ -149,7 +160,12 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Any other `jig_client::Event`** reaching the host is no native
   shell's, and the recorder refuses it as its defect.
 - **The duties' order:** each request of `asked` in order, then `keep`,
-  `signed`, `browse` and `quit`, each when the duty holds it.
+  `note`, `signed`, `read`, `browse` and `quit`, each when the duty holds
+  it.
+- **The start's facts** are in the table's order, `local` after
+  `address` and `noted` after `credential`. A recording with neither
+  reads as a start with no engine's link file and no note, so one made
+  before them replays as it stands; the version stays `2`.
 - **Unreadable:** another version, a record out of its place, an unknown
   kind or word, a field missing or over, a number out of its type's
   range; it names the line.
@@ -166,8 +182,10 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Typing marks nothing:** a key whose event is `Typed` marks no
   frame; any other key with an event marks the frame as drawn before it
   (3.4). A key with no event marks nothing.
-- **The mark and save keys** never reach the host, and are kept as their
-  mark alone (3.1).
+- **The mark and save keys,** in either form, never reach the host while
+  recording: a mark is kept in its own turn; a save writes the recording
+  with its end mark, keeping no key record (3.1). Without a recording,
+  both forms reach the host as any other key.
 
 ### 3.4 Marks
 
@@ -187,7 +205,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 the run does (`Host::new` with `limits::tui()`, the seed and the
 clocks), then, turn by turn, sets the clocks and gives each report:
 `Start` from the facts, a key as recorded, a transport's event, a
-resize, `Kept`, `Opened`. At each mark it yields the host's frame.
+resize, `Kept`, `Opened`, `Local` with the bytes found. At each mark it
+yields the host's frame.
 
 ### 4.2 The check
 
@@ -230,7 +249,10 @@ the TUI's lines.
   - *bearer:* each `send`'s and `stream`'s credential, the bearer every
     exchange carries;
   - *link:* the secret of each `send` of kind `sign-in-link`, as jig's
-    wire reads it, the printed link pasted;
+    wire reads it, the printed link pasted or the engine's link read;
+    and the secret of each `found`'s link, as
+    `jig-client-protocol-http`'s `printed` reads it, so that a file read
+    and never sent is redacted too;
   - *given:* each `--redact TEXT`.
 
   The same bytes under two kinds, a credential kept and carried, are
@@ -241,16 +263,18 @@ the TUI's lines.
 - **Where:** every original in every field of every line. A `reply`'s,
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
-  `key`'s bytes and event, `address`, `signed`, `browse`, `mark` and
-  `end` are text (`../journeys.md`, 3.6, *A form's size*). A TUI's
+  `key`'s bytes and event, `found`'s bytes, `address`, `signed`,
+  `browse`, `mark` and `end` are text (`../journeys.md`, 3.6, *A form's
+  size*). A TUI's
   stream records come whole from the native shell, so no pieces are
   joined.
 - **The proof holds:** the host derives what it asks from what it heard,
   so the take's message holds the redacted secret it was answered, and
   every exchange the redacted credential it kept.
 - **A pasted link's encoding:** the TUI also replaces and scans the
-  link secret's canonical URL-base64 in the pasted address and its
-  decimal byte elements in the `Typed` event's Debug print. Both become
+  link secret's canonical URL-base64 in the pasted address and in a
+  `found`'s, and its decimal byte elements in the `Typed` event's Debug
+  print. Both become
   those encodings of the redacted secret, so the paste and its event
   still replay. This is the TUI's addition; the browser's code and
   encodings stay as `../journeys.md`, 3.6 describes.
@@ -314,11 +338,13 @@ no cursor.
   (`<link rel="prev">`, `<link rel="next">`) and `../tui-journey.js`; in
   its body one `pre` of the classes `tui` and `tui-dark` or `tui-light`,
   the recording's scheme, a row per line.
-- **A row's cells** are runs of one paint: the base's as plain text, any
-  other in a `span` whose classes name its foreground and background by
-  the theme's palette (`f-accent`, `b-sel`; `temper-client-tui`'s
-  `theme::palette`), then its attributes (`bold`, `dim`, `italic`,
-  `underline`, `reverse`). A colour that is no palette's is the span's
+- **A row's cells** are runs of one paint: the base's, the terminal's
+  defaults (`../README.md`, 6.15), as plain text, any other in a `span`
+  whose classes name its foreground and background by the theme's
+  palette (`f-accent`, `f-dim`; `temper-client-tui`'s `theme::palette`),
+  then its attributes (`bold`, `dim`, `italic`, `underline`, `reverse`).
+  A colour that is the terminal's default gets no class: the `pre`'s own
+  colours stand in for it. A colour that is no palette's is the span's
   `style`, `color:#RRGGBB` or `background:#RRGGBB`. The cursor, when the
   frame has one, is a `span` of the class `cursor` around its cell.
   Text escapes `<`, `>`, `&` and `"`.
@@ -330,9 +356,12 @@ no cursor.
   of them. A mark of the mark key leads on by its neighbours alone.
 - **`theme.css`,** from `theme::palette` for both schemes: each
   scheme's palette as custom properties under `.tui-dark` and
-  `.tui-light`, the base's colours on the `pre`, a rule per palette
-  colour for `f-` and `b-`, a rule per attribute, a monospace font and
-  the cursor's look.
+  `.tui-light`; on the `pre`, the scheme's stand-ins for the terminal's
+  default text and background, `ink` and `bg`; a rule per palette colour
+  for `f-` and `b-`, a rule per attribute, a monospace font and the
+  cursor's look. A frame keeps the terminal's default as a colour of its
+  own (skein's `ui-screen.md`, section 3), and only the page draws it,
+  in the stand-ins.
 
 ### 6.5 Opening them
 
@@ -390,9 +419,9 @@ recording's (3.2).
 | `walk` | `1`, the format's version | the first line |
 | `see` | text | waits until the TUI's frame shows the text: a save, replayed natively to its end (section 4), gives the frame |
 | `key` | a key, as 3.2 writes it | gives it to the TUI through its terminal, as a person types it |
-| `mark` | none | the mark key, Alt+Shift+M |
+| `mark` | none | the mark key in its Shift form, Alt+Shift+M (3.1) |
 | `approve` | none | the browser opens the address of the latest save's last `browse` and presses its button "Approve", found by role and name as skein's fake person finds it |
-| `end` | none | last, once: the save key, Alt+Shift+S, whose save is the new recording |
+| `end` | none | last, once: the save key in its Shift form, Alt+Shift+S (3.1), whose save is the new recording |
 
 - **Its bounds:** a `see` not shown within 30 seconds, or an `approve`
   whose page shows no "Approve" within 30 seconds, stops `again`,
@@ -420,7 +449,12 @@ ordinary Rust over skein's harness:
 - **The TUI in a pseudo-terminal** of 80 columns by 24 rows (skein's
   harness starts a binary on one), `temper http://HOST:PORT` at the
   box's address, with `XDG_STATE_HOME` and `HOME` in the scratch
-  directory, `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
+  directory, `XDG_RUNTIME_DIR` a directory of its own there,
+  `tui-runtime`, apart from the box's, so that it finds no engine's link
+  file and the journey walks the approval (`../README.md`, 6.12), no
+  `COLORFGBG`, so that it asks the terminal its background, which the
+  pseudo-terminal leaves unanswered, and draws dark (`../README.md`,
+  6.15), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
   `again`'s or `:0`, and `PATH` led by a scratch directory whose
   `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
   0, and leaves the tab to `again`. Its output is read and dropped.
@@ -445,10 +479,13 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
   and writes rules in `tui/journeys/overlay.css` (a palette's custom
   property, a class's paint), then reloads; a frame's words, order or
   layout is edited in place, in its `NN.txt` or `NN.html`.
-- **Requests stack** on the person's `look-requests` branch, one commit
-  each, with a `Look-request: NAME` trailer, kept on `main` by
-  `scripts/look-refresh.sh` and never landed (`../journeys.md`, section
-  7; `../../draft/look-requests.md`).
+- **Requests stack** on a branch of the person's own, `tui-requests`,
+  apart from the browser's `look-requests`, so that the two are asked
+  for in parallel: one commit each, with a `Look-request: NAME` trailer
+  whose NAME starts `tui-`, kept on `main` by the same
+  `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
+  never landed (`../journeys.md`, section 7;
+  `../../draft/look-requests.md`, 2).
 - **Never landed:** the journeys' test refuses a request's frames, which
   differ from the reprint, and its overlay, so `main`'s overlay stays
   empty.
@@ -459,6 +496,9 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 
 ## 11. Open questions
 
+- **A terminal's Meta keys:** the user records by hand on their laptop
+  after landing to check marking with Alt+m and saving with Alt+s in
+  emacs' vterm. The automated walk keeps the Shift forms (8.1).
 - **The first frames' refinement:** the user takes `sign-in-approved`'s
   frames and asks for the look on them (sections 9 and 10), before the
   later surfaces of `../../draft/tui.md`, section 3 are designed. A

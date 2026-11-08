@@ -66,6 +66,10 @@ child domain `smith-domain-session`, whose own child is the tools domain
   kind, and a call cut off at the output limit is kept as a note of it,
   with its error result (section 4). A historical call holds no ticket
   that means something only inside the session that made it.
+- **Supplied system text** is retained verbatim on the first and each window
+  opening turn, separately from replay messages. It includes the run's
+  selected instructions and fitted brief. Older records without it keep
+  that context unavailable; a reader never rebuilds it from settings.
 - **A turn has a kind:** an ordinary turn, as above, or a window turn,
   the compaction that closed one window and opened the next, holding the
   new window's opening as its messages (section 8.2).

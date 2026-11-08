@@ -615,6 +615,10 @@ impl OneShot {
                 self.fail(b"temper is busy; this link stays usable until it expires");
                 return;
             }
+            if self.signing.as_ref().is_some_and(|signing| signing.last == Some(jig_client::NotSignedIn::NotReady)) {
+                self.fail(b"temper is not ready: it is starting, or its core is not answering, and temper serve's log says why; this link stays usable until it expires");
+                return;
+            }
             if let Some(full) = self.root.client().link().streams_full {
                 self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
                 return;

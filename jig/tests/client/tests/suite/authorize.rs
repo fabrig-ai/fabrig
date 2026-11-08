@@ -87,11 +87,25 @@ fn a_second_authorization_while_one_is_out_is_busy_without_an_exchange() {
 fn replacing_the_credential_terminates_an_outstanding_authorization_once() {
     let (mut client, mut out) = signed_client();
     let exchange = authorize(&mut client, &mut out);
-    step(&mut client, Event::SignIn { with: jig_client::With::Held(Secret::new(bytes::copy_of(&[8; 40]))) }, &mut out);
+    step(
+        &mut client,
+        Event::SignIn { with: jig_client::With::Link { secret: Secret::new(bytes::copy_of(&[3; 32])), held: None } },
+        &mut out,
+    );
+    let Some(Request::Exchange { exchange: signing, .. }) = out.pop() else { panic!("sign-in exchange") };
+    // Signed in: token present, 40 bytes, party 7, expiry 10 ns.
+    let mut wire = Writer::new(62);
+    wire.put(&[0, 1]).expect("signed in with token");
+    wire.put(&40_u32.to_be_bytes()).expect("token length");
+    wire.put(&[8; 40]).expect("fixture token");
+    wire.put(&7_u64.to_be_bytes()).expect("party");
+    wire.put(&10_u64.to_be_bytes()).expect("expiry");
+    answer(&mut client, signing, wire.finish(), &mut out);
     let terminals = out.iter().filter(|request| **request == Request::Authorized(Authorized::Lost)).count();
     assert_eq!(terminals, 1);
     while out.pop().is_some() {}
     answer(&mut client, exchange, Box::from([2]), &mut out);
     assert!(out.is_empty());
     assert_eq!(client.link().credential, Some(&Secret::new(bytes::copy_of(&[8; 40]))));
+    assert_eq!(client.link().expires, Some(Wall::from_nanos(10)));
 }
