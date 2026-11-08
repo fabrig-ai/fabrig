@@ -126,9 +126,21 @@ fn the_themes_are_valid_and_name_every_look() {
             ),
             (23, "tui-note", fore(dim), Align::Start, false, None, None, false, true),
             (24, "tui-spaced", Paint::NONE, Align::Start, false, None, None, true, true),
+            (
+                25,
+                "tui-command",
+                Paint { bold: true, ..Paint::NONE },
+                Align::Start,
+                false,
+                None,
+                Some(fore(dim)),
+                false,
+                true,
+            ),
         ] {
             let style = Style { owner: look::OWNER, token };
-            let want = StyleLook { style, paint, align, band, label, mark, described, spaced };
+            let active_name = if style == look::COMMAND { Some(Paint::NONE) } else { None };
+            let want = StyleLook { style, paint, align, band, label, mark, described, active_name, spaced };
             let mut found = None;
             for row in &theme.styles {
                 if row.style == style {

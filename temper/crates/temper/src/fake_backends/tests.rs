@@ -71,6 +71,125 @@ fn provisioned_source(scratch: &Scratch) -> Directories {
     source
 }
 
+fn stock_box_source(scratch: &Scratch, sign_in: bool) -> Directories {
+    let source = scratch.dirs();
+    make_private(crate::path(&source.config), skein_shell::effective_user()).expect("private source config");
+    let binary = std::env::current_exe().expect("fixture binary");
+    let port = NonZeroU16::new(7100).expect("nonzero fixture port");
+    let answer = temper_init::files(
+        &temper_init::Facts {
+            binary: binary.as_os_str().as_bytes(),
+            git: None,
+            claude: None,
+            ports: temper_init::Ports {
+                clients: port,
+                owned: NonZeroU16::new(8370).expect("owned port"),
+                forge: NonZeroU16::new(8371).expect("forge port"),
+                llm: NonZeroU16::new(8372).expect("model port"),
+                webhooks: NonZeroU16::new(8373).expect("webhooks port"),
+            },
+            login: Some(b"ada"),
+            sign_in,
+        },
+        &temper_init::Directories { config: &source.config, data: &source.data },
+        &[0; 32],
+        &[0; 32],
+    )
+    .expect("stock box files");
+    for file in answer.files {
+        if file.name == b"temper.json" || file.name == b"agent.json" {
+            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("public document") };
+            write(&crate::path(&source.config).join(crate::path(file.name)), &bytes, false)
+                .expect("unchanged public init document");
+        }
+    }
+    source
+}
+
+#[test]
+fn untouched_box_init_imports_with_and_without_sign_in() {
+    for sign_in in [false, true] {
+        let scratch = Scratch::new(if sign_in { "stock-sign-in" } else { "stock-no-sign-in" });
+        let source = stock_box_source(&scratch, sign_in);
+        let original = fs::read(source.document()).expect("source public bytes");
+        let imported = Source::read(&source).expect("untouched box init imports");
+        let (_, effective) = directories(&source).expect("sandbox directories");
+        let (temper, agent) = imported.rebase(&effective).expect("rebase public paths").expect("source documents");
+        let rebased: serde_json::Value = serde_json::from_slice(&temper).expect("rebased document");
+        let original_tree: serde_json::Value = serde_json::from_slice(&original).expect("source document");
+        for pointer in ["/engine/clients/provider", "/application/machine/owned/sign_in"] {
+            assert_eq!(rebased.pointer(pointer), original_tree.pointer(pointer), "{pointer}");
+        }
+        let checked = crate::setup::check(&temper, &effective.jig()).expect("ordinary effective admission");
+        assert_eq!(checked.named.deployment, bytes(&crate::path(&effective.data).join("deployment")));
+        assert_rebased_box_paths(&Json::decode(&temper).expect("effective JSON"), &agent, &effective, sign_in);
+        assert_eq!(fs::read(source.document()).expect("source unchanged"), original);
+        assert!(!crate::path(&source.data).exists(), "source resources and key are never needed");
+        assert!(!crate::path(&effective.data).exists(), "import and rebase only inspect public documents");
+    }
+}
+
+fn assert_rebased_box_paths(temper: &Json, agent: &[u8], effective: &Directories, sign_in: bool) {
+    for (pointer, name) in [
+        ("engine/hosts/workers/0/digest", "worker.digest"),
+        ("workers/0/secret", "worker.secret"),
+        ("application/machine/fake/git", "demo/bin/git"),
+        ("application/demo/llm/key", "demo/llm.key"),
+        ("application/workers/0/root", "workspaces"),
+    ] {
+        assert_eq!(
+            resolved(crate::path(&effective.data), temper.string(pointer).expect("resource path")).expect("resolved"),
+            crate::path(&effective.data).join(name),
+            "{pointer}"
+        );
+    }
+    let agent_path = bytes(&crate::path(&effective.config).join("agent.json"));
+    assert_eq!(temper.string("workers/0/agent/configuration").expect("agent config"), agent_path.as_ref());
+    assert_eq!(temper.string("workers/0/agent/arguments/2").expect("agent argument"), agent_path.as_ref());
+    let agent = Json::decode(agent).expect("rebased agent");
+    assert_eq!(
+        agent.string("programs/claude_code/directory").expect("program directory"),
+        bytes(&crate::path(&effective.data).join("programs")).as_ref()
+    );
+    if sign_in {
+        assert_eq!(
+            resolved(crate::path(&effective.data), temper.string("engine/clients/provider/key").expect("key path"))
+                .expect("effective provider key"),
+            crate::path(&effective.data).join("provider.key")
+        );
+    }
+}
+
+#[test]
+fn modified_box_sign_in_is_refused() {
+    let scratch = Scratch::new("modified-sign-in");
+    let source = stock_box_source(&scratch, true);
+    let stock = read_json(&source.document());
+    for (pointer, value) in [
+        ("/engine/clients/provider", serde_json::Value::Null),
+        ("/application/machine/owned/sign_in", serde_json::Value::Null),
+        ("/application/machine/owned/sign_in", serde_json::json!("other")),
+        ("/engine/clients/provider/key", serde_json::json!("/source/provider.key")),
+        ("/engine/clients/provider/key", serde_json::json!("other.key")),
+        ("/engine/clients/provider/clients/0/id", serde_json::json!("other")),
+        ("/engine/clients/provider/clients/0/secret", serde_json::json!("custom")),
+        ("/engine/clients/provider/clients/0/redirect_uri", serde_json::json!("http://127.0.0.1:9999/callback")),
+        ("/engine/clients/provider/addresses", serde_json::json!([])),
+    ] {
+        let mut changed = stock.clone();
+        *changed.pointer_mut(pointer).expect("stock member") = value;
+        store_json(&source.document(), &changed);
+        let error = Source::read(&source).err().unwrap_or_else(|| panic!("{pointer}: modified sign-in accepted"));
+        let refused = if pointer == "/engine/clients/provider" {
+            "application/machine/owned/sign_in"
+        } else {
+            pointer.trim_start_matches('/')
+        };
+        assert!(error.contains(refused), "{pointer}: {error}");
+    }
+    assert!(!crate::path(&source.data).exists(), "refusal inspects no source resource");
+}
+
 #[test]
 fn program_login_line_names_the_model_steps_placeholder_and_quotes_effective_directories() {
     let dirs = Directories {
