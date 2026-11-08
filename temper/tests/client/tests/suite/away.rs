@@ -543,7 +543,11 @@ fn a_goal_decides_while_away_then_waits_on_home_after_overturn_and_off() {
     story.press(Role::Button, b"Away");
     story.sees(b"Away is off: questions wait for you again.");
     story.answer(&run, b"Try the other implementation");
-    assert!(story.call(&run, 4, b"decided", LOCAL_DECISION).starts_with("Ask: your person is here"));
+    assert!(
+        story
+            .call(&run, 4, b"decided", LOCAL_DECISION)
+            .starts_with("Ask: implementation asks your person while they are here")
+    );
     asked_after(&decisions, &story.decisions());
     assert!(story.call(&run, 5, b"message", br#"{"target":1,"form":"question","words":"Which local implementation while here?\nChoice: Use the small implementation\nChoice: Use the broad implementation"}"#).starts_with("Message "));
     story.sees(b"Which local implementation while here?");
@@ -663,7 +667,7 @@ fn a_goal_is_answered_by_the_switch() {
     story.toggle();
     assert_eq!(
         story.decide(goal, 2),
-        "Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
+        "Ask: implementation asks your person while they are here. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
     );
     asked_after(&decisions, &story.decisions());
     assert_eq!(
@@ -692,7 +696,7 @@ fn past_until_the_client_draws_off_and_the_root_says_ask() {
     assert_eq!(story.stored(), before, "expiry does not write the Away row");
     assert_eq!(
         story.decide(goal, 2),
-        "Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
+        "Ask: implementation asks your person while they are here. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
     );
     asked_after(&decisions, &story.decisions());
     assert_eq!(story.stored(), before, "the call does not write the expired Away row");

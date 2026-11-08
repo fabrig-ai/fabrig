@@ -538,11 +538,48 @@ fn proposed(
     Ok(())
 }
 
+// The judgement's reason is kept with the answer (temper/docs/design/domain/agent.md, 4.3).
+fn ask_reason(text: &mut Text, reach: Option<temper_protocol_reaches::Reach>) -> Result<(), Problem> {
+    use temper_protocol_reaches::{Class, Reason};
+    let Some(reach) = reach else {
+        return text.add(b"no person is asked through you: ask your requester");
+    };
+    if reach.decided() {
+        return text.add(b"your person's decided list is full for today");
+    }
+    match reach.reason {
+        Reason::Always => text.add(b"your words say Asks: always"),
+        Reason::Kind | Reason::Set(_) => {
+            if reach.class == Class::Wait {
+                text.add(reach.kind.name())?;
+                return text.add(b" always waits for your person");
+            }
+            match reach.reason {
+                Reason::Kind => {
+                    text.add(reach.kind.name())?;
+                    text.add(b" asks your person")?;
+                }
+                Reason::Set(number) => {
+                    text.add(b"changes to path set ")?;
+                    text.number(u64::from(number))?;
+                    text.add(b" ask your person")?;
+                }
+                Reason::Always => unreachable!("handled above"),
+            }
+            match reach.class {
+                Class::AskAway => text.add(b", even when away"),
+                Class::Ask => text.add(b" while they are here"),
+                Class::Decide | Class::Wait => unreachable!("handled above"),
+            }
+        }
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable answer vocabulary")]
 fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
-        CallAnswer::Decided { took: choice, .. } => {
+        CallAnswer::Decided { took: choice, reach } => {
             match choice {
                 Some(words) => {
                     text.add(b"Decided: carry on with ")?;
@@ -550,9 +587,9 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
                     text.add(b".")?;
                 }
                 None => {
-                    text.add(
-                        b"Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N.",
-                    )?;
+                    text.add(b"Ask: ")?;
+                    ask_reason(&mut text, *reach)?;
+                    text.add(b". Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N.")?;
                 }
             }
             false
