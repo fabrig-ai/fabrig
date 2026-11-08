@@ -1,5 +1,6 @@
 //! Settings values cross the protocol boundary whole and within its bounds
 //! (temper/docs/design/domain/root.md, 5.6).
+use temper_client_protocol_wire::v1;
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness, settings};
 
 use crate::kinds::{Bounds, decode, encode, size};
@@ -32,13 +33,21 @@ fn deployment() -> settings::LandingRule {
     }
 }
 
-fn values() -> [(u32, settings::Value); 7] {
+fn values() -> [(u32, settings::Value); 9] {
     let mut project = deployment();
     project.pattern.last = GateLast::Open(Box::from(b"topic/".as_slice()));
     project.enforce = false;
     project.ci = true;
     project.up_to_date = false;
     [
+        (9, settings::Value::CharterWords(Box::from([b'l'; 120].as_slice()))),
+        (
+            10,
+            settings::Value::ProjectWords(settings::ProjectWords {
+                headline: Box::from([b'h'; 120].as_slice()),
+                lede: Box::from([b'l'; 480].as_slice()),
+            }),
+        ),
         (1, settings::Value::Rule(deployment())),
         (2, settings::Value::Rule(project)),
         (3, settings::Value::Charter(23)),
@@ -63,8 +72,29 @@ fn each_kind_round_trips_its_value() {
     assert_eq!(temper_client_protocol_wire::CLIENT_VERSION, 16);
     for (kind, value) in values() {
         let bytes = encode(&value);
-        let back = decode(kind, &bytes, &BOUNDS).expect("whole value at its receiving bounds");
-        assert_eq!(back, settings::SizedValue { value, size: u32::try_from(bytes.len()).expect("bounded encoding") });
+        // Kinds 9 and 10 are encoded for stock and reads; their entrance is not declared yet.
+        match &value {
+            settings::Value::CharterWords(line) => {
+                let record = v1::CharterWords::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+                assert_eq!(&record.into_parts().line, line);
+            }
+            settings::Value::ProjectWords(words) => {
+                let record =
+                    v1::ProjectWords::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap().into_parts();
+                assert_eq!(record.headline, words.headline);
+                assert_eq!(record.lede, words.lede);
+            }
+            settings::Value::Rule(_)
+            | settings::Value::Charter(_)
+            | settings::Value::Questions(_)
+            | settings::Value::Ways(_) => {
+                let back = decode(kind, &bytes, &BOUNDS).expect("whole value at its receiving bounds");
+                assert_eq!(
+                    back,
+                    settings::SizedValue { value, size: u32::try_from(bytes.len()).expect("bounded encoding") }
+                );
+            }
+        }
     }
 
     // Shape decoding leaves semantic validity to the forge's judge.
@@ -79,6 +109,8 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Charter(_) => 3,
             settings::Value::Questions(_) => 6,
             settings::Value::Ways(_) => 7,
+            settings::Value::CharterWords(_) => 9,
+            settings::Value::ProjectWords(_) => 10,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);
