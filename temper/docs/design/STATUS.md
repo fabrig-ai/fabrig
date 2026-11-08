@@ -133,9 +133,9 @@ rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10). On a phone, Ask temper's composer and
 model picker stand above its three tabs by a selector browsers accept,
 and the five first-run Ask gallery states draw To begin's restricted rail
-and tabs; the history story's phone row has no supplied passing run, and
-the gallery's tests exceed their 1 CPU s budget until a cost repair
-(`client/browser.status.md`, 2.5 and 7.3).
+and tabs, and the history story, with its phone row, passes its runs
+alone; the gallery's tests exceed their 1 CPU s budget until a cost
+repair (`client/browser.status.md`, 2.5, 4.6 and 7.3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
 landing (`client/journeys.md`, section 10).
