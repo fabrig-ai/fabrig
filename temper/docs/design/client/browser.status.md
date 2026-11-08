@@ -389,6 +389,3 @@ reads the rules, whose effect is rendered; that comparison is section
   chat terminal's `--accent` take the signal, `#c2410c`, which the
   request does not draw, so that no source of the bundle names the old
   mark's `#b8664e`, as its test asks.
-
-- **Not yet:** 2.6: `temper-engine` doesn't exist; the box's `temper`
-  alone holds the bundle.

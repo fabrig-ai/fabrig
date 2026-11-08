@@ -122,6 +122,3 @@ documents and the owned example. The service table checks that the
 approval setting reaches an ask. The TUI's browser flow and recorded
 approval journey are present. Its fresh-box terminal check remains
 later work in section 15 and `../client/README.md`, section 11.
-
-- **Not yet:** 7.4, 11: `temper-engine` doesn't exist: an engine host's
-  units run the box's `temper`.

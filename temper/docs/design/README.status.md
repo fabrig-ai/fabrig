@@ -6,10 +6,6 @@ The first milestone (section 2), including the stock chat's instructions to
 delegate repository changes, stands in the code, and section 9 names the crates
 there are.
 
-- **Not yet:** 1, 9: `temper-engine`, `temper-engine-shell`,
-  `temper-shell`, `temper-version` and `temper-protocol-brief` are
-  named, and no crate of these names exists yet.
-
 - **Not yet:** 6: the client's documents by surface. All of them are in
   `client/` itself: `browser.md`, `journeys.md` with its journeys'
   prints, `mockups/` and `greenfield/` are the browser's, for

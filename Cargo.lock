@@ -5331,6 +5331,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-store",
+ "skein-fail-stop",
+ "skein-io",
+ "skein-scratch",
+ "skein-shell",
+ "temper-engine-shell",
+ "temper-protocol-store",
+ "temper-service",
+ "temper-shell",
+ "temper-version",
+]
+
+[[package]]
 name = "temper-engine-domain"
 version = "0.0.0"
 dependencies = [
