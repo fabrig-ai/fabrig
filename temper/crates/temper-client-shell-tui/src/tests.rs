@@ -1106,7 +1106,6 @@ fn left_off_host() -> Host {
             matches!(&subject, w::Subject::Tasks(tasks) if *tasks.query().label() == Some(8)).then_some(subject)
         })
         .expect("launchpad's chats watch");
-    let watched = watch(&duties, &subject);
     let mut rows = Vec::new();
     for (task, title, activity) in [(OLDER, b"Older".as_slice(), 1), (NEWEST, b"Newest".as_slice(), 2)] {
         let mut row = records::task_line_record().into_parts();
@@ -1120,7 +1119,20 @@ fn left_off_host() -> Host {
         rows.push(writer.finish());
     }
     let tasks = w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&rows), more: false }).expect("two chats");
-    delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks));
+    // Navigation replaces the rail's watch; rows go to the current page's watch.
+    for _ in 0..host.env.limits.client.domain.watches {
+        let watched = watch(&duties, &subject);
+        let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
+        duties.asked.extend(admit(&mut host, arrived).asked);
+        let chats = host.root.pages().chats().expect("launchpad chats");
+        if chats.live(host.root.client()).is_some() {
+            break;
+        }
+        let due = root::next_deadline(&host.root).expect("chat watch retry");
+        host.clocks(due, Wall::EPOCH);
+        let again = host.report(Report::Due);
+        duties.asked.extend(admit(&mut host, again).asked);
+    }
     host.frame();
     host
 }
