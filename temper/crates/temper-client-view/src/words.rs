@@ -356,6 +356,8 @@ pub enum Word {
     BuildersNone,
     BuildersNoRole,
     BuildersCut,
+    TeamTitle,
+    TeamFor,
     TeamKicker,
     TeamHeadline,
     TeamJustYou,
@@ -1658,7 +1660,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2211;
+const PHRASES: u32 = 2213;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1685,10 +1687,10 @@ const PHRASES: u32 = 2211;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3926;
+const SEGMENTS: u32 = 3930;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 53061;
-const ALL: [Word; 1529] = [
+const ENGLISH_BYTES: u32 = 53074;
+const ALL: [Word; 1531] = [
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
@@ -2026,6 +2028,8 @@ const ALL: [Word; 1529] = [
     Word::BuildersNone,
     Word::BuildersNoRole,
     Word::BuildersCut,
+    Word::TeamTitle,
+    Word::TeamFor,
     Word::TeamKicker,
     Word::TeamHeadline,
     Word::TeamJustYou,
@@ -3601,6 +3605,8 @@ impl Word {
             Self::BuildersNone => 3478,
             Self::BuildersNoRole => 3479,
             Self::BuildersCut => 3480,
+            Self::TeamTitle => 4900,
+            Self::TeamFor => 4901,
             Self::TeamKicker => 4930,
             Self::TeamHeadline => 4931,
             Self::TeamJustYou => 4932,
@@ -6464,6 +6470,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::BuildersNone => (&[b"No worker is connected."], &[]),
         Word::BuildersNoRole => (&[b"Workers are seen by the deployment\xe2\x80\x99s owners."], &[]),
         Word::BuildersCut => (&[b"Some worker facts were omitted."], &[]),
+        Word::TeamTitle => (&[b"Team"], &[]),
+        Word::TeamFor => (&[b"Team for ", b""], &[Name]),
         Word::TeamKicker => (&[b"", b" \xc2\xb7 Team"], &[Name]),
         Word::TeamHeadline => (&[b"Who owns what on ", b""], &[Name]),
         Word::TeamJustYou => (&[b"Just you."], &[]),

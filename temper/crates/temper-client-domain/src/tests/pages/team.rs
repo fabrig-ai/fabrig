@@ -15,13 +15,13 @@ const SAMS: Waits = Waits { questions: 1, reviews: 0, proposals: 0, held: 0, per
 fn text(bytes: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(bytes.into(), NAME_BYTES).unwrap())
 }
-fn member(party: u64, kind: c::PartyKind, name: &[u8], role: c::HeldRole) -> c::ProjectMember {
+pub(super) fn member(party: u64, kind: c::PartyKind, name: &[u8], role: c::HeldRole) -> c::ProjectMember {
     c::ProjectMember { party, kind, role, login: text(b"login"), name: text(name) }
 }
 fn person(party: u64, you: bool, name: &[u8], role: c::HeldRole, waits: Option<Waits>) -> Person {
     Person { party, you, name: name.into(), role, waits }
 }
-fn project(members: Box<[c::ProjectMember]>, cut: bool) -> c::Project {
+pub(super) fn project(members: Box<[c::ProjectMember]>, cut: bool) -> c::Project {
     c::Project {
         acts: List::with_capacity(0),
         number: PROJECT,
@@ -192,7 +192,6 @@ const NINE_OTHERS: u64 = 9;
 // The reader and the nine neighbours in the bound fixture.
 const TEN_PEOPLE: u32 = 10;
 // The ordinary fixture owns a project read and two task watches.
-const TEAM_HANDLES: u32 = 3;
 const TWO_OTHERS: u32 = 2;
 
 struct Reads {
@@ -732,15 +731,51 @@ fn team_reads_the_project_and_what_waits_on_each() {
             team::OTHERS,
         ),
         (
-            "home closes every team handle",
+            "home keeps the document and closes the others",
             Feed::Leave(Event::Went { address: Address::Home { project: PROJECT } }),
+            read.clone(),
+            Some(THREE_PEOPLE),
+            Box::<[_]>::from([]),
+            Box::<[_]>::from([]),
+            TWO_OTHERS,
+        ),
+        (
+            "me refreshes the document on Home",
+            Feed::Me,
+            read.clone(),
+            Some(THREE_PEOPLE),
+            Box::<[_]>::from([PROJECT]),
+            Box::<[_]>::from([]),
+            1,
+        ),
+        (
+            "Home reads without watching others",
+            Feed::Project(Box::new(read_people(&members))),
+            read.clone(),
+            Some(THREE_PEOPLE),
+            Box::<[_]>::from([]),
+            Box::<[_]>::from([]),
+            0,
+        ),
+        (
+            "Settings keeps the same project document",
+            Feed::Leave(Event::Went { address: Address::Settings { project: PROJECT } }),
+            read.clone(),
+            Some(THREE_PEOPLE),
+            Box::<[_]>::from([]),
+            Box::<[_]>::from([]),
+            0,
+        ),
+        (
+            "another project drops the document",
+            Feed::Leave(Event::Went { address: Address::Home { project: OTHER_PROJECT } }),
             team::Shown::Reading,
             None,
+            Box::<[_]>::from([OTHER_PROJECT]),
             Box::<[_]>::from([]),
-            Box::<[_]>::from([]),
-            TEAM_HANDLES,
+            1,
         ),
-        ("reopen", Feed::Open, team::Shown::Reading, None, Box::<[_]>::from([PROJECT]), Box::<[_]>::from([]), 0),
+        ("reopen", Feed::Open, team::Shown::Reading, None, Box::<[_]>::from([PROJECT]), Box::<[_]>::from([]), 1),
         ("refused", Feed::Refused, team::Shown::Unreadable, None, Box::<[_]>::from([]), Box::<[_]>::from([]), 0),
         (
             "retry after refusal",

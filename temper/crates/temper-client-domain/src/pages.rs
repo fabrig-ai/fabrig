@@ -1046,6 +1046,16 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     } else {
         pages.roles.leave(out);
     }
+    // The rail's document read shares the page handles with growing card reads.
+    if let Some(inbox) = &pages.inbox {
+        pages.next = pages.next.max(inbox.next);
+    }
+    if let Some(changes) = &pages.changes {
+        pages.next = pages.next.max(changes.next());
+    }
+    if let Some(chats) = &pages.chats {
+        pages.next = pages.next.max(chats.goals.number.checked_add(1).expect("chat handles fit"));
+    }
     if pages.team_open && client.link().state != Link::SignedOut && client.link().state != Link::OutOfDate {
         let you = match pages.me(client) {
             Some(me) => me.party.number,
@@ -1054,6 +1064,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         pages.team.configure(&pages.address, you, &env.limits, &mut pages.next, out);
     } else {
         pages.team.leave(out);
+    }
+    if let Some(inbox) = &mut pages.inbox {
+        inbox.next = inbox.next.max(pages.next);
+    }
+    if let Some(changes) = &mut pages.changes {
+        changes.reserve(pages.next);
     }
     let showing = pages.watching
         && pages.project.is_some()
@@ -1450,11 +1466,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.accounts.leave(out);
         pages.builders.leave(out);
         pages.roles.leave(out);
-        pages.team.leave(out);
-        pages.team_open = false;
-        if let Address::Team { .. } = address {
-            pages.team_open = true;
-        }
+        pages.team_open = address_project(&address).is_some();
         pages.accounts_open = address == Address::Accounts;
         pages.builders_open = match &address {
             Address::Builders { .. } | Address::Limits => true,

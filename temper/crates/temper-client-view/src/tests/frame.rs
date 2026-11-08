@@ -568,6 +568,23 @@ fn the_rail_holds_projects_navigation_and_foot_in_order() {
     let view = fixtures::signed_in_with_project();
     assert_rail(&view, b"Shop");
     assert_switcher(view.tree(), b"Shop", &[(b"Shop", true), (b"Second", false)]);
+    let mut root = fixtures::root_at(
+        temper_client_domain::Address::Team { project: fixtures::PROJECT },
+        &fixtures::domain_limits(),
+    )
+    .0;
+    super::rail::with_people(&mut root, 2);
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        assert_switcher(view.tree(), b"Shop", &[(b"Shop", true), (b"Second", false)]);
+        let id = fixtures::find(view.tree(), Role::Link, b"Team for Shop").expect("Team in the switcher");
+        assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/team".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(Action::Pages(pages::Act::Go {
+                address: temper_client_domain::Address::Team { project: fixtures::PROJECT },
+            }))
+        );
+    }
 }
 
 #[test]
@@ -637,6 +654,12 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
     assert_eq!(nodes[at].name.as_deref(), Some(b"New project".as_slice()));
     at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
     if panel {
+        if nodes[at].name.as_deref().is_some_and(|name| name.starts_with(b"Team for ")) {
+            assert_eq!(nodes[at].role, Role::Link);
+            assert_eq!(nodes[at].name.as_deref(), Some(b"Team for Shop".as_slice()));
+            assert!(nodes[at].states.as_slice().contains(&skein_ui::State::Current));
+            at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        }
         assert_eq!(nodes[at].role, Role::Link);
         assert_eq!(
             nodes[at].name.as_deref().unwrap().strip_prefix(b"How work runs for "),
