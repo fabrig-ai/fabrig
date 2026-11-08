@@ -30,3 +30,50 @@ id = 1
 story = "The opening's state and the path's drawing exist, each tested alone"
 parts = ["state", "drawing"]
 walk = false
+
+[[part]]
+id = "opening"
+title = "Ask temper's opening drawn from the ways read as the look request draws it, and what it replaces gone from the page"
+mode = "direct"
+needs = ["state", "drawing"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "removal"
+title = "The starters' and the reference's acts, the reference mode and the pane, which only the old opening reached, removed"
+mode = "direct"
+needs = ["opening"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "gallery"
+title = "The gallery draws the opening's states, those the pages show and those the request names in words"
+mode = "direct"
+needs = ["opening"]
+design = "temper/docs/design/client/browser.md, 7.2"
+
+[[part]]
+id = "stories"
+title = "Engine and client joined: the opening over CI and both tiers and over neither, Yours, Use this refused, Keep it, a member; the browser row compiled"
+mode = "direct"
+needs = ["opening"]
+design = "temper/docs/design/draft/stock-ways.md, 8"
+
+[[slice]]
+id = 2
+story = "Ask temper's opening shows the ways to pick, drawn from the ways read, its tabs and a stop's card in place, Use this and Keep it acting at once, and the old opening gone"
+parts = ["opening", "removal", "gallery", "stories"]
+walk = false
+
+[[part]]
+id = "account"
+title = "The look request's account, in the landing's last commit, and the design's status closed"
+mode = "direct"
+needs = ["state", "drawing", "opening", "removal", "gallery", "stories"]
+design = "temper/docs/design/draft/look-requests.md, 5"
+
+[[slice]]
+id = 3
+story = "Every row of the request's account landed or explained, none deferred"
+parts = ["account"]
+walk = false

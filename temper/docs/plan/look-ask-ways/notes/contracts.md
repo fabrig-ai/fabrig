@@ -147,6 +147,9 @@ Inside the starter slot (`STARTER`, `temper-starter`) of `Ask { project
 - **The terminal** prints the same tree: the tabs a line each, the current
   one's words "NAME, now"; the path's fallback a stop a line; the card,
   the legend and the act as text and controls.
+- **Before and without the read:** while `StockWays::state()` is
+  `Loading`, the ways' region holds no node; when it is `Ended`, a
+  paragraph (`WAYS_SAYS`) "The ways can't be read now.".
 - **The rail, top bar and composer** stay as today; the composer's hint is
   the chat's, `Word::ChatSendHint`.
 
