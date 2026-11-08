@@ -191,15 +191,33 @@ fn assert_landed(world: &mut World, goal: u64, change: u64, base: u64, head: u64
     else {
         panic!("merge ancestry")
     };
+    assert_eq!(commits.len(), 1, "skein/docs/design/fake-forge.md, 2.2: a squash adds one commit");
     let commit = commits.iter().find(|commit| commit.id == merge).expect("merge commit");
-    assert_eq!(commit.parents.as_ref(), &[base, head], "the landing is a merge commit at the producer's head");
+    assert_eq!(
+        commit.parents.as_ref(),
+        &[base],
+        "skein/docs/design/fake-forge.md, 2.2; temper/docs/design/domain/forge.md, 4.4: the repository's style squashes onto the base's tip"
+    );
+    let Ok(raw::Answer::Tree(landed_tree)) =
+        world.fake.inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Tree { commit: merge })
+    else {
+        panic!("landed tree")
+    };
+    let Ok(raw::Answer::Tree(produced_tree)) =
+        world.fake.inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Tree { commit: head })
+    else {
+        panic!("producer's tree")
+    };
+    assert_eq!(
+        landed_tree, produced_tree,
+        "the squash keeps the producer's tree (skein/docs/design/fake-forge.md, 2.2)"
+    );
     assert_eq!(branch_tip(world, &branch), merge);
     assert_eq!(forge_hold(world, &branch).expect("goal still holds its branch").task, goal);
     merge
 }
 
 #[test]
-#[ignore = "the fake forge squashes Style merges; a goal's landing requires a merge commit (C5)"]
 fn a_goal_makes_two_changes_into_its_branch_the_second_after_the_first() {
     let mut world = world();
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };

@@ -599,7 +599,8 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
   rule above the box*), and `launchpad-chat/04` has `127.0.0.1:PORT`
   where the look request `tui-chat-title-below` drew "box:40691"; the
   view's rows hold "box". Default: so, until a journey signs in by the
-  engine's link file.
+  engine's link file, or `box-welcome` is recorded in front of a box
+  (8.3).
 - **A resize in a walk:** recorded and replayed as a report; `walk` has
   no step for it until a journey needs one.
 - **A new recording's noise:** a fake box's port and the clocks change
