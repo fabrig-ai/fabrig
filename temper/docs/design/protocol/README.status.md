@@ -63,4 +63,7 @@ Section 4's deployment client, `temper-client`, and section 5's
 
 Section 4's client story is in the process tier:
 
-- **Not yet:** 4: `temper-client`'s story, `temper-client ctl` signed in to an engine and reading `me`.
+- **Departs:** 4: `temper-client`'s story runs the box's `temper serve` as its engine
+  (`crates/temper/tests/suite/client_binary.rs`), because `temper-engine` isn't
+  built; M5 switches it to `temper-engine`
+  (`../draft/deployment-binaries.execution.md`, M5).
