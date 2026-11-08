@@ -3,9 +3,6 @@
 2026-11-08. Where smith's code lags or departs from [shell.md](shell.md).
 
 - **Not yet:**
-  - 2.2: an agent's programs dying with it: `smith-agent` has no
-    `--program-child` mode, and the agent spawns its program directly
-    (protocol/programs.md, 5.1).
   - 4, 5.2: the `--account` flag and the `account` setting.
     `smith-local-shell/src/command.rs` parses no `--account`, and
     `settings/schema.rs` has no `account` key, so 4.1's refusal that

@@ -14,6 +14,7 @@ pub mod fixture;
 pub mod list;
 #[cfg(unix)]
 pub mod program;
+pub mod program_child;
 #[cfg(unix)]
 pub mod relay;
 pub mod trace;
@@ -22,3 +23,5 @@ pub use agent_shell::{Agent, ProgramResources, Resources, given_up_line, identit
 
 #[cfg(unix)]
 pub use agent_shell::{run, run_decoded, run_dumping};
+
+pub use smith_protocol_program::PROGRAM_CHILD_FLAG;

@@ -144,6 +144,7 @@ impl core::fmt::Debug for super::Settings {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         formatter
             .debug_struct("Settings")
+            .field("parent", &self.parent)
             .field("input_bytes", &self.input_bytes)
             .field("line_bytes", &self.line_bytes)
             .field("stream_tokens", &self.stream_tokens)

@@ -282,6 +282,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
         relay: b"/programs/smith-agent".as_slice().into(),
         entropy: Secret::new(Box::new([7; 32])),
         effective_user: 1000,
+        parent: None,
     });
     receiving(&mut config, case);
     config.limits.machine.env_bytes = 4096;
