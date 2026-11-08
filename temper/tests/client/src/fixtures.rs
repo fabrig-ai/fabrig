@@ -211,6 +211,11 @@ pub fn world(seed: u64) -> World<Temper, Joint> {
 pub fn tui_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_printed_link(seed, domain_limits()))
 }
+/// The launchpad asks Ask temper through the shipped TUI host.
+#[must_use]
+pub fn tui_asking_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, Joint::with_asking_printed_link(seed, domain_limits()))
+}
 #[must_use]
 pub fn adoption_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::adoption(seed, domain_limits()))

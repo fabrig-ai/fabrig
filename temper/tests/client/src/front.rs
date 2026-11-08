@@ -572,8 +572,22 @@ impl Joint {
             &engine_limits,
             1,
         );
-        joint.component = crate::component::Composition::with_printed_link(
-            &walking::config(seed),
+        joint.offer_printed_link(limits);
+        joint
+    }
+
+    /// Ask temper's charter and template with the TUI's pasted-link sign-in
+    /// (temper/docs/design/client/README.md, 10).
+    #[must_use]
+    pub fn with_asking_printed_link(seed: u64, limits: client::Limits) -> Self {
+        let mut joint = Self::with_asking(seed, limits, false);
+        joint.offer_printed_link(limits);
+        joint
+    }
+
+    fn offer_printed_link(&mut self, limits: client::Limits) {
+        self.component = crate::component::Composition::with_printed_link(
+            &walking::config(self.seed),
             limits.client.domain,
             jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
@@ -582,7 +596,6 @@ impl Joint {
             },
             skein_lib::Secret::new(Box::new(PRINTED)),
         );
-        joint
     }
 
     pub fn link_client(&mut self, who: ClientId, limits: jig_client::DomainLimits) {
