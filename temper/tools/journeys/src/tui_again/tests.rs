@@ -72,6 +72,8 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("PATH", "/usr/bin:/bin"),
             ("HOME", "/old-home"),
             ("XDG_STATE_HOME", "/old-state"),
+            ("XDG_RUNTIME_DIR", "/tmp/journey-environment/runtime"),
+            ("COLORFGBG", "0;15"),
             ("TERM", "dumb"),
             ("SSH_CONNECTION", "remote"),
             ("SSH_TTY", "tty"),
@@ -90,6 +92,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             ("PATH", "/tmp/journey-environment/bin:/usr/bin:/bin"),
             ("HOME", "/tmp/journey-environment/home"),
             ("XDG_STATE_HOME", "/tmp/journey-environment/state"),
+            ("XDG_RUNTIME_DIR", "/tmp/journey-environment/tui-runtime"),
             ("TERM", "xterm-256color"),
             ("DISPLAY", display.unwrap_or(":0")),
             ("LANG", "C.UTF-8"),
@@ -97,6 +100,7 @@ fn tui_environment_keeps_the_opener_inside_the_scratch_directory() {
             assert_eq!(lookup(name), Some(std::ffi::OsStr::new(value)), "{name}");
         }
         assert!(environment.iter().all(|(name, _)| !name.as_bytes().starts_with(b"SSH_")));
+        assert_eq!(lookup("COLORFGBG"), None);
     }
 }
 
