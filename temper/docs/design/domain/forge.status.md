@@ -2,6 +2,13 @@
 
 2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
+Section 8.9 has no known implementation gap in every-project given
+rules, their project-scoped reads and held values, removal and reset, or
+branch-relative project patterns. The root checks their approval
+eligibility across the project's repositories. The focused rule tables
+and branch-pattern fuzzy story are present; their real-forge observation
+remains section 20's after-landing work.
+
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the
 connector's change steps and landings use its separate sequence range.
