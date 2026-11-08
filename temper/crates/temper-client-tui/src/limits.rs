@@ -1,17 +1,18 @@
-//! The two screens' bound (temper/docs/design/client/README.md, 6.14).
+//! The screens' and chat page's bound (temper/docs/design/client/README.md, 6.14).
 use crate::words::Word;
 use temper_client_domain::Limits as Domain;
 
 #[must_use]
-pub fn limits(domain: &Domain, field: u32) -> Option<skein_ui::Limits> {
+pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<skein_ui::Limits> {
     // SignInFull is the longest borrowed line: its literals, ten count digits
     // and two thirteen-byte moments fit in 256 bytes. The other borrowed
     // phrases are shorter. Own phrases derive their capacities from the table.
     let mut line = 256_u32;
-    for word in
-        [Word::NotALink, Word::OtherAddress, Word::SigningIn, Word::Busy, Word::NotReady, Word::NoAnswer, Word::Refused]
-    {
-        line = line.max(word.capacity(domain)?);
+    let mut own = 0_u32;
+    for word in crate::words::ALL {
+        let capacity = word.capacity(domain)?;
+        line = line.max(capacity);
+        own = own.checked_add(capacity)?;
     }
     let opened = Word::ApprovalTab
         .capacity(domain)?
@@ -34,26 +35,62 @@ pub fn limits(domain: &Domain, field: u32) -> Option<skein_ui::Limits> {
         .checked_add(line)?
         .checked_add(Word::QuitKeys.capacity(domain)?)?
         .checked_add(Word::State.capacity(domain)?)?;
-    let connected = Word::Connected.capacity(domain)?.max(Word::Connecting.capacity(domain)?).max(256);
-    let projects = Word::Projects.capacity(domain)?.max(256); // NoProjectYet fits the borrowed-line bound.
-    let first = Word::Title
+    let forge = temper_client_domain::forge::wire_limits(&domain.forge)?;
+    let brief = forge.status_brief_sentence.checked_add(1)?.checked_add(forge.status_brief_lede)?;
+    let need = domain
+        .client
+        .domain
+        .text
+        .max(domain.forge.field_bytes)
+        .checked_add(domain.client.domain.long_text.max(domain.forge.field_bytes))?
+        .checked_add(256)?;
+    line = line.max(brief).max(need);
+    let launchpad = Word::Title
         .capacity(domain)?
-        .checked_add(connected)?
-        .checked_add(projects)?
+        .checked_add(Word::Separator.capacity(domain)?)?
+        .checked_add(domain.client.domain.text)?
+        .checked_add(64)?
+        .checked_add(brief)?
+        .checked_add(Word::Byline.capacity(domain)?)?
         .checked_add(Word::NotKept.capacity(domain)?)?
-        .checked_add(Word::Quit.capacity(domain)?)?
-        .checked_add(Word::State.capacity(domain)?)?;
-    let limits = skein_ui::Limits {
+        .checked_add(Word::LeftOff.capacity(domain)?)?
+        .checked_add(domain.client.domain.text)?
+        .checked_add(256)?
+        .checked_add(Word::NeedsYou.capacity(domain)?)?
+        .checked_add(need.checked_mul(5)?)?;
+    // The TUI owns its form and command menu even with no supplied page bound.
+    // The browser page bound covers model, effort, chat and question lists.
+    let foot_nodes = 64_u32;
+    // Up to eight help notes of eighteen lines, and the TUI's unknown-command note.
+    let note_lines = 8_u32.checked_mul(18)?.checked_add(1)?;
+    let nodes = foot_nodes.checked_add(64)?.checked_add(note_lines.checked_mul(2)?)?;
+    let foot_text = field.checked_add(line.checked_mul(16)?)?;
+    let screens = skein_ui::Limits {
         // Signing in: Page, Main, ten pairs of blocks and text leaves,
         // the field, ContentInfo and its paragraph and status text pairs.
-        nodes: 28,
-        depth: 4,
-        text_per_node: field.max(line).max(connected).max(projects),
-        text_bytes: signing.max(first),
+        nodes,
+        depth: 9,
+        text_per_node: field.max(line),
+        text_bytes: signing
+            .max(launchpad.checked_add(own)?.checked_add(foot_text)?.checked_add(line.checked_mul(note_lines)?)?),
         styles_per_node: 1,
-        patches: 28_u32.checked_mul(4)?,
-        bindings: 1,
+        patches: nodes.checked_mul(4)?,
+        bindings: 14,
         ..skein_ui::Limits::EMPTY
+    };
+    let limits = skein_ui::Limits {
+        nodes: screens.nodes.max(view.nodes),
+        depth: screens.depth.max(view.depth),
+        text_per_node: screens.text_per_node.max(view.text_per_node),
+        text_bytes: screens.text_bytes.max(view.text_bytes),
+        drawing_bytes: screens.drawing_bytes.max(view.drawing_bytes),
+        styles_per_node: screens.styles_per_node.max(view.styles_per_node),
+        patches: screens.patches.max(view.patches),
+        bindings: screens.bindings.max(view.bindings),
+        slots: screens.slots.max(view.slots),
+        markdown_depth: screens.markdown_depth.max(view.markdown_depth),
+        scene_marks: screens.scene_marks.max(view.scene_marks),
+        scene_bytes: screens.scene_bytes.max(view.scene_bytes),
     };
     if skein_ui::valid(&limits) { Some(limits) } else { None }
 }

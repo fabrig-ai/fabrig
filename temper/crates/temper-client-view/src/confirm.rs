@@ -502,21 +502,10 @@ fn proposal_object(object: jig_client::contract::ObjectKey) -> bool {
 
 /// An answer returned to a card (temper/docs/design/client/README.md, 3.5).
 pub(crate) fn outcome_words(b: &mut Builder, words: &Words, outcome: &Outcome) {
-    match outcome {
-        Outcome::Answered(Answered::Jig(Answer::Done(outcome))) => words.outcome(b, outcome),
-        Outcome::Answered(Answered::Jig(Answer::Refused { refusal, .. })) => {
-            words.refusal(b, refusal, 0);
-            if let jig_client::contract::Refusal::Moved { .. } = refusal {
-                words.card_text(b, P::LookAgain, &[]);
-            }
-        }
-        Outcome::Full { held, room_at } => crate::cards::answers_full(b, words, *held, *room_at),
-        Outcome::NotKept | Outcome::Held => words.status(b, P::RequestNotKept, &[]),
-        Outcome::Unknown => words.status(b, P::Unknown, &[]),
-        Outcome::Limit => words.status(b, P::RequestsInFlight, &[]),
-        Outcome::Unconfirmed => words.status(b, P::RequestUnconfirmed, &[]),
-        Outcome::Answered(Answered::Family(_)) => {}
-        Outcome::Unsent | Outcome::Lost => unreachable!("temper's requests carry no value"),
+    if let Outcome::Answered(Answered::Jig(Answer::Done(value))) = outcome {
+        words.outcome(b, value);
+    } else if let Some(line) = crate::shared::outcome_feedback(outcome, words, true) {
+        feedback(b, &line);
     }
 }
 
@@ -563,4 +552,18 @@ pub(crate) fn terminal_list(b: &mut Builder, root: &Domain, words: &Words, bindi
     }
     b.close();
     true
+}
+
+/// Feedback keeps its status and explanatory paragraph (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn feedback(b: &mut Builder, line: &crate::shared::Feedback) {
+    b.open(Role::Status);
+    if line.refused {
+        b.style(crate::look::REFUSAL);
+    }
+    b.name(&line.head);
+    b.text(Run::Plain, &line.head);
+    b.close();
+    if let Some(after) = &line.after {
+        crate::cards::text(b, Role::Paragraph, after);
+    }
 }

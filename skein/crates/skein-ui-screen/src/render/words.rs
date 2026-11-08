@@ -75,6 +75,14 @@ pub(super) fn entry(n: &Node, paint: Paint, out: &mut Canvas, frame: &mut Frame)
 }
 
 pub(super) fn states(n: &Node, paint: Paint, out: &mut Canvas, frame: &mut Frame) {
+    state_words(n, paint, out, frame, false);
+}
+
+pub(super) fn option_states(n: &Node, paint: Paint, out: &mut Canvas, frame: &mut Frame) {
+    state_words(n, paint, out, frame, true);
+}
+
+fn state_words(n: &Node, paint: Paint, out: &mut Canvas, frame: &mut Frame, option: bool) {
     for state in [
         State::Disabled,
         State::Expanded,
@@ -87,7 +95,7 @@ pub(super) fn states(n: &Node, paint: Paint, out: &mut Canvas, frame: &mut Frame
         State::Completed,
         State::SubmitsOnEnter,
     ] {
-        if !n.states.as_slice().contains(&state) {
+        if !n.states.as_slice().contains(&state) || option && state == State::Selected {
             continue;
         }
         let word = match state {

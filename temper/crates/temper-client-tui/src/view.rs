@@ -1,15 +1,43 @@
-//! Two screens from the client and the TUI's state (temper/docs/design/client/README.md, 6.14 and 7.1).
+//! The TUI's screens from the client and the TUI's state (temper/docs/design/client/README.md, 6.14 and 7.1).
 use crate::{
     Browser, Event, Local, Refusal, Signing, Tui, approval_address, look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
 use jig_client::{ApprovalCode, Link, NotAsked, NotSignedIn, Taking};
-use skein_lib::{Queue, Wall, Writer, bytes::copy_of};
+use skein_lib::{List, Queue, Token, Wall, bytes::copy_of};
 use skein_ui::phrases::Hole;
-use skein_ui::{Act, Binding, Builder, EntryKind, Modifier, NodeId, Patch, Role, Run, Shortcut, State, Style, Tree};
+use skein_ui::{Act, Binding, Builder, EntryKind, NodeId, Patch, Role, Run, State, Style, Tree};
 use temper_client_domain::{Domain, asked};
 use temper_client_view::words::{TimeForm, Word as Shared};
+
+pub(crate) mod chat;
+pub(crate) mod foot;
+pub(crate) mod launchpad;
+
+/// The box's binding, beside the look's BOX region.
+pub(crate) const BOX: Token = Token::new(3);
+#[derive(Debug)]
+pub(crate) struct Binds {
+    events: List<Event>,
+}
+impl Binds {
+    pub(crate) fn bind(&mut self, event: Event) -> Binding {
+        let token = Token::new(u64::from(self.events.len()).checked_add(4).expect("binding token fits"));
+        self.events.push(event).expect("tree binding bound");
+        Binding { owner: look::OWNER, token }
+    }
+}
+#[derive(Debug)]
+pub(crate) enum Body {
+    Launchpad(launchpad::Launchpad),
+    Chat(chat::Chat),
+}
+#[derive(Debug)]
+pub(crate) struct Signed {
+    pub body: Body,
+    pub foot: foot::Foot,
+}
 
 #[derive(Debug)]
 pub struct View {
@@ -18,11 +46,25 @@ pub struct View {
     built: Option<(u64, u64)>,
     tick: Option<Wall>,
     shown: u64,
+    binds: Binds,
+    escape: Option<Event>,
 }
 impl View {
     #[must_use]
     pub fn new(limits: &skein_ui::Limits, words: Words) -> View {
-        View { render: skein_ui::View::new(limits), words, built: None, tick: None, shown: 0 }
+        View {
+            render: skein_ui::View::new(limits),
+            words,
+            built: None,
+            tick: None,
+            shown: 0,
+            binds: Binds { events: List::with_capacity(limits.bindings) },
+            escape: None,
+        }
+    }
+    #[must_use]
+    pub const fn words(&self) -> &Words {
+        &self.words
     }
     #[must_use]
     pub fn tick(&self) -> Option<Wall> {
@@ -183,83 +225,12 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     b.value(tui.field(), tui.written());
     b.placeholder(&words.say(Word::LinkShape, &[Hole::Name(copy_of(tui.address()))]));
     b.bind(Binding { owner: look::OWNER, token: look::LINK });
-    b.focus(tui.openings());
+    b.focus(tui.focus());
     b.close();
     if let Some((line, style)) = sign_in_line(tui, root, words) {
         text(b, Role::Paragraph, &line, Some(style));
     }
     tick
-}
-fn projects(me: &jig_client::contract::Me, bound: u32) -> Box<[u8]> {
-    let mut bytes = 0_u32;
-    let mut count = 0_usize;
-    for project in &me.projects {
-        let separator = if count == 0 { 0 } else { 4 };
-        let name = u32::try_from(project.name.bytes().len()).expect("domain text fits u32");
-        let Some(next) = bytes.checked_add(separator) else { break };
-        let Some(next) = next.checked_add(name) else { break };
-        if next > bound {
-            break;
-        }
-        bytes = next;
-        count = count.saturating_add(1);
-    }
-    let mut out = Writer::new(skein_lib::usize_of(bytes));
-    for (index, project) in me.projects.as_slice().iter().take(count).enumerate() {
-        if index != 0 {
-            out.put(" · ".as_bytes()).expect("separator counted");
-        }
-        out.put(project.name.bytes()).expect("name counted");
-    }
-    out.finish()
-}
-fn first(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words) {
-    let me = if root.client().link().state == Link::SignedOut { None } else { root.pages().me(root.client()) };
-    if root.client().link().state == Link::OutOfDate {
-        text(b, Role::Paragraph, &words.view().say(Shared::OutOfDateMain, &[]), None);
-    } else if let Some(me) = me {
-        text(
-            b,
-            Role::Paragraph,
-            &words.say(
-                Word::Connected,
-                &[Hole::Name(copy_of(tui.address())), Hole::Name(copy_of(me.party.name.bytes()))],
-            ),
-            None,
-        );
-        let line = if me.projects.is_empty() {
-            words.view().say(Shared::NoProjectYet, &[])
-        } else {
-            words.say(Word::Projects, &[Hole::Name(projects(me, words.projects_bytes))])
-        };
-        text(b, Role::Paragraph, &line, None);
-    } else {
-        text(b, Role::Paragraph, &words.say(Word::Connecting, &[Hole::Name(copy_of(tui.address()))]), None);
-    }
-    if tui.unkept() {
-        text(b, Role::Alert, &words.say(Word::NotKept, &[]), Some(look::REFUSED));
-    }
-}
-fn state(tui: &Tui, root: &Domain) -> (Shared, Style) {
-    match root.client().link().state {
-        Link::Live => {
-            if root.pages().me(root.client()).is_some() {
-                (Shared::Live, look::LIVE)
-            } else {
-                (Shared::Connecting, look::WAITING)
-            }
-        }
-        Link::Starting => (Shared::Connecting, look::WAITING),
-        Link::Offline => (Shared::Offline, look::DOWN),
-        Link::OutOfDate => (Shared::OutOfDate, look::DOWN),
-        Link::SignedOut => {
-            if tui.local() == Local::Signing {
-                (Shared::Connecting, look::WAITING)
-            } else {
-                (Shared::SignedOut, look::DOWN)
-            }
-        }
-    }
 }
 /// Rebuild when the root's shown count or the TUI's revision changes, or the tick is reached.
 pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Queue<Patch>) {
@@ -272,39 +243,72 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     if view.built == Some((root_shown, revision)) && !ticked {
         return;
     }
+    let signed_out = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
+    if signed_out {
+        view.shown = view.shown.wrapping_add(1);
+        view.binds.events.clear();
+        let words = &view.words;
+        let mut b = view.render.builder();
+        b.open(Role::Page);
+        b.open(Role::Main);
+        b.region(look::TOP);
+        text(&mut b, Role::Heading { level: 1 }, &words.say(Word::Title, &[]), Some(look::TITLE));
+        view.tick = sign_in(&mut b, tui, root, words, wall);
+        b.close();
+        view.escape = foot::draw(&mut b, &foot::read(root, tui, words, wall), words, &mut view.binds);
+        b.close();
+        view.render.finish(b, view.shown, out);
+    } else {
+        let body = match root.pages().address() {
+            temper_client_domain::Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
+            temper_client_domain::Address::Home { .. }
+            | temper_client_domain::Address::Inbox { .. }
+            | temper_client_domain::Address::Chats { .. }
+            | temper_client_domain::Address::NewChat { .. }
+            | temper_client_domain::Address::Ask { .. }
+            | temper_client_domain::Address::Accounts
+            | temper_client_domain::Address::Forges
+            | temper_client_domain::Address::ConnectForge { .. }
+            | temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Welcome { .. }
+            | temper_client_domain::Address::Task { .. }
+            | temper_client_domain::Address::Goals { .. }
+            | temper_client_domain::Address::Changes { .. }
+            | temper_client_domain::Address::Settings { .. }
+            | temper_client_domain::Address::Models { .. }
+            | temper_client_domain::Address::Builders { .. }
+            | temper_client_domain::Address::Repositories { .. }
+            | temper_client_domain::Address::Adopt { .. } => {
+                Body::Launchpad(launchpad::read(root, tui, &view.words, wall))
+            }
+        };
+        let data = Signed { body, foot: foot::read(root, tui, &view.words, wall) };
+        signed(view, &data, out);
+    }
+    view.built = Some((root_shown, revision));
+}
+/// The signed-in tree from data alone (client/README.md, 6.14).
+pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.shown = view.shown.wrapping_add(1);
-    let words = &view.words;
+    view.tick = match &signed.body {
+        Body::Launchpad(part) => part.tick,
+        Body::Chat(_) => None,
+    };
+    view.binds.events.clear();
     let mut b = view.render.builder();
     b.open(Role::Page);
-    b.open(Role::Main);
-    b.region(look::TOP);
-    text(&mut b, Role::Heading { level: 1 }, &words.say(Word::Title, &[]), Some(look::TITLE));
-    let signed_out = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
-    view.tick = if signed_out {
-        sign_in(&mut b, tui, root, words, wall)
-    } else {
-        first(&mut b, tui, root, words);
-        None
-    };
-    b.close();
-    b.open(Role::ContentInfo);
-    b.region(look::BOTTOM);
-    if signed_out {
-        text(&mut b, Role::Paragraph, &words.say(Word::QuitKeys, &[]), Some(look::HINT));
-    } else {
-        b.open(Role::Button);
-        b.name(&words.say(Word::Quit, &[]));
-        b.bind(Binding { owner: look::OWNER, token: look::QUIT });
-        b.shortcut(Shortcut { key: b'q', modifier: Modifier::Plain });
-        b.style(look::HINT);
-        b.close();
+    match &signed.body {
+        Body::Launchpad(part) => launchpad::draw(&mut b, part, &view.words, &mut view.binds),
+        Body::Chat(part) => chat::draw(&mut b, part, &view.words, &mut view.binds),
     }
-    let (state, style) = state(tui, root);
-    text(&mut b, Role::Status, &words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))]), Some(style));
-    b.close();
+    view.escape = foot::draw(&mut b, &signed.foot, &view.words, &mut view.binds);
     b.close();
     view.render.finish(b, view.shown, out);
-    view.built = Some((root_shown, revision));
+}
+/// What Escape makes in the tree last built.
+#[must_use]
+pub fn escape(view: &View) -> Option<Event> {
+    view.escape.clone()
 }
 /// Decode against the displayed tree alone.
 #[must_use]
@@ -315,7 +319,7 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
     }
     match bound.act {
         Act::Input { value } => {
-            if bound.binding.token == look::LINK {
+            if bound.binding.token == look::LINK || bound.binding.token == BOX {
                 Some(Event::Typed { value })
             } else {
                 None
@@ -324,17 +328,51 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
         Act::Submit => {
             if bound.binding.token == look::LINK {
                 Some(Event::SignIn)
+            } else if bound.binding.token == BOX {
+                Some(Event::Send)
             } else {
                 None
             }
         }
         Act::Press => {
-            if bound.binding.token == look::QUIT {
-                Some(Event::Quit)
-            } else {
-                None
-            }
+            let index = u32::try_from(bound.binding.token.raw().checked_sub(4)?).ok()?;
+            view.binds.events.get(index).cloned()
         }
         Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
     }
+}
+
+/// The shared commands narrowed to the TUI's screen (client/README.md, 6.14, Offered).
+#[must_use]
+pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::pages::terminal::Command]> {
+    use temper_client_domain::pages::terminal::Command;
+    let task = if let Some(chat) = root.pages().chat() { chat.task(root.client()) } else { None };
+    let chat = root.pages().chat().is_some();
+    let project = root.pages().project().is_some();
+    let picker = match (root.pages().me(root.client()), root.pages().choice().project()) {
+        (Some(me), Some(project)) => match temper_client_domain::pages::choice::offer(me, project) {
+            Some(models) => !models.is_empty(),
+            None => false,
+        },
+        (Some(_), None) | (None, _) => false,
+    };
+    let no_delegate = match task {
+        Some(task) => task.delegates.is_empty(),
+        None => false,
+    };
+    let mut commands = List::with_capacity(13);
+    for command in Command::ALL {
+        let screen = match command {
+            Command::Model => project && picker,
+            Command::Effort | Command::Pause => chat,
+            Command::Close | Command::StartOver => chat && no_delegate,
+            Command::New | Command::Chats => project,
+            Command::Theme | Command::Help | Command::Exit => true,
+            Command::Draft | Command::Goal | Command::Font => false,
+        };
+        if screen && temper_client_view::shared::offered(root, task, command) {
+            commands.push(command).expect("at most Command::ALL commands");
+        }
+    }
+    commands.into_boxed()
 }

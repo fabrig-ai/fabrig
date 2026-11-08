@@ -113,7 +113,7 @@ fn record_again(name: &str) -> Result<(), String> {
     let is_tui = Path::new(TUI_JOURNEYS).join(name).join("walk").exists();
     // Unwalkable journeys are refused before starting the builds or either child.
     let tui_steps = if is_tui {
-        Some(tui_again::starting(Path::new(TUI_JOURNEYS), name).map_err(refusal)?)
+        Some(tui_again::starting(Path::new(TUI_JOURNEYS), Path::new(JOURNEYS), name).map_err(refusal)?)
     } else {
         let _steps = again::starting(Path::new(JOURNEYS), name).map_err(refusal)?;
         let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;

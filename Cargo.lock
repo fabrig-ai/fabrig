@@ -5100,6 +5100,8 @@ dependencies = [
  "jig-client-protocol-http",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
+ "jig-client-test-records",
+ "skein-codec",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
@@ -5168,7 +5170,9 @@ name = "temper-client-tui"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-link",
  "jig-client-protocol-wire",
+ "jig-client-test-records",
  "skein-lib",
  "skein-ui",
  "skein-ui-screen",

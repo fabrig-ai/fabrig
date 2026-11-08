@@ -2,6 +2,7 @@
 
 2026-11-06. Where the design lags or departs from [chat-reading.md](chat-reading.md).
 
+- **Design lags:** 2, *Opened*, and 5, *No "Older"* and *"Latest ↓"*, in the TUI: `../client/README.md`, 6.14, *A chat*, draws a run's line without its rows, and reads only the window a chat's page opens with, since skein's screen reports no log edge yet; its section 11 defers both, with "Latest ↓".
 - **Design departs:**
   - 5: *Keys, in the terminal:* `../client/README.md`, 5.15: the terminal reads lines, never raw keys. `up` and `down`, or the escape sequences PgUp and PgDn make, followed by Enter, read earlier or later lines and print the whole window again. The plan `chat-reading-c` decided, under its request's "take the nearest thing".
   - 5: *Keys, from anywhere on the page:* skein's `ui-web.md`, section 7: a component holding the focus keeps PgUp and PgDn as well, beside the menu or dialog the section excepts, since a component's keys are its own. The plan `chat-reading-c` decided.

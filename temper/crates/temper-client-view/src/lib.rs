@@ -17,6 +17,7 @@ pub mod look;
 pub mod pages;
 pub mod public;
 mod root;
+pub mod shared;
 pub mod sign_in;
 pub mod words;
 pub use limits::{Limits, valid};
