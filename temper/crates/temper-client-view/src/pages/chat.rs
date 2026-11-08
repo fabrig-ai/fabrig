@@ -494,12 +494,7 @@ fn session_composer(
         super::session::foot_row(b, root, Some(task), words, bindings, hint);
     }
     super::session::over(b, words, over);
-    if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
-        && let Some(outcome) = &chat.outcome
-        && !super::chats::accepted(outcome)
-    {
-        super::chats::outcome_text(b, words, outcome, 0);
-    }
+    super::session::refusals(b, root, words);
     b.close();
 }
 fn closed_status(b: &mut Builder, words: &Words) {

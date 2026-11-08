@@ -21,7 +21,7 @@ use temper_client_domain::{
 fn act(root: &mut d::Domain, act: Act) {
     f::root_event(root, Event::Act { action: Action::Pages(act) });
 }
-fn view(root: &d::Domain, shell: Shell) -> crate::View {
+pub(super) fn view(root: &d::Domain, shell: Shell) -> crate::View {
     let words = Words::english(f::FORGE, 512, shell).unwrap();
     let mut limits = f::domain_limits();
     limits.client.domain.text = 512;
@@ -234,10 +234,10 @@ fn the_terminal_says_where_it_is_and_what_runs() {
     }
 }
 
-fn command_root(state: u8) -> d::Domain {
+pub(super) fn command_root(state: u8) -> d::Domain {
     command_root_with_watch(state).0
 }
-fn command_root_with_watch(state: u8) -> (d::Domain, Option<skein_lib::Token>) {
+pub(super) fn command_root_with_watch(state: u8) -> (d::Domain, Option<skein_lib::Token>) {
     let source = state_root(state);
     let mut me = source.pages().me(source.client()).unwrap().clone();
     let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
@@ -600,7 +600,7 @@ const QUESTION_OBJECT: c::ObjectKey = c::ObjectKey::Question { task: f::chat::DE
     clippy::too_many_lines,
     reason = "one fixture answers the chat, subtree inbox and question through their requests"
 )]
-fn terminal_question_root(choices: bool) -> d::Domain {
+pub(super) fn terminal_question_root(choices: bool) -> d::Domain {
     use skein_lib::{List, Queue, Wall};
     let source = f::chat::messaging_root();
     let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
