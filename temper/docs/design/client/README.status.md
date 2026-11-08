@@ -2,12 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 6.12, *The engine's link, kept at rest*, and 7: serve
-  keeps the printed link in the file, and the box's first secret at its
-  start; the local link, written at each `LocalLink` and never printed,
-  the printed link printed alone, is `tui-native-secret`'s task
-  `serve-file`.
-
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while

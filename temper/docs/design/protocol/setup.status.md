@@ -2,12 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [setup.md](setup.md).
 
-- **Not yet:** 13.4: the box's story finds the printed link in the
-  engine's link file and the file rewritten when that link is spent;
-  the file holding the local link alone, its secret on no stdout,
-  stderr or log, and left as it was when the printed link is spent, are
-  `tui-native-secret`'s task `serve-file`.
-
 Section 8.3 has no known implementation gap in the binary supplying
 every project's rule 1 and no deployment rule, or supplying stock
 charter 5 and template 4 with their delegation. The documents carry none
@@ -17,7 +11,7 @@ section 15 keeps that after-landing work.
 
 Section 7.2's sign-in block names the TUI command at the link's origin,
 on stderr in the first block alone. Serve keeps the engine's private
-link file at startup and each new Link and removes it when its loop
+link file at each `LocalLink`, never a printed link, and removes it when its loop
 returns (`../client/README.md`, 6.12). No known implementation gap
 remains in those additions; a forced kill can leave a stale file as
 designed.
