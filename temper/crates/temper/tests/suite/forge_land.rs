@@ -876,6 +876,43 @@ fn the_launcher_runs_its_builds_through_the_wrapper_it_is_given() {
     scratch.remove();
 }
 
+/// domain/testing.md, 2.6: the offline driver proofs run in the process tier.
+#[test]
+fn the_offline_rung_runs_its_proofs_in_the_process_profile() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let scratch = support::Scratch::new("offline-rung-wrapper");
+    let root = scratch.path();
+    let stub = root.join("wrap");
+    support::write_private(
+        &stub,
+        b"#!/bin/sh\n[ \"$NEXTEST_DOUBLE_SPAWN\" = 0 ] || exit 98\nprintf '%s\\n' \"$@\" > \"$HOME/seen\"\nexit 0\n",
+    );
+    fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable wrapper stub");
+    let output = launcher(root, "rung-b0-offline", None)
+        .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
+        .env("TEMPER_WRAPPER", "wrap")
+        .output()
+        .expect("wrapped offline launcher");
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    let seen = fs::read_to_string(root.join("seen")).expect("wrapper arguments");
+    assert_eq!(
+        seen.lines().collect::<Vec<_>>(),
+        [
+            "cargo",
+            "nextest",
+            "run",
+            "-p",
+            "temper",
+            "--test",
+            "proof_live",
+            "--profile",
+            "process-temper",
+            "--no-fail-fast"
+        ]
+    );
+    scratch.remove();
+}
+
 fn program_accounts() -> Value {
     json!({"accounts":{
         "party":[{"number":7, "provider":2, "sources":[{"kind":"program", "name":"claude-login", "usable":true}]}],
