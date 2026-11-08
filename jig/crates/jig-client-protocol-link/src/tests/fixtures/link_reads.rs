@@ -249,9 +249,9 @@ fn read_value_cases_last(cases: &mut skein_lib::List<(w::ReadValue, c::ReadValue
 }
 
 fn whole_call_turn_case() -> (w::ReadValue, c::ReadValue) {
-    use smith_transcript::v6 as smith;
+    use smith_transcript::v7 as smith;
     const INPUT: &[u8] = b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefEND-OF-INPUT";
-    let mut source = smith::Turn::decode(&smith::CEILINGS, &mut Reader::new(FULL_TURN)).unwrap().into_parts();
+    let mut source = smith_transcript::decode_archived(&smith::CEILINGS, FULL_TURN).unwrap().into_parts();
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks
         .push(smith::Block::Call(

@@ -6,99 +6,14 @@ use smith_agent_service::profile::{Layer, Limit, Value};
 
 use super::entry;
 
-pub(super) fn transcript(limits: &smith_transcript::v6::Limits) -> Box<[Limit]> {
-    let smith_transcript::v6::Limits {
-        program_name,
-        replay_bytes,
-        text_text,
-        opaque_bytes,
-        call_id,
-        call_name,
-        call_name_name,
-        allowed_calls_names,
-        call_input,
-        entry_name,
-        hit_path,
-        hit_text,
-        read_content,
-        listed_entries,
-        found_hits,
-        command_end_head,
-        command_end_last,
-        command_running_head,
-        command_running_last,
-        job_read_head,
-        job_read_last,
-        ambiguous_lines,
-        working_path_path,
-        other_path_directory,
-        other_path_path,
-        outside_path_path,
-        field_problem_field,
-        said_text,
-        tool_result_id,
-        message_blocks,
-        turn_endpoint,
-        turn_model,
-        turn_effort_some,
-        turn_messages,
-    } = *limits;
-    Box::new([
-        entry(Layer::Host, "process.channel.transcript.program_name", Value::Bytes(u64::from(program_name))),
-        entry(Layer::Host, "process.channel.transcript.replay_bytes", Value::Bytes(u64::from(replay_bytes))),
-        entry(Layer::Host, "process.channel.transcript.text_text", Value::Bytes(u64::from(text_text))),
-        entry(Layer::Host, "process.channel.transcript.opaque_bytes", Value::Bytes(u64::from(opaque_bytes))),
-        entry(Layer::Host, "process.channel.transcript.call_id", Value::Bytes(u64::from(call_id))),
-        entry(Layer::Host, "process.channel.transcript.call_name", Value::Bytes(u64::from(call_name))),
-        entry(Layer::Host, "process.channel.transcript.call_name_name", Value::Bytes(u64::from(call_name_name))),
-        entry(
-            Layer::Host,
-            "process.channel.transcript.allowed_calls_names",
-            Value::Count(u64::from(allowed_calls_names)),
-        ),
-        entry(Layer::Host, "process.channel.transcript.call_input", Value::Bytes(u64::from(call_input))),
-        entry(Layer::Host, "process.channel.transcript.entry_name", Value::Bytes(u64::from(entry_name))),
-        entry(Layer::Host, "process.channel.transcript.hit_path", Value::Bytes(u64::from(hit_path))),
-        entry(Layer::Host, "process.channel.transcript.hit_text", Value::Bytes(u64::from(hit_text))),
-        entry(Layer::Host, "process.channel.transcript.read_content", Value::Bytes(u64::from(read_content))),
-        entry(Layer::Host, "process.channel.transcript.listed_entries", Value::Count(u64::from(listed_entries))),
-        entry(Layer::Host, "process.channel.transcript.found_hits", Value::Bytes(u64::from(found_hits))),
-        entry(Layer::Host, "process.channel.transcript.command_end_head", Value::Bytes(u64::from(command_end_head))),
-        entry(Layer::Host, "process.channel.transcript.command_end_last", Value::Bytes(u64::from(command_end_last))),
-        entry(
-            Layer::Host,
-            "process.channel.transcript.command_running_head",
-            Value::Bytes(u64::from(command_running_head)),
-        ),
-        entry(
-            Layer::Host,
-            "process.channel.transcript.command_running_last",
-            Value::Bytes(u64::from(command_running_last)),
-        ),
-        entry(Layer::Host, "process.channel.transcript.job_read_head", Value::Bytes(u64::from(job_read_head))),
-        entry(Layer::Host, "process.channel.transcript.job_read_last", Value::Bytes(u64::from(job_read_last))),
-        entry(Layer::Host, "process.channel.transcript.ambiguous_lines", Value::Count(u64::from(ambiguous_lines))),
-        entry(Layer::Host, "process.channel.transcript.working_path_path", Value::Bytes(u64::from(working_path_path))),
-        entry(
-            Layer::Host,
-            "process.channel.transcript.other_path_directory",
-            Value::Bytes(u64::from(other_path_directory)),
-        ),
-        entry(Layer::Host, "process.channel.transcript.other_path_path", Value::Bytes(u64::from(other_path_path))),
-        entry(Layer::Host, "process.channel.transcript.outside_path_path", Value::Bytes(u64::from(outside_path_path))),
-        entry(
-            Layer::Host,
-            "process.channel.transcript.field_problem_field",
-            Value::Bytes(u64::from(field_problem_field)),
-        ),
-        entry(Layer::Host, "process.channel.transcript.said_text", Value::Bytes(u64::from(said_text))),
-        entry(Layer::Host, "process.channel.transcript.tool_result_id", Value::Bytes(u64::from(tool_result_id))),
-        entry(Layer::Host, "process.channel.transcript.message_blocks", Value::Count(u64::from(message_blocks))),
-        entry(Layer::Host, "process.channel.transcript.turn_endpoint", Value::Bytes(u64::from(turn_endpoint))),
-        entry(Layer::Host, "process.channel.transcript.turn_model", Value::Bytes(u64::from(turn_model))),
-        entry(Layer::Host, "process.channel.transcript.turn_effort_some", Value::Bytes(u64::from(turn_effort_some))),
-        entry(Layer::Host, "process.channel.transcript.turn_messages", Value::Count(u64::from(turn_messages))),
-    ])
+pub(super) fn transcript(limits: &smith_transcript::v7::Limits) -> Box<[Limit]> {
+    let mut entries = skein_lib::List::with_capacity(35);
+    for group in [transcript_provider(limits), transcript_tools(limits)] {
+        for (name, value) in group {
+            entries.push(entry(Layer::Host, name, value)).expect("every transcript bound counted");
+        }
+    }
+    entries.into_boxed()
 }
 
 pub(super) fn bodies(limits: &smith_channel::Limits) -> Box<[Limit]> {
@@ -197,4 +112,49 @@ fn body_bytes(field: &'static str, value: u32) -> Limit {
 
 fn body_count(field: &'static str, value: u32) -> Limit {
     entry(Layer::Host, field, Value::Count(u64::from(value)))
+}
+
+fn transcript_provider(limits: &smith_transcript::v7::Limits) -> Box<[(&'static str, Value)]> {
+    Box::new([
+        ("process.channel.transcript.program_name", Value::Bytes(u64::from(limits.program_name))),
+        ("process.channel.transcript.replay_bytes", Value::Bytes(u64::from(limits.replay_bytes))),
+        ("process.channel.transcript.text_text", Value::Bytes(u64::from(limits.text_text))),
+        ("process.channel.transcript.opaque_bytes", Value::Bytes(u64::from(limits.opaque_bytes))),
+        ("process.channel.transcript.call_id", Value::Bytes(u64::from(limits.call_id))),
+        ("process.channel.transcript.call_name", Value::Bytes(u64::from(limits.call_name))),
+        ("process.channel.transcript.call_name_name", Value::Bytes(u64::from(limits.call_name_name))),
+        ("process.channel.transcript.call_input", Value::Bytes(u64::from(limits.call_input))),
+        ("process.channel.transcript.said_text", Value::Bytes(u64::from(limits.said_text))),
+        ("process.channel.transcript.turn_endpoint", Value::Bytes(u64::from(limits.turn_endpoint))),
+        ("process.channel.transcript.turn_model", Value::Bytes(u64::from(limits.turn_model))),
+        ("process.channel.transcript.turn_effort_some", Value::Bytes(u64::from(limits.turn_effort_some))),
+        ("process.channel.transcript.turn_system_some", Value::Bytes(u64::from(limits.turn_system_some))),
+    ])
+}
+
+fn transcript_tools(limits: &smith_transcript::v7::Limits) -> Box<[(&'static str, Value)]> {
+    Box::new([
+        ("process.channel.transcript.allowed_calls_names", Value::Count(u64::from(limits.allowed_calls_names))),
+        ("process.channel.transcript.entry_name", Value::Bytes(u64::from(limits.entry_name))),
+        ("process.channel.transcript.hit_path", Value::Bytes(u64::from(limits.hit_path))),
+        ("process.channel.transcript.hit_text", Value::Bytes(u64::from(limits.hit_text))),
+        ("process.channel.transcript.read_content", Value::Bytes(u64::from(limits.read_content))),
+        ("process.channel.transcript.listed_entries", Value::Count(u64::from(limits.listed_entries))),
+        ("process.channel.transcript.found_hits", Value::Bytes(u64::from(limits.found_hits))),
+        ("process.channel.transcript.command_end_head", Value::Bytes(u64::from(limits.command_end_head))),
+        ("process.channel.transcript.command_end_last", Value::Bytes(u64::from(limits.command_end_last))),
+        ("process.channel.transcript.command_running_head", Value::Bytes(u64::from(limits.command_running_head))),
+        ("process.channel.transcript.command_running_last", Value::Bytes(u64::from(limits.command_running_last))),
+        ("process.channel.transcript.job_read_head", Value::Bytes(u64::from(limits.job_read_head))),
+        ("process.channel.transcript.job_read_last", Value::Bytes(u64::from(limits.job_read_last))),
+        ("process.channel.transcript.ambiguous_lines", Value::Count(u64::from(limits.ambiguous_lines))),
+        ("process.channel.transcript.working_path_path", Value::Bytes(u64::from(limits.working_path_path))),
+        ("process.channel.transcript.other_path_directory", Value::Bytes(u64::from(limits.other_path_directory))),
+        ("process.channel.transcript.other_path_path", Value::Bytes(u64::from(limits.other_path_path))),
+        ("process.channel.transcript.outside_path_path", Value::Bytes(u64::from(limits.outside_path_path))),
+        ("process.channel.transcript.field_problem_field", Value::Bytes(u64::from(limits.field_problem_field))),
+        ("process.channel.transcript.tool_result_id", Value::Bytes(u64::from(limits.tool_result_id))),
+        ("process.channel.transcript.message_blocks", Value::Count(u64::from(limits.message_blocks))),
+        ("process.channel.transcript.turn_messages", Value::Count(u64::from(limits.turn_messages))),
+    ])
 }

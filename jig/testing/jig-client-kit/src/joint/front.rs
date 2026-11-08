@@ -346,7 +346,7 @@ fn configured_fixture(configuration: jig_test_domain::Config, owner_limits: &jig
     );
     let limits = crate::test::limits();
     let codec = jig_protocol_transcript::Limits {
-        smith: smith_transcript::v6::CEILINGS,
+        smith: smith_transcript::v7::CEILINGS,
         bytes: 1_048_576,
         turn: client::TurnLimits { messages: 64, blocks: 16, text: 65_536, outcome: 65_536 },
     };
@@ -784,7 +784,7 @@ fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
         driver,
         limits,
         jig_protocol_transcript::Limits {
-            smith: smith_transcript::v6::CEILINGS,
+            smith: smith_transcript::v7::CEILINGS,
             bytes: 1_048_576,
             turn: c::TurnLimits { messages: 2, blocks: 2, text: 32, outcome: 32 },
         },
