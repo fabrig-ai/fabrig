@@ -102,6 +102,17 @@ person's next words, whether the previous run still listens or has parked.
 
 ## Gaps and departures
 
+- **Not yet:** 8.4.1: `settings gates` names no tier's description
+  (`ui-p3e-words`'s `tier-words`).
+
+- **Not yet:** 8.1, 8.4.1: `charter-words` and `project-words` are no
+  kinds a run reads or proposes, and `see` has no such address
+  (`ui-p3e-words`'s `words-kind`).
+
+- **Not yet:** 8.4.2: Ask temper's instructions ask for no words with a
+  proposal, and no configuring story proposes them (`ui-p3e-words`'s
+  `ask-words`).
+
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole

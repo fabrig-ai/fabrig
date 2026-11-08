@@ -166,6 +166,27 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
+- **Not yet:** 3: a tier's `description`: the start reads no such member,
+  and a tier's card and `see settings gates` say none (`ui-p3e-words`'s
+  `tier-words`).
+
+- **Not yet:** 13.2: kinds 9 and 10, a charter's words and a project's
+  words, as the forge's values: no `CharterWords` or `ProjectWords` is
+  judged, kept, erased or stored (`ui-p3e-words`'s `words-value`).
+
+- **Not yet:** 13.2: kinds 9 and 10 declared to jig, taken at the wire's
+  entrances, and read and proposed as `charter-words` and `project-words`
+  (`ui-p3e-words`'s `words-kind`).
+
+- **Not yet:** 13.4: kind 9's stock words for charters 1, 2, 4, 5, 6, 9,
+  10, 11 and 12 (`ui-p3e-words`'s `charter-lines`).
+
+- **Not yet:** 13.10: a stock way's headline: the ways hold none and the
+  `ways` read carries an empty one (`ui-p3e-words`'s `way-headlines`).
+
+- **Not yet:** 13.10: the `ways` read carries no project's words
+  (`ui-p3e-words`'s `project-words-read`).
+
 - **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
   reference's roles) names the deployment's two landing rules and not
   the case's project's rule 1, so a box Ask temper configures from the

@@ -30,4 +30,11 @@ Ask temper's page draws the ways from the same read, by the look request
   - 6.3: skein's `ui.md`, 3.5: a flow's node takes no mark but `:::strong`; M3 adds the actors' marks.
 - **Design departs:** 5.2: `../domain/agent.md`, 8.4.2 judges a landing rule's approvals at the call for the chat's own project alone, and leaves another project's to acceptance, which says it to the owner who decides, so that nothing of another project reaches this chat's transcript (5.1); decided by the `ui-ask-m1` cut, 2026-11-07. Proposal parts are held in engine memory and lost at restart, with the next proposing call refused once; section 10 keeps durable parts for later if needed.
 - **Design departs:** 6.2: `../client/README.md`, 5.16 draws a path or a charter at `@revision N` only where N is the newest revision, and says an older one is not drawn yet, because the settings as an older revision left them are jig's restore's reading (jig's `domain/engine.md`, 17.10), which no read gives a client; and draws `proposal tN/K` for a waiting proposal alone, its "before" the newest settings, since a decided one's paths are a revision's. Decided by the `ui-ask-m3a` cut, 2026-11-08.
+- **Design departs:** 5.2 and 8: `../domain/agent.md`, 8.4.2, has a
+  proposal carry the words the pages say its settings by, a charter's and
+  the project's (`../protocol/configuration.md`, 13.2, kinds 9 and 10), and
+  `ask.txt`'s *Finding out* and *Configuring* name `charter-words` and
+  `project-words` and ask for them, which section 8's text lacks; decided
+  by the `ui-p3e-words` cut on the user's request of 2026-11-08, its
+  sentence the user's to review before landing.
 - **Open:** 12.

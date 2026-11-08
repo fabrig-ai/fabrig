@@ -22,8 +22,10 @@
     work runs' look*), where this section and `how.html` draw it as Ask
     temper's ways do (`../client/README.md`, 5.16), each stop by its
     mark, with "no merge tool above" in the legend. It draws no Roles,
-    which 5.13, *Later: the fuller page*, defers, and its heading names
-    the way without its chief departure, which waits for rules by path.
+    which 5.13, *Later: the fuller page*, defers, so a charter's words,
+    kind 9 (`../protocol/configuration.md`, 13.2), are said nowhere yet;
+    and its heading names the way without its chief departure, which
+    waits for rules by path.
     What reaches you, Rules by path, What follows a landing and a role's
     budget wait for their milestones (`whole-story.execution.md`, section
     3, P3b to P3d); its section 11 defers "History · N changes" and the

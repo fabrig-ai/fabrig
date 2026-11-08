@@ -60,6 +60,9 @@ retaining its branch turn. Step tables and the owned-Forgejo engine story
 cover these paths; GitHub's composed story remains in `testing.status.md`,
 6.4.
 
+- **Not yet:** 8.13: a tier's card has no "Checks" from its description
+  (`ui-p3e-words`'s `tier-words`).
+
 - **Not yet:** 4.6: a link restored outside `--box` survives when its
   person remains the deployment's sole owner. `link.rs`, `owner`, clears
   only a different person; `person_of` blocks new links outside the box,

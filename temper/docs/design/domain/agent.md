@@ -1115,14 +1115,17 @@ otherwise teach.
   removal, its withdrawal (`../protocol/configuration.md`, 13.4). A
   model's setting names no account.
   A read of a project's ways or questions with none stored answers the
-  stock (`../protocol/configuration.md`, 13.4), never unknown. A read that
+  stock (`../protocol/configuration.md`, 13.4), never unknown; one of a
+  project's words with none stored answers that the project has none,
+  and its way's words stand. A read that
   finds nothing is an error whose words say it was not read and that this
   says nothing about the settings.
 - **The kinds it reads and proposes** are a settings file's
   (`../client/tools.md`, 5.3): `charter`, `template`, `policy`, `model`,
   `rules`, `landing-rule` (with its `project`, the deployment's when left
-  out), `forge-charter`, `project-policy`, `project-ways` and
-  `project-questions` (each with its `project`), each named and valued as
+  out), `forge-charter`, `charter-words` (with the charter's number),
+  `project-policy`, `project-ways`, `project-questions` and
+  `project-words` (each with its `project`), each named and valued as
   the file names and values it, so that a description's landing rules,
   the forge's charters and a project's own policy are proposed as its
   charters are. `see` reads them at the chat's own project (8.4.1); a
@@ -1510,12 +1513,13 @@ are its second milestone's (section 10).
 
 | Address | Answers | Over | `see:` |
 |---|---|---|---|
-| `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings` |
+| `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings charter-words N · settings project-words · revisions · help settings` |
 | `settings charter N`, `template N`, `policy N`, `model N`, `forge-charter N`, `settings rules` | that setting whole, at the newest revision, as `settings` gives it | the family's setting read | `settings · revisions · help settings-fields` |
 | `settings landing-rule N [project]` | a landing rule whole: the deployment's, or with `project` the chat's project's | the family's setting read, kinds 1 and 2 | `settings landing · settings · help landing-rule` |
 | `settings project-ways`, `settings project-questions` | the chat's project's ways or questions, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7 and 6 | `settings · revisions · help settings-fields` |
+| `settings charter-words N`, `settings project-words` | a charter's words, at the stock's where none is stored, marked so, or that it has none; the chat's project's words, or that it has none (8.1) | the family's setting read, kinds 9 and 10 | `settings · revisions · help settings-fields` |
 | `settings landing` | the project's landing: by queue or by turn, its merge job or none, its after-landing retries and a verification's bound, and each of its repositories with how many gates and tiers it has; then that it is no setting yet, set in temper's configuration by whoever runs temper here, so that no proposal changes it | the forge's landing state, from the configuration's `landing` member (`../protocol/configuration.md`, section 3), which kinds 4 and 5 are to hold (13.2) | `settings gates OWNER/NAME · settings landing-rule N [project] · help landing` |
-| `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows; then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
+| `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows, and its description where it has one (`../protocol/configuration.md`, section 3); then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
 | `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../protocol/configuration.md`, 13.10): a block a way, its name, then `now` where the project runs it, its line, and its path as one line of stops, each its words and its actor in brackets, joined by ` → `; then, where the project runs none, `Yours`, its own path; then whether the person may change the settings, in a line | the root's `ways` document (`forge.md`, 8.13), made as the client's is | `settings rules · settings landing · settings project-ways · help settings` |
 | `revisions` | the history's newest page, as `settings`' history read gives it: each revision with who decided it, when, the proposal it came from, and its items without values | the family's history read | `revision N · settings · help revision` |
 | `revision N` | one revision: who decided it, when, from which proposal, whether it moved running work, its items with their values or sizes | the family's revision read | `revisions · proposal tN/K · proposal pN/K · settings` |
@@ -1617,6 +1621,17 @@ configuring form's calls (4.3) decode as they do, and one answer serves both.
     proposing call refused, once, so that a set half lost is never proposed.
   - **Only an asking charter's run** gives parts, the runs the form is declared
     to; another's `more` is refused.
+- **Words with the settings** (`../protocol/configuration.md`, 13.2, kinds
+  9 and 10): a proposal carries, beside the settings it proposes, the words
+  the pages say them by, as items of their own: for each charter it sets,
+  its `charter-words`, a line of what the charter does; for a change of
+  how the project's work runs that leaves it on no stock way, its
+  `project-words`, a headline naming the way and its chief departure and a
+  lede of a sentence or two. Ask temper's instructions say to write them, in
+  the person's terms (`ask.txt`'s *Configuring*); the tool checks them as it
+  checks any item of temper's kinds, decoded at the call and judged at
+  acceptance, and adds none of its own. temper enforces no pairing: words
+  are text agents write, and a proposal without them leaves the ones kept.
 - **Approvals at the call:** for an asking charter's run, each landing rule of
   the set, held or its own, that enforces approvals is judged as acceptance judges
   it (`../protocol/configuration.md`, 13.2; `forge.md`, 8.9), for the chat's
@@ -1648,7 +1663,8 @@ configuring form's calls (4.3) decode as they do, and one answer serves both.
   accepted with its host written, and one unknown refused; a set in parts
   proposed whole, with each rule of the parts above as a step of one run; an
   unsatisfiable approval refused at the call, and the configuring form's, on the
-  world's own charter holding the settings family, at acceptance; `more` refused
+  world's own charter holding the settings family, at acceptance; a charter
+  proposed with its words and the project's words, accepted and read back; `more` refused
   to that charter; the answer's words as `temper-engine-smith`'s table.
 
 #### 8.4.3 `document`
