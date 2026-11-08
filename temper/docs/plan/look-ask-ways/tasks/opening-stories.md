@@ -103,3 +103,16 @@ four stories gain the page's tree (`world.tree(person)`) beside their
 
 As the implementer's text says; the stories' rows, their times, and the
 browser row compiled and not run.
+
+## Answers
+
+2026-11-08. *The client world's inherited CPU cost exceeds 30 seconds:
+separate repair, or widen this task?* Neither widening nor a new task
+here: the overage is the base's (34.3 s for 429 tests before this
+branch, 30.2 s for 431 after it), so this branch adds none, and its own
+acceptance is met as far as it can be. Change nothing for it: keep the
+pushed commit, keep the 30-second budget, and report the two
+measurements and their logs under `## Left` ("the client world's
+focused CPU is over 30 s at the base, not raised by this branch"). The
+gate's budget check on the trunk, and its repair, take the package-wide
+cost; this task does not hunt it.
