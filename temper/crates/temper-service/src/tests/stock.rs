@@ -346,12 +346,32 @@ fn ask_temper_is_charter_11_and_template_5() {
     let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
     ask_design_first_rules(words);
     assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
-    for heading in ["## temper, as you explain it", "## Finding out", "## Answering", "## Configuring", "## Your voice"]
-    {
+    for heading in [
+        "## temper, as you explain it",
+        "## Finding out",
+        "## Answering",
+        "## Configuring",
+        "## Showing",
+        "## Your voice",
+    ] {
         assert!(words.contains(heading), "missing {heading}");
     }
-    for heading in ["## Showing", "## Remembering"] {
-        assert!(!words.contains(heading), "excluded {heading}");
+    assert!(!words.contains("## Remembering"), "Remembering joins with remember");
+    let (_, showing) = words.split_once("## Showing\n\n").expect("Showing part");
+    let (showing, _) = showing.split_once("## Your voice").expect("Your voice follows Showing");
+    assert_eq!(
+        showing,
+        r"Show a picture when it explains better than words. Draw what exists from a view, a fenced block naming it:
+```view
+path OWNER/NAME main @revision N
+```
+Views: path OWNER/NAME [BRANCH] · way NAME · charter N · proposal tN/K; a path or a charter takes @revision N, the newest when left out. Never draw by hand what a view shows.
+A way is drawn, never described: way NAME draws one of temper's stock ways over this project, as see ways lists them. A person who wants a way of their own gets a proposal, which draws its path before and after.
+
+"
+    );
+    for excluded in ["queue", "task N tree", "task N timeline", "```mermaid"] {
+        assert!(!showing.contains(excluded), "Showing excludes {excluded} until M3b");
     }
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 4, 5]);
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
