@@ -1190,6 +1190,7 @@ fn several_native_reads_in_one_turn_allow_read_only_reviewer_mounts() {
         let input = serde_json::json!({"file_path":path});
         native_prompt(&mut backend, &index.to_string(), "Read", input.clone(), &mut below);
         assert!(backend.native.is_some(), "whole reads snapshot before allow");
+        backend.load_native(&mut below);
         backend.native_event(
             &env(0),
             file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"review text".as_slice().into() },
