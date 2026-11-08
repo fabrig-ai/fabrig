@@ -73,3 +73,21 @@ test's result.
 ## Answers
 
 2026-11-08 (temper/ui). Neither as asked: first find which it is, from your scratch directory /tmp/temper-journey-2572037-0, its last still save, without a new walk. (1) If the goal page has its Draft return link, but to another chat than task 2, task numbers moved when the configuring chat stopped being made. Then the walk changed, and the recording isn't the product's fault. Leave chat-draft's recording and prints at the base. Run its focused replay. If that passes, add one line to the browser journeys' status: chat-draft is to be walked anew, as its task numbers moved with the configuring chat's removal. Then finish: I'll have it walked anew after landing. (2) If the goal page has no Draft return link at all, it's this plan's regression. Repair it in its owning code under a failing focused test first, then run again chat-draft once. (3) If the replay fails in case (1), stop with Question: and its first differing step. Say in the report which case it was, with the still save's evidence.
+
+## Rebase (2026-11-08, step merge, foreman ui-ask-drop/journeys/foreman-2)
+
+resolve the journey conflicts by regenerating against the combined code
+The merge conflicts with main’s independently refreshed journeys:
+- `6eafc361d3`: `temper/docs/design/client/journeys/chat-draft/{01.html…20.html,recording}`.
+- `1f505044d3`: `temper/docs/design/client/journeys/project-landing/{01.html,recording}`.
+- `263e3f1309`: `temper/docs/design/client/journeys/welcome-playground/recording`.
+
+Rebase onto the current integration tip, retaining main’s Ask temper navigation and the branch’s removal of template/charter 3.
+Resolve each recording conflict using one complete source recording, then regenerate it against the combined code with `again NAME`; never splice or hand-edit recordings.
+Regenerate conflicting HTML through the journey tool, as `temper/docs/design/client/journeys.md`, 5.2 requires.
+Preserve main’s README additions describing Ask temper and its unrelated status updates; retain the task’s specified template-3 status deletions.
+Keep the branch’s Draft-link repair in `be316bbd44` while resolving the rebase.
+Run generation through `heavy`, one journey at a time, from `temper/tools/journeys`; apply the spec’s moving-page retry rules.
+After each regeneration, run `heavy cargo nextest run -p temper-client-journeys --lib -E 'test(=tests::the_committed_journeys_are_their_print)'`.
+Regenerate any further journey that replay identifies as stale, and confirm the five required recordings contain no removed stock entries.
+Report each regenerated journey, attempts, print differences and replay result.
