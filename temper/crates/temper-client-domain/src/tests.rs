@@ -22,6 +22,7 @@ mod trials;
 mod views;
 
 pub(crate) mod fixtures;
+mod forge_stock_ways;
 mod forge_ways;
 mod forge_words;
 mod forges;
