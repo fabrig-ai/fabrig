@@ -1,6 +1,6 @@
 # landing: status
 
-2026-11-06. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-08. Where temper's code lags or departs from [landing.md](landing.md).
 
 - **Not yet:** 5.2, 16: the real-process story
   `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts`
@@ -23,3 +23,5 @@
 - **Departs:** 8, 13.1: `turn` is refused for every repository on GitHub
   (`temper-engine-domain-forge/src/landing.rs`, `project_landing`), not only
   where temper cannot fast-forward main, because GitHub's turn is not built.
+- **Not yet:** 13.1: no branch's path reads the project's `by`, gates or
+  tiers (`forge.md`, 8.13).

@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
 Section 4.1's approval card is present on Needs you, Home and a goal's
 band, with rule, count behind, partial-read notice, Open and Later. A
@@ -76,3 +76,5 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   repository on a third, where the request's row is "Forge 1 · Forgejo", its
   connection and its repository line, and its summary two lines. The names
   stay, as the plan keeps them for the tests of these pages.
+- **Not yet:** 9: the project's subject `ways` and read `View` are not
+  served: no wire record, no root document and no client page reads them.
