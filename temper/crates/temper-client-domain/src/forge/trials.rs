@@ -120,6 +120,7 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
         | crate::Address::Home { .. }
         | crate::Address::Goals { .. }
         | crate::Address::Changes { .. }
+        | crate::Address::Team { .. }
         | crate::Address::Settings { .. }
         | crate::Address::Repositories { .. }
         | crate::Address::Builders { .. }

@@ -608,7 +608,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     | Address::Forges
                     | Address::ConnectForge { .. }
                     | Address::Adopt { .. } => Some(b"Settings".as_slice()),
-                    Address::Task { .. } | Address::Welcome { .. } => None,
+                    Address::Task { .. } | Address::Welcome { .. } | Address::Team { .. } => None,
                 };
                 let mut styles = vec![look::RAIL_NAV];
                 let tab = view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::TABBAR));

@@ -306,6 +306,7 @@ impl Session {
             Address::NewChat { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Chats { .. }
             | Address::Accounts
             | Address::Forges
@@ -709,6 +710,7 @@ pub(crate) fn act(
                 | Address::Goals { .. }
                 | Address::Chats { .. }
                 | Address::Changes { .. }
+                | Address::Team { .. }
                 | Address::Accounts
                 | Address::Forges
                 | Address::ConnectForge { .. }

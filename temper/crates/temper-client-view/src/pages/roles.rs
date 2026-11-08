@@ -93,6 +93,7 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
         | Address::Home { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
         | Address::Models { .. }

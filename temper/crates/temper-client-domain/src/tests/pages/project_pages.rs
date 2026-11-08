@@ -189,14 +189,24 @@ fn choosing_a_project_stays_on_forges_and_accounts() {
 }
 
 #[test]
-fn choosing_a_project_keeps_the_builders_tab() {
-    let mut f = fixture();
-    deliver(&mut f, two_projects());
-    event(&mut f, Event::Went { address: Address::Builders { project: fixtures::PROJECT } });
-    while f.out.pop().is_some() {}
-    event(&mut f, Event::Act { act: Act::Project { project: OTHER } });
-    assert_eq!(f.pages.project(), Some(OTHER));
-    assert_eq!(f.out.pop(), Some(Request::Show { address: Address::Builders { project: OTHER } }));
+fn choosing_a_project_keeps_the_builders_tab_or_team() {
+    const OPEN: u32 = 3;
+    const CHOSEN: u32 = 4;
+    let mut me = two_projects();
+    me.projects.get_mut(0).expect("open project").project = OPEN;
+    me.projects.get_mut(1).expect("chosen project").project = CHOSEN;
+    for (address, expected) in [
+        (Address::Builders { project: OPEN }, Address::Builders { project: CHOSEN }),
+        (Address::Team { project: OPEN }, Address::Team { project: CHOSEN }),
+    ] {
+        let mut f = fixture();
+        deliver(&mut f, me.clone());
+        event(&mut f, Event::Went { address });
+        while f.out.pop().is_some() {}
+        event(&mut f, Event::Act { act: Act::Project { project: CHOSEN } });
+        assert_eq!(f.pages.project(), Some(CHOSEN));
+        assert_eq!(f.out.pop(), Some(Request::Show { address: expected }));
+    }
 }
 
 fn view_read(out: &mut Queue<Request>) -> Option<(jig_client::Handle, u32, Box<[u8]>)> {
@@ -267,6 +277,7 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             | Address::Home { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Repositories { .. }
             | Address::Models { .. }

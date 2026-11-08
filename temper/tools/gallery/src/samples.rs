@@ -1307,6 +1307,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Forges => ("forges", None),
         Address::Goals { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
@@ -1348,6 +1349,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }

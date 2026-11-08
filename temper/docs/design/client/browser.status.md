@@ -2,8 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.3: `/projects/<project>/team` reads as no page
-  (`temper-client-domain`'s `address.rs`).
 - **Not yet:** 2.5, *Team's look*: `temper.css` has no rule of Team's.
 - **Not yet:** 7.2: the gallery holds none of `team`, `team-alone` and
   `night-team`.

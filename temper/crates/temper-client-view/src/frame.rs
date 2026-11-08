@@ -727,6 +727,7 @@ fn shown(root: &Domain, project: u32) -> Shown {
         | Address::ConnectForge { .. }
         | Address::Adopt { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
@@ -861,6 +862,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::Ask { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Chats { .. }
