@@ -2419,7 +2419,9 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
 - **The root checks approval eligibility** when a rule is set, after the
   forge's structural judgement, including when a proposal is accepted.
   For each project in the setting's scope, and each adopted writable
-  repository of it whose branch names overlap the pattern, each enforcing
+  repository of it whose branch names overlap the pattern, each of them
+  for a project's pattern beginning at `branch`
+  (`../protocol/configuration.md`, 13.2), each enforcing
   approval needs at least its required count of distinct project members
   with the named role who count as people on **that repository's forge**,
   `forge_human` (section 4): an account known on another forge of the
@@ -2449,6 +2451,8 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   changes can leave a held rule waiting; the merge still counts only
   people known on the review's forge (8.7).
 - **It holds them** decoded, the deployment's rules and each project's,
+  its rule 1 the stock's while the project sets none
+  (`../protocol/configuration.md`, 13.4),
   within `landing_rules` per scope and `judge_projects` projects, keeps
   their values in its family `Setting`, and replaces a scope's whole
   when the core's word to keep a change's items reaches it, in the

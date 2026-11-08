@@ -107,6 +107,33 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
+- **Not yet:** 13.2, 13.3: a pattern of kind 2 beginning at `branch`: the
+  forge refuses a first segment other than `forge`
+  (`temper-engine-domain-forge/src/settings.rs`, `judge`) and matches every
+  pattern against a branch's whole resource path (`gates.rs`, `covers`),
+  and the root overlaps a rule with each repository's path alone
+  (`temper-engine-domain/src/route/kinds.rs`, `covers_repository`).
+- **Not yet:** 13.3, 13.4: the forge holds no rule given for every
+  project: an entry of kind 2 for no one scope is a default like any
+  other, a project's rule 1 removed or reset leaves it none, and the
+  root's run `settings` read takes no stock of kind 2
+  (`temper-engine-domain-forge/src/kinds.rs`;
+  `temper-engine-domain/src/route/host_route.rs`, `settings`).
+- **Not yet:** 13.4: the stock module gives the forge kind 1's rule 1 over
+  every branch of every forge, and no project's rule 1
+  (`temper-service/src/stock.rs`, `forge`).
+- **Not yet:** 13.4: charter 5 and template 4 are not in the stock, and
+  the rules' and policy 1's delegation names neither charter 5 nor the
+  merge job (`temper-service/src/stock.rs`).
+- **Not yet:** 13.9: `docs/examples/reference/project.json` holds the
+  project's kind 7 alone, so the case's project keeps the stock's rule 1
+  over every branch beside the deployment's two rules.
+- **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
+  reference's roles) names the deployment's two landing rules and not
+  the case's project's rule 1, so a box Ask temper configures from the
+  reference's description keeps the stock's rule 1 over its goals'
+  branches until its owner sets the project's.
+
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
