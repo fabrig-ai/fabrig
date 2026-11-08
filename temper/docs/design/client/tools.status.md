@@ -132,8 +132,3 @@ unknown-proposal explanation; the generated help states the same limit.
   `person_call` (`render/document.rs`) gives an answer alone its arguments. 12: an
   authority's entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
   not in the table.
-
-- **Not yet:** 8.1: a sign-in last answered not ready prints the
-  deadline's own line, `the engine at ADDRESS did not answer within 30 s`
-  (`temper-client-shell-cli/src/host.rs`), where 8.1 has it say temper is
-  not ready.
