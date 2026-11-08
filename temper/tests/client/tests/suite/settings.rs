@@ -44,7 +44,7 @@ fn accepted() -> (ClientWorld, ClientId) {
     let (mut world, agent, _, proposal) =
         propose(false, Some(Box::new([kinds::item(WAYS_KIND, PROJECT, SETTING, &value)])));
     let person = world.client(fixtures::PARTY, Address::Settings { project: PROJECT });
-    run(&mut world, person, vec![see(Find::named(Role::Check, b"Changes"))]);
+    run(&mut world, person, vec![see(Find::exactly_named(Role::Check, b"Changes"))]);
     switch(&world, person, b"Changes", false);
     accept(&mut world, agent, &proposal, b"accept-ways");
     run(&mut world, person, vec![see(Find::exactly_named(Role::Link, b"Changes"))]);
@@ -70,7 +70,7 @@ fn a_switch_on_the_tab_changes_the_rail_and_a_member_is_refused() {
         &mut world,
         owner,
         vec![
-            Step::Press { find: Find::named(Role::Check, b"Changes") },
+            Step::Press { find: Find::exactly_named(Role::Check, b"Changes") },
             Step::Gone { find: Find::exactly_named(Role::Link, b"Changes"), within: fixtures::WITHIN },
         ],
     );
@@ -147,7 +147,7 @@ fn a_switch_on_the_tab_changes_the_rail_and_a_member_is_refused() {
         &mut world,
         person,
         vec![
-            Step::Press { find: Find::named(Role::Check, b"Changes") },
+            Step::Press { find: Find::exactly_named(Role::Check, b"Changes") },
             see(Find::text(b"The held role does not permit this action")),
             Step::Gone { find: Find::exactly_named(Role::Link, b"Changes"), within: fixtures::WITHIN },
         ],

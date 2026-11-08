@@ -161,7 +161,8 @@ pub fn domain_limits() -> Limits {
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
                 heartbeat: Duration::from_millis(100),
-                reads: 8,
+                // Project classes add one read beside the story's existing reads.
+                reads: 9,
                 parts: 8,
                 delegates: 2,
                 document_bytes: 65536,
