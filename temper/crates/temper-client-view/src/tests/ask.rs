@@ -338,6 +338,10 @@ fn path(index: usize) -> w::BranchPath {
                         w::Opens::Gate(
                             w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1, charter: 4 }).unwrap(),
                         )
+                    } else if *step == S::Produce {
+                        w::Opens::Charter(
+                            w::OpensCharter::new(&w::CEILINGS, w::OpensCharterParts { charter: 3 }).unwrap(),
+                        )
                     } else {
                         w::Opens::Nothing
                     },
@@ -360,7 +364,11 @@ fn path(index: usize) -> w::BranchPath {
                             &w::CEILINGS,
                             w::CardParts {
                                 who: "an agent · holds a change until it approves".as_bytes().into(),
-                                name: b"the reviewer".as_slice().into(),
+                                name: if *step == S::Produce {
+                                    b"the producer".as_slice().into()
+                                } else {
+                                    b"the reviewer".as_slice().into()
+                                },
                                 facts: List::from_boxed(
                                     [
                                         (b"Model".as_slice(), "Claude Opus 5.5 · high".as_bytes()),
@@ -591,7 +599,7 @@ fn stop_presses_open_move_close_and_tabs_close_cards() {
             named(view.tree(), role, words);
         }
         let open = named(view.tree(), Role::Link, "Open the reviewer ›".as_bytes()).id;
-        assert_eq!(crate::href(&mut view, open).as_deref(), Some(b"/projects/1/settings".as_slice()));
+        assert_eq!(crate::href(&mut view, open).as_deref(), Some(b"/projects/1/settings/roles/4".as_slice()));
         let review = named(view.tree(), Role::Button, b"review, an agent");
         assert!(review.states.as_slice().contains(&State::Expanded));
         let id = review.id;
@@ -599,13 +607,25 @@ fn stop_presses_open_move_close_and_tabs_close_cards() {
             crate::act(&mut view, id, Act::Press),
             Some(d::Action::Pages(pages::Act::WayStop { project: f::PROJECT, stop: REVIEW }))
         );
-        for (label, heading) in [
-            (b"produce, an agent".as_slice(), Some(b"Produce".as_slice())),
-            (b"produce, an agent", None),
-            (b"review, an agent", Some(b"Review".as_slice())),
+        for (label, heading, link) in [
+            (
+                b"produce, an agent".as_slice(),
+                Some(b"Produce".as_slice()),
+                Some(("Open the producer ›", b"/projects/1/settings/roles/3".as_slice())),
+            ),
+            (b"produce, an agent", None, None),
+            (
+                b"review, an agent",
+                Some(b"Review".as_slice()),
+                Some(("Open the reviewer ›", b"/projects/1/settings/roles/4".as_slice())),
+            ),
         ] {
             press(&mut f.root, browser, Role::Button, label);
-            let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+            let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+            if let Some((label, href)) = link {
+                let id = named(view.tree(), Role::Link, label.as_bytes()).id;
+                assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
+            }
             assert_eq!(
                 view.tree()
                     .nodes()
@@ -653,7 +673,7 @@ fn stop_presses_open_move_close_and_tabs_close_cards() {
             assert_eq!(links.len(), usize::from(link.is_some()));
             if let Some(link) = link {
                 let id = named(view.tree(), Role::Link, link.as_bytes()).id;
-                assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/settings".as_slice()));
+                assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/settings/rules/1/1".as_slice()));
             }
         }
         let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
@@ -787,6 +807,8 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
     let view = f::page_view(&f.root);
     let out = print(&view);
     let text = String::from_utf8_lossy(out.text.as_slice());
+    assert_eq!(text.matches("Ways of working:").count(), 1, "{text}");
+    assert_eq!(text.matches("The way a change goes:").count(), 1, "{text}");
     let mut rest = text.as_ref();
     for word in [
         "== Ask temper ==",
