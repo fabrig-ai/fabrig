@@ -73,6 +73,7 @@ fn generated() -> (engine::Config, engine::Limits) {
         welcome: false,
         program_environment: Box::new([]),
         host_part: None,
+        ways_stock: crate::stock::ways(),
         kinds_stock: Box::default(),
         landings: parsed.application.landings,
         limits: parsed.application.limits,
@@ -87,6 +88,7 @@ fn generated() -> (engine::Config, engine::Limits) {
         engine::Config {
             host_part: None,
             kinds_stock: crate::stock::forge(&limits),
+            ways_stock: Box::default(),
             machine: Some(crate::system::machine_config(&settings.machine)),
             period_span: crate::stock::PERIOD_SPAN,
             core,

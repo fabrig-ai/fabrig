@@ -647,9 +647,9 @@ fn check_files(parsed: &Parsed, files: &settings::Files) -> Result<(), Problems>
     }
     if problems.is_empty() { Ok(()) } else { Err(problems) }
 }
-struct CheckedStart {
+pub(crate) struct CheckedStart {
     not_set_up: List<u16>,
-    engine: settings::Engine,
+    pub(crate) engine: settings::Engine,
     worker: Option<settings::Worker>,
     io: skein_io::Limits,
     forges: skein_forge_connection::Settings,
@@ -681,7 +681,7 @@ pub fn check(
     clippy::too_many_lines,
     reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
 )]
-fn checked_start_with(
+pub(crate) fn checked_start_with(
     document: &[u8],
     directories: &config::Directories,
     files: &settings::Files,
@@ -788,6 +788,10 @@ fn checked_start_with(
         welcome: parsed.application.welcome,
         program_environment: Box::new([]),
         kinds_stock: Box::default(),
+        ways_stock: match given {
+            crate::stock::Given::Stock => crate::stock::ways(),
+            crate::stock::Given::Own { ways, .. } => ways.clone(),
+        },
         landings: parsed.application.landings,
         limits: parsed.application.limits,
     };

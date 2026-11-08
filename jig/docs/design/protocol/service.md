@@ -411,11 +411,14 @@ Each within jig's suites' budgets.
   endpoint, a person's requests answered through a native client on
   loopback, over jig's default HTTP mapping,
   runs taken by smith's real agent processes, then the binary killed and
-  restarted, and the work found where it was. The focused suite has three
+  restarted, and the work found where it was. The focused suite has four
   paths through `main`: that restart story, a binary told to stop with a
   sign-in under way, and its fixture bundle served under the reference
-  policy. Each runs through the real loop, whose shared `Deadline`
-  classifies unanswered waits under measured starvation. Account sign-in,
+  policy, each through the real loop, whose shared `Deadline`
+  classifies unanswered waits under measured starvation; and a table of
+  its agent modes (section 7), a row each, the program child running a
+  scripted Claude Code's `auth status` whose output smith reads as its
+  status check does, with no loop. Account sign-in,
   refresh, sign-out and moves are covered in their lower worlds.
 - **The live layer:** `jig-test` with a real LLM account, a key added
   by a request, a sign-in made as the test starts, or a program's login
@@ -469,6 +472,15 @@ Each within jig's suites' budgets.
   `skein_ui_bundle::types`, a build tool step code can't link. Default:
   they stay in `jig-protocol-engine-clients-http` until skein has a
   server to offer.
+- **smith's agent modes in one call** (section 7): a binary that is its
+  agents' executable gives `--mcp-relay` and `--program-child` to
+  smith's agent shell itself, one line each copied from the reference
+  binary, so a copy that misses one fails each program-backed run at its
+  start. One function of smith's agent shell taking the first argument
+  and running the mode it names would make the copy a line, and give
+  every such binary a mode smith adds; it changes smith's interface.
+  Default: a line each, pinned by each binary's table of its agent modes
+  (the reference binary's in section 8).
 - **`sources::Component::start`'s arguments** (11.2): a public seam kept whole,
   past clippy's count, since an application's service reads it. Default: as it
   stands, until its signature changes for another reason.

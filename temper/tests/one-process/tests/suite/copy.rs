@@ -2,6 +2,12 @@
 use temper_one_process_world::copy;
 
 #[test]
+fn a_copy_beside_a_repository_joins_its_project_keeping_the_sources_workflow() {
+    let outcome = copy::beside_repository();
+    assert_eq!(outcome.copies, 1, "the source was copied once");
+}
+
+#[test]
 fn a_restart_mid_copy_finishes_and_adopts_once() {
     let outcome = copy::restart();
     assert!(outcome.copying, "the copying mark was kept");

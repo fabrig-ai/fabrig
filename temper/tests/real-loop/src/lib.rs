@@ -82,19 +82,25 @@ impl Ran {
         let world::Kind::Caller(caller) = &self.outcome.procs[2].kind else { panic!("caller root") };
         &caller.returned
     }
-    /// Count complete token POSTs; this fixture queues only a code grant.
+    /// Count token exchanges; these fixtures serve only code grants.
     #[must_use]
     pub fn code_exchanges(&self) -> usize {
-        let peer = self
+        let proc = self
             .outcome
             .procs
             .iter()
-            .find_map(|proc| if let world::Kind::Issuer(peer) = &proc.kind { Some(peer) } else { None })
+            .find(|proc| matches!(&proc.kind, world::Kind::Issuer(_)))
             .expect("story's issuer");
-        peer.observations()
+        proc.code_exchanges()
+    }
+    /// Connections the issuer turned away at its own capacity.
+    #[must_use]
+    pub fn issuer_rejected(&self) -> u64 {
+        self.outcome
+            .procs
             .iter()
-            .filter(|event| matches!(event, skein_fake_peers::oauth::Observation::Post { .. }))
-            .count()
+            .find_map(|proc| if let world::Kind::Issuer(peer) = &proc.kind { Some(peer.rejected()) } else { None })
+            .expect("story's issuer")
     }
     /// The task number printed by this call's completed act.
     #[must_use]
@@ -153,6 +159,14 @@ pub fn run_on(scratch: Scratch, recipe: impl FnOnce() -> llm::Recipe, steps: imp
 pub fn run_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
     let scratch = Scratch::new("real-sign-in");
     let outcome = world::run(&scratch, || llm::scripted(Box::new([])), steps, true, true);
+    checked(Ran { outcome: Outcome::Checked(outcome), scratch })
+}
+
+/// Run a sign-in against the box's production issuer constructor and refill policy.
+#[must_use]
+pub fn run_production_sign_in(steps: impl FnOnce() -> Vec<calls::Step>) -> Ran {
+    let scratch = Scratch::new("real-box-sign-in");
+    let outcome = world::run_production_sign_in(&scratch, steps);
     checked(Ran { outcome: Outcome::Checked(outcome), scratch })
 }
 fn checked(ran: Ran) -> Ran {
@@ -242,3 +256,15 @@ pub fn run_github(
 
 pub mod settings;
 pub mod settings_items;
+
+/// Run a story's deferred peer recipe on its privately prepared scratch.
+#[must_use]
+pub fn run_forge_with_on(
+    scratch: Scratch,
+    fixture: forge::Fixture,
+    recipe: ForgeRecipe,
+    steps: impl FnOnce() -> Vec<calls::Step>,
+) -> Ran {
+    let outcome = world::run_forge(&scratch, fixture, no_scripts, None, Some(recipe), steps);
+    checked(Ran { outcome: Outcome::Forge(outcome), scratch })
+}

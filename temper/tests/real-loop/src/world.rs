@@ -15,21 +15,50 @@ use skein_world::{
 pub(crate) struct Proc {
     pub(crate) kind: Kind,
     diagnostics: diagnostics::Operations,
+    production_exchanges: Option<usize>,
+    issuer_accepts: usize,
 }
 impl Proc {
     pub(crate) fn new(kind: Kind) -> Self {
-        Self { kind, diagnostics: diagnostics::Operations::default() }
+        Self { kind, diagnostics: diagnostics::Operations::default(), production_exchanges: None, issuer_accepts: 0 }
+    }
+    pub(crate) fn code_exchanges(&self) -> usize {
+        let Kind::Issuer(peer) = &self.kind else { panic!("issuer process") };
+        self.production_exchanges.unwrap_or_else(|| {
+            peer.observations()
+                .iter()
+                .filter(|event| matches!(event, skein_fake_peers::oauth::Observation::Post { .. }))
+                .count()
+        })
     }
 }
 impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
+        if let Kind::Issuer(peer) = &mut self.kind {
+            self.issuer_accepts += peer
+                .completions()
+                .iter()
+                .filter(|complete| matches!(complete.result, Ok(skein_io::kernel::Done::Accepted { .. })))
+                .count();
+        }
         self.diagnostics.complete(self.kind.completions(), now);
         if let Kind::Service(host) = &mut self.kind
             && host.service.as_ref().is_some_and(|service| service.engine_domain().is_some())
         {
             self.diagnostics.terminals.observe(host.completions());
         }
+        let plans = if let (Some(_), Kind::Issuer(peer)) = (self.production_exchanges, &mut self.kind) {
+            temper_fake::oauth::refill(peer, crate::issuer::SEED).expect("box issuer refill");
+            Some(peer.granted().len())
+        } else {
+            None
+        };
         self.kind.iterate(now, wall);
+        if let (Some(before), Some(exchanges), Kind::Issuer(peer)) = (plans, &mut self.production_exchanges, &self.kind)
+        {
+            // Each consumed successful token plan is one exchange; the box retains no observations.
+            *exchanges += before - peer.granted().len();
+        }
     }
     fn drain(&mut self) {
         self.kind.drain();
@@ -190,6 +219,24 @@ pub(crate) fn run(
     direct_key: bool,
     sign_in: bool,
 ) -> CheckedOutcome<Proc> {
+    run_with_issuer(scratch, recipe, steps, direct_key, sign_in, false)
+}
+
+pub(crate) fn run_production_sign_in(
+    scratch: &skein_scratch::Scratch,
+    steps: impl FnOnce() -> Vec<crate::calls::Step>,
+) -> CheckedOutcome<Proc> {
+    run_with_issuer(scratch, || llm::scripted(Box::new([])), steps, true, true, true)
+}
+
+fn run_with_issuer(
+    scratch: &skein_scratch::Scratch,
+    recipe: impl FnOnce() -> llm::Recipe,
+    steps: impl FnOnce() -> Vec<crate::calls::Step>,
+    direct_key: bool,
+    sign_in: bool,
+    production: bool,
+) -> CheckedOutcome<Proc> {
     let patience = crate::PATIENCE;
     // As the browser tier does, reserve a kernel port before the immutable
     // registration is made. Only this story pays for an issuer.
@@ -235,10 +282,16 @@ pub(crate) fn run(
         let address = listener.local_addr().expect("issuer address");
         let fd = skein_io::kernel::Fd::new(listener.as_raw_fd());
         world.spawn_with_fds(vec![fd], || {
-            let mut peer = crate::issuer::peer(address, &crate::issuer::registration(address));
+            let mut peer = if production {
+                crate::issuer::production(address)
+            } else {
+                crate::issuer::peer(address, &crate::issuer::registration(address))
+            };
             peer.adopt_listener(fd, address).expect("held issuer listener");
             let _ = listener.into_raw_fd();
-            Proc::new(Kind::Issuer(Box::new(peer)))
+            let mut proc = Proc::new(Kind::Issuer(Box::new(peer)));
+            proc.production_exchanges = production.then_some(0);
+            proc
         });
     }
     world.run(&skein_shell::Clock::new(), patience)
@@ -736,6 +789,7 @@ impl Judge {
     }
 }
 impl Referee<Proc> for Judge {
+    #[expect(clippy::too_many_lines, reason = "issuer admission cues join the other hosted-process story cues")]
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         if self.patience.due() {
             self.capture_overdue(now, procs);
@@ -776,6 +830,12 @@ impl Referee<Proc> for Judge {
             self.armed = true;
         }
         self.children.apply(children, caller);
+        for proc in children.iter() {
+            if let Kind::Issuer(peer) = &proc.kind {
+                caller.issuer_accepted.set(proc.issuer_accepts);
+                caller.issuer_rejected.set(peer.rejected());
+            }
+        }
         if let Some(state) = &self.forge {
             let mut borrowed = state.borrow_mut();
             let state = borrowed.as_mut().expect("spawned forge");

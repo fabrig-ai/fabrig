@@ -486,6 +486,36 @@ pub fn decode_changes_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Cha
     if reader.is_empty() { Some(record) } else { None }
 }
 
+/// Encode a project's watched ways (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn ways_panel(record: &v1::WaysPanel) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode a project's watched ways, whole (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_ways_panel(bytes: &[u8], limits: &v1::Limits) -> Option<v1::WaysPanel> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::WaysPanel::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
+/// Encode a requested view (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn view_answer(record: &v1::ViewAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode a requested view, whole (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_view_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ViewAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::ViewAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
 /// The approvals document's bytes (temper/docs/design/client/README.md, 4.6).
 #[must_use]
 pub fn approvals(record: &v1::Approvals) -> Box<[u8]> {

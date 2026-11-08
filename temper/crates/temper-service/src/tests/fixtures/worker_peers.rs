@@ -752,6 +752,7 @@ impl AskingChat {
         let config = engine::Config {
             host_part: None,
             kinds_stock: setup.kinds_stock,
+            ways_stock: Box::default(),
             period_span: crate::stock::PERIOD_SPAN,
             core,
             landings: setup.landings,

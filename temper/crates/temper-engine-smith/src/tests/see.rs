@@ -325,3 +325,53 @@ fn landing_and_gates_read_the_configured_values() {
         );
     }
 }
+
+fn branch_path() -> temper_engine_domain::ways::Path {
+    use temper_engine_domain::ways::{Actor, Card, Opens, Path, Step, Stop};
+    let stops = [
+        (Actor::Person, Step::Ask, "ask"),
+        (Actor::Agent, Step::Produce, "make"),
+        (Actor::Code, Step::Merge, "merge"),
+        (Actor::Bar, Step::Branch, "main"),
+    ]
+    .map(|(actor, step, words)| Stop {
+        actor,
+        step,
+        words: words.as_bytes().into(),
+        opens: Opens::Nothing,
+        card: Card { who: Box::new([]), name: Box::new([]), facts: Box::new([]) },
+    });
+    Path { repository: None, branch: b"main".as_slice().into(), stops: Box::new(stops) }
+}
+
+#[test]
+fn ways_text_names_the_current_path_and_the_readers_permission() {
+    use temper_engine_domain::ways::{WayEntry, WaysDocument};
+    const PATH: &str = "ask (a person) → make (an agent) → merge (code) → main (a branch)";
+    const FOLLOWING: &str = "see: settings rules · settings landing · settings project-ways · help settings\n";
+    for (current, may_change, first, second, own, permission) in [
+        (Some(0), true, "One · now", "Two", "", "You may change this project's settings."),
+        (Some(1), false, "One", "Two · now", "", "You may not change this project's settings; an owner may."),
+        (None, true, "One", "Two", "Yours · now\n", "You may change this project's settings."),
+        (None, false, "One", "Two", "Yours · now\n", "You may not change this project's settings; an owner may."),
+    ] {
+        let document = WaysDocument {
+            project: 1,
+            ways: ["One", "Two"]
+                .map(|name| WayEntry {
+                    name: name.as_bytes().into(),
+                    line: b"A way.".as_slice().into(),
+                    path: branch_path(),
+                    items: Box::new([]),
+                    delegation: false,
+                })
+                .into(),
+            current,
+            own: branch_path(),
+            may_change,
+        };
+        let own = if own.is_empty() { String::new() } else { format!("\n{own}{PATH}\n") };
+        let expected = format!("{first}\nA way.\n{PATH}\n\n{second}\nA way.\n{PATH}\n{own}\n{permission}\n{FOLLOWING}");
+        assert_eq!(rendered("ways", 0, SeeAnswer::Ways(Box::new(document)), 20_000), (expected, false));
+    }
+}

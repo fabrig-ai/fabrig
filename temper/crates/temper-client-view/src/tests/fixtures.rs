@@ -701,7 +701,10 @@ pub(super) fn root_at_with_values(
                         );
                     }
                 }
-                w::Read::RevisionSetting(_) | w::Read::ProposalItems(_) | w::Read::ProgramEnvironment => {}
+                w::Read::RevisionSetting(_)
+                | w::Read::ProposalItems(_)
+                | w::Read::ProgramEnvironment
+                | w::Read::View(_) => {}
             }
         }
     }

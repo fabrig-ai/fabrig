@@ -129,13 +129,38 @@ versioned record Forges { forges: list 16 ForgeRow }
 record SettingRead { kind: u32 scope: u32 number: u32 }
 record ProposalItemsRead { key: u64 }
 record RevisionSettingRead { kind: u32 scope: u32 number: u32 revision: u32 }
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment }
 # Values are the records of temper's settings kinds below.
 versioned record SettingAnswer { value: option bytes 1048576 }
 record SettingValue { value: bytes 1048576 }
 enum SettingEdit { set: SettingValue, removed, reset }
 record ProposalItem { kind: u32 scope: u32 number: u32 edit: SettingEdit }
 versioned record ProposalItemsAnswer { items: list 1024 ProposalItem owned_approval: bool }
+# A branch's path (temper/docs/design/domain/forge.md, 8.13; client/README.md, 4.6).
+enum Actor { person, agent, code, bar }
+enum PathStep { ask, draft, plan, produce, produce_many, check, review, repair, approve, update, resolve, merge, prepare, prove, turn, verify, branch }
+record OpensCharter { charter: u32 }
+record OpensRule { kind: u32 scope: u32 number: u32 }
+record OpensGate { number: u32 }
+record OpensTier { name: bytes 32 }
+enum Opens { nothing, charter: OpensCharter, rule: OpensRule, gate: OpensGate, tier: OpensTier, queue, turn }
+record Fact { label: text 32 value: text 128 }
+record Card { who: text 128 name: text 64 facts: list 4 Fact }
+record Stop { actor: Actor step: PathStep words: text 64 opens: Opens card: Card }
+record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list 24 Stop }
+# A project's stock ways, watched (client/README.md, 4.6; configuration.md, 13.10).
+record StockWay { name: text 64 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
+record WaysSubject { project: u32 }
+versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath may_change: bool }
+# A view, read when shown (client/README.md, 4.6 and 5.16).
+record ViewRead { project: u32 address: text 512 }
+record WayView { name: text 64 line: text 256 path: BranchPath current: bool }
+record ProposalView { before: BranchPath after: BranchPath }
+record CharterView { charter: u32 card: Card }
+record NotDrawn { words: text 512 }
+enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, not_drawn: NotDrawn }
+versioned record ViewAnswer { view: View }
+
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead }
 versioned record Reading { read: Read }
 
 # temper/docs/design/client/README.md, 4.6: no playground is no record.
@@ -155,7 +180,7 @@ record LandingsSubject { project: u32 ended: bool }
 record ChangesSubject { project: u32 }
 record StatusSubject { project: u32 }
 record DecidedSubject { project: u32 }
-enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject }
 enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
 record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }

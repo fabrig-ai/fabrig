@@ -40,9 +40,9 @@ milestone that meets a question the draft leaves open takes its section
 
 | | Milestone | Executes (`tui.md`) | Needs | State |
 |---|---|---|---|---|
-| M1 | Connected | 4.1, 4.3, 4.4 | | landed in `tui-connected`; its walk follows the landing |
-| M2 | Approved | 4.2 | M1, for the TUI's flow alone | jig, the engine and the web landed in `tui-approval`, the TUI's flow in `tui-recorded`; its walk follows the landing |
-| M3 | Recorded | 5 | M1, M2 | landed in `tui-recorded`, its first journey committed; the user's look at its frames follows |
+| M1 | Connected | 4.1, 4.3, 4.4 | | done: landed in `tui-connected`, walked on 2026-11-07 |
+| M2 | Approved | 4.2 | M1, for the TUI's flow alone | done: jig, the engine and the web landed in `tui-approval`, the TUI's flow in `tui-recorded`, walked on 2026-11-07 |
+| M3 | Recorded | 5 | M1, M2 | done: landed in `tui-recorded`, its first journey committed; the user took its frames on 2026-11-08 |
 
 ### M1. Connected
 

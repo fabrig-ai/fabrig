@@ -5,6 +5,8 @@
 )]
 mod kinds;
 pub use kinds::kinds;
+mod ways;
+pub use ways::ways;
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -25,7 +27,11 @@ use skein_lib::{Duration, List, Map, bytes};
 )]
 pub enum Given {
     Stock,
-    Own { jig: Defaults, forge: Box<[temper_engine_domain_forge::settings::Stock]> },
+    Own {
+        jig: Defaults,
+        forge: Box<[temper_engine_domain_forge::settings::Stock]>,
+        ways: Box<[temper_engine_domain_ways::StockWay]>,
+    },
 }
 impl Given {
     pub(crate) fn defaults(&self, llm: &jig_protocol_config::Llm, result_bytes: u32) -> Option<Defaults> {
@@ -707,28 +713,10 @@ fn goal(result_bytes: u32) -> Template {
 /// The forge's defaults at each start (temper/docs/design/protocol/configuration.md, 13.4).
 #[must_use]
 pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domain_forge::settings::Stock]> {
-    use temper_engine_domain_forge::{self as forge, settings};
+    use temper_engine_domain_forge::settings;
     use temper_engine_smith::kinds::size;
     let values = [
-        (
-            2,
-            1,
-            settings::Value::Rule(settings::LandingRule {
-                pattern: forge::GatePattern {
-                    segments: Box::new([b"branch".as_slice().into()]),
-                    last: forge::GateLast::Open(Box::default()),
-                },
-                enforce: true,
-                ci: true,
-                up_to_date: true,
-                gates: Box::new([settings::RuleGate {
-                    number: 1,
-                    blocking: true,
-                    freshness: forge::JudgeFreshness::Clean,
-                }]),
-                approvals: Box::default(),
-            }),
-        ),
+        (2, 1, settings::Value::Rule(review_rule())),
         (3, 1, settings::Value::Charter(2)),
         (3, 2, settings::Value::Charter(4)),
     ];
@@ -739,4 +727,20 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             .expect("one landing rule and two forge charters");
     }
     stock.into_boxed()
+}
+
+/// Kind 2's stock rule 1, also the Agents review way (protocol/configuration.md, 13.4 and 13.10).
+fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
+    use temper_engine_domain_forge::{self as forge, settings};
+    settings::LandingRule {
+        pattern: forge::GatePattern {
+            segments: Box::new([b"branch".as_slice().into()]),
+            last: forge::GateLast::Open(Box::default()),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: true,
+        gates: Box::new([settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Clean }]),
+        approvals: Box::default(),
+    }
 }

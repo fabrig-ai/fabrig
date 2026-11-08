@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-engine-domain-ways.workspace = true
 temper-client-protocol-wire.workspace = true
 temper-protocol-worker-wire.workspace = true
 temper-engine-domain-forge-tiers.workspace = true

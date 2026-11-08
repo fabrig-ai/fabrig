@@ -41,6 +41,7 @@ mod switch;
 mod trials;
 mod walking;
 mod watch_room;
+mod ways;
 
 mod fuzzy {
     mod endings;
