@@ -19,6 +19,7 @@ pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) ->
             name: b"name".as_slice().into(),
             ci,
             checks: Box::default(),
+            contexts: Box::default(),
             gates: if prove { Box::new([b"unit".as_slice().into()]) } else { Box::default() },
             tiers: if tiers {
                 Box::new([
@@ -404,6 +405,9 @@ fn facts(values: &[(&str, &str)]) -> Box<[Fact]> {
 #[expect(clippy::too_many_lines, reason = "one table checks cards and their bounds")]
 fn cards_open_the_setting_and_stay_within_the_bounds() {
     let review = inputs(1, true, true, Way::Queue, false);
+    let mut stock_review = review.clone();
+    let reviewer_sentence = "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.";
+    stock_review.agents.get_mut(1).unwrap().asked = reviewer_sentence.as_bytes().into();
     let approved = inputs(0, false, false, Way::Queue, false);
     let mut deployment = review.clone();
     deployment.rules.first_mut().unwrap().scope = 0;
@@ -418,11 +422,31 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     no_account.agents.get_mut(1).unwrap().effort = None;
     no_account.agents.get_mut(1).unwrap().usable = false;
     let turn = inputs(0, true, false, Way::Turn, true);
+    let mut one_context = deployment.clone();
+    one_context.repository.as_mut().unwrap().contexts = Box::new([b"ci / test".as_slice().into()]);
+    let mut three_contexts = deployment.clone();
+    three_contexts.repository.as_mut().unwrap().contexts =
+        [b"build".as_slice(), b"lint", b"test"].map(Box::from).into();
     let rows = [
+        (
+            &stock_review,
+            Step::Review,
+            Opens::Gate { number: 1, charter: review.reviewer },
+            "an agent · holds a change until it approves",
+            "the reviewer",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge or update"),
+                (
+                    "Asked to",
+                    "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.”",
+                ),
+            ]),
+        ),
         (
             &review,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · holds a change until it approves",
             "the reviewer",
             facts(&[
@@ -454,12 +478,28 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             Opens::Rule { kind: 1, scope: 0, number: 1 },
             "code · holds a change until CI passes",
             "CI",
-            facts(&[("Checks", "the repository's CI, at the change's head")]),
+            facts(&[("Checks", "every check the repository's CI workflows report, at the change's head")]),
+        ),
+        (
+            &one_context,
+            Step::Check,
+            Opens::Rule { kind: 1, scope: 0, number: 1 },
+            "code · holds a change until CI passes",
+            "CI",
+            facts(&[("Checks", "the CI workflows' checks ci / test, at the change's head")]),
+        ),
+        (
+            &three_contexts,
+            Step::Check,
+            Opens::Rule { kind: 1, scope: 0, number: 1 },
+            "code · holds a change until CI passes",
+            "CI",
+            facts(&[("Checks", "the CI workflows' checks build, lint and test, at the change's head")]),
         ),
         (
             &advisory,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · advises; holds nothing",
             "the reviewer",
             facts(&[
@@ -471,7 +511,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         (
             &duplicate,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · holds a change until it approves",
             "the reviewer",
             facts(&[
@@ -483,7 +523,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         (
             &missing,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · holds a change until it approves",
             "the reviewer",
             facts(&[("Charter", "charter 2")]),
@@ -491,7 +531,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         (
             &no_account,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · holds a change until it approves",
             "the reviewer",
             facts(&[
@@ -523,9 +563,10 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         assert_eq!(stop.opens, opens);
         assert_eq!(stop.card, Card { who: who.as_bytes().into(), name: name.as_bytes().into(), facts });
     }
-    for length in [0, WORDS, VALUE, VALUE + 7] {
+    for length in [0, WORDS, VALUE, VALUE + 7, ASKED, ASKED + 7] {
         let mut inputs = inputs(0, true, true, Way::Queue, false);
         inputs.branch = "é".repeat(length).into_bytes().into();
+        inputs.repository.as_mut().unwrap().contexts = [(); 3].map(|()| inputs.branch.clone()).into();
         for role in &mut inputs.roles {
             role.name = inputs.branch.clone();
         }
@@ -540,6 +581,21 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             (0..40).map(|number| RuleGate { number, blocking: true, freshness: JudgeFreshness::Exact }).collect();
         let path = derive(&inputs);
         bounds(&path);
+        for stop in &path.stops {
+            for fact in &stop.card.facts {
+                if fact.label.as_ref() == b"Asked to" {
+                    assert!(fact.value.len() <= ASKED);
+                    if inputs.branch.len() > ASKED - "“”".len() {
+                        assert!(
+                            fact.value.ends_with("…”".as_bytes()),
+                            "overlong instructions carry an ellipsis inside quotes"
+                        );
+                    }
+                } else if fact.label.as_ref() == b"Checks" && inputs.branch.len() > VALUE {
+                    assert!(fact.value.ends_with("…".as_bytes()), "overlong required checks carry an ellipsis");
+                }
+            }
+        }
         if length > 0 {
             assert_eq!(path.stops.len(), STOPS);
             assert_eq!(path.stops.last().unwrap().words.as_ref(), skein_lib::bytes::utf8_prefix(&inputs.branch, WORDS));
@@ -551,9 +607,17 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     agent.effort = None;
     let path = derive(&long_model);
     let model = find(&path, Step::Produce).card.facts.first().unwrap();
-    assert_eq!(model.value.as_ref(), ("x".to_owned() + &"€".repeat(42)).as_bytes());
+    assert_eq!(model.value.as_ref(), ("x".to_owned() + &"€".repeat(41) + "…").as_bytes());
     let mut invalid = inputs(1, true, true, Way::Queue, false);
     invalid.branch = [0x80; 400].into();
     invalid.agents.get_mut(1).unwrap().asked = [0x80; 400].into();
-    bounds(&derive(&invalid));
+    invalid.repository.as_mut().unwrap().contexts =
+        Box::new([[0x80].as_slice().into(), b"ci / test".as_slice().into()]);
+    let path = derive(&invalid);
+    assert_eq!(
+        find(&path, Step::Check).card.facts,
+        facts(&[("Checks", "the CI workflows' checks ci / test, at the change's head")]),
+        "invalid UTF-8 contexts are skipped whole"
+    );
+    bounds(&path);
 }

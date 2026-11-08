@@ -114,6 +114,10 @@ fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Reposito
         name: repository.name.clone(),
         ci: repository.ci,
         checks: repository.checks.clone(),
+        contexts: match &repository.protection {
+            forge::Protection::Rule(rule) => rule.contexts.clone(),
+            forge::Protection::Unknown | forge::Protection::Absent => Box::default(),
+        },
         gates: gates.into_boxed(),
         tiers: tiers.into_boxed(),
     }

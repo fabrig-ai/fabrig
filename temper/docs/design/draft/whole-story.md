@@ -123,10 +123,10 @@ areas to standing roles.
 2. Ask temper's opening offers the ways as pictures; they pick You
    approve (`stock-ways.md`, section 2).
 3. In the terminal, or a chat on the web, they ask for a change. The
-   chat delegates it; agents produce it, CI and a reviewer check it,
-   and failures are repaired.
+   chat delegates it; an agent produces it, CI checks it, and failures
+   are repaired.
 4. On their phone, Needs you shows the change waiting for their
-   approval, with the review's line and CI's state. One tap opens the
+   approval, with CI's state. One tap opens the
    forge's review, where they approve (`forge-identity.md`, section 8).
 5. Home says what landed; Work lists the chat and its change.
 6. Once enough has landed, How work runs suggests the next step: test
@@ -247,11 +247,11 @@ execution's M0.
   `../client/web/whole-story/`: `index.html` (the shape), `home.html`,
   `needs.html`, `work.html`, `team.html`, `how.html`,
   `phone-home.html`, `phone-need.html`, `phone-tell.html`, with
-  `whole-story.css`. `../client/tui/whole-story/`: `launchpad.html`,
+  `whole-story.css` and `whole-story.js`. `../client/tui/whole-story/`: `launchpad.html`,
   `design-session.html`, `role.html`.
 - **Pair:** one person, one project, You approve.
-  `../client/web/whole-story/pair/`: `home.html`, `needs.html`,
-  `work.html`, `how.html`, `phone-home.html`;
+  `../client/web/whole-story/pair/`: `first-run.html`, `home.html`,
+  `needs.html`, `work.html`, `how.html`, `phone-home.html`;
   `../client/tui/whole-story/pair/launchpad.html`.
 - **Team:** three people, one project, Agents review with sign-offs by
   path. `../client/web/whole-story/team/`: `home.html`, `needs.html`,

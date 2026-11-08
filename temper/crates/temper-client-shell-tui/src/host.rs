@@ -560,6 +560,8 @@ impl Host {
             | Address::Repositories { project }
             | Address::Models { project }
             | Address::Builders { project }
+            | Address::Role { project, .. }
+            | Address::Rule { project, .. }
             | Address::Ask { project }
             | Address::Adopt { project } => Some(*project),
             Address::Inbox { filter } => filter.project,
