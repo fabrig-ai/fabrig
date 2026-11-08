@@ -318,6 +318,7 @@ pub(crate) struct Wire {
     pub(crate) granted: Vec<(i32, jig_protocol_worker_wire::Granted)>,
     pub(crate) channel: Option<kernel::Fd>,
     pub(crate) adopting_hellos: u32,
+    pub(crate) hellos: u32,
     pub(crate) start_messages: u32,
     pub(crate) waited: bool,
     pub(crate) closed: bool,
@@ -466,6 +467,7 @@ impl Wire {
                     &mut skein_lib::Reader::new(&stream[8..end]),
                 )
                 .expect("hello");
+                self.hellos += 1;
                 self.stop_bounds.insert(fd.raw(), hello.stop_bound());
                 if !hello.hosting().is_empty() {
                     self.adopting_hellos += 1;

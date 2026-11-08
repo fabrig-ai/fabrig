@@ -139,6 +139,10 @@ impl World {
     pub fn withhold_write_room(&mut self, connection: Token) {
         self.net(connection).write_room = WriteRoom::Withheld;
     }
+    /// Hold the output request below, including its cancellation settlement.
+    pub fn hold_send(&mut self, connection: Token) {
+        self.net(connection).write_room = WriteRoom::Held;
+    }
     pub fn grant_one_frame(&mut self, connection: Token) {
         let net = self.net(connection);
         net.write_room = WriteRoom::One;

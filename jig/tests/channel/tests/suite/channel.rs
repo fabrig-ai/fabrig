@@ -317,3 +317,12 @@ fn a_conversations_input_reaches_the_native_client_before_its_turn() {
     assert_eq!(outcome.turns_committed, 1);
     assert_eq!(outcome.answers_acknowledged, 1);
 }
+
+#[test]
+fn a_worker_cut_fifty_times_is_taken_back_each_time() {
+    let outcome = run(Story::Cuts { times: 50 });
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.cuts, 50);
+    assert_eq!(outcome.hellos, 51);
+    assert_eq!(outcome.agent_starts, 0);
+}
