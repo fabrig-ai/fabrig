@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/goal-call-faults/inputs/request.md", "AGENTS.md", "
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "change-batch"
+title = "A change call with changes refuses a member beside them, naming it, before any change is made"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[slice]]
+id = 1
+story = "A goal's batched change call that gives landing, producer, questions or llm once beside changes is refused, naming the member, and makes no change"
+parts = ["change-batch"]
+walk = false
