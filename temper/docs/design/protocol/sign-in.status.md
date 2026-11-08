@@ -1,6 +1,6 @@
 # sign-in: status
 
-2026-11-07. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-08. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
 Section 9.9's start refusal is present: non-null `machine.owned.sign_in`
 beside non-null `application.sign_in` names the owned sign-in path and
@@ -39,6 +39,14 @@ combined default-box proof remain unverified as recorded in
   busy page without an authorize HTTP request. The successful fresh-profile
   pairs do not settle that admission/loss path; its cause is unknown
   (`temper/docs/development/ui-repo-link-review.md`).
+  The cross-site restart story's red-71 is also unresolved: it passes
+  alone but fails after earlier stories in the same browser binary,
+  as the answer in `temper/docs/plan/ui-authorize-red/tasks/repair.md`
+  records. The landed `ui-authorize-red` result is not reproduced,
+  with no product, fixture or story change. Its two isolated passes
+  establish neither the suite-order cause nor a repair. The request's
+  cause and fix remain outstanding; whether this is the same path as
+  the exploratory failure is unknown.
 - **Design departs:** 9.9, from the request `ui-repo-link` of 2026-11-06,
   decided by its cut: the failure's status is a browser Forges-row line
   and a log entry; the terminal has the log alone. The cut chose page

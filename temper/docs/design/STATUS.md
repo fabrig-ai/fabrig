@@ -1,6 +1,6 @@
 # Status
 
-2026-11-07. Where temper's code lags or departs from its design, and
+2026-11-08. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live first screen, with golden frames,
@@ -281,7 +281,11 @@ are built, with native browser clicks at 1440 and Settings links at 420;
 the runner was disabled. No separate attacker-review outcome is supplied,
 three laptop baseline cases remain unrepeated, and an intermittent busy
 authorization page without a request is unresolved (`protocol/setup.md`,
-`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
+`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). The cross-site
+authorization restart story's suite-order failure, red-71, also has no
+cause or fix: `ui-authorize-red` supplies two isolated passes and no code
+change, leaving the request's repair outstanding (`protocol/sign-in.md`,
+9.3). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
