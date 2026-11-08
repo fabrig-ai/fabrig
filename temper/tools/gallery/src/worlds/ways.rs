@@ -59,6 +59,7 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
             w::StockWay::new(
                 &w::CEILINGS,
                 w::StockWayParts {
+                    headline: b"".as_slice().into(),
                     name: way_name.as_bytes().into(),
                     line: line.as_bytes().into(),
                     path: delivered_path(index, name),
@@ -79,6 +80,7 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     let panel = w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
+            words: None,
             project,
             ways,
             current: if yours { None } else { Some(u32::try_from(current).expect("stock way")) },

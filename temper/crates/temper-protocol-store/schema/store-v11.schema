@@ -317,7 +317,9 @@ record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: boo
 record CharterValue { number: u32 }
 record ProjectQuestions { route: Route }
 record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays }
+record CharterWords { line: text 120 }
+record ProjectWords { headline: text 120 lede: text 480 }
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, line: CharterWords, words: ProjectWords }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 enum SettingSlot { default, change, proposal: Number, replaced: Number }
