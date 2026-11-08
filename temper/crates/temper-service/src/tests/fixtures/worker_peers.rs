@@ -553,7 +553,7 @@ pub(crate) fn turn_body(agent: &crate::settings::Agent, number: u32) -> Box<[u8]
 
 /// Encode a concrete saved assistant turn, with the supplied text.
 pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v6 as transcript;
+    use smith_transcript::v7 as transcript;
     let limits = &agent.limits.transcript;
     let mut blocks = List::with_capacity(1);
     blocks
@@ -571,6 +571,7 @@ pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]
     let turn = transcript::Turn::new(
         limits,
         transcript::TurnParts {
+            system: None,
             kind: transcript::TurnKind::Ordinary,
             opening: turn_opening(limits, number),
             endpoint: b"fake".as_slice().into(),
@@ -611,8 +612,8 @@ fn agent_spawn(worker: &mut crate::Worker) -> Token {
     panic!("assigned process spawn");
 }
 
-fn turn_opening(limits: &smith_transcript::v6::Limits, number: u32) -> Option<smith_transcript::v6::Opening> {
-    use smith_transcript::v6 as t;
+fn turn_opening(limits: &smith_transcript::v7::Limits, number: u32) -> Option<smith_transcript::v7::Opening> {
+    use smith_transcript::v7 as t;
     if number != 1 {
         return None;
     }

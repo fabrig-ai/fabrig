@@ -125,6 +125,7 @@ fn a_told_turn_keeps_the_roots_exact_concrete_value() {
         ..smith_domain::session::fixture::turn(
             b"model".as_slice().into(),
             smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
+                system: None,
                 affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
                 account: None,
                 backend: smith_domain::session::record::Backend::Direct,

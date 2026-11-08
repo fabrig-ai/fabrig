@@ -40,6 +40,10 @@ pub(super) fn scripts() -> Box<[skein_fake_llm_domain::api::Script]> {
                 turn(b"delegate", &delegates),
                 turn(b"delegate", &live),
                 turn(b"delegate", &last),
+                // Either report may already be queued when waiting starts.
+                // Drain both notifications before leaving the root listening.
+                turn(b"wait", &json!({})),
+                turn(b"wait", &json!({})),
                 turn(b"wait", &json!({})),
             ]),
         },

@@ -48,6 +48,7 @@ fn source(messages: &[smith::Message]) -> smith::Turn {
     smith::Turn::new(
         &CEILINGS,
         TurnParts {
+            system: None,
             model: b"model".as_slice().into(),
             effort: None,
             kind: smith::TurnKind::Ordinary,
@@ -583,7 +584,7 @@ fn admission_errors_are_explicit_and_whole_records_are_required() {
     trailing.put(&bytes).unwrap();
     trailing.put(&[0]).unwrap();
     assert_eq!(decode(&limits(), &trailing.finish()), Err(Undecodable::Malformed));
-    let role_at = bytes.len() - usize::try_from(source.messages().get(0).unwrap().measure()).unwrap();
+    let role_at = bytes.len() - usize::try_from(source.messages().get(0).unwrap().measure()).unwrap() - 1;
     bytes[role_at] = 255;
     assert_eq!(decode(&limits(), &bytes), Err(Undecodable::Unknown));
 }
@@ -634,8 +635,8 @@ fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to decoder unit tests")]
 fn smith_smallest_golden_decodes_at_its_whole_length() {
-    let bytes = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_smallest.bin");
-    assert_eq!(bytes.len(), 42);
+    let bytes = include_bytes!("../../../../smith/crates/smith-transcript/golden/v7/record_turn_smallest.bin");
+    assert_eq!(bytes.len(), 43);
     let value = decode(&limits(), bytes).unwrap();
     assert_eq!(
         value,
@@ -653,11 +654,12 @@ fn smith_smallest_golden_decodes_at_its_whole_length() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to decoder unit tests")]
 fn smith_full_golden_preserves_maximum_usage_at_its_whole_length() {
-    let bytes = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_full.bin");
-    assert_eq!(bytes.len(), 146);
+    let bytes = include_bytes!("../../../../smith/crates/smith-transcript/golden/v7/record_turn_full.bin");
+    assert_eq!(bytes.len(), 154);
     let mut blocks = List::with_capacity(1);
     blocks.push(Block::Text(Text::new(Box::from(&b"abc"[..]), 3).unwrap())).unwrap();
-    let mut messages = List::with_capacity(1);
+    let mut messages = List::with_capacity(2);
+    messages.push(Message { speaker: Speaker::System, blocks: blocks.clone() }).unwrap();
     messages.push(Message { speaker: Speaker::Person, blocks }).unwrap();
     assert_eq!(
         decode(&limits(), bytes).unwrap(),
@@ -923,4 +925,61 @@ fn an_input_that_fills_the_budget_leaves_its_outcomes_line() {
 #[test]
 fn the_clients_call_name_bound_matches_the_transcript_ceiling() {
     assert_eq!(jig_client_domain::contract::CALL_NAME, CEILINGS.call_name);
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "fixed version-6 wire fixture checks unavailable historical context")]
+fn supplied_system_text_survives_translation_and_historical_absence() {
+    let supplied = b"Selected FIRST instructions\n\n## Brief\nDocument commit: abcdef";
+    let original = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]);
+    let mut parts = original.clone().into_parts();
+    parts.system = Some(Box::from(supplied.as_slice()));
+    let bytes = encode(&smith::Turn::new(&CEILINGS, parts).unwrap());
+    let decoded = decode(&limits(), &bytes).unwrap();
+    assert_eq!(decoded.messages.get(0).unwrap().speaker, Speaker::System);
+    assert_eq!(
+        decoded.messages.get(0).unwrap().blocks.get(0),
+        Some(&Block::Text(Text::new(supplied.as_slice().into(), 1024).unwrap()))
+    );
+    assert_eq!(decoded.messages.get(1).unwrap().speaker, Speaker::Assistant);
+    let mut bounded = limits();
+    bounded.turn.text = 12;
+    let cut = decode(&bounded, &bytes).unwrap();
+    assert!(cut.cut);
+    assert_text_budget(&cut, 12);
+    let historical = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_smallest.bin");
+    assert!(decode(&limits(), historical).unwrap().messages.is_empty());
+    assert_eq!(decode(&limits(), &encode(&original)).unwrap().messages.len(), 1);
+}
+
+#[test]
+fn archived_system_context_is_not_replayed_as_a_conversation_tail() {
+    let mut parts =
+        source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"conversation answer"))])]).into_parts();
+    parts.system = Some(b"supplied instructions and brief".as_slice().into());
+    let bytes = encode(&smith::Turn::new(&CEILINGS, parts).unwrap());
+    let rendered = brief_text(&limits(), &bytes).unwrap();
+    assert_eq!(rendered.as_ref(), b"assistant: conversation answer\n");
+}
+
+#[test]
+fn system_inspection_does_not_displace_conversation_words() {
+    let mut parts = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]).into_parts();
+    parts.system = Some(b"supplied instructions".as_slice().into());
+    let bytes = encode(&smith::Turn::new(&CEILINGS, parts).unwrap());
+    let mut small = limits();
+    let page = conversation(&small, &bytes).unwrap();
+    assert_eq!(page.messages.get(0).unwrap().speaker, Speaker::Assistant);
+    assert!(!page.cut);
+    small.turn.text = 6;
+    small.turn.messages = 1;
+    let turn = decode(&small, &bytes).unwrap();
+    assert_eq!(turn.messages.get(0).unwrap().speaker, Speaker::Assistant);
+    assert!(turn.cut);
+    small.turn.messages = 2;
+    let turn = decode(&small, &bytes).unwrap();
+    assert_eq!(
+        turn.messages.get(1).unwrap().blocks.get(0),
+        Some(&Block::Text(Text::new(b"answer".as_slice().into(), 6).unwrap()))
+    );
 }

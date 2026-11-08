@@ -375,6 +375,7 @@ fn saved_turn(place: u32, dialect: u32) -> Box<[u8]> {
     let turn = smith_transcript::Turn::new(
         &limits,
         smith_transcript::TurnParts {
+            system: None,
             model: b"fake-1".as_slice().into(),
             effort: None,
             kind: smith_transcript::TurnKind::Ordinary,
@@ -469,34 +470,12 @@ fn a_run_resumed_from_a_transcript_restores_the_calls_answered_after_its_last_tu
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "two activations follow concrete windows, identity, fences and exact turn accounting"
-)]
 fn a_run_parked_resumed_and_parked_again_keeps_its_identity_and_numbers_turns_per_activation() {
-    use smith_domain_session::{llm, record};
+    use smith_domain_session::record;
 
     let charter: Box<[u8]> =
         Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]);
-    let first = record::Turn {
-        usage: llm::Usage {
-            input_tokens: Some(1),
-            output_tokens: Some(2),
-            cache_read_tokens: Some(0),
-            cache_write_tokens: Some(0),
-            reasoning_tokens: None,
-        },
-        spent: 3,
-        ..smith_domain::session::fixture::turn(
-            b"model".as_slice().into(),
-            smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
-                affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
-                account: None,
-                backend: smith_domain_session::record::Backend::Direct,
-            })),
-            Box::default(),
-        )
-    };
+    let first = parked_turn();
     let mut one = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     one.settle();
     let identity = smith_domain::run::Identity::new(*b"stable-chat-name");
@@ -539,56 +518,7 @@ fn a_run_parked_resumed_and_parked_again_keeps_its_identity_and_numbers_turns_pe
     assert!(one.observations().contains(&Observation::HostParked { turns: 2, spent: 4 }));
     assert_eq!(one.take_host_answer().expect("decoded final fence").read, Some(skein_lib::Token::new(99)));
 
-    let mut two = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    two.settle();
-    two.send_domain_start(
-        smith_host_domain::Start {
-            live: None,
-            messages: Box::default(),
-            logical_run: skein_lib::Token::new(1),
-            identity: Some(identity),
-            activation: 2,
-            workspace: None,
-            charter: smith_channel_world::typed_charter(&charter),
-            transcript: smith_channel_world::typed_transcript(&saved),
-            answered: Box::default(),
-            directories: Box::default(),
-            grants: Box::default(),
-        },
-        smith_host_domain::Window { turns: 1, bytes: 1_000_000_000 },
-        smith_host_protocol::Values { paths: Box::default(), credentials: Box::default() },
-    );
-    two.settle();
-    let resumed = two.take_agent_start().expect("resumed decoded activation");
-    assert_eq!(resumed.identity, Some(identity), "both channel halves preserve the same exact sixteen bytes");
-    assert_eq!(resumed.activation, 2);
-    assert!(two.observations().contains(&Observation::AgentHistory { turns: 2, place: 1 }));
-    two.agent_admits();
-    two.settle();
-    let mut next = first;
-    next.sequence = 3;
-    next.kind = record::Kind::Ordinary;
-    next.spent = 5;
-    two.agent_tells_turn(1, Some(skein_lib::Token::new(99)), &next);
-    two.settle();
-    let body = two
-        .observations()
-        .iter()
-        .find_map(|event| match event {
-            Observation::HostTurn { number: 1, opens_window: false, body, .. } => Some(body.as_ref()),
-            _ => None,
-        })
-        .expect("new activation's first output turn");
-    let received = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut skein_lib::Reader::new(body))
-        .expect("bounded output turn");
-    assert_eq!(received.place(), 3, "conversation sequence continues after saved history");
-    two.host_acknowledges(1);
-    two.settle();
-    let mut spent = smith_domain::run::Spend::ZERO;
-    spent.units = 5;
-    two.agent_answers(smith_domain::run::Answer::Parked { spent, turns: 1 });
-    two.settle();
-    assert!(two.observations().contains(&Observation::HostParked { turns: 1, spent: 5 }));
+    resumed_activation(&charter, &saved, identity, first);
 }
 
 #[test]
@@ -638,43 +568,9 @@ fn a_long_operation_stretches_progress_until_its_end() {
 
 #[test]
 fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
-    use smith_domain_session::{llm, record};
+    use smith_domain_session::record;
 
-    let turn = record::Turn {
-        usage: llm::Usage {
-            input_tokens: None,
-            output_tokens: Some(5),
-            cache_read_tokens: Some(0),
-            cache_write_tokens: None,
-            reasoning_tokens: Some(2),
-        },
-        spent: 11,
-        ..smith_domain::session::fixture::turn(
-            b"model".as_slice().into(),
-            smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
-                affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
-                account: None,
-                backend: smith_domain_session::record::Backend::Direct,
-            })),
-            Box::from([llm::Message {
-                role: llm::Role::Assistant,
-                content: Box::from([
-                    llm::Block::Text { text: Box::from(*b"hello"), replay: None },
-                    llm::Block::ToolCall(llm::ToolCall {
-                        id: Box::from(*b"id"),
-                        name: Box::from(*b"check"),
-                        input: Box::from(*b"{}"),
-                        call: llm::Decoded::Historical,
-                        replay: None,
-                    }),
-                    llm::Block::ToolResult {
-                        id: Box::from(*b"id"),
-                        result: llm::Returned::Invalid { problem: llm::Problem::UnknownTool },
-                    },
-                ]),
-            }]),
-        )
-    };
+    let turn = concrete_turn();
     let mut world = World::admitted();
     let read = Some(skein_lib::Token::new(31));
     world.agent_tells_turn(1, read, &turn);
@@ -1261,11 +1157,13 @@ fn a_host_resumes_from_its_last_window_turn_alone() {
         turn.sequence = place;
         turn.kind = match place {
             1 => record::Kind::First(Box::new(record::Opener {
+                system: None,
                 affinity,
                 account: None,
                 backend: record::Backend::Direct,
             })),
             3 | 5 => record::Kind::Window(Box::new(record::Opener {
+                system: None,
                 affinity,
                 account: None,
                 backend: record::Backend::Direct,
@@ -1391,4 +1289,127 @@ fn world_with_initial_grant() -> World {
     world.agent_admits();
     world.settle();
     world
+}
+
+fn parked_turn() -> smith_domain_session::record::Turn {
+    use smith_domain_session::{llm, record};
+    record::Turn {
+        usage: llm::Usage {
+            input_tokens: Some(1),
+            output_tokens: Some(2),
+            cache_read_tokens: Some(0),
+            cache_write_tokens: Some(0),
+            reasoning_tokens: None,
+        },
+        spent: 3,
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
+                system: None,
+                affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain_session::record::Backend::Direct,
+            })),
+            Box::default(),
+        )
+    }
+}
+
+fn resumed_activation(
+    charter: &[u8],
+    saved: &[Box<[u8]>],
+    identity: smith_domain::run::Identity,
+    first: smith_domain_session::record::Turn,
+) {
+    use smith_domain_session::record;
+    let mut two = World::new(CEILINGS, CEILINGS, StreamMode::Two);
+    two.settle();
+    two.send_domain_start(
+        smith_host_domain::Start {
+            live: None,
+            messages: Box::default(),
+            logical_run: skein_lib::Token::new(1),
+            identity: Some(identity),
+            activation: 2,
+            workspace: None,
+            charter: smith_channel_world::typed_charter(charter),
+            transcript: smith_channel_world::typed_transcript(saved),
+            answered: Box::default(),
+            directories: Box::default(),
+            grants: Box::default(),
+        },
+        smith_host_domain::Window { turns: 1, bytes: 1_000_000_000 },
+        smith_host_protocol::Values { paths: Box::default(), credentials: Box::default() },
+    );
+    two.settle();
+    let resumed = two.take_agent_start().expect("resumed decoded activation");
+    assert_eq!(resumed.identity, Some(identity), "both channel halves preserve the same exact sixteen bytes");
+    assert_eq!(resumed.activation, 2);
+    assert!(two.observations().contains(&Observation::AgentHistory { turns: 2, place: 1 }));
+    two.agent_admits();
+    two.settle();
+    let mut next = first;
+    next.sequence = 3;
+    next.kind = record::Kind::Ordinary;
+    next.spent = 5;
+    two.agent_tells_turn(1, Some(skein_lib::Token::new(99)), &next);
+    two.settle();
+    let body = two
+        .observations()
+        .iter()
+        .find_map(|event| match event {
+            Observation::HostTurn { number: 1, opens_window: false, body, .. } => Some(body.as_ref()),
+            _ => None,
+        })
+        .expect("new activation's first output turn");
+    let received = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut skein_lib::Reader::new(body))
+        .expect("bounded output turn");
+    assert_eq!(received.place(), 3, "conversation sequence continues after saved history");
+    two.host_acknowledges(1);
+    two.settle();
+    let mut spent = smith_domain::run::Spend::ZERO;
+    spent.units = 5;
+    two.agent_answers(smith_domain::run::Answer::Parked { spent, turns: 1 });
+    two.settle();
+    assert!(two.observations().contains(&Observation::HostParked { turns: 1, spent: 5 }));
+}
+
+fn concrete_turn() -> smith_domain_session::record::Turn {
+    use smith_domain_session::{llm, record};
+    record::Turn {
+        usage: llm::Usage {
+            input_tokens: None,
+            output_tokens: Some(5),
+            cache_read_tokens: Some(0),
+            cache_write_tokens: None,
+            reasoning_tokens: Some(2),
+        },
+        spent: 11,
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
+                system: None,
+                affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain_session::record::Backend::Direct,
+            })),
+            Box::from([llm::Message {
+                role: llm::Role::Assistant,
+                content: Box::from([
+                    llm::Block::Text { text: Box::from(*b"hello"), replay: None },
+                    llm::Block::ToolCall(llm::ToolCall {
+                        id: Box::from(*b"id"),
+                        name: Box::from(*b"check"),
+                        input: Box::from(*b"{}"),
+                        call: llm::Decoded::Historical,
+                        replay: None,
+                    }),
+                    llm::Block::ToolResult {
+                        id: Box::from(*b"id"),
+                        result: llm::Returned::Invalid { problem: llm::Problem::UnknownTool },
+                    },
+                ]),
+            }]),
+        )
+    }
 }

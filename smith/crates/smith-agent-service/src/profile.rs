@@ -179,7 +179,7 @@ pub fn endpoint_allowance(profile: &Profile, endpoint: &Endpoint, tools: &tools:
 fn transcript(
     domain: &domain::Limits,
     client: &shared::client::Limits,
-) -> Result<smith_transcript::v6::Limits, Refusal> {
+) -> Result<smith_transcript::v7::Limits, Refusal> {
     let session = domain.session;
     let tools = session.tools;
     let run = domain.run;
@@ -191,6 +191,7 @@ fn transcript(
     // A text or call's native metadata carries the durable replay header.
     limits.replay_bytes =
         client.metadata.checked_add(shared::REPLAY_HEADER_BYTES).ok_or(derived(Layer::Transcript, "replay_bytes"))?;
+    limits.turn_system_some = host;
     limits.text_text = client.answer.max(host).max(run.offer_bytes).max(run.answer_bytes);
     // Consecutive reasoning items share one block, which can hold the
     // completion's whole reasoning share (smith/docs/design/protocol/limits.md, section 3.3).
@@ -232,40 +233,7 @@ fn transcript(
         .max(u32::try_from(session.delegated_result_bytes).or(Err(derived(Layer::Transcript, "said_text")))?);
     limits.message_blocks = message_blocks;
     limits.turn_messages = 4;
-    let ceiling = smith_transcript::CEILINGS;
-    for (field, required, available) in [
-        ("replay_bytes", limits.replay_bytes, ceiling.replay_bytes),
-        ("text_text", limits.text_text, ceiling.text_text),
-        ("opaque_bytes", limits.opaque_bytes, ceiling.opaque_bytes),
-        ("call_input", limits.call_input, ceiling.call_input),
-        ("entry_name", limits.entry_name, ceiling.entry_name),
-        ("hit_path", limits.hit_path, ceiling.hit_path),
-        ("hit_text", limits.hit_text, ceiling.hit_text),
-        ("found_hits", limits.found_hits, ceiling.found_hits),
-        ("read_content", limits.read_content, ceiling.read_content),
-        ("command_end_head", limits.command_end_head, ceiling.command_end_head),
-        ("command_end_last", limits.command_end_last, ceiling.command_end_last),
-        ("working_path_path", limits.working_path_path, ceiling.working_path_path),
-        ("other_path_directory", limits.other_path_directory, ceiling.other_path_directory),
-        ("other_path_path", limits.other_path_path, ceiling.other_path_path),
-        ("outside_path_path", limits.outside_path_path, ceiling.outside_path_path),
-        ("said_text", limits.said_text, ceiling.said_text),
-        ("call_name_name", limits.call_name_name, ceiling.call_name_name),
-    ] {
-        validate::transcript_field(field, Value::Bytes(u64::from(required)), Value::Bytes(u64::from(available)))?;
-    }
-    for (field, required, available) in [
-        ("listed_entries", limits.listed_entries, ceiling.listed_entries),
-        ("allowed_calls_names", limits.allowed_calls_names, ceiling.allowed_calls_names),
-        ("ambiguous_lines", limits.ambiguous_lines, ceiling.ambiguous_lines),
-        ("turn_messages", limits.turn_messages, ceiling.turn_messages),
-    ] {
-        validate::transcript_field(field, Value::Count(u64::from(required)), Value::Count(u64::from(available)))?;
-    }
-    let bytes = smith_transcript::Turn::encoded_bound(&limits).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
-    let available = smith_transcript::Turn::encoded_bound(&ceiling).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
-    validate::turn_in_transcript(bytes, available)?;
-    Ok(limits)
+    transcript_bounds(limits)
 }
 
 // Endpoint-derived request heads include both credential ceilings and fit one
@@ -372,7 +340,7 @@ fn channel_limits(
     policy: &Policy,
     bodies: smith_channel::Limits,
     charter: smith_charter::v4::Limits,
-    transcript: smith_transcript::v6::Limits,
+    transcript: smith_transcript::v7::Limits,
     io: &io::Limits,
 ) -> Result<channel::Limits, Refusal> {
     let refusal = derived(Layer::Channel, "output_frames");
@@ -689,4 +657,42 @@ fn derive_machine(
         Ok(limits) => Ok(limits),
         Err(field) => Err(derived(Layer::Machine, field.name())),
     }
+}
+
+fn transcript_bounds(limits: smith_transcript::v7::Limits) -> Result<smith_transcript::v7::Limits, Refusal> {
+    let ceiling = smith_transcript::CEILINGS;
+    for (field, required, available) in [
+        ("replay_bytes", limits.replay_bytes, ceiling.replay_bytes),
+        ("text_text", limits.text_text, ceiling.text_text),
+        ("turn_system_some", limits.turn_system_some, ceiling.turn_system_some),
+        ("opaque_bytes", limits.opaque_bytes, ceiling.opaque_bytes),
+        ("call_input", limits.call_input, ceiling.call_input),
+        ("entry_name", limits.entry_name, ceiling.entry_name),
+        ("hit_path", limits.hit_path, ceiling.hit_path),
+        ("hit_text", limits.hit_text, ceiling.hit_text),
+        ("found_hits", limits.found_hits, ceiling.found_hits),
+        ("read_content", limits.read_content, ceiling.read_content),
+        ("command_end_head", limits.command_end_head, ceiling.command_end_head),
+        ("command_end_last", limits.command_end_last, ceiling.command_end_last),
+        ("working_path_path", limits.working_path_path, ceiling.working_path_path),
+        ("other_path_directory", limits.other_path_directory, ceiling.other_path_directory),
+        ("other_path_path", limits.other_path_path, ceiling.other_path_path),
+        ("outside_path_path", limits.outside_path_path, ceiling.outside_path_path),
+        ("said_text", limits.said_text, ceiling.said_text),
+        ("call_name_name", limits.call_name_name, ceiling.call_name_name),
+    ] {
+        validate::transcript_field(field, Value::Bytes(u64::from(required)), Value::Bytes(u64::from(available)))?;
+    }
+    for (field, required, available) in [
+        ("listed_entries", limits.listed_entries, ceiling.listed_entries),
+        ("allowed_calls_names", limits.allowed_calls_names, ceiling.allowed_calls_names),
+        ("ambiguous_lines", limits.ambiguous_lines, ceiling.ambiguous_lines),
+        ("turn_messages", limits.turn_messages, ceiling.turn_messages),
+    ] {
+        validate::transcript_field(field, Value::Count(u64::from(required)), Value::Count(u64::from(available)))?;
+    }
+    let bytes = smith_transcript::Turn::encoded_bound(&limits).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
+    let available = smith_transcript::Turn::encoded_bound(&ceiling).ok_or(derived(Layer::Transcript, "turn_bytes"))?;
+    validate::turn_in_transcript(bytes, available)?;
+    Ok(limits)
 }
