@@ -10,6 +10,7 @@ use skein_lib::{Env, Queue, Time};
 pub mod accounts;
 mod activity;
 pub mod away;
+pub mod away_all;
 pub mod builders;
 pub mod calls;
 pub mod changes;
@@ -77,6 +78,7 @@ pub struct Pages {
     notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
     away: Option<away::Pending>,
+    away_all: Option<away_all::Pending>,
     overturns: away::Overturns,
     away_focus: u64,
     address: Address,
@@ -341,6 +343,7 @@ impl Pages {
             notes: skein_lib::List::with_capacity(8),
             needs: needs::Session::default(),
             away: None,
+            away_all: None,
             overturns: away::Overturns::new(),
             away_focus: 0,
             address: Address::Inbox { filter: crate::address::Filter::ALL },
