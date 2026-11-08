@@ -34,8 +34,8 @@ written by this cut:
 | `engine-binary` | `engine-binary` | the package and binary, its step tests, `versions` | new `temper-engine` | `engine-serve`, `version-crate`, `jig-levels`, `engine-limits` | 120 |
 | `engine-closure` | `engine-closure` | the engine's half of the boundary test | `fabrig-boundary` (`tests/binaries.rs`) | `engine-binary`, `worker-feature` | 60 |
 
-The first push releases the first four, which need nothing. The rest
-follow in later pushes.
+The first push released the first four, which need nothing; the second
+releases the rest, each starting once its `needs` have merged.
 
 ## Decisions
 
