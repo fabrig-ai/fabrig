@@ -141,6 +141,7 @@ enum Part {
     After { first: skein_ui::Style, then: skein_ui::Style },
     Links { style: skein_ui::Style, names: &'static [&'static str] },
     NoStyle { style: skein_ui::Style },
+    NotPressed { name: &'static str },
     Pressed { name: &'static str },
     Text { text: &'static str },
     Named { role: Role, name: &'static str },
@@ -1697,6 +1698,22 @@ static HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Region, name: "Projects" },
             Part::StyleCount { style: temper_client_view::look::DECISION, count: 1 },
             Part::Named { role: Role::TextField, name: "Ask temper" },
+        ],
+    },
+    Holds {
+        name: "all-home-away",
+        heading: "31 changes landed across three projects. Two things need you.",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Away on 2 of 4" },
+            Part::NotPressed { name: "Away on 2 of 4" },
+        ],
+    },
+    Holds {
+        name: "all-home-away-on",
+        heading: "31 changes landed across three projects. Two things need you.",
+        parts: &[
+            Part::Pressed { name: "Away until 08:00" },
+            Part::Text { text: "Away turned on for 2 projects: agents decide within their limits." },
         ],
     },
     Holds {
@@ -4404,6 +4421,14 @@ fn each_state_holds_what_its_name_says() {
                     "{}: absent style",
                     sample.name
                 ),
+                Part::NotPressed { name } => {
+                    let id = find(tree, Role::Button, name, sample.name);
+                    assert!(
+                        !tree.find(id).expect("mode button").states.as_slice().contains(&skein_ui::State::Pressed),
+                        "{}: {name} not pressed",
+                        sample.name
+                    );
+                }
                 Part::Pressed { name } => {
                     let id = find(tree, Role::Button, name, sample.name);
                     assert!(
