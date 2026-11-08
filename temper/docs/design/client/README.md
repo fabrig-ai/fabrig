@@ -2975,7 +2975,10 @@ keeps (`../protocol/configuration.md`, section 2).
   - *Its intro:* the kicker "PROJECT · Team"; the headline "Who owns what
     on PROJECT"; the lede, how many people the project has: "Just you.",
     "Two of you.", "Three of you.", "Four of you.", then "N of you." in
-    digits, and "N or more of you." while the project's document is cut.
+    digits, and "N or more of you." while the project's document is cut;
+    where the person reading isn't one of them, as a deployment's owner
+    may not be, "One person.", "Two people.", "Three people.", "Four
+    people.", "N people." and "N or more people.".
   - *People,* a section headed "People": a box for each of the project's
     members of kind person (jig's `domain/people.md`, section 4), the
     person reading first, then the others in the document's order, each
