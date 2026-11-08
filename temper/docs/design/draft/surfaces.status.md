@@ -19,7 +19,10 @@
     `forge-identity.md`, section 8's, not yet a sign-off by path.
   - 5: `../client/README.md`, 3.5, *Goals*, *Changes* and *Chats*, are
     three pages; no design holds Work or its drafts.
-  - 6: no design holds Team, an area's owner or a role's card
+  - 6: `../client/README.md`, 3.5, *Team*, holds a project's people and
+    what waits on each, and the project's triager once a setting names
+    one; no design holds a project's areas, an area's owner, a person's
+    areas on their box, a role's card or "Hand an area to a role"
     (`standing-roles.md` has no design yet either).
   - 7: `../client/README.md`, 5.13, holds the How work runs tab, and its
     section 11 defers the fuller page; no design draws the path by who
@@ -46,6 +49,13 @@
     section 1, don't name them.
   - 14: `../client/browser.md`, section 7, holds none of these states;
     no journey records them.
+- **Design departs:**
+  - 6: a person's line on Team counts, for anyone but the person reading,
+    what waits on them on the tasks they requested, a task once by its
+    oldest entry, and not what waits on them on another's task or on a
+    role they hold (`../client/README.md`, 3.5, *Team*): no read gives
+    another party's inbox (jig's `domain/people.md`, section 6). Decided
+    by `ui-p4a-team`'s cut, 2026-11-08, on today's engine.
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off.
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.

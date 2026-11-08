@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/ui-p4a-team/inputs/request.md", "temper/docs/design
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "model"
+title = "Team's address, its model and its reads: a project's people, the reader first, and what waits on each"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "Team { project } opens at /projects/<project>/team, and its model lists the project's people once each, the reader first, services left out"
+parts = ["model"]
+walk = false
