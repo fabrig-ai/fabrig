@@ -107,6 +107,34 @@ fn drawn_path(nodes: &[Node]) -> String {
         .join("\n")
 }
 
+fn roles_fixture() -> Joint {
+    use temper_engine_domain_world::{direct::Driver, oracle, store::Store};
+    let limits = fixtures::domain_limits();
+    let mut bounds = temper_client_world::front::engine_limits();
+    // The stock's chat, producer, reviewer, status and Ask temper charters.
+    bounds.tasks.charters = 5;
+    let mut config = kinds::configuration(&bounds);
+    let mut charters = config.core.defaults.charters.into_vec();
+    for number in [9, 11] {
+        let mut charter = charters[0].clone();
+        charter.number = number;
+        charters.push(charter);
+    }
+    config.core.defaults.charters = charters.into_boxed_slice();
+    let mut templates = config.core.defaults.templates.into_vec();
+    let mut asking = templates[0].clone();
+    asking.number = 5;
+    asking.executor = jig_domain_people::TemplateExecutor::Charter(11);
+    templates.push(asking);
+    config.core.defaults.templates = templates.into_boxed_slice();
+    let bootstrap = oracle::config::copy(&config);
+    let mut driver = Driver::cold(Store::with_limits(&bounds), bootstrap, &bounds);
+    driver.settle();
+    let store = driver.take_store();
+    let restart = oracle::config::copy(&config);
+    Joint::with_engine(fixtures::SEED, &limits, store, [config, restart], &bounds, 1)
+}
+
 // The request's figures, with main's verify
 // (temper/docs/design/draft/stock-ways.status.md, Design departs).
 const PATHS: [[&str; 3]; 2] = [
@@ -126,6 +154,25 @@ const TAB_WORDS: [&str; 3] = ["You approve", "Agents review, now", "Draft first"
 
 #[test]
 fn the_three_ways_draw_ci_and_tiers_or_neither() {
+    let mut stock = World::new(
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
+        roles_fixture(),
+    );
+    stock.randomness(0, 0, 0);
+    let caller = stock.front().caller;
+    let person = stock.client(caller, Address::Settings { project: PROJECT });
+    settle(&mut stock);
+    let nodes = stock.tree(person).nodes();
+    assert!(named(nodes, Role::Heading { level: 2 }, b"Roles"));
+    let roles = nodes.iter().filter(|node| node.styles.as_slice().contains(&look::HOW_ROLE)).collect::<Vec<_>>();
+    assert_eq!(
+        roles.iter().map(|node| node.name.as_deref().expect("role name")).collect::<Vec<_>>(),
+        [b"Chat".as_slice(), b"Ask temper", b"Coding agent", b"Reviewer", b"Status agent"]
+    );
+    assert_eq!(
+        roles.last().expect("status agent").description.as_deref(),
+        Some(b"When you look at Home after landings".as_slice())
+    );
     for (repository, paths) in [(Repository::CiAndTiers, PATHS[0]), (Repository::Neither, PATHS[1])] {
         let (mut world, person) = with_repository(Reader::Owner, Some(repository));
         assert_eq!(panel(&world, person).own().repository().as_deref(), Some(b"acme/shop".as_slice()));

@@ -102,6 +102,79 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     }
 }
 
+pub(super) fn roles(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    let rows = [
+        (
+            2,
+            "Chat",
+            "For each chat",
+            "read the code and the forge; start sub-agents; never merge",
+            "Help the person with their work.",
+        ),
+        (
+            7,
+            "Ask temper",
+            "When you ask",
+            "read temper's records and the forge; propose settings; never change anything",
+            "Explain how temper works, where work stands and how to configure it.",
+        ),
+        (
+            5,
+            "Coordinator",
+            "For each goal",
+            "read the draft; plan and delegate changes; never merge",
+            "Cut the draft into changes and coordinate their work.",
+        ),
+        (
+            1,
+            "Coding agent",
+            "For each change",
+            "read the code and the forge; change and push its branch; run commands; never merge",
+            "Make the change on its branch and report what changed and what was checked.",
+        ),
+        (
+            6,
+            "Foreman",
+            "When a coding agent asks",
+            "read the facts in its task; never merge",
+            "Answer the coding agent's question within the person's direction.",
+        ),
+        (
+            9,
+            "Status agent",
+            "When you look at Home after landings",
+            "read temper's records and the forge; never merge",
+            "Summarise what landed and where the work stands.",
+        ),
+    ];
+    let roles = rows
+        .into_iter()
+        .map(|(charter, name, who, can, asked)| {
+            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter, card: agent(who, name, can, asked) })
+                .expect("project role")
+        })
+        .collect();
+    let view = w::View::Roles(
+        w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: List::from_boxed(roles) }).expect("project roles"),
+    );
+    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).expect("roles answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::view_answer(&answer)),
+                    },
+                },
+            },
+        },
+        out,
+    );
+}
+
 fn act(root: &mut Domain, action: Act, out: &mut Queue<Request>) {
     step(root, Event::Act { action: Action::Pages(action) }, out);
 }

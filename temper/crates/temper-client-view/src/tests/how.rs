@@ -32,7 +32,7 @@ fn event(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
 fn up(root: &mut d::Domain, up: Up) {
     event(root, d::Event::Client { event: jig_client::Event::Up { up } });
 }
-#[expect(clippy::struct_excessive_bools, reason = "the state table varies four independent page facts")]
+#[expect(clippy::struct_excessive_bools, reason = "the state table varies independent page facts")]
 struct Case {
     name: &'static str,
     read: u8,
@@ -44,6 +44,7 @@ struct Case {
     may_change: bool,
     asking: bool,
     open: bool,
+    roles: Option<bool>,
 }
 #[expect(clippy::too_many_lines, reason = "one fixture delivers the project, budget and ways watch for each state")]
 fn fixture(case: &Case) -> (d::Domain, Token) {
@@ -83,6 +84,84 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
         },
     );
     let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
+    if let Some(populated) = case.roles {
+        let read = out
+            .iter()
+            .find_map(|request| {
+                if let d::Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down: Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                        },
+                } = request
+                    && let w::Read::View(view) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                    && view.address() == b"roles"
+                {
+                    Some(*read)
+                } else {
+                    None
+                }
+            })
+            .expect("roles read on Settings");
+        let roles = if populated {
+            [
+                (7, "Chat", "For each chat"),
+                (2, "Coding agent", "For each change"),
+                (9, "Status agent", "When you look at Home after landings"),
+            ]
+            .into_iter()
+            .map(|(charter, name, who)| {
+                let mut facts = vec![("Can", "read; never merge"), ("Asked to", "Help the person.")];
+                if charter != 2 {
+                    facts.insert(0, ("Model", "The model · high"));
+                }
+                w::CharterView::new(
+                    &w::CEILINGS,
+                    w::CharterViewParts {
+                        charter,
+                        card: w::Card::new(
+                            &w::CEILINGS,
+                            w::CardParts {
+                                name: name.as_bytes().into(),
+                                who: who.as_bytes().into(),
+                                facts: List::from_boxed(
+                                    facts
+                                        .into_iter()
+                                        .map(|(label, value)| {
+                                            w::Fact::new(
+                                                &w::CEILINGS,
+                                                w::FactParts {
+                                                    label: label.as_bytes().into(),
+                                                    value: value.as_bytes().into(),
+                                                },
+                                            )
+                                            .unwrap()
+                                        })
+                                        .collect(),
+                                ),
+                            },
+                        )
+                        .unwrap(),
+                    },
+                )
+                .unwrap()
+            })
+            .collect()
+        } else {
+            Box::default()
+        };
+        let view = w::View::Roles(
+            w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: List::from_boxed(roles) }).unwrap(),
+        );
+        let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap();
+        up(
+            &mut root,
+            Up::ReadDone {
+                read,
+                result: jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) },
+            },
+        );
+    }
     let wanted = d::forge::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
     let watch = out
         .iter()
@@ -267,11 +346,14 @@ fn parts_draw_the_current_way_and_the_shown_path() {
         may_change: true,
         asking: true,
         open: false,
+        roles: None,
     };
     for case in [
         Case { name: "reading", read: 0, ..base() },
         Case { name: "ended", read: 1, ..base() },
         base(),
+        Case { name: "roles", roles: Some(true), ..base() },
+        Case { name: "empty roles", roles: Some(false), ..base() },
         Case {
             name: "draft amount",
             current: Some(2),
@@ -322,6 +404,9 @@ fn parts_draw_the_current_way_and_the_shown_path() {
                 .map(|n| n.name.as_deref().unwrap())
                 .collect();
             let mut expected = vec![b"The path of a change".as_slice()];
+            if case.roles == Some(true) {
+                expected.push(b"Roles");
+            }
             if case.figure.is_some() {
                 expected.push(b"Budgets");
             }
@@ -338,6 +423,46 @@ fn parts_draw_the_current_way_and_the_shown_path() {
                 [b"Status".as_slice(), b"Funds", b"Telling you", b"Not built yet: this is what temper does today."]
             {
                 assert!(!main.iter().any(|n| n.name.as_deref() == Some(removed)));
+            }
+            let mut role_links = Vec::new();
+            if case.roles == Some(true) {
+                named(main, Role::Text, b"every agent Shop runs");
+                let rows = children(styled(tree, look::HOW_ROLES));
+                assert_eq!(
+                    rows.iter().map(|row| row.name.as_deref().unwrap()).collect::<Vec<_>>(),
+                    [b"Chat".as_slice(), b"Coding agent", b"Status agent"]
+                );
+                for (row, (charter, who, model)) in rows.into_iter().zip([
+                    (7, "For each chat", true),
+                    (2, "For each change", false),
+                    (9, "When you look at Home after landings", true),
+                ]) {
+                    assert_eq!(row.role, Role::Disclosure);
+                    assert_eq!(row.description.as_deref(), Some(who.as_bytes()));
+                    assert!(!row.states.as_slice().contains(&State::Expanded), "starts closed");
+                    let opened = subtree(tree, row);
+                    assert_eq!(
+                        opened
+                            .iter()
+                            .filter(|node| node.role == Role::Term)
+                            .map(|node| node.name.as_deref().unwrap())
+                            .collect::<Vec<_>>(),
+                        if model {
+                            vec![b"Model".as_slice(), b"Can", b"Asked to"]
+                        } else {
+                            vec![b"Can".as_slice(), b"Asked to"]
+                        }
+                    );
+                    named(opened, Role::Description, b"read; never merge");
+                    named(opened, Role::Description, b"Help the person.");
+                    if model {
+                        named(opened, Role::Description, "The model · high".as_bytes());
+                    }
+                    let link = named(opened, Role::Link, "Read its instructions ›".as_bytes());
+                    role_links.push((link.id, charter));
+                }
+            } else {
+                assert!(!main.iter().any(|node| node.styles.as_slice().contains(&look::HOW_ROLES)));
             }
             if let Some(figure) = case.figure {
                 assert_eq!(
@@ -480,12 +605,25 @@ fn parts_draw_the_current_way_and_the_shown_path() {
                     .filter_map(|line| expected.iter().find(|words| line.contains(**words)).copied())
                     .collect();
                 assert_eq!(actual, expected, "one fallback line per stop, in path order: {text}");
+                if case.roles == Some(true) {
+                    let mut after = 0;
+                    for name in ["Chat", "Coding agent", "Status agent"] {
+                        after += text[after..].find(name).expect("role prints in order") + name.len();
+                    }
+                    assert!(text.contains("Read its instructions ›"));
+                }
                 if case.open {
                     assert!(text.contains("Open the reviewer ›"));
                 }
                 if let Some(act) = act {
                     assert!(text.contains(core::str::from_utf8(act).unwrap()));
                 }
+            }
+            for (id, charter) in role_links {
+                assert_eq!(
+                    crate::act(&mut view, id, Act::Press),
+                    Some(d::Action::Pages(pages::Act::Go { address: Address::Role { project: f::PROJECT, charter } }))
+                );
             }
             assert_eq!(
                 crate::act(&mut view, drawing_id, Act::Drawing { data: Box::new([u8::try_from(REVIEW).unwrap()]) }),

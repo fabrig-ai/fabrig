@@ -104,10 +104,10 @@ state draws the two pages (`browser.status.md`, 7.3). The repairs'
 render check and the pages' walk remain section 11's after-landing
 work.
 
-- **Not yet:**
-  - 5.13, *The page* (*Roles*) and *Its parts* (`roles-page`,
-    `look-round-25`): How work runs draws no Roles and reads no `roles`
-    view.
+- **Departs:** 5.13: A role's model is drawn among its opened terms, not
+  at its summary's right: skein's disclosure summary holds its name and
+  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  right-hand model waits for a structured summary in skein.
 
 How work runs has plan `ui-p3a-how`'s implementation, with the drawing
 and Roles gaps above (3.5, *Settings*, 4.6 and 5.13):

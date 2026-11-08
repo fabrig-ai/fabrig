@@ -2972,7 +2972,24 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
 #app > .temper-settings .temper-how-row { display: grid; grid-template-columns: 200px minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); align-items: start; font-size: 14px; }
 #app > .temper-settings .temper-how-row > :nth-child(2) { font-size: 13px; color: var(--gf-muted); }
 #app > .temper-settings .temper-how-row > :last-child { text-align: right; }
+#app > .temper-settings .temper-how-roles { display: flex; flex-direction: column; }
+#app > .temper-settings .temper-how-role > summary { display: grid; grid-template-columns: 200px minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); align-items: start; font-size: 14px; list-style: none; cursor: pointer; }
+#app > .temper-settings .temper-how-role > summary::-webkit-details-marker { display: none; }
+#app > .temper-settings .temper-how-role > summary > span { font-size: 13px; color: var(--gf-muted); }
+#app > .temper-settings .temper-how-role > summary::after { content: '›'; display: inline-block; margin-left: 10px; }
+#app > .temper-settings .temper-how-role[open] > summary::after { transform: rotate(90deg); }
+#app > .temper-settings .temper-how-role[open] > summary { border-bottom: 0; }
+#app > .temper-settings .temper-how-role > [role=group] { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; font-size: 13.5px; line-height: 1.55; }
+#app > .temper-settings .temper-how-role > [role=group] > div { display: contents; }
+#app > .temper-settings .temper-how-role [role=term] { font: 400 11.5px/1.9 var(--gf-mono); color: var(--gf-faint); }
+#app > .temper-settings .temper-how-role [role=definition] { margin: 0; color: var(--gf-ink2); }
+#app > .temper-settings .temper-how-role-more { display: flex; gap: 18px; margin: 10px 0 0; padding-bottom: 14px; border-bottom: 1px solid var(--gf-line); font-size: 13px; }
 @media (max-width: 760px) {
+  #app > .temper-settings .temper-how-role > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  #app > .temper-settings .temper-how-role > summary > span { grid-column: 1 / -1; grid-row: 2; }
+  #app > .temper-settings .temper-how-role > summary::after { grid-column: 2; grid-row: 1; }
+  #app > .temper-settings .temper-how-role > [role=group] { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  #app > .temper-settings .temper-how-role [role=definition] { margin-bottom: 6px; }
   #app > .temper-settings .temper-settings-col.temper-how-wide { max-width: 100%; }
 }
 

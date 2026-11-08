@@ -45,6 +45,7 @@ fn current(rng: &mut Rng) -> Read {
 
 fn facts(rng: &mut Rng) -> Facts {
     Facts {
+        roles: false,
         asking: rng.chance(500),
         read: match rng.below(4) {
             0 => Read::Reading,
