@@ -104,9 +104,6 @@ person's next words, whether the previous run still listens or has parked.
 
 
 
-- **Not yet:** 8.4.2: Ask temper's instructions ask for no words with a
-  proposal, and no configuring story proposes them (`ui-p3e-words`'s
-  `ask-words`).
 
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,

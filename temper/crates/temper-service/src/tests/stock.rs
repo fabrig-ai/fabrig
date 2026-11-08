@@ -362,6 +362,9 @@ fn ask_temper_is_charter_11_and_template_5() {
     ] {
         assert!(words.contains(heading), "missing {heading}");
     }
+    let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
+    let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
+    assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
     assert!(!words.contains("## Remembering"), "Remembering joins with remember");
     let (_, showing) = words.split_once("## Showing\n\n").expect("Showing part");
     let (showing, _) = showing.split_once("## Your voice").expect("Your voice follows Showing");
