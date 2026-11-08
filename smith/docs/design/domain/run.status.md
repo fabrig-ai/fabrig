@@ -1,6 +1,10 @@
 # run: status
 
-2026-11-07. Where smith's code lags or departs from [run.md](run.md).
+2026-11-08. Where smith's code lags or departs from [run.md](run.md).
+
+Section 3.3 has no known gap in omitting the workspace tool instructions
+and Checkout section when no workspace is given. The remaining Checkout
+wording departure below concerns runs that have a workspace.
 
 Section 5.2 has no known gap in a busy or unanswered host call's retry
 backoff: it doubles from `host_backoff` to 64 times that first wait,
@@ -16,6 +20,13 @@ by both `check_timeout` and the call's remaining time, and is printed
 for every exit. The machine's deadline table keeps output read before
 and during stopping, through pipe closure. No timeout figure changes;
 a silent check still has no output to report (section 15).
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief. Its landed run proposal read needs
+  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
+  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields

@@ -1314,6 +1314,12 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **Ask temper's retained configuring stock** (13.4): charter 3 and template 3
+  remain by M1's request; their removal and the switch of scripted acceptance
+  from charter 3 to charter 11 are separate from its new client entry.
+  The small chat's real-model walk follows landing; the request bound covers
+  temper's parts, not Claude Code's own MCP-attached overhead.
+
 - **A terminal approved at a public name** (3, clients): Google on the
   web and the between-hosts approval wait for `../draft/tui.md`, section
   7's flow. Init's `approval` enables the loopback flow beside the
@@ -1951,7 +1957,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | charter 9, the status agent's | the instructions in the `stock` module's `status.txt`: the few lines at the top of a project's Home, from the facts in its task (`../domain/forge.md`, 5.7); charter 1's models and hosts; a run of at most 4 turns and 300 s, a reserve of 1 turn and 60 s; no inspect, modify, shell or agents, and no host family. The forge's procedure delegates it, its authority holding no tools, grants, notes or delegation, and its run no workspace, so what it can do is finish; the constant `STATUS_CHARTER` names it, as `FOREMAN_CHARTER` does, no setting of kind 3. Numbered past the reference's charters 5, 7 and 8 (13.9) |
 | charter 10, a trial's | the instructions in the `stock` module's `trial.txt`, one word and nothing else (`../domain/trial.md`, 2); charter 1's models and hosts, so that it selects as a new chat does; a run of at most 2 turns and 120 s, a reserve of 1 turn and 60 s, so one working turn, jig's check holding a run above its reserve; no resume; no inspect, modify, shell or agents, and no host family. It has no output bound of its own, a charter having none: its words ask for one word, and its contract is a report of at most 64 bytes. The root makes its task, in no project (jig's `domain/authority.md`, 6.1), and no policy's delegation names it; the constant `TRIAL_CHARTER` names it, as `STATUS_CHARTER` does, no setting of kind 3. Numbered past the status agent's |
 | template 1, a chat | jig's chat, run by charter 1; its report the deployment's `tasks.result_bytes`, read at each start as C is (below) |
-| charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its models the configuring agent's order (below); its `tools` the settings, read, note and recall families, 1,920, so that its runs alone in the stock are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads, `read_docs` and its document (`../domain/agent.md`, 8.3); no workspace (it names no repository), and its instructions delegate nothing and effect nothing |
+| charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its models the configuring agent's order (below); its `tools` the settings, read, note and recall families, 1,920, so that its runs are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads, `read_docs` and its document (`../domain/agent.md`, 8.3); it names no repository, but the root supplies the project's home repository (`../domain/root.md`, 7.1); its instructions delegate nothing and effect nothing |
 | template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
 | template 3, the configuring chat | a chat named `configuring`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 3 |
 | charter 11, Ask temper's | as charter 3, with the `stock` module's `ask.txt` (`../draft/ask-temper.md`, section 8, but its Showing and Remembering parts; `../domain/agent.md`, 8.4), and no inspect: no inspect, modify, shell or agents; its models charter 3's; its `tools` the asking and settings families, 3,072, so that its runs are declared `see`, `document` and `propose_settings` in its asking form alone, and have no workspace (`../domain/agent.md`, 4.2 and 4.3); it names no repository, and its instructions delegate nothing and effect nothing. Numbered past the trial's |
@@ -2010,14 +2016,14 @@ init`'s document carries none of them (`setup.md`, 8.3).
   result and paces its news, sets it on the charter as any of its members
   (13.9).
 - **The configuring agent is a setting** like any other: template 3
-  starts it, from `chat start --template 3` (`../client/tools.md`,
-  5.3) and from the client's `Configure`, which "Tell temper how you
-  work" opens (`../client/README.md`, 3.5), and an owner may change or remove it as any template. Its runs read
-  and propose settings; they never change one, since jig's `settings`
-  family proposes and an owner accepts (jig's `domain/engine.md`, 17.6).
+  starts it from `chat start --template 3` (`../client/tools.md`, 5.3).
+  An owner may change or remove it as any template. Its runs read and
+  propose settings; they never change one, since jig's `settings` family
+  proposes and an owner accepts (jig's `domain/engine.md`, 17.6).
+  The client offers Ask temper instead (`../client/README.md`, 3.5).
   Ask temper is a setting alike, beside it: template 5 starts it, from
-  `chat start --template 5` and from Settings' Ask temper
-  (`../client/README.md`, 5.13), and charter 11 runs it
+  `chat start --template 5` and from its project page, rail and tab bar
+  (`../client/README.md`, 3.5 and 5.3), and charter 11 runs it
   (`../domain/agent.md`, 8.4).
 - **Built at each start** by `temper-service`'s `stock` module, as
   typed values, the instructions held in the binary; `Service` passes
