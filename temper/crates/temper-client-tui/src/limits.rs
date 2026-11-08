@@ -42,18 +42,21 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
         .checked_add(connected)?
         .checked_add(projects)?
         .checked_add(Word::NotKept.capacity(domain)?)?
-        .checked_add(Word::Quit.capacity(domain)?)?
         .checked_add(Word::State.capacity(domain)?)?;
+    // The TUI owns its form and command menu even with no supplied page bound.
+    // The browser page bound covers model, effort, chat and question lists.
+    let foot_nodes = 64_u32;
+    let foot_text = field.checked_add(line.checked_mul(16)?)?;
     let screens = skein_ui::Limits {
         // Signing in: Page, Main, ten pairs of blocks and text leaves,
         // the field, ContentInfo and its paragraph and status text pairs.
-        nodes: 28,
-        depth: 4,
+        nodes: foot_nodes,
+        depth: 7,
         text_per_node: field.max(line).max(connected).max(projects),
-        text_bytes: signing.max(first.checked_add(own)?),
+        text_bytes: signing.max(first.checked_add(own)?).max(foot_text),
         styles_per_node: 1,
-        patches: 28_u32.checked_mul(4)?,
-        bindings: 1,
+        patches: foot_nodes.checked_mul(4)?,
+        bindings: 14,
         ..skein_ui::Limits::EMPTY
     };
     let limits = skein_ui::Limits {

@@ -184,8 +184,6 @@ fn the_first_screen_says_the_links_state_and_me() {
         if let Some(line) = projects {
             f::find(view.tree(), Role::Paragraph, line);
         }
-        let quit = f::find(view.tree(), Role::Button, b"q to quit");
-        assert_eq!(quit.shortcut, Some(skein_ui::Shortcut { key: b'q', modifier: skein_ui::Modifier::Plain }));
         let alerts = f::count(view.tree(), Role::Alert);
         assert_eq!(alerts, usize::from(unkept));
         if unkept {
