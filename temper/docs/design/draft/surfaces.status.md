@@ -24,9 +24,12 @@
     one; no design holds a project's areas, an area's owner, a person's
     areas on their box, a role's card or "Hand an area to a role"
     (`standing-roles.md` has no design yet either).
-  - 7: `../client/README.md`, 5.13, holds the How work runs tab, and its
-    section 11 defers the fuller page; no design draws the path by who
-    acts, what reaches you, rules by path, follows or budgets.
+  - 7: `../client/README.md`, 5.13, *The page*, draws the way, the path
+    by who acts and a goal's budget; What reaches you, Rules by path, What
+    follows a landing and a role's budget wait for their milestones
+    (`whole-story.execution.md`, section 3, P3b to P3d); its section 11
+    defers "History · N changes" and keeps the project's repositories as
+    How work runs' second tab, not at its foot.
   - 8: `../client/README.md`, 3.5, *Settings*, keeps Forges, Accounts,
     Models and Builders as a project's settings tabs; no design holds
     Deployment, Members or Limits as a page: the limits are
