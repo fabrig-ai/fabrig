@@ -5,6 +5,7 @@ mod jobs;
 #[cfg(test)]
 #[path = "tests/worker_jobs.rs"]
 mod tests;
+pub mod translate;
 use crate::{
     identities::IdentityTable,
     settings::{Agent, Files},
@@ -1129,6 +1130,17 @@ fn worker_root(limits: &root::Limits) -> root::Domain {
             delivers: true,
         }]),
     )
+}
+
+impl crate::Service {
+    /// The worker domain, for a world to inspect before requesting shutdown.
+    #[must_use]
+    pub fn worker_domain(&self) -> Option<&temper_worker_domain::Domain> {
+        match &self.worker {
+            Some(worker) => Some(&worker.root),
+            None => None,
+        }
+    }
 }
 
 #[cfg(test)]
