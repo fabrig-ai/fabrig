@@ -8805,8 +8805,15 @@ own tests:
   at 1440, 1000 and 420 px (`../draft/look-requests.md`, 4): each tab, a
   stop's card open on an agent, a person and code, "Yours", a refusal, a
   member with no act, "Keep it" gone once To begin's step is done, at
-  night, and the terminal's print. Owner: temper/ui. Default: each
-  difference a finding filed back under the request's trailer.
+  night, and the terminal's print. With them, the repairs of its first
+  render check: the path's marks and labels with no outline
+  (`browser.md`, 2.5), the path at 1000 px 658 by 127.94, the open card
+  14 px under it at every width, the gallery's print at 420 down the page
+  (`browser.md`, 7.1), the reviewer's "Asked to" whole and CI's checks;
+  and a walk from each card's "Open NAME ›" to its role's or rule's page
+  (*A role's or a rule's page*), which no request draws and no gallery
+  state prints. Owner: temper/ui. Default: each difference a finding
+  filed back under the request's trailer.
 - **The two-step Home and night look after landing** (3.5, 5.3): temper/ui
   compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` with
   main at 1440, 1000 and 420 px, with menus and disclosures open and
@@ -8836,7 +8843,7 @@ own tests:
   instructions. The other views, sketches and preferences join at M3b and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
-  way, a proposal's two paths and a charter's card in a reply and in the
+  way, a proposal's two paths and a charter's or a rule's card in a reply and in the
   chat's document at 1440, 1000 and 420 px, across and down the page,
   against the look request's pages, and walks a real Ask temper
   chat asked to show a way. M3b adds a stop pressed in a reply opening
