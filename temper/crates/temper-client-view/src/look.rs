@@ -1328,6 +1328,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-bar",
         b"temper-how-line",
         b"temper-how-row",
+        b"temper-decision-allowed",
     ],
     regions: &[b"temper-link"],
 };
@@ -1489,6 +1490,9 @@ pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
 pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
+
+/// What allowed a decision (temper/docs/design/client/README.md, 3.5, Decided for you).
+pub const DECISION_ALLOWED: Style = Style { owner: owner(), token: 658 };
 
 /// The last word of a turn being written (client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 469 };

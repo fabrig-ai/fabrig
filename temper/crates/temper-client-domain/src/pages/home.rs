@@ -3,7 +3,7 @@ use super::{Request, welcome};
 use crate::{Domain, forge, owner::Owner};
 use alloc::boxed::Box;
 use forge::dismissed::{self, PersonFact};
-use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, contract as c};
+use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
 use skein_lib::{Env, List, Queue, Wall, bytes};
 use temper_client_protocol_wire::{source, v1 as w};
 
@@ -14,9 +14,6 @@ pub struct Home {
     project: u32,
     status: Option<Handle>,
     document: Option<Box<w::ProjectStatus>>,
-    decided: Option<Handle>,
-    decisions: Option<Box<w::Decisions>>,
-    reads: List<DecisionRead>,
     look: Look,
     pub add: Option<AddSheet>,
     skip: Option<Key>,
@@ -38,9 +35,6 @@ impl Home {
             project,
             status: None,
             document: None,
-            decided: None,
-            decisions: None,
-            reads: List::with_capacity(7),
             look: Look::NotSent,
             skip: None,
             skipped: false,
@@ -53,20 +47,9 @@ impl Home {
             home.status = Some(handle);
             out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
         }
-        if let Some(subject) = forge::decided::watch(project, &limits) {
-            let handle = Handle { asker: Owner::Pages.asker(), number };
-            home.decided = Some(handle);
-            out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
-        }
         home
     }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
-        if let Some(handle) = self.decided {
-            out.push(Request::Client(jig_client::Event::Unwatch { handle }));
-        }
-        for row in &self.reads {
-            out.push(Request::Client(jig_client::Event::Unwatch { handle: row.handle }));
-        }
         if let Some(handle) = self.status {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
@@ -89,9 +72,6 @@ impl Home {
         limits: forge::Limits,
         out: &mut Queue<Request>,
     ) -> bool {
-        if self.decided_told(told, client, limits, out) {
-            return true;
-        }
         match told {
             Told::Answered { key, outcome } => {
                 for index in 0..self.copies.len() {
@@ -179,55 +159,6 @@ impl Home {
             | Told::Text { .. } => false,
         }
     }
-    fn decided_told(&mut self, told: &Told, client: &Client, limits: forge::Limits, out: &mut Queue<Request>) -> bool {
-        match told {
-            Told::Changed { handle } if Some(*handle) == self.decided => {
-                self.decisions = match client.document(*handle) {
-                    Some(document) if document.state == jig_client::State::Ended => None,
-                    Some(document) => match document.latest {
-                        Some(Latest::Family(record)) => match forge::decided::document(record, limits) {
-                            Some(document) if document.project() == self.project => Some(Box::new(document)),
-                            Some(_) | None => None,
-                        },
-                        Some(Latest::Jig(_)) | None => None,
-                    },
-                    None => None,
-                };
-                return true;
-            }
-            Told::Ended { handle, .. } if Some(*handle) == self.decided => {
-                self.decided = None;
-                self.decisions = None;
-                out.push(Request::Client(jig_client::Event::Unwatch { handle: *handle }));
-                return true;
-            }
-            Told::Page { handle, page } => {
-                for row in self.reads.iter_mut() {
-                    if row.handle == *handle {
-                        let task = task_read(page, row.task);
-                        row.title = match task {
-                            Some((task, _)) => Some(bytes::copy_of(task.chip.title.bytes())),
-                            None => None,
-                        };
-                        row.state = match task {
-                            Some((task, ended)) => decision_task(task, ended),
-                            None => DecisionTask::Unknown,
-                        };
-                        return true;
-                    }
-                }
-            }
-            Told::Changed { .. }
-            | Told::Ended { .. }
-            | Told::Link { .. }
-            | Told::Pending { .. }
-            | Told::Answered { .. }
-            | Told::Kept { .. }
-            | Told::Dropped { .. }
-            | Told::Text { .. } => {}
-        }
-        false
-    }
     fn looking(&self, key: Key) -> bool {
         match self.look {
             Look::Out(ours) => ours == key,
@@ -265,202 +196,12 @@ pub(crate) fn configured(client: &Client) -> bool {
     false
 }
 
-/// Home's away intro and decision rows (client/README.md, 3.5, Away).
+/// The recent Away spell accompanying Home's decisions (client/README.md, 3.5, Decided for you).
 #[derive(Debug, PartialEq, Eq)]
-pub struct AwayForm {
-    pub span: Option<(Wall, Option<Wall>)>,
+pub struct Spell {
+    pub since: Wall,
+    pub end: Option<Wall>,
     pub landed: Option<u64>,
-    pub showing: u32,
-    pub rows: Box<[DecisionLine]>,
-    pub expires: Wall,
-}
-#[derive(Debug, PartialEq, Eq)]
-pub struct DecisionLine {
-    pub number: u32,
-    pub task: u64,
-    pub title: Option<Box<[u8]>>,
-    pub at: Wall,
-    pub question: Box<[u8]>,
-    pub took: Box<[u8]>,
-    pub why: Box<[u8]>,
-    pub overturned: bool,
-    pub state: DecisionTask,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DecisionTask {
-    Unknown,
-    Live,
-    Done(Wall),
-    Ended(Wall),
-}
-#[derive(Debug)]
-struct DecisionRead {
-    number: u32,
-    task: u64,
-    handle: Handle,
-    title: Option<Box<[u8]>>,
-    state: DecisionTask,
-}
-const DAY: u64 = 86_400_000_000_000;
-fn expires(at: u64) -> Wall {
-    Wall::from_nanos(at.saturating_add(DAY))
-}
-fn showing(row: &w::Decision, wall: Wall) -> bool {
-    wall.as_nanos().saturating_sub(row.at()) < DAY
-}
-impl Home {
-    fn away(&self, spell: Option<forge::away::AwayRow>, wall: Wall) -> Option<AwayForm> {
-        let document = self.decisions.as_ref()?;
-        let mut count = 0_u32;
-        let mut expiry = Wall::from_nanos(u64::MAX);
-        for row in document.rows() {
-            if showing(row, wall) {
-                count = count.checked_add(1).expect("decisions bound the count");
-                expiry = expiry.min(expires(row.at()));
-            }
-        }
-        if count == 0 {
-            return None;
-        }
-        let mut rows = List::with_capacity(7);
-        let mut before = None;
-        // Each pass selects the next newest from at most 64 delivered rows.
-        for _index in 0..count.min(7) {
-            let mut newest: Option<&w::Decision> = None;
-            for row in document.rows() {
-                let key = (row.at(), row.number());
-                if !showing(row, wall) {
-                    continue;
-                }
-                if let Some(before) = before
-                    && key >= before
-                {
-                    continue;
-                }
-                let later = match newest {
-                    Some(held) => key > (held.at(), held.number()),
-                    None => true,
-                };
-                if later {
-                    newest = Some(row);
-                }
-            }
-            let Some(row) = newest else { break };
-            before = Some((row.at(), row.number()));
-            let mut title = None;
-            let mut state = DecisionTask::Unknown;
-            for read in &self.reads {
-                if read.number == row.number() && read.task == row.task() {
-                    title.clone_from(&read.title);
-                    state = read.state;
-                    break;
-                }
-            }
-            rows.push(DecisionLine {
-                number: row.number(),
-                task: row.task(),
-                title,
-                at: Wall::from_nanos(row.at()),
-                question: row.question().into(),
-                took: row.took().into(),
-                why: row.why().into(),
-                overturned: row.overturned(),
-                state,
-            })
-            .expect("seven drawn decisions");
-        }
-        let mut rows = rows.into_boxed();
-        rows.reverse();
-        let span = match spell {
-            Some(row) => Some((row.since, row.ended(wall))),
-            None => None,
-        };
-        let landed = match spell {
-            Some(row) => match &self.document {
-                Some(status) => Some(status.landed().saturating_sub(row.landed)),
-                None => None,
-            },
-            None => None,
-        };
-        Some(AwayForm { span, landed, showing: count, rows, expires: expiry })
-    }
-    fn read_tasks(&mut self, away: Option<&AwayForm>, next: &mut u64, out: &mut Queue<Request>) {
-        let rows = match away {
-            Some(away) => away.rows.as_ref(),
-            None => &[],
-        };
-        let mut kept = List::with_capacity(7);
-        for read in core::mem::replace(&mut self.reads, List::with_capacity(7)).into_boxed() {
-            let mut retain = false;
-            for row in rows {
-                retain |= row.number == read.number && row.task == read.task;
-            }
-            if retain {
-                kept.push(read).expect("seven drawn reads");
-            } else {
-                out.push(Request::Client(jig_client::Event::Unwatch { handle: read.handle }));
-            }
-        }
-        self.reads = kept;
-        for row in rows {
-            let mut held = false;
-            for read in &self.reads {
-                held |= read.number == row.number && read.task == row.task;
-            }
-            if held {
-                continue;
-            }
-            let handle = Handle { asker: Owner::Pages.asker(), number: *next };
-            *next = next.checked_add(1).expect("page handles fit");
-            self.reads
-                .push(DecisionRead {
-                    number: row.number,
-                    task: row.task,
-                    handle,
-                    title: None,
-                    state: DecisionTask::Unknown,
-                })
-                .expect("seven drawn reads");
-            out.push(Request::Client(jig_client::Event::Read {
-                handle,
-                read: Readable::Jig(c::Read::Task { task: row.task }),
-            }));
-        }
-    }
-}
-fn task_read(page: &Readout, task: u64) -> Option<(&c::Task, Option<Wall>)> {
-    match page {
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(document))) if document.chip.task == task => {
-            Some((document, None))
-        }
-        Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(ended))) if ended.matches(c::ObjectKey::Task(task)) => {
-            match &ended.value {
-                c::EndedValue::Task { document, .. } => Some((document, ended.at)),
-                c::EndedValue::Proposal(_)
-                | c::EndedValue::PersonProposal { .. }
-                | c::EndedValue::Escalation { .. }
-                | c::EndedValue::Question { .. }
-                | c::EndedValue::PersonTask { .. } => None,
-            }
-        }
-        Readout::Jig(_) | Readout::Family { .. } | Readout::Limit | Readout::NotServed { .. } => None,
-    }
-}
-fn decision_task(task: &c::Task, ended: Option<Wall>) -> DecisionTask {
-    match task.chip.details.phase {
-        c::ChipPhase::Ended => {
-            let Some(at) = ended.or(task.chip.details.details.ended_at) else { return DecisionTask::Unknown };
-            match task.chip.details.details.ending {
-                Some(c::ChipEnding::Done(_)) => DecisionTask::Done(at),
-                Some(c::ChipEnding::Failed(_) | c::ChipEnding::Cancelled { .. }) | None => DecisionTask::Ended(at),
-            }
-        }
-        c::ChipPhase::Waiting { .. }
-        | c::ChipPhase::Active(_)
-        | c::ChipPhase::Person { .. }
-        | c::ChipPhase::Closing(_)
-        | c::ChipPhase::Held { .. } => DecisionTask::Live,
-    }
 }
 
 /// The repository sheet belongs to this Home (client/README.md, 3.5).
@@ -601,7 +342,8 @@ pub struct Facts {
     pub skip: Skip,
     pub skip_refused: bool,
     pub status: Status,
-    pub away: Option<AwayForm>,
+    pub decided: Option<super::decided::Shown>,
+    pub spell: Option<Spell>,
 }
 /// Status stays unknown until this entry's look is answered and its document delivered.
 #[derive(Debug, PartialEq, Eq)]
@@ -771,14 +513,27 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         Some(home) => home.shown_status(),
         None => Status::Unknown,
     };
-    let mut facts = Facts { configured, repository, needs, delivered, skip, skip_refused, status, away: None };
-    if !facts.to_begin()
-        && let Some(home) = home
-    {
-        facts.away = home.away(root.forge().away(project), wall);
-        if let Some(form) = &mut facts.away {
-            for row in &mut form.rows {
-                row.overturned |= root.pages.overturns.marked(project, row.number);
+    let mut facts =
+        Facts { configured, repository, needs, delivered, skip, skip_refused, status, decided: None, spell: None };
+    if !facts.to_begin() && home.is_some() {
+        facts.decided = root.pages().decided(Some(project), wall);
+        if facts.decided.is_some()
+            && let Some(row) = root.forge().away(project)
+        {
+            let end = row.ended(wall);
+            let recent = match end {
+                Some(end) => wall.as_nanos().saturating_sub(end.as_nanos()) < super::decided::DAY,
+                None => true,
+            };
+            if recent {
+                let landed = match home {
+                    Some(home) => match &home.document {
+                        Some(status) => Some(status.landed().saturating_sub(row.landed)),
+                        None => None,
+                    },
+                    None => None,
+                };
+                facts.spell = Some(Spell { since: row.since, end, landed });
             }
         }
     }
@@ -1035,29 +790,6 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
         | crate::Address::Adopt { .. } => return,
     };
     let facts = facts(root, project, env.wall);
-    let mut reads = Queue::uncapped();
-    if let Some(inbox) = &root.pages.inbox {
-        root.pages.next = root.pages.next.max(inbox.next);
-    }
-    if let Some(home) = &mut root.pages.home {
-        home.read_tasks(facts.away.as_ref(), &mut root.pages.next, &mut reads);
-    }
-    if let Some(inbox) = &mut root.pages.inbox {
-        inbox.next = root.pages.next;
-    }
-    // The reconciliation emits at most seven reads and seven cancellations.
-    for _index in 0..reads.len() {
-        match reads.pop().expect("bounded read queue") {
-            Request::Client(event) => crate::route::client(root, env, event, out),
-            Request::Screen { .. }
-            | Request::KeepLook { .. }
-            | Request::Show { .. }
-            | Request::Replace { .. }
-            | Request::OpenTab { .. } => {
-                unreachable!("Home reconciles client reads")
-            }
-        }
-    }
     let Some(home) = root.pages.home.as_ref() else { return };
     match home.look {
         Look::NotSent => {}

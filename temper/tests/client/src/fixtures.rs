@@ -47,15 +47,15 @@ pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acm
 pub const PARTY: u64 = 1;
 pub const SEED: u64 = 1101;
 pub const WITHIN: Duration = Duration::from_secs(1);
-/// Five delegates fill the chat's watch set beside its session approvals and Home's full room.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 5;
+/// Eight delegates fill the chat's watch set beside its session approvals and Home's full room.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    limits.client.domain.watches = 17;
-    limits.client.domain.handles = 19;
+    limits.client.domain.watches = 20; // Holds four projects' decided watches.
+    limits.client.domain.handles = 22; // Holds four projects' decided watches.
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
@@ -154,9 +154,9 @@ pub fn domain_limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
-                handles: 16,
+                handles: 19, // Holds four projects' decided watches.
                 // Closing page watches overlap the session watches.
-                watches: 15,
+                watches: 18, // Holds four projects' decided watches.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

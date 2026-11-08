@@ -127,7 +127,9 @@ unknown-proposal explanation; the generated help states the same limit.
   joined story of a settings file of each kind proposed, shown, accepted
   and restored (`tests/client`'s `settings_tools.rs`,
   `each_kind_through_ctl_proposed_shown_accepted_and_restored`),
-  ignored pending the restore request path; the joint component correlates
+  ignored pending the shared project defaults' retained state across restart
+  (`../protocol/configuration.md`, 13.2 and 13.4; jig's `domain/engine.md`,
+  17.5); the joint component correlates
   forge setting reads, including historical revision values. 11.3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.

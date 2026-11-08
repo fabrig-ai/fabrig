@@ -40,9 +40,10 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
                 terminal::see(b"answered in "),
                 terminal::see(b"you@example.com"),
                 terminal::type_on(b"Create your project", b""),
-                terminal::see(b"Nothing needs you."),
+                // To begin has its ready headline; the everyday headline follows Skip.
                 terminal::see(b"Optional Skip"),
                 terminal::type_on(b"Optional Skip", b""),
+                terminal::see(b"Nothing needs you."),
                 terminal::see(b"No chats yet."),
                 terminal::type_on(b"Chats", b""),
                 terminal::see(b"None."),

@@ -73,7 +73,8 @@ pub fn tree_limits() -> skein_ui::Limits {
         // The largest goal plan and its frame, including Changes' link and text,
         // and five nodes for the rail menu wrapper, menu and three items.
         // The default draft entry adds a goal link and its text.
-        nodes: 201,
+        // Seven decided rows each add their Allowed sentence.
+        nodes: 208,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,

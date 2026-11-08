@@ -1274,6 +1274,7 @@ pub(crate) struct RunWorkspace {
 #[expect(clippy::disallowed_methods, reason = "projection renders already validated task text")]
 pub(crate) fn project_goal(domain: &mut Domain, env: &Env<Limits>, feed: &jig_domain_core::ProjectionFeed) {
     goal_topics(domain, env, feed);
+    goal_priorities(domain, feed);
     let goal = &feed.goal;
     let Some(repository) = domain.forge.home(goal.project) else {
         if feed.closing {
@@ -1369,6 +1370,42 @@ pub(crate) fn project_goal(domain: &mut Domain, env: &Env<Limits>, feed: &jig_do
             finished: if feed.closing { Some(Box::from("Goal finished")) } else { None },
         },
     }));
+}
+
+/// Move live changes with their goal, independently of its issue projection (domain/forge.md, 9).
+fn goal_priorities(domain: &mut Domain, feed: &jig_domain_core::ProjectionFeed) {
+    let priority = i32::try_from(feed.goal.priority).unwrap_or(i32::MAX);
+    for task in &feed.plan {
+        let Some(row) = domain.forge.change(task.number) else { continue };
+        if row.priority == priority {
+            continue;
+        }
+        match row.change.state {
+            forge_change::State::Landed { .. }
+            | forge_change::State::Red { .. }
+            | forge_change::State::Cleared { .. }
+            | forge_change::State::Uncleared { .. }
+            | forge_change::State::NoChange { .. }
+            | forge_change::State::Ended => continue,
+            forge_change::State::Producing { .. }
+            | forge_change::State::Opening { .. }
+            | forge_change::State::Recreating { .. }
+            | forge_change::State::Reopening { .. }
+            | forge_change::State::Checking { .. }
+            | forge_change::State::Gating { .. }
+            | forge_change::State::CancellingGates { .. }
+            | forge_change::State::Ready { .. }
+            | forge_change::State::Preparing { .. }
+            | forge_change::State::Queued { .. }
+            | forge_change::State::First { .. }
+            | forge_change::State::Updating { .. }
+            | forge_change::State::Resolving { .. }
+            | forge_change::State::Repairing { .. }
+            | forge_change::State::Landing { .. }
+            | forge_change::State::Held { .. } => {}
+        }
+        domain.work.push(Work::Forge(forge::Event::Priority { task: task.number, priority }));
+    }
 }
 
 fn fail_projection_feed(

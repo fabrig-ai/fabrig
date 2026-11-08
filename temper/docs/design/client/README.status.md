@@ -2,14 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Decided for you*, *Home on any project* and *Needs
-  you*; 4.6, `decided`: the client watches `decided` on Home alone
-  (`temper-client-domain`'s `pages/home.rs`), its rows carry no reach and no
-  `asked` list, *Needs you* draws no *Decided for you*, Home draws its rows
-  only in the Away form and always with "While you were away", no row says
-  what allowed it, Overturn is offered on Home alone and its toast names a
-  goal. `ui-reaches/decided-client`.
-
 - **Not yet:** 3.5, *Away*; 5.13, *While you're away, agents may decide*,
   *What the client holds*, *Its acts* and *The card in a chat*'s kind 8; 5.8,
   *How it runs*; 5.14, "When it needs you": the client reads no kind 8, the
@@ -757,9 +749,9 @@ read's head explicit.
   has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
   section 11 keeps retaining the whole beyond that bound open.
 - **Not yet:** 5.15: the whole-bound manual reading check is not on record
-  (`browser.status.md`, 4.3). The four repaired browser stories passed, with ctl
-  history and the smaller window; they do not prove the person's whole-bound
-  layout or repair the failed-head-read retry below.
+  (`browser.status.md`, 4.3). The browser tier's reading stories read the tier's
+  32,768-byte window, with ctl history (`browser.md`, 4.3); they do not prove the
+  person's whole-bound layout or repair the failed-head-read retry below.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first

@@ -117,7 +117,7 @@ fn a_refused_or_ended_watch_is_no_rows() {
                 },
                 &mut Queue::uncapped(),
             );
-            assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).away.is_some());
+            assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).decided.is_some());
         }
         crate::step(
             &mut root,
@@ -125,13 +125,16 @@ fn a_refused_or_ended_watch_is_no_rows() {
             Event::Client { event: jig_client::Event::Up { up: Up::WatchEnded { watch, end } } },
             &mut Queue::uncapped(),
         );
-        assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).away.is_none());
+        assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).decided.is_none());
         crate::step(
             &mut root,
             &env,
             Event::Client { event: jig_client::Event::Up { up: Up::FamilyDelivered { watch, record } } },
             &mut Queue::uncapped(),
         );
-        assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).away.is_none(), "late delivery stays ended");
+        assert!(
+            crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).decided.is_none(),
+            "late delivery stays ended"
+        );
     }
 }

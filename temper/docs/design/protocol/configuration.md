@@ -938,10 +938,10 @@ have one, an engine alone none. Each:
   `client/domain/contract.md`, 7.2; jig's `protocol/client.md`, section
   13). The deployment admits `clients.streams` clients at once, each
   holding up to its own watches, `me`'s included, and temper's shipped
-  clients hold at most 19 (`../domain/root.md`, section 10). So:
-  - *a stream's room* is 19, `WATCHES_PER_STREAM`, one shipped client's;
-  - *the deployment's room* is `clients.streams` times that: 152 at
-    `temper init`'s 8 streams (13.4), 38 at the small profile's 2;
+  clients hold at most 22 (`../domain/root.md`, section 10). So:
+  - *a stream's room* is 22, `WATCHES_PER_STREAM`, one shipped client's;
+  - *the deployment's room* is `clients.streams` times that: 176 at
+    `temper init`'s 8 streams (13.4), 44 at the small profile's 2;
   - *a party's room* is the deployment's, since a person's tabs and their
     `temper ctl` calls are one party and may hold every stream.
     `views.watchers_per_party` never bites below `views.watchers` here:
@@ -953,7 +953,7 @@ have one, an engine alone none. Each:
   stream's room to temper's client's watches, and a test of the limits
   holds the other two to `clients.streams`.
 - **The rooms have no setting of their own.** More room is more streams,
-  `clients.streams`, and the 19 is the shipped clients' bound. An
+  `clients.streams`, and the 22 is the shipped clients' bound. An
   `engine.limits.overrides` naming `views.watchers` or
   `views.watchers_per_party` is refused at the start, naming
   `clients.streams`, and `temper help limits-engine` lists neither: the
@@ -979,10 +979,9 @@ have one, an engine alone none. Each:
     of 17 and 136 watches held another 14,112–15,256 and 114,720–126,336 bytes after
     delivery, respectively, and one marking commit peaked at 116,816 and
     452,176 bytes in the engine world including its driver and fake store.
-  - *The journal's door:* a full room puts at most 152 deliveries behind
-    one commit, 456 behind `root.journal.commits`' 3, within
-    `root.journal.deliveries`' 512. Past that the watermark paces new
-    work, and nothing fails.
+  - *The journal's door:* a full room puts at most 176 deliveries behind
+    one commit, within `root.journal.deliveries`' 512. The watermark
+    paces new work as the door fills, and nothing fails.
   - *The store:* its bounds don't follow the rooms. A watch holds no row,
     and an opening on a retained subject takes one of `root.loads.loads`,
     refused busy past them.

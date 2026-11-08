@@ -74,19 +74,20 @@ fn a_refused_merge_goes_to_the_merge_job_at_once() {
     }
 }
 
-/// A failed merge effect still retries from first (temper/docs/design/domain/forge.md, 8.4).
+/// A failed merge holds for a person (temper/docs/design/domain/forge.md, 6).
 #[test]
-fn a_failed_merge_effect_goes_back_to_first() {
+fn a_failed_merge_effect_holds_until_released() {
     let mut c = change(State::Landing { head: HEAD });
     c.ready_since = Some(at(0));
     c.owns_turn = true;
     let f = Facts { merge_job: true, ..facts() };
     let h = Heard { effect: EffectResult::Failed, ..heard() };
     let next = decide(&c, &f, &h);
-    assert_eq!(next.change.state, State::First { head: HEAD, ready_since: at(0) });
-    assert_eq!(next.decision, Decision::None);
+    assert_eq!(next.change.state, State::Held { was: Box::new(c.state), why: Hold::Failed });
+    assert_eq!(next.decision, Decision::Hold(Hold::Failed));
     assert_eq!(next.change.resolutions, 0);
-    assert!(next.change.owns_turn);
+    assert!(!next.change.owns_turn);
+    assert_eq!(decide(&next.change, &f, &heard()).decision, Decision::None);
 }
 
 /// A pushed merge starts checking with no clean history (temper/docs/design/domain/forge.md, 8.4).

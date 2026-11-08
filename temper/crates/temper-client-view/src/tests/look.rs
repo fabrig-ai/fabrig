@@ -699,6 +699,7 @@ fn decision_tokens_name_the_away_rows() {
     for (token, name) in [
         (DECIDED, b"temper-decided".as_slice()),
         (DECISION, b"temper-decision"),
+        (DECISION_ALLOWED, b"temper-decision-allowed".as_slice()),
         (DECISION_TOOK, b"temper-decision-took"),
         (DECISION_WHY, b"temper-decision-why"),
         (DECISION_LATE, b"temper-decision-late"),

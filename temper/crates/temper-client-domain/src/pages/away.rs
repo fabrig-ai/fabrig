@@ -149,12 +149,43 @@ pub(super) fn told(
 }
 
 fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out: &mut Queue<Request>) {
-    if root.pages.overturn_busy() || root.pages.address != (Address::Home { project }) {
+    let shown = match root.pages.address {
+        Address::Home { project: home } if home == project => super::home::facts(root, project, env.wall).decided,
+        Address::Inbox { filter } if filter.project.is_none() || filter.project == Some(project) => {
+            root.pages.decided(filter.project, env.wall)
+        }
+        Address::Home { .. }
+        | Address::Inbox { .. }
+        | Address::NewChat { .. }
+        | Address::Chats { .. }
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Changes { .. }
+        | Address::Settings { .. }
+        | Address::Repositories { .. }
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
+        | Address::Goals { .. }
+        | Address::Ask { .. }
+        | Address::Adopt { .. } => None,
+    };
+    if root.pages.overturn_busy() {
         return;
     }
-    let Some(form) = super::home::facts(root, project, env.wall).away else { return };
+    let Some(form) = shown else { return };
     for row in form.rows {
-        if row.number != number || row.overturned || row.state != super::home::DecisionTask::Live {
+        if row.project != project
+            || row.number != number
+            || row.overturned
+            || row.state != super::decided::DecisionTask::Live
+        {
             continue;
         }
         let Some(request) = decided::overturn(project, number, &env.limits.forge) else { return };

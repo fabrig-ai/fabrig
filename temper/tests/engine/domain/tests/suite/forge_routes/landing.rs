@@ -793,7 +793,6 @@ fn a_dependency_between_two_live_landings_keeps_the_later_waiting_until_the_firs
 }
 
 #[test]
-#[ignore = "jig: a declared procedure made with a pending dependency starts kept (connectors.md 6.1); J0 builds it, T14 un-ignores this"]
 fn a_change_created_with_a_dependency_joins_before_production() {
     let (mut world, chat) = turn_chat();
     let (a, producer_a) = make_change(&mut world, &chat, 95, b"org/lib");
