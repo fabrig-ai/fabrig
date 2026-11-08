@@ -62,7 +62,8 @@ open is section 9.
   run's (hosts.md, section 1), so a cancel, a drop or the host's stop
   ends the program with the run, and its own children with it. An
   agent that aborts closes nothing (skein's `shell.md`, section 13), so
-  each program process is started to die with its agent (5.1).
+  on Linux each program process is started to die with its agent (5.1).
+  On macOS an abort still needs the host's tree ended (5.1, section 9).
 - **The run is still smith's.** Its charter, budget, result contract,
   host tools, `finish`, `deliver` and `wait`, its messages, parking and
   answer are domain/run.md's on either backend. What the program does in
@@ -810,6 +811,10 @@ the next turn of that same cued script (decided 2026-11-02).
 
 ## 9. Open questions
 
+- **Program lifetime after an agent abort on macOS** (2, 5.1): how to
+  end the program and relay without Linux's parent-death signal.
+  Default: direct launch and the host's supervisor ending the whole tree;
+  parent-death exec there is skein's `shell.md`, section 10's question.
 - **Claude Code's own request with MCP attached** (5.1): record its overhead
   once with smith's server, including tool search's placeholder and prefixed
   tool names. The 2.1.312 subscription check establishes prompt replacement;
