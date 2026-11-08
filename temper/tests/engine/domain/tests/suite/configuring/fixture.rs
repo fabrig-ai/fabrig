@@ -354,7 +354,11 @@ pub(super) struct World {
 }
 impl World {
     pub fn stock() -> Self {
-        Self::new(config())
+        let mut bounds = limits();
+        bounds.people.projects = 3; // Two projects and the deployment roster.
+        bounds.people.holdings = 3; // One owner of all three scopes.
+        bounds.authority.projects = 2;
+        Self::with_limits(config(), &bounds)
     }
     pub fn new(config: engine::Config) -> Self {
         Self::with_limits(config, &limits())

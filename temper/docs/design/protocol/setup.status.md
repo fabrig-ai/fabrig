@@ -2,10 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [setup.md](setup.md).
 
-- **Not yet:** 8.3: each project's landing rule 1 is not the binary's
-  stock: the stock module gives the forge the deployment's rule 1 over
-  every branch of every forge (`temper-service/src/stock.rs`, `forge`).
-
 Sections 5.2, 5.3 and 17.2 have the identity handoff: an owned Forgejo's
 given values include its person's login, managed and fake entries give
 none, and local reconcile answers become `Is` or `Gone`. Convert, paste

@@ -176,12 +176,12 @@ fn configure_example_preserves_stock_landing_gate() {
     assert_eq!(items.len(), 2, "one landing rule and one forge charter");
     let item = items
         .iter()
-        .find(|item| item.setting == Setting::Application { kind: 1, scope: 0, number: 1 })
-        .expect("deployment landing rule 1");
+        .find(|item| item.setting == Setting::Application { kind: 2, scope: 1, number: 1 })
+        .expect("project 1 landing rule 1");
     let SettingEdit::Set(set) = &item.edit else { panic!("example sets the rule") };
     let SettingValue::Application(bytes) = &set.value else { panic!("landing rule value") };
     let documented = temper_engine_smith::kinds::decode(
-        1,
+        2,
         bytes,
         &temper_engine_smith::kinds::Bounds { segments: 9, segment_bytes: 4096, gates: 64, approvals: 64 },
     )
@@ -190,7 +190,7 @@ fn configure_example_preserves_stock_landing_gate() {
     let temper = temper_service::limits::profile(temper_service::limits::Profile::Small);
     let limits = temper_service::limits::engine(&jig, &temper).expect("stock limits");
     let stock = temper_service::stock::forge(&limits);
-    let rule = stock.iter().find(|item| (item.kind, item.scope, item.number) == (1, 0, 1)).expect("stock rule");
+    let rule = stock.iter().find(|item| (item.kind, item.scope, item.number) == (2, 0, 1)).expect("stock rule");
     assert_eq!(documented.value, rule.value.value, "example must preserve every stock landing requirement");
 }
 

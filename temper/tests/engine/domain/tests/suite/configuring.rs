@@ -129,8 +129,8 @@ fn approval_items(
     people: u32,
 ) -> serde_json::Value {
     use serde_json::json;
-    let setting = json!({"kind":"landing-rule","number":1});
-    let (text, _) = see_whole(&mut world.driver, run, completion, "settings landing-rule 1");
+    let setting = json!({"kind":"landing-rule","project":PROJECT,"number":1});
+    let (text, _) = see_whole(&mut world.driver, run, completion, "settings landing-rule 1 project");
     let (_, text) = text.split_once('\n').expect("landing rule heading");
     let mut landing = serde_json::Deserializer::from_str(text)
         .into_iter::<serde_json::Value>()
@@ -1015,6 +1015,77 @@ fn an_accepted_proposal_moves_running_work() {
 }
 
 #[test]
+fn the_stock_gives_each_project_rule_one_and_reset_restores_it() {
+    use serde_json::json;
+    let mut world = World::stock();
+    world.ask(world.owner, 19, people::Ask::MakeProject { name: "Other project".into(), policy: 1 });
+    let people::Reply::Outcome(people::Outcome::ProjectMade { project: other }) = *world.reply(19) else {
+        panic!("second project made: {:?}", world.reply(19))
+    };
+    assert_ne!(other, PROJECT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let stock = json!({
+        "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
+        "enforce":true,"ci":true,"up_to_date":true,
+        "gates":[{"number":1,"blocking":true,"freshness":"clean"}],"approvals":[]
+    });
+    let mut changed = stock.clone();
+    changed["up_to_date"] = json!(false);
+    changed["gates"] = json!([]);
+    let value = temper_engine_domain_forge::settings::Value::Rule(temper_engine_domain_forge::settings::LandingRule {
+        pattern: temper_engine_domain_forge::GatePattern {
+            segments: Box::new([b"branch".as_slice().into()]),
+            last: temper_engine_domain_forge::GateLast::Open(Box::default()),
+        },
+        enforce: true,
+        ci: true,
+        up_to_date: false,
+        gates: Box::default(),
+        approvals: Box::default(),
+    });
+    let bytes = temper_engine_smith::kinds::encode(&value);
+    let setting = s::Setting::Application { kind: 2, scope: PROJECT, number: 1 };
+    let mut completion = 1;
+    for (revision, expected) in [(1, &stock), (2, &changed), (3, &stock)] {
+        for (project, expected) in [(PROJECT, expected), (other, &stock)] {
+            let (text, _) = settings_whole(
+                &mut world.driver,
+                &run,
+                completion,
+                json!({"setting":{"kind":"landing-rule","project":project,"number":1}}),
+            );
+            let (_, text) = text.split_once('\n').expect("landing rule heading");
+            let value = serde_json::Deserializer::from_str(text)
+                .into_iter::<serde_json::Value>()
+                .next()
+                .expect("rule value")
+                .expect("rule JSON");
+            assert_eq!(&value, expected, "project {project} at revision {revision}");
+            completion += 10;
+        }
+        let (body, error) = host_tool(
+            &mut world.driver,
+            &run,
+            completion,
+            b"settings",
+            br#"{"setting":{"kind":"landing-rule","number":1}}"#,
+        );
+        assert!(error, "the deployment has no stock rule: {}", String::from_utf8_lossy(&body));
+        assert!(String::from_utf8_lossy(&body).starts_with("not read: no such setting at that revision."));
+        completion += 10;
+        if revision == 1 {
+            world.change(
+                1,
+                21,
+                Box::new([s::Item { setting, edit: s::Edit::Set(s::Value::Application(bytes.clone())) }]),
+            );
+        } else if revision == 2 {
+            world.change(2, 22, Box::new([s::Item { setting, edit: s::Edit::Reset }]));
+        }
+    }
+}
+
+#[test]
 fn the_asking_chat_reads_each_kind() {
     let mut world = World::stock();
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
@@ -1027,7 +1098,7 @@ fn the_asking_chat_reads_each_kind() {
         ("settings template 1", "template 1, revision 2\n", "\"bytes\":\"chat\""),
         ("settings policy 1", "policy 1, revision 2\n", "\"roles\":"),
         ("settings rules", "rules, revision 2\n", "\"ceiling\":"),
-        ("settings landing-rule 1", "landing-rule 1, revision 2\n", "\"enforce\":true"),
+        ("settings landing-rule 1 project", "landing-rule 1 --project 1, revision 2\n", "\"enforce\":true"),
         ("settings forge-charter 1", "forge-charter 1, revision 2\n", "default, "),
         ("revision 2", "revision 2, against revision 1,", "The newest chat instructions."),
         ("revisions", "revision 2, against revision 1,", "revision 1, against revision 0,"),
@@ -1065,7 +1136,7 @@ fn an_asking_chat_reads_each_address() {
         ("settings template 5", "template 5, revision 2", "ask", false),
         ("settings model 1", "model 1, revision 2", "scripted", false),
         ("settings rules", "rules, revision 2", "\"ceiling\":", false),
-        ("settings landing-rule 1", "landing-rule 1, revision 2", "\"enforce\":true", false),
+        ("settings landing-rule 1 project", "landing-rule 1 --project 1, revision 2", "\"enforce\":true", false),
         ("settings forge-charter 1", "forge-charter 1, revision 2", "default, ", false),
         ("settings project-ways", "project-ways 1, revision 2", "the stock", false),
         ("settings project-questions", "project-questions 1, revision 2", "the stock", false),
@@ -2129,7 +2200,10 @@ fn an_asking_chat_is_refused_an_unsatisfiable_approval_at_the_call() {
     );
     assert_eq!(world.reply(22), &people::Reply::Outcome(people::Outcome::RolesSet { project: 2 }));
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
-    let items = approval_items(&mut world, &run, 40, 2, 1);
+    let mut items = approval_items(&mut world, &run, 40, 2, 1);
+    // A deployment rule also reaches project 2, whose people this chat cannot read.
+    items[0]["setting"] = serde_json::json!({"kind":"landing-rule","number":1});
+    items[0]["set"]["pattern"]["segments"] = serde_json::json!(["666f726765"]);
     let proposal = propose(&mut world.driver, &run, 41, 1, &items);
     world.ask(
         world.owner,

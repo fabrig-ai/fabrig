@@ -107,9 +107,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
-- **Not yet:** 13.4: the stock module gives the forge kind 1's rule 1 over
-  every branch of every forge, and no project's rule 1
-  (`temper-service/src/stock.rs`, `forge`).
 - **Not yet:** 13.4: charter 5 and template 4 are not in the stock, and
   the rules' and policy 1's delegation names neither charter 5 nor the
   merge job (`temper-service/src/stock.rs`).
