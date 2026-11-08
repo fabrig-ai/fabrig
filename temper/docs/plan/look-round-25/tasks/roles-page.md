@@ -88,3 +88,12 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: the read and the section as drawn, the rows and the bite with its failure, the prints regenerated, the runs' counts, and the account as committed.
+
+## Answers
+
+2026-11-08. *Q: a skein task for a structured disclosure summary, or draw the summary with what skein holds; and Roles' tokens at 678 to 682, as 650 to 652 are Work's?*
+
+- **The summary: draw it with what skein holds; no skein change in this plan.** A role's `Role::Disclosure` takes the card's `name` as its name and its `who` as its description (`skein/docs/design/ui.md`, *A disclosure*: words beside its name, shown while folded), which `skein-ui-web` puts in the `<summary>` after the name. The "Model" fact is drawn opened, the first term before "Can" and "Asked to"; a card with no "Model" has no such term. `temper.css` under `ui: how`: `.role > summary`'s grid on the summary as skein draws it (the name, then the description's span), the 200 px name, the line small and muted, a "›" at its right turning down while open as decoration of the summary, and at 760 px and under the line under the name. Don't touch `skein/**`, don't generate the model's words in CSS, don't reach for a tooltip.
+- **Write the departure, not a deletion:** in `temper/docs/design/client/browser.status.md` (2.5) and `README.status.md` (5.13) replace the **Not yet** entries naming `roles-page` with one entry each: "A role's model is drawn among its opened terms, not at its summary's right: skein's disclosure summary holds its name and one description (`skein/docs/design/ui.md`, *A disclosure*); the right-hand model waits for a structured summary in skein." 7.2's `how-draft` entry is deleted as the spec says.
+- **Tokens:** Roles' names take `temper-reserved-678` onwards (`look.rs`), Work's 650 to 652 and every other identity kept; `notes/contracts.md`' "648 onwards" is read as 678 onwards. Allocate only the tokens a node carries: `temper-how-roles` (678), `temper-how-role` (679), `temper-how-role-more` (680); the line and the model have no node of their own and take no token, so 681 and 682 stay reserved.
+- **Tests:** the view's case sees "Model" among the opened terms with "Can" and "Asked to", and the summary's words as the name and its `who`. Every other row as the spec says.
