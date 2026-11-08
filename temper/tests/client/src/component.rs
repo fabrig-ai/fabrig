@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain as root;
 
 pub struct Composition {
+    pub(crate) latest_link: Option<Secret>,
     component: clients::Component,
     env: Env<clients::Limits>,
     out: Queue<Request>,
@@ -97,7 +98,7 @@ impl Composition {
             provider: None,
             addresses: Box::new([]),
             link: identity,
-            link_secret: secret,
+            link_secret: secret.clone(),
             approval,
             deployment_provider: 2,
             heartbeat: skein_lib::Duration::from_secs(3600),
@@ -164,6 +165,7 @@ impl Composition {
         let mut out = Queue::with_capacity(256);
         let component = clients::Component::new(settings, &env, &mut out).expect("joint component configuration");
         Self {
+            latest_link: secret,
             component,
             env,
             out,
@@ -771,7 +773,8 @@ impl Composition {
                 let record = None;
                 self.event(Event::MovedTaken { exchange, record });
             }
-            Request::Link { .. } | Request::Closed => {}
+            Request::Link { secret } => self.latest_link = Some(secret),
+            Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }
     }

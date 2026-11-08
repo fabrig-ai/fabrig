@@ -27,8 +27,8 @@ aaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 a..............................................................................a
 a.cccccccccccccccccccccccccccccccccccccccccc...................................a
 a.dddddddddddddddddddddddddddddddddddddddddddddd...............................a
-a.eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee................a
-a.eeeeeeeeeeeeeeeeeeeeee.......................................................a
+a.ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd................a
+a.dddddddddddddddddddddd.......................................................a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
@@ -46,11 +46,10 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
 ................................................................................
-.cccccccccccccc....................................................eeeeeeeeeeee.
+.cccccccccccccc....................................................dddddddddddd.
 --
-a: fore #6A655C back #191816
-b: fore #E08A68 back #191816 bold
-c: fore #9A9388 back #191816
-d: fore #E8E3DA back #2A2825
-e: fore #E08A68 back #191816
+a: fore #6A655C
+b: fore #E08A68 bold
+c: fore #9A9388
+d: fore #E08A68
 cursor 3 34

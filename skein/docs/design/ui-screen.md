@@ -80,6 +80,12 @@ host chose (its own design says how).
   and reverse. A paint laid over another (`Paint::over`) takes each
   colour it names and adds each attribute it sets; none leaves the one
   under it.
+- **The terminal's default,** a colour of its own: a cell's colour that
+  is none is the terminal's own default text or background, kept as such
+  in the frame and its print (section 4) and never resolved to an `Rgb`,
+  and drawn as SGR 39 or 49 (section 7). A theme whose base names no
+  colour leaves the terminal's ground and body text showing, and paints
+  only what its regions and tokens name.
 - **The base,** the paint of every cell before anything is laid on it.
 - **A region's look,** `RegionLook`, at most one per region (ui.md,
   section 8):
@@ -120,7 +126,8 @@ host chose (its own design says how).
   letter per cell naming its paint, `.` for the base, `a` to `z` and
   then `A` to `Z` for the others in the order they first appear, and
   `?` past those; a line `--`; a line per letter, `a: fore #RRGGBB back
-  #RRGGBB bold dim italic underline reverse`, naming only what is set;
+  #RRGGBB bold dim italic underline reverse`, naming only what is set, a
+  colour that is the terminal's default named by nothing (section 3);
   and the cursor, `cursor ROW COLUMN`, or `no cursor`.
 
 ## 5. How it lays out
@@ -247,6 +254,16 @@ the most bytes of a paste:
   is dropped whole; a paste past the settings' most bytes keeps its first
   bytes up to that most, at a character's boundary, and drops the rest
   through its end.
+- **The terminal's answers,** once the terminal has asked its background
+  (section 8), which sets its decoder so (`Decoder::answers`): from then
+  on `ESC ]` begins an answer, read through BEL or `ESC \`, never a key,
+  whenever it comes, a late one included. One of the form `ESC ] 11 ;
+  rgb:R/G/B`, each component 1 to 4 hex digits of either case, is the
+  background's answer (`Decoder::background`), each component scaled to
+  8 bits: its first two digits, or its one digit doubled. Another `11`
+  answer is the background's too, unreadable; any other answer is
+  dropped; one past 64 bytes is dropped whole, through its end. Before
+  `answers`, `ESC ]` is `Alt` and `]`, as the table has it.
 
 ### 6.2 The key reader
 
@@ -293,7 +310,10 @@ Step code, writing into the list it is given.
   and every cell written.
 - **Colours** as 24-bit `SGR 38;2` and `48;2` at depth `True`, and as the
   nearest of the 256 indexed colours, the 6×6×6 cube and the gray ramp,
-  at depth `Indexed`; a colour that is none is the terminal's default.
+  at depth `Indexed`; a colour that is none is the terminal's default,
+  SGR 39 for the text and 49 for the background, which the reset (`ESC [
+  0 m`) that begins each change of paint already sets, so nothing more
+  is written for it.
 - **The cursor** last: moved to the frame's cursor and shown, or hidden.
 - **Bounded:** at most the bytes of a whole frame of `most`'s cells, each
   with its paint changed, which `skein_ui_screen_terminal::draw_bound`
@@ -307,15 +327,26 @@ section 3), its operations under a tag of its own so its host routes their
 completions to it, as the text shell's terminal (ui-text.md, section 3).
 
 - **Its settings,** `Settings`, given whole: the least time between two
-  frames drawn; the colours' depth; the most cells of a frame; and the
-  most bytes of a paste.
+  frames drawn; the colours' depth; the most cells of a frame; the most
+  bytes of a paste; and the wait for the terminal's background
+  (`background`), or none to ask nothing.
 - **Its operations,** `Terminal::operations`, the most in flight at
   once, which the host's ring holds beside its own; none for settings it
   refuses.
 - **Entering,** at adoption, before anything else: `ENTER`, the
   alternate screen (`ESC [ ? 1049 h`), the cursor hidden (`ESC [ ? 25
   l`), pastes bracketed (`ESC [ ? 2004 h`), no wrap at the last column
-  (`ESC [ ? 7 l`), and the screen cleared.
+  (`ESC [ ? 7 l`), and the screen cleared. Then, where the settings give
+  a wait, the background asked, `ASK_BACKGROUND`, OSC 11's query
+  (`ESC ] 11 ; ? ESC \`), and the decoder set to read answers (6.1).
+- **The terminal's background,** `Terminal::background`, a `Background`:
+  `Waiting` from adoption until the decoder reads the background's
+  answer, `Answered(Rgb)`, or an unreadable one, `Unanswered`; or until
+  the wait has passed since the first iteration after adoption, or the
+  input ended, both `Unanswered`. With no wait it is `Unanswered` from
+  the start, and nothing is asked. While it waits, `next_deadline` holds
+  the wait's end. Keys read before the answer wait in `keys` as any do.
+  What the colour means, dark or light, is the application's.
 - **Keys** are decoded as they are read and wait for the host
   (`Terminal::keys`); the terminal asks to read only once the host has
   taken every key it gave, a read's worth at once.
@@ -374,14 +405,24 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
   with a disabled node, a shortcut while a field has the focus, Escape in
   a dialog and in a form, and a value at its bound.
 - **The drawing:** a first frame whole, one cell changed, a resize whole,
-  the cursor shown and hidden, the indexed depth's nearest colours, and
-  `draw_bound` for a frame at `most` with every paint changing.
+  the cursor shown and hidden, the indexed depth's nearest colours, a
+  cell whose paint names no colour drawn in the terminal's defaults
+  after a coloured one, and `draw_bound` for a frame at `most` with every
+  paint changing.
+- **The answers:** the decoder's rows for the background's answer with
+  BEL and with `ESC \`, 1 to 4 digits a component, either case, split at
+  every byte; another `11` answer unreadable; another OSC dropped; one
+  past 64 bytes dropped whole, its next key kept; `ESC ]` as `Alt` before
+  `answers`; no answer ever a key.
 - **The terminal** on skein's simulated machine, in `tests/ui-screen`
   (testing.md, section 6): `ENTER` first; keys split across reads; frames
   paced, one at a time, the newest drawn; a frame larger than the output's
   room in pieces; a resize asking the window and drawing whole; `LEAVE`
   last on each way out, closing, the input's end and a close while a
-  frame is being written; nothing after it.
+  frame is being written; nothing after it; `ASK_BACKGROUND` right after
+  `ENTER` where a wait is given and never otherwise, the background
+  answered, unanswered once the wait has passed, and unanswered at the
+  input's end.
 - **The panic's way out:** skein-fail-stop's fixture sets a restoration
   that writes a mark, panics, and its test finds the mark before the
   report (`tests/fail-stop`).
@@ -401,8 +442,6 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
 - **A text area's rows:** `Up` and `Down` moving the caret by rows in a
   text area, in place of the focus.
 - **The pointer:** a mouse's press on a node and its wheel on the body.
-- **The terminal's own colours,** asked of it at start (its background's
-  answer), so that an application need not choose dark or light.
 - **Right-to-left text,** with the text shell's (ui-text.md, section 9).
 
 ## 11. Open questions

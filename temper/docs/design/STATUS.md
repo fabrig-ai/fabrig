@@ -648,6 +648,17 @@ record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
 
+Project-making's reproduced client stall is repaired: ctl, native and
+web presets take nine memberships in the mandatory `me`; reduced,
+whole-incident and stored-state stories check answers across a restart.
+The core stayed ready in that reproduction, leaving the reported public
+read's 503 unexplained (`domain/root.md`, section 13). Serve's gate-wait
+and recovery notes and journal-stop exits are built, as is ctl's sign-in
+not-ready line. The accepted distinct watch not-ready refusal and its
+ctl deadline line are absent; wire reasons and the browser membership
+check remain later work (`protocol/README.status.md`, 8.2;
+`client/tools.status.md`, 6.3; `client/tools.md`, section 14).
+
 ## Gaps and departures
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,

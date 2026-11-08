@@ -24,8 +24,8 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ........................................
 .ccccccccc.......................dddddd.
 --
-a: fore #B5AEA3 back #FFFEFD
-b: fore #B8664E back #FFFEFD bold
-c: fore #7A736A back #FFFEFD
-d: fore #3F7D4E back #FFFEFD
+a: fore #B5AEA3
+b: fore #B8664E bold
+c: fore #7A736A
+d: fore #3F7D4E
 no cursor

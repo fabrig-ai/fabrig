@@ -1171,6 +1171,14 @@ testing-strategy.md, 6).
 
 ## 13. Open questions
 
+- **A public read returning 503 after a project is made** (5.7, 9.1):
+  the `core-after-project` request reports it alongside clients whose
+  links never come up, across a restart. A client rejecting `me` for too
+  many memberships explains those links, but not the service refusing
+  that public read. Default: no further core repair without evidence of
+  a shut gate; the service's reason line (`../protocol/README.md`, 8.2)
+  must identify what holds it before attributing another occurrence to
+  the calendar, startup or the journal.
 - **A party's fair share of the watch rooms** (section 10): the
   deployment's room is also one party's. Whether it should have less is
   `../protocol/configuration.md`, section 11's question. Default: the whole

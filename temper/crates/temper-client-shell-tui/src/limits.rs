@@ -5,6 +5,7 @@ use temper_client_shell_terminal::limits as native;
 
 pub const MOST: Size = Size { rows: 200, columns: 500 };
 pub const PASTE: u32 = 512;
+pub const BACKGROUND: Duration = Duration::from_millis(200);
 pub const INTERVAL: Duration = Duration::from_millis(20);
 
 #[derive(Clone, Debug)]
@@ -41,11 +42,25 @@ pub fn valid(limits: &Limits) -> bool {
         && limits.most.columns > 0
         && limits.paste > 0
         && limits.interval > Duration::ZERO
-        && skein_ui_screen_terminal::Terminal::operations(&terminal(limits, skein_ui_screen_terminal::Depth::True))
-            .is_some()
+        && skein_ui_screen_terminal::Terminal::operations(&terminal(
+            limits,
+            skein_ui_screen_terminal::Depth::True,
+            true,
+        ))
+        .is_some()
 }
 
 #[must_use]
-pub fn terminal(limits: &Limits, depth: skein_ui_screen_terminal::Depth) -> skein_ui_screen_terminal::Settings {
-    skein_ui_screen_terminal::Settings { interval: limits.interval, depth, most: limits.most, paste: limits.paste }
+pub fn terminal(
+    limits: &Limits,
+    depth: skein_ui_screen_terminal::Depth,
+    scheme: bool,
+) -> skein_ui_screen_terminal::Settings {
+    skein_ui_screen_terminal::Settings {
+        interval: limits.interval,
+        depth,
+        most: limits.most,
+        paste: limits.paste,
+        background: if scheme { None } else { Some(BACKGROUND) },
+    }
 }

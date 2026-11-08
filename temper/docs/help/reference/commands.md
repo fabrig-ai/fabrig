@@ -146,7 +146,7 @@ For a Forgejo of application.sign_in.forges, on temper's host, before temper ser
 
 Run temper's full-screen terminal client, the TUI, on an engine.
 
-- `ADDRESS`: The engine's clients' listener, http://HOST:PORT on loopback; by default the address the TUI last signed in to, else http://127.0.0.1:8367.
+- `ADDRESS`: Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.
 
 Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. q or Ctrl+C closes it without signing out.
 

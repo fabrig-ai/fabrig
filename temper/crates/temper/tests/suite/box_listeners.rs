@@ -6,6 +6,7 @@ use skein_world::{Deadline, Expired};
 use std::{
     fs,
     net::{SocketAddr, TcpListener},
+    os::unix::fs::MetadataExt,
     path::PathBuf,
     process::{Child, Stdio},
     time::Duration,
@@ -29,6 +30,41 @@ fn clients(document: &serde_json::Value) -> SocketAddr {
         .expect("clients listener")
         .parse()
         .expect("socket")
+}
+
+/// Open a spent link through its wire route and inspect the reason, not a transport refusal.
+fn used(link: &[u8]) -> std::io::Result<bool> {
+    use crate::support::{
+        self,
+        story_socket::{Scope, Socket},
+    };
+    use jig_client_protocol_wire as wire;
+    use skein_lib::{
+        Reader, Writer,
+        base64::{self, Alphabet},
+    };
+    let text = std::str::from_utf8(link).expect("fixture URL");
+    let secret = base64::decode(Alphabet::Url, text.split_once("secret=").expect("link secret").1.as_bytes(), 32)
+        .expect("fixture encoding");
+    let limits = jig_protocol_config::profile::profile(jig_protocol_config::profile::Profile::Small).clients.wire;
+    let record = wire::LinkSignIn::new(&limits, wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
+        .expect("link record");
+    let mut out = Writer::new(usize::try_from(record.measure()).expect("record length"));
+    record.encode(&mut out).expect("measured record");
+    let body = out.finish();
+    let address = box_link::address(link);
+    let mut socket = Socket::connect("spent link", support::WITHIN, address, Scope::Owned)?;
+    let header = format!(
+        "POST /jig/v1/sign-in/link HTTP/1.0\r\nHost: {address}\r\nContent-Type: application/octet-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    socket.write_all("spent link request", support::WITHIN, header.as_bytes())?;
+    socket.write_all("spent link body", support::WITHIN, &body)?;
+    let answer = socket.read_to_end("spent link answer", support::WITHIN, 4096)?;
+    let start = skein_lib::bytes::find(&answer, b"\r\n\r\n").expect("HTTP answer") + 4;
+    let mut reader = Reader::new(&answer[start..]);
+    Ok(matches!(wire::SignInAnswer::decode(&limits, &mut reader), Ok(wire::SignInAnswer::LinkUsed))
+        && reader.remaining() == 0)
 }
 
 #[test]
@@ -111,10 +147,18 @@ fn a_fresh_box_prints_its_block_and_nothing_else() {
     let mut boxed = box_link::Boxed::start("first-block", None);
     let link = boxed.link();
     boxed.wait(|boxed| crate::support::boxed::serve_listening(&boxed.root().join("data")));
+    let path = box_link::link_path(boxed.root());
+    assert!(
+        fs::read(&path).expect("kept first link") == [link.as_slice(), b"\n"].concat(),
+        "file holds the first link"
+    );
+    assert_eq!(fs::metadata(&path).expect("link metadata").mode() & 0o777, 0o600);
+    assert_eq!(fs::metadata(path.parent().unwrap()).expect("parent metadata").mode() & 0o777, 0o700);
     let (stdout, stderr, log) = boxed.stop();
+    assert!(!path.exists(), "removed at stop");
     assert!(stdout.strip_suffix(b"\n") == Some(link.as_slice()), "stdout is exactly the first link and its line feed");
     assert!(
-        stderr == [box_link::PRELUDE, box_link::FOOTER].concat(),
+        stderr == [box_link::PRELUDE, box_link::footer(&link).as_slice()].concat(),
         "the complete sign-in block, with no lifecycle chatter"
     );
     let mut remaining = log.as_str();
@@ -162,12 +206,23 @@ fn the_first_link_opened_at_once_waits_and_signs_in() {
     let connected = connected.expect("the first link's socket accepts immediately");
     drop(connected);
     assert!(box_link::signs_in(boxed.root(), "first-client", &link), "the block's very first link signs in as owner");
+    match used(&link) {
+        Ok(used) => assert!(used, "the spent link is answered used"),
+        Err(why) => {
+            boxed.stop();
+            crate::support::story_socket::finish(why);
+        }
+    }
+    let fresh = boxed.link();
+    assert!(fresh != link, "a spent link draws a fresh one");
+    let path = box_link::link_path(boxed.root());
+    boxed.wait(|_| fs::read(&path).is_ok_and(|bytes| bytes == [fresh.as_slice(), b"\n"].concat()));
     let (stdout, stderr, _) = boxed.stop();
+    assert!(stdout == [link.as_slice(), b"\n", fresh.as_slice(), b"\n"].concat(), "exactly the first and fresh links");
     assert!(
-        stdout.strip_suffix(b"\n") == Some(link.as_slice()),
-        "signing in with the first link prints no second link"
+        stderr == [box_link::PRELUDE, box_link::footer(&link).as_slice(), b"\n"].concat(),
+        "fresh link has only its separator"
     );
-    assert!(stderr == [box_link::PRELUDE, box_link::FOOTER].concat(), "no fresh-link separator");
 }
 
 mod lifetime;

@@ -3,7 +3,8 @@ use crate::{
     tui::{self, Refused},
 };
 use skein_ui_screen_terminal::Depth;
-use temper_client_tui::Scheme;
+use std::{fs, os::unix::fs::PermissionsExt};
+use temper_client_tui::{Note, Scheme};
 
 const LINK: &str = "http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
@@ -57,16 +58,22 @@ fn the_kept_address_reads_or_is_none() {
 
 #[test]
 fn the_scheme_and_the_depth_follow_the_environment() {
+    let mut failures = Vec::new();
     for (value, expected) in [
-        (Some("15;0"), Scheme::Dark),
-        (Some("0;15"), Scheme::Light),
-        (Some("0;default;7"), Scheme::Light),
-        (Some("7"), Scheme::Light),
-        (None, Scheme::Dark),
+        (Some("0;15"), Some(Scheme::Light)),
+        (Some("15;0"), Some(Scheme::Dark)),
+        (Some("7"), Some(Scheme::Light)),
+        (Some("0;default;8"), Some(Scheme::Dark)),
+        (Some("default;default"), None),
+        (Some(""), None),
+        (None, None),
     ] {
         let entries = value.map(|value| ("COLORFGBG", value)).into_iter().collect::<Vec<_>>();
-        assert_eq!(tui::scheme(&environment(&entries)), expected, "{value:?}");
+        if tui::scheme(&environment(&entries)) != expected {
+            failures.push(value);
+        }
     }
+    assert!(failures.is_empty(), "COLORFGBG rows: {failures:?}");
     for (value, expected) in [
         (Some("truecolor"), Depth::True),
         (Some("24bit"), Depth::True),
@@ -76,6 +83,76 @@ fn the_scheme_and_the_depth_follow_the_environment() {
         let entries = value.map(|value| ("COLORTERM", value)).into_iter().collect::<Vec<_>>();
         assert_eq!(tui::depth(&environment(&entries)), expected, "{value:?}");
     }
+}
+
+#[test]
+fn the_address_prefers_given_then_file_then_kept_then_default() {
+    let given = "[::1]:9000".parse().expect("given address");
+    let saved = "127.0.0.1:9001".parse().expect("kept address");
+    let default = "127.0.0.1:8367".parse().expect("default address");
+    let file_engine = "127.0.0.1:9002".parse().expect("file address");
+    let link = LINK.replacen(":8367", ":9002", 1);
+    let off_loopback = link.replacen("127.0.0.1", "10.0.0.1", 1);
+    let mut failures = Vec::new();
+    for (row, argument, file, kept, expected) in [
+        ("given", Some(given), Some(link.as_str()), Some(saved), given),
+        ("file", None, Some(link.as_str()), Some(saved), file_engine),
+        ("kept", None, None, Some(saved), saved),
+        ("default", None, None, None, default),
+        ("file address", None, Some("http://127.0.0.1:9002"), Some(saved), saved),
+        ("off loopback", None, Some(off_loopback.as_str()), Some(saved), saved),
+        ("garbage", None, Some("garbage"), Some(saved), saved),
+    ] {
+        let engine = tui::selected_address(argument, file.map(str::as_bytes), kept);
+        if engine != expected {
+            failures.push(row);
+        }
+        let (_, secret) = LINK.split_once("secret=").expect("fixture secret");
+        assert!(!engine.to_string().contains(secret), "only the engine address leaves selection");
+    }
+    assert!(failures.is_empty(), "address rows: {failures:?}");
+}
+
+#[test]
+fn the_link_path_is_the_same_deployments_as_the_box() {
+    let entries =
+        environment(&[("HOME", "/home/test"), ("TEMPER_DATA", "deployment"), ("XDG_RUNTIME_DIR", "/runtime")]);
+    let (directories, _) = crate::directories::resolve(&[], &entries, b"/working").expect("box directories");
+    assert_eq!(
+        tui::link_path(&entries, b"/working"),
+        crate::link_file::path(&directories.data, Some(b"/runtime"), cfg!(target_os = "linux")),
+    );
+}
+
+#[test]
+fn the_note_is_private_and_only_for_its_address() {
+    let scratch = skein_scratch::Scratch::new("tui-note");
+    let path = scratch.path().join("sign-in");
+    let engine = "127.0.0.1:8367".parse().expect("note address");
+    let other = "[::1]:9000".parse().expect("other address");
+    let user = skein_shell::effective_user();
+    let until = Note::Until(skein_lib::Wall::from_nanos(123));
+    let mut failures = Vec::new();
+    for (row, bytes, mode, owner, address, expected) in [
+        ("own address", Some(until.print(b"127.0.0.1:8367")), 0o600, user, engine, Some(until)),
+        ("other address", Some(until.print(b"127.0.0.1:8367")), 0o600, user, other, None),
+        ("signed out", Some(Note::SignedOut.print(b"127.0.0.1:8367")), 0o600, user, engine, Some(Note::SignedOut)),
+        ("nonprivate", Some(until.print(b"127.0.0.1:8367")), 0o640, user, engine, None),
+        ("foreign", Some(until.print(b"127.0.0.1:8367")), 0o600, user.wrapping_add(1), engine, None),
+        ("garbage", Some(Box::from(b"garbage".as_slice())), 0o600, user, engine, None),
+        ("absent", None, 0o600, user, engine, None),
+    ] {
+        if let Some(bytes) = bytes {
+            fs::write(&path, bytes).expect("fixture note");
+            fs::set_permissions(&path, fs::Permissions::from_mode(mode)).expect("note permissions");
+        } else {
+            fs::remove_file(&path).expect("remove fixture note");
+        }
+        if tui::read_note(scratch.path(), address, owner) != expected {
+            failures.push(row);
+        }
+    }
+    assert!(failures.is_empty(), "note rows: {failures:?}");
 }
 
 #[test]

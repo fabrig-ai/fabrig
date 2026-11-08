@@ -99,11 +99,12 @@ pub const LINK_LINE_BYTES: u32 = crate::host::LINE_BYTES
 pub struct Formatter {
     first_printed: bool,
     form: LinkForm,
+    word: Box<[u8]>,
 }
 impl Formatter {
     #[must_use]
-    pub fn new(form: LinkForm) -> Self {
-        Self { first_printed: false, form }
+    pub fn new(form: LinkForm, word: Box<[u8]>) -> Self {
+        Self { first_printed: false, form, word }
     }
     #[must_use]
     pub fn block_entries(&self) -> u32 {
@@ -113,6 +114,7 @@ impl Formatter {
     /// only after the complete adjacent block has entered the terminal FIFO.
     #[must_use]
     pub fn block(&self, url: Box<[u8]>) -> List<Item> {
+        let footer = if self.first_printed { None } else { Some(self.footer(&url)) };
         let mut items = List::with_capacity(self.block_entries());
         let words = if self.first_printed {
             Item { target: Target::Stderr, bytes: skein_lib::bytes::copy_of(FRESH) }
@@ -121,10 +123,34 @@ impl Formatter {
         };
         items.push(words).expect("block count");
         items.push(Item { target: Target::Stdout, bytes: self.form.line(url) }).expect("block count");
-        if !self.first_printed {
-            items.push(Item { target: Target::Stderr, bytes: skein_lib::bytes::copy_of(FOOTER) }).expect("block count");
+        if let Some(bytes) = footer {
+            items.push(Item { target: Target::Stderr, bytes }).expect("block count");
         }
         items
+    }
+    fn footer(&self, line: &[u8]) -> Box<[u8]> {
+        let url = line.strip_suffix(b"\n").unwrap_or(line);
+        let start = match skein_lib::bytes::find(url, b"://") {
+            Some(at) => at.checked_add(3).expect("scheme end"),
+            None => 0,
+        };
+        let rest = url.get(start..).expect("authority starts within URL");
+        let end = start.checked_add(skein_lib::bytes::find(rest, b"/").unwrap_or(rest.len())).expect("origin end");
+        let origin = url.get(..end).expect("origin within URL");
+        let prefix = b"In a terminal: ";
+        // The complete footer shares the stdout link's 8,207-byte item bound.
+        // A bounded URL's origin and the fallback word always fit it.
+        let overhead = FOOTER
+            .len()
+            .checked_add(prefix.len())
+            .expect("footer prefix")
+            .checked_add(origin.len())
+            .expect("origin")
+            .checked_add(2)
+            .expect("space and LF");
+        let room = usize::try_from(LINK_LINE_BYTES).expect("output bound fits usize").saturating_sub(overhead);
+        let word = if self.word.len() <= room { self.word.as_ref() } else { b"temper" };
+        joined(&[FOOTER, prefix, word, b" ", origin, b"\n"])
     }
     pub fn admitted_block(&mut self) {
         self.first_printed = true;
