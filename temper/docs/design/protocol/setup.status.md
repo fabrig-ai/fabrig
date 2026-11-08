@@ -79,8 +79,6 @@ section 15's contained-tree work.
   `restarting`, `running` and `gave-up` lines, the terminal's lines in
   `box.log` in its stead, the 256 lines held, and a failed front named on
   the terminal after it (`front-lines`, `tui-box-front`).
-- **Not yet:** 7.6: `temper help box` and `temper help tui` say nothing of
-  the TUI in front or `--no-tui` (`box-help`, `tui-box-front`).
 - **Not yet:** 7.2, *Its children*: the owned-forge Claude Code landing
   story (`crates/temper/tests/live.rs`,
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`) has no
