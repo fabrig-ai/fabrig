@@ -15,7 +15,6 @@ fn the_themes_are_valid_and_name_every_look() {
     assert_eq!(skein_ui::look::check(&[look::NAMES, temper_client_view::look::NAMES]), None);
     assert_eq!(look::OWNER.number, 65_538);
     assert_eq!(look::LINK, skein_lib::Token::new(1));
-    assert_eq!(look::QUIT, skein_lib::Token::new(2));
     assert_eq!(look::NAMES.prefix, b"tui");
     let mut failures = skein_lib::List::with_capacity(80);
     for (scheme, dim, faint, accent, good, sel) in [

@@ -6,10 +6,10 @@
 
 
 
-
-
-
- q to quit                       ● Live
+────────────────────────────────────────
+❯ Ask temper
+────────────────────────────────────────
+ / for commands · 1 needs you    ● Live
 --
 aaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 a......................................a
@@ -19,13 +19,14 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ........................................
 ........................................
 ........................................
-........................................
-........................................
-........................................
-.ccccccccc.......................dddddd.
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ccaaaaaaaaaa............................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.dddddddddddddddddccccccccccc....eeeeee.
 --
 a: fore #6A655C
 b: fore #E08A68 bold
-c: fore #9A9388
-d: fore #8FC28F
-no cursor
+c: fore #E08A68
+d: fore #9A9388
+e: fore #8FC28F
+cursor 9 2

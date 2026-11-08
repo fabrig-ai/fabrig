@@ -158,6 +158,11 @@ impl Tui {
     fn set_local(&mut self, local: Local) -> bool {
         let mut changed = self.local != local;
         if local == Local::Ended {
+            if self.local != Local::Ended {
+                let focus = self.focus.saturating_add(1);
+                changed |= self.focus != focus;
+                self.focus = focus;
+            }
             changed |= self.signing != Signing::Idle || self.pasted || !self.field.is_empty();
             if !self.field.is_empty() {
                 self.empty();
