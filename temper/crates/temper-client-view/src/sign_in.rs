@@ -43,7 +43,7 @@ pub(crate) fn offered(root: &temper_client_domain::Domain, words: &Words, ways: 
 fn kept(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte)
 }
-fn google(origin: &[u8], path: &[u8]) -> Box<[u8]> {
+pub(crate) fn google(origin: &[u8], path: &[u8]) -> Box<[u8]> {
     const PREFIX: &[u8] = b"/sign-in/google?then=";
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
     let mut size = origin.len().checked_add(PREFIX.len()).expect("bounded URL");
@@ -84,20 +84,8 @@ fn front(
     forges: &Forges,
     query: Option<&[u8]>,
 ) {
-    b.open(Role::Main);
-    b.style(crate::look::MAIN);
-    b.style(crate::look::SIGN_IN);
-    b.open(Role::Slot);
-    b.style(crate::look::CARD);
-    b.open(Role::Paragraph);
-    b.style(crate::look::BRAND);
-    words.text(b, Word::Brand, &[]);
-    b.close();
-    b.open(Role::Heading { level: 1 });
     let heading = words.say(Word::SignInTitle, &[]);
-    b.name(&heading);
-    words.text(b, Word::SignInTitle, &[]);
-    b.close();
+    crate::outside::column(b, &heading, &[]);
     if let Some(query) = query {
         b.open(Role::Paragraph);
         words.text(b, Word::SignInContinue, &[]);
@@ -107,9 +95,7 @@ fn front(
     }
     if root.signed_out() {
         for forge in forges.entries() {
-            b.open(Role::Paragraph);
-            words.text(b, Word::SignInSignedOut, &[Hole::Name(forge.name(words))]);
-            b.close();
+            crate::outside::words(b, words, Word::SignInSignedOut, &[Hole::Name(forge.name(words))]);
         }
     }
     if let Some(origin) = origin {
@@ -124,20 +110,20 @@ fn front(
             None => temper_client_domain::address::print(root.pages().address()),
         };
         b.open(Role::Link);
+        b.style(crate::look::OUTSIDE_PRIMARY);
         b.name(&words.say(Word::ContinueGoogle, &[]));
         b.external(&google(origin, &path));
         words.text(b, Word::ContinueGoogle, &[]);
         b.close();
     } else {
-        b.open(Role::Paragraph);
-        words.text(b, Word::SignedOutMain, &[]);
-        b.close();
+        crate::outside::words(b, words, Word::SignedOutMain, &[]);
     }
     if let Some(origin) = origin {
         let mut address = Writer::new(origin.len().checked_add(b"/public".len()).expect("bounded public address"));
         address.put(origin).expect("origin");
         address.put(b"/public").expect("public path");
         b.open(Role::Paragraph);
+        b.style(crate::look::OUTSIDE_QUIET);
         b.open(Role::Link);
         b.name(&words.say(Word::ReadPublic, &[]));
         b.external(&address.finish());
@@ -145,7 +131,6 @@ fn front(
         b.close();
         b.close();
     }
-    b.close();
     b.close();
 }
 
@@ -170,27 +155,20 @@ pub(crate) fn authorize(
         front(b, root, words, if ways.google { ways.origin.as_deref() } else { None }, forges, Some(query));
         return;
     }
-    b.open(Role::Main);
-    b.style(crate::look::MAIN);
-    b.style(crate::look::SIGN_IN);
-    b.open(Role::Slot);
-    b.style(crate::look::CARD);
     let title = match state {
         State::Waiting | State::Pending | State::Continuing => Word::AuthorizeTitle,
         State::Refused(_) => Word::AuthorizeRefused,
         State::Busy => Word::AuthorizeBusy,
         State::SignedOut => unreachable!("signed-out front drawn above"),
     };
-    b.open(Role::Heading { level: 1 });
-    b.name(&words.say(title, &[]));
-    words.text(b, title, &[]);
-    b.close();
+    let heading = words.say(title, &[]);
+    crate::outside::column(b, &heading, &[]);
     match state {
         State::Waiting | State::Pending | State::Continuing => {
             if let Some(me) = root.pages().me(root.client()) {
-                b.open(Role::Paragraph);
-                words.text(
+                crate::outside::words(
                     b,
+                    words,
                     Word::AuthorizeContinuing,
                     &[
                         Hole::Name(me.party.name.bytes().into()),
@@ -198,33 +176,30 @@ pub(crate) fn authorize(
                         Hole::Name(me.party.login.bytes().into()),
                     ],
                 );
-                b.close();
             }
         }
         State::Refused(AuthorizeWhy::UnknownClient | AuthorizeWhy::UnknownRedirect) => {
-            b.open(Role::Paragraph);
-            words.text(b, Word::AuthorizeUnknown, &[]);
-            b.close();
+            crate::outside::words(b, words, Word::AuthorizeUnknown, &[]);
             if let Some(origin) = &ways.origin {
                 let mut url = Writer::new(origin.len().checked_add(1).expect("origin bound"));
                 url.put(origin).expect("sized URL");
                 url.put(b"/").expect("sized URL");
+                b.open(Role::Paragraph);
+                b.style(crate::look::OUTSIDE_QUIET);
                 b.open(Role::Link);
                 b.name(&words.say(Word::AuthorizeBack, &[]));
                 b.external(&url.finish());
                 words.text(b, Word::AuthorizeBack, &[]);
                 b.close();
+                b.close();
             }
         }
         State::Busy => {
-            b.open(Role::Paragraph);
-            words.text(b, Word::AuthorizeBusyBody, &[]);
-            b.close();
+            crate::outside::words(b, words, Word::AuthorizeBusyBody, &[]);
         }
         State::Refused(AuthorizeWhy::Malformed | AuthorizeWhy::NoProvider | AuthorizeWhy::NotAPerson)
         | State::SignedOut => {}
     }
-    b.close();
     b.close();
 }
 
@@ -252,20 +227,40 @@ mod authorize_tests {
     use jig_client::AuthorizeWhy;
     use temper_client_domain::authorize::State;
     fn render(state: State, query: &[u8]) -> skein_ui::View {
+        render_with_ways(state, query, Ways::parse("google", b"https://temper.example"))
+    }
+    fn render_with_ways(state: State, query: &[u8], ways: Ways) -> skein_ui::View {
         let root = fixtures::root_in_project(None);
         let words = fixtures::browser_words();
         let mut limits = fixtures::tree_limits();
         limits.text_per_node = crate::Limits::of(&fixtures::limits(), &words).unwrap().tree.text_per_node;
         let mut view = skein_ui::View::new(&limits);
         let mut builder = view.builder();
-        let ways = Ways::parse("google", b"https://temper.example");
         let mut forges = Forges::new();
         forges.read("1 forgejo https://forge.example:3000 other");
         builder.open(Role::Page);
         authorize(&mut builder, &root, state, query, &words, &ways, &forges);
         builder.close();
         view.finish(builder, 1, &mut skein_lib::Queue::with_capacity(960));
+        assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([crate::look::OUTSIDE])]);
+        assert!(fixtures::styles(view.tree(), Role::Slot).is_empty());
+        for styles in &fixtures::styles(view.tree(), Role::Paragraph) {
+            assert!(!styles.contains(&crate::look::BRAND));
+        }
         view
+    }
+    fn quiet_link(tree: &skein_ui::Tree, name: &[u8], address: &[u8]) {
+        let index = tree
+            .nodes()
+            .iter()
+            .position(|node| node.role == Role::Link && node.name.as_deref() == Some(name))
+            .expect("quiet link");
+        let link = tree.nodes().get(index).unwrap();
+        assert_eq!(link.external.as_deref(), Some(address));
+        let parent = tree.nodes().get(index.checked_sub(1).unwrap()).unwrap();
+        assert_eq!(parent.role, Role::Paragraph);
+        assert_eq!(parent.styles.as_slice(), [crate::look::OUTSIDE_QUIET]);
+        assert_eq!(parent.size, link.size.checked_add(1).unwrap());
     }
     #[test]
     fn each_authorization_page_uses_the_mockup_words() {
@@ -288,6 +283,7 @@ mod authorize_tests {
                     .is_some()
             );
             assert!(fixtures::find(tree.tree(), Role::Link, b"Back to sign in").is_some());
+            quiet_link(tree.tree(), b"Back to sign in", b"https://temper.example/");
             assert!(
                 core::str::from_utf8(&fixtures::main_text(tree.tree())).unwrap().contains("Nothing was sent anywhere.")
             );
@@ -365,9 +361,20 @@ mod authorize_tests {
             );
             let link = fixtures::find(tree.tree(), Role::Link, b"Continue with Google").unwrap();
             let node = tree.tree().nodes().iter().find(|node| node.id == link).unwrap();
+            assert_eq!(node.styles.as_slice(), [crate::look::OUTSIDE_PRIMARY]);
+            quiet_link(tree.tree(), b"Read public projects", b"https://temper.example/public");
             let mut path = b"/oauth/authorize?".to_vec();
             path.extend_from_slice(query);
             assert_eq!(node.external.as_deref(), Some(google(b"https://temper.example", &path).as_ref()));
+        }
+        for ways in [Ways::NONE, Ways::parse("", b"https://temper.example"), Ways { google: true, origin: None }] {
+            let tree = render_with_ways(State::SignedOut, b"client_id=forgejo", ways);
+            assert!(fixtures::find(tree.tree(), Role::Link, b"Continue with Google").is_none());
+            let text = fixtures::main_text(tree.tree());
+            assert_eq!(
+                text.as_ref(),
+                b"Sign into continue to Forgejo at forge.example:3000To sign in, open a sign-in link temper printed."
+            );
         }
     }
 }

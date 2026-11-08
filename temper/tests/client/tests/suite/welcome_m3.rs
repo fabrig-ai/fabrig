@@ -57,7 +57,7 @@ fn welcome(step: Step) -> Address {
 }
 
 #[test]
-fn brand_returns_to_welcome_from_every_step_without_starting_the_playground() {
+fn brand_returns_to_inbox_from_every_step_without_starting_the_playground() {
     for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
     {
         let (mut front, mut root) = h::playground_fixture(fixtures::SEED, false);
@@ -65,8 +65,11 @@ fn brand_returns_to_welcome_from_every_step_without_starting_the_playground() {
         assert!(has(&root, Role::Link, b"temper"));
         assert!(!has(&root, Role::Link, b"Inbox"));
         press(&mut front, &mut root, Role::Link, b"temper");
-        assert_eq!(root.person().pages().address(), &welcome(Step::Welcome));
-        assert!(has(&root, Role::Heading { level: 1 }, b"Welcome to temper"));
+        assert_eq!(
+            root.person().pages().address(),
+            &(Address::Inbox { filter: temper_client_domain::address::Filter::ALL })
+        );
+        assert!(!has(&root, Role::Heading { level: 1 }, b"Welcome to temper"));
         assert!(front.playground_starts.is_empty(), "brand must only navigate");
     }
 }

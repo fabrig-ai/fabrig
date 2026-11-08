@@ -37,10 +37,7 @@ fn a_drawn_page_carries_the_views_hrefs() {
     let mut page = host::page(&host.bounds.tree, Primary::Control);
     host.draw(&mut page, &mut Vec::new());
     let html = page.html();
-    assert!(
-        html.split("</a>").any(|anchor| anchor.contains("href=\"/chats\"") && anchor.contains(">temper<")),
-        "{html}"
-    );
+    assert!(html.split("</a>").any(|anchor| anchor.contains("href=\"/\"") && anchor.contains(">temper<")), "{html}");
 }
 
 #[path = "host/redacted.rs"]

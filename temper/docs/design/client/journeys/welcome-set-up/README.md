@@ -1,7 +1,7 @@
 # welcome-set-up
 
 On a fresh `temper box --fake-backends`: the box's printed sign-in link
-opened, the welcome drawn, "Set up temper" pressed, then Forgejo's
+opened, the welcome drawn under its top bar, "Set up temper" pressed, then Forgejo's
 "Run on this machine" on the Forge step, and its sheet's own "Run on
 this machine", an empty repository chosen.
 

@@ -148,13 +148,16 @@ fn a_fresh_box_prints_its_block_and_nothing_else() {
     let link = boxed.link();
     boxed.wait(|boxed| crate::support::boxed::serve_listening(&boxed.root().join("data")));
     let path = box_link::link_path(boxed.root());
-    assert!(
-        fs::read(&path).expect("kept first link") == [link.as_slice(), b"\n"].concat(),
-        "file holds the first link"
-    );
+    let local = kept_link(&mut boxed);
+    assert!(local != link, "the file's link differs from the printed link");
+    assert_eq!(box_link::address(&local), box_link::address(&link), "both links name the same listener");
     assert_eq!(fs::metadata(&path).expect("link metadata").mode() & 0o777, 0o600);
     assert_eq!(fs::metadata(path.parent().unwrap()).expect("parent metadata").mode() & 0o777, 0o700);
     let (stdout, stderr, log) = boxed.stop();
+    let secret = std::str::from_utf8(&local).expect("the file's URL").split_once("secret=").expect("local secret").1;
+    assert!(!String::from_utf8_lossy(&stdout).contains(secret), "the file's secret is absent from stdout");
+    assert!(!String::from_utf8_lossy(&stderr).contains(secret), "the file's secret is absent from stderr");
+    assert!(!log.contains(secret), "the file's secret is absent from box.log");
     assert!(!path.exists(), "removed at stop");
     assert!(stdout.strip_suffix(b"\n") == Some(link.as_slice()), "stdout is exactly the first link and its line feed");
     assert!(
@@ -205,6 +208,8 @@ fn the_first_link_opened_at_once_waits_and_signs_in() {
     eprintln!("serve.log had listening clients at the first connect: {listening}; early open: {}", !listening);
     let connected = connected.expect("the first link's socket accepts immediately");
     drop(connected);
+    let local = kept_link(&mut boxed);
+    assert!(local != link, "the file's link differs from the first printed link");
     assert!(box_link::signs_in(boxed.root(), "first-client", &link), "the block's very first link signs in as owner");
     match used(&link) {
         Ok(used) => assert!(used, "the spent link is answered used"),
@@ -216,13 +221,26 @@ fn the_first_link_opened_at_once_waits_and_signs_in() {
     let fresh = boxed.link();
     assert!(fresh != link, "a spent link draws a fresh one");
     let path = box_link::link_path(boxed.root());
-    boxed.wait(|_| fs::read(&path).is_ok_and(|bytes| bytes == [fresh.as_slice(), b"\n"].concat()));
+    assert!(local != fresh, "the file's link differs from the fresh printed link");
+    assert!(
+        fs::read(&path).expect("kept local link") == [local.as_slice(), b"\n"].concat(),
+        "the file's link stays unchanged"
+    );
     let (stdout, stderr, _) = boxed.stop();
     assert!(stdout == [link.as_slice(), b"\n", fresh.as_slice(), b"\n"].concat(), "exactly the first and fresh links");
     assert!(
         stderr == [box_link::PRELUDE, box_link::footer(&link).as_slice(), b"\n"].concat(),
         "fresh link has only its separator"
     );
+}
+
+fn kept_link(boxed: &mut box_link::Boxed) -> Vec<u8> {
+    let path = box_link::link_path(boxed.root());
+    boxed.wait(|_| fs::read(&path).is_ok_and(|bytes| bytes.ends_with(b"\n")));
+    let bytes = fs::read(&path).expect("the file's link");
+    let link = bytes.strip_suffix(b"\n").expect("one final line feed");
+    assert!(!link.is_empty() && !link.contains(&b'\n'), "the file holds one link and a line feed");
+    link.to_vec()
 }
 
 mod lifetime;

@@ -10,6 +10,39 @@ mod placeholder;
 mod switcher;
 
 #[test]
+fn no_source_of_the_bundle_or_the_servers_pages_names_the_old_mark() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut files = Vec::new();
+    for entry in std::fs::read_dir(root).expect("bundle source directory") {
+        let path = entry.expect("bundle source entry").path();
+        if path.is_file() {
+            files.push(path);
+        }
+    }
+    let mut directories = vec![root.join("files"), root.join("playground"), root.join("src")];
+    while let Some(directory) = directories.pop() {
+        for entry in std::fs::read_dir(directory).expect("bundle source directory") {
+            let path = entry.expect("bundle source entry").path();
+            if path.is_dir() {
+                if path != root.join("files/fonts") {
+                    directories.push(path);
+                }
+            } else {
+                files.push(path);
+            }
+        }
+    }
+    for page in ["src/clients/google/pages.rs", "src/setup/routes.rs", "src/clients/no-bundle.html"] {
+        files.push(root.join("../temper-service").join(page));
+    }
+    files.sort();
+    for path in files {
+        let source = std::fs::read_to_string(&path).expect("bundle or server page source is text");
+        assert!(!source.to_ascii_lowercase().contains("#b8664e"), "old mark in {}", path.display());
+    }
+}
+
+#[test]
 fn stylesheet_assets_follow_the_same_origin_policy() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     for mut css in [include_str!("../../temper.css"), include_str!("../../task-pages.css")] {
@@ -134,14 +167,10 @@ fn settings_controls_keep_the_connect_flows_rules() {
 #[test]
 fn the_approval_code_reads_at_a_glance() {
     let css = include_str!("../../temper.css");
-    let (before, approval) = css.split_once("/* ==== tui: approval ==== */").expect("approval block");
-    assert!(
-        before.trim_end().ends_with(".temper-sign-in > .temper-card { padding: 23.33px 21px 21px; } }"),
-        "approval follows the sign-in rules"
-    );
-    let (_, rule) = approval.split_once(".temper-approve-code {").expect("approval code rule");
+    let (_, outside) = css.split_once("/* ==== ui: outside ==== */").expect("outside block");
+    let (_, rule) = outside.split_once(".temper-outside .temper-approve-code {").expect("approval code rule");
     let (rule, _) = rule.split_once('}').expect("code declarations");
-    assert!(rule.contains("font: 28px var(--temper-mono);"), "large mono code: {rule}");
-    assert!(rule.contains("letter-spacing: 0.12em;"), "spaced code: {rule}");
-    assert!(rule.contains("color: var(--temper-ink);"), "code ink: {rule}");
+    assert!(rule.contains("font: 500 30px/1.25 var(--gf-mono);"), "large mono code: {rule}");
+    assert!(rule.contains("letter-spacing: .14em;"), "spaced code: {rule}");
+    assert!(rule.contains("color: var(--gf-ink);"), "code ink: {rule}");
 }

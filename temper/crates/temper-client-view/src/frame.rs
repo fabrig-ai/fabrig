@@ -218,77 +218,56 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
     use skein_ui::phrases::Hole;
     if root.client().link().state == jig_client::Link::SignedOut {
         match root.client().link().not_signed_in {
-            Some(NotSignedIn::Full { sign_ins, earliest, link_until }) => words.text(
+            Some(NotSignedIn::Full { sign_ins, earliest, link_until }) => crate::outside::words(
                 builder,
+                words,
                 Word::SignInFull,
                 &[Hole::Number(u64::from(sign_ins)), Hole::Wall(earliest), Hole::Wall(link_until)],
             ),
-            Some(NotSignedIn::Busy) => words.text(builder, Word::SignInBusy, &[]),
-            Some(NotSignedIn::LinkUsed) => words.text(builder, Word::SignInLinkUsed, &[]),
-            Some(NotSignedIn::LinkExpired) => words.text(builder, Word::SignInLinkExpired, &[]),
-            Some(NotSignedIn::LinkUnknown) => words.text(builder, Word::SignInLinkUnknown, &[]),
-            Some(NotSignedIn::NotReady) => words.text(builder, Word::SignInNotReady, &[]),
-            Some(NotSignedIn::Approval(_)) | None => words.text(builder, Word::SignedOutMain, &[]),
+            Some(NotSignedIn::Busy) => crate::outside::words(builder, words, Word::SignInBusy, &[]),
+            Some(NotSignedIn::LinkUsed) => crate::outside::words(builder, words, Word::SignInLinkUsed, &[]),
+            Some(NotSignedIn::LinkExpired) => crate::outside::words(builder, words, Word::SignInLinkExpired, &[]),
+            Some(NotSignedIn::LinkUnknown) => crate::outside::words(builder, words, Word::SignInLinkUnknown, &[]),
+            Some(NotSignedIn::NotReady) => crate::outside::words(builder, words, Word::SignInNotReady, &[]),
+            Some(NotSignedIn::Approval(_)) | None => match words.shell {
+                crate::words::Shell::Browser => crate::outside::words(builder, words, Word::SignedOutMain, &[]),
+                crate::words::Shell::Terminal => {}
+            },
         }
     } else {
-        words.text(builder, Word::OutOfDateMain, &[]);
+        crate::outside::words(builder, words, Word::OutOfDateHow, &[]);
     }
-}
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Place {
-    Rail,
-    Banner,
 }
 pub(crate) fn switcher(
     builder: &mut Builder,
     root: &Domain,
     words: &crate::words::Words,
     bindings: &mut Bindings,
-    project: Option<u32>,
-    place: Place,
+    project: u32,
     sign_in: &crate::forge_sign_in::Forges,
 ) {
     if let Some(me) = root.pages().me(root.client()) {
-        if me.projects.is_empty() {
-            text(
-                builder,
-                Role::Paragraph,
-                &words.say(crate::words::Word::NoProjectYet, &[]),
-                Some(crate::look::PROJECT_EMPTY),
-            );
-            new_project_form(builder, root, words, bindings);
-            return;
-        }
         builder.open(Role::Disclosure);
         builder.style(crate::look::PROJECTS);
-        builder.name(&words.say(crate::words::Word::Projects, &[]));
-        if let Some(project) = project {
-            let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
-            builder.name(&name);
-        }
-        if place == Place::Rail {
-            builder.open(Role::Slot);
-            builder.style(crate::look::PROJECTS_MENU);
-        }
+        let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
+        builder.name(&name);
+        builder.open(Role::Slot);
+        builder.style(crate::look::PROJECTS_MENU);
         for selected in [true, false] {
             for row in &me.projects {
-                if (Some(row.project) == project) == selected {
+                if (row.project == project) == selected {
                     let name = crate::pages::project_name(Some(me), row.project).expect("project from me has a name");
                     if selected && root.pages().switcher().renaming() == Some(row.project) {
                         rename_form(builder, root, words, &name, bindings);
                         continue;
                     }
-                    let split = place == Place::Rail && words.shell == crate::words::Shell::Browser;
+                    let split = words.shell == crate::words::Shell::Browser;
                     if split {
                         builder.open(Role::Slot);
                         builder.style(crate::look::PROJECTS_ROW);
                     }
                     builder.open(Role::Button);
-                    if place == Place::Rail {
-                        project_row(builder, root, words, row.project, &name);
-                    } else {
-                        builder.name(&name);
-                    }
+                    project_row(builder, root, words, row.project, &name);
                     if selected {
                         builder.state(skein_ui::State::Pressed);
                     }
@@ -298,45 +277,32 @@ pub(crate) fn switcher(
                         project_repository(builder, root, words, row.project, sign_in);
                         builder.close();
                     }
-                    if selected && place == Place::Banner && row.role == jig_client::contract::HeldRole::Owner {
-                        builder.open(Role::Button);
-                        builder.style(crate::look::PROJECT_RENAME);
-                        builder.name(&words.say(crate::words::Word::Rename, &[]));
-                        builder.bind(bindings.insert(PageAct::Switcher(switcher::Act::Rename)));
-                        builder.close();
-                    }
                 }
             }
         }
-        if place == Place::Rail {
-            builder.open(Role::Slot);
-            builder.style(crate::look::PROJECTS_ACTS);
-            for row in &me.projects {
-                if Some(row.project) != project {
-                    continue;
-                }
-                let name = crate::pages::project_name(Some(me), row.project).expect("open project has a name");
-                if root.pages().switcher().renaming().is_none() && row.role == jig_client::contract::HeldRole::Owner {
-                    builder.open(Role::Button);
-                    builder.style(crate::look::PROJECT_RENAME);
-                    builder.name(&words.say(crate::words::Word::RenameProject, &[skein_ui::phrases::Hole::Name(name)]));
-                    builder.bind(bindings.insert(PageAct::Switcher(switcher::Act::Rename)));
-                    builder.close();
-                }
+        builder.open(Role::Slot);
+        builder.style(crate::look::PROJECTS_ACTS);
+        for row in &me.projects {
+            if row.project != project {
+                continue;
+            }
+            let name = crate::pages::project_name(Some(me), row.project).expect("open project has a name");
+            if root.pages().switcher().renaming().is_none() && row.role == jig_client::contract::HeldRole::Owner {
+                builder.open(Role::Button);
+                builder.style(crate::look::PROJECT_RENAME);
+                builder.name(&words.say(crate::words::Word::RenameProject, &[skein_ui::phrases::Hole::Name(name)]));
+                builder.bind(bindings.insert(PageAct::Switcher(switcher::Act::Rename)));
+                builder.close();
             }
         }
         new_project_form(builder, root, words, bindings);
-        if place == Place::Rail {
-            if let Some(project) = project {
-                let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
-                let label = words.say(crate::words::Word::SettingsFor, &[skein_ui::phrases::Hole::Name(name)]);
-                crate::link(builder, &label, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
-                builder.text(Run::Plain, &label);
-                builder.close();
-            }
-            builder.close();
-            builder.close();
-        }
+        let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
+        let label = words.say(crate::words::Word::SettingsFor, &[skein_ui::phrases::Hole::Name(name)]);
+        crate::link(builder, &label, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
+        builder.text(Run::Plain, &label);
+        builder.close();
+        builder.close();
+        builder.close();
         builder.close();
     }
 }
@@ -468,113 +434,7 @@ fn switcher_refusal(b: &mut Builder, words: &crate::words::Words, switcher: &swi
         crate::pages::chats::outcome_text(b, words, outcome, words.name_bytes);
     }
 }
-/// The welcome's line between the brand and the steps: what temper box is
-/// for, and where running temper on a server is told
-/// (`temper/docs/design/client/README.md`, 3.5).
-fn box_line(builder: &mut Builder, words: &crate::words::Words) {
-    use crate::words::Word;
-    let name = words.say(Word::WelcomeBoxName, &[]);
-    let line = words.say(Word::WelcomeBoxLine, &[]);
-    let server = words.say(Word::WelcomeBoxServer, &[]);
-    builder.open(Role::Slot);
-    builder.style(crate::look::WELCOME_BOX_LINE);
-    builder.open(Role::Text);
-    builder.run(Run::Strong, &name);
-    builder.run(Run::Plain, &line);
-    builder.close();
-    crate::flow::control(
-        builder,
-        crate::flow::Control::External { name: &server, address: crate::forge::connect::DEPLOYMENT },
-    );
-    builder.close();
-}
-pub(crate) fn banner(
-    builder: &mut Builder,
-    root: &Domain,
-    words: &crate::words::Words,
-    bindings: &mut Bindings,
-    forge: &mut crate::forge::bindings::Bindings,
-) {
-    let pages = root.pages();
-    let me = pages.me(root.client());
-    builder.open(Role::Banner);
-    builder.style(crate::look::BANNER);
-    let (brand, address) = if let Address::Welcome { .. } = pages.address() {
-        (crate::words::Word::Brand, Address::Welcome { step: temper_client_domain::Step::Welcome })
-    } else {
-        (crate::words::Word::BrandChats, Address::Chats { filter: ChatsFilter::All })
-    };
-    crate::link(builder, &words.say(brand, &[]), bindings.insert(PageAct::Go { address }));
-    builder.style(crate::look::BRAND);
-    builder.text(Run::Plain, &words.say(crate::words::Word::Brand, &[]));
-    builder.close();
-    if let Address::Welcome { step } = pages.address()
-        && unavailable(root).is_none()
-    {
-        if let Some(deployment) = root.forge().deployment()
-            && deployment.welcome
-        {
-            box_line(builder, words);
-            crate::pages::welcome::steps(builder, root, words, bindings, *step);
-        }
-        builder.close();
-        return;
-    }
-    builder.open(Role::Disclosure);
-    builder.name(&words.say(crate::words::Word::Menu, &[]));
-    builder.style(crate::look::MENU);
-    if let Some(word) = unavailable(root) {
-        builder.open(Role::Slot);
-        builder.style(crate::look::CORNER);
-        builder.open(Role::Region);
-        builder.region(link_region());
-        text(builder, Role::Status, &words.say(word, &[]), None);
-        builder.close();
-        builder.close();
-        builder.close();
-        builder.close();
-        return;
-    }
-    switcher(builder, root, words, bindings, pages.project(), Place::Banner, &crate::forge_sign_in::Forges::new());
-    navigation(builder, root, words, bindings);
-    builder.open(Role::Slot);
-    builder.style(crate::look::CORNER);
-    if root.forge().playground_running() && !root.forge().leaving() {
-        let name = words.say(crate::words::Word::BannerSetUp, &[]);
-        crate::link(builder, &name, forge.insert(crate::forge::bindings::Meaning::EndPlayground));
-        builder.style(crate::look::LEAVE_PLAYGROUND);
-        builder.text(Run::Plain, &name);
-        builder.close();
-    }
-    builder.open(Role::Region);
-    builder.region(link_region());
-    let (status, style) = match root.client().link().state {
-        jig_client::Link::Offline => (crate::words::Word::Offline, crate::look::OFFLINE),
-        jig_client::Link::Live if me.is_some() => (crate::words::Word::Live, crate::look::LIVE),
-        jig_client::Link::SignedOut
-        | jig_client::Link::Starting
-        | jig_client::Link::Live
-        | jig_client::Link::OutOfDate => (crate::words::Word::Connecting, crate::look::CONNECTING),
-    };
-    text(builder, Role::Status, &words.say(status, &[]), Some(style));
-    if behind(root) {
-        text(builder, Role::Status, &words.say(crate::words::Word::Behind, &[]), Some(crate::look::BEHIND));
-    }
-    builder.close();
-    if let Some(me) = me {
-        text(builder, Role::Status, me.party.name.bytes(), None);
-    }
-    if root.client().link().sign_out_lost {
-        text(builder, Role::Alert, &words.say(crate::words::Word::SignOutLost, &[]), None);
-    }
-    if me.is_some() || root.client().link().sign_out_lost {
-        action(builder, Role::Button, &words.say(crate::words::Word::SignOut, &[]), PageAct::SignOut, false, bindings);
-    }
-    builder.close();
-    builder.close();
-    builder.close();
-}
-fn behind(root: &Domain) -> bool {
+pub(crate) fn behind(root: &Domain) -> bool {
     let pages = root.pages();
     let me_behind = match root.client().document(temper_client_domain::pages::me_handle()) {
         Some(document) => document.state == jig_client::State::Behind,
@@ -639,7 +499,7 @@ pub(crate) fn rail(
         b.style(crate::look::RAIL_UNFOLD);
         b.close();
     }
-    switcher(b, root, w, bindings, Some(project), Place::Rail, sign_in);
+    switcher(b, root, w, bindings, project, sign_in);
     if w.shell == Shell::Browser {
         away(b, root, w, bindings, times, project, crate::look::AWAY_CHIP);
     }
@@ -1010,106 +870,6 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
     b.close();
 }
 
-pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
-    if unavailable(root).is_some() {
-        return;
-    }
-    let (inbox_current, adopt_current) = match root.pages().address() {
-        Address::Inbox { .. } => (true, false),
-        Address::Adopt { .. } => (false, true),
-        Address::Home { .. }
-        | Address::Changes { .. }
-        | Address::Settings { .. }
-        | Address::Models { .. }
-        | Address::Builders { .. }
-        | Address::Repositories { .. }
-        | Address::Goals { .. }
-        | Address::Ask { .. }
-        | Address::ConnectForge { .. }
-        | Address::Forges
-        | Address::Welcome { .. }
-        | Address::Chats { .. }
-        | Address::NewChat { .. }
-        | Address::Chat { .. }
-        | Address::Task { .. }
-        | Address::ConnectModel { .. }
-        | Address::Accounts => (false, false),
-    };
-    let count = match root.pages().me(root.client()) {
-        Some(me) => me.needs_total,
-        None => 0,
-    };
-    let count =
-        count.saturating_add(u32::try_from(root.forge().approvals().rows().len()).expect("bounded approval rows"));
-    let name = if count == 0 {
-        words.say(crate::words::Word::InboxTitle, &[])
-    } else {
-        words.say(crate::words::Word::Inbox, &[skein_ui::phrases::Hole::Number(u64::from(count))])
-    };
-    builder.open(Role::Navigation);
-    builder.name(&words.say(crate::words::Word::MainNavigation, &[]));
-    builder.style(crate::look::NAVIGATION);
-    crate::link(
-        builder,
-        &name,
-        bindings.insert(PageAct::Go { address: Address::Inbox { filter: temper_client_domain::address::Filter::ALL } }),
-    );
-    if inbox_current {
-        builder.state(skein_ui::State::Current);
-    }
-    if count == 0 {
-        builder.text(Run::Plain, &name);
-    } else {
-        let number = skein_lib::Decimal::of(u64::from(count));
-        let prefix = name.len().checked_sub(number.as_bytes().len()).expect("count is the phrase suffix");
-        builder.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
-        builder.open(Role::Text);
-        builder.style(crate::look::NAV_COUNT);
-        builder.run(Run::Plain, number.as_bytes());
-        builder.close();
-    }
-    builder.close();
-    action(
-        builder,
-        Role::Link,
-        &words.say(crate::words::Word::Chats, &[]),
-        PageAct::Go { address: Address::Chats { filter: ChatsFilter::All } },
-        match root.pages().address() {
-            Address::Chats { .. } | Address::NewChat { .. } | Address::Chat { .. } => true,
-            Address::ConnectForge { .. }
-            | Address::Forges
-            | Address::Welcome { .. }
-            | Address::Inbox { .. }
-            | Address::Task { .. }
-            | Address::Home { .. }
-            | Address::Changes { .. }
-            | Address::Settings { .. }
-            | Address::Models { .. }
-            | Address::Builders { .. }
-            | Address::Repositories { .. }
-            | Address::Goals { .. }
-            | Address::Ask { .. }
-            | Address::Adopt { .. }
-            | Address::ConnectModel { .. }
-            | Address::Accounts => false,
-        },
-        bindings,
-    );
-    if let Some(project) = root.pages().project() {
-        action(
-            builder,
-            Role::Link,
-            &words.say(crate::words::Word::Adoption, &[]),
-            PageAct::Go { address: Address::Adopt { project } },
-            adopt_current,
-            bindings,
-        );
-    }
-    forges_link(builder, root, words, bindings);
-    accounts_link(builder, root, words, bindings);
-    builder.close();
-}
-
 /// The playground's reset line (temper/docs/design/client/README.md, 5.1).
 pub(crate) fn playground_banner(
     b: &mut Builder,
@@ -1137,76 +897,6 @@ pub(crate) fn playground_banner(
     }
     b.close();
     b.close();
-}
-
-pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
-    crate::link(
-        builder,
-        &words.say(crate::words::Word::ForgesTitle, &[]),
-        bindings.insert(PageAct::Go { address: Address::Forges }),
-    );
-    let current = match root.pages().address() {
-        Address::Forges | Address::ConnectForge { .. } => true,
-        Address::Accounts
-        | Address::ConnectModel { .. }
-        | Address::Welcome { .. }
-        | Address::Chats { .. }
-        | Address::NewChat { .. }
-        | Address::Chat { .. }
-        | Address::Task { .. }
-        | Address::Inbox { .. }
-        | Address::Home { .. }
-        | Address::Changes { .. }
-        | Address::Settings { .. }
-        | Address::Models { .. }
-        | Address::Builders { .. }
-        | Address::Repositories { .. }
-        | Address::Goals { .. }
-        | Address::Ask { .. }
-        | Address::Adopt { .. } => false,
-    };
-    if current {
-        builder.state(skein_ui::State::Current);
-    }
-    builder.text(Run::Plain, &words.say(crate::words::Word::ForgesTitle, &[]));
-    forge_mark(builder, root, words, false);
-    builder.close();
-}
-
-/// The accounts link and its mark (temper/docs/design/client/README.md, 5.3).
-pub(crate) fn accounts_link(
-    builder: &mut Builder,
-    root: &Domain,
-    words: &crate::words::Words,
-    bindings: &mut Bindings,
-) {
-    let name = crate::accounts::words::say(words, crate::accounts::words::Word::Accounts, &[]);
-    crate::link(builder, &name, bindings.insert(PageAct::Go { address: Address::Accounts }));
-    builder.text(Run::Plain, &name);
-    if match root.pages().address() {
-        Address::Accounts | Address::ConnectModel { .. } => true,
-        Address::Inbox { .. }
-        | Address::Chats { .. }
-        | Address::NewChat { .. }
-        | Address::Welcome { .. }
-        | Address::Forges
-        | Address::ConnectForge { .. }
-        | Address::Chat { .. }
-        | Address::Task { .. }
-        | Address::Home { .. }
-        | Address::Changes { .. }
-        | Address::Settings { .. }
-        | Address::Models { .. }
-        | Address::Builders { .. }
-        | Address::Repositories { .. }
-        | Address::Goals { .. }
-        | Address::Ask { .. }
-        | Address::Adopt { .. } => false,
-    } {
-        builder.state(skein_ui::State::Current);
-    }
-    account_mark(builder, root, words, false);
-    builder.close();
 }
 
 pub(crate) fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {

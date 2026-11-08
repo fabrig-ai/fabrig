@@ -11,7 +11,7 @@ section 15 keeps that after-landing work.
 
 Section 7.2's sign-in block names the TUI command at the link's origin,
 on stderr in the first block alone. Serve keeps the engine's private
-link file at startup and each new Link and removes it when its loop
+link file at each `LocalLink`, never a printed link, and removes it when its loop
 returns (`../client/README.md`, 6.12). No known implementation gap
 remains in those additions; a forced kill can leave a stale file as
 designed.

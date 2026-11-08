@@ -3,7 +3,7 @@ use crate::{
     Event, Kept, Limits, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings,
     exchange::Exchange,
     routes::{self, Route},
-    sign_in::{self, Link, Past, Pending, Waiting},
+    sign_in::{self, Link, Past, Pending, Slot, Waiting, Which},
 };
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
@@ -40,10 +40,9 @@ pub struct Component {
     provider: provider::State,
     approval: approval::State,
     rng: CryptoRng,
-    link: Option<Link>,
-    past_links: Queue<(skein_lib::Secret, Past)>,
-    /// The link a sign-in spends while the core answers it, given back on not ready, busy or full (client.md, 8).
-    spending: Option<(Token, Link)>,
+    printed: Slot,
+    local: Slot,
+    past_links: Queue<(skein_lib::Secret, Past, Which)>,
     connections: Map<Token, Exchange>,
     pending: Pending,
     streams: Map<Token, crate::stream::Stream>,
@@ -110,9 +109,9 @@ impl Component {
             approval: approval::State::new(),
             settings,
             rng,
-            link: None,
+            printed: Slot::new(),
+            local: Slot::new(),
             past_links: Queue::with_capacity(sign_in::PAST_LINKS),
-            spending: None,
             connections: Map::with_capacity(env.limits.exchanges),
             pending: Pending {
                 mints: Map::with_capacity(env.limits.mints),
@@ -130,10 +129,11 @@ impl Component {
         if let Some(secret) = given
             && value.settings.link.is_some()
         {
-            value.link = Some(Link { secret, until: env.now.saturating_add(env.limits.link_span) });
+            value.printed.live = Some(Link { secret, until: env.now.saturating_add(env.limits.link_span) });
         } else {
-            value.fresh_link(env, out);
+            value.fresh_link(Which::Printed, env, out);
         }
+        value.fresh_link(Which::Local, env, out);
         out.push(Request::Secrets(SecretsRequest::Get { owner: SecretOwner::PublicNames }));
         Ok(value)
     }
@@ -142,38 +142,85 @@ impl Component {
         self.next = self.next.checked_add(1).expect("component names do not exhaust");
         token
     }
-    fn remember_link(&mut self, link: Link, past: Past) {
+    fn slot(&self, which: Which) -> &Slot {
+        match which {
+            Which::Printed => &self.printed,
+            Which::Local => &self.local,
+        }
+    }
+    fn slot_mut(&mut self, which: Which) -> &mut Slot {
+        match which {
+            Which::Printed => &mut self.printed,
+            Which::Local => &mut self.local,
+        }
+    }
+    fn remember_link(&mut self, which: Which, link: Link, past: Past) {
         if self.past_links.room() == 0 {
             self.past_links.pop();
         }
         let digest = sign_in::digest(link.secret.expose());
-        self.past_links.push((digest, past));
+        self.past_links.push((digest, past, which));
     }
-    // Why a secret is not live; refused where the printed link is disabled.
-    fn link_answer(&self, secret: &[u8]) -> Box<[u8]> {
+    // Why a secret is not live, and which link it belonged to.
+    fn link_answer(&self, secret: &[u8]) -> (Box<[u8]>, Option<Which>) {
         if self.settings.link.is_none() {
-            return routes::refused();
+            return (routes::refused(), None);
         }
         let digest = sign_in::digest(secret);
         let mut found = None;
-        for (past_digest, past) in &self.past_links {
+        for (past_digest, past, which) in &self.past_links {
             if sign_in::constant_time_eq(digest.expose(), past_digest.expose()) {
-                found = Some(*past);
+                found = Some((*past, *which));
             }
         }
         match found {
-            Some(Past::Used) => routes::link_used(),
-            Some(Past::Expired) => routes::link_expired(),
-            None => routes::link_unknown(),
+            Some((Past::Used, which)) => (routes::link_used(), Some(which)),
+            Some((Past::Expired, which)) => (routes::link_expired(), Some(which)),
+            None => (routes::link_unknown(), None),
         }
     }
-    fn fresh_link(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) {
-        if self.settings.link.is_none() || self.link.is_some() || self.spending.is_some() {
+    fn fresh_link(&mut self, which: Which, env: &Env<Limits>, out: &mut Queue<Request>) {
+        if self.settings.link.is_none() || self.slot(which).live.is_some() || self.slot(which).spending.is_some() {
             return;
         }
         let secret = sign_in::draw(&mut self.rng);
-        self.link = Some(Link { secret: secret.clone(), until: env.now.saturating_add(env.limits.link_span) });
-        out.push(Request::Link { secret });
+        self.slot_mut(which).live =
+            Some(Link { secret: secret.clone(), until: env.now.saturating_add(env.limits.link_span) });
+        out.push(match which {
+            Which::Printed => Request::Link { secret },
+            Which::Local => Request::LocalLink { secret },
+        });
+    }
+    fn expire_links(&mut self, now: Time) -> bool {
+        let mut any = false;
+        for which in [Which::Printed, Which::Local] {
+            if expired(self.slot(which).live.as_ref(), now) {
+                let link = self.slot_mut(which).live.take().expect("expired link");
+                self.remember_link(which, link, Past::Expired);
+                any = true;
+            }
+        }
+        any
+    }
+    fn take_reservation(&mut self, exchange: Token) -> Option<(Which, Link)> {
+        for which in [Which::Printed, Which::Local] {
+            if let Some((reserved, _)) = &self.slot(which).spending
+                && *reserved == exchange
+            {
+                let (_, link) = self.slot_mut(which).spending.take().expect("matching reservation");
+                return Some((which, link));
+            }
+        }
+        None
+    }
+    fn spend_link(&mut self, spent: Option<(Which, Link)>, env: &Env<Limits>, out: &mut Queue<Request>) {
+        if let Some((which, link)) = spent {
+            self.remember_link(which, link, Past::Used);
+            if which == Which::Local && (self.phase == closing::Phase::Active || self.phase == closing::Phase::Stopped)
+            {
+                self.fresh_link(Which::Local, env, out);
+            }
+        }
     }
     pub fn down(&mut self, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
         assert!(!self.closed(), "the owner sends nothing after Closed");
@@ -184,7 +231,7 @@ impl Component {
             }
             Event::Transport(message) => self.transport(env, message, out),
             Event::Reply { to, reply } => self.reply(env, to.into_token(), reply, out),
-            Event::SignInRefused { to } => self.sign_in_refused(to.into_token(), out),
+            Event::SignInRefused { to } => self.sign_in_refused(env, to.into_token(), out),
             Event::Secrets(SecretsAnswer::Got { owner: SecretOwner::PublicNames, value }) => {
                 self.public_key(value, out);
             }
@@ -472,41 +519,40 @@ impl Component {
                     return;
                 };
                 let digest = sign_in::digest(record.secret().expose());
-                if let Some((_, link)) = &self.spending {
-                    let answer =
-                        if sign_in::constant_time_eq(sign_in::digest(link.secret.expose()).expose(), digest.expose()) {
-                            routes::sign_in_busy()
-                        } else {
-                            self.link_answer(record.secret().expose())
-                        };
+                self.expire_links(env.now);
+                let mut live = None;
+                let mut reserved = false;
+                for which in [Which::Printed, Which::Local] {
+                    if let Some((_, link)) = &self.slot(which).spending {
+                        reserved |=
+                            sign_in::constant_time_eq(sign_in::digest(link.secret.expose()).expose(), digest.expose());
+                    }
+                    if let Some(link) = &self.slot(which).live
+                        && sign_in::constant_time_eq(sign_in::digest(link.secret.expose()).expose(), digest.expose())
+                    {
+                        live = Some(which);
+                    }
+                }
+                if reserved {
+                    connection.respond(crate::Reply::Record(routes::sign_in_busy()));
+                    return;
+                }
+                let Some(which) = live else {
+                    let (answer, past) = self.link_answer(record.secret().expose());
+                    if past != Some(Which::Local) {
+                        self.fresh_link(Which::Printed, env, out);
+                    }
+                    self.fresh_link(Which::Local, env, out);
                     connection.respond(crate::Reply::Record(answer));
                     return;
-                }
-                let live = match &self.link {
-                    Some(link) => {
-                        env.now < link.until
-                            && sign_in::constant_time_eq(
-                                sign_in::digest(link.secret.expose()).expose(),
-                                digest.expose(),
-                            )
-                    }
-                    None => false,
                 };
-                if !live {
-                    if expired(self.link.as_ref(), env.now) {
-                        let link = self.link.take().expect("expired link");
-                        self.remember_link(link, Past::Expired);
-                    }
-                    self.fresh_link(env, out);
-                    connection.respond(crate::Reply::Record(self.link_answer(record.secret().expose())));
-                    return;
-                }
                 if self.admitted() >= env.limits.exchanges {
                     connection.respond(crate::Reply::Record(routes::sign_in_busy()));
                     return;
                 }
-                if let Some(link) = self.link.take() {
-                    self.spending = Some((exchange, link));
+                let slot = self.slot_mut(which);
+                if let Some(link) = slot.live.take() {
+                    slot.spending = Some((exchange, link));
                 }
                 if let Some((sign_in, digest)) = sign_in::credential(credential.as_ref()) {
                     self.pending
@@ -735,7 +781,7 @@ impl Component {
             }
         }
     }
-    fn sign_in_refused(&mut self, exchange: Token, out: &mut Queue<Request>) {
+    fn sign_in_refused(&mut self, env: &Env<Limits>, exchange: Token, out: &mut Queue<Request>) {
         if let Some(waiting) = self.pending.exchanges.get(&exchange)
             && waiting.approval_take()
         {
@@ -744,12 +790,8 @@ impl Component {
             self.respond(exchange, routes::approval_sign_in(w::ApprovalSignInAnswer::Refused));
             return;
         }
-        if let Some((reserved, _)) = &self.spending
-            && *reserved == exchange
-        {
-            let (_, link) = self.spending.take().expect("matching reservation");
-            self.remember_link(link, Past::Used);
-        }
+        let spent = self.take_reservation(exchange);
+        self.spend_link(spent, env, out);
         let why = if self.stopping() { crate::MintRefusal::NotReady } else { crate::MintRefusal::Bound };
         if !self.mint_refused(exchange, why, out) {
             self.refused(exchange);
@@ -810,10 +852,15 @@ impl Component {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        let mut next = match &self.link {
-            Some(link) => Some(link.until),
-            None => None,
-        };
+        let mut next = None;
+        for which in [Which::Printed, Which::Local] {
+            if let Some(link) = &self.slot(which).live {
+                next = Some(match next {
+                    Some(next) => Time::min(next, link.until),
+                    None => link.until,
+                });
+            }
+        }
         if let Some(deadline) = self.approval.next_deadline() {
             next = Some(match next {
                 Some(next) => next.min(deadline),
@@ -832,9 +879,7 @@ impl Component {
     }
     pub fn fire(&mut self, env: &Env<Limits>) {
         self.approval.sweep(env.now);
-        if expired(self.link.as_ref(), env.now) {
-            let link = self.link.take().expect("expired link");
-            self.remember_link(link, Past::Expired);
+        if self.expire_links(env.now) {
             return;
         }
         let mut due = None;

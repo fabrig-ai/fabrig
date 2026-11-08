@@ -1,7 +1,7 @@
 # welcome-playground
 
 On a fresh `temper box --fake-backends`: the box's printed sign-in link
-opened, the welcome drawn, "Try the playground" pressed.
+opened, the welcome drawn under its top bar, "Try the playground" pressed.
 
 - `01.html`: the welcome as it was when "Try the playground" was
   pressed. Its "Try the playground" leads to `02.html`.

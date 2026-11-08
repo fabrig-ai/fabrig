@@ -40,6 +40,7 @@ fn names() -> Names {
     let mut rng = CryptoRng::new(&settings.seed, settings.stream).expect("32-byte fixture seed");
     let mut link = [0; 32];
     rng.fill(&mut link);
+    rng.fill(&mut link);
     let mut key = [0; 32];
     rng.fill(&mut key);
     Names::new(&Secret::new(Box::new(key)))

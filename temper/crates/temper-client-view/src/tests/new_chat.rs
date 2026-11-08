@@ -146,6 +146,12 @@ fn path_links_lead_through_chats_with_or_without_a_project() {
         f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat { draft: false }) });
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let tree = view.tree();
+            if project.is_none() {
+                assert!(f::find(tree, Role::Heading { level: 1 }, b"No project yet").is_some());
+                assert!(f::find(tree, Role::Form, b"New project").is_some());
+                assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::TRAIL)));
+                continue;
+            }
             let trail = children(styled(tree, look::TRAIL));
             assert_eq!(trail.len(), if project.is_some() { 2 } else { 1 });
             let mut links = vec![(styled(tree, look::BACK)[0].id, Address::Chats { filter: d::ChatsFilter::All })];

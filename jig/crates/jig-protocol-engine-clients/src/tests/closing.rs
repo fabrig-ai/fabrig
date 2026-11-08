@@ -3,6 +3,7 @@ use super::fixtures;
 fn linked_component(env: &Env<Limits>, out: &mut Queue<Request>) -> Component {
     let component = Component::new(fixtures::linked_settings(), env, out).expect("start");
     let Some(Request::Link { .. }) = out.pop() else { panic!("link") };
+    let Some(Request::LocalLink { .. }) = out.pop() else { panic!("local link") };
     let Some(Request::Secrets(SecretsRequest::Get { owner: SecretOwner::PublicNames })) = out.pop() else {
         panic!("startup public names lookup")
     };
@@ -13,8 +14,8 @@ fn stopping_keeps_the_printed_link_live_and_unspent() {
     let env = fixtures::env();
     let mut out = Queue::with_capacity(8);
     let mut component = linked_component(&env, &mut out);
-    let secret = component.link.as_ref().expect("live link").secret.clone();
-    let until = component.link.as_ref().expect("live link").until;
+    let secret = component.printed.live.as_ref().expect("live link").secret.clone();
+    let until = component.printed.live.as_ref().expect("live link").until;
     let owner = Token::new(99);
     let record = w::LinkSignIn::new(&env.limits.wire, w::LinkSignInParts { secret: secret.clone() }).expect("link");
     let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
@@ -36,7 +37,7 @@ fn stopping_keeps_the_printed_link_live_and_unspent() {
         w::SignInAnswer::decode(&env.limits.wire, &mut skein_lib::Reader::new(answer)),
         Ok(w::SignInAnswer::NotReady)
     );
-    let live = component.link.as_ref().expect("still live");
+    let live = component.printed.live.as_ref().expect("still live");
     assert_eq!(live.secret, secret);
     assert_eq!(live.until, until);
     assert!(out.is_empty(), "no core event, keep, or replacement link");
@@ -66,24 +67,29 @@ fn a_mint_past_the_mints_in_flight_is_refused_busy() {
 
 #[test]
 fn close_and_abort_drop_a_links_reservation_even_before_its_core_answer() {
-    for abort in [false, true] {
+    for (abort, which) in [(false, Which::Printed), (true, Which::Printed), (false, Which::Local), (true, Which::Local)]
+    {
         let env = fixtures::env();
         let mut out = Queue::with_capacity(8);
         let mut component = linked_component(&env, &mut out);
-        let link = component.link.take().expect("open link");
+        let link = component.slot_mut(which).live.take().expect("open link");
         let exchange = Token::new(1);
-        component.spending = Some((exchange, link));
+        component.slot_mut(which).spending = Some((exchange, link));
         component.pending.exchanges.insert(exchange, Waiting::Core { held: None }).unwrap();
         component.down(&env, if abort { Event::Abort } else { Event::Close }, &mut out);
-        assert!(component.link.is_none());
-        assert!(component.spending.is_none());
+        assert!(component.printed.live.is_none());
+        assert!(component.printed.spending.is_none());
+        assert!(component.local.live.is_none());
+        assert!(component.local.spending.is_none());
         component.down(
             &env,
             Event::Reply { to: ReplyTo::new(exchange), reply: people::Reply::Again(people::Again::Busy) },
             &mut out,
         );
-        assert!(component.link.is_none(), "late retry answer cannot reopen a closing link");
-        assert!(component.spending.is_none());
+        assert!(component.printed.live.is_none(), "late retry answer cannot reopen a closing link");
+        assert!(component.printed.spending.is_none());
+        assert!(component.local.live.is_none());
+        assert!(component.local.spending.is_none());
         assert!(out.is_empty(), "no new link, credential or core request");
     }
 }
