@@ -39,7 +39,7 @@ says so in the draft's status.
 |---|---|---|---|---|
 | M1 | Alone and small | 1, 4, 5.1 in part, 5.2, 5.3, 8, 9 | | built: plan `ui-ask-m1`; charter 3, template 3, `Configure` and Settings' offer gone by `ui-ask-drop`; its walk follows landing |
 | M2 | Reading | 2, 3, 5.1 | M1 | not started |
-| M3a | Ways | `stock-ways.md`, sections 4 to 6; 6.2's `path`, `way`, `proposal` and `charter` | M1; `stock-ways.md`, section 7's step 2 | built: plan `ui-ask-m3a`; the page's drawing of the ways is the look request `ask-temper-ways`'s, plan `look-ask-ways`; its walk follows landing |
+| M3a | Ways | `stock-ways.md`, sections 4 to 6; 6.2's `path`, `way`, `proposal` and `charter` | M1; `stock-ways.md`, section 7's step 2 | built: plan `ui-ask-m3a`, and the page's drawing of the ways by the look request `ask-temper-ways`, plan `look-ask-ways`; its walk follows landing |
 | M3b | Showing the rest | 6; the rest of 8's Showing part | M2, M3a | not started |
 | M4 | Remembering | 5.4, 7 | M1 | not started |
 
@@ -92,8 +92,8 @@ says so in the draft's status.
 - **Needs:** `stock-ways.md`, section 7's step 2 on main, so that "Use
   this" can set every way.
 - **Tests:** `stock-ways.md`, section 8.
-- **The look request `ask-temper-ways`** lands with it or straight after,
-  never before (`stock-ways.md`, section 7).
+- **The look request `ask-temper-ways`** landed straight after it, by
+  plan `look-ask-ways` (`stock-ways.md`, section 7).
 - **Done** when it lands.
 
 ### M3b. Showing

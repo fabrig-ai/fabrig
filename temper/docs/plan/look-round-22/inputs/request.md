@@ -1,45 +1,21 @@
-# look-ask-ways: Ask temper's opening as ways to pick, drawn
+# look-round-22: the outside pages' render-check misses
 
-Step 4 of `temper/docs/design/draft/stock-ways.md`'s section 7: the look request `Look-request: ask-temper-ways` on `origin/look-requests`, found by its trailer. Its whole message is the request, "States the pages do not show" and "Before it lands" above all. Follow `temper/docs/design/draft/look-requests.md`, sections 3 and 5. The user's word of 2026-11-08: it works for real, with every prerequisite in place, and no row of its account is deferred. Those prerequisites are now on main:
-- section 3 (`ui-ways-rules`);
-- sections 4 to 6, the `ways` read, the derived paths and the views (`ui-ask-m3a`);
-- a box owner's link on the owned Forgejo (finding-444's repair).
+A look plan: the render check after `look-outside-pages` landed, for `Look-request: outside-pages` on `origin/look-requests` (`43a18a5042`). Follow `temper/docs/design/draft/look-requests.md`, sections 3 and 5. Everything else that check covered passes, the Google return's `then` among it.
 
-## What it builds
+## Tasks
 
-Every state the message names:
-- no heading, and the lede alone;
-- the three tabs in one control, ordered from more of you to more of your agents, the current one marked "now";
-- each tab's line, its path drawn from the `ways` read (stops, marks, the line, main's bar, dimmer for a goal's branch), its legend and its acts;
-- on a phone, the path down the page;
-- a stop's card under the path, its caret at the stop, from the read;
-- "Use this" as jig's `ChangeSettings` of the read's items, with a toast naming the revision, and a refusal in words;
-- "Keep it", marking To begin's first step done while it's left;
-- "Yours" for a project matching no way;
-- no act for a person who may not change settings;
-- the terminal's path as text;
-- the opening gone after a first message;
-- what it replaces, gone.
+1. **The welcome's frame, signed in, shows the person's name and "Sign out"** at the top bar's right, as every other outside page does. Its early return leaves out the top bar's end.
+2. **While `me` is read, the top bar alone.** Today `/chats` draws "Project · chats", its filters and "+ New chat", and `/chats/new` draws its composer, before "No project yet" settles at about 940 ms. No page body draws until `me` is read.
+3. **The form labels:** "Code" (02) and "Project name" (08) are 13 px on a 20.8 px line. The request has 14 px on 22.4 px. Match it, so the field and its act sit 1.59 px lower, as the request's pages do.
+4. **Public pages have "Sign in" at the top bar's right** with or without Google sign-in, as the request says, unqualified. Without Google, it leads to the sign-in page's printed-link words.
+5. **The night welcome at 420×900 fills the window:** today a 53 px strip of the day's `#f7f7f5` shows under the night ground.
+6. **The server's Google endings use the client's typographic apostrophe:** "didn’t", not "didn't", in every ending.
 
-Nothing on the page is drawn by hand: every path, mark and card comes from the `ways` read. The tab and card switch in place, as the page's state.
-
-## Its tests
-
-Focused and fuzzy only:
-- the opening drawn from a `ways` read over a project with CI and both tiers, matching the request's three pages;
-- the same with neither, without "check" and the tiers' stops;
-- "Yours";
-- "Use this" refused for too few approvers, in words;
-- "Keep it" marking the step done;
-- no acts for a reader who may not change settings.
-
-A browser case is a row of an existing table test, within the cap of 12. Journeys that the opening's change makes stale are regenerated with `temper-client-journeys again`, as generation.
+A browser case is a row of an existing table test, within the cap of 12.
 
 ## Sources
 
-- `temper/docs/design/draft/stock-ways.md`
 - `temper/docs/design/draft/look-requests.md`
-- `temper/docs/design/draft/ask-temper.md`
 
 
 ## For every task of this plan

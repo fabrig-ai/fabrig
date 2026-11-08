@@ -1,10 +1,16 @@
-//! Navigation's heading, including one arriving after its main (skein/docs/design/ui-web.md, 7).
+//! Navigation's heading, including a main drawn after its page
+//! (temper/docs/design/client/browser.md, 2.3; skein/docs/design/ui-web.md, 7).
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::{JsCast, closure::Closure};
 
 pub(crate) struct HeadingFocus {
-    pending: Rc<RefCell<Option<web_sys::Element>>>,
+    pending: Rc<RefCell<Option<Waiting>>>,
     moved: Closure<dyn FnMut(web_sys::Event)>,
+}
+
+enum Waiting {
+    Main,
+    Heading(web_sys::Element),
 }
 
 impl HeadingFocus {
@@ -36,21 +42,30 @@ impl HeadingFocus {
             return;
         }
         if new_page {
-            let waiting = heading.is_none();
-            if let Some(target) = heading.or_else(|| document.query_selector("main").expect("main selector")) {
-                focus(&target);
-                if waiting {
-                    *self.pending.borrow_mut() = Some(target);
+            self.entry(document, heading);
+        } else {
+            match pending {
+                Some(Waiting::Main) => self.entry(document, heading),
+                Some(Waiting::Heading(main)) if document.active_element().as_ref() == Some(&main) => {
+                    if let Some(heading) = heading {
+                        focus(&heading);
+                    } else {
+                        *self.pending.borrow_mut() = Some(Waiting::Heading(main));
+                    }
                 }
+                Some(Waiting::Heading(_)) | None => {}
             }
-        } else if let Some(main) = pending
-            && document.active_element().as_ref() == Some(&main)
-        {
-            if let Some(heading) = heading {
-                focus(&heading);
-            } else {
-                *self.pending.borrow_mut() = Some(main);
-            }
+        }
+    }
+
+    fn entry(&mut self, document: &web_sys::Document, heading: Option<web_sys::Element>) {
+        if let Some(heading) = heading {
+            focus(&heading);
+        } else if let Some(main) = document.query_selector("main").expect("main selector") {
+            focus(&main);
+            *self.pending.borrow_mut() = Some(Waiting::Heading(main));
+        } else {
+            *self.pending.borrow_mut() = Some(Waiting::Main);
         }
     }
 }

@@ -2100,6 +2100,18 @@ pub fn pair(
 pub fn no_project_root() -> temper_client_domain::Domain {
     super::chats::no_project_root(Some(false))
 }
+pub fn reading_me_at(address: temper_client_domain::Address) -> temper_client_domain::Domain {
+    use temper_client_domain::Event;
+    let mut root = temper_client_domain::unlinked(&domain_limits(), SEED);
+    for event in [
+        Event::Client { event: jig_client::Event::StartUnlinked { kept: List::uncapped() } },
+        Event::Start { address, kept: List::uncapped(), with: Some(jig_client::With::Transport) },
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
+    ] {
+        root_event(&mut root, event);
+    }
+    root
+}
 pub fn deliver_me(root: &mut temper_client_domain::Domain, watch: Token, me: c::Me) {
     root_event(
         root,
