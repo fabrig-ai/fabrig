@@ -77,8 +77,6 @@ section 15's contained-tree work.
 - **Not yet:** 7.1, *The first link's secret*: serve reading 64 bytes, the
   first local link's secret given to jig as `local_secret` (`serve-sign-in`,
   `tui-box-front`).
-- **Not yet:** 7.6, *The box's lines*: their words, bytes, bound and cut,
-  `temper_box::front` (`box-lines`, `tui-box-front`).
 - **Not yet:** 7.6, 7.1, 7.2 and 7.3: temper-box's host running the
   front, its spawn, descriptors and local link's URL, both secrets on
   serve's first stdin, no block on the terminal and its words in
