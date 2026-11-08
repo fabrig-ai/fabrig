@@ -18,7 +18,7 @@ const STOCK_WAYS: usize = 3;
 // The direct driver's eight passes reach an unacknowledged journal commit.
 const HELD_PASSES: usize = 8;
 
-fn driver() -> Driver {
+fn configuration() -> (engine::Config, engine::Limits) {
     let mut limits = kinds::limits();
     limits.documents.roles = limits.documents.roles.max(2);
     limits.people.requests = 5; // Initial roles, two settings changes, adoption and changed roles.
@@ -30,6 +30,11 @@ fn driver() -> Driver {
     let mut member = policy.roles[0].clone();
     member.number = people::Role::Member.number();
     policy.roles = Box::new([policy.roles[0].clone(), member]);
+    (config, limits)
+}
+
+fn driver() -> Driver {
+    let (config, limits) = configuration();
     let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
     driver.forge = Some(ForgeStand::new());
     driver.settle();
@@ -293,4 +298,282 @@ fn committed_settings_adoptions_and_roles_mark_the_ways_watch() {
             .collect::<Vec<_>>()
     );
     assert!(!got[4].may_change, "the reader is now a member");
+}
+
+const VIEW_REPLY: Token = Token::new(800);
+const CHANNEL: Token = Token::new(7);
+const VIEW_MAIN: &[&str] =
+    &["you ask", "produce", "check", "review", "repair", "check", "update", "resolve", "merge", "verify", "main"];
+const VIEW_OTHER: &[&str] =
+    &["you ask", "produce", "check", "review", "repair", "check", "update", "resolve", "merge", "other"];
+const VIEW_AFTER: &[&str] = &["you ask", "produce", "you approve", "merge", "verify", "main"];
+
+fn view_driver() -> (Driver, engine::Assignment) {
+    let (mut config, mut limits) = configuration();
+    // One owner of the deployment and project, plus a project member and a stranger.
+    limits.people.initial_owners = 2;
+    limits.people.holdings = 4;
+    limits.people.people = 4;
+    limits.people.sign_ins = 3;
+    limits.people.requests = 12;
+    limits.tasks.parameters = 4; // A tier procedure carries repository, tip, tier and run.
+    limits.tasks.spec_bytes = 256; // The tier specification includes its commit and branch.
+    let settings_family = config.core.settings.tools.settings;
+    config.core.defaults.rules.ceiling.tools.0 |= settings_family;
+    config.core.defaults.charters[0].policy.tools.0 |= settings_family;
+    for project in &mut config.core.seed_projects {
+        project.policy.policy.ceiling.tools.0 |= settings_family;
+        for role in &mut project.policy.policy.roles {
+            role.authority.tools.0 |= settings_family;
+        }
+    }
+    let mut owner = config.core.owners[0].clone();
+    owner.project = people::DEPLOYMENT;
+    config.core.owners = Box::new([config.core.owners[0].clone(), owner]);
+    let mut template = config.core.defaults.templates[0].clone();
+    template.number = 4;
+    template.executor = people::TemplateExecutor::Charter(1);
+    template.tracked = Some(1);
+    template.resources = Box::new([people::Symbol { connector: 0, symbol: 1 }]);
+    config.core.defaults.templates = config.core.defaults.templates.into_vec().into_iter().chain([template]).collect();
+    config
+        .landings
+        .insert(
+            PROJECT,
+            engine::ProjectLanding {
+                by: engine::Way::Queue,
+                merge_job: None,
+                repositories: Box::new([engine::RepositoryChecks {
+                    repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
+                    gates: Box::new([]),
+                    tiers: Box::new([engine::TierCheck {
+                        name: b"focused".as_slice().into(),
+                        workflow: b"checks.yml".as_slice().into(),
+                        ignored: Box::new([]),
+                        artifact: b"result".as_slice().into(),
+                        format: temper_engine_domain_forge_tiers::Format::Junit,
+                        follows: forge::Follows::Branch(b"main".as_slice().into()),
+                        span_ms: 0,
+                    }]),
+                }]),
+                after: engine::AfterLandingCheck { tier_retries: 1, verification_bound_ms: 60_000 },
+            },
+        )
+        .expect("one project landing");
+    let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+    driver.forge = Some(ForgeStand::new());
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    let run = view_agent(&mut driver);
+    driver.send(Event::Party(PartyInput::Application {
+        scope: people::ApplicationScope::Project(PROJECT),
+        reply_to: ReplyTo::new(Token::new(30)),
+        sign_in: driver.session(),
+        key: [30; 16],
+        digest: [30; 32],
+        carried: None,
+        request: engine::Application::Forge(forge::Ask::Adopt(fixtures::adoption(FORGE))),
+    }));
+    driver.settle();
+    // A second revision lets @revision 1 exercise the newest-only contract.
+    change(&mut driver, 31, Box::new([kinds::item(7, PROJECT, 1, &settings::Value::Ways(own_ways()))]));
+    driver.settle();
+    (driver, run)
+}
+
+fn read_view(driver: &mut Driver, sign_in: u64, address: &str) -> Result<ways::View, jig_domain_core::reads::Why> {
+    driver.delivered.clear();
+    driver.send(Event::Party(PartyInput::ForgeRead {
+        reply: ReplyTo::new(VIEW_REPLY),
+        sign_in,
+        scope: people::ApplicationScope::Project(PROJECT),
+        query: engine::ForgeRead::View { project: PROJECT, address: address.as_bytes().into() },
+    }));
+    driver.settle();
+    driver
+        .delivered
+        .iter()
+        .find_map(|delivery| match delivery {
+            Delivery::ForgeRead { reply, answer: engine::ForgeReadAnswer::View(view) }
+                if *reply == ReplyTo::new(VIEW_REPLY) =>
+            {
+                Some(Ok(view.as_ref().clone()))
+            }
+            Delivery::Read { reply, answer: jig_domain_core::reads::Answer::None(why) }
+                if *reply == ReplyTo::new(VIEW_REPLY) =>
+            {
+                Some(Err(*why))
+            }
+            _ => None,
+        })
+        .expect("one terminal view answer")
+}
+
+fn view_agent(driver: &mut Driver) -> engine::Assignment {
+    driver.send(Event::Party(PartyInput::Key {
+        reply_to: ReplyTo::new(Token::new(39)),
+        sign_in: driver.session(),
+        key: [39; 16],
+        ask: Box::new(people::Ask::AccountChange {
+            holder: people::AccountHolder::Deployment,
+            change: people::AccountChange::AddKey { provider: 1, join: None, digest: [39; 32] },
+        }),
+        carried: jig_domain_core::Carried { number: 1_u64 << 63, digest: [39; 32] },
+    }));
+    driver.settle();
+    driver.hello(CHANNEL);
+    driver.period();
+    driver.settle();
+    driver.send(Event::Party(PartyInput::Ask {
+        reply_to: ReplyTo::new(Token::new(40)),
+        sign_in: driver.session(),
+        key: [40; 16],
+        models: Box::new([]),
+        ask: driver.chat_ask(PROJECT, b"Explain the ways"),
+    }));
+    driver.settle();
+    driver.last_assignment()
+}
+
+fn view_proposal(driver: &mut Driver, run: &engine::Assignment) -> (u64, u64) {
+    use temper_engine_domain_world::host_tool::host_tool;
+    let value = serde_json::json!({
+        "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
+        "enforce":true,"ci":false,"up_to_date":false,"gates":[],
+        "approvals":[{"role":0,"people":1,"freshness":"clean"}]
+    });
+    let input = serde_json::json!({"against": kinds::revision(&driver.store.rows), "reason":"Let the owner approve", "items":[{"setting":{"kind":"landing-rule","project":PROJECT,"number":1},"set":value}]});
+    let (body, error) = host_tool(driver, run, 1, b"propose_settings", input.to_string().as_bytes());
+    assert!(!error, "{}", String::from_utf8_lossy(&body));
+    let proposal = driver.task(run.task).expect("proposing task").proposal.as_ref().expect("waiting proposal").number;
+    (run.task, proposal)
+}
+
+fn words(path: &ways::Path) -> Vec<&str> {
+    path.stops.iter().map(|stop| std::str::from_utf8(&stop.words).expect("path words are text")).collect()
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Picture {
+    Way { name: String, line: String, current: bool, words: Vec<String> },
+    Path { repository: Option<String>, branch: String, words: Vec<String> },
+    Proposal { before: Vec<String>, after: Vec<String> },
+    Charter { number: u32, who: String, name: String, facts: Vec<(String, String)> },
+    NotDrawn(String),
+}
+fn strings(words: &[&str]) -> Vec<String> {
+    words.iter().map(|word| (*word).to_owned()).collect()
+}
+fn drawn(view: ways::View) -> Picture {
+    let text = |bytes: Box<[u8]>| String::from_utf8(bytes.into()).expect("view text");
+    match view {
+        ways::View::Way { name, line, path, current } => {
+            Picture::Way { name: text(name), line: text(line), current, words: strings(&words(&path)) }
+        }
+        ways::View::Path(path) => Picture::Path {
+            words: strings(&words(&path)),
+            repository: path.repository.map(text),
+            branch: text(path.branch),
+        },
+        ways::View::Proposal { before, after } => {
+            Picture::Proposal { before: strings(&words(&before)), after: strings(&words(&after)) }
+        }
+        ways::View::Charter { charter, card } => Picture::Charter {
+            number: charter,
+            who: text(card.who),
+            name: text(card.name),
+            facts: card.facts.into_iter().map(|fact| (text(fact.label), text(fact.value))).collect(),
+        },
+        ways::View::NotDrawn(words) => Picture::NotDrawn(text(words)),
+    }
+}
+
+#[test]
+fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
+    let (mut driver, run) = view_driver();
+    let member = member(&mut driver);
+    let owner = driver.session();
+    let (task, proposal) = view_proposal(&mut driver, &run);
+    let proposal_address = format!("proposal t{task}/{proposal}");
+    let newest = kinds::revision(&driver.store.rows);
+    let draft = &[
+        "draft",
+        "plan",
+        "produce ×n",
+        "merge",
+        "goal branch",
+        "check",
+        "repair",
+        "check",
+        "update",
+        "resolve",
+        "merge",
+        "verify",
+        "main",
+    ];
+    for (address, session, accept, expected) in [
+        ("way agents review".to_owned(), owner, false, Picture::Way { name: "Agents review".into(), line: "An agent makes each change, another reviews it, and code lands it.".into(), current: true, words: strings(VIEW_MAIN) }),
+        ("way Draft first".to_owned(), owner, false, Picture::Way { name: "Draft first".into(), line: "You and an agent write a design draft; agents build it on its own branch, and it lands whole.".into(), current: false, words: strings(draft) }),
+        ("path org/repo".to_owned(), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "main".into(), words: strings(VIEW_MAIN) }),
+        ("path org/repo other".to_owned(), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "other".into(), words: strings(VIEW_OTHER) }),
+        ("path org/repo @revision 1".to_owned(), owner, false, Picture::NotDrawn(format!("revision 1 isn't drawn yet; views draw the newest settings, revision {newest}."))),
+        ("charter 4".to_owned(), owner, false, Picture::Charter { number: 4, who: "an agent".into(), name: "the reviewer".into(), facts: vec![("Models".into(), "scripted".into()), ("Can".into(), "read the code and the forge; change and push its branch; run commands; start sub-agents; never merge or update".into()), ("Wakes".into(), "at once on words, results, failures and questions".into()), ("Asked to".into(), "Complete the task within its authority.".into())] }),
+        (format!("path org/repo @revision {newest}"), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "main".into(), words: strings(VIEW_MAIN) }),
+        ("path org/missing".to_owned(), owner, false, Picture::NotDrawn("no repository org/missing in this project.".into())),
+        ("proposal p99/1".to_owned(), owner, false, Picture::NotDrawn("no proposal p99/1.".into())),
+        ("proposal t99/1".to_owned(), owner, false, Picture::NotDrawn("no proposal t99/1.".into())),
+        ("path malformed".to_owned(), owner, false, Picture::NotDrawn("no view path malformed; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N.".into())),
+        ("charter 99".to_owned(), owner, false, Picture::NotDrawn("no charter 99.".into())),
+        (proposal_address.clone(), owner, false, Picture::Proposal { before: strings(VIEW_MAIN), after: strings(VIEW_AFTER) }),
+        ("way unknown".to_owned(), owner, false, Picture::NotDrawn("no way unknown; the ways are You approve, Agents review and Draft first.".into())),
+        ("way".to_owned(), owner, false, Picture::NotDrawn("no view way; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N.".into())),
+        ("charter 99".to_owned(), member, false, Picture::NotDrawn("no charter 99.".into())),
+        (proposal_address.clone(), member, false, Picture::Proposal { before: strings(VIEW_MAIN), after: strings(&["you ask", "produce", "an owner approves", "merge", "verify", "main"]) }),
+        (proposal_address.clone(), owner, true, Picture::NotDrawn(format!("proposal t{task}/{proposal} is decided; a decided proposal's paths aren't drawn yet."))),
+    ] {
+        if accept {
+            driver.send(Event::Party(PartyInput::Ask { reply_to: ReplyTo::new(Token::new(50)), sign_in: owner, key: [50; 16], models: Box::new([]), ask: people::Ask::DecideProposal { project: people::DEPLOYMENT, proposer: people::Proposer::Task(task), proposal, decision: people::ProposalDecision::Accept, running: Some(people::Running::Stays) } }));
+            driver.settle();
+        }
+        assert_eq!(drawn(read_view(&mut driver, session, &address).expect("authorized view")), expected, "{address}");
+    }
+    let owner_view = read_view(&mut driver, owner, "charter 4");
+    assert_eq!(read_view(&mut driver, member, "charter 4"), owner_view);
+    driver.send(Event::Party(PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(60)),
+        identity: people::Identity {
+            key: forge::user_key(1, 9),
+            login: b"stranger".as_slice().into(),
+            name: Box::new([]),
+        },
+    }));
+    driver.settle();
+    let stranger = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| match delivery {
+            Delivery::WebReply { reply: people::Reply::SignedIn { sign_in, .. }, .. } => Some(*sign_in),
+            _ => None,
+        })
+        .expect("stranger sign-in");
+    assert_eq!(read_view(&mut driver, stranger, "way Agents review"), Err(jig_domain_core::reads::Why::Unknown));
+    driver.answer(
+        CHANNEL,
+        run.task,
+        run.attempt,
+        0,
+        jig_domain_tasks::End::Finished {
+            result: jig_domain_tasks::TaskResult::Report { words: b"The ways are explained.".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    driver.settle();
+    // Let the configured tier finish its pending poll before the restart oracle takes its snapshot.
+    if let Some(due) = driver.root.next_deadline(&driver.env) {
+        driver.fire_at(skein_lib::Duration::from_nanos(due.as_nanos()));
+        driver.settle();
+    }
 }

@@ -7,26 +7,39 @@ use skein_lib::{Decimal, List, Map, Token};
 use temper_engine_domain_forge::{self as forge, settings};
 
 mod agents;
+pub(crate) mod view;
 use agents::agent;
 
-pub(crate) fn inputs(domain: &Domain, project: u32, party: u64, items: &[ways::Item]) -> ways::Inputs {
+pub(crate) fn inputs(
+    domain: &Domain,
+    project: u32,
+    party: u64,
+    items: &[ways::Item],
+    repository: Option<&forge::Repository>,
+    branch: Option<&[u8]>,
+) -> ways::Inputs {
     let repositories = domain.forge.readable_repositories(project);
-    let repository = match domain.forge.home(project) {
+    let repository = match repository.or(domain.forge.home(project)) {
         Some(home) => Some(home),
         None => repositories.first().copied(),
     };
-    let branch = match repository {
+    let landing = match repository {
         Some(repository) => repository.settings.default_branch.clone(),
         None => b"main".as_slice().into(),
     };
+    let branch = match branch {
+        Some(branch) => branch.into(),
+        None => landing.clone(),
+    };
+    let other = branch != landing;
     let repository = match repository {
-        Some(repository) => Some(repository_inputs(domain, project, repository)),
+        Some(repository) => Some(repository_inputs(domain, project, repository, other)),
         None => None,
     };
     let held = domain.forge.landing_rules(project);
     let rules = ways::laid(&held, domain.forge.every_project_rules(), project, items);
     let charters = domain.forge.charters();
-    let start = start(domain, project, items);
+    let start = if other { ways::Start::Chat } else { start(domain, project, items) };
     let mut by_number = Map::uncapped();
     if let Some(policy) = domain.core.authority.policy(project) {
         for role in &policy.roles {
@@ -79,7 +92,7 @@ pub(crate) fn inputs(domain: &Domain, project: u32, party: u64, items: &[ways::I
     }
 }
 
-fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Repository) -> ways::Repository {
+fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Repository, other: bool) -> ways::Repository {
     let mut gates = List::uncapped();
     let mut tiers = List::uncapped();
     if let Some(checks) = domain.forge.repository_gates(project, repository.provider) {
@@ -87,6 +100,9 @@ fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Reposito
             gates.push(gate.name.clone()).expect("configured test gates");
         }
         for tier in &checks.tiers {
+            if other && tier.follows == forge::Follows::Landing {
+                continue;
+            }
             tiers
                 .push(ways::Tier { name: tier.name.clone(), follows: tier.follows.clone() })
                 .expect("configured tiers");
@@ -169,7 +185,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
     let mut paths = List::uncapped();
     for way in &domain.config.ways_stock {
         let items = ways::items(way, project, project_ways(domain, project));
-        let path = ways::derive(&inputs(domain, project, party, &items));
+        let path = ways::derive(&inputs(domain, project, party, &items, None, None));
         paths.push(path.clone()).expect("stock ways");
         entries
             .push(ways::WayEntry {
@@ -181,7 +197,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
             })
             .expect("stock ways");
     }
-    let own = ways::derive(&inputs(domain, project, party, &[]));
+    let own = ways::derive(&inputs(domain, project, party, &[], None, None));
     ways::WaysDocument {
         project,
         ways: entries.into_boxed(),
