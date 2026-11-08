@@ -590,13 +590,19 @@ fn init_limits_hold_reference_delegation() {
 }
 
 #[test]
-fn the_reference_project_file_shows_its_goals() {
+fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
+    use temper_engine_domain_forge::{GateLast, settings};
+
     let items = settings_form::file::decode(
         include_bytes!("../../../../docs/examples/reference/project.json"),
         &temper_client_tools::limits::form(),
     )
     .expect("reference project settings");
-    assert_eq!(items.len(), 1);
+    assert_eq!(items.len(), 2);
+    assert_eq!(
+        items.get(0).expect("project ways first").setting,
+        Setting::Application { kind: 7, scope: 1, number: 1 }
+    );
     let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 7, scope: 1, number: 1 }) else {
         panic!("project ways")
     };
@@ -608,4 +614,28 @@ fn the_reference_project_file_shows_its_goals() {
     .expect("reference ways");
     let temper_engine_domain_forge::settings::Value::Ways(ways) = decoded.value else { panic!("project ways record") };
     assert_eq!((ways.drafts, ways.goals, ways.changes, ways.away, ways.way), (true, true, true, true, 4));
+
+    let setting = Setting::Application { kind: 2, scope: 1, number: 1 };
+    assert_eq!(items.get(1).expect("project landing rule second").setting, setting);
+    let SettingValue::Application(bytes) = value(&items, setting) else { panic!("project landing rule") };
+    let decoded = temper_engine_smith::kinds::decode(
+        2,
+        bytes,
+        &temper_engine_smith::kinds::Bounds { segments: 8, segment_bytes: 64, gates: 4, approvals: 4 },
+    )
+    .expect("reference project rule codec");
+    let bounds =
+        settings::Bounds { landing_rules: 2, gates: 4, roles: 4, charters: 12, segments: 8, segment_bytes: 64 };
+    for (kind, scope, expected) in [(2, 1, Ok(())), (1, 0, Err(settings::Refusal::Pattern))] {
+        let item = settings::Item { kind, scope, number: 1, value: Some(decoded.value.clone()) };
+        assert_eq!(settings::judge(&item, &bounds), expected, "reference rule as kind {kind}");
+    }
+    let settings::Value::Rule(rule) = decoded.value else { panic!("project landing rule value") };
+    assert_eq!(rule.pattern.segments.as_ref(), [Box::from(b"branch".as_slice())]);
+    assert_eq!(rule.pattern.last, GateLast::Exact(b"main".as_slice().into()));
+    assert!(rule.enforce);
+    assert!(rule.ci);
+    assert!(rule.up_to_date);
+    assert!(rule.gates.is_empty());
+    assert!(rule.approvals.is_empty());
 }
