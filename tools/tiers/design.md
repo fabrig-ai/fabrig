@@ -75,8 +75,9 @@ Variable names are unique within a pair. `process-temper` sets
 After any bundle step, build each listed binary in order with
 `cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
 servers in the table above are native list entries. `process-temper` also
-lists `smith-fake-claude`'s `fake-claude`: temper's
-fake-backend tests execute that adapter as the `temper` binary's sibling.
+lists `smith-fake-claude`'s `fake-claude` and `temper-client`'s `temper-client`:
+temper's fake-backend tests execute that adapter and the deployment's client
+story executes that client as the `temper` binary's siblings.
 A failed binary build returns 2 and starts no later step.
 
 All other configured pairs run nextest alone. Tier tests also use binaries

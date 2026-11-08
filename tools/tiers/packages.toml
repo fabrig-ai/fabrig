@@ -49,4 +49,7 @@ live-jig = []
 live-skein = []
 live-smith = []
 live-temper = []
-process-temper = [{ package = "smith-fake-claude", bin = "fake-claude", env = "TEMPER_TEST_CLAUDE" }]
+process-temper = [
+    { package = "smith-fake-claude", bin = "fake-claude", env = "TEMPER_TEST_CLAUDE" },
+    { package = "temper-client", bin = "temper-client" },
+]
