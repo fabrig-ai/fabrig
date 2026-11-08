@@ -1,0 +1,25 @@
+draft = "ui-authorize-busy"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-authorize-busy/inputs/request.md", "temper/tests/client-browser/tests/browser_all/browser_authorize.rs", "temper/crates/temper-service/src/tests/sign_in.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "repair"
+title = "red-72: a cross-site authorization is not refused as busy under load; the bound found, held in a focused test and fixed at its lowest place"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/sign-in.md, 9.3"
+
+[[slice]]
+id = 1
+story = "browser_authorize::a_cross_site_authorization_returns_a_code_and_the_links_state reaches \"Authorization received\" after the restart under load, its checks unchanged"
+parts = ["repair"]
+walk = false

@@ -2,9 +2,11 @@
 
 2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-Section 13.4 has charter 11 and template 5. The rules and policy 1 hold asking, tools 3,975, and
-delegate to charter 11. `ask.txt` omits Showing and Remembering. The stock
-first-request check holds 16,384 bytes on both request shapes. Existing
+Section 13.4 has stock charters 1, 2, 4, 6, 9, 10 and 11 and templates
+1, 2 and 5; charter 3, template 3 and `configuring.txt` are absent.
+The rules and policy 1 hold asking, tools 3,975, and grant charter
+executors 1, 2, 4, 6, 9 and 11. `ask.txt` omits Showing and Remembering.
+The stock first-request check holds 16,384 bytes on both request shapes. Existing
 project policies remain copies and require an owner's accepted proposal
 to gain the new delegation.
 
@@ -115,11 +117,6 @@ or in the terminal refusal naming the item and rejected way.
 Section 13.8 has no gap in note-backed settings transport within the call payload ceiling.
 
 ## Gaps and departures
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
-  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected

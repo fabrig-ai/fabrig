@@ -232,7 +232,7 @@ fn end(b: &mut Builder, value: RunEnd, words: &Words) {
         RunEnd::Finished => caption(b, words, P::Finished),
         RunEnd::Cancelled => caption(b, words, P::CancelledEnd),
         RunEnd::Refused => caption(b, words, P::Refused),
-        RunEnd::Failed { class } => {
+        RunEnd::Failed { class, .. } => {
             caption(b, words, P::FailedEnd);
             failure(b, class, words);
         }

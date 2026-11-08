@@ -11,7 +11,28 @@
   common records, with the TUI's own records and codec, sharing the
   browser's redaction and last scan (its sections 3 and 5).
 - **Design departs:**
-  - 4.1: a local box signs the TUI in with nothing to paste. The running engine keeps its live printed link at rest in a private file, under `$XDG_RUNTIME_DIR` on Linux and the data directory on macOS, keyed by the deployment's data directory; a fresh `temper`, or one whose sign-in expired, signs in by it with no key pressed, and bare `temper`'s address is that file's before the one its directory keeps. A sign-in ended before its expiry is noted in the TUI's directory, and only a person's act signs it in again. The risk of a live owner link at rest is recorded as accepted, with its way back (`../client/README.md`, 6.11, 6.12 and 6.14): the user's decision of 2026-11-07, designed by the cut of `tui-link-colours`.
+  - 4.1: a local box signs the TUI in with nothing to paste. The running
+    engine keeps its printed link at rest in a private file, under an
+    absolute `$XDG_RUNTIME_DIR` on Linux and the data directory on macOS,
+    keyed by the deployment's data directory; with no absolute runtime
+    directory on Linux there is no file. A fresh `temper`, or one whose
+    sign-in expired, signs in by it with no key pressed, and bare
+    `temper`'s address is that file's before the one its directory keeps.
+    The risk of a live owner link at rest is recorded as accepted, with
+    its way back (`../client/README.md`, 6.11, 6.12 and 6.14): the user's
+    decision of 2026-11-07.
+  - 4.1: the local sign-in's expiry/revocation distinction uses a note,
+    because the engine answers both as signed out (`../client/README.md`,
+    6.14 and section 11). The design chosen by `tui-link-colours` notes
+    the answer's expiry once the link is live with a party. A sign-in
+    ended more than a minute before that expiry notes `SignedOut`, which
+    blocks automatic sign-in until a person's paste or approval. A
+    revocation in the final minute is treated as expiry and can renew;
+    a missing or unreadable note permits a local try too. Thus the
+    request's unconditional refusal to renew after an explicit sign-out
+    is not established in those cases. A distinct engine answer remains
+    later work; the original draft's browser and pasted-link paths need
+    no such distinction.
   - 4.4 and 5: the TUI draws on the terminal's own colours. Its base is the terminal's default text and background, the palette kept for the accent, dim, faint and good colours, and the focus shown by the accent and its mark with no background of its own; dark or light comes from `COLORFGBG`, else the terminal's answer to an OSC 11 query at start, else dark (`../client/README.md`, 6.15; skein's `ui-screen.md`, sections 3 and 8). Frames and goldens keep the terminal's default as a colour of its own, which a journey's page draws in the theme's stand-ins (`../client/tui/journeys.md`, 6.4): the user's decision of 2026-11-07, designed by the cut of `tui-link-colours`.
   - 4.1: on the sign-in screen `q` is a character of the pasted link's field, which has the focus there, so Ctrl+C closes it and `q` closes the first screen (`../client/README.md`, 6.14): decided by the cut of `tui-connected`, 2026-11-07.
 - **Open:**

@@ -2791,3 +2791,27 @@ fn an_agents_heard_or_notified_long_word_draws_whole() {
         }
     }
 }
+
+#[test]
+fn invalid_run_ends_draw_their_reason() {
+    for (reason, expected) in [
+        (c::InvalidReason::Verdict, b"Run 3 ended: its result broke its contract (verdict)".as_slice()),
+        (c::InvalidReason::Form, b"Run 3 ended: its result broke its contract (form)"),
+        (c::InvalidReason::Words, b"Run 3 ended: its result broke its contract (words)"),
+        (c::InvalidReason::Change, b"Run 3 ended: its result broke its contract (change)"),
+        (c::InvalidReason::Followups, b"Run 3 ended: its result broke its contract (followups)"),
+        (c::InvalidReason::UnreadableResult, b"Run 3 ended: its result couldn't be read"),
+    ] {
+        let mut builder = Builder::new(&fixtures::tree_limits());
+        crate::pages::task::owner_activity(
+            &mut builder,
+            &c::Activity::RunEnded {
+                attempt: 3,
+                end: c::RunEnd::Failed { class: c::HoldFailure::Invalid, invalid_reason: Some(reason) },
+                spent: 0,
+            },
+            &fixtures::words(),
+        );
+        assert_eq!(fixtures::text(&builder.finish()).as_ref(), expected, "{reason:?}");
+    }
+}
