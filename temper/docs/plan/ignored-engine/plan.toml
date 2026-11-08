@@ -1,0 +1,6 @@
+draft = "ignored-engine"
+repo = "fabrig"
+sources = ["temper/docs/plan/ignored-engine/inputs/request.md", "temper/docs/design/protocol/configuration.status.md", "skein/docs/foundation/testing-strategy.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
