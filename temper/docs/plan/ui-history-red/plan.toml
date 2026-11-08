@@ -1,0 +1,25 @@
+draft = "ui-history-red"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-history-red/inputs/request.md", "temper/tests/client-browser/tests/browser_all/browser_pages.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "repair"
+title = "red-78: the history story finds the Needs page at an unknown address every time, its race found and fixed where it sits"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 4.6"
+
+[[slice]]
+id = 1
+story = "browser_pages::history_keeps_the_chat_focus_and_filter_across_reload_and_back reaches main.temper-needs after /nowhere on every run, its checks unchanged"
+parts = ["repair"]
+walk = false
