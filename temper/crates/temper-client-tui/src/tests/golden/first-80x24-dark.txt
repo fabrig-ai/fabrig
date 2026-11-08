@@ -18,10 +18,10 @@
 
 
 
-
-
-
- q to quit                                                               ● Live
+────────────────────────────────────────────────────────────────────────────────
+❯ Ask temper
+────────────────────────────────────────────────────────────────────────────────
+ / for commands · 1 needs you                   Claude Opus 5.5 · high · ● Live
 --
 aaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 a..............................................................................a
@@ -43,13 +43,14 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
 ................................................................................
-................................................................................
-................................................................................
-................................................................................
-.ccccccccc...............................................................dddddd.
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ccaaaaaaaaaa....................................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.dddddddddddddddddccccccccccc...................dddddddddddddddddddddddddeeeeee.
 --
 a: fore #6A655C
 b: fore #E08A68 bold
-c: fore #9A9388
-d: fore #8FC28F
-no cursor
+c: fore #E08A68
+d: fore #9A9388
+e: fore #8FC28F
+cursor 21 2
