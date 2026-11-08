@@ -154,3 +154,23 @@ Acceptance:
 The implementer's report, with: where the story stopped before and
 what made it walk; its time now; the memory figures and their bounds;
 any option taken.
+
+## Answers
+
+- 2026-11-08. *May story A's one-process deadline (the referee's
+  `story_deadline`, 30 s simulated) become 60 s?* Yes: set it to 60 s
+  for `Story::PlaygroundA`, and keep the playground script's per-reply
+  `within` at 60 s too, the playground world's `WAIT`
+  (`temper/tests/playground/src/stories.rs`), where the same story
+  completes at 44.8 simulated seconds. This is not a timeout under
+  `notes/common.md`'s rule, which names `tools/tiers/budgets.toml` and
+  `.config/nextest.toml` alone: it is the world's patience, there to
+  end a hung run (`temper/docs/design/domain/testing.md`, 6.1), and the
+  30 s was set for a story that never walked. Its comment says why
+  (the story's simulated length in the playground world). If the walk
+  still does not finish within 60 s, that is a cause to find under the
+  wiring option, never a further raise. The wall guide is separate:
+  report the walk's time, examine it under 8.1, question 2, and never
+  move or ignore it for its cost. Continue from the pushed branch
+  (`97e4acf6d3`) with the outstanding acceptance: both `#[ignore]`s,
+  the memory bounds, the doc and the status lines.
