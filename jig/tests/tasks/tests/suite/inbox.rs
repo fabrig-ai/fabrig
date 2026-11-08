@@ -279,16 +279,67 @@ fn a_deadline_wake_does_not_reuse_a_handled_message_reason() {
     world.elapse(skein_lib::Duration::from_nanos(101));
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
     assert!(world.record(1).inbox.is_empty());
+    // The core's deadline admission holds before preparation or claim
+    // (jig/docs/design/domain/authority.md, 7 and 8.3).
+    world.send(Event::Hold { task: 1, why: jig_domain_tasks::Hold::Deadline });
+    assert!(matches!(world.record(1).phase, Phase::Held { why: jig_domain_tasks::Hold::Deadline, .. }));
+    assert_eq!(world.record(1).attempt, 2);
+    assert_eq!(run_reason(&world, 3), None);
+    world.restart();
+    assert!(matches!(world.record(1).phase, Phase::Held { why: jig_domain_tasks::Hold::Deadline, .. }));
+    assert!(!world.activations.contains(&1));
+    assert_eq!(run_reason(&world, 3), None);
+    extend_goal_deadline(&mut world);
+    let reply = jig_tasks_world::response(&mut world, |reply_to| Event::Release {
+        reply_to,
+        by: PERSON_PARTY,
+        operation: jig_domain_tasks::Release { task: 1, again: None, message: None },
+    });
+    assert_eq!(reply, Reply::Done);
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
     world.claim(1, 3);
-    let why = world.records.values().find_map(|record| match record {
+    assert_eq!(run_reason(&world, 3), Some(jig_domain_tasks::Why::Released));
+}
+
+fn run_reason(world: &World, attempt: u64) -> Option<jig_domain_tasks::Why> {
+    world.records.values().find_map(|record| match record {
         jig_domain_tasks::Stored::Activity(line) if line.task == 1 => match line.line {
-            jig_domain_tasks::Line::RunBegan { attempt: 3, why, .. } => Some(why),
+            jig_domain_tasks::Line::RunBegan { attempt: number, why, .. } if number == attempt => Some(why),
             _ => None,
         },
         _ => None,
+    })
+}
+
+fn extend_goal_deadline(world: &mut World) {
+    let mut authority = world.record(1).authority.clone();
+    authority.budget.deadline = Some(Wall::from_nanos(500));
+    let funder = world.record(1).funder;
+    let reply = jig_tasks_world::response(world, |reply_to| Event::Amend {
+        reply_to,
+        by: PERSON_PARTY,
+        funder: Some(funder),
+        places: Box::new([]),
+        operation: jig_domain_tasks::Amend {
+            task: 1,
+            message: 24,
+            stop_run: false,
+            amendment: Box::new(jig_domain_tasks::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: None,
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority: Some(authority),
+                llm: None,
+                reason: b"more time".as_slice().into(),
+            }),
+        },
     });
-    assert!(why.is_some());
-    assert_ne!(why, Some(jig_domain_tasks::Why::Message { message: 23 }));
+    assert_eq!(reply, Reply::Done);
+    assert!(matches!(world.record(1).phase, Phase::Held { why: jig_domain_tasks::Hold::Deadline, .. }));
 }
 
 #[test]
