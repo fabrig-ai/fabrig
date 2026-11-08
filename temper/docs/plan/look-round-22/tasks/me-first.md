@@ -12,6 +12,7 @@ files = [
   "temper/crates/temper-client-view/src/tests/chat.rs",
   "temper/crates/temper-client-shell-web/src/focus.rs",
   "temper/crates/temper-client-shell-web/tests/suite/host.rs",
+  "temper/docs/design/client/README.md",
   "temper/docs/design/client/README.status.md",
   "temper/docs/design/client/browser.status.md",
 ]
@@ -50,7 +51,7 @@ Acceptance, by `temper/docs/design/client/README.md`, 5.1, *while `me` is read*,
    - `tests/chat.rs`, `no_me_no_line` (about line 4806): its state, a composer drawn before `me`, no longer exists; delete it (the `NewChat` row of acceptance 4 covers the page before `me`).
    - `temper/crates/temper-client-shell-web/tests/suite/host.rs`, `a_start_at_a_stale_filter_shows_its_printed_address` (about line 23): its root reads no `me`; keep its `show` assertion and `!temper-filters`, and in place of `contains("temper-needs")` assert the top bar (`temper-top`) and no `<main`.
 6. **Prints:** the journeys' marks are taken with `me` read (the survey found every committed page past it), so none should move: `heavy cargo nextest run -p temper-client-journeys` passes; if a print moves, reprint it (`notes/common.md`, *Prints*) and say which.
-7. **Status:** delete the **Not yet** entries naming `me-first` in `temper/docs/design/client/README.status.md` and `temper/docs/design/client/browser.status.md`. No other design line.
+7. **Status:** delete the **Not yet** entries naming `me-first` in `temper/docs/design/client/README.status.md` and `temper/docs/design/client/browser.status.md`. One other design line, by the answer below: `temper/docs/design/client/README.md`, 5.1, *while `me` is read*, says "no banner, an empty main marked busy and no tab bar" for "no banner, no main and no tab bar".
 8. Runs through `heavy`, counts in the report: `cargo nextest run` for `-p temper-client-view`, `-p temper-client-shell-web`, `-p temper-client-shell-terminal`, `-p temper-client-gallery`, `-p temper-client-world` and `-p temper-client-journeys` (this changes what every page draws before `me`: every reader's tests run); `cargo check --tests` for `-p temper-client-browser-world`, `-p temper-one-process-world` and `-p temper`; `cargo check -p temper-client-shell-web --target wasm32-unknown-unknown`; `cargo clippy -p temper-client-view -p temper-client-shell-web --all-targets -- -D warnings`, and `cargo clippy -p temper-client-shell-web --target wasm32-unknown-unknown -- -D warnings`.
 
 One commit or more, each with the trailer `Look-request: outside-pages`; the last carries the account (below).
@@ -95,3 +96,14 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: `reading_me` and the gate as written, `HeadingFocus`'s wait, the rows and the tests changed or deleted, the bite and its failure, the options taken, the runs' counts, and the account as committed.
+
+## Answers
+
+2026-11-08. **Q: extend this task into skein/jig for a pending-main outline policy, or land that as a prerequisite?** Neither. skein's outline rule (`skein/docs/design/ui.md`, 14, exactly one main) stays, and no skein or jig file changes. While `reading`, `build` draws an **empty main**: a `Role::Main` node with `State::Busy` and no children (no heading, no words), where acceptance 2 said the main's chain draws nothing. No page body draws, as the request asks, and every tree keeps its one main, so the client world's referee passes at time zero. Amended accordingly:
+
+- Acceptance 2: the reading branch draws that empty busy main; still after `unavailable` and before `no_project`, at every address.
+- Acceptance 4's rows: in place of "a `Role::Main` is drawn exactly when the row is not `reading`", check one `Role::Main` in every row; while `reading`, it has no children and carries `State::Busy`; not `reading`, it has children and no `Busy`. The bite stays: reopen the page chain while reading and see the `Chats`, `NewChat` and `Welcome` rows fail on a main with children.
+- Acceptance 3: `HeadingFocus`'s existing path for a main without its heading (focus the main, the heading pending) now covers the draw before `me`; keep the `Main` wait the run wrote as it is (it is harmless and compiled), and say so in the report.
+- Acceptance 5: the stale-filter host test asserts the top bar (`temper-top`) and an empty main (no `temper-needs`, no page heading), in place of "no `<main`".
+- Acceptance 7: the design line in `temper/docs/design/client/README.md`, 5.1, *while `me` is read*, as amended there (added to `files`).
+- Resume from the pushed commit `c0fa375fe9` on `look-round-22/me-first`; then run what acceptance 8 lists that the first run left unobserved (client world, journeys, the `check --tests`, wasm32 clippy).
