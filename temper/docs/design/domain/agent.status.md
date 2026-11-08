@@ -7,9 +7,12 @@ smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
 revision, proposal, help and repository-file reads, 6,144-byte parts,
 section-based document writes and the asking proposal form: repository
 identity expansion, parts, project-local approval checks and the card
-location in the answer. The remaining reads and rendering, moved-write
-retry within a call, views and preferences remain deferred in section 10.
-Real-model judgement and the walk follow landing.
+location in the answer. Sections 8.4 and 8.4.1 have no known gap in M3a's
+part: `see ways` renders the root's `ways` document, made as the client's
+is, and `ask.txt` carries the Showing part's first step, its words pinned
+by a focused test. The remaining reads and rendering, moved-write retry
+within a call, M3b's views and sketches and preferences remain deferred in
+section 10. Real-model judgement and the walk follow landing.
 
 Section 4.3.1 has no known gap in a change's role choice carrying no
 `later`: the change-choice parser constructs each choice with none,
