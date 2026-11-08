@@ -255,6 +255,85 @@ fn run(w: &Words) -> [Row; 6] {
         Row { name: "run empties", shared: Value::Flag(empty), browser: Value::Flag(true) },
     ]
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the fixture finds the run watch among public requests")]
+fn working(rows: &mut List<Row>, w: &Words) {
+    for (name, active, writing) in [
+        ("working before words", true, false),
+        ("working ends when words begin", true, true),
+        ("idle is not working", false, false),
+    ] {
+        let mut root = terminal_root(active);
+        if writing {
+            let mut task = super::chat::asking_task();
+            task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: f::chat::ATTEMPT });
+            task.chip.phase = c::Phase::Active;
+            task.waits_on = c::WaitsOn::Nothing;
+            task.result = None;
+            root = super::chat::asking_task_root(task, true, 1);
+            let handle = root.pages().chat().unwrap().run.unwrap();
+            f::root_event(&mut root, Event::Client { event: jig_client::Event::Unwatch { handle } });
+            let mut out = Queue::uncapped();
+            d::step(
+                &mut root,
+                &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+                Event::Client {
+                    event: jig_client::Event::Watch {
+                        handle,
+                        subject: jig_client::Watchable::Jig(c::Subject::Run {
+                            task: f::chat::TASK,
+                            turn: None,
+                            offset: 0,
+                        }),
+                    },
+                },
+                &mut out,
+            );
+            let watch = out
+                .iter()
+                .find_map(|request| match request {
+                    d::Request::Unlinked {
+                        request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, .. } },
+                    } => Some(*watch),
+                    _ => None,
+                })
+                .unwrap();
+            let text = b"Hello".to_vec();
+            f::root_event(
+                &mut root,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Watched {
+                            watch,
+                            event: c::WatchEvent::Delivered(c::Delivery::RunState(Box::new(c::RunState {
+                                task: f::chat::TASK,
+                                attempt: Some(f::chat::ATTEMPT),
+                                committed_turn: 0,
+                                writing: Some(c::RunText {
+                                    writing: None,
+                                    attempt: f::chat::ATTEMPT,
+                                    began: None,
+                                    turn: c::ProvisionalTurnName { attempt: f::chat::ATTEMPT, number: 1, retry: 0 },
+                                    from: 0,
+                                    through: u32::try_from(text.len()).unwrap(),
+                                    text: c::Text::new(text.into_boxed_slice(), f::chat::TEXT).unwrap(),
+                                    cut: false,
+                                    call: None,
+                                }),
+                                call: None,
+                            }))),
+                        },
+                    },
+                },
+            );
+        }
+        let view = f::browser_page_view(&root);
+        let browser = view.tree().nodes().iter().any(|node| {
+            node.styles.as_slice().contains(&look::TYPING) || node.styles.as_slice().contains(&look::WORK_RUNNING)
+        });
+        rows.push(Row { name, shared: Value::Flag(shared::working(&root, w)), browser: Value::Flag(browser) }).unwrap();
+    }
+}
+
 #[test]
 fn shared_words_are_the_browsers() {
     let w = f::browser_words();
@@ -272,6 +351,7 @@ fn shared_words_are_the_browsers() {
     {
         rows.push(row).unwrap();
     }
+    working(&mut rows, &w);
     lists(&mut rows, &w);
     confirmations(&mut rows);
     questions(&mut rows, &w);
