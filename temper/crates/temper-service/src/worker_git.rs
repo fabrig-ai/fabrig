@@ -27,8 +27,8 @@ impl Git {
         home.put(path).expect("home path");
         home.put(b"/home").expect("home suffix");
         let component = match component::Component::new(
-            &own.git_component,
-            &own.checkout,
+            &own.git_component.into(),
+            &own.checkout.into(),
             component::Settings {
                 git: worker.git.clone(),
                 home: home.finish(),

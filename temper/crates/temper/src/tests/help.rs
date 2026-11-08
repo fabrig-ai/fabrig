@@ -100,11 +100,14 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let (_, steps) = page.split_once("\n## 3. ").expect("step 3");
     let (step, _) = steps.split_once("\n## 4. ").expect("step 4");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
-    let line = crate::host::note_line(temper_service::Note::ForgeSignIn {
-        number: 1,
-        client: b"forgejo".as_slice().into(),
-        why: temper_service::clients::forge_sign_in::Unserved::NotKept,
-    });
+    let line = crate::host::note_line(
+        "temper",
+        temper_service::Note::ForgeSignIn {
+            number: 1,
+            client: b"forgejo".as_slice().into(),
+            why: temper_service::clients::forge_sign_in::Unserved::NotKept,
+        },
+    );
     assert!(text.contains(line.trim_end_matches('\n')), "step 3 must give the printed diagnostic: {line}");
     assert!(text.contains("With `application.sign_in.forges` on a new store, `serve`'s stderr says"));
     assert!(text.contains("until step 6 connects it"));
