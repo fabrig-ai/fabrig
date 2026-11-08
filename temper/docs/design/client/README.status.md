@@ -959,9 +959,3 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
-
-- **Not yet:** 6.14 and 10: the joint world's file is the printed link;
-  a TUI signed in from the local link, the printed link signing a
-  browser in before and after it, and a second TUI by the link drawn
-  when the first spent its own, are `tui-native-secret`'s task
-  `world-file`.
