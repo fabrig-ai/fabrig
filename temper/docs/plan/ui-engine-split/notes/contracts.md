@@ -42,7 +42,8 @@ it: the binary's patch level of each owner, `None` before its first patch.
 ## 4. `temper-shell` (task `shell-crate`)
 
 `temper/crates/temper-shell`, ordinary Rust on the `binary` profile, on
-`skein-shell`, `skein-lib`, `jig-protocol-config` and `temper-docs`.
+`skein-shell`, `skein-io`, `skein-lib`, `jig-protocol-config` and
+`temper-docs`.
 Modules:
 
 - `commands`: `Who`, `Row` and `Argument`, as `temper/src/commands.rs` has

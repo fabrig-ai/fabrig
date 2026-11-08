@@ -21,7 +21,7 @@ Acceptance:
 
 - `temper/crates/temper-shell`: ordinary Rust on the `binary` lint
   profile with the `ordinary` `clippy.toml` copy (as
-  `temper-forge-setup-shell` has them), on `skein-shell`, `skein-lib`,
+  `temper-forge-setup-shell` has them), on `skein-shell`, `skein-io`, `skein-lib`,
   `jig-protocol-config` and `temper-docs` alone; its crate doc cites
   `protocol/README.md`, 4.1. Its modules and names are
   `notes/contracts.md`, 4's: `commands` (`Who`, `Row`, `Argument`,
@@ -123,3 +123,20 @@ Acceptance:
 
 As the implementer's text says, with the helpers copied or moved and any
 test that stayed in `temper`.
+
+## Answers
+
+2026-11-08. *May `temper-shell` depend on `skein-io` for `errno`, or must
+skein-shell expose the conversion first?* Depend on `skein-io` directly:
+acceptance, `notes/contracts.md`, 4 and `protocol/README.md`, section 5's
+row now list it. It adds no crate to the graph (`skein-shell` is on it
+already), and `errno`'s numbers are Linux's, a diagnostic of temper's, not
+a generic mechanism for skein. Move `errno` (30 lines) and `unread`, which
+calls it, into `temper-shell`'s `directories` together: `unread` as `pub fn
+unread(why: skein_shell::Unread) -> String`, `errno` private beside it,
+both unchanged in body. `lib.rs` drops its two and takes `unread` with one
+`use temper_shell::directories::unread;` line, so every `super::unread` in
+`forge.rs`, `open.rs`, `fake.rs` and `directories.rs` resolves unchanged;
+that line and the removal are pre-approved under "it moves into the shell".
+`Error` then leaves `lib.rs`'s `use skein_io::kernel::{…}` line, also
+pre-approved. Say so in the report. Continue from `2a2bfe657d`.
