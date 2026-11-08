@@ -149,7 +149,7 @@ pub(crate) fn result(
     outcome: &[u8],
     change: Option<temper_engine_smith::ChangeResource>,
 ) -> engine::Event {
-    let end = match smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS) {
+    let end = match smith_protocol_translate::decode_declared(outcome, &smith_charter::CEILINGS) {
         Ok(outcome) => {
             let spent = run::Spend {
                 turns: 0,

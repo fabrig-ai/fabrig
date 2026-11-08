@@ -1,0 +1,79 @@
+draft = "ui-engine-split"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-engine-split/inputs/request.md", "temper/docs/design/draft/deployment-binaries.md", "temper/docs/design/draft/deployment-binaries.execution.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "shared-brief"
+title = "The brief's fitter moves out of temper-engine-smith into temper-protocol-brief, which the engine and the worker both link"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[part]]
+id = "engine-version"
+title = "temper-version: VERSION and COMMIT from git, for each binary's --version"
+mode = "direct"
+needs = []
+design = "temper/docs/design/release.md, 3"
+
+[[part]]
+id = "engine-versions"
+title = "jig's store gives a binary its patch levels, for temper-engine versions"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 4.2"
+
+[[part]]
+id = "shared-shell"
+title = "temper-shell: the commands' table under any binary's name, the directories, help and the link file, out of the box's temper"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 4.1"
+
+[[slice]]
+id = 1
+story = "The pieces every engine binary builds on stand beside the box's temper, which keeps every command, word and test: the shared fitter, the version line, jig's levels and the binaries' shell"
+parts = ["shared-brief", "engine-version", "engine-versions", "shared-shell"]
+walk = false
+
+[[part]]
+id = "service-split"
+title = "temper-service's engine half names no worker crate, and its worker half is the worker feature, off in an engine alone's build"
+mode = "direct"
+needs = ["shared-brief"]
+design = "temper/docs/design/protocol/README.md, 5"
+
+[[part]]
+id = "engine-shell"
+title = "temper-engine-shell: the forge's commands and serve's host and start, which the box and temper-engine both link, the worker's half given by the box"
+mode = "direct"
+needs = ["shared-shell"]
+design = "temper/docs/design/protocol/README.md, 4.1"
+
+[[part]]
+id = "engine-binary"
+title = "temper-engine: serve, forge, versions, help, internal forge-child and --version, refusing another shape's document by naming its binary"
+mode = "direct"
+needs = ["engine-shell", "engine-version", "engine-versions", "service-split"]
+design = "temper/docs/design/protocol/README.md, 4.2"
+
+[[part]]
+id = "engine-closure"
+title = "The boundary test holds temper-engine's closure free of the worker's domain and smith's agent, but its named exceptions"
+mode = "direct"
+needs = ["engine-binary", "service-split"]
+design = "temper/docs/design/protocol/README.md, 4.1"
+
+[[slice]]
+id = 2
+story = "temper-engine serves an engine alone's document with its web client and runs the owned forge's commands, prints --version, its help and versions, refuses a worker's or a standalone document naming the binary that runs it, and its closure holds no worker domain and no smith agent but its named exceptions"
+parts = ["service-split", "engine-shell", "engine-binary", "engine-closure"]
+walk = false

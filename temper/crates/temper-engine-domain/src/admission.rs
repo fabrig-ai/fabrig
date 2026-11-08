@@ -130,6 +130,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::FailProjection { .. }
             | forge::Event::ProjectDesired { .. }
             | forge::Event::Change { .. }
+            | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
             | forge::Event::Delegated { .. }
             | forge::Event::DelegateAdmissionRefused { .. }

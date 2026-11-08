@@ -1,5 +1,7 @@
 //! The worker's checked construction bounds and payload sizes (protocol/README.md, 7).
+pub(crate) use crate::values::{grant_bytes, token_credential_bytes as credential_bytes};
 use crate::{limits, settings};
+use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, Problems, What};
 use jig_protocol_worker_link as link;
 use skein_io as io;
@@ -12,6 +14,11 @@ use temper_worker_domain as root;
 /// count covers the checkout workspaces, which cover the worker's slots.
 pub(crate) fn operations(git: &temper_worker_protocol_git::Limits) -> Option<u32> {
     temper_worker_protocol_git::limits::operations(git)?.checked_add(3)?.checked_add(git.operations)
+}
+
+/// Operations reserved by the process for the configured git component.
+pub(crate) fn configured_operations(git: &limits::GitComponent) -> Option<u32> {
+    operations(&(*git).into())
 }
 
 /// Every queue and component bound established before constructing a worker.
@@ -31,7 +38,7 @@ pub(crate) fn problem(member: &[u8], what: What) -> Problems {
 }
 
 /// Check the root, host adapter and link before any state is allocated.
-pub fn prepare(worker: &settings::Worker, agent: &settings::Agent, own: &limits::Limits) -> Result<Prepared, Problems> {
+pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &limits::Limits) -> Result<Prepared, Problems> {
     if !io::valid(&worker.jig.limits.io) {
         return Err(problem(b"limits", What::Bound));
     }
@@ -66,13 +73,13 @@ pub fn prepare(worker: &settings::Worker, agent: &settings::Agent, own: &limits:
 }
 
 #[must_use]
-pub fn root_limits(worker: &settings::Worker, agent: &settings::Agent, own: &limits::Limits) -> root::Limits {
+pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &limits::Limits) -> root::Limits {
     let mut host = worker.jig.limits.hub;
     host.slots = worker.jig.slots;
     root::Limits {
-        tooling: limits::tooling(worker.jig.slots),
+        tooling: tooling(worker.jig.slots),
         host,
-        checkout: own.checkout,
+        checkout: own.checkout.into(),
         agent: smith_host_domain::Limits { agents: worker.jig.slots, ..agent.host_limits },
         reply_bytes: agent.limits.bodies.host_reply_text,
         bounds: agent.bounds.clone(),
@@ -159,18 +166,6 @@ pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -
     })
 }
 
-/// Credentials (including keys), a program source name, or a generated identity.
-pub(crate) fn grant_bytes(credential: u32, identity: u32) -> Option<u32> {
-    Some(credential.max(u32::try_from(smith_host_domain::SourceName::BYTES).ok()?).max(identity))
-}
-
-/// A lent credential's bound: a key's is jig's key bound, the token bound capped by the client wire's
-/// (jig-protocol-config's `key_bytes`), so the token bound covers both. The wire's own ceiling also covers a
-/// moved account's file, which no worker is lent (protocol/credentials.md, 3).
-pub(crate) fn credential_bytes(token: u32) -> u32 {
-    token
-}
-
 /// One retained declaration per recognized adapter, with each path at smith's bound.
 fn programs_valid(programs: &[settings::Program]) -> bool {
     if programs.len() > 1 {
@@ -193,5 +188,94 @@ pub fn credential(worker: &settings::Worker, secret: &[u8]) -> link::Credential 
         name: worker.jig.name.clone(),
         secret: config::secret(secret.into()),
         payload: payload::PAYLOAD_VERSION,
+    }
+}
+
+fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
+    temper_worker_domain::tooling::Limits {
+        file_bytes: limits::TOOLING_FILE_BYTES,
+        tail_bytes: limits::TOOLING_LOG_BYTES,
+        path_bytes: limits::TOOLING_PATH_BYTES,
+        jobs: slots,
+        path: limits::TOOLING_PATH.into(),
+    }
+}
+
+impl From<limits::Checkout> for temper_worker_domain_checkout::Limits {
+    fn from(limits: limits::Checkout) -> Self {
+        Self {
+            workspaces: limits.workspaces,
+            repositories: limits.repositories,
+            name_bytes: limits.name_bytes,
+            message_bytes: limits.message_bytes,
+            conflicts: limits.conflicts,
+            path_bytes: limits.path_bytes,
+            remote_timeout: limits.remote_timeout,
+            local_timeout: limits.local_timeout,
+            facts: limits.facts,
+        }
+    }
+}
+
+impl From<limits::GitComponent> for temper_worker_protocol_git::Limits {
+    fn from(limits: limits::GitComponent) -> Self {
+        Self {
+            operations: limits.operations,
+            stdout_bytes: limits.stdout_bytes,
+            stderr_bytes: limits.stderr_bytes,
+            read_bytes: limits.read_bytes,
+            sweep_entries: limits.sweep_entries,
+            sweep_bytes: limits.sweep_bytes,
+        }
+    }
+}
+
+/// The worker's agent profile, which the binary reads from smith's
+/// agent configuration, as jig's reference service's `Agent`
+/// (`lib.rs:36-41`); 09 builds the worker's host half from it.
+#[derive(Debug)]
+pub struct Agent {
+    /// Receiving run bounds, including the protocol's measured schema costs.
+    pub run_limits: smith_domain_run::Limits,
+    pub tool_payload: u32,
+    pub programs: Box<[settings::Program]>,
+    pub endpoints: smith_protocol_channel::Endpoints,
+    pub limits: smith_host_protocol::Limits,
+    pub bounds: jig_domain_link::Bounds,
+    pub host_limits: smith_host_domain::Limits,
+}
+
+const _: () = assert!(
+    crate::values::SOURCE_NAME_BYTES == smith_host_domain::SourceName::BYTES,
+    "engine and worker source name bounds agree"
+);
+
+impl Agent {
+    pub(crate) fn tool_payload(&self) -> u32 {
+        self.tool_payload
+    }
+    pub(crate) fn host_ask_input(&self) -> u32 {
+        self.limits.bodies.host_ask_input
+    }
+    pub(crate) fn host_reply_text(&self) -> u32 {
+        self.limits.bodies.host_reply_text
+    }
+    pub(crate) fn turn_body(&self) -> u32 {
+        self.limits.bodies.turn_body
+    }
+    pub(crate) fn outcome_bytes(&self) -> u64 {
+        self.host_limits.outcome_bytes
+    }
+    pub(crate) fn run_limits(&self) -> &smith_domain_run::Limits {
+        &self.run_limits
+    }
+    pub(crate) fn bounds(&self) -> &jig_domain_link::Bounds {
+        &self.bounds
+    }
+    pub(crate) fn programs(&self) -> &[settings::Program] {
+        &self.programs
+    }
+    pub(crate) fn resolves_endpoint(&self, name: &[u8]) -> bool {
+        self.endpoints.resolve(name).is_some()
     }
 }

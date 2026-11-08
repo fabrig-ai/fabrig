@@ -52,9 +52,30 @@ fn settings_refusals_name_the_flag_and_its_reason() {
         assert_eq!(resolve(&args(&arguments), &[], b"/work").expect_err("refused").to_string(), expected);
     }
 }
+pub(crate) fn scratch(name: &str) -> PathBuf {
+    let path = std::env::temp_dir().join(format!("temper-dirs-{}-{name}", std::process::id()));
+    std::fs::create_dir(&path).expect("scratch");
+    path
+}
+pub(crate) fn given(root: &Path) -> Directories {
+    resolve(
+        &args(&[
+            "--config",
+            root.to_str().expect("scratch text"),
+            "--data",
+            root.join("data").to_str().expect("data text"),
+            "--cache",
+            root.join("cache").to_str().expect("cache text"),
+        ]),
+        &[],
+        b"/",
+    )
+    .expect("given")
+    .0
+}
 #[test]
 fn roots_are_private_and_checked_at_their_own_names() {
-    use std::os::unix::fs::{MetadataExt, PermissionsExt, symlink};
+    use std::os::unix::fs::{PermissionsExt, symlink};
     for row in ["absent", "private", "public", "link", "file", "parent-link"] {
         let scratch = skein_scratch::Scratch::new(row);
         let root = scratch.path().to_path_buf();
@@ -95,4 +116,16 @@ fn roots_are_private_and_checked_at_their_own_names() {
             assert_eq!(std::fs::metadata(root.join("parent")).expect("made parent").mode() & 0o777, 0o700);
         }
     }
+}
+#[test]
+fn a_missing_document_refuses_before_making_data_or_cache() {
+    let root = scratch("missing");
+    let dirs = given(&root);
+    assert_eq!(
+        dirs.read().expect_err("missing"),
+        format!("configuration {}: absent; temper init writes one", dirs.document().display())
+    );
+    assert!(!super::super::path(&dirs.data).exists());
+    assert!(!super::super::path(&dirs.cache).exists());
+    std::fs::remove_dir_all(root).expect("cleanup");
 }
