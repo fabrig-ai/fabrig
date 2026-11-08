@@ -352,15 +352,10 @@ the fake's own process story.
   where the draft has an explicit export, because a record back at its
   path owes nothing whichever return brought it.
 
-- **Not yet:** 2.6: B0's two offline proofs are ignored and run by
-  `scripts/proof-live.sh rung-b0-offline` alone, under profile
-  `live-temper` with `--run-ignored only` (`crates/temper/tests/proof_live.rs`);
-  `.config/nextest.toml`'s `process-temper` selects neither them nor
-  `managed_ready_client`. 2.7: of the tests that need a person, the landing
-  pair's and the rung's `#[ignore]` reasons say "a person's sitting" and
-  "owner-run only", naming no held login, and
-  `a_real_model_answers_a_chat_and_pushes_a_small_change`'s names no
-  sign-in (`crates/temper/tests/live.rs`).
+- **Not yet:** 2.6: B0's two offline proofs have no runtime result in
+  profile `process-temper`, and no CPU figure against the tier's budgets
+  (`tools/tiers/budgets.toml`): the plan `ignored-tiers` compiled and
+  listed them, and the next after-landing run proves them (11).
 - **Not yet:** 2.6: `managed_ready_client` is ignored and runs only as the
   managed sitting's client, its mode and link the sitting's
   (`crates/temper/tests/support/managed_client.rs`): nothing but
