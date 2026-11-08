@@ -15,6 +15,18 @@ Section 5 keeps the rendered comparison, reload proof, palette refinement,
 system preference and night placeholder separate. The nonempty Home
 sections' suppression gap is `README.status.md`, 3.5's.
 
+- **Not yet:** 2.5, *Day and night*, *Shadows keep their colour*: the night
+  set gives twelve shadow colours `rgba(0, 0, 0, .4)` where the request
+  keeps the day's (`look-round-20`'s `night-shadows`).
+- **Not yet:** 2.5, *The project's frame* and *Day and night*, *The switch*:
+  Ask temper's page on a phone hides the three tabs while To begin shows;
+  the switch has no box on a phone's chat layout or in the rail folded
+  beside a Split (`look-round-20`'s `tabs-and-switch`).
+- **Not yet:** 7.2, `home-begin-with-needs`: the state is still
+  `home-needs-under-begin`, drawing Needs you and Chats under the card,
+  and `home-begin-settings-left` draws Chats under it
+  (`look-round-20`'s `begin-sections`).
+
 Sections 2.5 and 7.2 have no known implementation gap in the
 `ask-temper-place` repairs: the bar's tag is visible, its separator is
 hidden on a phone, and the spend paragraph stays hidden. First-run

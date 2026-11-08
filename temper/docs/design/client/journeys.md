@@ -857,8 +857,8 @@ temper/ui compares the three requests with main after landing
   after landing at 1440, 1000 and 420 px, with menus, disclosures and
   each named state (`../draft/look-requests.md`, section 4). Use
   `project-landing`'s two-step print, the `home-begin-*` states and the
-  three `night-*` states; include Home with content while To begin shows
-  (`README.status.md`, 3.5). Default: replayed prints and hand-made
+  three `night-*` states; include Home with a need and a chat left out
+  while To begin shows (`home-begin-with-needs`). Default: replayed prints and hand-made
   gallery inputs, with no recording of a night choice; print equality
   establishes no rendered equality. Findings are filed back, and repairs
   carry the request's trailer.
