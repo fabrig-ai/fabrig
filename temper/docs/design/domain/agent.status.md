@@ -4,8 +4,6 @@
 
 
 
-- **Not yet:** 8.5: the stock holds no drafter's charter and no design
-  session (`temper-service/src/stock.rs`).
 
 Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,

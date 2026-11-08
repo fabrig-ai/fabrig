@@ -6,9 +6,9 @@ use skein_lib::{Secret, Token};
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
 pub const DIALECT: u32 = 3;
 
-// The stock catalogue holds eight charters.
+// The stock catalogue holds nine charters.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"tasks.charters":8,"core.templates":4,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":14,"tasks.executor_kinds":14,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"tasks.charters":9,"core.templates":5,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":15,"tasks.executor_kinds":15,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -57,7 +57,7 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
     let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
-    // This typed fixture reaches the core's start; policy 1 needs 5886 bytes.
+    // This typed fixture reaches the core's start; policy 1 needs 5918 bytes.
 
     settings::Engine {
         host_reply_bytes: None,
