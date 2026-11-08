@@ -120,7 +120,17 @@ in one drawing laid out by its width, the line's two tones, the scene's
 caret and stops with no ARIA; temper/ui's rendered comparison follows
 landing (`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and
 13.2 to 13.10; `client/README.md`, 3.5, 5.13, 5.16 and 11;
-`client/README.status.md`; `draft/stock-ways.status.md`). Ask temper's
+`client/README.status.md`; `draft/stock-ways.status.md`). Its render
+check's eight misses are repaired by `look-round-24`: a path's marks
+take no outline, under 720 it is the request's picture scaled, an open
+card stands 14 px under it, the gallery prints it down the page at 420,
+a card's "Asked to" is its charter's first sentence whole, CI's card
+names the required checks, every card's link opens a role's or a rule's
+page in Settings, and the terminal prints "Ways of working:" and "The
+way a change goes:" once each. No gallery state draws those two pages,
+and the repairs' render check follows landing (`client/README.status.md`,
+3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
+`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
@@ -133,9 +143,9 @@ rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10). On a phone, Ask temper's composer and
 model picker stand above its three tabs by a selector browsers accept,
 and the five first-run Ask gallery states draw To begin's restricted rail
-and tabs; the history story's phone row has no supplied passing run, and
-the gallery's tests exceed their 1 CPU s budget until a cost repair
-(`client/browser.status.md`, 2.5 and 7.3).
+and tabs, and the history story, with its phone row, passes its runs
+alone; the gallery's tests exceed their 1 CPU s budget until a cost
+repair (`client/browser.status.md`, 2.5, 4.6 and 7.3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
 landing (`client/journeys.md`, section 10).
@@ -418,6 +428,11 @@ its staged files. The parked producer's proof uses fake git and disk, with a del
 as its first commit; the `resume-told` request's real-checkout proof and deployment
 replay are not on record. Parking with markers still loses that run's own edits,
 while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+A start smith refuses as busy spends no try, but `temper help task` still
+says an "invalid results" hold may mean a start refused before any turn,
+which spends a permanent try (`domain/worker.md`). Template 4's report
+reaches its run as at most 1,024 bytes, jig's contract text bound, where
+the reference gives it 63,738 (`protocol/configuration.md`).
 Saved work in the task's saved set
 is deleted through its release, and a clean update's repair names its failed
 check and carries its output before the base's contents; their real-deployment

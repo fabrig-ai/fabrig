@@ -64,6 +64,8 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
+            | Address::Role { .. }
+            | Address::Rule { .. }
             | Address::Repositories { .. }
             | Address::Work { .. }
             | Address::Goals { .. }

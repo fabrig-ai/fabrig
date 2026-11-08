@@ -124,6 +124,8 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
         | crate::Address::Settings { .. }
         | crate::Address::Repositories { .. }
         | crate::Address::Builders { .. }
+        | crate::Address::Role { .. }
+        | crate::Address::Rule { .. }
         | crate::Address::Ask { .. }
         | crate::Address::Adopt { .. } => return,
     }

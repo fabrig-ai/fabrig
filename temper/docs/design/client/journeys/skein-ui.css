@@ -33,6 +33,14 @@
   display: block;
 }
 
+/* A scene that says its width scales to its figure's (ui-web, 8). */
+[data-scene-width] > svg {
+  position: static;
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 /* A flow's plain default (ui.md, 11.5): an owner's stylesheet may restyle it. */
 [data-drawn] > svg .skein-ui-flow-name,
 [data-drawn] > svg .skein-ui-flow-caption {

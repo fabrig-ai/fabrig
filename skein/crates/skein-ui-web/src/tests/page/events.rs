@@ -1070,8 +1070,7 @@ fn act_scene(_: DrawingKind, data: &[u8], width: u16, height: u16, scene: &mut s
     }
     if data == b"background" { scene.scene_act(b"bg") } else { scene.act(b"bar") }
 }
-fn drawing_page(data: &[u8]) -> Page<'static> {
-    let look = crate::Look { draw: act_scene, ..fixtures::look() };
+fn drawing_page(data: &[u8], look: crate::Look<'static>) -> Page<'static> {
     let (mut page, mut view) = (Page::new(look, &LIMITS, b"/", Primary::Control), View::new(&LIMITS));
     page.apply(&fixtures::patches(&mut view, 0, |b| drawing(b, data)), &mut Vec::new());
     let mut attribute = skein_ui::Made::of(view.tree().get(2).expect("fixture drawing")).attribute;
@@ -1083,7 +1082,7 @@ fn drawing_page(data: &[u8]) -> Page<'static> {
 
 #[test]
 fn a_mark_press_reports_its_bytes() {
-    let mut page = drawing_page(b"mark");
+    let mut page = drawing_page(b"mark", crate::Look { draw: act_scene, ..fixtures::look() });
     assert_eq!(
         page.act(Event::Drawing { node: DRAWING, under: Box::new([0]), x: 7, y: 9 }, &mut Vec::new()),
         Some((DRAWING, Act::Drawing { data: Box::from(b"bar".as_slice()) }))
@@ -1092,16 +1091,28 @@ fn a_mark_press_reports_its_bytes() {
 
 #[test]
 fn a_background_press_appends_its_point() {
-    let mut page = drawing_page(b"background");
-    assert_eq!(
-        page.act(Event::Drawing { node: DRAWING, under: Box::new([]), x: 7, y: 9 }, &mut Vec::new()),
-        Some((DRAWING, Act::Drawing { data: Box::new([b'b', b'g', 7, 0, 9, 0]) }))
-    );
+    for (look, width, x, y, scene_x, scene_y) in [
+        (crate::Look { draw: act_scene, ..fixtures::look() }, 100, 7, 9, 7_u16, 9_u16),
+        (fixtures::scene_size_look(), 360, 90, 10, 180, 20),
+        (fixtures::scene_size_look(), 1000, 91, 11, 65, 7),
+        (fixtures::scene_size_look(), 1, u16::MAX, u16::MAX, u16::MAX, u16::MAX),
+        (fixtures::scene_size_look(), 0, 90, 10, 90, 10),
+    ] {
+        let mut page = drawing_page(b"background", look);
+        page.resized(DRAWING, width, 50, &mut Vec::new());
+        let [x_lo, x_hi] = scene_x.to_le_bytes();
+        let [y_lo, y_hi] = scene_y.to_le_bytes();
+        assert_eq!(
+            page.act(Event::Drawing { node: DRAWING, under: Box::new([]), x, y }, &mut Vec::new()),
+            Some((DRAWING, Act::Drawing { data: Box::new([b'b', b'g', x_lo, x_hi, y_lo, y_hi]) })),
+            "box width {width}, point ({x}, {y})"
+        );
+    }
 }
 
 #[test]
 fn an_undrawn_scene_does_not_act() {
-    let mut page = drawing_page(b"undrawn");
+    let mut page = drawing_page(b"undrawn", crate::Look { draw: act_scene, ..fixtures::look() });
     assert_eq!(page.act(Event::Drawing { node: DRAWING, under: Box::new([]), x: 7, y: 9 }, &mut Vec::new()), None);
 }
 

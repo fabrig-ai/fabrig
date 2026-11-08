@@ -80,6 +80,8 @@ pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -
                     | Address::Settings { .. }
                     | Address::Models { .. }
                     | Address::Builders { .. }
+                    | Address::Role { .. }
+                    | Address::Rule { .. }
                     | Address::Repositories { .. }
                     | Address::Adopt { .. } => false,
                 }

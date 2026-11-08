@@ -24,10 +24,9 @@ role of the project's people.
 ## 1. In one page
 
 - **An owner for an area, for the project's life.** A standing role holds an
-  area of a project: some paths of its repositories and the findings labelled
-  for it. It answers for what happens there: findings, reds after landing, the
-  questions its own work asks. A person may own an area instead, and Team
-  lists both (section 2).
+  area of a project, said in words. It answers for what happens there:
+  findings, reds after landing, the questions its own work asks. A person may
+  own an area instead, and Team lists both (section 2).
 - **A long life, short sessions.** Each stretch of work is a session. It goes
   on while its work does and its cache is warm, and code ends it. Every run
   writes its Now before it parks, so the session's last run leaves it
@@ -36,8 +35,9 @@ role of the project's people.
 - **Its Now is its memory.** A few lines it writes itself: where things stand,
   what it waits for, what it does next. People read it on Team, and Home's
   brief reads the owners' Nows (sections 3 and 7).
-- **Routed by area** (section 4). What has no area goes to the project's
-  triager, now the owner of what nobody else owns.
+- **Routed by a role's judgement** (section 4): the project's triager reads
+  what comes in against the areas' words and hands it to its owner, and keeps
+  what fits none. Routing by path is later (section 13).
 - **Its person** (section 2): who handed it its area requests it, so its
   questions and the decisions it takes in their place reach a person.
 - **Bounded** (section 5). It starts goals and changes in its area, answers
@@ -61,7 +61,7 @@ role of the project's people.
   (`per-wake.md`, section 3), its models and efforts, its tools and its
   documents (jig's `domain/engine.md`, 17.9). They change by a proposal of
   settings, as every setting does (jig's `domain/engine.md`, 17.6).
-- **Its area:** paths and labels, section 4.
+- **Its area:** what it covers, in words, section 4.
 - **Its person:** the person who handed it its area requests it, a party
   (jig's `domain/tasks.md`, section 3). So jig's routes carry its questions,
   escalations and proposals to that person, and the decisions it takes in
@@ -74,8 +74,8 @@ role of the project's people.
   most: where things stand, what it waits for and why, what it does next and
   when, what it asked and what it decided.
 - **Its wakes:** a wake policy and subscriptions (jig's `domain/tasks.md`, 8.3
-  and 8.4) over what concerns its area: landings that touch its paths, reds of
-  its tiers, findings with its labels, its own work's questions and results, a
+  and 8.4) over what concerns its area: landings that touch paths it names, reds
+  of its tiers, findings with its labels, its own work's questions and results, a
   person's words, and timers. Porter, the pilot's owner of vsr-rs
   (`whole-story.md`, 5.2), wakes at once on a landing on vsr's main that
   touches `src/` or `include/` and on a red of vsr-rs, every four hours on
@@ -143,30 +143,34 @@ role of the project's people.
 
 ## 4. Areas and routing
 
-- **An area** is a project's: a name, paths of its repositories (a repository
-  whole, or prefixes within one), the finding labels it takes
-  (`area:<name>`, `../domain/findings.md`, section 2) and its owner. Today a
-  project's areas are named per repository beside its gates
-  (`../domain/findings.md`, section 9). Areas by path are new.
-- **A path has one area:** the area whose prefix names it longest. The
-  project's area with no paths, "No area yet" on Team, takes the rest.
+- **An area** is a project's: a name, what it covers in words, the finding
+  label it takes (`area:<name>`, `../domain/findings.md`, section 2) and its
+  owner, a setting changed by proposal. Today a project's areas are named per
+  repository beside its gates (`../domain/findings.md`, section 9). Words are
+  new.
+- **A role routes, by judgement** (the user, 2026-11-08): the project's triager
+  (`../domain/findings.md`, section 6) reads what comes in against the areas'
+  words and its own rules, and hands each to its area's owner by writing that
+  label, with why in a line. It is one short run an item, and a project
+  changes how it routes by changing words.
+- **What fits no area** the triager keeps, and triages itself.
 - **What goes to an area's owner:**
-  - **A finding** with its label, or filed against its paths. The owner
-    triages it as `../domain/findings.md`, section 6's triager does: to a goal,
-    to a new goal, to the backlog, or dropped.
-  - **A red of no goal's** whose failing tests or changed files are in its
-    paths (`../domain/after-landing.md`, section 7). Today the project's
-    triager is told; the area's owner is told instead.
-  - **Feedback:** a person's word through Tell temper is a finding, routed the
-    same way (`whole-story.md`, section 2).
+  - **A finding,** handed on by the triager, or filed with its area's label,
+    which goes straight to the owner with no agent's run. The owner triages it
+    as `../domain/findings.md`, section 6's triager does: to a goal, to a new
+    goal, to the backlog, or dropped.
+  - **A red of no goal's** (`../domain/after-landing.md`, section 7). The
+    project's triager is told, as today, and hands it on.
+  - **Feedback:** a person's word through Tell temper is a finding, its area
+    judged as it is filed (`whole-story.md`, section 2).
   - **Questions** follow the tree, as ever (jig's `domain/tasks.md`, section
     9): a standing role is the requester of what it starts, so its own
     work's questions reach it, and what it can't settle goes on up to its
     person (section 2). Where `what-reaches-you.md`, section 4 lets an agent decide in a
-    person's place, the area's owner is that agent for its paths.
+    person's place, the area's owner is that agent for its area.
 - **A person owner** gets what is routed to them in Needs you, as a person
   triager is notified today (`../domain/findings.md`, section 6).
-- **The project's triager** becomes the owner of what has no area. Today's
+- **The project's triager** may be a person or a standing role. Today's
   setting names a task or a role of the project's people
   (`../domain/findings.md`, section 6), a people role, not a standing role; it
   may now name a standing role as well.
@@ -182,7 +186,7 @@ role of the project's people.
     section 4 lets it;
   - triage the findings and reds routed to it;
   - write its Now and its report;
-  - propose changes to its own rules, its wakes, its area's paths or its
+  - propose changes to its own rules, its wakes, its area's words or its
     budget, as a proposal of settings (jig's `domain/engine.md`, 17.6).
 - **It may not:**
   - accept its own proposal: an owner decides it (jig's `domain/engine.md`,
@@ -190,7 +194,7 @@ role of the project's people.
   - change files outside its area. Its changes land under the project's
     rules by path (`what-reaches-you.md`, section 7): one touching paths a
     rule guards waits for that rule's sign-offs, as any change does, and
-    its charter's words keep it to its own paths in the first place.
+    its charter's words keep it to its own area in the first place.
     What it needs outside its area it asks of that area's owner, as a
     question or a request for a change;
   - spend past its period's budget;
@@ -276,10 +280,11 @@ Each is a design lag, by its status file.
 - **The Now kept with the task** (jig): a task's working notes, from jig's
   `draft/notes-memory.md`, section 4, whole in every brief, bounded, and read
   by the project's people.
-- **Areas by path, and routing** (temper): areas with paths and an owner, as a
-  project's setting (`../domain/findings.md`, section 9); findings and reds of
-  no goal's routed to their area's owner (`../domain/findings.md`, section 6;
-  `../domain/after-landing.md`, section 7).
+- **Areas, and routing** (temper): areas in words with an owner, as a project's
+  setting (`../domain/findings.md`, section 9); the triager's act that hands a
+  finding or a red of no goal's to an area's owner, by its label
+  (`../domain/findings.md`, sections 2 and 6; `../domain/after-landing.md`,
+  section 7).
 - **A standing role in the stock** (temper): its charter and its template
   (`../protocol/configuration.md`, 13.4), and its row among the agents temper
   runs (`../domain/agent.md`, section 8).
@@ -296,12 +301,12 @@ Each is a design lag, by its status file.
 
 - **A way may bring standing roles,** revising `stock-ways.md`, section 2,
   as Draft first brings its coordinator and goal template (`stock-ways.md`,
-  3.3). Draft first brings a triager, a standing role that owns what has no
-  area, with a small budget a week. A project with no standing role keeps
+  3.3). Draft first brings a triager, a standing role that routes what comes
+  in and owns what has no area, with a small budget a week. A project with no standing role keeps
   its person as the owner of everything, as at Pair.
 - **How work runs lists a project's standing roles** with their areas, wakes and
   budgets, beside its way.
-- **"Hand an area to a role"** on Team names the area's paths, takes a stock
+- **"Hand an area to a role"** on Team says what the area covers, takes a stock
   standing role's rules or new ones written by asking temper, and sets its
   budget: a proposal an owner accepts. Whoever hands it the area is its
   person (section 2).
@@ -328,8 +333,9 @@ each landing.
     its last run's;
   - a standing role's run that answers finished is committed as parked, and
     the standing role stays live;
-  - routing: the longest prefix wins, a label routes, what has no area goes to
-    the triager, a person owner gets a Needs you entry;
+  - routing: a label goes to its area's owner with no agent's run, the
+    triager's hand-off reaches the owner it names, with its why, what fits no
+    area stays with the triager, a person owner gets a Needs you entry;
   - a standing task is never told that nothing is awaited, is not held past
     the stall's bound while idle with live delegates, counts its tries per
     session, and ends only when cancelled;
@@ -338,12 +344,13 @@ each landing.
   - its budget is carved again at a period's start, and a standing role past it is
     held for money;
   - a standing role's own proposal is refused when it decides it.
-- **Fuzzy:** random areas and paths, where every path has exactly one owner;
+- **Fuzzy:** random areas and hand-offs, where every finding has exactly one
+  owner at any time;
   random wake times, where no run resumes past a quiet span and every fresh
   run follows a written Now or the session's recorded end.
 - **A world story,** with a fake model's script (`../domain/testing.md`, 2.1
-  and 2.4): on the playground's repository, a standing role owns `tests/`. A red of its
-  tier is routed to it; it triages it, makes the repair change, and the change
+  and 2.4): on the playground's repository, a standing role owns the tests. A red of its
+  tier reaches the triager, which hands it to the role; it triages it, makes the repair change, and the change
   lands. It writes its Now. A wake an hour later starts fresh, its brief
   holding that Now and no transcript. A person talks with it, and an
   instruction becomes a rule by a proposal accepted in place.
@@ -366,3 +373,13 @@ each landing.
   change of areas.
 - **The weekly report's form:** a note, or a document the standing role shows (jig's
   `draft/notes-memory.md`, section 5).
+
+## 13. Later
+
+- **Routing by path,** a deterministic way beside the triager's judgement
+  (the user, 2026-11-08): an area names paths of its repositories, a repository
+  whole or prefixes within one; a path has one area, the one whose prefix names
+  it longest; and a finding filed against those paths, or a red whose failing
+  tests or changed files are in them, goes to the owner with no agent's run.
+  Sign-offs by path are another matter, a landing's rule, and stay
+  (`what-reaches-you.md`, section 7).

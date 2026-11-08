@@ -732,6 +732,8 @@ fn shown(root: &Domain, project: u32) -> Shown {
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
@@ -850,6 +852,8 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Members
         | Address::Limits

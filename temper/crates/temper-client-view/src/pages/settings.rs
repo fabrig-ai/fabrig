@@ -125,29 +125,56 @@ fn flow_path(
 pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, tab: Tab) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_COL);
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_INTRO);
-    let name = project_name(root, w, project);
-    text(b, Role::Paragraph, &w.say(Word::SettingsKicker, &[Hole::Name(name.clone())]), look::SETTINGS_KICKER);
-    let (heading, lede) = match tab {
-        Tab::HowWorkRuns => (Word::SettingsHowHeading, Word::SettingsHowLede),
-        Tab::Repositories => (Word::SettingsRepositoriesHeading, Word::SettingsRepositoriesLede),
-        Tab::Forges => (Word::SettingsForgesHeading, Word::SettingsForgesLede),
-        Tab::Accounts => (Word::SettingsAccountsHeading, Word::SettingsAccountsLede),
-        Tab::Models => (Word::ModelsHeading, Word::ModelsLede),
-        Tab::Builders => (Word::SettingsBuildersHeading, Word::SettingsBuildersLede),
+    let detail = match root.pages().address() {
+        Address::Role { .. } | Address::Rule { .. } => true,
+        Address::Inbox { .. }
+        | Address::Chats { .. }
+        | Address::NewChat { .. }
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Home { .. }
+        | Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Settings { .. }
+        | Address::Repositories { .. }
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Work { .. }
+        | Address::Members
+        | Address::Limits
+        | Address::Ask { .. }
+        | Address::Adopt { .. } => false,
     };
-    let title = match tab {
-        Tab::HowWorkRuns | Tab::Repositories => w.say(heading, &[Hole::Name(name.clone())]),
-        Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(heading, &[]),
-    };
-    text(b, Role::Heading { level: 1 }, &title, look::SETTINGS_HEADLINE);
-    let lede = match tab {
-        Tab::Repositories => w.say(lede, &[Hole::Name(name)]),
-        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(lede, &[]),
-    };
-    text(b, Role::Paragraph, &lede, look::SETTINGS_LEDE);
-    b.close();
+    if !detail {
+        b.open(Role::Slot);
+        b.style(look::SETTINGS_INTRO);
+        let name = project_name(root, w, project);
+        text(b, Role::Paragraph, &w.say(Word::SettingsKicker, &[Hole::Name(name.clone())]), look::SETTINGS_KICKER);
+        let (heading, lede) = match tab {
+            Tab::HowWorkRuns => (Word::SettingsHowHeading, Word::SettingsHowLede),
+            Tab::Repositories => (Word::SettingsRepositoriesHeading, Word::SettingsRepositoriesLede),
+            Tab::Forges => (Word::SettingsForgesHeading, Word::SettingsForgesLede),
+            Tab::Accounts => (Word::SettingsAccountsHeading, Word::SettingsAccountsLede),
+            Tab::Models => (Word::ModelsHeading, Word::ModelsLede),
+            Tab::Builders => (Word::SettingsBuildersHeading, Word::SettingsBuildersLede),
+        };
+        let title = match tab {
+            Tab::HowWorkRuns | Tab::Repositories => w.say(heading, &[Hole::Name(name.clone())]),
+            Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(heading, &[]),
+        };
+        text(b, Role::Heading { level: 1 }, &title, look::SETTINGS_HEADLINE);
+        let lede = match tab {
+            Tab::Repositories => w.say(lede, &[Hole::Name(name)]),
+            Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(lede, &[]),
+        };
+        text(b, Role::Paragraph, &lede, look::SETTINGS_LEDE);
+        b.close();
+    }
     b.open(Role::Navigation);
     b.name(&w.say(Word::RailSettings, &[]));
     b.style(look::SETTINGS_TABS);

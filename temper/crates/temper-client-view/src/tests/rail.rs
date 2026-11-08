@@ -599,6 +599,8 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     Address::Settings { .. }
                     | Address::Models { .. }
                     | Address::Builders { .. }
+                    | Address::Role { .. }
+                    | Address::Rule { .. }
                     | Address::Repositories { .. }
                     | Address::Ask { .. }
                     | Address::Members
