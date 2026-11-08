@@ -779,14 +779,17 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
 
 #[test]
 fn a_project_with_no_ways_reads_at_their_stock() {
-    let mut world = World::stock();
-    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
-    for (completion, kind, value) in [
-        (1, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
-        (2, "project-questions", r#""none""#),
+    let mut world = World::new(member_config());
+    let member = world.member();
+    let run = world.chat(ASK_TEMPLATE, member, 20);
+    for (completion, address, answer) in [
+        (1, "project-ways", format!("project-ways {PROJECT}, revision 1\n{{\"drafts\":true,\"goals\":false,\"changes\":false,\"away\":false,\"way\":0}}\nthe stock\n")),
+        (2, "project-questions", format!("project-questions {PROJECT}, revision 1\n\"none\"\nthe stock\n")),
+        (3, "charter-words 4", "charter-words 4, revision 1\n\"reviews each change at its head, and holds it until it approves\"\ndefault, 67 bytes\n".to_owned()),
+        (4, "charter-words 7", "charter-words 7, revision 1\ncharter-words 7: none kept; Roles says the charter by its instructions' first sentence.\n".to_owned()),
     ] {
-        let (text, _) = see_whole(&mut world.driver, &run, completion, &format!("settings {kind}"));
-        assert_eq!(text, format!("{kind} {PROJECT}, revision 1\n{value}\nthe stock\n"));
+        let (text, _) = see_whole(&mut world.driver, &run, completion, &format!("settings {address}"));
+        assert_eq!(text, answer, "{address}");
     }
 }
 
