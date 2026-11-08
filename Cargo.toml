@@ -574,7 +574,7 @@ temper-client-domain = { path = "temper/crates/temper-client-domain" }
 temper-version = { path = "temper/crates/temper-version" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper = { path = "temper/crates/temper" }
-temper-service = { path = "temper/crates/temper-service" }
+temper-service = { path = "temper/crates/temper-service", default-features = false }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }
 temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git" }
 temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wire" }

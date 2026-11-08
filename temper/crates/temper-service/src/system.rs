@@ -136,6 +136,7 @@ impl Service {
         }
     }
 
+    #[cfg(feature = "worker")]
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,
@@ -296,9 +297,11 @@ impl Service {
     // The stock small profile's Prepared::room:
     // twice its worker root output bound of 5,099. These kernel-facing
     // process queues retain that capacity independently of the watermark.
+    #[cfg(feature = "worker")]
     const WORKER_ALONE_QUEUE: u32 = 10_198;
 
     /// Build the worker and shared IO without allocating any engine children.
+    #[cfg(feature = "worker")]
     pub(crate) fn worker_alone(
         settings: &settings::Worker,
         limits: &limits::Limits,
@@ -701,6 +704,7 @@ impl Service {
         if let Some(engine) = &self.engine {
             roots.entry(&engine.domain);
         }
+        #[cfg(feature = "worker")]
         if let Some(worker) = &self.worker {
             roots.entry(&worker.root);
         }

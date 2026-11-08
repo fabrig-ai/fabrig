@@ -1680,3 +1680,30 @@ fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
     );
     assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
 }
+
+#[test]
+fn an_unbuilt_worker_refuses_only_shapes_that_need_it() {
+    use crate::startup::{Shape, unbuilt};
+    let mut failures = List::with_capacity(6);
+    for (shape, worker, refused) in [
+        (Shape::Standalone, false, true),
+        (Shape::WorkerAlone, false, true),
+        (Shape::EngineAlone, false, false),
+        (Shape::Standalone, true, false),
+        (Shape::WorkerAlone, true, false),
+        (Shape::EngineAlone, true, false),
+    ] {
+        let found = unbuilt(shape, worker);
+        if found.is_some() != refused {
+            failures.push((shape, worker)).unwrap();
+        }
+        if let Some(found) = found {
+            assert_eq!(found.path, Path::root().member(b"workers"));
+            assert!(found.file.is_none());
+            let mut problems = Problems::empty();
+            problems.problems.push(found).unwrap();
+            assert_eq!(lines(&problems).as_ref(), b"workers: this build serves an engine alone\n");
+        }
+    }
+    assert!(failures.is_empty(), "wrong build acceptance: {failures:?}");
+}

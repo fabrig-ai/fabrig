@@ -64,10 +64,6 @@ are designed and not yet built:
   `crates/temper`'s (`commands.rs`, `directories.rs`, `help.rs`,
   `link_file.rs`), rendered under `temper` alone.
 
-- **Not yet:** 4.1, 5: `temper-service` has no `worker` feature: the
-  worker's half is always built, and nothing refuses a worker's
-  document in a build without it.
-
 - **Not yet:** 4.1, 5: `temper-engine-shell`, the forge's commands:
   they are `crates/temper`'s (`forge.rs`, `forge_sign_in.rs`,
   `setup.rs`), and no row is a constant two tables share.
