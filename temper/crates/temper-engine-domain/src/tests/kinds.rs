@@ -787,17 +787,18 @@ fn forge_proposal_reads_use_the_deployment_unique_key_and_preserve_edits() {
 fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
     use forge::Mode::{Connected, Owned};
     use jig_domain_people::{ApplicationScope, Role};
-    // Kind, scope, mode, enforcing, approval, coverage, set, writable, expected.
-    for (kind, scope, mode, enforce, approval, covers, set, writable, expected) in [
-        (2, PROJECT, Owned, true, true, true, true, true, true),
-        (2, PROJECT, Connected, true, true, true, true, true, false),
-        (2, PROJECT, Owned, false, true, true, true, true, false),
-        (2, PROJECT, Owned, true, false, true, true, true, false),
-        (2, PROJECT, Owned, true, true, false, true, true, false),
-        (2, PROJECT, Owned, true, true, true, false, true, false),
-        (2, PROJECT, Owned, true, true, true, true, false, false),
-        (2, PROJECT + 1, Owned, true, true, true, true, true, false),
-        (1, 0, Owned, true, true, true, true, true, true),
+    // Kind, scope, mode, enforcing, approval, coverage, branch pattern, set, writable, expected.
+    for (kind, scope, mode, enforce, approval, covers, branch, set, writable, expected) in [
+        (2, PROJECT, Owned, true, true, true, false, true, true, true),
+        (2, PROJECT, Connected, true, true, true, false, true, true, false),
+        (2, PROJECT, Owned, false, true, true, false, true, true, false),
+        (2, PROJECT, Owned, true, false, true, false, true, true, false),
+        (2, PROJECT, Owned, true, true, false, false, true, true, false),
+        (2, PROJECT, Owned, true, true, true, false, false, true, false),
+        (2, PROJECT, Owned, true, true, true, false, true, false, false),
+        (2, PROJECT + 1, Owned, true, true, true, false, true, true, false),
+        (1, 0, Owned, true, true, true, false, true, true, true),
+        (2, PROJECT, Owned, true, true, true, true, true, true, true),
     ] {
         let (reader, _) = reader(Some(Role::Member));
         let mut config = resume_fixture::config(7);
@@ -847,6 +848,9 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         if approval {
             rule.approvals =
                 Box::new([settings::RuleApproval { role: 1, people: 1, freshness: forge::JudgeFreshness::Exact }]);
+        }
+        if branch {
+            rule.pattern.segments = Box::new([b"branch".as_slice().into()]);
         }
         if !covers {
             rule.pattern.segments = Box::new([Box::from(b"elsewhere".as_slice())]);

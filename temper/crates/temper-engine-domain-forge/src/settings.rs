@@ -289,7 +289,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let Some(first) = rule.pattern.segments.first() else {
         return Err(Refusal::Pattern);
     };
-    if first.as_ref() != b"forge" || !within(rule.pattern.segments.len(), bounds.segments) {
+    let first_ok = first.as_ref() == b"forge" || (kind == Kind::ProjectRules && first.as_ref() == b"branch");
+    if !first_ok || !within(rule.pattern.segments.len(), bounds.segments) {
         return Err(Refusal::Pattern);
     }
     for segment in &rule.pattern.segments {
@@ -340,6 +341,7 @@ pub struct Held {
 #[derive(Hash, Debug)]
 pub struct HeldRules {
     pub deployment: Box<[Held]>,
+    pub every_project: Box<[Held]>,
     pub projects: skein_lib::Map<u32, Box<[Held]>>,
 }
 

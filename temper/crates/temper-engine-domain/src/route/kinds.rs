@@ -223,6 +223,11 @@ pub(super) fn covers_repository(
 ) -> bool {
     use jig_domain_authority::{Last, Pattern, pattern_at_most};
     use temper_engine_domain_forge::GateLast;
+    if let Some(first) = rule.pattern.segments.first()
+        && first.as_ref() == b"branch"
+    {
+        return true;
+    }
     let pattern = Pattern {
         segments: rule.pattern.segments.clone(),
         last: match &rule.pattern.last {
