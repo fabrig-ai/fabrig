@@ -1,0 +1,16 @@
+[package]
+name = "temper-engine-domain-ways"
+description = "The stock ways and a branch's path, derived from the settings"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-change.workspace = true
+
+[lints]
+workspace = true

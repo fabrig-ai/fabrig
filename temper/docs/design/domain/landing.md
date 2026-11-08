@@ -603,6 +603,10 @@ Kind 4's members, each with its default and the section it serves:
   configured in the document's `landing` member
   (`../protocol/configuration.md`, section 3), as the landing rules are,
   and read at the start.
+- **Read by a branch's path** (`forge.md`, 8.13): the project's `by`,
+  and each repository's gates and tiers with the branch each tier
+  follows, as the forge holds them, so that a path draws "prepare",
+  "prove" and "turn" under `turn` and a tier's stops where it has one.
 - **`turn` is refused** for a project with a repository where temper
   cannot fast-forward main to a candidate (section 8: on GitHub, no
   `Always` bypass of a rule requiring a pull request, or a required

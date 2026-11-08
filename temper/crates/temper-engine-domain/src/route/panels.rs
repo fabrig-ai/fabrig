@@ -15,6 +15,16 @@ pub(crate) fn document(
     subject: Token,
     party: u64,
 ) {
+    let mut ways = match scope {
+        ApplicationScope::Project(project)
+            if connector == domain.config.forge_connector
+                && subject == Token::new(crate::ways::subject(project))
+                && domain.core.people.role(party, project).is_some() =>
+        {
+            Some(super::ways::document(domain, project, party))
+        }
+        ApplicationScope::Project(_) | ApplicationScope::Own | ApplicationScope::Deployment => None,
+    };
     let mut approvals = if connector == domain.config.forge_connector
         && scope == ApplicationScope::Own
         && subject == Token::new(crate::APPROVALS_SUBJECT)
@@ -44,7 +54,7 @@ pub(crate) fn document(
     } else {
         None
     };
-    let outcome = if panel.is_some() || forges.is_some() || trials.is_some() || approvals.is_some() {
+    let outcome = if panel.is_some() || forges.is_some() || trials.is_some() || approvals.is_some() || ways.is_some() {
         views::Made::Ready
     } else {
         views::Made::Gone { why: views::End::Gone }
@@ -64,7 +74,9 @@ pub(crate) fn document(
             emit(
                 decision,
                 &env.limits,
-                if let Some(document) = approvals.take() {
+                if let Some(document) = ways.take() {
+                    Delivery::Ways { watcher, document: Box::new(document) }
+                } else if let Some(document) = approvals.take() {
                     Delivery::Approvals { watcher, document: Box::new(document) }
                 } else {
                     match trials.take() {
@@ -96,7 +108,7 @@ pub(crate) fn document(
         }
     }
     assert!(
-        panel.is_none() && forges.is_none() && trials.is_none() && approvals.is_none(),
+        panel.is_none() && forges.is_none() && trials.is_none() && approvals.is_none() && ways.is_none(),
         "every ready document was taken where it was made"
     );
 }

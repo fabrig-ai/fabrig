@@ -44,12 +44,18 @@ pub struct Composition {
 impl Composition {
     #[must_use]
     pub fn new(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
-        Self::build(configuration, limits, false, None, None)
+        Self::build(configuration, limits, false, None, None, 0)
+    }
+
+    /// One verified application identity provider, as a box's sign-in supplies it.
+    #[must_use]
+    pub fn with_provider(configuration: &root::Config, limits: jig_client::DomainLimits, provider: u16) -> Self {
+        Self::build(configuration, limits, false, None, None, provider)
     }
 
     #[must_use]
     pub fn new_with_approval(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
-        Self::build(configuration, limits, true, None, None)
+        Self::build(configuration, limits, true, None, None, 0)
     }
 
     #[must_use]
@@ -59,7 +65,7 @@ impl Composition {
         identity: people::Identity,
         secret: Secret,
     ) -> Self {
-        Self::build(configuration, limits, false, Some(identity), Some(secret))
+        Self::build(configuration, limits, false, Some(identity), Some(secret), 0)
     }
 
     #[expect(
@@ -72,6 +78,7 @@ impl Composition {
         approval: bool,
         identity: Option<people::Identity>,
         secret: Option<Secret>,
+        provider: u16,
     ) -> Self {
         let (now, wall) = (Time::ZERO, Wall::EPOCH);
         let env = Env {
@@ -116,7 +123,7 @@ impl Composition {
                     last: temper_client_protocol_wire::CLIENT_VERSION,
                 },
             ]),
-            providers: list([0]),
+            providers: list([provider]),
             seed: Secret::new(Box::new([7; 32])),
             stream: 31,
             models: if configuration.core.defaults.models.is_empty() {
@@ -227,6 +234,14 @@ impl Composition {
                     family: temper_client_protocol_wire::FORGE,
                     record: temper_service::family::forges(forges, &temper_client_protocol_wire::v1::CEILINGS)
                         .expect("forge document"),
+                }))
+            }
+            root::PartyRequest::Deliver(root::Delivery::Ways { watcher, document }) => {
+                Some(Event::Application(clients::FromApplication::Delivery {
+                    watcher,
+                    family: temper_client_protocol_wire::FORGE,
+                    record: temper_service::family::ways_panel(*document, &temper_client_protocol_wire::v1::CEILINGS)
+                        .expect("ways document"),
                 }))
             }
             root::PartyRequest::Deliver(root::Delivery::Approvals { watcher, document }) => {
@@ -908,6 +923,7 @@ fn family_subject(record: &jig_client::Family, scope: c::Scope) -> jig_client_te
         .and_then(|watching| match watching.into_parts().watch {
             temper_client_protocol_wire::v1::Watch::Change(change) => Some(change.task()),
             temper_client_protocol_wire::v1::Watch::Forges
+            | temper_client_protocol_wire::v1::Watch::Ways(_)
             | temper_client_protocol_wire::v1::Watch::Trials
             | temper_client_protocol_wire::v1::Watch::Approvals
             | temper_client_protocol_wire::v1::Watch::Dismissed

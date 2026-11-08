@@ -25,6 +25,7 @@ mod inbox;
 mod limits;
 mod look;
 mod needs;
+mod paths;
 mod person_menu;
 mod playground;
 mod playground_start;
@@ -179,3 +180,5 @@ mod model_check;
 
 mod repository_link;
 mod welcome_copy;
+
+mod views;

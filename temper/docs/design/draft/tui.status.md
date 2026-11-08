@@ -18,6 +18,11 @@
   default is settled by that design: the browser's versioned syntax and
   common records, with the TUI's own records and codec, sharing the
   browser's redaction and last scan (its sections 3 and 5).
+  Section 8's other defaults stand as the user confirmed them on
+  2026-11-08: bare `temper` runs the TUI, with no subcommand
+  (`../client/README.md`, 6.11); the code rides the approval tab's
+  address on a box (4.2); the code is eight characters for ten minutes,
+  and the approval's page is the web client's, at `/terminal`.
 - **Design departs:**
   - 4.1: a local box signs the TUI in with nothing to paste. The running
     engine keeps a one-time link of its own at rest in a private file,
@@ -68,6 +73,3 @@
     `../client/README.md`, section 11's after-landing check.
 - **Open:**
   - 3: the side pane, needs from elsewhere, the hand-offs and a checkout's project, refined on recorded frames as the launchpad and a chat were.
-  - 4.2: the code carried in the tab's address on a box, a risk taken so that one press approves: the user's to confirm.
-  - 8: bare `temper` as a person's command: the cut of `tui-connected` took the section's default, the TUI in a terminal and the usage otherwise (`../client/README.md`, 6.11; `../protocol/README.md`, section 4), as `tui.execution.md` asks; it waits for the user's word.
-  - 8: the code's length and lifetime, and the approval's page, took section 8's defaults (`tui-approval`, as `tui.execution.md` asks): eight characters of twenty consonants, ten minutes (jig's `protocol/client.md`, section 8), and the web client's page at `/terminal` (`../client/README.md`, 3.5; `../client/browser.md`, 2.3), for the user to refine on the first pass.

@@ -3936,8 +3936,8 @@ it checks of this document:
   collaborator, after a restart with both removed by hand (reconcile's
   step 6). Its delivery is not this story's. With a hook that delivers
   nothing, a step test shows the forge staying connected with nothing
-  ended, and the walks on fake backends, whose Forgejo elsewhere delivers
-  nothing, land by polling (section 10).
+  ended, and the forge's world wakes a watched change on its pull's CI
+  with no delivery heard, by polling (section 10).
 - **The first-run behaviours** past these use their lower owners: the
   stock scripts' data tests, the real-loop playground stories, and the
   client and engine setup/reset worlds. The process tier has one short

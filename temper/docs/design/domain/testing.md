@@ -3150,6 +3150,12 @@ scripts/proof-live.sh               the live tier
   runs and a loaded one. Only focused and fuzzy run within the plan.
   The 360 CPU s budget and the profile's 25-minute timeout stand; a red
   after landing is repaired under 2.6's rule, without raising either.
+- **The fake box's two walks, after landing** (2.6): the next
+  after-landing run on main runs `here_key` and the browser tab and reads
+  the tier's CPU without the ten walks whose behaviour went to lower
+  worlds (the request `walks-lower` of 2026-11-08), against the same
+  360 CPU s. A plan compiles the walks and runs none; a red after landing
+  is repaired by name, under 2.6's rule.
 - **jig's referee tests, repeated.** `tests/engine/domain/tests/suite/referee.rs`
   keeps tests of jig's referees that jig's own suites hold:
   `authority_referee_rejects_a_person_without_a_grant` observes what

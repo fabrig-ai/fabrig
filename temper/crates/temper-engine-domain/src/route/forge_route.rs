@@ -4684,6 +4684,7 @@ pub(crate) fn outputs(
                 }
             }
             forge::Request::Erase { key } => {
+                super::ways::erased(domain, &key);
                 save(decision, &env.limits, Write::Erase(Key::Forge(key)));
             }
             forge::Request::Call { call, repository, op } => match op {
@@ -4721,6 +4722,7 @@ pub(crate) fn outputs(
                         ) {
                             Ok(seeds) => {
                                 report_adoption(domain, &adopted.repository);
+                                super::ways::mark(domain, adopted.repository.project);
                                 domain.work.push(Work::People(people::Event::Seed {
                                     project: adopted.repository.project,
                                     collaborators: seeds,

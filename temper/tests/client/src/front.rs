@@ -18,6 +18,8 @@ use temper_client_domain::{self as client, Event as RootEvent, Request};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
+pub mod ways;
+
 pub const PRINTED: [u8; 32] = [9; 32];
 
 #[must_use]
@@ -44,6 +46,7 @@ pub struct Joint {
     status_looks: BTreeMap<ClientId, usize>,
     /// The ctl caller in this world; existing stories use person 1.
     pub caller: u64,
+    sign_in_identity: Option<jig_domain_people::Identity>,
     pub leaves: Vec<Box<[u8]>>,
     pub tabs: Vec<client::Tab>,
     pub shows: Vec<(client::Address, bool)>,
@@ -752,8 +755,10 @@ impl Joint {
         engine_limits.tasks.message_bytes = 512;
         engine_limits.tasks.inbox_bytes = 1024;
         engine_limits.journal.result_bytes = 512;
-        // Stock charter 11's instructions and framed run policy need 9,311 bytes.
-        engine_limits.journal.run_bytes = 9_311;
+        // Stock charter 11's instructions and framed run policy need 9,861 bytes.
+        engine_limits.journal.run_bytes = 9_861;
+        // A stored stock charter 11 has 8,565 payload bytes on settings reads.
+        engine_limits.loads.transcript_bytes = 8_565;
         engine_limits.documents.text_bytes = 4096;
         let mut config = fixtures::asking_configuration(seed, member);
         let policy = config.core.seed_projects[0].policy.clone();
@@ -1418,6 +1423,7 @@ impl Joint {
             dismissal_sends: 0,
             status_looks: BTreeMap::new(),
             caller: fixtures::PARTY,
+            sign_in_identity: None,
             leaves: Vec::new(),
             tabs: Vec::new(),
             shows: Vec::new(),
@@ -2370,11 +2376,11 @@ impl Front<Temper> for Joint {
         self.transport.bind(
             who,
             party,
-            jig_domain_people::Identity {
+            self.sign_in_identity.clone().unwrap_or_else(|| jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
-            },
+            }),
         );
         self.callbacks.push((
             who,
@@ -2384,11 +2390,11 @@ impl Front<Temper> for Joint {
         ));
         self.component.sign_in(
             who,
-            jig_domain_people::Identity {
+            self.sign_in_identity.clone().unwrap_or_else(|| jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
-            },
+            }),
         );
         self.pump_component();
     }
@@ -2549,11 +2555,11 @@ impl Front<Temper> for Joint {
         ));
         self.component.sign_in(
             who,
-            jig_domain_people::Identity {
+            self.sign_in_identity.clone().unwrap_or_else(|| jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
-            },
+            }),
         );
         self.pump_component();
     }

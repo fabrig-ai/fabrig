@@ -484,6 +484,6 @@ pub fn start(
         accounts,
         runtime,
         forges,
-        &crate::stock::Given::Own { jig: defaults, forge: Box::default() },
+        &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
     )
 }

@@ -14,6 +14,14 @@ deferred failure accounting.
 - **Not yet:** 10: the test service's workers cancelled before they are closed: `jig/testing/jig-test-service/src/lib.rs` aborts each worker once the engine has ended, killing its agent processes' groups with no cancel first. This remains outside the temper-service repair: the reference agents use skein's fake LLM, with no program of their own to leave running. Temper's service cancels and waits for its agents before closing its worker.
 - **Departs:** 11, 11.3: `Workers`' `Debug` counts, but its public `io`, formatted alone, prints a queued write's bytes, a grant's among them, because `Queue` and `io::Request` derive their `Debug`s in skein, which is no part. No service formats it.
 
+Section 7's agent modes are present: `jig-test`'s `main` gives
+`--mcp-relay` and `--program-child` to smith's agent shell before it
+reads its configuration (`jig/testing/jig-test/src/main.rs`). Section
+8's table runs the built binary in each, the program child over a
+scripted Claude Code's `auth status`, read `Usable` and not signed in
+by smith's status check (`jig/testing/jig-test/tests/process.rs`,
+`jig_test_serves_smiths_agent_modes`).
+
 Section 3's reference startup refuses approval off loopback, naming
 `engine.clients.approval`, independently of whether the printed link is
 enabled. The startup table includes that refusal.

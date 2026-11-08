@@ -23,6 +23,14 @@ Section 4's `temper [ADDRESS]` command is present, including bare
 The TUI's later passes and post-landing walk are the client's section
 11 work (`../client/README.md`).
 
+Section 4's smith's agent modes are present: `main` gives
+`--mcp-relay` and `--program-child` to smith's agent shell after its
+`argv[0]` dispatches and before the table (`crates/temper/src/main.rs`).
+The `suite` binary's table runs the built binary in each, the program
+child over a scripted Claude Code's `auth status`, read `Usable` and
+not signed in by smith's status check
+(`crates/temper/tests/suite/agent_modes.rs`).
+
 Section 8 has no known gap in orderly worker shutdown: serve cancels the
 runs and waits for every agent process, including a spawn in flight,
 before aborting the remaining worker resources. The real-loop held-turn
