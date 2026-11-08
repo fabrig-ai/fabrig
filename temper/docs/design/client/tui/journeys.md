@@ -592,6 +592,13 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 - **A real box's TUI journey:** none in the first pass; it would be
   recorded by hand and redacted as the browser's real journeys are
   (`../journeys.md`, 3.5).
+- **The place "box" in a journey:** `again` keeps the TUI apart from the
+  box's link file so that it walks the approval (8.2), so no journey
+  draws "box" in the rule above a chat's box (`../README.md`, 6.14, *The
+  rule above the box*), and `launchpad-chat/04` has `127.0.0.1:PORT`
+  where the look request `tui-chat-title-below` drew "box:40691"; the
+  view's rows hold "box". Default: so, until a journey signs in by the
+  engine's link file.
 - **A resize in a walk:** recorded and replayed as a report; `walk` has
   no step for it until a journey needs one.
 - **A new recording's noise:** a fake box's port and the clocks change

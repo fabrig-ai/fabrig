@@ -19,18 +19,24 @@
   redaction across a wrapped link waits with it. The journey is recorded
   once `again` can start the box in the pseudo-terminal.
 
-Beside those, no known implementation gap. Sections 2 to 8.2 have
-recording, shipped-host replay, proof, shared redaction and scan, themed
-prints and generation. Section 8.2's browser-format setup follows its
-browser journey before the TUI starts and refuses a mark. Section 9's
-`sign-in-approved` and `launchpad-chat` have their walk,
+Beside those, no known implementation gap. Sections 2 to 8.2 have recording,
+shipped-host replay, proof, shared redaction and scan, themed prints and
+generation; 3.2's start facts include `background` and `box`, which the
+recorder writes where the start has them and the replay reads, a
+recording without them reading as neither. Section 8.2's browser-format
+setup follows its browser journey before the TUI starts and refuses a
+mark. Section 9's `sign-in-approved` and `launchpad-chat` have their walk,
 README, redacted recording and text and page frames: two for
 `sign-in-approved`, ending on the no-project launchpad, and four for
-`launchpad-chat`, from Hello's launchpad through commands and the typed
-question to the fake model's committed answer. The latter recording
-catches no growing answer; it establishes no streamed-frame look.
+`launchpad-chat`, from Hello's
+launchpad through commands and the typed question to the fake model's
+committed answer, with the chat's title, its number and `127.0.0.1:PORT`
+in the rule above the box, and no band, since the pseudo-terminal leaves
+the background unanswered. The latter recording catches no growing
+answer; it establishes no streamed-frame look.
 
 Section 10's separate request branch and empty overlay have no known
-gap. Section 11 keeps real-terminal and Meta-key checks, real-box journeys
-and look refinement; recorded pseudo-terminal frames establish no real
-terminal's look or macOS runtime result.
+gap. Section 11 keeps real-terminal and Meta-key checks, real-box journeys,
+a journey drawing the place "box", and look refinement; recorded
+pseudo-terminal frames establish no real terminal's look or macOS runtime
+result.

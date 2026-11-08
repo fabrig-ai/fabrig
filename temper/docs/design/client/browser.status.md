@@ -42,6 +42,19 @@ gallery worlds offer templates 1, 2 and 5; the reference world's other
 ways use 2, 4, 6 and 7, leaving 5 to Ask temper. The rendered comparison and
 the Ask page's later look round remain section 5's work.
 
+Sections 2.5 and 7.2 have no known implementation gap in Ask temper's
+ways: `temper.css` holds `ask-temper-ways`'s rules, the opening's under
+the settings marker and a path's under the chats marker, each selector
+naming what skein draws where it differs from the request's page, and
+`configure-temper-own-way`'s rules for the old opening and the
+reference's pane are gone. `ask-first-run` draws the ways and the eight
+`ask-ways-*` states stand; `ask-reference` and `ask-reference-draft` are
+gone. Story 11's phone Ask row (4.6) shows the tabs and presses "Draft
+first" to its "Use this", in the existing history story; it checks
+neither Agents review's "now" nor the line and the path, and no passing
+run of it is supplied here. The rendered comparison follows landing
+(`README.md`, section 11).
+
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
 the address, visibility, focus and call-line checks. No implementation
@@ -193,12 +206,6 @@ establish no rendered equality.
   a numbered list takes the browser's margins and padding. Both are seen by reading
   the sheet: no browser test draws a numbered list, the request `chat-reading-d`
   having the user read one on a real chat and leaving the sheet to the look's owner.
-- **Not yet:** 2.5, *temper's own way*: no render has checked the picture as an `ol`: the walk
-  of the request `ui-walk-3` opened the reference at each width and read its title, flow and
-  line, and names nothing of the list's margins. `configure-temper-own-way`'s render check read the numbers as a `ul` item's words, and numbered lists reached skein's
-  reader after it, so the `ol` takes `.temper-doc-flow ol`'s padding and the browser's margins, and
-  `.temper-doc-flow ul` now matches nothing, left for whoever next edits that rule. Seen by
-  reading; the view's tests read the terminal's print, which says `1. Design draft` either way.
 - **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;

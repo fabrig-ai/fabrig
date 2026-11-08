@@ -28,6 +28,7 @@ departures and open decisions below keep this draft.
   - 5, *The table*: jig's `domain/accounts.md`, 3.7: an account's first source says whether it has a list, so an Anthropic account with Claude Code first and a key after reads nothing, since the order decides who pays and a key's list doesn't say what that subscription serves: decided by the cut of `model-catalogue-3`, 2026-11-07.
   - 5: jig's `domain/engine.md`, 17.12: a list's window and output come no larger than the stock's, and a name's figures are its first read's, since 2 has them stay the stock's whatever a provider allows and a read must not undo what an accepted proposal set: decided by the cut of `model-catalogue-3`, 2026-11-07.
   - 4: jig's `domain/engine.md`, 17.11: a person's removal of a list's model makes it a person's, so that a list naming it again doesn't bring it back: decided by the cut of `model-catalogue-3`, 2026-11-07.
+  - 3: `../client/README.md`, 3.5, *Ask temper's page*: there is no "Models by role" starter to name connected accounts, since Ask temper's opening shows the stock ways to pick in place of its starters: the look request `ask-temper-ways`, the user, 2026-11-08.
   - 3: `../domain/agent.md`, 8.1 gives the inventory the offer alone, but
     serves a charter's full value when read, including unoffered models, and
     proposal validation accepts configured models outside the offer: the

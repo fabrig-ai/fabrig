@@ -71,11 +71,11 @@ help. People read the site, which is outside temper's design.
 | `way` | 8,192 bytes | numbered sections, `## 1. …`, from 1; free otherwise | a way of working temper ships: `how-temper-builds-temper` |
 | `reference` | 32,768 bytes | a heading per row, its usage's words | generated (8.1 of the draft) |
 
-- **A way** is read by a person as well as an agent: the client draws
-  `how-temper-builds-temper` beside Ask temper's page
-  (`../client/README.md`, 3.5), and Ask temper reads it with `see help`
-  (`../domain/agent.md`, 8.1). Its summary is the line under its title,
-  of up to two sentences.
+- **A way** is read by a person as well as an agent: a person reads
+  `how-temper-builds-temper` with `temper help`, and Ask temper with `see
+  help` (`../domain/agent.md`, 8.1); the client draws it nowhere
+  (`../client/README.md`, 3.5, *temper's own way*). Its summary is the
+  line under its title, of up to two sentences.
 - **A walk's step** holds its commands, then a paragraph that starts
   `Expect:` with the output's first line verbatim, then one that starts
   `If not:` with each other outcome a sound temper gives and its act.
