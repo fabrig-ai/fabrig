@@ -12,7 +12,7 @@ fn marked(key: Option<Key>) -> Mark {
 fn rows_group_paints_escape_text_and_wrap_the_cursor() {
     let mut mark = marked(None);
     let base = theme(Scheme::Dark).base;
-    let accent = Paint { fore: Some(palette(Scheme::Dark)[5].1), ..base };
+    let accent = Paint { fore: Some(palette(Scheme::Dark)[4].1), ..base };
     for (column, glyph, paint) in
         [(0, '<', base), (1, '>', base), (2, '&', accent), (3, '"', accent), (4, '界', base), (5, '\0', base)]
     {
@@ -22,7 +22,12 @@ fn rows_group_paints_escape_text_and_wrap_the_cursor() {
     let files = pages("sample", Scheme::Dark, &[mark]);
     assert_eq!(files[0].document, "<>&\"界\n\n");
     let html = &files[1].document;
-    assert!(html.contains(">\n&lt;&gt;<span class=\"f-accent b-bg\">&amp;<span class=\"cursor\">&quot;</span></span>界  \n        \n</pre>"), "{html}");
+    assert!(
+        html.contains(
+            ">\n&lt;&gt;<span class=\"f-accent\">&amp;<span class=\"cursor\">&quot;</span></span>界  \n        \n</pre>"
+        ),
+        "{html}"
+    );
     assert!(html.contains("<title>sample 01 · temper</title>"));
     assert!(html.contains("<pre class=\"tui tui-dark\">"));
     assert!(html.contains("href=\"../theme.css\"><link rel=\"stylesheet\" href=\"../overlay.css\">"));
@@ -33,8 +38,12 @@ fn rows_group_paints_escape_text_and_wrap_the_cursor() {
 fn palette_colours_and_each_attribute_have_classes() {
     for (paint, expected) in [
         (
-            Paint { fore: Some(palette(Scheme::Light)[5].1), back: Some(palette(Scheme::Light)[4].1), ..Paint::NONE },
-            "<span class=\"f-accent b-sel\">",
+            Paint {
+                fore: Some(palette(Scheme::Light)[4].1),
+                back: Some(Rgb { red: 0xf4, green: 0xf0, blue: 0xe9 }),
+                ..Paint::NONE
+            },
+            "<span class=\"f-accent\" style=\"background:#F4F0E9\">",
         ),
         (Paint { bold: true, ..Paint::NONE }, "<span class=\"bold\">"),
         (Paint { dim: true, ..Paint::NONE }, "<span class=\"dim\">"),
@@ -85,6 +94,7 @@ fn beside_regenerates_the_palette_and_script_but_preserves_overlay() {
     assert_eq!(fs::read(scratch.path().join("overlay.css")).expect("preserved overlay"), b"request");
     let css = fs::read_to_string(scratch.path().join("theme.css")).expect("palette");
     assert_eq!(css, stylesheet());
+    assert!(css.contains("pre.tui { color: var(--ink); background: var(--bg);"));
     assert!(css.contains(".tui-dark {\n  --bg: #191816;\n  --ink: #E8E3DA;"));
     assert!(css.contains(".tui-light {\n  --bg: #FFFEFD;\n  --ink: #34312C;"));
     assert_eq!(fs::read_to_string(scratch.path().join("tui-journey.js")).expect("script"), SCRIPT);
