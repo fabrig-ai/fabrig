@@ -178,16 +178,16 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const FRAMING: u32 = 64 * (16 + 7);
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
-    // Charter 1's room leaves this margin beyond the framed brief.
+    // Charter 5's room leaves this margin beyond the framed brief.
     const MARGIN: u32 = 498;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
     let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
     assert!(brief.parts >= TASK_PARTS);
-    let largest = temper_engine_smith::charter(&assignment(1, false, 0));
+    let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 356_958);
+    assert_eq!(room, 355_042);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
