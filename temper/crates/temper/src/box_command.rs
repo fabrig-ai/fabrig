@@ -93,6 +93,7 @@ pub(crate) fn run_configuration(
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
         owned.push(root);
         let settings = Settings {
+            word: crate::printed::running_word(&skein_shell::environment()),
             link_form: link_form(&std::io::stdout(), &environment),
             first_link,
             after_block: opening.after_block,
