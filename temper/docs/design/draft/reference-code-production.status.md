@@ -1,6 +1,6 @@
 # reference-code-production: status
 
-2026-11-06. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
+2026-11-08. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
 - **Open:**
   - **1 to 5, 12 to 14:** revised by [`goal-as-designer.md`](goal-as-designer.md), which wins where they differ until its plans fold it into this draft.
@@ -19,3 +19,12 @@
     its foremen's choice, gpt-6.1-sol at medium. Decided
     2026-11-03: the reference sets the foreman's
     model on its charter (`../domain/agent.md`, section 10).
+  - **14: the project's checks.** `../protocol/configuration.md`, section
+    11 and 13.9 have `.temper/pre-pr` run the format check and the counted
+    baselines alone, on what a delivery adds over the checkout's `HEAD`,
+    where 14's table has format, lints, the package's focused tests and
+    the counted baselines: the coding agent's charter runs the changed
+    packages' lints and focused tests, whether the script runs them too
+    waits on the case's numbers (the user, 2026-11-02), and the whole
+    workspace's checks ran past the agent's 60-second `check_timeout`
+    (`archive/pre-pr-scoped.md`).

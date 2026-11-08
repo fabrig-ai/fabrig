@@ -16,7 +16,7 @@ clippy on its changed packages and their focused tests before it pushed.
 | a test of a package the red's task changed | 3, and 2 in part | 3, and 2 in part |
 | the docs' vocabulary or a citation | 3 | 0 |
 | a race or a story's timing | 3 | 0 |
-| the old-form counts | 1 | today's `.temper/pre-pr` runs them |
+| the old-form counts | 1 | `.temper/pre-pr` runs them, for the trees a delivery's Rust files change |
 | format | 0 | |
 | nothing to change (empty, a false red, owned by a pending task, already fixed) | 5 | |
 | unknown | 2 | |
@@ -28,8 +28,7 @@ clippy on its changed packages and their focused tests before it pushed.
 
 ## The check's time at each push
 
-Unknown. `.temper/pre-pr` builds nothing (the format check and the counted baselines). The
-workspace's focused suite runs in under 30 s once built (`skein/docs/foundation/testing-strategy.md`,
+2026-11-08. `.temper/pre-pr` checks what a delivery adds over the checkout's `HEAD`: rustfmt on its Rust files and the counted baselines of their trees (`../design/protocol/configuration.md`, 13.9). On a deployment's worker the whole workspace's check took about 90 s, past the 60 s `check_timeout`: the format check about 70 s wall (26 s CPU) and the five trees' counters about 17 s. On a development checkout of 16 CPUs: a documents-only delivery 0.192 s wall; a change to one crate's `.rs` file 2.881 s wall cold and 1.709 s warm; the whole workspace's check on that change 37.062 s wall. It builds nothing. The workspace's focused suite runs in under 30 s once built (`skein/docs/foundation/testing-strategy.md`,
 section 8), but a push's build time in a box's worker, warm or cold, has not been measured.
 
 ## What the case's walk measures

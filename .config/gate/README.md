@@ -88,9 +88,7 @@ Each list has one entry per line; `#` starts a comment line.
 
 ## The repository's hooks and fixture readers
 
-- **`.temper/pre-pr`:** the format check and each tree's old-forms counts at
-  delivery (`temper/docs/design/protocol/configuration.md`, 13.9;
-  `smith/docs/design/domain/run.md`, 8.1).
+- **`.temper/pre-pr`:** at delivery, on what the delivery adds over the checkout's `HEAD`: `rustfmt --check` on its Rust files, generated files left out, and `scripts/old_forms.py` in each tree whose Rust files or old-forms files it changes; a documents-only delivery runs neither, and a tree that passed passes again (`temper/docs/design/protocol/configuration.md`, 13.9; `smith/docs/design/domain/run.md`, 8.1). Its table test is `tools/pre_pr/test_pre_pr.py`.
 - **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **`.config/fixture-readers.toml`:** the readers and generators of every tracked

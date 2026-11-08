@@ -52,11 +52,6 @@ settled by the oversized-file repair.
 The settings-position wording left by `replay-repairs` remains section
 11's follow-up: jig's corrected refusal counts from 0, and temper prints
 it unchanged, while temper's own translation refusal counts from 1.
-The silent-check diagnosis is by reading, not a timed deployment run:
-`.temper/pre-pr` emits no progress before its format and baseline work,
-and its 60-second `check_timeout` remains unchanged. Progress output is
-also deferred in section 11; no supplied result establishes the reported
-timeouts' exact phase or duration.
 
 Sections 2 and 13.4 have no known gap in the binary's numbered stock,
 model-free configuration documents or `rest` on stock charters. The
@@ -119,6 +114,16 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
   were left for after landing by the user's focused-and-fuzzy-only rule;
   their results, and a fresh measurement log, are unknown here.
 
+Section 13.9 has no known gap in the delivery-scoped format check,
+counter selection, generated-file exclusions or passed-tree cache.
+Section 11's self-made commits and Markdown citation risks remain deferred.
+
+- **Not yet:** the individual table-row costs requested by
+  `../draft/archive/pre-pr-scoped.md`, ranked item 1, are not supplied:
+  the report gives 1.322 s suite wall and a 0.165 s per-row average,
+  not a timing for each row. The documents-only and one-crate hook
+  measurements are in `../../development/pre-pr-numbers.md`.
+
 Sections 13.8 and 13.9 have no known implementation gap in the reference's
 fallback room: payload 63,740, output 48,000 and T 18,431,842. Its files,
 charter models and template 4's 63,738-byte report agree; the start names
@@ -148,7 +153,7 @@ remain section 11's deferred work.
 - **Design departs:** 13.4, from the request `ui-home-status` of 2026-11-05, decided by its plan's cut: the status agent is stock charter 9, where the request has 7, because the reference's settings already number its designer 7 and its triage 8 (13.9), so a stock 7 would run the designer's words there. Its "no tools but finish" holds by the run's authority, which names none, since the host part declares its fixed tools whatever a charter says (`../domain/agent.md`, 4.3).
 - **Design departs:** 13.4, from the request `first-goal-fixes` of 2026-11-05, decided by its plan's cut: `documents.text_bytes` is 512 in `temper init`'s documents, where the request has 8,192 (`setup.status.md`).
 - **Design departs:** 13.9, from the request `ui-settings` of 2026-11-05, decided by its plan's cut: the reference's kind 7 is a file of its own, `docs/examples/reference/project.json`, with `way` 4, the reference's goal, where the request has `settings.json` set all four and says no way, because `settings.json` is applied before the case's project exists, and jig refuses a project's item then.
-- **Departs:** 3, 8: a kept GitHub forge whose record holds the base `https://github.com/` keeps remotes `https://github.com//OWNER/NAME.git`, where section 3 has a remotes' base end in no `/`: `temper-service/src/system.rs`'s `GITHUB_REMOTE` gives new forges a base with none, but a kept forge keeps the place its record holds (section 8), `temper-service/src/translate.rs`, `repository_item`, joins the base as it stands and nothing rewrites a record, so such a forge has them until it is removed and connected again (section 11). 1, 3: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The client's page for a Forgejo elsewhere tells a person to add entries to `application.forges`, `application.identities` and `application.setup` (`temper-client-view/src/words.rs`, `ForgeConfig`, `ForgeIdentity`, `ForgeSetupEntry`), members the document refuses as unknown, a defect the code gives no reason for (the page itself is `../client/forge.status.md`, 5.4). 13.4: the rules and policy 1 also delegate to procedures 3 and 4, which 13.4 does not name, for a reason the code does not record (`temper-service/src/stock.rs`). 13.9: `.temper/pre-pr` runs the format check and the counted baselines, no lints and no package's focused tests, because whether a build runs at each push waits for the numbers, which the record so far does not give and the case's walk measures (section 11; the user, 2026-11-02).
+- **Departs:** 3, 8: a kept GitHub forge whose record holds the base `https://github.com/` keeps remotes `https://github.com//OWNER/NAME.git`, where section 3 has a remotes' base end in no `/`: `temper-service/src/system.rs`'s `GITHUB_REMOTE` gives new forges a base with none, but a kept forge keeps the place its record holds (section 8), `temper-service/src/translate.rs`, `repository_item`, joins the base as it stands and nothing rewrites a record, so such a forge has them until it is removed and connected again (section 11). 1, 3: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The client's page for a Forgejo elsewhere tells a person to add entries to `application.forges`, `application.identities` and `application.setup` (`temper-client-view/src/words.rs`, `ForgeConfig`, `ForgeIdentity`, `ForgeSetupEntry`), members the document refuses as unknown, a defect the code gives no reason for (the page itself is `../client/forge.status.md`, 5.4). 13.4: the rules and policy 1 also delegate to procedures 3 and 4, which 13.4 does not name, for a reason the code does not record (`temper-service/src/stock.rs`).
 - **Departs:** 3: `checks::standalone` (`temper-service/src/startup/checks.rs`) refuses a `clients.listener` off loopback in every engine shape, where this section asks loopback only in standalone and wherever the printed link is on, because `Clients` expects the listener's address as text at `Listening`, and jig's `address_text` gives none for an IPv6 address off loopback; an IPv4 address has text and is refused with it. So `[::]:7100`, which the user's request of 2026-11-04 asks to show panicking, is refused at the start and reaches no `Listening`. The user chose the check on 2026-11-05: it stands, in place of section 3's bound outside standalone.
 
 Sections 3 and 10 have `engine.clients.approval` enabled beside `link`

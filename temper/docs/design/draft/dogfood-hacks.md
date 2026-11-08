@@ -97,6 +97,7 @@ The aim that excuses all of it, the user's: match what the pipeline we develop w
 - **Cost and risk:** about 35 GB, one job at a time, outside the pipeline's disk pool, so the machine's budget counts it by hand. The workflow file is out of step with the repository's index, which the next base stops needing.
 - **The pipeline:** its merge queue runs this gate on a machine of its own, with its checks in order.
 - **A real design:** a question: what a deployment's CI on a build machine looks like, and how it keeps a warm build of its own.
+- **A replay at an older base:** a comparison that replays a goal from an older base commits this repository's `.temper/pre-pr` into its seed commit, beside the `ci.yml`, so that its deliveries are checked the same way, on what each adds (`../protocol/configuration.md`, 13.9), and not by that base's whole-workspace check, which runs past the 60 s check bound (`archive/pre-pr-scoped.md`). The script is one file, needing Python's standard library, git and rustfmt, and the base's own `scripts/old_forms.py` in each tree it counts.
 
 ### 2.10 A comparison's charters
 

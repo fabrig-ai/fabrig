@@ -1474,14 +1474,14 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   large to read (jig's `protocol/store.md`, 7.3).
 - **What the project's checks run at each push** (13.9). Lints and the
   changed packages' focused tests are builds in the box's worker at
-  every delivery. Default: the reference's first edition of
-  `.temper/pre-pr` runs the format check and the counted baselines
-  alone, and the coding agent's charter, with the shell, runs the rest
-  (13.9); whether the script runs them too is decided from the reds that
-  reach a goal's branch, their repairs' cost and the check's time at
-  each push (the user, 2026-11-02). The record so far
-  (`../../development/pre-pr-numbers.md`) does not decide it: of 39 reds
-  that reached a plan's shared branch before the reference, where every
+  every delivery. Default: the reference's `.temper/pre-pr` runs the
+  format check and the counted baselines alone, on what a delivery adds
+  over the checkout's `HEAD` (13.9), and the coding agent's charter, with
+  the shell, runs the rest (13.9); whether the script runs them too is
+  decided from the reds that reach a goal's branch, their repairs' cost
+  and the check's time at each push (the user, 2026-11-02). The record so
+  far (`../../development/pre-pr-numbers.md`) does not decide it: of 39
+  reds that reached a plan's shared branch before the reference, where every
   implementer ran its own lints and focused tests, 4 would have been
   stopped by the changed packages' lints and focused tests at push, and
   2 in part, each repaired in 5 to 18 minutes; the rest came from a
@@ -1493,6 +1493,14 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   focused tests at a push in the box's worker, warm and cold, beside
   the checks' deadline (the agent's `policy.check_timeout`, 60 s on the
   box, a timeout the user sets).
+- **A commit a run makes itself** (13.9). It moves `HEAD`, so what
+  that commit holds leaves the delivery's increment and is first checked
+  by main's CI. Default: keep the delivery scoped; checking such commits
+  before landing is left for later.
+- **Markdown moves and the scoped counters** (13.9). A moved or removed
+  Markdown file can raise smith's `comment:dead_citation` count, but a
+  documents-only delivery runs no counter. Default: main's CI meets it
+  at landing; a delivery-time check for these paths is left for later.
 - **Who writes the case's workflows** (13.9). The repository a case runs
   on carries CI and `tier-slow.yml` and `tier-goal.yml` for its landing
   to meet them. Who writes them, and the runner's budget they take, are
@@ -2883,14 +2891,37 @@ that changes the stock changes nothing of them.
   on its forge, the repository's default on Forgejo
   (`../domain/forge.md`, section 4), set where the repository is made;
   the project's checks are its `.temper/pre-pr` (smith's
-  `domain/run.md`, 8.1): format, lints, the changed packages' focused
-  tests and the counted baselines; its tiers' workflows are
-  `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
-  ids in its `temper_tests` input alone when given them
+  `domain/run.md`, 8.1): the format check and the counted baselines on
+  what a delivery adds (the next item), lints and the changed packages'
+  focused tests being the coding agent's (charter 2, above); its tiers'
+  workflows are `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each
+  running the ids in its `temper_tests` input alone when given them
   (`../domain/after-landing.md`, section 2). Its merge command is its
   `.temper/merge` (`tooling.md`, 4.1), which recounts a counted
   baseline left in conflict (each tree's `scripts/old-forms.txt`, by
   its `scripts/old_forms.py --write`) and leaves every other conflict.
+- **The project's checks at delivery:** `.temper/pre-pr` checks the paths
+  a delivery adds over the checkout's `HEAD`: staged, unstaged and
+  untracked, with a rename's new path. It runs `rustfmt --check` on the
+  Rust files among them, from the repository root under the workspace's
+  `rustfmt.toml`, leaving out a generated file (one under a `generated`
+  directory, or whose first line starts `// Generated`) as the
+  `#[rustfmt::skip]` on its module leaves it out of `cargo fmt --all`;
+  then `scripts/old_forms.py` in each tree (`skein`, `smith`, `jig`,
+  `temper`, `hearth`) whose Rust files, `scripts/old_forms.py` or
+  `scripts/old-forms.txt` it adds, and in every tree when it adds
+  `tools/old_forms/old_forms.py`. A documents-only delivery runs neither:
+  the old-form counters read Rust files, though a moved or removed Markdown
+  file can raise smith's `comment:dead_citation` count, which main's CI
+  meets at landing (section 11). A tree that passed passes again without
+  rerunning. It is scoped
+  because earlier deliveries passed their own checks, so what a
+  delivery adds is what is left, and because the whole workspace's
+  format check and every tree's counter took about 90 s on a
+  deployment's worker, past the agent's 60-second `check_timeout`;
+  main's CI checks the whole tree at landing. A commit the run makes
+  itself moves `HEAD`, so what it holds leaves the increment, for main's
+  CI to meet. Its table test is `tools/pre_pr/test_pre_pr.py`.
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before

@@ -1,20 +1,78 @@
-#!/bin/sh
-# The project's checks at delivery (temper/docs/design/protocol/configuration.md, 13.9;
-# smith/docs/design/domain/run.md, 8.1): the format check and the counted baselines.
-# A tree that passed here passes again: a run's finish repeats its deliver's checks on the same tree.
-set -eu
-cd "$(dirname "$0")/.."
-git_dir=$(git rev-parse --absolute-git-dir)
-index=$(mktemp)
-trap 'rm -f "$index"' EXIT
-cp "$git_dir/index" "$index"
-GIT_INDEX_FILE=$index git add -A
-tree=$(GIT_INDEX_FILE=$index git write-tree)
-if [ "$(cat "$git_dir/pre-pr-passed" 2>/dev/null || true)" = "$tree" ]; then
-    exit 0
-fi
-cargo fmt --all --check
-for tree_name in skein smith jig temper hearth; do
-    (cd "$tree_name" && python3 -I -B scripts/old_forms.py)
-done
-echo "$tree" > "$git_dir/pre-pr-passed"
+#!/usr/bin/env -S python3 -I -B
+"""The project's checks at delivery (temper/docs/design/protocol/configuration.md, 13.9; smith/docs/design/domain/run.md, 8.1): the format check and the counted baselines, on what the delivery adds over the checkout's HEAD.
+
+Scoped, because earlier deliveries passed their own checks, so what a delivery adds is what is left, and because the whole workspace's format check and every tree's counter took about 90 s on a deployment's worker, past the 60 s check bound; main's CI checks the whole tree at landing. A tree that passed here passes again: a run's finish repeats its deliver's checks on the same tree.
+"""
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+
+TREES = ('skein', 'smith', 'jig', 'temper', 'hearth')
+
+
+def generated(path):
+    if 'generated' in path.parts:
+        return True
+    with path.open('rb') as source:
+        return source.readline().startswith(b'// Generated')
+
+
+def main():
+    root = Path(__file__).absolute().parent.parent
+    os.chdir(root)
+
+    def run(*args, cwd=root, env=None, **kwargs):
+        return subprocess.run(args, cwd=cwd, env=env, stdin=subprocess.DEVNULL, **kwargs)
+
+    def git(*args, env=None):
+        return run('git', *args, env=env, stdout=subprocess.PIPE, check=True).stdout
+
+    git_dir = Path(os.fsdecode(git('rev-parse', '--absolute-git-dir')).strip())
+    descriptor, name = tempfile.mkstemp(prefix='pre-pr-index-')
+    os.close(descriptor)
+    index = Path(name)
+    try:
+        if (git_dir / 'index').exists():
+            # Git's racy-clean protection relies on the index timestamp.
+            shutil.copy2(git_dir / 'index', index)
+        else:
+            index.unlink()
+        env = dict(os.environ, GIT_INDEX_FILE=str(index))
+        git('add', '-A', env=env)
+        tree = git('write-tree', env=env).decode('ascii').strip()
+        passed = git_dir / 'pre-pr-passed'
+        if passed.exists() and passed.read_text(encoding='ascii').strip() == tree:
+            return 0
+        head = run('git', 'rev-parse', '--verify', '-q', 'HEAD', stdout=subprocess.PIPE)
+        base = 'HEAD' if head.returncode == 0 else git('hash-object', '-t', 'tree', '/dev/null').decode('ascii').strip()
+        paths = [os.fsdecode(path) for path in git(
+            'diff-index', '--cached', '-z', '--name-only', '--diff-filter=d', base, env=env,
+        ).split(b'\0') if path]
+        rust = sorted(path for path in paths if path.endswith('.rs')
+                      and not (root / path).is_symlink() and (root / path).is_file()
+                      and not generated(Path(path)))
+        # `cargo fmt -- FILES` would still format every package; a generated codec is left out as the `#[rustfmt::skip]` on its module leaves it out of `cargo fmt --all`, and rustfmt over one alone takes gigabytes.
+        if rust:
+            run('rustfmt', '--check', *rust, env=env, check=True)
+        counted = [tree_name for tree_name in TREES if 'tools/old_forms/old_forms.py' in paths
+                   or any(path.startswith(tree_name + '/') and (
+                       path.endswith('.rs') or path in (tree_name + '/scripts/old_forms.py',
+                                                       tree_name + '/scripts/old-forms.txt'))
+                          for path in paths)]
+        for tree_name in counted:
+            run('python3', '-I', '-B', 'scripts/old_forms.py', cwd=root / tree_name, env=env, check=True)
+        passed.write_text(tree + '\n', encoding='ascii')
+        return 0
+    finally:
+        index.unlink(missing_ok=True)
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except subprocess.CalledProcessError as error:
+        sys.exit(error.returncode if error.returncode > 0 else 1)
