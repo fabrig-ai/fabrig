@@ -28,6 +28,13 @@ pub mod transcripts;
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Wall};
 
+/// The binary's patch level of each owner, `None` before its first patch
+/// (jig/docs/design/protocol/store.md, 10.5 and 5.3).
+#[must_use]
+pub fn levels(sets: &PatchSets) -> codec::component::Levels {
+    patching::plan::binary(sets)
+}
+
 /// The store component's bounds (protocol/store.md, section 13).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {

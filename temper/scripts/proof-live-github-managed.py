@@ -422,7 +422,8 @@ class Sitting:
 
     def ready_client(self, link, mode):
         self.step = 'signed-in Ready ' + mode
-        self.command([self.harness, '--ignored', '--exact', 'managed_ready_client', '--nocapture'],
+        # This test is not ignored: --ignored would select nothing and exit 0.
+        self.command([self.harness, '--exact', 'managed_ready_client', '--nocapture'],
                      data=(link + '\n').encode(), extra_env={'TEMPER_MANAGED_CLIENT': mode}, ready=True)
 
     def wait_ready(self):

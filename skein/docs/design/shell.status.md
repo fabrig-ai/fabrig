@@ -32,7 +32,7 @@ below remain; the Linux tests do not prove the Darwin arms.
   a cross-target build does not prove the Darwin runtime.
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only
   `smith-agent-shell`'s `trust_sources` says them. temper's own two readers
-  (`temper/crates/temper/src/lib.rs`, `trust`, and
+  (`temper/crates/temper-engine-shell/src/serve.rs`, `trust`, and
   `temper-forge-setup-shell/src/fetch.rs`) say nothing of a malformed block, where
   the section has startup say the counts: the request `first-usable-model` of
   2026-11-06 asked only that smith's line go quiet. Seen by reading.

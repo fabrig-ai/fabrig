@@ -285,7 +285,7 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         answer: core.call_answer_bytes,
         result: u32::try_from(hub.outcome_bytes).ok()?,
         detail: hub.detail_bytes,
-        grant: crate::worker_settings::grant_bytes(
+        grant: crate::values::grant_bytes(
             crate::values::credential_bytes(&settings.jig),
             u32::try_from(wire::Identity::encoded_bound(&wire)?).ok()?,
         )?,
@@ -349,7 +349,7 @@ impl Workers {
             List::with_capacity(u32::try_from(settings.jig.llm.endpoints.len()).expect("endpoint count"));
         for endpoint in &settings.jig.llm.endpoints {
             endpoints
-                .push(smith_protocol_channel::Endpoint {
+                .push(smith_protocol_translate::Endpoint {
                     name: endpoint.name.clone(),
                     number: endpoint.number,
                     dialect: endpoint.dialect,
@@ -361,7 +361,7 @@ impl Workers {
             &settings.files,
             Encoding {
                 limits: crate::translate::limits(&settings.limits).ok_or(kit::host::invalid(What::Bound))?,
-                endpoints: smith_protocol_channel::Endpoints::new(endpoints),
+                endpoints: smith_protocol_translate::Endpoints::new(endpoints),
                 deployment,
                 charter_bytes: settings.jig.limits.hub.charter_bytes,
             },

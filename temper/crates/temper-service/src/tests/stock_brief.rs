@@ -223,7 +223,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
         assert!(limits.host_part - u64::from(remaining) + rendered <= limits.host_part, "charter {number} open={open}");
         assert!(u64::from(remaining) - rendered >= u64::from(MARGIN));
         let whole = temper_engine_smith::charter(&assignment);
-        temper_engine_smith::fit_brief(&mut charter, mounted.as_ref(), &limits);
+        temper_protocol_brief::fit_brief(&mut charter, mounted.as_ref(), &limits);
         assert!(charter.owned_bytes().unwrap() <= run::charter_room(mounted.as_ref(), &limits).unwrap());
         assert!(run::brief_bytes(&charter.brief).unwrap() <= u64::from(remaining));
         assert!(charter.brief.sections[0].text.ends_with(b" bytes; whole: the task's activity]\n"));
@@ -273,7 +273,7 @@ fn reference_spec_receiving_rows() {
         charter.brief.sections[0].text = vec![b's'; size].into();
         let mut original = temper_engine_smith::charter(&assignment);
         original.brief.sections[0].text = vec![b's'; size].into();
-        temper_engine_smith::fit_brief(&mut charter, Some(&mounted), &limits);
+        temper_protocol_brief::fit_brief(&mut charter, Some(&mounted), &limits);
         assert!(charter.owned_bytes().unwrap() <= owned_room);
         assert!(run::brief_bytes(&charter.brief).unwrap() <= rendered_room);
         if whole {

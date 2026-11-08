@@ -144,11 +144,11 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
 fn git_component_limits_against_the_checkout_name_both() {
     let mut own = crate::limits::profile(crate::limits::Profile::Small);
     own.checkout.name_bytes = 600;
-    let git = temper_worker_protocol_git::Limits { stdout_bytes: 2048, ..own.git_component };
+    let git = crate::limits::GitComponent { stdout_bytes: 2048, ..own.git_component };
     for (git, expected) in [
-        (temper_worker_protocol_git::Limits { operations: 2, ..git }, b"application.limits.overrides.git_component.operations: must agree with checkout.workspaces\n".as_slice()),
-        (temper_worker_protocol_git::Limits { stdout_bytes: 1024, ..git }, b"application.limits.overrides.git_component.stdout_bytes: must agree with checkout.name_bytes and checkout.conflicts * (checkout.path_bytes + 1)\n"),
-        (temper_worker_protocol_git::Limits { stderr_bytes: 1, ..git }, b"application.limits.overrides.git_component.stderr_bytes: must agree with checkout.push_diagnostic\n"),
+        (crate::limits::GitComponent { operations: 2, ..git }, b"application.limits.overrides.git_component.operations: must agree with checkout.workspaces\n".as_slice()),
+        (crate::limits::GitComponent { stdout_bytes: 1024, ..git }, b"application.limits.overrides.git_component.stdout_bytes: must agree with checkout.name_bytes and checkout.conflicts * (checkout.path_bytes + 1)\n"),
+        (crate::limits::GitComponent { stderr_bytes: 1, ..git }, b"application.limits.overrides.git_component.stderr_bytes: must agree with checkout.push_diagnostic\n"),
     ] {
         let mut found = Problems::empty();
         checks::limits(&own, &git, &mut found);
@@ -601,13 +601,20 @@ fn admission_names_global_and_time_requirements_with_their_units() {
 
 #[test]
 fn each_document_shape_is_read_from_its_members() {
-    use crate::startup::{Shape, shape};
+    use crate::startup::{Shape, nearest, shape};
     for (document, expected) in [
         (fixtures::document(), Shape::Standalone),
         (fixtures::engine_alone_document(), Shape::EngineAlone),
         (fixtures::worker_alone_document(), Shape::WorkerAlone),
     ] {
         assert_eq!(shape(&document, &config::Directories::working()), Ok(expected));
+        assert_eq!(nearest(&document), Some(expected));
+    }
+    let broken = fixtures::with(&fixtures::worker_alone_document(), b"application", b"null");
+    for (document, expected) in
+        [(broken.as_ref(), Some(Shape::WorkerAlone)), (b"[]".as_slice(), None), (b"not json".as_slice(), None)]
+    {
+        assert_eq!(nearest(document), expected);
     }
 }
 
