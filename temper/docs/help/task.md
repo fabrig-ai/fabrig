@@ -82,11 +82,12 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   resource and outcome; a procedure's names the step refused and why,
   in its connector's words. Only an uncertain effect asks whether to
   repeat it: a release with `--again`, once you have checked whether it happened.
-- **Awaiting a person:** an agent that reads a held task's escalation,
-  asks a person through a delegate and parks waits for the answer or
-  another actionable change. The same read escalation leaves it parked;
-  the held task and decision stay. Unread or refused entries and new
-  escalations still wake it, and the decision's stall time keeps running.
+- **Awaiting a person:** an agent whose instructions covered a waiting
+  decision and that parks leaves it waiting. That decision does not wake
+  it again until it changes or something else wakes the agent, when the
+  decision is offered again. A run with no instructions for the decision,
+  or one that refused it, is woken again. The held task and decision stay,
+  and the decision's stall time keeps running.
 - **Stopped:** stopping places a hold of yours over the task and every
   task below it, those made later included, and ends their runs;
   releasing the stopped task runs them all again (temper help hold).

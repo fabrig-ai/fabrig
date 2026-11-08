@@ -51,7 +51,7 @@ impl fmt::Display for Refusal {
         }
     }
 }
-type Argument = Box<[u8]>;
+pub type Argument = Box<[u8]>;
 pub type EnvironmentEntry = (Argument, Argument);
 pub fn resolve(
     arguments: &[Argument],
@@ -84,6 +84,9 @@ pub fn resolve(
         resolved.rest().into(),
     ))
 }
+/// The directory paths resolved for any binary.
+pub type Paths = Directories;
+
 impl Directories {
     #[must_use]
     pub fn jig(&self) -> jig_protocol_config::Directories {

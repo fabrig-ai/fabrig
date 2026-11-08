@@ -8,6 +8,7 @@ mod output;
 mod pending;
 mod recovery;
 mod signing;
+pub mod start;
 #[cfg(test)]
 mod tests;
 mod transport;

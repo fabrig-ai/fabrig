@@ -3,6 +3,7 @@
 //! the reference page `commands`.
 use crate::{box_command, directories, fake};
 pub use temper_shell::commands::{Argument, DIRECTORIES, HELP, Row, Table, Who};
+use temper_shell::rows;
 
 const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
 
@@ -128,46 +129,8 @@ Refused, changing nothing, when the configuration directory already holds temper
         settings: &[&directories::SETTINGS],
         notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
     },
-    Row {
-        words: &[],
-        who: Who::Clients,
-        forms: &["[ADDRESS]"],
-        line: "Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.",
-        arguments: &[Argument {
-            shown: "ADDRESS",
-            line: "Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.",
-        }],
-        settings: &[],
-        notes: "Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.",
-    },
-    Row {
-        words: &["ctl"],
-        who: Who::Clients,
-        forms: &[
-            "DIR GROUP VERB [ARGUMENT...] [--json]",
-            "DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]",
-            "DIR --call FILE [--json]",
-            "help [GROUP [VERB]]",
-        ],
-        line: "Act in a deployment as one party, one call a process: the agents' command line.",
-        arguments: &[
-            Argument {
-                shown: "DIR",
-                line: "ctl's private directory for one deployment and one party: its sign-in, its kept requests and the engine's address.",
-            },
-            Argument {
-                shown: "GROUP",
-                line: "A group of tools, a noun of temper's or one of the client's own names; temper ctl help lists them.",
-            },
-            Argument { shown: "VERB", line: "One of the group's tools; temper ctl help GROUP lists them." },
-            Argument {
-                shown: "FILE",
-                line: "One call as JSON, {\"tool\": \"GROUP VERB\", \"arguments\": {...}}, or - for stdin.",
-            },
-        ],
-        settings: &[],
-        notes: "temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.",
-    },
+    rows::TUI,
+    rows::CTL,
     Row {
         words: &["open"],
         who: Who::Clients,

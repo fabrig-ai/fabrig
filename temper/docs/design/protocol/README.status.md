@@ -77,3 +77,39 @@ are designed and not yet built:
 - **Not yet:** 4.2: `temper-engine upgrade --check` and `--back`: jig's
   rehearsal and going back (jig's `protocol/store.md`, 10.5) are not
   built, so neither binary's table has the row.
+
+Section 4's deployment client, `temper-client`, is present: its table
+of `help`, `[ADDRESS]` and `ctl`, the box's rows run by the box's code,
+its help and refusals naming `temper-client`, and `--version` with its
+build script's commit, in step tests of its package. Section 5's
+`temper-shell` holds the table's types and printing, the shared rows,
+`help`'s answers, the three directories and the engine's link file, and
+the box's `temper` prints from it. Built alone, the client links none of
+the engine's, the worker's, smith's agent, the box or the forge's setup,
+and `temper-protocol-records` without `forge` (`cargo tree -p
+temper-client`). No test holds that closure yet: the boundary test is
+M5's (`../draft/deployment-binaries.execution.md`). Section 4's client
+story is written and compiled in the process tier, and runs after
+landing.
+
+- **Departs:** 4: `temper-client`'s story runs the box's `temper serve` as its engine
+  (`crates/temper/tests/suite/client_binary.rs`), because `temper-engine` isn't
+  built; M5 switches it to `temper-engine`
+  (`../draft/deployment-binaries.execution.md`, M5).
+- **Departs:** 4: beyond the crates section 4 says it links, `temper-client` links:
+  - `jig-protocol-accounts`, an engine crate of jig's (section 5), and through it
+    `jig-protocol-config`, `jig-protocol-engine-clients`,
+    `jig-protocol-engine-clients-http`, `jig-protocol-store` and jig's
+    `jig-domain-*` crates, with skein's OAuth, TLS, link and kv crates beneath
+    them.
+    `temper-client-shell-cli`'s manifest names it, though no code of that crate
+    uses it; no reason is recorded.
+  - `temper-settings-form`, through `temper-client-tools`, which section 5 has
+    the client and the engine share; and `temper-protocol-records`, through
+    `temper-client-domain`, for the forges' pasted bundle
+    (`../client/README.status.md`, 2).
+  - `jig-protocol-transcript` and `smith-transcript`, below `jig-client`
+    (`../client/README.md`, section 2).
+
+  M5's boundary test names whichever stay as the client's exceptions, with their
+  reasons (`../draft/deployment-binaries.md`, section 4).

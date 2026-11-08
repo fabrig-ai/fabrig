@@ -77,7 +77,8 @@ pub(crate) fn given(root: &Path) -> Directories {
 fn roots_are_private_and_checked_at_their_own_names() {
     use std::os::unix::fs::{PermissionsExt, symlink};
     for row in ["absent", "private", "public", "link", "file", "parent-link"] {
-        let root = scratch(row);
+        let scratch = skein_scratch::Scratch::new(row);
+        let root = scratch.path().to_path_buf();
         let target = root.join("parent/root");
         match row {
             "absent" => {}
@@ -114,7 +115,6 @@ fn roots_are_private_and_checked_at_their_own_names() {
         if row == "absent" {
             assert_eq!(std::fs::metadata(root.join("parent")).expect("made parent").mode() & 0o777, 0o700);
         }
-        std::fs::remove_dir_all(root).expect("cleanup");
     }
 }
 #[test]

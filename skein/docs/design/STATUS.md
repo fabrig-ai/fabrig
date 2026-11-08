@@ -62,16 +62,18 @@ Branches, merges, more shapes and
 sequence diagrams remain later work (`ui.md`, section 18); the practice
 and home of draft acceptance cases remain the user's open decision
 (`draft/diagrams.md`, section 10).
-The focused cost repairs and shared world helpers establish no
-whole-suite CPU total within 30 CPU s. Selected instruction ratios
+The focused suite's budget is 40 CPU s, the user's of 11-08, and the
+merge gate's full reads that day put the suite at 28.5 CPU s: 11.5 below
+it, but 1.5 below the 30 CPU s limit under which a 2.5 CPU s margin was
+requested. The focused cost repairs and shared world helpers establish no
+whole-suite saving of their own. Selected instruction ratios
 estimate 5.311441 CPU s saved by the focused repairs, without proving
 their at-least-6 aim; process-world instruction pairs remain unknown.
-The requested 2.5 CPU s focused-suite margin is also unproved: App key
-admission parses without signing, fake JWT checks verify the public half,
-and the row kit holds the new folds, but individual instruction pairs
-and process-floor estimates establish no whole-suite margin (`tls.md`,
-section 4; `forge-connection.md`, sections 3.5 and 5.2; `fake-forge.md`,
-section 10.1; `testing.md`, sections 6, 7 and 9).
+App key admission parses without signing, fake JWT checks verify the
+public half, and the row kit holds the new folds, but individual
+instruction pairs and process-floor estimates establish no whole-suite
+saving (`tls.md`, section 4; `forge-connection.md`, sections 3.5 and 5.2;
+`fake-forge.md`, section 10.1; `testing.md`, sections 6, 7 and 9).
 Remaining allocator, fixture, product and startup cost work, and a
 profiler supporting the process operations, are deferred (`testing.md`,
 sections 5, 7 and 9). The test-only fork kit holds exhaustive crash sweeps'

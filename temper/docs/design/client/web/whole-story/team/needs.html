@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team profile, Needs you</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">shop <small>1 project</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a class="on" href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="work.html">Work</a>
+      <a href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">You</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="col">
+      <header class="intro">
+        <p class="kicker">Needs you · shop</p>
+        <h1 class="headline">Two sign-offs wait on you. One waits on Kit.</h1>
+        <p class="lede">On shop, every change needs one of you to sign off after an agent's review, and payments/ needs two of you. Agents decide only retries and wording, and list them here.</p>
+        <p class="small"><a href="how.html">What reaches you on shop</a></p>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Your turn · 2</h2><span>oldest first</span></div>
+        <div class="card need">
+          <p class="from"><span class="chip">payments/</span> change #214 · asked by Sam in a chat Friday · reviewed by an agent · 2 d ago</p>
+          <p class="q">Retry a declined card once, after 2 s</p>
+          <p>A card declined as "try again" is retried once before the order fails. The reviewer checked that a retry never charges twice: the payment's key is reused, and the provider's test mode confirms it.</p>
+          <ul class="small">
+            <li><b>Changes:</b> payments/retry.go +31 −4, payments/retry_test.go +7 −2.</li>
+            <li><b>Checks:</b> CI green at this head; the agent's review passed with no notes.</li>
+          </ul>
+          <p class="why">Reached you because payments/ needs two of you. 1 of 2 signed: Sam, Saturday 10:52.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Sign off on Forgejo ↗</a>
+            <a class="choice" href="#">See the change</a>
+          </div>
+          <label class="field">Or ask for a change<input type="text" value="" placeholder="Your words go to the change's agent"></label>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">coupons</span> change #215 · goal "coupons", 2 of 3 · asked by Kit · 1 d ago</p>
+          <p class="q">Expired coupons say why</p>
+          <p class="small">The checkout says "This coupon ended on 3 November" instead of "Invalid coupon". The reviewer asked for the date in the shop's locale; the agent did it.</p>
+          <p class="why">Reached you because every change on shop needs one of you.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Sign off on Forgejo ↗</a>
+            <a class="choice" href="#">See the change</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Others' turn · 1</h2><span>shown so you know, nothing to do</span></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">Kit's turn · 2 d</span>
+            <div><p>Storefront: product page shows stock per size.</p><p class="small muted">storefront is Kit's area, so Kit signs off.</p></div>
+            <a class="r" href="#">Nudge Kit</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Decided for you · 1</h2><span>for 24 hours, then in the change's history</span></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">shop · CI · Sat 09:12</span>
+            <div><p>A checkout test timed out once.</p><p class="took">Reran it.</p><p class="small muted">Allowed: Agents review decides retries.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Tell temper</h2><span>feedback becomes a finding for its area's owners</span></div>
+        <div class="card">
+          <label class="field">Something off?<textarea rows="2">The order email's courier link opens the tracking page in English for German customers.</textarea></label>
+          <p class="small muted">About shop · emails. Goes to: the three of you, as everything outside payments/ and storefront is.</p>
+          <div class="choices"><a class="choice rec" href="#">File it</a><a class="choice quiet" href="#">Ask temper instead</a></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,4 +1,4 @@
-//! Shared command tables (temper/docs/design/protocol/README.md, 4.1).
+//! A binary's table and its printing (temper/docs/design/protocol/README.md, section 4).
 use std::fmt::Write;
 
 /// Who runs a command: `temper --help`'s groups, in this order.
@@ -44,25 +44,103 @@ pub struct Argument {
     pub line: &'static str,
 }
 
+/// The row whose words begin `words`, the longest such.
+#[must_use]
+pub fn find(rows: &'static [Row], words: &[Box<[u8]>]) -> Option<&'static Row> {
+    let mut found: Option<&Row> = None;
+    for row in rows {
+        let eligible = !row.words.is_empty() || words.first().is_none_or(|word| word.starts_with(b"http://"));
+        if eligible && begins(words, row.words) && found.is_none_or(|before| before.words.len() < row.words.len()) {
+            found = Some(row);
+        }
+    }
+    found
+}
+
+fn begins(words: &[Box<[u8]>], prefix: &[&str]) -> bool {
+    words.len() >= prefix.len() && words.iter().zip(prefix).all(|(word, text)| word.as_ref() == text.as_bytes())
+}
+
+/// The command words up to the first word no row continues with.
+#[must_use]
+pub fn unknown(name: &str, rows: &[Row], words: &[Box<[u8]>]) -> String {
+    let mut prefix = Vec::new();
+    for word in words {
+        prefix.push(word.clone());
+        if !rows.iter().any(|row| row.words.len() >= prefix.len() && begins(&prefix, &row.words[..prefix.len()])) {
+            break;
+        }
+    }
+    let given = String::from_utf8_lossy(&prefix.join(&b' ')).into_owned();
+    let given = if given.is_empty() && words.is_empty() { String::new() } else { format!(" {given}") };
+    format!("{name}: no command{given}; {name} --help lists them\n")
+}
+
+#[must_use]
+pub fn command(name: &str, row: &Row) -> String {
+    if row.words.is_empty() { name.into() } else { format!("{name} {}", row.words.join(" ")) }
+}
+
+#[must_use]
+pub fn forms(name: &str, row: &Row) -> String {
+    let mut text = String::new();
+    for form in row.forms {
+        writeln!(text, "usage: {} {form}", command(name, row)).expect("writing into a string");
+    }
+    text
+}
+
+#[must_use]
+pub fn refused(name: &str, row: &Row, why: &str) -> String {
+    format!("{}: {why}\n{}", command(name, row), forms(name, row))
+}
+
+/// The binary's `--help`.
+#[must_use]
+pub fn help(name: &str, rows: &[Row]) -> String {
+    let mut text = format!(
+        "usage: {name} COMMAND [ARGUMENT...]\n{name} help prints the index of temper's pages; {name} COMMAND --help prints one command.\n",
+    );
+    let mut previous = None;
+    for row in rows {
+        if previous != Some(row.who) {
+            let label = if row.who == Who::Spawned { "spawned, never run by hand" } else { row.who.word() };
+            write!(text, "\n{label}:\n").expect("writing into a string");
+            previous = Some(row.who);
+        }
+        for form in row.forms {
+            writeln!(text, "  {} {form}", command(name, row)).expect("writing into a string");
+        }
+        if row.who != Who::Spawned {
+            writeln!(text, "    {}", row.line).expect("writing into a string");
+        }
+    }
+    text
+}
+
+/// The binary's `COMMAND --help`.
+#[must_use]
+pub fn row(name: &str, row: &Row) -> String {
+    let mut text = forms(name, row);
+    writeln!(text, "{}", row.line).expect("writing into a string");
+    for argument in row.arguments {
+        writeln!(text, "  {}: {}", argument.shown, argument.line).expect("writing into a string");
+    }
+    if !row.notes.is_empty() {
+        writeln!(text, "{}", row.notes).expect("writing into a string");
+    }
+    let mut text = text.into_bytes();
+    for table in row.settings {
+        skein_shell::help(table, &mut text);
+    }
+    String::from_utf8(text).expect("help is UTF-8")
+}
+
+pub use crate::rows::HELP;
+
 pub const DIRECTORIES: Argument = Argument {
     shown: "DIRECTORIES",
     line: "[--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.",
-};
-
-pub const HELP: Row = Row {
-    words: &["help"],
-    who: Who::Documentation,
-    forms: &["[NAME | --search WORDS...]"],
-    line: "Print the index of temper's pages, one page whole, or the sections that hold every word.",
-    arguments: &[
-        Argument { shown: "NAME", line: "A page's name, as the index and the pages give it." },
-        Argument {
-            shown: "WORDS",
-            line: "Words that a section must hold every one of, case folded: at most 8, each at most 32 bytes.",
-        },
-    ],
-    settings: &[],
-    notes: "Reads no directory and no configuration, so it works before temper init. A name that is no page, or a search that matches nothing, exits 1. A search prints at most 20 hits, a line each, NAME: HEADING: LINE, then \"and more; narrow the words\" when more matched.",
 };
 
 pub struct Table {
@@ -70,98 +148,33 @@ pub struct Table {
     pub rows: &'static [Row],
 }
 impl Table {
-    /// The row whose words begin `words`, the longest such.
     #[must_use]
     pub fn find(&self, words: &[Box<[u8]>]) -> Option<&'static Row> {
-        let mut found: Option<&Row> = None;
-        for row in self.rows {
-            let eligible = !row.words.is_empty() || words.first().is_none_or(|word| word.starts_with(b"http://"));
-            if eligible && begins(words, row.words) && found.is_none_or(|before| before.words.len() < row.words.len()) {
-                found = Some(row);
-            }
-        }
-        found
+        find(self.rows, words)
     }
-
-    /// The command words up to the first word no row continues with.
     #[must_use]
     pub fn unknown(&self, words: &[Box<[u8]>]) -> String {
-        let mut prefix = Vec::new();
-        for word in words {
-            prefix.push(word.clone());
-            if !self
-                .rows
-                .iter()
-                .any(|row| row.words.len() >= prefix.len() && begins(&prefix, &row.words[..prefix.len()]))
-            {
-                break;
-            }
-        }
-        let given = String::from_utf8_lossy(&prefix.join(&b' ')).into_owned();
-        let given = if given.is_empty() && words.is_empty() { String::new() } else { format!(" {given}") };
-        format!("{}: no command{given}; {} --help lists them\n", self.binary, self.binary)
+        unknown(self.binary, self.rows, words)
     }
-
     fn command(&self, row: &Row) -> String {
-        if row.words.is_empty() { self.binary.into() } else { format!("{} {}", self.binary, row.words.join(" ")) }
+        command(self.binary, row)
     }
-
     #[must_use]
     pub fn forms(&self, row: &Row) -> String {
-        let mut text = String::new();
-        for form in row.forms {
-            writeln!(text, "usage: {} {form}", self.command(row)).expect("writing into a string");
-        }
-        text
+        forms(self.binary, row)
     }
-
     #[must_use]
     pub fn refused(&self, row: &Row, why: &str) -> String {
-        format!("{}: {why}\n{}", self.command(row), self.forms(row))
+        refused(self.binary, row, why)
     }
-
-    /// `temper --help`.
     #[must_use]
     pub fn help(&self) -> String {
-        let mut text = format!(
-            "usage: {binary} COMMAND [ARGUMENT...]\n{binary} help prints the index of temper's pages; {binary} COMMAND --help prints one command.\n",
-            binary = self.binary,
-        );
-        let mut previous = None;
-        for row in self.rows {
-            if previous != Some(row.who) {
-                let label = if row.who == Who::Spawned { "spawned, never run by hand" } else { row.who.word() };
-                write!(text, "\n{label}:\n").expect("writing into a string");
-                previous = Some(row.who);
-            }
-            for form in row.forms {
-                writeln!(text, "  {} {form}", self.command(row)).expect("writing into a string");
-            }
-            if row.who != Who::Spawned {
-                writeln!(text, "    {}", row.line).expect("writing into a string");
-            }
-        }
-        text
+        help(self.binary, self.rows)
     }
-
-    /// `temper COMMAND --help`.
     #[must_use]
     pub fn row(&self, row: &Row) -> String {
-        let mut text = self.forms(row);
-        writeln!(text, "{}", row.line).expect("writing into a string");
-        for argument in row.arguments {
-            writeln!(text, "  {}: {}", argument.shown, argument.line).expect("writing into a string");
-        }
-        if !row.notes.is_empty() {
-            writeln!(text, "{}", row.notes).expect("writing into a string");
-        }
-        let mut text = text.into_bytes();
-        for table in row.settings {
-            skein_shell::help(table, &mut text);
-        }
-        String::from_utf8(text).expect("help is UTF-8")
+        self::row(self.binary, row)
     }
-
     /// The reference page `commands`, whole, as `docs/help/reference/commands.md` holds it.
     #[must_use]
     pub fn reference(&self) -> String {
@@ -195,6 +208,5 @@ impl Table {
     }
 }
 
-fn begins(words: &[Box<[u8]>], prefix: &[&str]) -> bool {
-    words.len() >= prefix.len() && words.iter().zip(prefix).all(|(word, text)| word.as_ref() == text.as_bytes())
-}
+#[cfg(test)]
+mod tests;

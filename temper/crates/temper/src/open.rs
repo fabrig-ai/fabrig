@@ -1,22 +1,20 @@
 //! The terminal's arguments and startup (client/README.md, 6.1).
 use skein_io::kernel::{Exit, Fd};
-use skein_lib::{
-    Secret,
-    base64::{self, Alphabet},
-};
 use skein_shell::{Clock, Config, Host, Kernel};
-use std::{ffi::OsString, net::SocketAddr, os::unix::ffi::OsStrExt, path::Path};
+use std::{ffi::OsString, os::unix::ffi::OsStrExt, path::Path};
 use temper_client_shell_terminal::{
+    address,
     client::{NativeClient, Settings, Start},
     limits,
     terminal::{Loop, Terminal},
 };
 
-#[derive(Debug)]
-pub enum Target {
-    Link { engine: SocketAddr, link: Secret },
-    Address { engine: SocketAddr },
+pub use address::Target;
+
+pub fn target(argument: &[u8]) -> Result<Target, Refused> {
+    address::target(argument).map_err(Refused::from)
 }
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Refused {
     Usage,
@@ -40,27 +38,13 @@ impl Refused {
         format!("temper open: {why}\n")
     }
 }
-pub fn target(argument: &[u8]) -> Result<Target, Refused> {
-    let bad = || Refused::NotALink(argument.into());
-    let text = std::str::from_utf8(argument).map_err(|_| bad())?;
-    let rest = text.strip_prefix("http://").ok_or_else(bad)?;
-    let (address, path) = rest.split_once('/').unwrap_or((rest, ""));
-    let engine: SocketAddr = address.parse().map_err(|_| bad())?;
-    if !path.is_empty() {
-        let secret = path.strip_prefix("jig/v1/sign-in/link?secret=").ok_or_else(bad)?;
-        let secret = base64::decode(Alphabet::Url, secret.as_bytes(), 32).map_err(|_| bad())?;
-        if secret.len() != 32 {
-            return Err(bad());
+impl From<address::Refused> for Refused {
+    fn from(why: address::Refused) -> Self {
+        match why {
+            address::Refused::NotALink(argument) => Self::NotALink(argument),
+            address::Refused::NotLoopback => Self::NotLoopback,
         }
     }
-    if !engine.ip().is_loopback() {
-        return Err(Refused::NotLoopback);
-    }
-    Ok(if path.is_empty() {
-        Target::Address { engine }
-    } else {
-        Target::Link { engine, link: Secret::new(argument.into()) }
-    })
 }
 /// Reads only whether this directory holds a bearer token; never lends it.
 pub fn check_token(directory: &Path) -> Result<(), Refused> {

@@ -189,33 +189,62 @@ fn priced_admissions_refuse_before_spending_and_adoption_carries_kept_turns() {
 }
 
 #[test]
-fn priced_invalid_terminals_charge_but_live_delegate_refusals_do_not() {
+fn priced_terminals_charge_but_live_delegates_park_without_a_try() {
     let mut w = World::new(73, LIMITS);
     w.make(PERSON_PARTY, vec![task(1, &[])]);
     w.make(Party::Task(1), vec![task(2, &[])]);
     w.claim_task(1);
-    let before = w.records.clone();
-    assert!(
-        matches!(end(&mut w,1,1,End::Finished { result:TaskResult::Report { words:Box::new([1]) },cancel_delegates:false },20),Reply::Refused(problem) if problem.why==Refusal::LiveDelegates && problem.blocked_by.as_deref() == Some(&[2][..]))
-    );
-    assert_eq!(w.records, before);
     assert_eq!(
         end(
             &mut w,
             1,
             1,
+            End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },
+            20
+        ),
+        Reply::Acknowledged(Accepted::New)
+    );
+    assert_eq!(w.record(1).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(w.record(1).tries, tasks::Tries::NONE);
+    assert_eq!(w.record(1).delegates.as_ref(), [2]);
+    assert_eq!(w.record(1).numbers.spent, 20);
+    assert_eq!(w.record(1).run_reserved, 0);
+    assert!(w.results.is_empty());
+    let reply_to = w.to();
+    w.send(Event::Message {
+        reply_to,
+        project: 1,
+        operation: jig_domain_tasks::Message {
+            task: 1,
+            word: jig_domain_tasks::Word {
+                number: 1,
+                from: PERSON_PARTY,
+                kind: jig_domain_tasks::MessageKind::Words,
+                words: b"Cancel the delegates".as_slice().into(),
+                at: w.env.wall,
+                hits: 1,
+                eligible: true,
+            },
+        },
+    });
+    w.claim(1, 2);
+    assert_eq!(
+        end(
+            &mut w,
+            1,
+            2,
             End::Finished {
                 result: TaskResult::Verdict { fields: Box::new([]), code: 99, words: Box::new([1]) },
                 cancel_delegates: false
             },
-            20
+            0
         ),
         Reply::Acknowledged(Accepted::New)
     );
     assert_eq!(w.record(1).numbers.spent, 20);
     assert_eq!(w.record(1).tries.invalid, 1);
     w.advance();
-    w.claim(1, 2);
+    w.claim(1, 3);
     w.terminal(1, End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: true });
     w.complete_cancel();
     assert_eq!(ledger(&w, Funder::Period { project: 1, period: 0 }).numbers.spent_below, 20);
