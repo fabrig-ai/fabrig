@@ -199,6 +199,30 @@ in `../draft/tui.status.md`; no rendered-equality result is supplied.
   `view` block shows as code holding its address
   (`temper-client-tui`'s `view/chat/read.rs`); `tui-views` of the plan
   `tui-whole-t1` prints it.
+- **Not yet:** 6.14, *Needs you* and *Walking what needs you*: the view's
+  `shared` has no `need_prompts`, `NeedPrompt`, `NeedMark` or `NeedAct`;
+  `view-needs` of the plan `tui-whole-t1` builds them.
+- **Not yet:** 6.13, *The TUI's events* (`Own`, `Open`, `Walk`,
+  `EndWalk`), and 6.14's words, state and keys under the launchpad as
+  drawn (the walk's state, `/brief`'s and the opener's notes, `n`,
+  `/chats N`'s numbering, Enter on a goal, the object in focus):
+  `tui-surface` of the plan `tui-whole-t1` builds them.
+- **Not yet:** 6.14, *The launchpad* as drawn: the header's brief and
+  " · /brief", *Where you left off*'s rows, the person's newest goal among
+  them, Needs you's marks and rows, Start, `/brief`'s note, the box's
+  placeholder and *The quiet line*: the launchpad draws the look request
+  `tui-launchpad`'s; `tui-launchpad` of the plan `tui-whole-t1` builds
+  them.
+- **Not yet:** 6.14, *Walking what needs you*'s prompt, *The TUI's own
+  commands* in the commands' list and `/help`'s note, and the opener's
+  note: `tui-walk` of the plan `tui-whole-t1` builds them.
+- **Not yet:** 6.13 and 6.14, the host's part of *The TUI's own
+  commands*, the walk and `n`, `/chats N`, `/change WORDS` and `/ask
+  WORDS`, a page opened through the opener: `shell-launchpad` of the plan
+  `tui-whole-t1` builds them.
+- **Not yet:** 10, the joined story of the launchpad as drawn: a need the
+  engine asks walked and answered, and `/change` starting a chat:
+  `world-launchpad` of the plan `tui-whole-t1` writes it.
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
