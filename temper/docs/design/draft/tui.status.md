@@ -9,7 +9,11 @@
   defers them. Section 3's launchpad, a chat read as the browser's chat
   terminal reads it, and the terminal's commands are
   `../client/README.md`, 6.13 to 6.16, with what they leave out in its
-  section 11. Sections 4 and 5 have no lag: 4.2's TUI side is `../client/README.md`, 6.13 and 7.1,
+  section 11. The newest goal, opened call rows, earlier-page loading
+  and "Latest ↓", and cards at their calls remain section 11's work for
+  temper/tui; the
+  read-once requirement remains `chat-reading.status.md`, 3, for temper/ui.
+  Sections 4 and 5 have no lag: 4.2's TUI side is `../client/README.md`, 6.13 and 7.1,
   and 5 is `../client/tui/journeys.md`. Section 8's journey-format
   default is settled by that design: the browser's versioned syntax and
   common records, with the TUI's own records and codec, sharing the
@@ -41,6 +45,20 @@
   - 4.1: on the sign-in screen `q` is a character of the pasted link's field, which has the focus there, so Ctrl+C closes it (`../client/README.md`, 6.14): decided by the cut of `tui-connected`, 2026-11-07. Once signed in, `q` types in the box, and Ctrl+C or `/exit` closes (below).
   - 4.1 and 4.3: once signed in, the TUI opens on the launchpad, not on the first screen's two lines, "Connected to HOST:PORT as PARTY" and "Projects: ...", and its "q to quit" goes: the box has the focus, `q` types in it, and Ctrl+C or `/exit` closes. From the launchpad's box a question asks Ask temper and opens its chat (`../client/README.md`, 6.13 to 6.16): the user's request of 2026-11-08, the look request `tui-launchpad` (its frames 01 to 04 and their message).
   - 3: as that request draws them, the commands are the browser's chat terminal's, `/chats` where this section has `/resume`; the quiet line says the model and effort and the link's state, not the account; the launchpad's box says "Ask temper" and the quiet line "/ for commands", where this section's sketch has them on one line; and the confirmation's list puts the recommended choice first and "Tell it something else" last with no "Later", as this section asks, where the browser's terminal keeps the choices' order (`../client/README.md`, 6.14): the user's request of 2026-11-08.
+  - 3, and the look request `tui-launchpad` of 2026-11-08: with no project the
+    box takes commands alone, rather than still asking temper, because
+    template 5 needs a project (`../client/README.md`, 6.14). No engine
+    fact or projectless chat was added. The newest live chat has no
+    ", draft" suffix because Home reads no document and TUI drafting is
+    deferred. The shared Home state says "waiting on you", and the
+    shared running line says "✦ Working", rather than the frames'
+    "waiting on your words" and "✦ working", so both clients use their
+    shared words. Active commands carry the focus mark and accent over
+    their band, as every options list does. The header and chat top line
+    have no blank row before the body, and the chat top line has one
+    column of padding at either end. These are the landing account's
+    explained differences; real-terminal refinement remains
+    `../client/README.md`, section 11's after-landing check.
 - **Open:**
   - 3: the side pane, needs from elsewhere, the hand-offs and a checkout's project, refined on recorded frames as the launchpad and a chat were.
   - 4.2: the code carried in the tab's address on a box, a risk taken so that one press approves: the user's to confirm.

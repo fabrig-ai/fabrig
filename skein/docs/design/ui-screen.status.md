@@ -2,20 +2,14 @@
 
 2026-11-08. Where skein's code lags or departs from [ui-screen.md](ui-screen.md).
 
-Unlisted sections have no known gap. Sections 5.3 and 5.4 have each role's
-words, marks and properties, focus columns and paint, including disabled
-select options. Section 9's every-role, every-state and every-property
-fixture has goldens at 80 by 24 and 80 by 144; the latter holds the whole
-tree. Section 10 keeps the deferred rendering and input work.
+No known implementation gap. Sections 3, 5 and 6.2 include rules without
+sides, border-end titles, end alignment, bands, unlabelled fields, marks,
+description paints, child spacing and options-menu selection. Paging
+uses the visible body's rows less one, at least one; paging up stops
+following the log's end and reaching the end resumes it.
 
-Sections 3, 4 and 7 have no known gap in preserving and drawing the
-terminal's default colours. Sections 6.1, 8 and 9 have the bounded OSC
-answer decoder, optional background query and wait, and decoder and
-simulated-terminal test rows for readable, unreadable, late and absent
-answers. The application's choice of dark or light stays outside this
-terminal, as section 8 requires.
-
-- **Departs:** 6.2: PageUp and PageDown move the body's scroll by nine
-  rows, rather than its visible rows less one: the key reader has no body
-  height in its inputs, and the screen-keys task permits a fixed ten-row
-  page without adding a field to `Focus`.
+Sections 6.1 and 8 release a held Escape when the background wait ends;
+a later read-final Escape is a key, while a whole late OSC answer is
+consumed. Section 9's renderer, key and simulated-terminal rows cover
+these paths. Section 10 keeps log-edge reporting and the other deferred
+rendering and input extensions.

@@ -60,12 +60,25 @@ focus uses the accent, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
 present. The simulated run checks a runtime link outside fresh TUI state
-roots, the connected Owner screen without input, no approval request and
+roots, the launchpad without input, no approval request and
 descriptor cleanup. The binary's path rows keep that deployment link
 across fresh state directories and explicit configuration/cache paths.
 Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
+
+Section 6.14's shared words and lists, Home's template-5 composer,
+launchpad and chat, question choices and command handling have no known
+implementation gap. Section 10's joined story covers the running line
+before and during provisional text, commitment, navigation and closing.
+The generated journeys cover the no-project launchpad and Hello through
+a committed fake answer (`tui/journeys.md`, section 9). The newest goal,
+opened call rows, earlier-page loading, Latest, cards at their calls and
+the remaining TUI controls stay in section 11, owned by temper/tui.
+The shared reader still reparses closed blocks; the gap from the user's
+read-once requirement remains `../draft/chat-reading.status.md`, 3,
+and section 11's parsed-block work. Request differences remain explicit
+in `../draft/tui.status.md`; no rendered-equality result is supplied.
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
@@ -938,5 +951,5 @@ address, single-argument opener with null descriptors, `Opened` report,
 fallback lines, pasted-link replacement or Enter to ask again. Golden
 frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
-the first screen and refusal followed by another ask. Browser and real
+the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
