@@ -14,10 +14,9 @@ Add:
   [8] Clear
   [9] Add
 Notes by label:
-  Notes by label:
-    - idea: 0
-    - task: 0
-    - reference: 0
+  - idea: 0
+  - task: 0
+  - reference: 0
   Label:
     [10] (*) All notes
     [11] ( ) Ideas
