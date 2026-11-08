@@ -25,6 +25,7 @@ pub mod public;
 pub mod question;
 mod route;
 pub mod sign_in;
+pub mod views;
 mod sign_in_tab;
 pub mod words;
 pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind};
