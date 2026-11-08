@@ -150,3 +150,16 @@ resolution above; then regenerate the counted declarations as the Rebase
 section says (the counts there were read at an earlier tip: trust the
 generator's, not those numbers), verify without generation, and run the
 task's focused checks. This task edits no domain file.
+
+## Rebase (2026-11-08, step merge, foreman ui-p2-home/all-home-page/foreman-3)
+
+resolve launchpad-chat conflicts by regenerating the journey from the combined code
+Merge the current `ui-p2-home/integration` into the task branch, preserving both sides’ source changes.
+The nine conflicts are under `temper/docs/design/client/tui/journeys/launchpad-chat/`: `01`–`04`, each `.html` and `.txt`, plus `recording`.
+Task commit `7222026a34` refreshed these independently of integration commit `3f59975fc0`, which merged main and regenerated the same journey.
+Main’s `48ea166473` and `a08df03746` also refreshed it; frame 04 differs in whether the opening question appears, beyond changing ports and clocks.
+Resolve provisionally with one complete artifact set, then run `heavy cargo run -p temper-client-journeys -- again launchpad-chat` against the merged code.
+Keep the resulting recording and all generated frames together; do not splice recording events or hand-edit frames to match either side.
+Generation is authorized by the task and `temper/docs/design/client/tui/journeys.md`, sections 6 and 8.
+On `a key mark caught a moving page`, retry generation at most three times.
+Run the focused journey replay and the task’s focused checks through heavy; report regenerated artifacts and test counts.
