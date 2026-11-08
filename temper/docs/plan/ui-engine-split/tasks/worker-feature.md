@@ -142,3 +142,12 @@ Acceptance:
 
 As the implementer's text says, with the `cargo tree` counts, each
 `cfg` that has no stand-in, and anything left.
+
+## Rebase (2026-11-08, step merge, foreman ui-engine-split/worker-feature/foreman-1)
+
+resolve the status-file conflict by retaining both completed entries’ deletions
+The merge conflicts only in `temper/docs/design/protocol/README.status.md`.
+Landing’s integration contains `a7c784c280` (“Finish the shared binary shell with one errno mapping”), which removes the **Not yet** 4.1, 5 `temper-shell` entry.
+This branch’s `290fb1a3c2` removes the adjacent **Not yet** 4.1, 5 “`temper-service` has no `worker` feature” entry.
+Resolve by deleting both entries, preserving the deployment introduction and all remaining status entries.
+Keep the automatically merged manifest changes; this refusal requires no code change.
