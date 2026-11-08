@@ -14,7 +14,7 @@ derives a branch's path from what the root gathers in the answering
 decision, for the `ways` read, `see ways` and the `View` read alike. A
 focused table holds the look request's three paths with CI and both
 tiers, the same with neither, and by turn; the fuzzy test, 64 seeds of
-random rules, finds no agent's stop for an update, a merge, a prepare,
+random rules, finds no agent's stop for a conflict, a merge, a catch-up, a prepare,
 a proof or a turn, and every path ending at a bar. A card's "Asked to"
 is its charter's first sentence within `ASKED`, 184 bytes with its
 quotes, every fact past its bound cut on a word with "…"

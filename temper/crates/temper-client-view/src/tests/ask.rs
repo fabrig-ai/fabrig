@@ -230,7 +230,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Repair, b"repair"),
             (Code, S::Check, b"check"),
             (Person, S::Approve, b"you approve"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Bar, S::Branch, b"main"),
@@ -242,7 +242,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Review, b"review"),
             (Agent, S::Repair, b"repair"),
             (Code, S::Check, b"check"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Bar, S::Branch, b"main"),
@@ -256,7 +256,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Repair, b"repair"),
             (Bar, S::Branch, b"goal branch"),
             (Code, S::Check, b"check"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Code, S::Verify, b"verify"),
@@ -296,12 +296,12 @@ fn path(index: usize) -> w::BranchPath {
                 S::Prove => {
                     Some((w::Opens::Turn, "code · runs the test gates at the candidate", "the turn", "Gates", "unit"))
                 }
-                S::Update => Some((
+                S::Conflict => Some((
                     w::Opens::Queue,
-                    "code · brings the change up to date with its branch",
+                    "code · main has moved in a way that clashes with the change",
                     "the queue",
-                    "Does",
-                    "merges the branch's tip into the change, never by an agent",
+                    "When",
+                    "the change reaches the front of the queue: main is merged into it, never by an agent",
                 )),
                 S::Verify => Some((
                     w::Opens::Tier(
@@ -323,12 +323,15 @@ fn path(index: usize) -> w::BranchPath {
                 | S::Resolve
                 | S::Prepare
                 | S::Turn
+                | S::CatchUp
                 | S::Branch => None,
             };
             let code = if *actor == Code { code } else { None };
             w::Stop::new(
                 &w::CEILINGS,
                 w::StopParts {
+                    needed: false,
+                    over: Box::default(),
                     actor: actor.clone(),
                     step: step.clone(),
                     words: (*words).into(),
@@ -480,7 +483,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"repair, an agent",
                 b"check, code",
                 b"you approve, a person",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"main, a branch",
@@ -492,7 +495,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"review, an agent",
                 b"repair, an agent",
                 b"check, code",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"main, a branch",
@@ -506,7 +509,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"repair, an agent",
                 b"goal branch, a branch",
                 b"check, code",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"verify, code",
@@ -826,7 +829,7 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
         "review, an agent",
         "repair, an agent",
         "check, code",
-        "update, code",
+        "conflict, code",
         "resolve, an agent",
         "merge, code",
         "main, a branch",

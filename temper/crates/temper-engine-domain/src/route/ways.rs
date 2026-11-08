@@ -87,6 +87,7 @@ pub(crate) fn inputs(
         producer: charters.change,
         reviewer: charters.review,
         by: domain.forge.landing_way(project),
+        merge_job: domain.forge.merge_job(project).is_some(),
         roles: ordered.into_boxed(),
         agents: agents.into_boxed(),
     }

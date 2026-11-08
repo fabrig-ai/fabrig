@@ -96,8 +96,19 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
         .expect("short card within fixture limits");
         stops
             .push(
-                w::Stop::new(limits, w::StopParts { actor, step, words, opens: w::Opens::Nothing, card })
-                    .expect("stop within fixture limits"),
+                w::Stop::new(
+                    limits,
+                    w::StopParts {
+                        needed: false,
+                        over: Box::default(),
+                        actor,
+                        step,
+                        words,
+                        opens: w::Opens::Nothing,
+                        card,
+                    },
+                )
+                .expect("stop within fixture limits"),
             )
             .expect("one stop per draw");
     }

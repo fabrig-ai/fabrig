@@ -178,7 +178,7 @@ fn expected_lanes(expected: &str, path: &temper_client_protocol_wire::v1::Branch
                 "review" => "Review",
                 "repair" => "Repair",
                 "you approve" => "Approve",
-                "update" => "Update",
+                "conflict" => "Conflict",
                 "resolve" => "Resolve",
                 "merge" => "Merge",
                 "verify" => "Verify",
@@ -203,14 +203,14 @@ fn expected_lanes(expected: &str, path: &temper_client_protocol_wire::v1::Branch
 // (temper/docs/design/draft/stock-ways.status.md, Design departs).
 const PATHS: [[&str; 3]; 2] = [
     [
-        "you ask, a person\nproduce, an agent\ncheck, code\nrepair, an agent\ncheck, code\nyou approve, a person\nupdate, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
-        "you ask, a person\nproduce, an agent\ncheck, code\nreview, an agent\nrepair, an agent\ncheck, code\nupdate, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
-        "draft, a person\nplan, an agent\nproduce ×n, an agent\nmerge, code\ncheck, code\nrepair, an agent\ngoal branch, a branch\ncheck, code\nupdate, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
+        "you ask, a person\nproduce, an agent\ncheck, code\nrepair, an agent\ncheck, code\nyou approve, a person\nconflict, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
+        "you ask, a person\nproduce, an agent\ncheck, code\nreview, an agent\nrepair, an agent\ncheck, code\nconflict, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
+        "draft, a person\nplan, an agent\nproduce ×n, an agent\nmerge, code\ncheck, code\nrepair, an agent\ngoal branch, a branch\ncheck, code\nconflict, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
     ],
     [
-        "you ask, a person\nproduce, an agent\nyou approve, a person\nupdate, code\nresolve, an agent\nmerge, code\nmain, a branch",
-        "you ask, a person\nproduce, an agent\nreview, an agent\nrepair, an agent\nupdate, code\nresolve, an agent\nmerge, code\nmain, a branch",
-        "draft, a person\nplan, an agent\nproduce ×n, an agent\nmerge, code\ngoal branch, a branch\nupdate, code\nresolve, an agent\nmerge, code\nmain, a branch",
+        "you ask, a person\nproduce, an agent\nyou approve, a person\nconflict, code\nresolve, an agent\nmerge, code\nmain, a branch",
+        "you ask, a person\nproduce, an agent\nreview, an agent\nrepair, an agent\nconflict, code\nresolve, an agent\nmerge, code\nmain, a branch",
+        "draft, a person\nplan, an agent\nproduce ×n, an agent\nmerge, code\ngoal branch, a branch\nconflict, code\nresolve, an agent\nmerge, code\nmain, a branch",
     ],
 ];
 const NAMES: [&[u8]; 3] = [b"You approve", b"Agents review", b"Draft first"];
