@@ -5100,6 +5100,8 @@ dependencies = [
  "jig-client-protocol-http",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
+ "jig-client-test-records",
+ "skein-codec",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",

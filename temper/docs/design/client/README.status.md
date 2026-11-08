@@ -119,9 +119,6 @@ its 320 px, as the user accepted in `look-round-17`.
   quiet line, list or note is drawn; the first screen's bottom row says
   "q to quit".
 
-- **Not yet:** 6.13, *Its pages*, *The look* and *The TUI's events*, and
-  6.16, *Closing*: the root stays at the inbox, a `Show` is dropped, the
-  root's look is the browser's default, and `/exit` closes nothing.
 
 - **Not yet:** 6.14, *The launchpad*: the TUI draws the first screen,
   "Connected to HOST:PORT as NAME" and its projects.
