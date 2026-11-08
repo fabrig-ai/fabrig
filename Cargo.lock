@@ -2193,6 +2193,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-host-protocol",
  "smith-local-service",
+ "smith-protocol-program",
  "tempfile",
 ]
 
@@ -4882,6 +4883,7 @@ dependencies = [
  "smith-local-domain",
  "smith-local-process-world",
  "smith-local-service",
+ "smith-protocol-program",
  "temper-box",
  "temper-client-bundle",
  "temper-client-domain",
@@ -5750,6 +5752,7 @@ dependencies = [
  "temper-fake",
  "temper-fake-git-hosted",
  "temper-fixtures",
+ "temper-forge-setup",
  "temper-github-app",
  "temper-playground",
  "temper-protocol-store",

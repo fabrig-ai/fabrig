@@ -118,6 +118,11 @@ host chose (its own design says how).
   - *its descriptions' paint* (`described`), or none: the paint a node
     under it lays its description in, over its region's, in place of the
     tokens' own (5.3);
+  - *an active name's paint* (`active_name`), or none: on an options item
+    carrying this token, replaces the name's token paint over its region,
+    beneath active and focus paint. None keeps the composed paint; the
+    last of the item's tokens naming a replacement wins. It affects only
+    the name, leaving descriptions, focus marks and bands unchanged (5.3);
   - *spaced* (`spaced`): one blank row between each two children of the
     node that carries it, and of no node under it (5.3).
   The nearest token whose look aligns `End`, or bands, decides it for
@@ -247,7 +252,8 @@ the tree's nodes and the frame's cells.
     focus columns, the focus's paint over its cells, and the theme's
     active paint across the menu's inner width beneath them, as a band;
     the others' focus columns are blank. A menu with no field before it
-    is laid as any menu;
+    is laid as any menu. A token's `active_name` replaces only the active
+    name's token paint as section 3 specifies;
   - *a code block:* its lines are indented four spaces and cut rather
     than wrapped (5.1).
 - **A spread region** lays each child's first line on one row, the first

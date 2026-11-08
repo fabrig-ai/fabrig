@@ -171,7 +171,7 @@ pub(super) fn draw(b: &mut Builder, list: &Options, binds: &mut Binds) {
     b.state(State::Options);
     for item in &list.items {
         b.open(Role::MenuItem);
-        b.style(look::OPTION);
+        b.style(if list.head.is_none() { look::COMMAND } else { look::OPTION });
         b.name(&item.name);
         b.description(&item.words);
         if item.selected {

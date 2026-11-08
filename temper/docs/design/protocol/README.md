@@ -264,6 +264,17 @@ default; the document is `temper.json` in the configuration directory
   temper reads it, a `"fetched"` program naming its launcher
   (configuration.md, section 5; setup.md, 6.6). The worker's protocol layer spawns it,
   one process per run; a person never does.
+- **smith's agent modes,** `temper --mcp-relay 127.0.0.1:PORT` and
+  `temper --program-child PARENT PROGRAM ARGUMENTS...`: temper's binary
+  is its agents' own executable, so the agent shell starts each program
+  process through it, its status check and each print run, and the
+  program starts its MCP relay through it (smith's
+  `protocol/programs.md`, 5.1 and 5.3). `main` gives either flag, as
+  the first argument, to smith's agent shell,
+  `smith_agent_shell::relay::main` and
+  `smith_agent_shell::program_child::main`, before it reads the
+  binary's table, as `smith-agent` does. Neither is a row of the table,
+  in `temper --help` or on a page; a person never runs them.
 - **`temper [ADDRESS]`:** a person's full-screen terminal client, the
   TUI (`../client/README.md`, 6.11). Bare `temper`, with stdin and
   stdout both terminals, runs it at the address it last signed in to,

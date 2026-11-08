@@ -1146,10 +1146,78 @@ terminal client, the captures and the faults.
   A story that can't share one runs in a named nextest test group, as
   `temper-real-loop` does, the reason beside the group.
 
-- **A walk wakes on what it waits for:** a fake-box walk
-  (`crates/temper/tests/fake_backends/walk`) waits on an event where one
-  exists, such as ctl's `--until`, and where only the forge's poll brings
-  the news, it runs on the short paces the status walks set
+- **The fake box keeps two walks** (the user, 2026-11-01): fake-based
+  coverage on `temper box --fake-backends` is one short path through
+  `main` on its fakes, not a story per feature
+  (`crates/temper/tests/fake_backends/walk`):
+  - `here_key::forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box`,
+    the owned welcome walk (section 2, above), the one short end-to-end
+    test;
+  - `sign_in::a_chatgpt_browser_tab_on_the_fake_box_leaves_ready_able_to_create`,
+    the plan's path: the box starts the fake issuer as a process, and the
+    `--fake-backends` journeys stand on it.
+
+  What any other walk checked is the world's that owns it, by what it
+  checks, never by its cost (testing-strategy.md, 8.1), and none is the
+  browser tier's (`../client/browser.md`, section 4). A walk's quiet wait,
+  a sitting, a poll or a hold, is the lower world's clock there, never a
+  wait. Each story below is the walk's lower version, keeping what the
+  walk proved with that world's real parts; a keep a world can't hold
+  without a stub stays on the box with its reason in the status:
+  - **Home's brief on a person's plan,** in the joint world (6.3),
+    `tests/client`'s `suite::status::a_plans_project_has_its_brief_on_a_return_past_the_sitting`:
+    the person's ChatGPT plan is the only account and no deployment key
+    is kept; Home before a landing and within the sitting after it shows
+    no brief; past the sitting, the status run the plan pays for is
+    admitted and its brief shown; the plan is usable after. It runs on
+    the stock's budgets, whose period funds the brief beyond the owner's
+    pool (`forge.md`, 5.6; `../protocol/configuration.md`, 13.4), and fails
+    without that funding.
+  - **Home's landing count across restarts,** `suite::status::a_restart_keeps_the_rows`:
+    a real landing counted, Skip pressed before it, and after the
+    engine's restart a fresh client reads the count and the skip kept.
+  - **Away,** `suite::away::a_goal_decides_while_away_then_waits_on_home_after_overturn_and_off`,
+    in this order: Away on from Home, with its manual end; a goal decides
+    a question; Decided carries on, the goal's next call its note; Home's
+    Overturn asks the goal again, which shows "Still needs you"; Away off
+    and the goal's next question waits for the person, answered from
+    Home.
+  - **A chat's goal and its report,** `suite::task::a_chats_goal_shows_its_report_from_its_goals_row`:
+    the chat's run starts a goal, the goal's run writes its report and
+    finishes, and the person goes from Home's Goals link to the Goals
+    row and from it to the report.
+  - **A sign-in's usable model,** `suite::connect_model::a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account`:
+    the account the sign-in makes reads usable from the engine, where
+    before it read not.
+  - **The fake issuer's held sockets,** in the real loop (2.4),
+    `tests/real-loop`'s `suite::sign_in::a_sign_in_beside_a_browsers_idle_issuer_sockets_completes_and_past_the_cap_is_turned_away`,
+    on the issuer `temper_fake::oauth::Document::peer` makes: a browser's
+    held authorize socket and an idle spare don't block the engine's
+    sign-in, and past `CONNECTIONS` the issuer turns a connection away;
+    and in this package's `suite::fake::the_oauth_fake_logs_each_connection_it_turns_away_at_its_cap`,
+    beside the fake's other process stories, `temper fake oauth` logging
+    each one. Each fails without its half of the fix.
+  - **A long document built in parts,** in the real loop,
+    `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run`:
+    a hosted agent's bounded `note` calls build it past one call's size,
+    its stale and past-the-end edits are refused and save nothing, and a
+    fresh run finds it in its brief and revises it by lines. Beside it,
+    `suite::notes::a_chats_document_is_revised_whole_after_a_follow_up`:
+    the person's follow-up message reaches the chat's run, which
+    rewrites its note whole.
+  - **Copies made and adopted,** in the one-process world (2.5), whose
+    service runs the setup's copies (`forge.md`, 4.5), as the joint world
+    does not: `suite::ready_copies::readys_two_copies_are_made_in_order_and_adopted_with_the_first_as_home`,
+    the person's press of Ready sending both copies in one client pass,
+    made one at a time in that order and adopted, the first as home; and
+    `suite::copy::a_copy_beside_a_repository_joins_its_project_keeping_the_sources_workflow`,
+    `repository copy` into a project that holds a repository: the copy
+    joins it owned and not home, one commit above its source with the
+    starter workflow, the source's own workflow kept.
+
+- **A walk wakes on what it waits for:** a fake-box walk waits on an
+  event where one exists, such as ctl's `--until`, and where only the
+  forge's poll brings the news, it runs on short paces
   (`forge.client.poll_ms` and its fellows), so that no walk waits out a
   5 s poll. A wait a person meets too is a finding of the product's,
   repaired there (testing-strategy.md, 9).

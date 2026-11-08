@@ -56,7 +56,8 @@ host seam, pasted-link sign-in, launchpad, commands, chats, themes,
 closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
 renewal and suppression after a noted sign-out. The expiry is noted once
 the link is live with a party. The base uses the terminal's default colours,
-focus uses the accent, and the run chooses its scheme from COLORFGBG,
+focus uses the accent, active command names are plain while inactive names
+and question choices stay bold, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
 present. The simulated run checks a runtime link outside fresh TUI state
@@ -67,10 +68,20 @@ Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
+Sections 6.13 and 6.14's no-project command composer has no known
+implementation gap. The host's focused key-and-frame regression covers
+completion, command execution, Escape, ordinary words, quit keys,
+revision stability, navigation and separation from the sign-in field.
+The help pages name `/exit` and Ctrl+C as closing keys and `q` as typing.
+
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
 implementation gap. Section 10's joined story covers the running line
 before and during provisional text, commitment, navigation and closing.
+The focused view test holds a Writing observation before the first answer,
+through provisional words and commitment: the shared running line and the
+browser terminal say "Working", the chat bar says "Writing", and completion
+removes the running line.
 The generated journeys cover the no-project launchpad and Hello through
 a committed fake answer (`tui/journeys.md`, section 9). The newest goal,
 opened call rows, earlier-page loading, Latest, cards at their calls and
@@ -554,9 +565,9 @@ read's head explicit.
   delegate tasks, Pause, Resume, a message and Close, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
   view holds Goals' link to `/chats` (`the_link_shows_with_a_tracked_template`),
-  and the fake box's walk reaches an
-  ended goal's report from its Goals row, in the terminal's client
-  (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
+  and the joint world's story reaches an
+  ended goal's report from its chat through Home's Goals link and its Goals row
+  (`tests/client/tests/suite/task.rs`, `a_chats_goal_shows_its_report_from_its_goals_row`). The fake
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
   only for the first chat's goal, task 2, and has it ask, wait or finish with no
   delegates, so it can show no planning and no delegate task: the journey
@@ -898,10 +909,10 @@ read's head explicit.
     boxes, its driver thrown away as that plan's cut has it, so no test keeps it. The
     client's world holds the card, count and Accept (its story of Ask temper's
     proposal of a project's ways reaching its Needs you and its rail), and
-    the process tier a person's plan's return
-    (`a_plans_project_has_its_brief_on_a_return_past_the_sitting`), past a sitting a
-    test's `forge.sitting_ms` sets to seconds, where that request's return is past 31
-    minutes, because a real box has no fake clock.
+    the joint world a person's plan's return
+    (`tests/client/tests/suite/status.rs`,
+    `a_plans_project_has_its_brief_on_a_return_past_the_sitting`), past the sitting
+    on the world's clock advanced by 31 minutes.
 - **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
   2026-11-06, decided by its plan's cut. A press outside that took the focus to
   another control leaves it there, where the request returns the focus to the row:

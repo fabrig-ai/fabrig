@@ -1,4 +1,5 @@
 //! The QA runner starts the shipped binary, then reads files and serves requests.
+//! Fake issuer cap logging: temper/docs/design/domain/testing.md, 2.6.
 use crate::{listeners, support};
 use serde_json::{Value, json};
 use skein_world::{Deadline, Expired};
@@ -7,7 +8,7 @@ use std::{
     fs,
     io::{Read, Write},
     net::{SocketAddr, TcpStream},
-    os::unix::fs::PermissionsExt,
+    os::{fd::AsRawFd, unix::fs::PermissionsExt},
     path::Path,
     process::{Child, Command, Stdio},
     sync::Arc,
@@ -103,7 +104,11 @@ impl Running {
         assert_ne!(run.address.port(), 0);
         run
     }
-    fn stop(mut self) {
+    fn stop(self) {
+        let stderr = self.stop_with_stderr();
+        assert!(stderr.is_empty(), "{}", String::from_utf8_lossy(&stderr));
+    }
+    fn stop_with_stderr(mut self) -> Vec<u8> {
         self.sockets.get_mut().clear();
         let child = self.child.get_mut().take().expect("valid fixture");
         assert!(
@@ -116,7 +121,7 @@ impl Running {
         let ended = child.wait_with_output().expect("valid fixture");
         assert_eq!(ended.status.code(), Some(0), "{}", String::from_utf8_lossy(&ended.stderr));
         assert!(ended.stdout.is_empty(), "stdout holds only the ready line");
-        assert!(ended.stderr.is_empty(), "{}", String::from_utf8_lossy(&ended.stderr));
+        ended.stderr
     }
     fn deadline(&self, what: &'static str) -> Deadline {
         let mut deadline = Deadline::arm(what, skein_lib::Duration::from_millis(300));
@@ -1439,6 +1444,59 @@ fn llm_fails_a_credential_its_line_names_and_accepts_the_added_key() {
     assert!(exhausted.starts_with(b"HTTP/1.1 429 "), "{}", String::from_utf8_lossy(&exhausted));
     assert_eq!(body(&exhausted)["error"]["resets_in_seconds"], 1);
     run.stop();
+    scratch.remove();
+}
+
+#[test]
+fn the_oauth_fake_logs_each_connection_it_turns_away_at_its_cap() {
+    let scratch = support::Scratch::startup("fake-oauth-cap");
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("listener");
+    let address = listener.local_addr().expect("address");
+    let path = scratch.path().join("fake.json");
+    document(
+        &path,
+        &json!({"listen":{"socket":address.to_string()},"redirect_port":1455,"redirect_path":"auth/callback"}),
+    );
+    let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+    command.args(["fake", "oauth", "--document"]).arg(path);
+    let run = Running::command(command, None);
+    let sockets: Vec<_> = (0..temper_fake::oauth::CONNECTIONS).map(|_| stream(&run, run.address)).collect();
+    let extra = stream(&run, run.address);
+    let expected =
+        format!("temper fake oauth: rejected a connection at the cap of {}", temper_fake::oauth::CONNECTIONS);
+    let deadline = run.deadline("the fake issuer's cap rejection log");
+    let mut stderr = Vec::new();
+    loop {
+        if deadline.passed() {
+            match deadline.expired() {
+                Expired::Starved(starved) => {
+                    run.end();
+                    starved.pass();
+                }
+                Expired::Failed(figures) => {
+                    panic!("missing stderr line {expected:?}: {figures}; stderr {:?}", String::from_utf8_lossy(&stderr))
+                }
+            }
+        }
+        let mut child = run.child.borrow_mut();
+        let pipe = child.as_mut().expect("running fake").stderr.as_mut().expect("stderr pipe");
+        if !skein_shell::keeper::wait_readable(skein_io::kernel::Fd::new(pipe.as_raw_fd()), deadline.remaining())
+            .expect("stderr readiness")
+        {
+            continue;
+        }
+        let mut bytes = [0; 1024];
+        let count = pipe.read(&mut bytes).expect("stderr read");
+        assert_ne!(count, 0, "the fake exited before logging: {:?}", String::from_utf8_lossy(&stderr));
+        stderr.extend_from_slice(&bytes[..count]);
+        if String::from_utf8_lossy(&stderr).lines().any(|line| line == expected) {
+            break;
+        }
+    }
+    drop(extra);
+    drop(sockets);
+    stderr.extend_from_slice(&run.stop_with_stderr());
+    assert_eq!(String::from_utf8(stderr).expect("UTF-8 log"), format!("{expected}\n"));
     scratch.remove();
 }
 

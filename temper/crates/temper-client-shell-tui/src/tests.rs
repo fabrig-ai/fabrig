@@ -1059,6 +1059,100 @@ fn typed(host: &mut Host, words: &[u8]) {
     give(host, Event::Typed { value: words.into() });
 }
 
+fn key_words(host: &mut Host, words: &str) {
+    let mut echoed = String::from_utf8(host.words().to_vec()).expect("UTF-8 composer");
+    for character in words.chars() {
+        host.frame();
+        empty(&host.report(Report::Key(Key::Char(character))));
+        echoed.push(character);
+        assert!(text(host).contains(&format!("❯ {echoed}")), "composer must echo {echoed:?}");
+    }
+}
+
+#[test]
+fn no_project_composer_accepts_commands() {
+    let (mut host, _, _) = signed_host(false);
+    key_words(&mut host, "/");
+    let frame = text(&mut host);
+    for command in ["/theme", "/help", "/exit", "Close temper"] {
+        assert!(frame.contains(command), "offered command list: {command}\n{frame}");
+    }
+    key_words(&mut host, "exit");
+    assert!(text(&mut host).contains("❯ /exit"));
+    assert!(host.report(Report::Key(Key::Enter)).close, "/exit must close from the launchpad");
+    assert!(host.words().is_empty(), "closing clears the command composer");
+    for words in ["/theme", "/help", "/zz", "hello", "q", "/"] {
+        no_project_keys(words);
+    }
+    no_project_lifecycle();
+}
+
+fn no_project_lifecycle() {
+    for signing_out in [false, true] {
+        let (mut host, me, _) = signed_host(false);
+        let revision = host.state().revision();
+        let written = host.state().box_written();
+        key_words(&mut host, "/he");
+        assert!(host.state().revision() > revision, "typing redraws the TUI-owned composer");
+        assert_eq!(host.state().box_written(), written, "typing preserves the editor's write count");
+        assert!(host.state().field().is_empty(), "commands stay separate from sign-in text");
+        let revision = host.state().revision();
+        empty(&host.report(Report::Due));
+        assert_eq!(host.state().revision(), revision, "an unchanged live link preserves the composer");
+        assert_eq!(host.words(), b"/he");
+        if signing_out {
+            host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::SignedOut }));
+            host.frame();
+            empty(&host.report(Report::Key(Key::Char('q'))));
+            assert_eq!(host.state().field(), b"q", "sign-in typing uses its own field");
+        } else {
+            delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
+            assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+            assert!(host.words().is_empty(), "navigation opens an empty project composer");
+            assert!(!text(&mut host).contains("❯ /he"));
+        }
+        assert!(host.state().command_words().is_empty(), "screen transitions clear command words");
+        assert!(host.state().box_written() > written);
+    }
+}
+
+fn no_project_keys(words: &str) {
+    let (mut host, _, _) = signed_host(false);
+    key_words(&mut host, words);
+    let written = host.state().box_written();
+    let duties = host.report(Report::Key(if words == "/" { Key::Escape } else { Key::Enter }));
+    empty(&duties);
+    match words {
+        "/theme" => assert_eq!(host.root.pages().look().theme, Theme::Light),
+        "/help" => {
+            assert_eq!(host.root.pages().notes().last(), Some(&terminal::Note::Help));
+            assert!(text(&mut host).contains("/exit"), "help must render its commands");
+        }
+        "/zz" => {
+            assert_eq!(host.state().unknown(), Some(b"/zz".as_slice()));
+            assert!(text(&mut host).contains("Unknown command /zz."));
+        }
+        "hello" | "q" => {
+            assert_eq!(host.words(), words.as_bytes(), "ordinary words send nothing");
+            assert_eq!(host.state().box_written(), written);
+        }
+        "/" => assert!(!text(&mut host).contains("Close temper"), "Escape dismisses the list"),
+        _ => unreachable!("named composer case"),
+    }
+    if words.starts_with('/') {
+        assert!(host.words().is_empty(), "command execution and Escape clear the composer");
+        assert!(host.state().box_written() > written);
+        assert!(text(&mut host).contains("❯ / for commands"));
+        key_words(&mut host, "/he");
+        host.frame();
+        empty(&host.report(Report::Key(Key::Tab)));
+        assert_eq!(host.words(), b"/help", "Tab completes into the same composer");
+        assert!(text(&mut host).contains("❯ /help"));
+    }
+    host.frame();
+    assert!(host.report(Report::Key(Key::Control(b'c'))).close, "Ctrl+C closes anywhere");
+}
+
 fn sent_ask(duties: &Duties) -> Vec<(skein_lib::Token, w::Ask)> {
     duties
         .asked

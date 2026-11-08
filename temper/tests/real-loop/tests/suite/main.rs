@@ -15,6 +15,7 @@ mod lifecycle;
 mod lock;
 mod lost;
 mod model_check;
+mod notes;
 mod peers;
 mod restart;
 mod sign_in;

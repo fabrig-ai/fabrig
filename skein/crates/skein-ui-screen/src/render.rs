@@ -822,6 +822,54 @@ fn option_name_width(node: &Node) -> u16 {
     }
 }
 
+fn option_width(tree: &Tree, at: u32, end: u32) -> u16 {
+    let mut longest = 0;
+    for item in at.saturating_add(1)..end {
+        let node = tree.get(item).expect("menu descendant exists");
+        if node.role == Role::MenuItem {
+            longest = longest.max(option_name_width(node));
+        }
+    }
+    longest
+}
+
+fn active_name_paint(node: &Node, theme: &crate::Theme, region: Paint, composed: Paint) -> Paint {
+    let mut paint = composed;
+    for token in &node.styles {
+        for look in &theme.styles {
+            if *token == look.style
+                && let Some(name) = look.active_name
+            {
+                paint = theme.focus.over(theme.active.over(name.over(region)));
+            }
+        }
+    }
+    paint
+}
+
+fn option_description(
+    node: &Node,
+    data: &Info,
+    active: bool,
+    longest: u16,
+    theme: &crate::Theme,
+    out: &mut Canvas,
+    frame: &mut Frame,
+) {
+    let paint = if active { theme.focus.over(theme.active.over(data.paint)) } else { data.paint };
+    if let Some(description) = &node.description {
+        let width = option_name_width(node);
+        for _space in 0..longest.saturating_sub(width).saturating_add(3) {
+            out.safe(b" ", paint, false, frame);
+        }
+        let mut described = data.description_paint();
+        if active {
+            described = theme.focus.over(theme.active.over(described));
+        }
+        out.safe(first_line(description), described, false, frame);
+    }
+}
+
 fn options_menu(
     tree: &Tree,
     at: u32,
@@ -833,13 +881,7 @@ fn options_menu(
 ) {
     let menu = tree.get(at).expect("options menu exists");
     let end = at.saturating_add(menu.size);
-    let mut longest = 0;
-    for item in at.saturating_add(1)..end {
-        let node = tree.get(item).expect("menu descendant exists");
-        if node.role == Role::MenuItem {
-            longest = longest.max(option_name_width(node));
-        }
-    }
+    let longest = option_width(tree, at, end);
     let indent = out.indent();
     let start = out.rows();
     let spaced = info.get(at).expect("menu information exists").spaced;
@@ -868,19 +910,10 @@ fn options_menu(
         out.safe(glyph.encode_utf8(&mut mark).as_bytes(), paint, false, frame);
         out.safe(b" ", paint, false, frame);
         if let Some(name) = &node.name {
-            out.safe(first_line(name), paint, false, frame);
+            let name_paint = if active { active_name_paint(node, theme, data.region_paint, paint) } else { paint };
+            out.safe(first_line(name), name_paint, false, frame);
         }
-        if let Some(description) = &node.description {
-            let width = option_name_width(node);
-            for _space in 0..longest.saturating_sub(width).saturating_add(3) {
-                out.safe(b" ", paint, false, frame);
-            }
-            let mut described = data.description_paint();
-            if active {
-                described = theme.focus.over(theme.active.over(described));
-            }
-            out.safe(first_line(description), described, false, frame);
-        }
+        option_description(node, data, active, longest, theme, out, frame);
         words::option_states(node, paint, out, frame);
         out.finish(frame);
         out.clip_line(false);
