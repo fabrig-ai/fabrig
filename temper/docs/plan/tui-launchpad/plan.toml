@@ -1,0 +1,5 @@
+draft = "tui-launchpad"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-launchpad/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/docs/design/draft/chat-reading.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/ask-temper.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
