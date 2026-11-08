@@ -8,6 +8,8 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 mod refusals;
+mod ways;
+pub use ways::ways_panel;
 
 // client/README.md, 4.6: connector documents and their wire share every bound.
 const _: () = {
@@ -401,11 +403,17 @@ pub fn to_root(
                         }
                         None
                     }
+                    w::Read::View(read) => {
+                        if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
+                            forge_settings_query(w::Read::View(read))
+                        } else {
+                            None
+                        }
+                    }
                     read @ (w::Read::Setting(_)
                     | w::Read::RevisionSetting(_)
                     | w::Read::ProposalItems(_)
-                    | w::Read::ProgramEnvironment
-                    | w::Read::View(_)) => forge_settings_query(read),
+                    | w::Read::ProgramEnvironment) => forge_settings_query(read),
                 };
                 if let Some(query) = query {
                     return Ok(root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }));
@@ -448,6 +456,11 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::changes_subject(subject.project())),
                     },
+                    w::Watch::Ways(subject) => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Project(subject.project()),
+                        connector: wire::FORGE,
+                        subject: Token::new(root::ways::subject(subject.project())),
+                    },
                     w::Watch::Approvals => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Own,
                         connector: wire::FORGE,
@@ -478,7 +491,7 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::decided_subject(subject.project())),
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Ways(_) => {
+                    w::Watch::Change(_) | w::Watch::Landing(_) => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,
@@ -1789,7 +1802,7 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
-        root::ForgeReadAnswer::View(_) => None,
+        root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
             let record = w::ProgramEnvironmentAnswer::new(
                 limits,
@@ -1850,7 +1863,11 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
             revision: value.revision(),
         }),
         w::Read::ProposalItems(value) => Some(root::ForgeRead::ProposalItems { key: value.key() }),
-        w::Read::Playground | w::Read::Deployment | w::Read::View(_) => None,
+        w::Read::View(value) => {
+            let w::ViewReadParts { project, address } = value.into_parts();
+            Some(root::ForgeRead::View { project, address })
+        }
+        w::Read::Playground | w::Read::Deployment => None,
     }
 }
 

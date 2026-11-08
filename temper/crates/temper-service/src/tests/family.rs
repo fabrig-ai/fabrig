@@ -5,6 +5,7 @@ use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Reader, ReplyTo, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
+use temper_engine_domain::ways;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 const REPLY: ReplyTo = ReplyTo::new(Token::new(19));
@@ -2276,18 +2277,31 @@ fn connect_and_replace_answers_share_the_connect_outcomes() {
 
 #[test]
 fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
-    for (read, query) in [
+    for (read, query, expected_scope) in [
         (
             w::Read::Setting(
                 w::SettingRead::new(&w::CEILINGS, w::SettingReadParts { kind: 2, scope: 7, number: 3 }).unwrap(),
             ),
             root::ForgeRead::Setting { kind: 2, scope: 7, number: 3 },
+            people::ApplicationScope::Deployment,
         ),
         (
             w::Read::ProposalItems(
                 w::ProposalItemsRead::new(&w::CEILINGS, w::ProposalItemsReadParts { key: u64::MAX }).unwrap(),
             ),
             root::ForgeRead::ProposalItems { key: u64::MAX },
+            people::ApplicationScope::Deployment,
+        ),
+        (
+            w::Read::View(
+                w::ViewRead::new(
+                    &w::CEILINGS,
+                    w::ViewReadParts { project: 7, address: b"proposal t12/3".as_slice().into() },
+                )
+                .unwrap(),
+            ),
+            root::ForgeRead::View { project: 7, address: b"proposal t12/3".as_slice().into() },
+            people::ApplicationScope::Project(7),
         ),
     ] {
         let record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).unwrap());
@@ -2297,7 +2311,7 @@ fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
             record,
-            scope: people::ApplicationScope::Deployment,
+            scope: expected_scope,
             window: jig_domain_core::documents::Window { rows: 1, after: None },
         };
         let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query: actual }) = family::to_root(
@@ -2312,7 +2326,7 @@ fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
         .unwrap() else {
             panic!("typed forge read")
         };
-        assert_eq!((reply, sign_in, scope, actual), (REPLY, 3, people::ApplicationScope::Deployment, query));
+        assert_eq!((reply, sign_in, scope, actual), (REPLY, 3, expected_scope, query));
     }
 }
 #[test]
@@ -2865,40 +2879,317 @@ fn changes_document_encodes_and_decodes() {
     let landed = got.landed().get(0).unwrap();
     assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
 }
+fn ways_path() -> (ways::Path, w::BranchPath) {
+    let facts = Box::new([
+        ways::Fact { label: b"Model".as_slice().into(), value: b"a model".as_slice().into() },
+        ways::Fact { label: b"Can".as_slice().into(), value: b"read the code".as_slice().into() },
+        ways::Fact { label: b"Asked to".as_slice().into(), value: b"Make the change.".as_slice().into() },
+        ways::Fact { label: b"Charter".as_slice().into(), value: b"charter 3".as_slice().into() },
+    ]);
+    let card = ways::Card { who: b"an agent".as_slice().into(), name: b"the coder".as_slice().into(), facts };
+    let mut wire_facts = List::with_capacity(4);
+    for fact in &card.facts {
+        wire_facts
+            .push(
+                w::Fact::new(&w::CEILINGS, w::FactParts { label: fact.label.clone(), value: fact.value.clone() })
+                    .unwrap(),
+            )
+            .unwrap();
+    }
+    let wire_card =
+        w::Card::new(&w::CEILINGS, w::CardParts { who: card.who.clone(), name: card.name.clone(), facts: wire_facts })
+            .unwrap();
+    let mut stops = List::uncapped();
+    let mut wire_stops = List::with_capacity(4);
+    for (actor, step, words, opens, wire_actor, wire_step, wire_opens) in [
+        (
+            ways::Actor::Person,
+            ways::Step::Ask,
+            b"you ask".as_slice(),
+            ways::Opens::Nothing,
+            w::Actor::Person,
+            w::PathStep::Ask,
+            w::Opens::Nothing,
+        ),
+        (
+            ways::Actor::Agent,
+            ways::Step::Produce,
+            b"produce".as_slice(),
+            ways::Opens::Charter(3),
+            w::Actor::Agent,
+            w::PathStep::Produce,
+            w::Opens::Charter(w::OpensCharter::new(&w::CEILINGS, w::OpensCharterParts { charter: 3 }).unwrap()),
+        ),
+        (
+            ways::Actor::Code,
+            ways::Step::Merge,
+            b"merge".as_slice(),
+            ways::Opens::Queue,
+            w::Actor::Code,
+            w::PathStep::Merge,
+            w::Opens::Queue,
+        ),
+        (
+            ways::Actor::Bar,
+            ways::Step::Branch,
+            b"main".as_slice(),
+            ways::Opens::Nothing,
+            w::Actor::Bar,
+            w::PathStep::Branch,
+            w::Opens::Nothing,
+        ),
+    ] {
+        stops.push(ways::Stop { actor, step, words: words.into(), opens, card: card.clone() }).unwrap();
+        wire_stops
+            .push(
+                w::Stop::new(
+                    &w::CEILINGS,
+                    w::StopParts {
+                        actor: wire_actor,
+                        step: wire_step,
+                        words: words.into(),
+                        opens: wire_opens,
+                        card: wire_card.clone(),
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    let repository = Some(Box::from(b"acme/shop".as_slice()));
+    let branch: Box<[u8]> = Box::from(b"main".as_slice());
+    (
+        ways::Path { repository: repository.clone(), branch: branch.clone(), stops: stops.into_boxed() },
+        w::BranchPath::new(&w::CEILINGS, w::BranchPathParts { repository, branch, stops: wire_stops }).unwrap(),
+    )
+}
+
+fn ways_document(path: &ways::Path) -> ways::WaysDocument {
+    let mut entries = List::uncapped();
+    for (name, delegation) in
+        [(b"Ask first".as_slice(), false), (b"Review first".as_slice(), true), (b"Draft first".as_slice(), false)]
+    {
+        entries
+            .push(ways::WayEntry {
+                name: name.into(),
+                line: b"How it lands".as_slice().into(),
+                path: path.clone(),
+                delegation,
+                items: Box::new([
+                    ways::Item {
+                        kind: 3,
+                        scope: 7,
+                        number: 1,
+                        edit: ways::Edit::Set(forge::settings::Value::Charter(3)),
+                    },
+                    ways::Item { kind: 2, scope: 7, number: 4, edit: ways::Edit::Remove },
+                ]),
+            })
+            .unwrap();
+    }
+    ways::WaysDocument { project: 7, ways: entries.into_boxed(), current: Some(1), own: path.clone(), may_change: true }
+}
+
 #[test]
-fn the_changes_watch_names_its_project_subject() {
-    for project in [0, 7, u32::MAX] {
-        let record = wire::watching(
-            &w::Watching::new(
+fn ways_and_view_answers_preserve_paths_cards_and_items() {
+    let (path, expected) = ways_path();
+    let document = ways_document(&path);
+    let record = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
+    let panel = wire::decode_ways_panel(&record, &w::CEILINGS).unwrap();
+    assert_eq!((panel.project(), *panel.current(), panel.may_change()), (7, Some(1), true));
+    assert_eq!(panel.own(), &expected);
+    assert_eq!(panel.ways().len(), 3);
+    for (got, entry) in panel.ways().iter().zip(document.ways.iter()) {
+        assert_eq!(
+            (got.name(), got.line(), got.delegation()),
+            (entry.name.as_ref(), entry.line.as_ref(), entry.delegation)
+        );
+        assert_eq!(got.path(), &expected);
+        assert_eq!(got.items().len(), 2);
+        let set = got.items().get(0).unwrap();
+        assert_eq!((set.kind(), set.scope(), set.number()), (3, 7, 1));
+        let w::SettingEdit::Set(value) = set.edit() else { panic!("set item") };
+        assert_eq!(value.value(), temper_engine_smith::kinds::encode(&forge::settings::Value::Charter(3)).as_ref());
+        let removed = got.items().get(1).unwrap();
+        assert_eq!(
+            (removed.kind(), removed.scope(), removed.number(), removed.edit()),
+            (2, 7, 4, &w::SettingEdit::Removed)
+        );
+    }
+    let mut after = path.clone();
+    after.repository = None;
+    after.branch = b"next".as_slice().into();
+    let mut expected_after = expected.clone().into_parts();
+    expected_after.repository = None;
+    expected_after.branch = b"next".as_slice().into();
+    let expected_after = w::BranchPath::new(&w::CEILINGS, expected_after).unwrap();
+    let card = path.stops[1].card.clone();
+    let expected_card = expected.stops().get(1).unwrap().card().clone();
+    for (view, expected_view) in [
+        (
+            ways::View::Proposal { before: path.clone(), after },
+            w::View::Proposal(
+                w::ProposalView::new(
+                    &w::CEILINGS,
+                    w::ProposalViewParts { before: expected.clone(), after: expected_after },
+                )
+                .unwrap(),
+            ),
+        ),
+        (ways::View::Path(path.clone()), w::View::Path(expected.clone())),
+        (
+            ways::View::Way {
+                name: b"Ask first".as_slice().into(),
+                line: b"How it lands".as_slice().into(),
+                path: path.clone(),
+                current: true,
+            },
+            w::View::Way(
+                w::WayView::new(
+                    &w::CEILINGS,
+                    w::WayViewParts {
+                        name: b"Ask first".as_slice().into(),
+                        line: b"How it lands".as_slice().into(),
+                        path: expected.clone(),
+                        current: true,
+                    },
+                )
+                .unwrap(),
+            ),
+        ),
+        (
+            ways::View::Charter { charter: 3, card },
+            w::View::Charter(
+                w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 3, card: expected_card }).unwrap(),
+            ),
+        ),
+        (
+            ways::View::NotDrawn(b"No such charter".as_slice().into()),
+            w::View::NotDrawn(
+                w::NotDrawn::new(&w::CEILINGS, w::NotDrawnParts { words: b"No such charter".as_slice().into() })
+                    .unwrap(),
+            ),
+        ),
+    ] {
+        let record = family::forge_read(root::ForgeReadAnswer::View(Box::new(view)), &[], &w::CEILINGS).unwrap();
+        assert_eq!(wire::decode_view_answer(&record, &w::CEILINGS).unwrap().view(), &expected_view);
+    }
+}
+
+#[test]
+fn ways_and_views_refuse_over_bound_values_without_cutting_them() {
+    let (path, _) = ways_path();
+    for limits in [
+        w::Limits { branch_path_repository_some: 8, ..w::CEILINGS },
+        w::Limits { branch_path_branch: 3, ..w::CEILINGS },
+        w::Limits { branch_path_stops: 3, ..w::CEILINGS },
+        w::Limits { stop_words: 6, ..w::CEILINGS },
+        w::Limits { card_who: 7, ..w::CEILINGS },
+        w::Limits { card_name: 8, ..w::CEILINGS },
+        w::Limits { card_facts: 3, ..w::CEILINGS },
+        w::Limits { fact_label: 7, ..w::CEILINGS },
+        w::Limits { fact_value: 15, ..w::CEILINGS },
+    ] {
+        assert!(family::ways_panel(ways_document(&path), &limits).is_none(), "panel: {limits:?}");
+        assert!(
+            family::forge_read(
+                root::ForgeReadAnswer::View(Box::new(ways::View::Proposal {
+                    before: path.clone(),
+                    after: path.clone(),
+                })),
+                &[],
+                &limits
+            )
+            .is_none(),
+            "view: {limits:?}"
+        );
+    }
+    for limits in [
+        w::Limits { stock_way_name: 8, ..w::CEILINGS },
+        w::Limits { stock_way_line: 11, ..w::CEILINGS },
+        w::Limits { stock_way_items: 1, ..w::CEILINGS },
+        w::Limits { ways_panel_ways: 2, ..w::CEILINGS },
+        w::Limits { setting_value_value: 3, ..w::CEILINGS },
+    ] {
+        assert!(family::ways_panel(ways_document(&path), &limits).is_none(), "panel: {limits:?}");
+    }
+}
+
+#[test]
+fn view_reads_refuse_scopes_other_than_the_named_project() {
+    for scope in
+        [people::ApplicationScope::Deployment, people::ApplicationScope::Own, people::ApplicationScope::Project(8)]
+    {
+        let read = w::Read::View(
+            w::ViewRead::new(
                 &w::CEILINGS,
-                w::WatchingParts {
-                    watch: w::Watch::Changes(
-                        w::ChangesSubject::new(&w::CEILINGS, w::ChangesSubjectParts { project }).unwrap(),
-                    ),
-                },
+                w::ViewReadParts { project: 7, address: b"proposal t12/3".as_slice().into() },
             )
             .unwrap(),
         );
-        let got = family::to_root(
+        let exchange = kit::ToApplication::Read {
+            reply: REPLY,
+            sign_in: 3,
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).unwrap()),
+            scope,
+            window: jig_domain_core::documents::Window { rows: 1, after: None },
+        };
+        let refusal = family::to_root(
             &jig_protocol_config::Directories::working(),
-            watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
+            exchange,
             &fixtures::forge_table(&[]),
             None,
             &family::Deployment { welcome: false, owned: false, program_login: None },
             None,
             &w::CEILINGS,
         )
-        .unwrap();
-        let root::Event::Party(root::PartyInput::Watch {
-            subject: jig_domain_core::documents::Watched::Application { scope, subject, connector },
-            ..
-        }) = got
-        else {
-            panic!("application watch")
+        .unwrap_err();
+        let kit::Event::Application(kit::FromApplication::Read { reply, family, record }) = *refusal else {
+            panic!("read refusal")
         };
-        assert_eq!(subject.raw(), forge::changes_subject(project));
-        assert_eq!(connector, wire::FORGE);
-        assert_eq!(scope, jig_domain_people::ApplicationScope::Project(7));
+        assert_eq!((reply, family, record), (REPLY, wire::FORGE, None));
+    }
+}
+
+#[test]
+fn the_changes_watch_names_its_project_subject() {
+    for project in [0, 7, u32::MAX] {
+        for (watch, expected_subject, expected_scope) in [
+            (
+                w::Watch::Changes(w::ChangesSubject::new(&w::CEILINGS, w::ChangesSubjectParts { project }).unwrap()),
+                forge::changes_subject(project),
+                people::ApplicationScope::Project(7),
+            ),
+            (
+                w::Watch::Ways(w::WaysSubject::new(&w::CEILINGS, w::WaysSubjectParts { project }).unwrap()),
+                ways::subject(project),
+                people::ApplicationScope::Project(project),
+            ),
+        ] {
+            let record = wire::watching(&w::Watching::new(&w::CEILINGS, w::WatchingParts { watch }).unwrap());
+            let got = family::to_root(
+                &jig_protocol_config::Directories::working(),
+                watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
+                &fixtures::forge_table(&[]),
+                None,
+                &family::Deployment { welcome: false, owned: false, program_login: None },
+                None,
+                &w::CEILINGS,
+            )
+            .unwrap();
+            let root::Event::Party(root::PartyInput::Watch {
+                subject: jig_domain_core::documents::Watched::Application { scope, subject, connector },
+                ..
+            }) = got
+            else {
+                panic!("application watch")
+            };
+            assert_eq!(subject.raw(), expected_subject);
+            assert_eq!(connector, wire::FORGE);
+            assert_eq!(scope, expected_scope);
+        }
     }
 }
 #[test]
@@ -3100,6 +3391,72 @@ fn the_worst_small_changes_document_fits_its_decision() {
     let bytes = document.owned_bytes();
     assert!(
         bytes <= usize::try_from(limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes)).unwrap()
+    );
+}
+
+#[test]
+fn the_worst_small_ways_document_fits_its_decision() {
+    let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let value_bytes = u32::try_from(ways::VALUE).unwrap();
+    // Approval and tier stops are smaller: words and name at most 64 bytes,
+    // with one fact of VALUE bytes for a tier, or two short approval facts.
+    let card = ways::Card {
+        who: "an agent · repairs what a check or a review found, then goes back through them".as_bytes().into(),
+        name: b"the coding agent".as_slice().into(),
+        facts: Box::new([
+            ways::Fact { label: b"Model".as_slice().into(), value: repeated(b'm', value_bytes) },
+            ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true).into() },
+            ways::Fact { label: b"Asked to".as_slice().into(), value: repeated(b'a', value_bytes) },
+        ]),
+    };
+    let mut stops = List::uncapped();
+    for _ in 0..ways::STOPS {
+        stops
+            .push(ways::Stop {
+                actor: ways::Actor::Agent,
+                step: ways::Step::ProduceMany,
+                words: "produce ×n".as_bytes().into(),
+                opens: ways::Opens::Charter(u32::MAX),
+                card: card.clone(),
+            })
+            .unwrap();
+    }
+    let owner = repeated(b'o', limits.forge.name_bytes);
+    let name = repeated(b'n', limits.forge.name_bytes);
+    let path = ways::Path {
+        repository: Some(skein_lib::bytes::concat(&[&owner, b"/", &name])),
+        branch: repeated(b'b', limits.forge.name_bytes),
+        stops: stops.into_boxed(),
+    };
+    let project = 7;
+    let kind7 = forge::settings::ProjectWays { drafts: true, goals: true, changes: true, away: true, way: u32::MAX };
+    let mut entries = List::uncapped();
+    for way in crate::stock::ways() {
+        let items = ways::items(&way, project, Some(&kind7));
+        entries
+            .push(ways::WayEntry {
+                name: way.name,
+                line: way.line,
+                path: path.clone(),
+                items,
+                delegation: way.delegation,
+            })
+            .unwrap();
+    }
+    let document =
+        ways::WaysDocument { project, ways: entries.into_boxed(), current: None, own: path, may_change: true };
+    let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
+    assert!(wire::decode_ways_panel(&bytes, &w::CEILINGS).is_some());
+    let mut journal = root::Journal::uncapped(1, 0);
+    let mut decision = root::Decision::decide(&mut journal, &limits.root.journal);
+    decision
+        .deliver(&limits.root.journal, root::Delivery::Ways { watcher: WATCHER, document: Box::new(document) })
+        .unwrap();
+    let delivery_bytes = limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes);
+    assert!(
+        bytes.len() <= usize::try_from(delivery_bytes).unwrap(),
+        "WaysPanel: {} encoded bytes; decision allowance: {delivery_bytes}",
+        bytes.len()
     );
 }
 
