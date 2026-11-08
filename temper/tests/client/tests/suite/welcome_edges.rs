@@ -131,15 +131,10 @@ fn non_deployment_owner_with_account_ignores_forge_requirement() {
 }
 
 #[test]
-#[ignore = "needs: Online observation independent of the hidden link-state node when starting at Welcome"]
-fn printed_link_home_opens_welcome_without_link_state() {
+fn printed_link_home_opens_welcome_with_link_state() {
     let mut world = f::accounts_world(f::SEED);
     let client = world.client(f::PARTY, welcome(Step::Welcome));
-    follow(
-        &mut world,
-        client,
-        vec![see(Role::Heading { level: 1 }, b"Welcome to temper"), gone(Role::Status, b"Live")],
-    );
+    follow(&mut world, client, vec![see(Role::Heading { level: 1 }, b"Welcome to temper"), see(Role::Status, b"Live")]);
 }
 
 #[test]

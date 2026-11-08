@@ -97,9 +97,7 @@ pub fn build_public(view: &mut PublicView, reader: &Reader, wall: Wall, patches:
     b.open(Role::Banner);
     b.style(crate::look::TOP);
     d.styled_link(&mut b, &d.words.say(Word::Brand, &[]), Public::Projects, &[crate::look::BRAND]);
-    if view.ways.google
-        && let Some(origin) = &view.ways.origin
-    {
+    if let Some(origin) = &view.ways.origin {
         let mut address = skein_lib::Writer::new(origin.len().checked_add(1).expect("bounded sign-in address"));
         address.put(origin).expect("origin");
         address.put(b"/").expect("home");
