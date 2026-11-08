@@ -658,12 +658,16 @@ fn control(
             out.safe(b": ", paint, focused, frame);
         }
         out.field(n, focus, theme, paint, frame);
-        words::entry(n, paint, out, frame);
+        if labelled {
+            words::entry(n, paint, out, frame);
+        }
     }
-    if tree.disabled(n.id) && !n.states.as_slice().contains(&State::Disabled) {
-        out.safe(words::DISABLED, paint, focused, frame);
+    if labelled {
+        if tree.disabled(n.id) && !n.states.as_slice().contains(&State::Disabled) {
+            out.safe(words::DISABLED, paint, focused, frame);
+        }
+        words::states(n, paint, out, frame);
     }
-    words::states(n, paint, out, frame);
     out.finish_annotated(tree, info, frame);
     out.clip_line(false);
     out.tag_focus(false);

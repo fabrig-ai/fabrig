@@ -179,7 +179,7 @@ fn the_first_screen_says_the_links_state_and_me() {
         }
         let mut view = f::view();
         assert!(!f::build(&mut view, &tui, &root).is_empty());
-        assert_eq!(f::find(view.tree(), Role::Status, state.as_bytes()).styles.as_slice(), &[token]);
+        assert_eq!(f::find(view.tree(), Role::Text, state.as_bytes()).styles.as_slice(), &[token]);
         f::find(view.tree(), Role::Paragraph, line);
         if let Some(line) = projects {
             f::find(view.tree(), Role::Paragraph, line);
