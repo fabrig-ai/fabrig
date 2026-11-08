@@ -16,7 +16,7 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     accounts: &mut crate::accounts::Bindings,
     project: u32,
-    text_limit: u32,
+    _text_limit: u32,
 ) {
     if root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
@@ -146,7 +146,7 @@ pub(crate) fn main(
         super::terminal::notes(b, root, w);
     }
     b.close();
-    composer(b, root, w, bindings, pending, text_limit);
+    composer(b, root, w, bindings, pending);
     b.close();
     if let Some(mode) = reference
         && mode != temper_client_domain::pages::chat::document::Mode::Chat
@@ -295,7 +295,7 @@ fn account_name(
     crate::choice::shown(&name, w)
 }
 
-fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pending: bool, text_limit: u32) {
+fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pending: bool) {
     let Some(chats) = root.pages().chats() else { return };
     let terminal = super::terminal::shown(root, w);
     let available = match (root.pages().me(root.client()), root.pages().project()) {
@@ -351,14 +351,7 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     if !available {
         paragraph(b, &w.say(Word::AskUnavailable, &[]), look::STARTER_NOTE);
     }
-    if chats.refusal.is_some() {
-        w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
-    }
-    if let Some(outcome) = &chats.outcome
-        && !super::chats::accepted(outcome)
-    {
-        super::chats::outcome_text(b, w, outcome, text_limit);
-    }
+    super::session::refusals(b, root, w);
     b.close();
 }
 

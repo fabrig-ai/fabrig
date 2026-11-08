@@ -44,12 +44,12 @@ fn seed_bytes(subject: &[u8], expires_at: Wall, earliest_refresh_at: Option<Wall
         issued_client_id: Some(b"oaiapp_for_work".as_slice().into()),
         granted_scopes: Some(FULL_SCOPE.into()),
         subject: Some(subject.into()),
-        id_token: Some(b"prior-id-for-work".as_slice().into()),
+        id_token: Some(skein_lib::Secret::new(b"prior-id-for-work".as_slice().into())),
         earliest_refresh_at,
         key: 0,
         generation: 1,
-        access_token: b"access-for-work".as_slice().into(),
-        refresh_token: Some(b"refresh-for-work".as_slice().into()),
+        access_token: skein_lib::Secret::new(b"access-for-work".as_slice().into()),
+        refresh_token: Some(skein_lib::Secret::new(b"refresh-for-work".as_slice().into())),
         metadata: None,
         expires_at,
     };
@@ -78,8 +78,8 @@ fn refresh_fixture(scratch: &Scratch, earliest_refresh_at: Option<Wall>) -> (Box
     let bytes = seed_bytes(b"person-for-work", expires_at, earliest_refresh_at);
     let mut record = skein_oauth::decode_record(&bytes, &limits()).expect("current fixture record");
     record.issued_client_id = Some(b"client".as_slice().into());
-    record.access_token.clone_from(&held);
-    record.refresh_token = Some(b"refresh-old".as_slice().into());
+    record.access_token = skein_lib::Secret::new(held.clone());
+    record.refresh_token = Some(skein_lib::Secret::new(b"refresh-old".as_slice().into()));
     let path = path(scratch, "test");
     std::fs::DirBuilder::new()
         .recursive(true)

@@ -713,3 +713,6 @@ pub(crate) mod window;
 pub mod provider_login;
 
 mod program_interrupt;
+
+#[cfg(target_os = "linux")]
+pub mod lifetime;

@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-07. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-08. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6.3 has no known gap in requested hangup handling, preserving a
 hangup ignored at startup, or `Kept::on_abort` restoring the terminal

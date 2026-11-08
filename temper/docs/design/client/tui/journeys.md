@@ -182,6 +182,13 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Typing marks nothing:** a key whose event is `Typed` marks no
   frame; any other key with an event marks the frame as drawn before it
   (3.4). A key with no event marks nothing.
+- **The events' prints,** `temper_client_tui::Event`'s, with their fields'
+  own `Debug` forms (`../README.md`, 6.13, *The TUI's events*): `Typed {
+  value: [104, 105] }`, for the link's field and the box alike;
+  `SignIn`; `Send`; `Command { command: Help }`; `Act { act: Choice(Model
+  { index: 0, account: Some(3) }) }`, the root's act; `Aside { object: Task(9)
+  }`; `Dismiss`. The record holds them as bytes, with no record kind of
+  their own (3.2, `key`), and a replay compares them as it finds them.
 - **The mark and save keys,** in either form, never reach the host while
   recording: a mark is kept in its own turn; a save writes the recording
   with its end mark, keeping no key record (3.1). Without a recording,
@@ -398,7 +405,9 @@ reports given by the test) and `tools/journeys`' own tests:
   classes, attributes and key links in the print's unit tests.
 - **The walk, natively:** a `walk` read back, each record among them,
   and another version, a record out of its place and a second `end`
-  unreadable; a recording checked against its walk.
+  unreadable; a recording checked against its walk; a TUI journey's
+  `setup` read with its `after` joined from the browser's directory, and
+  one holding a `mark` refused, naming its line.
 - **`again`'s half that drives a terminal and a browser** has no story of
   its own: the first journey, recorded by it, proves it (8.2).
 - **Their cost:** the reprint of both directories together within the
@@ -458,6 +467,15 @@ ordinary Rust over skein's harness:
   `again`'s or `:0`, and `PATH` led by a scratch directory whose
   `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
   0, and leaves the tab to `again`. Its output is read and dropped.
+- **A setup,** where the journey's directory holds one: its `setup`
+  file, in the browser's format and with its rules (`../journeys.md`,
+  8.2), its `after` naming a browser journey, read from the browser's
+  journeys' directory, as `project-landing`'s steps to a project with a
+  model. `again` walks it in the signed-in browser, its `reload` loaded
+  last where it has one, before the TUI starts, so that the TUI opens on
+  what the setup made; a `mark` in it is refused when it is read, since
+  the TUI's `walk` marks its own frames. Its steps and their bounds are
+  the browser's; nothing of them reaches the recording.
 - **A save** is told by the `recording` file replaced (3.1).
 - **What it reads and starts:** as the browser's; the box, Chromium and
   the TUI all stopped at its end, the scratch directory removed unless
@@ -469,7 +487,8 @@ ordinary Rust over skein's harness:
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `sign-in-approved` | on a fresh `temper box --fake-backends`: the browser signed in by the box's printed link; `temper` started at the box's address; the approval's frame; the approval given in the browser; the first screen | `01`, the approval's frame, "A tab opened in your browser", its code and its address, marked by the mark key; `02`, the first screen, "Connected to HOST:PORT as Owner", at the recording's end; its `README.md` says so |
+| `sign-in-approved` | on a fresh `temper box --fake-backends`: the browser signed in by the box's printed link; `temper` started at the box's address; the approval's frame; the approval given in the browser; the launchpad, with no project yet | `01`, the approval's frame, "A tab opened in your browser", its code and its address, marked by the mark key; `02`, the launchpad of a box with no project (`../README.md`, 6.14), at the recording's end; its `README.md` says so |
+| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `after project-landing`, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`../README.md`, 6.14); its `README.md` names each frame |
 
 ## 10. Editing the look
 
@@ -499,11 +518,17 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 - **A terminal's Meta keys:** the user records by hand on their laptop
   after landing to check marking with Alt+m and saving with Alt+s in
   emacs' vterm. The automated walk keeps the Shift forms (8.1).
-- **The first frames' refinement:** the user takes `sign-in-approved`'s
-  frames and asks for the look on them (sections 9 and 10), before the
-  later surfaces of `../../draft/tui.md`, section 3 are designed. A
-  replay and byte-equal print do not establish the real terminal's look;
-  its approval walk is `../README.md`, section 11's after-landing work.
+- **The frames' refinement:** the user refines `sign-in-approved` and
+  `launchpad-chat` on their frames (sections 9 and 10), with later
+  surfaces refined before they are designed (`../../draft/tui.md`,
+  section 3). The look request `tui-launchpad` has its render check and
+  walk after landing, owned by temper/tui's after-landing check; differences
+  return as repairs carrying its trailer (`../../draft/look-requests.md`,
+  sections 4 and 5). A replay and byte-equal print establish no real
+  terminal's look. A growing answer, calls and a question's choices
+  remain for a journey that catches them; the joint world and goldens
+  cover them without establishing the rendered look
+  (`../README.md`, sections 10 and 11).
 - **Selectors by token:** a page's cells carry their paint, not the
   view's token, so an overlay retunes a palette colour or a paint
   wherever it falls, never one token alone. Default: palette classes; a

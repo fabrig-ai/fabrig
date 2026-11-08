@@ -2,6 +2,14 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
+  `cargo test -p temper-client-gallery --lib`, serial, measured
+  2.909 CPU s on the pristine base and 2.644 CPU s with the first-run Ask
+  repair. The inherited overrun lies in `each_state_holds_what_its_name_says`
+  and `print_writes_every_page_and_the_bundle`. A gallery cost repair owns
+  finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
+  8.1, question 2); only if that fails do measurements go to the user.
+
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day
@@ -10,7 +18,7 @@ root overrides them. Embedded images and the independent terminal
 palettes retain the literals permitted by the token task. No known
 implementation gap remains in these rules. Shadows keep their day
 colour tokens at night; the night ring tokens retain their own values.
-Ask temper keeps its three equal phone tabs with the composer above,
+Ask temper keeps its three equal phone tabs,
 and the switch stays at the folded rail's foot or a phone chat bar's
 right, with the folded rail open or closed. The `home-begin-*` states
 cover two steps and the cut navigation; `home-begin-with-needs` and

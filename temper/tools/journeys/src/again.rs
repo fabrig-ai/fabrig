@@ -104,11 +104,12 @@ pub fn starting(journeys: &Path, name: &str) -> Result<Vec<Step>, Refusal> {
 pub fn setup(journeys: &Path, name: &str) -> Result<Option<journey::Setup>, Refusal> {
     Ok(prepared(journeys, name)?.map(|prepared| prepared.setup))
 }
-struct Prepared {
-    setup: journey::Setup,
-    sources: Vec<(String, u32)>,
+#[derive(Debug)]
+pub(crate) struct Prepared {
+    pub(crate) setup: journey::Setup,
+    pub(crate) sources: Vec<(String, u32)>,
 }
-fn read_setup(journeys: &Path, name: &str) -> Result<Option<Prepared>, Refusal> {
+pub(crate) fn read_setup(journeys: &Path, name: &str) -> Result<Option<Prepared>, Refusal> {
     if !crate::named(name) {
         return Err(Refusal::Name(name.to_owned()));
     }
@@ -127,9 +128,12 @@ fn read_setup(journeys: &Path, name: &str) -> Result<Option<Prepared>, Refusal> 
     Ok(Some(Prepared { setup, sources }))
 }
 fn prepared(journeys: &Path, name: &str) -> Result<Option<Prepared>, Refusal> {
-    let Some(mut child) = read_setup(journeys, name)? else {
+    let Some(child) = read_setup(journeys, name)? else {
         return Ok(None);
     };
+    join_setup(child, journeys, name).map(Some)
+}
+pub(crate) fn join_setup(mut child: Prepared, after_journeys: &Path, name: &str) -> Result<Prepared, Refusal> {
     if let Some(after) = &child.setup.after {
         let after =
             std::str::from_utf8(after).ok().filter(|after| crate::named(after)).ok_or_else(|| Refusal::SetupAfter {
@@ -141,7 +145,7 @@ fn prepared(journeys: &Path, name: &str) -> Result<Option<Prepared>, Refusal> {
         if after == name {
             return Err(refuse("names the journey itself"));
         }
-        let Some(mut parent) = read_setup(journeys, after)? else {
+        let Some(mut parent) = read_setup(after_journeys, after)? else {
             return Err(refuse("has no setup"));
         };
         if parent.setup.after.is_some() {
@@ -152,7 +156,7 @@ fn prepared(journeys: &Path, name: &str) -> Result<Option<Prepared>, Refusal> {
         child.setup.steps = parent.setup.steps;
         child.sources = parent.sources;
     }
-    Ok(Some(child))
+    Ok(child)
 }
 
 enum Phase {
@@ -445,7 +449,7 @@ impl Play for Walker {
         }
     }
 }
-fn copy_act(act: &Act) -> Act {
+pub(crate) fn copy_act(act: &Act) -> Act {
     match act {
         Act::Near { edge } => Act::Near { edge: *edge },
         Act::Press => Act::Press,

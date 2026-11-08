@@ -1,0 +1,59 @@
+╭─ screen · A long painted title ────────────────────────── example.test:8367 ─╮
+│ Inside                                                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+                                                                Written at 07:42
+- Words
+  A band paints the indentation and the remaining room, wrapping these words
+  across two rows in a wide frame.
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+> Ask: type here
+────────────────────────────────────────────────────────────────────────────────
+Commands                                                                    Live
+--
+aaabbbbbbcccccccccccccccccccccccaaaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddddddaaa
+adddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddda
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+................................................................................
+................................................................................
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+ggggggghhhhhhhhh................................................................
+ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+................................................................................
+--
+a: back #202020 bold
+b: fore #FF0000 back #202020 bold
+c: fore #0000FF back #202020 italic
+d: back #202020
+e: back #004000
+f: bold
+g: reverse
+h: dim reverse
+cursor 21 7

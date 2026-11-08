@@ -1,0 +1,36 @@
+Conversation
+
+
+
+
+
+────────────────────────────────────────────────────────────
+> Command: /
+  /model   Change the model
+> /new     Start a new chat
+  /chats   Open another chat (disabled)
+  /theme   Dark or light
+  /help    Commands and keys
+────────────────────────────────────────────────────────────
+--
+............................................................
+............................................................
+............................................................
+............................................................
+............................................................
+............................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbb...............................................
+ccccccccccccccccccccccccccc.................................
+dddddddddddddddddddddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+ccccccccccccccccccccccccccccccccccccccc.....................
+cccccccccccccccccccccccc....................................
+cccccccccccccccccccccccccccc................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--
+a: bold
+b: reverse
+c: fore #FF0000 bold
+d: fore #FF0000 back #004000 bold reverse
+e: fore #FF0000 back #004000 bold
+cursor 7 12
