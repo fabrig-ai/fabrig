@@ -16,6 +16,6 @@ impl Peer {
         self.public_answers.remove(&exchange)
     }
     pub fn public_gone(&mut self, exchange: Token) {
-        self.event(Event::Transport(FromTransport::StreamGone { stream: exchange }));
+        self.event(Event::Transport(FromTransport::ExchangeGone { exchange }));
     }
 }
