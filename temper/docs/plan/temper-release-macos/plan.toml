@@ -27,3 +27,4 @@ walk = false
 id = "release-macos-timeout"
 text = "The new workflow's job needs a timeout, which is the user's; the request names none. A cold release build of temper with its browser bundle embedded, on the 3-core runner with no target cache, is unmeasured. Options: (a, recommended, what the task writes) `timeout-minutes: 120`, macos.yml's own for the same runner; (b) GitHub's default of 360, by leaving the key out; (c) another figure. A change after landing is one line of `.github/workflows/release-macos.yml`."
 parts = ["release-macos"]
+answer = "(a) timeout-minutes: 120, as macos.yml. ops, owner, 11-08: a free runner costs nothing either way; raise it in one line if the first cold build runs out."
