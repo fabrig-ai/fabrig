@@ -17,6 +17,11 @@ takes neither a slot nor a workspace.
 
 Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
+Sections 6.3 and 8 have no known gap in a refused start's class: any
+invalid start but a transcript's spends a permanent try
+(`jig-domain-hub-link`'s `payload::ending`), and an agent's
+`FromAgent::StartBusy` ends its start refused busy, which jig's test
+worker sends for smith's busy.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its
 bounded diagnostic through cleanup, or in cancellation winning first.
 Section 8's independent delivery grant for a Finite report is present:
