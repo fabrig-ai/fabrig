@@ -13,7 +13,7 @@ use temper_client_domain::{
 };
 
 pub(crate) fn bar(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
-    if super::chat::configuring(root) {
+    if super::chat::asking(root) {
         return;
     }
     let Some(chat) = root.pages().chat() else { return };
@@ -46,7 +46,7 @@ pub(crate) fn bar(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut 
 
 pub(crate) fn started(root: Option<&Domain>) -> Option<(u64, &c::Chip)> {
     let root = root?;
-    if super::chat::configuring(root) {
+    if super::chat::asking(root) {
         return None;
     }
     let chat = root.pages().chat()?;

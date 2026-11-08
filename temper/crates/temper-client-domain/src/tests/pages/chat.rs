@@ -1519,11 +1519,11 @@ fn start_over_pages() -> (crate::pages::Pages, jig_client::Client) {
     let mut f = f::with_delegate();
     let mut me = fixtures::chats::me();
     let project = me.projects.get_mut(0).unwrap();
-    let mut configuring = project.templates.get(0).unwrap().clone();
-    configuring.number = 5;
+    let mut asking = project.templates.get(0).unwrap().clone();
+    asking.number = 5;
     let mut templates = skein_lib::List::with_capacity(2);
     templates.push(project.templates.get(0).unwrap().clone()).unwrap();
-    templates.push(configuring).unwrap();
+    templates.push(asking).unwrap();
     project.templates = templates;
     f.client.step_unlinked(
         Time::ZERO,
@@ -1595,7 +1595,7 @@ fn answer_start_over(
     out
 }
 #[test]
-fn a_done_start_over_shows_configure() {
+fn a_done_start_over_shows_ask() {
     let (mut pages, client) = start_over_pages();
     start_over_act(&mut pages, &client, Act::StartOver);
     start_over_act(&mut pages, &client, Act::Confirm);

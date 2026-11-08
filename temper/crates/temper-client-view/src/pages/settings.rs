@@ -88,7 +88,7 @@ fn flow_path(
     b.open(Role::Slot);
     b.style(look::SETTINGS_PATH);
     b.open(Role::Navigation);
-    b.name(&w.say(Word::ConfigureWhere, &[]));
+    b.name(&w.say(Word::AskWhere, &[]));
     b.style(look::CRUMBS);
     let (back, to) = match way {
         Some(way) => (way.choices, way.address.clone()),
