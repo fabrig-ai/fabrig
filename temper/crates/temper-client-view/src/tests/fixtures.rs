@@ -399,7 +399,6 @@ pub fn home_root(
 
 #[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
 #[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
-#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
 pub(super) fn root_at_with_values(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -411,6 +410,46 @@ pub(super) fn root_at_with_values(
     ways: Option<forge::ways::Ways>,
     refuse_ways: bool,
     settings_delivered: bool,
+) -> (
+    temper_client_domain::Domain,
+    Token,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+) {
+    root_at_with_classes(
+        address,
+        limits,
+        project_name,
+        playground,
+        activity,
+        forge_rows,
+        dismissed,
+        ways,
+        refuse_ways,
+        settings_delivered,
+        None,
+    )
+}
+#[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
+#[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
+pub(super) fn root_at_with_classes(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+    project_name: &[u8],
+    playground: Option<(u32, bool, w::PlaygroundState)>,
+    activity: Option<c::ActivityPage>,
+    forge_rows: Option<List<w::ForgeRow>>,
+    dismissed: Option<&[u32]>,
+    ways: Option<forge::ways::Ways>,
+    refuse_ways: bool,
+    settings_delivered: bool,
+    classes: Option<&temper_protocol_reaches::Classes>,
 ) -> (
     temper_client_domain::Domain,
     Token,
@@ -684,7 +723,14 @@ pub(super) fn root_at_with_values(
                             &mut out,
                         );
                     } else if let Some(ways) = ways {
-                        let value = if setting.kind() == 7 { Some(ways_bytes(ways)) } else { None };
+                        let value = match setting.kind() {
+                            7 => Some(ways_bytes(ways)),
+                            8 => match classes {
+                                Some(classes) => Some(classes_bytes(classes)),
+                                None => None,
+                            },
+                            _ => None,
+                        };
                         let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap();
                         temper_client_domain::step(
                             &mut root,
@@ -2150,6 +2196,31 @@ pub fn asking_me(mut me: c::Me) -> c::Me {
     me
 }
 
+pub fn root_with_classes(
+    address: temper_client_domain::Address,
+    classes: &temper_protocol_reaches::Classes,
+) -> temper_client_domain::Domain {
+    root_at_with_classes(
+        address,
+        &domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        Some(forge::ways::Ways::STOCK),
+        false,
+        true,
+        Some(classes),
+    )
+    .0
+}
+fn classes_bytes(classes: &temper_protocol_reaches::Classes) -> Box<[u8]> {
+    let record = temper_protocol_reaches::classes_record(classes).unwrap();
+    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut writer).unwrap();
+    writer.finish()
+}
 fn ways_bytes(ways: forge::ways::Ways) -> Box<[u8]> {
     let value = w::ProjectWays::new(
         &w::CEILINGS,

@@ -166,6 +166,15 @@ pub enum Word {
     SettingsProposalRejected,
     SettingsProposalWithdrawn,
 
+    ClassesDecideLine,
+    ClassesAsking,
+    ClassesAskingDetail,
+    ClassesLocked,
+    ClassesDecide,
+    ClassesTitle,
+    ClassesAsk,
+    ClassesAskAway,
+    ClassesSet,
     AwaySettingsTitle,
     AwaySettingsUntil,
     AwayUntilLine,
@@ -1565,7 +1574,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2118;
+const PHRASES: u32 = 2127;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1592,10 +1601,10 @@ const PHRASES: u32 = 2118;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3741;
+const SEGMENTS: u32 = 3762;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51491;
-const ALL: [Word; 1436] = [
+const ENGLISH_BYTES: u32 = 51835;
+const ALL: [Word; 1445] = [
     Word::DecidedCountMore,
     Word::AllowedDecide,
     Word::AllowedAway,
@@ -1745,6 +1754,15 @@ const ALL: [Word; 1436] = [
     Word::SettingsProposalReplaced,
     Word::SettingsProposalRejected,
     Word::SettingsProposalWithdrawn,
+    Word::ClassesDecideLine,
+    Word::ClassesAsking,
+    Word::ClassesAskingDetail,
+    Word::ClassesLocked,
+    Word::ClassesDecide,
+    Word::ClassesTitle,
+    Word::ClassesAsk,
+    Word::ClassesAskAway,
+    Word::ClassesSet,
     Word::AwaySettingsTitle,
     Word::AwaySettingsUntil,
     Word::AwayUntilLine,
@@ -3292,6 +3310,15 @@ impl Word {
             Self::SettingsProposalReplaced => 3433,
             Self::SettingsProposalRejected => 3929,
             Self::SettingsProposalWithdrawn => 3930,
+            Self::ClassesDecideLine => 4938,
+            Self::ClassesAsking => 4930,
+            Self::ClassesAskingDetail => 4931,
+            Self::ClassesLocked => 4932,
+            Self::ClassesDecide => 4933,
+            Self::ClassesTitle => 4934,
+            Self::ClassesAsk => 4935,
+            Self::ClassesAskAway => 4936,
+            Self::ClassesSet => 4937,
             Self::AwaySettingsTitle => 3658,
             Self::AwaySettingsUntil => 3666,
             Self::AwayUntilLine => 3667,
@@ -4537,8 +4564,16 @@ fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
 // Thirty-two 64-byte project names, each with room for the five-byte conjunction
 // (client/README.md, 5.13).
 const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
+// Twenty items, six implicit kinds and six implicit sets, each within 200 bytes with words (client/README.md, 5.13).
+const CLASSES_OBJECTS_BYTES: u32 = 6400;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if [Word::ClassesDecide, Word::ClassesDecideLine, Word::ClassesAsk, Word::ClassesAskAway].contains(&word) {
+        return Ok(CLASSES_OBJECTS_BYTES);
+    }
+    if word == Word::ClassesSet {
+        return Ok(if last { 490 } else { 40 });
+    }
     if word == Word::ViewAsking || word == Word::ViewFailed {
         return Ok(512);
     }
@@ -4841,6 +4876,7 @@ impl Words {
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
                 .max(SETTINGS_PROJECT_NAMES_BYTES)
+                .max(CLASSES_OBJECTS_BYTES)
                 .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
@@ -4890,8 +4926,22 @@ impl Words {
     }
     #[must_use]
     pub fn capacity(&self) -> Option<u32> {
+        Some(self.ordinary_capacity()?.max(self.classes_capacity()?))
+    }
+    /// Grouped classes occur only in Settings and a proposal's items (client/README.md, 5.13).
+    pub(crate) fn classes_capacity(&self) -> Option<u32> {
+        let mut most = 0;
+        for word in [Word::ClassesDecide, Word::ClassesDecideLine, Word::ClassesAsk, Word::ClassesAskAway] {
+            most = most.max(self.book.capacity(word.id(self.connector))?);
+        }
+        Some(most)
+    }
+    pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
+            if [Word::ClassesDecide, Word::ClassesDecideLine, Word::ClassesAsk, Word::ClassesAskAway].contains(&word) {
+                continue;
+            }
             most = most.max(self.book.capacity(word.id(self.connector))?);
         }
         for word in jig_client::words::ALL {
@@ -5013,11 +5063,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::StartGoalWays => (&[b"The project\xe2\x80\x99s ways of working"], &[]),
         Word::StartGoalRun => (&[b"Start goal"], &[]),
         Word::StartGoalAsks => (&[b"When it needs you"], &[]),
-        Word::StartGoalFollow => (&[b"Follow the away switch"], &[]),
-        Word::StartGoalFollowDetail => (&[b"Asks while you\xe2\x80\x99re here; while you\xe2\x80\x99re away, decides within the project's limits and tells you."], &[]),
+        Word::StartGoalFollow => (&[b"As the project says"], &[]),
+        Word::StartGoalFollowDetail => (&[b"Decides what the project\xe2\x80\x99s settings let agents decide, Away included, and tells you; asks you the rest."], &[]),
         Word::StartGoalAlways => (&[b"Always ask"], &[]),
-        Word::StartGoalAlwaysDetail => (&[b"Waits for you on every question it can\xe2\x80\x99t answer from the plan."], &[]),
-        Word::GoalFollowsAway => (&[b"", b" \xc2\xb7 follows the away switch"], &[Name]),
+        Word::StartGoalAlwaysDetail => (&[b"Asks you every question it can\xe2\x80\x99t answer from the plan, even while you\xe2\x80\x99re away."], &[]),
+        Word::GoalFollowsAway => (&[b"", b" \xc2\xb7 asks as the project says"], &[Name]),
         Word::GoalsStartDraft => (&[b"Start one from a draft"], &[]),
         Word::GoalTell => (&[b"Tell ", b" something"], &[Name]),
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
@@ -6025,6 +6075,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LoadingEarlier => (&[b"Loading earlier messages\xe2\x80\xa6"], &[]),
         Word::LoadingEarlierName => (&[b"Loading earlier messages"], &[]),
         Word::LoadingEarlierFailed => (&[b"Couldn't load earlier messages"], &[]),
+        Word::ClassesDecideLine => (&[b"Agents decide, then tell you: ", b"."], &[Name]),
+        Word::ClassesAsking => (&[b"What asks you"], &[]),
+        Word::ClassesAskingDetail => (&[b"Ticked, Away decides it and lists it, with Overturn. Unticked, it asks you even when away."], &[]),
+        Word::ClassesLocked => (&[b"Money past a budget, what can\xe2\x80\x99t be undone, and changes to these rules: always wait"], &[]),
+        Word::ClassesDecide => (&[b"Agents decide, then tell you: ", b""], &[Name]),
+        Word::ClassesTitle => (&[b"What reaches you:"], &[]),
+        Word::ClassesAsk => (&[b"Asks you; Away may decide: ", b""], &[Name]),
+        Word::ClassesAskAway => (&[b"Asks you, even when away: ", b""], &[Name]),
+        Word::ClassesSet => (&[b"", b": ", b""], &[Name, Name]),
         Word::AwaySettingsTitle => (&[b"While you\xe2\x80\x99re away, agents may decide"], &[]),
         Word::AwaySettingsUntil => (&[b"Away until"], &[]),
         Word::AwayUntilLine => (&[b"When it isn\xe2\x80\x99t turned off by hand."], &[]),
