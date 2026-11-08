@@ -36,20 +36,26 @@ fn host_moves_without_copy_and_child_prefix_precedes_usage() {
 fn child_cut_and_every_stop_survive_canonical_feedback() {
     for (stop, name) in [
         (run::Stop::EndTurn, "end-turn"),
+        (run::Stop::Budget, "budget"),
         (run::Stop::MaxTokens, "max-tokens"),
         (run::Stop::Refusal, "refusal"),
         (run::Stop::NoCalls, "no-calls"),
     ] {
         for cut in [0, u64::MAX] {
             let got =
-                feedback(run::Returned::Answered { text: bytes(b"child"), cut, stop, used: USED, left: LEFT }, 256)
+                feedback(run::Returned::Answered { text: bytes(b"child"), cut, stop, used: USED, left: LEFT }, 512)
                     .expect("compatible bound");
             let expected = if cut == 0 && stop == run::Stop::EndTurn {
                 "child".to_owned()
-            } else {
+            } else if cut == 0 {
                 format!("child\n[child-result cut={cut} stop={name}]")
+            } else {
+                format!(
+                    "child\n[child-result cut={cut} stop={name}]\nThe answer above is cut: its last {cut} bytes were left out. The sub-agent has closed; to read the rest, ask a new one for it with a narrower brief."
+                )
             };
-            assert_eq!(got.text.as_ref(), format!("{expected}{SUFFIX}").as_bytes());
+            let suffix = if stop == run::Stop::Budget { SUFFIX.replace("no;", "yes;") } else { SUFFIX.to_owned() };
+            assert_eq!(got.text.as_ref(), format!("{expected}{suffix}").as_bytes());
             assert!(!got.error);
         }
     }
@@ -153,7 +159,7 @@ fn child_scalar_receiving_and_unknown_prefix_ends_remain_distinct_literal_feedba
 fn child_usage_has_exact_scalar_values_flooring_and_complete_cap() {
     let used = run::facts::Used { turns: 3, time: Duration::from_nanos(750_000_000), spend: 77 };
     let left = run::Budget { turns: 5, time: Duration::from_nanos(1_999_000_000), spend: 89 };
-    let expected = b"answer\n[child-result cut=14 stop=end-turn]\n\nChild usage: used 3 turns and less than a second; stopped for budget: no; ordinary left 5 turns and 1 second.";
+    let expected = b"answer\n[child-result cut=14 stop=end-turn]\nThe answer above is cut: its last 14 bytes were left out. The sub-agent has closed; to read the rest, ask a new one for it with a narrower brief.\n\nChild usage: used 3 turns and less than a second; stopped for budget: no; ordinary left 5 turns and 1 second.";
     for cap in [expected.len(), expected.len() - 1] {
         let got = feedback(
             run::Returned::Answered { text: bytes(b"answer"), cut: 14, stop: run::Stop::EndTurn, used, left },
@@ -181,12 +187,12 @@ fn child_usage_has_exact_scalar_values_flooring_and_complete_cap() {
 #[test]
 fn largest_usage_suffix_and_answer_fit_the_declared_feedback_bound() {
     let mut limits = smith_agent_world::TIGHT.run;
-    limits.answer_bytes = 8192;
+    limits.answer_bytes = 1 << 20;
     let cap = smith_domain::feedback_bound(&limits).expect("checked bound");
     let used = run::facts::Used { turns: u32::MAX, time: Duration::from_nanos(u64::MAX), spend: u64::MAX };
     let left = run::Budget { turns: u32::MAX, time: Duration::from_nanos(u64::MAX), spend: u64::MAX };
     let answer = || run::Returned::Answered {
-        text: vec![b'x'; 8192].into_boxed_slice(),
+        text: vec![b'x'; 1 << 20].into_boxed_slice(),
         cut: u64::MAX,
         stop: run::Stop::MaxTokens,
         used,

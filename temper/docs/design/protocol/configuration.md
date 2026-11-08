@@ -2456,6 +2456,14 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | both `hub.outcome_bytes` | at least P; `standard`'s 131,072 holds the reference's | the agent's outcome (`tool_payload`) |
 | both `core.call_answer_bytes` | at least P; follows it unless overridden | the agent's call input |
 
+- **A sub-agent's answer:** smith's `run.answer_bytes` follows P as the
+  outcome does, the larger of 4,096 and P (smith's `protocol/limits.md`,
+  3.10), so a survey a goal's run asks through `sub_agent` answers in up
+  to 63,740 bytes on the reference and 10,662 on the stock. temper
+  declares nothing for it: smith derives it at the agent's start, holds
+  it under `render-in-result` and prints it among the agent's effective
+  limits. A longer answer is cut, its words saying how much was left out
+  and to ask again, narrower (smith's `domain/run.md`, 5.3).
 - **A batch:** `standard`'s `authority.batch` is 32, so a `change` of up to
   32 changes passes (jig's `domain/authority.md`, section 8), still
   within `tasks.batch`, `tasks.batch_bytes` and the task room a batch
