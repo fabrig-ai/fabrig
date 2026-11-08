@@ -214,6 +214,7 @@ impl Clients {
             };
             Ok(kit::Settings {
                 link_secret: seeds.link_secret.clone(),
+                local_secret: None,
                 provider,
                 addresses: match &config.clients.provider {
                     Some(provider) => provider.addresses.clone(),
@@ -507,6 +508,7 @@ impl Clients {
             events.push(value);
         }
     }
+    #[expect(clippy::too_many_lines, reason = "exhaustive client routing includes the printed-link sign-in notice")]
     pub fn advance(
         &mut self,
         events: &mut Queue<root::Event>,
@@ -531,6 +533,7 @@ impl Clients {
                 kit::Request::Transport(message) => {
                     self.mount.down(&self.mount_env, http::Event::Component(message));
                 }
+                kit::Request::LinkSignedIn => {}
                 kit::Request::LocalLink { secret } => {
                     self.local_secret = Some(secret);
                     self.print_link();
