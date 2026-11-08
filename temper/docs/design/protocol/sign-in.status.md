@@ -71,7 +71,3 @@ unchanged. Local `Lost` uses the busy page, as section 9.3 now records.
   reproduces a page lacking it after a connect, and no process story
   connects with `--web`, as that walk does. Which of the two stands is
   the user's, not yet decided.
-
-- **Not yet:** 4.3: the endings' header, column and the bundle's
-  `files/pages.css` (the look request `outside-pages`): the pages are bare
-  HTML still.
