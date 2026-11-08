@@ -107,10 +107,6 @@ establish no rendered equality.
   menu also has no mousemove selection handler, so hovering an option
   leaves the active keyboard choice where it is, unlike the request's
   handler. Temper/ui owns these differences from the request.
-- **Not yet:** 2.5, *Day and night*: `temper.css` and `task-pages.css` draw
-  literal colours, their `--gf-*` tokens are copied into five `:root:has(..)`
-  scopes, and no night set, glow or switch rule stands. The plan
-  `look-round-19`'s task `night-tokens` builds them.
 - **Not yet:** 7.1, 7.2: the gallery has no `-night` states and prints no
   `data-night`, and its To begin states are `home-three-left`,
   `home-two-left`, `home-one-left` and `home-begin-one-chats`, of three

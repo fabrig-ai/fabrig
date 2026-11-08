@@ -12,10 +12,20 @@ mod switcher;
 #[test]
 fn stylesheet_assets_follow_the_same_origin_policy() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    for css in [include_str!("../../temper.css"), include_str!("../../task-pages.css")] {
-        for reference in css.split("url(").skip(1) {
-            let (url, _) = reference.split_once(')').expect("asset URL ends");
-            let url = url.trim_matches(['\'', '"']);
+    for mut css in [include_str!("../../temper.css"), include_str!("../../task-pages.css")] {
+        while let Some((_, reference)) = css.split_once("url(") {
+            let (url, rest) = if let Some(quoted) = reference.strip_prefix('"') {
+                quoted.split_once("\")").expect("quoted asset URL ends")
+            } else if let Some(quoted) = reference.strip_prefix('\'') {
+                quoted.split_once("')").expect("quoted asset URL ends")
+            } else {
+                reference.split_once(')').expect("asset URL ends")
+            };
+            css = rest;
+            if url.starts_with("data:image/svg+xml,") {
+                assert!(!url.contains("href=") && !url.contains("url(http"), "inline image is self-contained: {url}");
+                continue;
+            }
             assert!(url.starts_with("files/") && !url.contains(".."), "asset must be served from self: {url}");
             assert!(root.join(url).is_file(), "stylesheet asset exists: {url}");
         }
