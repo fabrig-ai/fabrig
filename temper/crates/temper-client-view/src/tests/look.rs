@@ -638,6 +638,8 @@ fn asking_opening_and_needs_have_their_css_names() {
         (WAYS_REFUSED, b"temper-ways-refused"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
+        (NEEDS_BAR, b"temper-needs-bar"),
+        (NEEDS_BAR_AT, b"temper-needs-bar-at"),
     ] {
         assert_eq!(NAMES.style(style), Some(name));
     }
@@ -732,5 +734,81 @@ fn the_writing_end_and_reading_controls_have_their_css_names() {
         (THREAD_LOADING, b"temper-thread-loading"),
     ] {
         assert_eq!(NAMES.style(token), Some(name));
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary tests parse the phone stylesheet's selectors and pixel heights"
+)]
+fn each_phone_target_stands_44_pixels() {
+    let mut source = include_str!("../../../temper-client-shell-web/temper.css");
+    let mut rules = Vec::new();
+    while let Some((_, after)) = source.split_once("@media (max-width: 760px)") {
+        let (_, body) = after.split_once('{').expect("phone media body");
+        let mut depth = 1_u32;
+        let end = body
+            .char_indices()
+            .find_map(|(at, ch)| {
+                match ch {
+                    '{' => depth += 1,
+                    '}' => depth -= 1,
+                    _ => {}
+                }
+                (depth == 0).then_some(at)
+            })
+            .expect("phone media ends");
+        for rule in body[..end].split('}') {
+            if let Some((selectors, declarations)) = rule.split_once('{') {
+                // A section comment is not part of its first selector.
+                let selectors = selectors.rsplit("*/").next().unwrap();
+                rules.push((selectors.trim(), declarations));
+            }
+        }
+        source = &body[end + 1..];
+    }
+    for target in [
+        "#app > .temper-home .temper-need-acts .temper-recommended",
+        "#app > .temper-home .temper-need-card > .temper-need-more",
+        "#app > .temper-home .temper-home-acts > :is(a, button)::after",
+        "#app > .temper-home .temper-home-small::after",
+        "#app > .temper-home .temper-home-skip::after",
+        "#app > .temper-home .temper-home-head > :is(a, button)::after",
+        "#app > .temper-home > .temper-home-phone > a",
+        "#app > .temper-home .temper-home-rows > li > a",
+        "#app > .temper-needs .temper-ask-choices button",
+        "#app > .temper-needs .temper-ask-choices a.temper-recommended",
+        "#app > .temper-needs .temper-ask-choices > details > summary",
+        "#app > .temper-needs .temper-need-tell > button::after",
+        "#app > .temper-needs .temper-ask-quiet::after",
+        "#app > .temper-needs .temper-ask-saw > summary::after",
+        "#app > .temper-needs .temper-ask-context > a::after",
+        "#app > .temper-needs .temper-needs-home::after",
+        "#app > .temper-needs .temper-decision > button::after",
+        "#app > :is(.temper-home, .temper-needs) .temper-answered-undo::after",
+        "#app > .temper-needs .temper-needs-bar > a::after",
+        "#app > .temper-work-page .temper-work-chip::after",
+        "#app > .temper-work-page .temper-work-card a::after",
+        "#app > .temper-work-page .temper-work-row > a::after",
+        "#app > .temper-work-page .temper-work-section-head > a::after",
+    ] {
+        assert!(
+            rules.iter().any(|(selectors, declarations)| {
+                selectors.split(",\n").any(|selector| selector.trim() == target)
+                    && declarations.split(';').any(|declaration| {
+                        let Some((property, value)) = declaration.split_once(':') else { return false };
+                        property.trim() == "min-height"
+                            && value
+                                .trim()
+                                .strip_suffix("px")
+                                .and_then(|n| n.parse::<u32>().ok())
+                                .is_some_and(|height| height >= 44)
+                    })
+            }),
+            "phone target needs at least 44 px: {target}"
+        );
     }
 }
