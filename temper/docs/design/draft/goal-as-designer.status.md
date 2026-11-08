@@ -1,6 +1,6 @@
 # goal-as-designer: status
 
-2026-11-07. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
+2026-11-08. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
 
 Section 8's first/later choice is carried by `per-wake.md`, section 5
 and `../protocol/configuration.md`, 13.9: template 4 chooses xhigh
@@ -39,3 +39,13 @@ section 11). The stock's figures stay as they are.
 - **Open:**
   - 6: whether the stock's window and output follow the reference's, to settle with the owner of `model-catalogue.md`. Until then they stay the stock's.
   - 10: all of it.
+
+- **Design departs:** 3: `../protocol/configuration.md`, 13.9 requires
+  confirmed landing of every required design change into g before
+  dispatching dependent coding, including the first batch and designer
+  result paths. A pushed head, delivery or designer report does not
+  confirm landing; a spec cites landed design by path and section,
+  omitting its ended task from `after` and keeping other live
+  prerequisites. The finding 459 repair requires this release order
+  (the user, 2026-11-08); early producer scheduling remains
+  `../domain/forge.md`, 8.11's.
