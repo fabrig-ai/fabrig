@@ -16,17 +16,22 @@ struct Repositories {
     scratch: Scratch,
     person: PathBuf,
     origin: PathBuf,
+    branch: &'static str,
 }
 
 impl Repositories {
     fn new(name: &str) -> Self {
+        Self::on(name, "look-requests")
+    }
+
+    fn on(name: &str, branch: &'static str) -> Self {
         let scratch = Scratch::new(name);
         let person = scratch.path().join("person");
         let origin = scratch.path().join("origin.git");
         fs::create_dir(scratch.path().join("home")).expect("isolated home");
         fs::create_dir(scratch.path().join("hooks")).expect("empty hooks");
         fs::write(scratch.path().join("gitconfig"), "").expect("empty global configuration");
-        let repos = Self { scratch, person, origin };
+        let repos = Self { scratch, person, origin, branch };
         repos.git(repos.scratch.path(), &["init", "--bare", "--quiet", "origin.git"]);
         repos.git(repos.scratch.path(), &["clone", "--quiet", "origin.git", "person"]);
         fs::create_dir_all(repos.person.join(JOURNEYS).join("welcome-playground")).expect("journey directory");
@@ -36,7 +41,7 @@ impl Repositories {
         repos.write(OVERLAY, "\n\n\n\n\n\n\n\n");
         repos.commit("The printed journey");
         repos.git(&repos.person, &["push", "--quiet", "origin", "main"]);
-        repos.git(&repos.person, &["checkout", "--quiet", "-b", "look-requests"]);
+        repos.git(&repos.person, &["checkout", "--quiet", "-b", repos.branch]);
         repos
     }
 
@@ -125,8 +130,8 @@ impl Repositories {
     }
 
     fn publish_requests(&self) -> String {
-        self.git(&self.person, &["push", "--quiet", "origin", "look-requests"]);
-        self.git(&self.origin, &["rev-parse", "look-requests"])
+        self.git(&self.person, &["push", "--quiet", "origin", self.branch]);
+        self.git(&self.origin, &["rev-parse", self.branch])
     }
 
     fn advance_main(&self, message: &str, page: Option<&str>) -> String {
@@ -140,7 +145,7 @@ impl Repositories {
         // Push by path so the person's origin/main stays stale until the
         // script fetches it, as when main advances in somebody else's clone.
         self.git(&self.person, &["push", "--quiet", self.origin.to_str().expect("scratch path"), "main"]);
-        self.git(&self.person, &["checkout", "--quiet", "look-requests"]);
+        self.git(&self.person, &["checkout", "--quiet", self.branch]);
         head
     }
 
@@ -159,8 +164,10 @@ impl Repositories {
 
     fn assert_pushed(&self) {
         assert_eq!(
-            self.git(&self.origin, &["rev-parse", "look-requests"]),
-            self.git(&self.person, &["rev-parse", "HEAD"])
+            self.git(&self.origin, &["rev-parse", self.branch]),
+            self.git(&self.person, &["rev-parse", "HEAD"]),
+            "{}",
+            self.branch
         );
     }
 
@@ -175,23 +182,26 @@ impl Repositories {
 
 #[test]
 fn the_requests_follow_main() {
-    let repos = Repositories::new("look-refresh-follow");
-    let tighter = repos.request("tighter-cards");
-    let calmer = repos.request("calmer-banner");
-    let tighter_before = repos.patch_and_author(&tighter);
-    let calmer_before = repos.patch_and_author(&calmer);
-    repos.publish_requests();
-    let main = repos.advance_main("An unrelated change", None);
-    let output = repos.refresh(0);
-    assert_eq!(repos.git(&repos.person, &["rev-parse", "HEAD~2"]), main);
-    assert_eq!(repos.requests(), "Tune tighter-cards\nTune calmer-banner");
-    assert_eq!(repos.patch_and_author("HEAD~1"), tighter_before);
-    assert_eq!(repos.patch_and_author("HEAD"), calmer_before);
-    repos.assert_pushed();
-    assert!(
-        String::from_utf8_lossy(&output.stdout)
-            .starts_with("kept tighter-cards\nkept calmer-banner\npushed look-requests at ")
-    );
+    for branch in ["look-requests", "tui-requests"] {
+        let repos = Repositories::on(&format!("look-refresh-follow-{branch}"), branch);
+        let tighter = repos.request("tighter-cards");
+        let calmer = repos.request("calmer-banner");
+        let tighter_before = repos.patch_and_author(&tighter);
+        let calmer_before = repos.patch_and_author(&calmer);
+        repos.publish_requests();
+        let main = repos.advance_main("An unrelated change", None);
+        let output = repos.refresh(0);
+        assert_eq!(repos.git(&repos.person, &["rev-parse", "HEAD~2"]), main, "{branch}");
+        assert_eq!(repos.requests(), "Tune tighter-cards\nTune calmer-banner", "{branch}");
+        assert_eq!(repos.patch_and_author("HEAD~1"), tighter_before, "{branch}");
+        assert_eq!(repos.patch_and_author("HEAD"), calmer_before, "{branch}");
+        repos.assert_pushed();
+        assert!(
+            String::from_utf8_lossy(&output.stdout)
+                .starts_with(&format!("kept tighter-cards\nkept calmer-banner\npushed {branch} at ")),
+            "{branch}"
+        );
+    }
 }
 
 #[test]
@@ -353,9 +363,14 @@ fn an_unsuitable_checkout_is_refused_before_fetching() {
         fs::remove_file(path).expect("remove sentinel");
     }
     repos.git(&repos.person, &["checkout", "--quiet", "main"]);
-    repos.refresh(2);
+    let output = repos.refresh(2);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("check out look-requests or tui-requests first"), "main");
     repos.git(&repos.person, &["checkout", "--quiet", "--detach"]);
-    repos.refresh(2);
+    let output = repos.refresh(2);
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("check out look-requests or tui-requests first"),
+        "detached HEAD"
+    );
     assert_eq!(repos.git(&repos.person, &["rev-parse", "origin/main"]), old_main);
     assert_eq!(repos.git(&repos.origin, &["rev-parse", "look-requests"]), remote);
 }

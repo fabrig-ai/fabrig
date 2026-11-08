@@ -1,0 +1,24 @@
+draft = "tui-requests-branch"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-requests-branch/inputs/request.md", "temper/docs/design/client/tui/journeys.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "branch"
+title = "temper/scripts/look-refresh.sh keeps tui-requests on main as it keeps look-requests, and refuses any other branch, naming both"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tui/journeys.md, 10"
+
+[[slice]]
+id = 1
+story = "look_refresh::the_requests_follow_main runs a row on look-requests and a row on tui-requests, each rebased on main and pushed under its own lease, and a checkout of main is refused with a message naming both branches"
+parts = ["branch"]
+walk = false

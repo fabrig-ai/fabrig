@@ -596,7 +596,9 @@ python3 -m http.server 8766
   script stops with the rebase in progress, naming the request; the
   person settles it and finishes the rebase (`git rebase --continue`),
   then runs the script again, which refuses while a rebase is in
-  progress.
+  progress. It takes the TUI's branch, `tui-requests` (`tui/journeys.md`,
+  10), alike, with that branch's lease, requests and push; any other
+  branch is refused.
 - **Never landed:** the journeys' test refuses a request's pages, which
   differ from the reprint, and its overlay (section 6), so `main`'s
   overlay stays empty.
