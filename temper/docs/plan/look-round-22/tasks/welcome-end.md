@@ -85,3 +85,13 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: `top`'s change, the rules as written, the tests changed and how, the bite and its failure, the journeys reprinted or recorded again, the runs' counts, and the account as committed.
+
+## Rebase (2026-11-08, step merge, foreman look-round-22/welcome-end/foreman-1)
+
+rebase the status deletions while preserving integration’s me-first entries and public-sign-in removal.
+The merge conflicts in `temper/docs/design/client/README.status.md` and `temper/docs/design/client/browser.status.md`.
+Commit `daea7346e6` on integration adds adjacent **Not yet** entries for `me-first`, conflicting with this branch’s `welcome-end` deletions.
+In README.status.md, remove only the `welcome-end` entry; retain the new 5.1 “while `me` is read” entry.
+In browser.status.md, remove only the `welcome-end` entry; retain the new 2.3 “A heading drawn after its page” entry.
+Also preserve `a8b18ed511`’s deletion of the 8.2 `public-sign-in` entry; do not restore it from this branch.
+Keep all other status text and the welcome implementation unchanged.
