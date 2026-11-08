@@ -872,3 +872,18 @@ fn project_values_keep_replace_restore_and_propose_as_rules_do() {
         assert!(d.proposal_settings(7).is_empty());
     }
 }
+
+#[test]
+fn dropped_defaults_name_the_stored_ones_the_stock_no_longer_gives() {
+    let mut d = domain();
+    for (stored, slot) in [
+        (item(1, 0, 2, Edit::Set(rule(false))), SettingSlot::Default),
+        (item(1, 0, 1, Edit::Set(rule(true))), SettingSlot::Default),
+        (item(2, 0, 2, Edit::Set(rule(false))), SettingSlot::Default),
+        (item(1, 0, 3, Edit::Set(rule(false))), SettingSlot::Change),
+    ] {
+        restore(&mut d, &stored, slot);
+    }
+    d.give_settings_defaults(stock());
+    assert_eq!(d.dropped_settings_defaults().as_ref(), &[(1, 0, 2)]);
+}

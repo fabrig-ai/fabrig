@@ -784,6 +784,7 @@ impl World {
             }
             Request::Up(
                 LinkUp::ListRead { .. }
+                | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
@@ -842,6 +843,7 @@ impl World {
             }
             Request::Up(
                 LinkUp::ListRead { .. }
+                | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }

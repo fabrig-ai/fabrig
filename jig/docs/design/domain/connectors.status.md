@@ -1,6 +1,6 @@
 # connectors: status
 
-2026-11-07. Where jig's code lags or departs from [connectors.md](connectors.md).
+2026-11-08. Where jig's code lags or departs from [connectors.md](connectors.md).
 
 Section 11's procedure beside its requester's own writing run is present
 in temper's forge connector. Its held-branch step tests and engine domain

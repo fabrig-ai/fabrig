@@ -29,7 +29,11 @@ fn declared_kinds_with_defaults_preserve_start_outputs_and_save_each_connector()
             step(
                 &mut declared,
                 &env,
-                Event::EffectConnector(connector::Event::SettingsDefaults { connector: 2, defaults: Box::default() })
+                Event::EffectConnector(connector::Event::SettingsDefaults {
+                    connector: 2,
+                    defaults: Box::default(),
+                    dropped: Box::new([])
+                })
             )
             .is_empty()
         );
@@ -70,7 +74,7 @@ fn set(number: u32) -> s::Item {
 fn accept(size: u32, charters: &[u32]) -> connector::Judged {
     connector::Judged::Accept { size, charters: charters.into() }
 }
-fn application_core() -> (Core, Limits) {
+pub(super) fn application_core() -> (Core, Limits) {
     application_core_with(Box::new([kind(1, 2), kind(2, 2), kind(3, 3)]))
 }
 fn application_core_with(kinds: Box<[Kind]>) -> (Core, Limits) {
@@ -103,7 +107,7 @@ fn application_core_with(kinds: Box<[Kind]>) -> (Core, Limits) {
 }
 
 /// The scripted root feeds every judge's answer before returning its gathered decision.
-fn change(
+pub(super) fn change(
     core: &mut Core,
     limits: &Limits,
     items: Box<[s::Item]>,

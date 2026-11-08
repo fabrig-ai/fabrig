@@ -7,7 +7,7 @@ use smith_domain_session::llm::{self, Block, Message};
 use temper_client_domain::{
     Action, Address, Event, Request,
     forge::away::AwayRow,
-    pages::{Act, away, home, needs},
+    pages::{Act, all_home, away, home, needs},
 };
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::{
@@ -21,6 +21,7 @@ use temper_engine_domain_forge as forge;
 const CLIENT: ClientId = ClientId(0);
 const SECOND_DEVICE: ClientId = ClientId(1);
 const PROJECT: u32 = 1;
+const OTHER_PROJECT: u32 = 2;
 const PUMP_ROUNDS: usize = 32;
 const OFFLINE: Duration = Duration::from_millis(30);
 const WORKER: skein_lib::Token = skein_lib::Token::new(7);
@@ -46,8 +47,11 @@ impl Story {
         // The session also holds trials and a running trial task.
         limits.client.domain.handles = 18;
         limits.client.domain.watches = 18;
+        Self::with_front(Joint::with_away_people(fixtures::SEED, limits), limits)
+    }
+    fn with_front(front: Joint, limits: temper_client_domain::Limits) -> Self {
         let mut story = Self {
-            front: Joint::with_away_people(fixtures::SEED, limits),
+            front,
             probes: Vec::new(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             inputs: Vec::new(),
@@ -480,6 +484,75 @@ impl Story {
         }
         calls
     }
+}
+
+#[test]
+fn decisions_across_projects_overturn_only_the_named_projects_goal() {
+    let mut limits = fixtures::domain_limits();
+    limits.client.domain.handles = 18;
+    limits.client.domain.watches = 18;
+    let mut story = Story::with_front(fixtures::across_people(limits), limits);
+    story.front.answer_runs = false;
+    let mut goals = Vec::new();
+    for project in [PROJECT, OTHER_PROJECT] {
+        story.act(away::Act::Toggle { project });
+        story.front.engine.sign_in();
+        story.front.engine.settle();
+        let jig_domain_people::Ask::Create { mut batch, .. } =
+            story.front.engine.chat_ask(project, b"Make a small fix")
+        else {
+            panic!("goal template")
+        };
+        batch[0].tracked = Some(0);
+        batch[0].flags.conversation = false;
+        batch[0].authority.tools = 1 | 2 | 4 | 512;
+        story.front.engine.send(temper_engine_domain::Event::Party(temper_engine_domain::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(2400 + u64::from(project))),
+            sign_in: story.front.engine.session(),
+            key: [u8::try_from(project).expect("project key"); 16],
+            ask: jig_domain_people::Ask::Create { project, batch },
+        }));
+        story.pump();
+        let goal = story.front.assignments.last().expect("project's goal assigned").task;
+        assert_eq!(story.front.engine.task(goal).expect("goal").project, project);
+        goals.push(goal);
+        assert_eq!(story.decide(goal, 1), "Decided: carry on with Small.");
+        story.after(Duration::from_secs(1));
+    }
+    let [first, second] = goals.as_slice() else { panic!("two goals") };
+    story.event(CLIENT, Temper::went(Address::AllHome));
+    let facts = all_home::facts(story.probes[CLIENT.0].root.person(), story.env.wall);
+    assert_eq!(facts.showing, 2);
+    assert_eq!(
+        facts.decided.iter().map(|row| (row.project, row.line.task, row.line.state)).collect::<Vec<_>>(),
+        [(PROJECT, *first, home::DecisionTask::Live), (OTHER_PROJECT, *second, home::DecisionTask::Live)]
+    );
+    assert!(facts.decided[0].line.at < facts.decided[1].line.at, "oldest decision first");
+    story.act(away::Act::Overturn { project: OTHER_PROJECT, number: facts.decided[1].line.number });
+    let decisions = story.decisions();
+    assert!(decisions.iter().any(|row| row.project == OTHER_PROJECT && row.task == *second && row.overturned));
+    assert!(decisions.iter().any(|row| row.project == PROJECT && row.task == *first && !row.overturned));
+    let words = b"I overturn your decision. Which implementation? You took Small. Ask me again with message, as a question, and wait for my answer.";
+    assert!(
+        story.inputs.iter().any(|(task, _, _, input)| task == second && input.as_ref() == words),
+        "project 2's goal hears the same overturn as on project Home"
+    );
+    assert!(!story.inputs.iter().any(|(task, _, _, input)| task == first && input.as_ref() == words));
+    story.event(CLIENT, Temper::went(fixtures::inbox()));
+    let rows = all_home::decided(story.probes[CLIENT.0].root.person(), story.env.wall);
+    assert_eq!(
+        rows.iter().map(|row| (row.project, row.line.task, row.line.overturned)).collect::<Vec<_>>(),
+        [(PROJECT, *first, false), (OTHER_PROJECT, *second, true)]
+    );
+    story.event(
+        CLIENT,
+        Temper::went(Address::Inbox {
+            filter: temper_client_domain::address::Filter { project: Some(PROJECT), goal: None, kind: None },
+        }),
+    );
+    let rows = all_home::decided(story.probes[CLIENT.0].root.person(), story.env.wall);
+    assert_eq!(rows.iter().map(|row| (row.project, row.line.task)).collect::<Vec<_>>(), [(PROJECT, *first)]);
 }
 
 #[test]

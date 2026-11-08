@@ -28,6 +28,7 @@ pub(crate) struct Call {
     pub offset: usize,
     pub closed: bool,
     pub streaming: bool,
+    pub reply_owed: bool,
 }
 impl Call {
     pub fn new(name: Token, limits: &Limits) -> Self {
@@ -49,6 +50,7 @@ impl Call {
             offset: 0,
             closed: false,
             streaming: false,
+            reply_owed: false,
         }
     }
     pub fn read(&mut self, limits: &Limits) {
@@ -127,6 +129,10 @@ impl Call {
         self.closed = true;
         if self.streaming {
             out.push(Request::Component(jig_protocol_engine_clients::FromTransport::StreamGone { stream: self.name }));
+        } else if self.reply_owed {
+            out.push(Request::Component(jig_protocol_engine_clients::FromTransport::ExchangeGone {
+                exchange: self.name,
+            }));
         }
         out.push(Request::Http { call: self.name, request: http::Request::Next });
     }
@@ -150,6 +156,7 @@ impl Call {
                         let Route::Public(read) = core::mem::replace(&mut self.route, Route::Missing) else {
                             unreachable!("public route")
                         };
+                        self.reply_owed = true;
                         out.push(Request::Component(jig_protocol_engine_clients::FromTransport::PublicRead {
                             exchange: self.name,
                             read,
@@ -160,12 +167,15 @@ impl Call {
                     let body = self.body.meet(Read::Fill(self.body.len())).unwrap_or_default();
                     let credential = self.credential.take();
                     let message = match crate::dispatch::message(&self.route, body) {
-                        Some(message) => jig_protocol_engine_clients::FromTransport::Exchange {
-                            browser: self.cookie,
-                            exchange: self.name,
-                            credential,
-                            message,
-                        },
+                        Some(message) => {
+                            self.reply_owed = true;
+                            jig_protocol_engine_clients::FromTransport::Exchange {
+                                browser: self.cookie,
+                                exchange: self.name,
+                                credential,
+                                message,
+                            }
+                        }
                         None => {
                             self.streaming = true;
                             jig_protocol_engine_clients::FromTransport::StreamOpen { stream: self.name, credential }

@@ -1,0 +1,24 @@
+╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:42401 ─╮
+│ Hello is ready.                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ Where you left off
+   Hello   Add a CSV export to the report, a chat · 22:44 · waiting…   /chats 1
+
+ Needs you
+   ? Hello   Add a CSV export to the report: csv-export: comma…    n walks them
+
+ Start
+   /change   one change, run as Hello's way says
+   /ask      Ask temper
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+csv-export: comma or semicolon?
+❯ 1. Comma
+  2. Semicolon
+  3. Tell it something else
+  4. Next

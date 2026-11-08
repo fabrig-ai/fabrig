@@ -133,6 +133,11 @@ pub struct Call {
 /// parent -> fleet
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// The worker of `channel` drains: nothing more is placed on it
+    /// (engine.md, section 8).
+    Draining {
+        channel: Token,
+    },
     ReadList {
         read: u64,
         endpoint: u32,

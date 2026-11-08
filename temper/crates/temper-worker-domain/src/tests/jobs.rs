@@ -291,7 +291,7 @@ fn a_job_retry_during_preparation_keeps_the_first_decoded_spec() {
     assert!(requested(&rows), "the first, decoded spec starts");
     let owner = owner(&rows);
     let rows = h.step(Event::Shutdown);
-    assert!(rows.is_empty(), "shutdown schedules the job's cancellation");
+    assert_eq!(&*rows, [Request::Link(host::LinkUp::Draining)], "shutdown schedules the job's cancellation");
     crate::resume(&mut h.domain, &h.env, &mut h.out);
     let mut stopped = List::with_capacity(h.out.len());
     while let Some(row) = h.out.pop() {

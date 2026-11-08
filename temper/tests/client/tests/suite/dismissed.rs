@@ -62,9 +62,15 @@ impl Story {
         }
         let mut story = Self { front, probes, env };
         story.pump();
-        // Reserve the fixed engine watch table for a third device's dismissal facts.
-        // These observers use neither accounts nor settings.
+        // These observers need session facts alone; page reads, accounts and settings
+        // leave the fixed engine watch table to the third device's dismissal facts.
         for probe in &mut story.probes {
+            Temper::step(
+                &mut probe.root,
+                &story.env,
+                Event::Went { place: temper_client_domain::Place::Missing }.into(),
+                &mut probe.out,
+            );
             for handle in
                 [temper_client_domain::pages::accounts::handle(), probe.root.person().forge().settings_handle()]
             {

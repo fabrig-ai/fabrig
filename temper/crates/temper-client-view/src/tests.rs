@@ -1,3 +1,4 @@
+mod all_home;
 mod approve;
 mod ask;
 mod builders;
@@ -7,6 +8,7 @@ mod choice;
 mod confirm;
 mod delegation;
 mod document;
+mod home_cards;
 mod model_forge;
 mod models;
 mod new_chat;

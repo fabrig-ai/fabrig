@@ -618,6 +618,7 @@ impl World {
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
                 | LinkUp::ListRead { .. }
+                | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }

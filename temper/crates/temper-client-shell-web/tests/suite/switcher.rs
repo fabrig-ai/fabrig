@@ -7,6 +7,14 @@ fn rule(selector: &str) -> &str {
 }
 
 #[test]
+fn the_new_box_plus_is_drawn_without_accessible_text() {
+    let plus = rule("#app > .temper-rail > .temper-rail-new > :is(a, [aria-haspopup])::before");
+    assert!(plus.contains("content: '';"), "the decorative plus must not add text to either control's name");
+    assert!(plus.contains("display: inline-block;"), "the empty decoration needs a box");
+    assert_eq!(plus.matches("linear-gradient(currentColor, currentColor)").count(), 2, "the plus has two strokes");
+}
+
+#[test]
 fn escape_alone_replaces_the_visible_cancel() {
     assert!(rule(".temper-project-rename-form > [aria-keyshortcuts=Escape]").contains("display: none;"));
 }

@@ -14,6 +14,7 @@ pub enum Address {
     Chat { task: u64 },
     Task { task: u64 },
     Home { project: u32 },
+    AllHome,
     Goals { project: u32, filter: GoalsFilter },
     Changes { project: u32 },
     Settings { project: u32 },
@@ -121,9 +122,11 @@ pub enum Place {
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
 /// `/projects/<project>/work`, `/deployment/members`, `/deployment/limits`, `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/roles/<charter>`, `/projects/<project>/settings/rules/<kind>/<number>`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive table prints every page address")]
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
         Address::Inbox { filter } => return print_filter(*filter),
+        Address::AllHome => (b"home".as_slice(), None, b"".as_slice()),
         Address::Welcome { step } => {
             return match step {
                 Step::Welcome => b"/welcome".as_slice().into(),
@@ -261,6 +264,7 @@ pub fn parse(path: &[u8]) -> Place {
         (b"forges", b"", b"") => Address::Forges,
         (b"forges", b"connect", b"") => Address::ConnectForge { forge: forge_choice(fields) },
         (b"accounts", b"", b"") => Address::Accounts,
+        (b"home", b"", b"") => Address::AllHome,
         (b"deployment", b"members", b"") => Address::Members,
         (b"deployment", b"limits", b"") => Address::Limits,
         (b"accounts", b"connect", b"") => Address::ConnectModel { way: parse_way(fields) },

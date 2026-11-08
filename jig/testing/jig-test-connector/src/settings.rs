@@ -372,26 +372,17 @@ pub(crate) fn defaults(domain: &Domain, out: &mut Queue<Request>) {
             );
         }
     }
+    let mut dropped = List::with_capacity(u32::try_from(domain.settings.defaults.len()).expect("bounded defaults"));
     for key in domain.settings.defaults.keys() {
         if !states.contains_key(key) {
-            states.insert(
-                *key,
-                SettingDefault {
-                    kind: key.0,
-                    scope: key.1,
-                    number: key.2,
-                    size: 0,
-                    charters: Box::new([]),
-                    differs: true,
-                },
-            );
+            dropped.push(*key).expect("one name per stored default");
         }
     }
     let mut defaults = List::with_capacity(u32::try_from(states.len()).expect("bounded defaults"));
     for state in states.into_values() {
         defaults.push(state).expect("one entry per default");
     }
-    out.push(Request::SettingsDefaults { defaults: defaults.into_boxed() });
+    out.push(Request::SettingsDefaults { defaults: defaults.into_boxed(), dropped: dropped.into_boxed() });
 }
 
 pub(crate) fn save_defaults(domain: &mut Domain, out: &mut Queue<Request>) {

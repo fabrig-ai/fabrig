@@ -2197,36 +2197,48 @@ keeps (`../protocol/configuration.md`, section 2).
       agent at 07:42", its `at` by 5.12's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
       no prose of its own.
-  - *Needs you,* a region named "Needs you": what needs the person in
-    this project, the groups of `Inbox` but its updates, read as `Inbox`
-    reads them filtered by the project, with the project's changes waiting
-    on a review on the forge (*Needs you,* below, *An approval*). Its head is the level-2 heading
-    "Needs you", "Needs you · N" in the signal colour while something
-    does, and, at its right on a wide page while more than one does,
-    "Answer in a row", to that filtered *Needs you*. Empty, once its read has
-    answered: "Work carries on, and this page tells you what changed when you come back.", the
-    headline above having said "Nothing needs you." once.
+  - *Needs you,* a region named "Needs you", drawn while an open card
+    waits (*A page's parts,* below): what needs the person in this
+    project, the groups of `Inbox` but its updates, read as `Inbox` reads
+    them filtered by the project, with the project's changes waiting on a
+    review on the forge (*Needs you,* below, *An approval*). With none
+    open the region is left out, the headline above having said "Nothing
+    needs you." (`../draft/surfaces.md`, 14: no part is drawn empty). Its
+    head is the level-2 heading "Needs you · N", N in the signal colour,
+    and at its right "All needs", to that filtered *Needs you*.
     - *Answered lines,* under the head: what was answered in the last 2
       minutes (*What the client keeps,* below): the mock's `.answered`,
       a tick by style, "TITLE:" a link to its task, the label, and at
-      the right "Undo" while its answer is held.
-    - *The first,* a card (`temper-ask`, the mock's `askCard`): a small
-      mono line, the asked task's link as the inbox's card has it, its
-      kind and age ("Add a README · a question · 4 min"), " · later" on
-      a card marked later; then its parts, by its kind as on *Needs you*
-      (below), but: the question in `.q`, 17px; a question's `.choices`
-      in a row, min-height 40, then quiet "Reply" and quiet "Later", in
-      place, the reply form under them; on a proposal or a held task its
-      acts, quiet "Open" and quiet "Later"; on an approval its review link
-      where it has one, then quiet "Open" and quiet "Later" (`forge.md`, 4.1).
-    - *The others,* a line each under it, the whole a link that opens
-      *Needs you* at that card, at most five: its SHORT at the left
-      (*Needs you,* below; a funds row "TITLE: S of L used"), at the
-      right its kind and age.
-    - *On a phone* the card and the lines give way to one block on a pale
-      signal ground, "TITLE: SHORT", the whole a link to *Needs you*,
-      with "Answer" across it for one card and "Answer, one at a time"
-      for more; the browser's alone.
+      the right "Undo" while its answer is held. They show while the
+      region does.
+    - *The cards,* the first three open cards in their order (*What the
+      client keeps,* below), oldest first as the inbox orders them, each a
+      `temper-need-card` (the whole story's `home.html`, `.card.need`):
+      - *its from line,* mono: on Home on All projects (below) the
+        project's chip, `temper-chip`, its name; the asked task's link as
+        the inbox's card has it; its kind and age ("Add a README · a
+        question · 4 min"); " · later" on a card marked later;
+      - *its question* in `.q`, 17px; a funds card's "S of L used." and
+        an approval's question as on *Needs you*;
+      - *its acts* in a row, min-height 40, the recommended one first and
+        primary, the others quiet: a question's choices, the recommended
+        one first as *Needs you* orders them, then "Tell it something
+        else", a link that opens *Needs you* at that card (*At,* below);
+        a proposal's Accept and Reject, a held task's and a funds card's
+        Release and Leave held, through the confirmation they have
+        (3.6); an approval's "Review on FORGE ↗" (*Needs you,* *An
+        approval*), then "Tell it something else". A question in words
+        in no line form has "Tell it something else" alone, primary.
+        A choice answers in place, as on *Needs you*, with its held send
+        and its Undo.
+    - *More,* with more than three open, a line under the cards: "One
+      more" or "N more", N in number words to "Nine", digits after, a
+      link to that filtered *Needs you*.
+    - *On a phone* (the whole story's `phone-home.html`) each card keeps
+      its from line and its question; its recommended act is a
+      full-width button, at least 44 pixels tall, then "More", quiet,
+      which opens *Needs you* at that card; an approval's recommended act
+      is its "Review on FORGE ↗". The browser's alone.
   - *Chats,* a region named "Chats": its head the level-2 heading
     "Chats" and, at its right with any chat, "All N", named "All N
     chats", "All N+" where the rows are cut, to `Chats`; a line per chat
@@ -2253,6 +2265,8 @@ keeps (`../protocol/configuration.md`, section 2).
     signal's colour while `red`; then " · " and "Changes", a link to
     `Changes`. BRANCH is `branch`, "landing" where it is empty. No green
     time is kept, so none is said.
+  - *The Ask temper line,* the page's last part, as *Home on All
+    projects* (below) has it, on this project; not while To begin shows.
 
   In the rail and the tab bar, "Needs you"'s count takes the signal
   colour.
@@ -2279,29 +2293,142 @@ keeps (`../protocol/configuration.md`, section 2).
   where the look is the terminal's, as on the pages it draws. The
   browser's Home sends neither `ChatWords` nor `StartChat` and draws no
   picker, so it is unmoved.
+- **Home on All projects** (`../draft/surfaces.md`, section 3; the whole
+  story's `home.html` and `phone-home.html`, `web/whole-story/`):
+  `AllHome`, at `/home`, Home for every project the person is in, as
+  `me` lists them and in its order, the first 16 read (`all_home::ACROSS`)
+  and the rest left out. It draws in the open project's frame, as `Inbox`
+  does: the rail and the tab bar are the open project's, or with none open
+  `me`'s first project's, "Home" current (5.3). Going to it opens no
+  project and moves none. With no project in `me` it draws its intro
+  alone. It has no To begin, no Chats, no Goals and no foot: those are a
+  project's Home's. One column of prose, in this order, each part drawn
+  by its rule (*A page's parts,* below):
+  - *Its reads.* On entering, for each project read, the subjects
+    `status` and `decided` (4.6), as that project's Home watches them, and
+    `Looked` once, so that each project's `previous` and `seen` move as its
+    Home's entry moves them; the inbox unfiltered and the subject
+    `approvals`, as *Needs you* reads them across projects; each showing
+    decision's task (`Read::Task`), as Home reads its rows, within `reads`.
+    Leaving unwatches them all. A project's status counts once its look is
+    answered and its document delivered, as on its Home; a watch refused or
+    ended leaves that project's status unknown, and the rest stand.
+  - *The intro,* one function's composition, `all_home::intro`, so that a
+    later part joins there:
+    - *the kicker:* the day and time, as Home's; then, with the newest
+      `previous` of the projects shown over a minute old, " · you last
+      looked SPAN ago", SPAN Home's own word; then, with an Away spell of
+      the person's on a project read whose `off` is after that look, " ·
+      away SINCE to OFF", both by 5.12's *clock*, the newest such spell;
+    - *the headline:* the landed sentence across projects, then a space
+      and the needs sentence, Home's words over every open card across
+      projects, "N+" where the inbox or `approvals` is cut. With N the sum
+      over the projects shown of `landed` less `seen`, and P the number of
+      them where it is above 0: "N changes landed across P projects.",
+      P in number words to "nine", digits after; with P one, "N changes
+      landed in PROJECT." or "One change landed in PROJECT."; for N 0,
+      with a `last_landed` on any project shown, "The last change landed
+      SPAN ago.", the newest, SPAN the kicker's word, "just now" under a
+      minute; nothing with nothing landed. It never says a brief's
+      `sentence`: across projects the headline is code's;
+    - *the lede:* the briefs joined, `all_home::brief`: each project's
+      brief that is new to the person by Home's rule (*Home on any
+      project*), newest `at` first, at most four, each its project's name
+      and ": " in the strong weight, then the first sentence of its `lede`,
+      up to and with the first ".", "!" or "?" that ends the lede or is
+      followed by a space, the whole lede with none. The name says whose,
+      since one brief a project is written in its own project's words
+      (`../draft/surfaces.md`, 15, its default);
+    - *the byline:* "Written by the status agent at 07:52", the newest
+      joined brief's `at` by 5.12's *clock*, in `temper-home-byline`.
+      With no brief new, neither lede nor byline.
+
+    Until a project's status is shown it counts nothing; while none is,
+    the intro has its kicker's day and time and its needs sentence alone,
+    the needs sentence once the inbox has answered.
+  - *Needs you,* as a project's Home's (*Home*, above, *The cards*) across
+    projects: the open cards of the unfiltered inbox with every
+    `approvals` row, each card's from line with its project's chip; "All
+    needs" and "N more" open `Inbox` unfiltered.
+  - *Decided for you,* a region named "Decided for you", drawn while a
+    row shows (*Away,* below: a row shows for 24 hours from its `at`): its
+    head the level-2 heading "Decided for you · N", N every row showing
+    across the projects read, and at its right "What reaches you", to the
+    open project's `Settings { project }`, whose How work runs tab holds
+    what reaches the person; then at most seven rows, the newest kept,
+    oldest first, each a `temper-decision` as a project's Home draws it
+    (*Away,* *Home, while a decision shows*): mono "PROJECT · TITLE ·
+    01:05", then the question, what it took and why, and at its right what
+    a project's Home has there, "Overturn" on a live task. Overturn is
+    *Away*'s act under the row's project.
+  - *Projects,* a region named "Projects", while the person is in two
+    projects or more: its head the level-2 heading "Projects"; then
+    `temper-projects`, a row a project read, in `me`'s order: its name, a
+    link to its `Home`; and its health in chips: BRANCH, `temper-chip-good`,
+    while its status is shown and not `red`; "BRANCH red",
+    `temper-chip-signal`, while `red`; none while its status is unknown.
+    BRANCH is its status's `branch`, "landing" where it is empty, as Home's
+    foot says it. A project's Now, its tiers, a follow's parity and
+    "owned" are not designed here (*A page's parts*).
+  - *The Ask temper line,* `temper-ask-line` (the mockups' `.ask`), the
+    page's last part: a field named "Ask temper", its placeholder "Ask
+    temper about your projects", and the button "Ask". Enter or "Ask"
+    with words sends `Act::AskWith { words }`, which opens `Ask { project
+    }` on the project in view, the open project here, with the words in
+    its composer, unsent, as if typed there; with none it does nothing.
+  - *On a phone* (`phone-home.html`): the kicker "Sunday 08:04 · last
+    looked 9 h ago", 5.12's short span; the headline and the lede as
+    above; the byline "The status agent, 07:52"; the cards in their phone
+    form; then, while a row shows, one line "Decided for you · N ›", a
+    link to *Needs you* unfiltered, which lists them. No Projects and no
+    Ask line: the phone asks from its Ask tab (`../draft/surfaces.md`,
+    10). The browser's alone.
+
+  In the terminal the page reads as Home's does there: its parts keep
+  their headings, each line one readable run of words, and the cards'
+  choices print as buttons.
 - **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
   `Inbox { filter }` in the browser, its address and its filters as they
-  were (`browser.md`, 2.3). It draws one card at a time: no level-1
-  "Inbox", no sections, no filter menus and no "+ New chat". Updates
+  were (`browser.md`, 2.3), across projects by default
+  (`../draft/surfaces.md`, section 4; the whole story's `needs.html` and
+  `phone-need.html`): no filter menus and no "+ New chat". Updates
   leave the browser's page and no page replaces them; `Seen` marking
   stays as it is. Its unfiltered address, `/`, works across projects,
-  the project's name before the owner on the mono line. One card is
-  shown of the open ones (*What the client keeps,* below): the one a Home
-  row asked for, else the first; until the inbox has answered, the column
-  is empty, so that "Nothing needs you." never flashes, and what it said
-  stands through each refresh after that.
+  each card's from line opening with its project's chip. On a wide page
+  it is a list of the open cards (*What the client keeps,* below), in
+  their order, oldest first as the inbox orders them: the shown one, the
+  one a Home row asked for, else the first, open as *The card*; each other
+  closed, a `temper-need-row`, its from line and its SHORT (below), the
+  whole a button that opens it (`needs::Act::Open`), closing the one open.
+  On a phone it is one card at a time, the shown one, as below. Until the
+  inbox has answered, the column is empty, so that "Nothing needs you."
+  never flashes, and what it said stands through each refresh after that.
   - *The column,* as the mock's `.col.narrow.flow`: 600 wide, centred,
-    gap 32.
-  - *Its head,* `.flow-head`: `.dots`, a figure named "2 of 3", a pip per
-    item, 22 by 4, radius 2, `--gf-line-2`, the done ones first and ink;
-    at the right "2 of 3" as `.kicker`. The total is what is answered of
-    this session's page plus the open; where the read is cut, "2 of 3+".
+    gap 32; 720 wide on a wide page's list.
+  - *Its intro,* `temper-needs-intro`, while a card is open: the kicker
+    "Needs you · all projects" unfiltered, "Needs you · PROJECT" filtered
+    by a project; the level-1 heading, Home's needs sentence over the open
+    cards, then with a Decided for you row showing " Four were decided for
+    you." or " One was decided for you.", in number words to "Nine",
+    digits after. What reaches the person, the lede `needs.html` draws, is
+    `../draft/what-reaches-you.md`, section 2's, and joins the intro with
+    its classes.
+  - *Its head,* on a wide page: the level-2 heading "Needs you · N", N in
+    the signal colour, "N+" where the read is cut, and at its right "oldest
+    first", muted. On a phone, `.flow-head`: `.dots`, a figure named "2 of
+    3", a pip per item, 22 by 4, radius 2, `--gf-line-2`, the done ones
+    first and ink; at the right "2 of 3" as `.kicker`. The total is what is
+    answered of this session's page plus the open; where the read is cut,
+    "2 of 3+".
   - *The card,* on no ground (`.ask`, no background, no shadow, padding
     0), gap 16:
-    - a `.mono` line: TITLE, a link to the task, · kind · age, as Home's,
-      " · later" with it; the kind "a question", "a proposal", "held", "a
-      person task", "an approval", or "funds" for a held task whose reason is
-      `HoldReason::Budget`;
+    - a `.mono` line, its from line: the project's chip, `temper-chip`, on
+      the unfiltered address; TITLE, a link to the task, · kind · age, as
+      Home's, " · later" with it; the kind "a question", "a proposal",
+      "held", "a person task", "an approval", or "funds" for a held task
+      whose reason is `HoldReason::Budget`. The goal or the role a need
+      comes from and who asked it join the line as their reads come
+      (`../draft/surfaces.md`, 4);
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 23px on a
       phone;
     - `.ctx`, `--gf-ink-2`, if it has a context;
@@ -2312,17 +2439,20 @@ keeps (`../protocol/configuration.md`, section 2).
       16px; the recommended one, with none the first, primary, and on a
       question alone `.rec`, "recommended", at the far right, 12px, 400,
       opacity .72;
-    - `.pair`, two columns, gap 10: "Reply…" and "Later", min-height 46,
-      radius 12, no border, `--gf-hover`, centred; on a proposal, a held
-      task or a person task other than one in words the first is "Open",
-      to its task's or chat's page, and with no such page it is left out;
-    - the reply form under the pair, hidden until "Reply…": a textarea,
-      min-height 72, `--gf-line-2`, radius 8, `--gf-paper`, its
-      placeholder "Your words go to TITLE’s agent"; "Send reply" (primary,
-      small) and "Cancel" (quiet, small).
+    - *Tell it something else,* `temper-need-tell`, on a question and a
+      person task in words, always open under the choices: a textarea named
+      "Or tell it something else", min-height 72, `--gf-line-2`, radius 8,
+      `--gf-paper`, its placeholder the same words; its words are the
+      card's reply, kept as a reply's are (*What the client keeps,* below),
+      and go to the asker as its next message; "Send", primary and small,
+      while it holds words, answers in them as a reply does. On a
+      proposal, a held task or a person task other than one in words,
+      "Open", quiet, to its task's or chat's page, and with no such page it
+      is left out. The browser draws no "Later"; the terminal's inbox keeps
+      it.
   - *By its kind.* A question reads its words by their line form
     (`../domain/agent.md`, 8.2); words in no such form are answered by
-    "Reply…" alone. A proposal's question line is its reason's first
+    *Tell it something else* alone. A proposal's question line is its reason's first
     sentence, without a heading's marks, its facts and rows as `.ctx` beneath, then Accept (primary,
     with no "recommended") and Reject (plain, its reason's textarea as on
     the terminal's card), through the confirmation they have (3.6). A
@@ -2338,7 +2468,7 @@ keeps (`../protocol/configuration.md`, section 2).
     one addressed to a person with a report as its contract, as a goal
     asks the person who started it (`../domain/agent.md`, 8.2), reads as a
     question: its spec's words by the same line form, its kind "a
-    question", its choices, "Reply…" and "Later". Choosing or replying
+    question", its choices and *Tell it something else*. Choosing or replying
     answers it in those words, naming the revision the card showed;
     Later keeps it open. With a task as requester, its line's TITLE is
     "Task N", N its requester, a link there, since the card reads no second
@@ -2349,7 +2479,10 @@ keeps (`../protocol/configuration.md`, section 2).
     report keeps the ordinary person-task card.
   - *An approval,* a change waiting on a review on the forge: a row of the
     subject `approvals` (4.6), its kind "an approval", its question, context,
-    review link, "Open" and "Later" as `forge.md`, 4.1 has them, its key
+    review link and "Open" as `forge.md`, 4.1 has them, the review link
+    "Review on GitHub ↗" or "Review on Forgejo ↗" first and primary, one tap
+    to the forge's review page (`../draft/forge-identity.md`, section 8), and
+    in the terminal's inbox "Later" too, its key
     `ObjectKey::Task` of the change, so that Later works on it as on any card.
     The open cards are the inbox's needs and these rows together: the inbox's
     first, in its order, then the rows in theirs, and those marked later last.
@@ -2364,7 +2497,7 @@ keeps (`../protocol/configuration.md`, section 2).
     `long_text`, which bounds a task's words (5.4). Only the whole parses by the
     line form, so its context, "What the agent saw" and its choices draw once it
     has it all; until then the card reads as words in no such form, ending in
-    `…`, answered by "Reply…" alone. A read that ended short is asked again at the
+    `…`, answered by *Tell it something else* alone. A read that ended short is asked again at the
     inbox's next refresh. Words with more than 16 choices read as words in no such
     form, whole. A question by `message` has no such read: its words stay as the
     document has them.
@@ -2373,23 +2506,31 @@ keeps (`../protocol/configuration.md`, section 2).
     Under the words, in `.ctx`: "This question is cut here." and the link "Read
     the rest", to its task's page (the requester's, for a person task in
     words), whose conversation holds them. No question is cut without it.
-  - *SHORT,* what a next-up line or a Home line says of a card: a
+  - *SHORT,* what a next-up line, a closed row or a Home line says of a card: a
     question's line, or a person task in words', from the document's bounded
     words; a proposal's reason's first
     sentence; a held task's or another person task's title, a funds card's
     "S of L used"; an approval's question.
-  - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
-    "The last one".
+  - *`.next-up`,* on a phone, centred, 13px, `--gf-faint`: "Next: TITLE ·
+    SHORT", or "The last one".
   - *Answered,* under it when any: the section title "Answered", then
     the `.answered` lines.
   - *Done,* with none open, `.col.narrow` with no head: the kicker "Needs
     you", the level-1 heading "Nothing needs you.", the lede "Every
     question is answered. Work carries on; Home tells you what changed.",
-    the `.answered` lines, and a plain button-link "Home" (to the open
-    project's `Home`, else the first project's).
-  - *Its acts.* A choice answers and moves to the next card. "Send reply"
-    answers in words. "Later" marks it and moves on, the toast saying
-    "Later: it stays in Needs you, after the others."
+    the `.answered` lines, and a plain button-link "Home": to `AllHome`
+    while `me` lists two projects or more, else to the open project's
+    `Home`, else the first project's.
+  - *Decided for you,* a region named "Decided for you", after the list or
+    the Done column, drawn while a row shows (*A page's parts,* below):
+    the rows of *Home on All projects*, its reads, its count and its
+    Overturn, filtered by the address's project where it has one; its head
+    "Decided for you · N" and at its right "for 24 hours, then in each
+    task's history", muted; each row's why after "Allowed: ". On a phone
+    it follows the card, the target of Home's "Decided for you · N ›".
+  - *Its acts.* A choice answers and opens the next card. "Send" answers
+    in words. On the terminal's inbox "Later" marks it and moves on, the
+    toast saying "Later: it stays in Needs you, after the others."
 - **What the client keeps** of what needs the person: in `Pages`, not on
   a page, for this session, gone on reload or on sign-out, none of it a
   stored record, and at most 64 each of the cards marked later, the answered
@@ -2448,6 +2589,35 @@ keeps (`../protocol/configuration.md`, section 2).
     held for the session as `dismissed` is, from when `me` is first delivered
     while the link is live: a watch refused or ended is kept as such, with no
     rows, and not opened again until the next sign-in.
+- **A page's parts** (`../draft/surfaces.md`, section 12): what Home,
+  Home on All projects and Needs you draw follows the facts, part by
+  part, decided by one pure function a page in `pages::parts`, which the
+  browser and the terminal share: `parts::home(&parts::HomeFacts) ->
+  parts::HomeParts` and `parts::needs(&parts::NeedsFacts) ->
+  parts::NeedsParts`. Their facts are counts and flags the page's reads
+  give, never a step of the spectrum, so that a project between two steps
+  shows exactly its parts and moving along it flips no page. Each part has
+  one rule:
+
+  | Part | Shows when |
+  |---|---|
+  | Home's lede and byline | a brief new to the person, on a project shown |
+  | Home's Needs you | an open card waits |
+  | Decided for you, on Home and on Needs you | a row shows, within its day |
+  | Home's Projects | on All projects, the person is in two projects or more |
+  | The Ask temper line | always, on a wide page, To begin gone |
+  | Needs you's list | an open card waits; else its Done |
+
+  A part whose rule holds is drawn with what it holds, and none is drawn
+  empty. Every open card is drawn exactly once on Needs you, and on Home
+  among its three cards or counted in its "N more". A card's showing
+  follows its own facts, never the project's settings: an approval asked
+  while the project's way had the person review stays open until it is
+  done, whatever the way becomes. Home's owners' lines and What follows
+  what join this table with the reads that give them
+  (`../draft/standing-roles.md`; `../draft/follows.md`), as do Needs you's
+  why, Only you and Tell temper (`../draft/what-reaches-you.md`, sections
+  5 and 8; `../draft/surfaces.md`, section 9).
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
   section 3): `Changes { project }`, at `/projects/<project>/changes`, Work
   under its Changes filter (*Work,* below), a
@@ -6754,10 +6924,18 @@ measures it (skein's `ui-web.md`, section 7).
   rule opens a chat: a long one opens with at least a screen and a half,
   a short one whole.
 - **Opening history:** a chat follows its first page's older cursor without a
-  scroll event, so a short conversation reaches its opening question even
-  when the reply has already ended. Initial reads stop at the history's end,
-  the window's row or byte bound, a lasting read failure or a cursor that
-  does not advance. A page that would exceed the window leaves its held
+  scroll event, by the rule above: a short conversation reaches its opening
+  question even when the reply has already ended, and a long one stops once
+  a screen and a half is held, its older cursor kept for the next read, which
+  a browser's log asks for as its head comes near, saying "Loading earlier
+  messages" as any read does. The domain measures no screen, so a screen and
+  a half is a weight: the held lines weighing 2,880 bytes or more, a screen
+  and a half of an 80 by 24 terminal, by jig's weight of a line (its bytes,
+  and `LINE_ROOM` for it and for each message, block, object and part it
+  holds; jig's `client/domain/client.md`, section 10). Initial reads stop at
+  whichever comes first: the history's end, that weight held, the window's
+  row or byte bound, a lasting read failure or a cursor that does not
+  advance. A page that would exceed the window leaves its held
   newest rows and older cursor intact. Empty pages spend the same bounded
   initial read count as nonempty pages, at most the window's row capacity.
   Transient failures retry the same read under the conversation's retry rule.
@@ -6901,7 +7079,8 @@ terminal draw the same path.
   the fake person. In a reply nothing is pressed.
 - **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
   in a reply opening its card, the views `queue`, `task N tree` and
-  `task N timeline`. The TUI prints views: `../draft/surfaces.md`, 11.5.
+  `task N timeline`. The TUI prints views as lines of its own text
+  (6.14, *A chat*, *a view*; `../draft/surfaces.md`, 11.5).
 
 ## 6. The terminal shells
 
@@ -7475,10 +7654,22 @@ it (6.14). `temper open` stays the tests' line client
   | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (6.14) |
   | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (6.14) |
   | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)` |
-  | `LeftOff { task }` | Up or Down on the launchpad's left-off chats, `Some(TASK)` the chat they select, or Esc there, `None`: the TUI's state keeps the selection (6.14, *Where you left off*) |
+  | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (6.14, *Where you left off*) |
+  | `Own { command }` | one of the TUI's own commands pressed or sent alone (6.14, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened; `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (6.14) |
+  | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (6.14, *Walking what needs you*): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
+  | `EndWalk` | Esc on the walk's prompt: the walk ends |
 
-  A key that makes `Act`, `Command`, `Aside`, `Dismiss` or `LeftOff`
-  marks the frame it acts on in a recording, and typing marks none
+  `Send` on the launchpad also takes `/change WORDS`, `/ask WORDS` and
+  `/chats N` before the root's commands (6.14, *The TUI's own
+  commands*), and, with the walk's question set aside, answers it in
+  the box's words as a chat's question's are, then marks it shown.
+  `Duties.open`, which opens the approval's tab, carries a page's
+  address the same way.
+
+  A key that makes `Act`, `Command`, `Aside`, `Dismiss`, `LeftOff`,
+  `Own`, `Open`, `Walk` or `EndWalk` marks the frame it acts on in a
+  recording, and typing marks none
   (`tui/journeys.md`, 3.3). Words typed on the launchpad, and leaving
   it, clear the selection.
 - **The seam's shape:** `Start` carries the start's facts, the
@@ -7655,33 +7846,59 @@ rest*), with nothing pasted and no key pressed:
   the TUI's state; a recording keeps it in the person's private file, and
   `add` redacts it (`tui/journeys.md`, section 5).
 
-**The launchpad**, illustrative (the request's 01):
+**The launchpad**, as drawn (`../draft/surfaces.md`, 11.1, less its
+team lines and `/draft` and `/talk`; its mockup
+`tui/whole-story/launchpad.html`, and `pair/` and `team/` beside it, whose
+words, parts and order bind and whose figures don't), illustrative:
 
 ```
 ╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
-│ 3 changes landed overnight. csv-export is two of three tasks in; one         │
-│ waits on you.                                                                │
-│                                            written by the status agent 07:42 │
+│ 3 changes landed overnight.                                                  │
+│                                   written by the status agent 07:42 · /brief │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
  Where you left off
-   Away mode · waiting on you
+   Hello   Away mode, a chat · 08:12 · waiting on you                /chats 1
+   Hello   csv-export, a goal · Fri 18:40 · Working
 
  Needs you
-   ? csv-export: comma or semicolon?
+   ? Hello   csv-export: comma or semicolon?                       n walks them
+
+ Start
+   /change   one change, run as Hello's way says
+   /ask      Ask temper
 
 ────────────────────────────────────────────────────────────────────────────────
-❯ Ask temper
+❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- / for commands · 1 needs you                   Claude Opus 5.5 · high · ● Live
+ Hello · Claude Opus 5.5 · high · ● Live                 1 needs you · n to walk
 ```
+
+- **Where it departs from its mockup,** each for a reason: the brief is
+  the project's, not one across projects, and so are the rows, until
+  Home reads every project (`../draft/surfaces.md`, 3; temper/ui's P2);
+  the header holds the brief's sentence and `/brief` its whole, since
+  the engine keeps a sentence and a lede and no more (`../domain/forge.md`,
+  5.7); a chat's row ends with `/chats N`, the open question's default
+  (`../draft/surfaces.md`, 15), not `/resume N`; what is open in a row is
+  its state as Home words it, not counted open points, which nothing
+  keeps; the quiet line names the link's state, "● Live", as the Pair
+  mockup does; the sections keep the at-scale mockup's order, Where you
+  left off before Needs you; "Landed this week" (Pair's) and "Team on
+  PROJECT" are not drawn, the first not in `../draft/surfaces.md`, 11.1,
+  the second T3's.
 
 - **Its project:** the root's, `Home { project }` (6.13, *Its pages*).
   Home's reads are the launchpad's: the status agent's brief and what
   needs the person through `pages::home::facts(root, project, wall)`,
-  the needs' cards through `pages().needs()`, the person's chats
-  through `pages().chats()` (3.5, *Home*). The TUI derives none of them
-  again, and each is drawn at the next frame after it changes.
+  the needs' cards through `pages().needs()`, read as the view's
+  `shared::need_prompts` says them (*Needs you*, below), the person's
+  chats through `pages().chats()` and the project's goals through
+  `pages().goals()` (3.5, *Home*). The TUI derives none of them again,
+  and each is drawn at the next frame after it changes. They are the
+  project's: Home across projects is the browser's to design first
+  (`../draft/surfaces.md`, 3), and the launchpad reads it when the root
+  holds it.
 - **The header,** the region `tui-top`, framed, its level-1 heading in
   its border: "temper" (`tui-title`), " · " (`tui-faint`) and the
   project's name (`tui-name`); and, at the border's end, `HOST:PORT`
@@ -7689,9 +7906,11 @@ rest*), with nothing pasted and no key pressed:
   where the border lacks the room for both (skein's `ui-screen.md`,
   5.2). Inside it:
   - *with a brief new to the person* (`Facts::brief`, 3.5, *Home on any
-    project*): its sentence and its lede, one paragraph, then "written
-    by the status agent HH:MM" (`tui-byline`, aligned to the end), HH:MM
-    its `at` in the view's clock (5.12, *clock*);
+    project*): its sentence, one paragraph, then the byline "written by
+    the status agent HH:MM" (`tui-byline`, aligned to the end), HH:MM its
+    `at` in the view's clock (5.12, *clock*), and, where its lede has
+    words, " · /brief" after it, in the byline's paint: `/brief` prints
+    the brief whole (*The TUI's own commands*, below);
   - *with none,* Home's headline, as the browser's Home says it, by the
     view's one function (3.5, *the headline*): the landed sentence and
     the needs sentence, "The last change landed 2 hours ago. Nothing
@@ -7706,21 +7925,38 @@ rest*), with nothing pasted and no key pressed:
     again." (`tui-refused`).
 - **Where you left off,** the first of the sections (`tui-spaced`, a
   blank row between two), the term "Where you left off" (`tui-head`)
-  and under it the person's most recent live chats in the project, at
-  most three: of Home's chats (`Chats::live`, the person's chats by last
-  activity), those that have not ended, newest activity first, the
-  lower task first between two of one time. Each is a line, an
-  unnumbered item of a list under `tui-left-off`, whose mark is a space,
-  so that its words stand two columns in: its title, then " · " and
-  its state as Home's Chats row words it (the view's
-  `shared::chat_state`), in `tui-hint`. Left out
-  with no such chat, and while the chats' read has not answered. The
-  person's newest goal is not drawn: Home reads the project's goals by
-  priority, not the person's newest (section 11). Whether the chat
-  writes a draft is not said: drafting is not the TUI's yet
-  (`../draft/tui.md`, section 3, *Drafting*).
+  and under it the conversations the person can go back to, at most
+  three, newest activity first, the lower task first between two of one
+  time: of Home's chats (`Chats::live`, the person's chats by last
+  activity), those that have not ended; and the person's newest goal, of
+  Home's goals (`pages().goals()`, the project's tracked goals), the one
+  not ended that the person asked for (its requester the person) with
+  the newest last activity, among the rows the read holds. Each is a
+  row, an unnumbered item of a list under `tui-left-off`, whose mark is a
+  space, so that its words stand two columns in:
+  - *its project,* the row's project's name in `me` (`tui-name`), padded
+    with spaces to the longest among the section's and Needs you's rows
+    and three more, so that the two sections' words start in one column;
+  - *what it is and when:* its title, ", a chat" or ", a goal", " · " and
+    its last activity in the view's clock (5.12, *clock*: "08:12" today,
+    "Fri 18:40" in the week, the date before), then " · " and its state
+    as Home's Chats row words it (the view's `shared::chat_state`), what
+    is open in it, all but the title in `tui-hint`;
+  - *its number,* on a chat's row alone: "/chats N" (`tui-hint`) at the
+    row's end, N the chat's place among the section's chats, 1 the
+    newest, which `/chats N` opens (*The TUI's own commands*). The row's
+    words are cut at a word with "…" where they and two spaces would not
+    leave it room; where that would leave the words fewer than 24
+    columns, the number is left out. A goal has no number: the TUI has no
+    goal's page.
+
+  Left out with no such conversation, and while the chats' read has not
+  answered. Whether a chat writes a draft is not said: drafting is not
+  the TUI's yet (`../draft/tui.md`, section 3, *Drafting*); a design
+  session or a talk with a role says what it is when they are the TUI's
+  (`../draft/surfaces.md`, 11.2 and 11.3).
   - *Up and Down,* while the box is empty and no list stands under it,
-    move a selection through these chats, and the box keeps the focus:
+    move a selection through these rows, and the box keeps the focus:
     with none selected, either selects the newest; then Up selects the
     one above and Down the one below, staying at the first and the last.
     Each makes the view's `LeftOff { task: Some(TASK) }` (6.13), and the
@@ -7732,17 +7968,52 @@ rest*), with nothing pasted and no key pressed:
     task that is no longer among the lines is no selection.
   - *Enter,* on the empty box with a chat selected, opens it: the box's
     Enter makes `Act { act: Go { address: Chat { task } } }`, followed as
-    a chat chosen from `/chats` is (6.13).
+    a chat chosen from `/chats` is (6.13). With the goal selected, Enter
+    opens the goal's page on the web, as `/open` does.
   - *Cleared:* Esc, while a chat is selected and no list stands, makes
     `LeftOff { task: None }`; words typed in the box and leaving the
     launchpad clear it too.
-- **Needs you,** the next section, the term "Needs you" and a line a
+- **Needs you,** the next section, the term "Needs you" and a row a
   need, at most five, in Home's order (`Session::needs`, the inbox's
-  cards then the forge's approvals, those marked later last): "?"
-  (`tui-signal`) for a question and "•" for any other kind, then its
-  words as Home's lines say them, "TITLE: SHORT" (`shared::need_line`).
-  Left out while nothing needs the person, as the quiet line's count
-  is, and while the needs' read has not answered.
+  cards then the forge's approvals, those marked later last), each as
+  the view's `shared::need_prompts` reads it: its mark (`tui-signal`),
+  "?" for a question, "$" for money, a task held on its budget, "✓" for
+  a sign-off, a change waiting for the person's review on the forge, and
+  "•" for any other kind (a proposal, another hold, a person's task);
+  its project, padded as *Where you left off*'s; then its words as
+  Home's lines say them, "TITLE: SHORT" (`shared::need_line`). The
+  section's last row ends with "n walks them" (`tui-hint`), placed and
+  left out as a chat's number is. Left out while nothing needs the
+  person, as the quiet line's count is, and while the needs' read has
+  not answered. A kind the engine adds later takes its mark then
+  (`../draft/surfaces.md`, 11.1).
+- **Walking what needs you,** `n` on the launchpad's empty box while
+  Needs you stands and no list does, or `/needs`: a prompt a need, under
+  the box in the quiet line's place (`tui-list`, an options menu after
+  the box, its head a line of its own, `tui-list-head`), one after
+  another in Needs you's order (`../draft/tui.md`, section 3, *Needs from
+  elsewhere*):
+  - *a question* the person may answer: as the chat's question (*The
+    chat's question*, below), its question line the head, its choices
+    numbered, the recommended one first and active, "Tell it something
+    else", then "Next";
+  - *a sign-off:* its row's words the head; "1. Review on FORGE ↗",
+    the browser's words, which opens the forge's review page through the
+    opener (`shared::need_prompts`' `Review`, the page the browser's card
+    links), then "2. Next";
+  - *money and any other kind:* its row's words the head; "1. Open it on
+    the web", which opens Needs you for the project on the web (`/?project=P`,
+    `address::print`) through the opener, then "2. Next".
+
+  A choice taken, or "Next", shows the next need the walk has not shown;
+  with none left the walk ends and the TUI notes "Nothing else needs
+  you." (`tui-note`) until the next send or screen. Esc ends the walk.
+  "Tell it something else" sets the question aside: the box's next words
+  answer it, as a chat's question's words do, and the walk goes on after
+  the send. Words typed while a prompt stands end the walk; when `n`
+  opened it and nothing was taken, the box holds "n" before them, so
+  that a message beginning with n types as ever. On a chat `n` types: a
+  chat's question is its own.
 - **No project yet:** while `me` names no project the root stays at its
   start's address (6.13): the border holds "temper" alone, and under it
   the view's "No project yet" and the TUI's "Setting temper up makes
@@ -7751,11 +8022,21 @@ rest*), with nothing pasted and no key pressed:
   other words sends nothing: Ask temper's chat is a project's, by its
   template (`../draft/ask-temper.md`, section 9), so with no project
   there is no one to ask.
+- **Start,** the next section, while the launchpad has a project: the
+  term "Start" (`tui-head`) and a row each for the TUI's commands that
+  start work, its name (`tui-name`) padded with spaces to the longer and
+  three more, then its words (`tui-hint`): "/change", "one change, run
+  as PROJECT's way says"; "/ask", "Ask temper". `/draft` and `/talk`
+  join it when the TUI has them (`../draft/surfaces.md`, 11.2 and 11.3).
 - **The box keeps the keys:** the box is the only node of the launchpad
   a person acts on, so the keys stay in it (*The box*, below), but Up,
-  Down, Enter and Esc on the left-off chats while it is empty (*Where
-  you left off*). `/chats` opens any live chat; what needs the person is
-  answered in its chat or on the web.
+  Down, Enter and Esc on the left-off rows and `n` while it is empty
+  (*Where you left off*, *Walking what needs you*). `/chats` opens any
+  live chat; what needs the person is walked, answered in its chat or on
+  the web.
+- **`/brief`'s note:** the brief whole, its sentence and its lede, a
+  paragraph each, then its byline, after the root's notes in the
+  sections, until the next send or screen.
 - **The terminal's notes** (3.5, *The terminal's notes*) follow the
   sections, each in `tui-note`.
 
@@ -7773,8 +8054,10 @@ chat, the running line above them.
   (`tui-field`) that submits on Enter, named "Ask temper" on the launchpad
   and "Message" on a chat, as the browser's composers are, its name the
   tree's and not laid (skein's `ui-screen.md`, 3, `label`); the focus's
-  mark `❯` before it. Its placeholder: "Ask temper" on the launchpad,
-  "/ for commands" with no project, "Reply" on a chat, and on a chat
+  mark `❯` before it. Its placeholder: "Ask for a change, or ask
+  temper.  / for commands" on the launchpad with a project (the words
+  then two spaces and the terminal's phrase, as `../draft/surfaces.md`,
+  11.1 and its Pair mockup have it), "/ for commands" with no project, "Reply" on a chat, and on a chat
   that has ended "/new starts another chat", as the browser's terminal
   keeps its box for commands there; none while a list stands under it.
   - *With a project its words are the root's:* Home's composer's on the launchpad
@@ -7809,22 +8092,30 @@ chat, the running line above them.
   - *No new line:* a terminal reads Shift+Enter as Enter, so the box
     takes one paragraph; words wrap as the box's lines (section 11).
 - **The quiet line,** the region `tui-bottom`, spread, as the sign-in's
-  bottom row: at its left "/ for commands" (the terminal's phrase,
-  `tui-hint`), or "paused · a message resumes it" on a chat the person
-  paused, then, while something needs the person in the project, " · "
-  and "1 needs you", "3 need you", or "3+ need you" where the read is
-  cut (`tui-signal`), the rail's count of the project
-  (`Session::count`, 3.5, *Needs you*); at its right the picker's
-  closed line, "Claude Opus 5.5 · high" (`shared::closed_line`), then "
-  · " and the link's state, all in `tui-hint` but the state. With no
-  picker (no project, no usable account), the closed line and its " · "
-  are left out. The chat's spend is the browser's alone.
-- **A narrow terminal:** the header's address goes first (above); then
-  the quiet line leaves out the closed line and its " · " where its two
-  halves, two spaces between them and its padding are wider than the
-  window's columns, and skein cuts what still does not fit from the
-  left half's end; the rule above a chat's box leaves out the place,
-  then the project (*A chat*, *The rule above the box*).
+  bottom row (`../draft/surfaces.md`, 11.1: the project, the model and
+  effort, the link's state, and "N need you · n to walk"):
+  - *at its left,* the project's name (`tui-hint`), " · ", the picker's
+    closed line, "Claude Opus 5.5 · high" (`shared::closed_line`,
+    `tui-hint`), " · ", then "●" and the link's state in its token's
+    paint (6.14, *The link's state*); with no picker (no project, no
+    usable account) the closed line and its " · " are left out, and with
+    no project the project and its " · " too;
+  - *at its right,* each left out when absent, " · " between two (`tui-faint`):
+    in front of a box its state and "playground" (6.17); "paused · a
+    message resumes it" on a chat the person paused (`tui-hint`); while
+    something needs the person in the project, "1 needs you", "3 need
+    you", or "3+ need you" where the read is cut (`tui-signal`), the
+    rail's count of the project (`Session::count`, 3.5, *Needs you*);
+    and, on the launchpad with that count, "n to walk" (`tui-hint`).
+
+  The chat's spend is the browser's alone.
+- **A narrow terminal:** the header's address goes first (above); then,
+  where the quiet line's two halves, two spaces between them and its
+  padding are wider than the window's columns, it leaves out "n to walk"
+  and its " · ", then the closed line and its " · ", and skein cuts what
+  still does not fit from the left half's end; the rule above a chat's
+  box leaves out the place, then the project (*A chat*, *The rule above
+  the box*).
 
 **The commands**, the browser terminal's (3.5, *A chat's terminal*,
 *Commands*), illustrative (the request's 02):
@@ -7857,14 +8148,47 @@ chat, the running line above them.
   (`Act::StartChat`, 3.5, *Home*). `/close` and `/start-over` are
   offered only on a chat with no delegate: a close that asks its
   delegates' fates is the web's sheet (section 11).
+- **The TUI's own commands** (`../draft/surfaces.md`, 11.4), which the
+  root's `Command` does not hold and which never reach the root as
+  commands, as `/exit` and `/new` don't: offered on the launchpad with a
+  project, `/change` and `/ask` before the root's, and `/brief` while
+  the header holds a brief, `/needs` while Needs you stands and `/open`
+  after `/chats`; on a chat `/open` after `/chats`. So the launchpad's
+  order is `/change`, `/ask`, `/model`, `/effort`, `/new`, `/chats`,
+  `/brief`, `/needs`, `/open`, `/theme`, `/help`, `/exit`. Their words,
+  the TUI's: "One change, run as the project's way says", "Ask temper",
+  "The brief, whole", "Walk what needs you", "Open this on the web".
+  - *`/change` and `/ask`,* pressed or sent alone, leave "/change " or
+    "/ask " in the box for the words; sent with words, `/change WORDS`
+    starts a chat in the project, the one change's (the project's chat
+    template, as the browser's "+ New chat" starts it: the root to
+    `NewChat { draft: false }`, its words, `Act::StartChat`), opened as
+    a chat started from the launchpad is, and run as the project's way
+    says; `/ask WORDS` asks Ask temper, as the box's words do. A refusal
+    is drawn under the box, as a send's, and the launchpad stays.
+  - *`/brief`* writes `/brief`'s note (*The launchpad*).
+  - *`/needs`* walks what needs the person, as `n` does.
+  - *`/open`* opens the object in focus on the web, the opener given
+    `http://HOST:PORT` and the page's path (`address::print`) as one
+    argument, as the approval's tab is opened (7.1): on the launchpad
+    the selected row's page, a chat's (`/chats/T`) or the goal's
+    (`/tasks/T`), else the project's Home (`/projects/P`); on a chat
+    its page. Only the page's address: never a link, a code or a
+    secret. Where no browser opened (no opener, or it failed), the TUI
+    notes "Open ADDRESS in your browser." until the next send or screen.
+  - *`/chats N`,* sent on the launchpad, opens the Nth chat of *Where you
+    left off*, as Enter on it does; a number with no chat there is
+    noted as an unknown command is. `/chats` alone opens the root's
+    list, whose order is the launchpad's numbering, newest first.
 - **Their words:** each command's name and the browser terminal's words
-  (`shared::description`), but `/exit`'s, "Close temper".
+  (`shared::description`), but `/exit`'s, "Close temper", and the TUI's
+  own commands' (above).
 - **The list:** the box's words beginning with "/" and holding no white
   space open the commands under the box in the quiet line's place, the
   region `tui-list`: an options menu after the box (skein's `ui.md`,
   3.2, *options*), named "Commands", with no head, each command offered
-  whose name begins with the words, in the domain's `Command::ALL`
-  order, its name and, as its description, its words (`tui-command`), the
+  whose name begins with the words, in the order *Offered* and *The
+  TUI's own commands* give, its name and, as its description, its words (`tui-command`), the
   first active. While it stands the box keeps the focus: Up and Down
   move the active command, Enter presses it, Tab completes its name
   (skein's `ui-screen.md`, 6.2), Esc closes the list and clears the
@@ -7908,7 +8232,8 @@ chat, the running line above them.
 - **`/help`'s note:** the commands the TUI offers there, each name
   padded with spaces to the longest and two more, then its words; then
   its keys, a line each: "Enter sends", "Tab completes a command", "PgUp
-  and PgDn read back", "Esc closes a list", "Ctrl+C closes temper". The
+  and PgDn read back", "Esc closes a list", on the launchpad while Needs
+  you stands "n walks what needs you", and "Ctrl+C closes temper". The
   root keeps the note (`terminal::Note::Help`); its words are the TUI's.
 - **`/theme`:** the root's look's theme flips, and the TUI draws in the
   scheme it names (6.13, *The look*), for that run: the TUI keeps no
@@ -8014,6 +8339,61 @@ chat, the running line above them.
     (`shared::proposal_line`). A card carries no act: a proposal is
     accepted on the web. Placing each at the call that made it is later
     TUI work (section 11);
+  - *a view,* printed, not drawn (`../draft/surfaces.md`, 11.5; the
+    user, 2026-11-08): an agent's committed text is split at its `view`
+    blocks by the domain's `views::parts`, as the browser's is (5.16),
+    its text parts read as Markdown and each view printed in its place,
+    inside the entry's group, as lines of the terminal's own text with no
+    picture, from the chat page's read of its address
+    (`Chat::view`, 5.16, *Read when shown*). The words being written are
+    read as they are until the turn commits. `view::printed`, the one
+    function that prints a view, is what a chat's document calls too
+    where the TUI draws one:
+    - *a path:* a stop a paragraph, in the derivation's order (the
+      wire's `stops`): its mark, then a space and its words as the
+      derivation gives them, which the TUI never spells (they change
+      with the page How work runs, `../draft/surfaces.md`, 13). The mark
+      is the web's for its actor: a ring `○` for a person
+      (`tui-signal`, the person's colour alone), a four-point star `✦`
+      for an agent (no paint, the ink, as `../draft/surfaces.md`, 13,
+      turns it), a small square `▪` for code (`tui-hint`). Code's stops
+      stand four columns in, as they stand below the line on the web,
+      their words in `tui-hint`. A branch's bar closes its part, four
+      columns in: `┃` (`tui-faint`) and the branch's name, its words.
+      Illustrative, a way:
+
+      ```
+      You approve
+      An agent makes each change; nothing reaches main until you approve it.
+
+      ○ you ask
+      ✦ produce
+          ▪ check
+      ✦ repair
+          ▪ check
+      ○ you approve
+          ▪ update
+      ✦ resolve
+          ▪ merge
+          ┃ main
+      ```
+
+    - *a way:* its name (`tui-name`), and " · now" (`tui-hint`) on the
+      way the project runs, as the browser says it (`ViewNow`); its line
+      (`tui-hint`); a blank row; then its path;
+    - *a proposal:* "Before" (`tui-head`) and its first path, a blank
+      row, then "After" (`tui-head`) and its second, the view's words
+      (`ViewBefore`, `ViewAfter`);
+    - *a charter or a rule:* its card: its `name` (`tui-name`), its
+      `who` (`tui-hint`), then its `facts` as terms, each its label and
+      its value (skein's `Term` and `Description`);
+    - *a `not_drawn`:* its words, a paragraph;
+    - *asking or failed:* "Drawing ADDRESS…" (`tui-hint`) until the read
+      answers, then the view's "Couldn't draw ADDRESS." where it was
+      refused or failed, the browser's words (`ViewAsking`,
+      `ViewFailed`);
+    - *nothing to press:* a printed view carries no act, and a stop's
+      card stays the web's (3.5, Ask temper's page).
   - *not drawn,* as in the browser's terminal: the speakers' names, the
     turns' times, a turn's opaque blocks, a run's beginning and end;
     and, the TUI's, a document's write, since drafting is not the
@@ -8136,17 +8516,17 @@ Answer csv-export's question with "Comma"?
   | Token | Paint | Else | Carried by |
   |---|---|---|---|
   | `tui-title` | accent, bold | | "temper" in a title |
-  | `tui-hint` | dim | | hints, the quiet line's words, a chat's state on the launchpad, the chat's number |
+  | `tui-hint` | dim | | hints, the quiet line's words; on the launchpad a row's kind, time and state, "/chats N", "n walks them", Start's words, "n to walk"; the chat's number; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
   | `tui-live` | good | | "Live" |
   | `tui-waiting` | dim | | "Connecting", the sign-in's progress |
   | `tui-down` | accent | | "Offline", "Signed out", "Out of date" |
   | `tui-refused` | accent | | a refusal |
-  | `tui-name` | bold | | the project's name, a chat's heading |
-  | `tui-faint` | faint | | " · " in the title, " / " in the rule above the box |
+  | `tui-name` | bold | | the project's name, a row's project on the launchpad, Start's command names, a chat's heading; a printed way's or card's name |
+  | `tui-faint` | faint | | " · " in the title, " / " in the rule above the box; a printed branch's bar `┃` |
   | `tui-address` | dim | aligned to the end | `HOST:PORT` in a title, and the place in the rule above the box |
   | `tui-byline` | dim | aligned to the end | "written by the status agent HH:MM" |
-  | `tui-head` | bold | | "Where you left off", "Needs you" |
-  | `tui-signal` | accent | | "?" before a question, the count of what needs the person, "Proposal" |
+  | `tui-head` | bold | | "Where you left off", "Needs you", "Start"; a printed proposal's "Before" and "After" |
+  | `tui-signal` | accent | | a need's mark, "?", "$", "✓" or "•", the count of what needs the person, "Proposal"; a printed person's ring `○` |
   | `tui-said` | with a band, the band; else dim | a band where the theme has one; the mark `❯`, dim with a band, else accent | the person's words |
   | `tui-agent` | none | the mark `✦`, accent | the agent's texts, a delegate's words, a card |
   | `tui-run` | dim | the mark `▸`, dim | a run's line |
@@ -8536,8 +8916,8 @@ Stop the box? csv-export's running task stops with it.
  / for commands · forgejo-3 restarting          Claude Opus 5.5 · high · ● Live
 ```
 
-- **The box's state,** on the quiet line, right after the hint: " · "
-  and "STEP restarting" (`tui-signal`) from the box's `restarting` line
+- **The box's state,** on the quiet line, first at its right (6.14,
+  *The quiet line*): "STEP restarting" (`tui-signal`) from the box's `restarting` line
   until its `running` line for that step, for the step it last said
   restarting; once it gave up, "STEP gave up" (`tui-down`). STEP is as
   the box names it, its bytes read as UTF-8 with a replacement for each
@@ -9533,9 +9913,11 @@ own tests:
   from elsewhere, hand-offs and choosing a project from a checkout
   (`../draft/tui.md`, section 3). Default: refine each on the recorded
   frames before designing it.
-- **The launchpad's and a chat's later parts** (6.14): the person's
-  newest goal in *Where you left off*, which needs a read of the
-  person's goals by activity that Home does not make; a run opened to its
+- **The launchpad's and a chat's later parts** (6.14): the brief, *Where
+  you left off* and Needs you across the person's projects, once the
+  root reads Home across them (`../draft/surfaces.md`, 3); a newest goal
+  of the person's that Home's goals read, by priority, does not hold,
+  which needs a read of the person's goals by activity; a run opened to its
   rows; earlier pages read as the conversation's head nears, and "Latest
   ↓", once skein's screen reports a log's edge (skein's `ui-screen.md`,
   section 10); a card at the call that made it, and its acts, Accept
