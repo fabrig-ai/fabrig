@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 349;
+pub const N: usize = 355;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -137,6 +137,32 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "how", world: FirstRun { step: 7 }, address: Address::Settings { project: 1 }, then: Shown },
+        Sample {
+            name: "how-approve",
+            world: FirstRun { step: 7 },
+            address: Address::Settings { project: 1 },
+            then: Shown,
+        },
+        Sample { name: "how-draft", world: Reference, address: Address::Settings { project: 1 }, then: Shown },
+        Sample {
+            name: "how-yours",
+            world: FirstRun { step: 7 },
+            address: Address::Settings { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "how-card",
+            world: FirstRun { step: 7 },
+            address: Address::Settings { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "night-how",
+            world: FirstRun { step: 7 },
+            address: Address::Settings { project: 1 },
+            then: Shown,
+        },
         Sample { name: "night-home", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "night-ask", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample {
@@ -1172,6 +1198,10 @@ fn special_mockup(name: &str) -> Option<String> {
         return Some("../greenfield/needs.html".to_owned());
     }
     match name {
+        "how-approve" => return Some("../web/whole-story/pair/how.html".to_owned()),
+        "how" | "how-draft" | "how-yours" | "how-card" | "night-how" => {
+            return Some("../web/whole-story/how.html".to_owned());
+        }
         "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),
         "settings-away" => return Some("../greenfield/settings.html#away".to_owned()),
         "home-away" | "home-away-one" | "home-away-overturned" => return Some("../greenfield/home.html".to_owned()),
@@ -1499,6 +1529,7 @@ pub fn domain(sample: &Sample) -> Domain {
         "night-needs" => Some("needs-list"),
         "night-home" => Some("home-begin-ask-left"),
         "night-ask" => Some("ask-first-run"),
+        "night-how" => Some("how"),
         "night-chat-split" => Some("chat-draft-split"),
         _ => None,
     };
@@ -1509,6 +1540,9 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name == "no-project" {
         return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
+    }
+    if sample.name == "how" || sample.name.starts_with("how-") {
+        return crate::worlds::ways_world(sample.name);
     }
     if sample.name.starts_with("approve-") {
         return crate::worlds::approve_world(if sample.name == "approve-signed-out-google" {

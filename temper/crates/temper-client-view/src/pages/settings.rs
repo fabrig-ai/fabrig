@@ -125,6 +125,9 @@ fn flow_path(
 pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, tab: Tab) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_COL);
+    if tab == Tab::HowWorkRuns {
+        b.style(look::HOW_WIDE);
+    }
     let detail = match root.pages().address() {
         Address::Role { .. } | Address::Rule { .. } => true,
         Address::AllHome
@@ -154,7 +157,7 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         let name = project_name(root, w, project);
         text(b, Role::Paragraph, &w.say(Word::SettingsKicker, &[Hole::Name(name.clone())]), look::SETTINGS_KICKER);
         let (heading, lede) = match tab {
-            Tab::HowWorkRuns => (Word::SettingsHowHeading, Word::SettingsHowLede),
+            Tab::HowWorkRuns => (Word::SettingsHowHeading, Word::HowChange),
             Tab::Repositories => (Word::SettingsRepositoriesHeading, Word::SettingsRepositoriesLede),
             Tab::Forges => (Word::SettingsForgesHeading, Word::SettingsForgesLede),
             Tab::Accounts => (Word::SettingsAccountsHeading, Word::SettingsAccountsLede),
@@ -162,15 +165,20 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             Tab::Builders => (Word::SettingsBuildersHeading, Word::SettingsBuildersLede),
         };
         let title = match tab {
-            Tab::HowWorkRuns | Tab::Repositories => w.say(heading, &[Hole::Name(name.clone())]),
+            Tab::HowWorkRuns => super::how::head(root, w, project).0,
+            Tab::Repositories => w.say(heading, &[Hole::Name(name.clone())]),
             Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(heading, &[]),
         };
         text(b, Role::Heading { level: 1 }, &title, look::SETTINGS_HEADLINE);
         let lede = match tab {
             Tab::Repositories => w.say(lede, &[Hole::Name(name)]),
-            Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(lede, &[]),
+            Tab::HowWorkRuns => super::how::head(root, w, project).1,
+            Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(lede, &[]),
         };
         text(b, Role::Paragraph, &lede, look::SETTINGS_LEDE);
+        if tab == Tab::HowWorkRuns {
+            super::how::ask(b, root, w, bindings, project);
+        }
         b.close();
     }
     b.open(Role::Navigation);
@@ -280,14 +288,14 @@ pub(crate) fn how_work_runs(
             Some(Asked::Ways(value)) => *value,
             Some(Asked::Questions(_)) | None => stored.unwrap_or(Ways::STOCK),
         };
+        super::how::path(b, root, w, bindings, project);
+        super::how::budgets(b, root, w, project);
+        needs(b, root, w, forge, project);
+        away_settings(b, root, w, bindings, project, wall);
         shows(b, root, w, forge, project, stored.is_none(), shown);
         if shown.goals {
             working(b, root, w, forge, project, shown);
         }
-        status(b, w);
-        needs(b, root, w, forge, project);
-        away_settings(b, root, w, bindings, project, wall);
-        telling(b, w);
         b.close();
     }
     b.close();
@@ -435,30 +443,6 @@ fn working(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindin
     b.close();
     b.close();
 }
-fn disabled_select(b: &mut Builder, w: &Words, label: Word, small: Option<Word>, value: Word) {
-    let label = w.say(label, &[]);
-    row(b, w, &label, small);
-    b.open(Role::Select);
-    b.name(&label);
-    b.state(State::Disabled);
-    b.open(Role::Option);
-    b.name(&w.say(value, &[]));
-    b.state(State::Selected);
-    b.close();
-    b.close();
-    b.close();
-}
-fn facts(b: &mut Builder, w: &Words) {
-    text(b, Role::Paragraph, &w.say(Word::SettingsUnbuilt, &[]), look::SETTINGS_FACTS);
-}
-fn status(b: &mut Builder, w: &Words) {
-    section(b, w, Word::SettingsStatus);
-    disabled_select(b, w, Word::SettingsReports, Some(Word::SettingsReportsLine), Word::SettingsAgentReports);
-    disabled_select(b, w, Word::SettingsRewritten, None, Word::SettingsOnOpen);
-    disabled_select(b, w, Word::SettingsBrief, Some(Word::SettingsBriefLine), Word::SettingsOn);
-    facts(b, w);
-    b.close();
-}
 fn needs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, project: u32) {
     section(b, w, Word::SettingsNeeds);
     let stored = root.forge().questions(project);
@@ -487,7 +471,6 @@ fn needs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings
     b.close();
     refused(b, root, w, Control::Questions);
     b.close();
-    disabled_select(b, w, Word::SettingsFunds, Some(Word::SettingsUnbuilt), Word::SettingsBudgetUsed);
     b.close();
 }
 /// The row's choices remain editable while off (client/README.md, 3.5, Away).
@@ -566,14 +549,6 @@ fn away_settings(
     b.close();
     b.close();
 }
-fn telling(b: &mut Builder, w: &Words) {
-    section(b, w, Word::SettingsTelling);
-    disabled_select(b, w, Word::SettingsNotifications, Some(Word::SettingsNotificationsLine), Word::SettingsOff);
-    disabled_select(b, w, Word::SettingsQuiet, None, Word::SettingsNoQuiet);
-    facts(b, w);
-    b.close();
-}
-
 pub(crate) fn repositories(
     b: &mut Builder,
     root: &Domain,
