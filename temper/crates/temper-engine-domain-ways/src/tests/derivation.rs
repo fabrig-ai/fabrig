@@ -20,6 +20,7 @@ pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) ->
             ci,
             checks: Box::default(),
             contexts: Box::default(),
+            workflows: Box::default(),
             gates: if prove { Box::new([b"unit".as_slice().into()]) } else { Box::default() },
             tiers: if tiers {
                 Box::new([
@@ -442,6 +443,11 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     let mut three_contexts = deployment.clone();
     three_contexts.repository.as_mut().unwrap().contexts =
         [b"build".as_slice(), b"lint", b"test"].map(Box::from).into();
+    let mut deployment_workflows = deployment.clone();
+    deployment_workflows.repository.as_mut().unwrap().workflows = Box::new([b"ci.yml".as_slice().into()]);
+    let mut three_workflows = three_contexts.clone();
+    three_workflows.repository.as_mut().unwrap().workflows =
+        [b"build.yml".as_slice(), b"lint.yml", b"test.yml"].map(Box::from).into();
     let mut goal = inputs(2, true, true, Way::Queue, false);
     goal.merge_job = true;
     let mut goal_conflict = goal.clone();
@@ -594,6 +600,28 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             facts(&[("Checks", "every check the repository's CI workflows report, at the change's head")]),
         ),
         (
+            &deployment_workflows,
+            Step::Check,
+            Opens::Rule { kind: 1, scope: 0, number: 1 },
+            "code · holds a change until CI passes",
+            "CI",
+            facts(&[
+                ("Workflows", "ci.yml"),
+                ("Checks", "every check the repository's CI workflows report, at the change's head"),
+            ]),
+        ),
+        (
+            &three_workflows,
+            Step::Check,
+            Opens::Rule { kind: 1, scope: 0, number: 1 },
+            "code · holds a change until CI passes",
+            "CI",
+            facts(&[
+                ("Workflows", "build.yml, lint.yml and test.yml"),
+                ("Checks", "the CI workflows' checks build, lint and test, at the change's head"),
+            ]),
+        ),
+        (
             &one_context,
             Step::Check,
             Opens::Rule { kind: 1, scope: 0, number: 1 },
@@ -686,6 +714,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         inputs.start = Start::Goal { charter: 5 };
         inputs.merge_job = true;
         inputs.repository.as_mut().unwrap().contexts = [(); 3].map(|()| inputs.branch.clone()).into();
+        inputs.repository.as_mut().unwrap().workflows = [(); 3].map(|()| inputs.branch.clone()).into();
         for role in &mut inputs.roles {
             role.name = inputs.branch.clone();
         }
@@ -710,6 +739,8 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
                             "overlong instructions carry an ellipsis inside quotes"
                         );
                     }
+                } else if fact.label.as_ref() == b"Workflows" && inputs.branch.len() > VALUE {
+                    assert!(fact.value.ends_with("…".as_bytes()), "overlong workflows carry an ellipsis");
                 } else if fact.label.as_ref() == b"Checks" && inputs.branch.len() > VALUE {
                     assert!(fact.value.ends_with("…".as_bytes()), "overlong required checks carry an ellipsis");
                 }
@@ -732,11 +763,12 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     invalid.agents.get_mut(1).unwrap().asked = [0x80; 400].into();
     invalid.repository.as_mut().unwrap().contexts =
         Box::new([[0x80].as_slice().into(), b"ci / test".as_slice().into()]);
+    invalid.repository.as_mut().unwrap().workflows = Box::new([[0x80].as_slice().into(), b"ci.yml".as_slice().into()]);
     let path = derive(&invalid);
     assert_eq!(
         find(&path, Step::Check).card.facts,
-        facts(&[("Checks", "the CI workflows' checks ci / test, at the change's head")]),
-        "invalid UTF-8 contexts are skipped whole"
+        facts(&[("Workflows", "ci.yml"), ("Checks", "the CI workflows' checks ci / test, at the change's head")]),
+        "invalid UTF-8 workflows and contexts are skipped whole"
     );
     bounds(&path);
 }

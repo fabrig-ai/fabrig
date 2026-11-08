@@ -25,6 +25,7 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                 ci: rng.chance(500),
                 checks: Box::default(),
                 contexts: Box::default(),
+                workflows: Box::default(),
                 tiers: Box::default(),
                 gates: if rng.chance(500) { Box::new([b"unit".as_slice().into()]) } else { Box::default() },
             }),
@@ -48,6 +49,13 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                     0 => b"build".as_slice().into(),
                     1 => b"lint".as_slice().into(),
                     _ => b"ci / test".as_slice().into(),
+                })
+                .collect();
+            repository.workflows = (0..rng.below(4))
+                .map(|_| match rng.below(3) {
+                    0 => b"ci.yml".as_slice().into(),
+                    1 => b"lint.yml".as_slice().into(),
+                    _ => b"release.yaml".as_slice().into(),
                 })
                 .collect();
             repository.checks = (0..rng.below(3)).map(|_| u32::try_from(rng.below(4)).unwrap()).collect();

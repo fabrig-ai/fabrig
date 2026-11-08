@@ -390,6 +390,7 @@ fn derive_keeps_the_branch_and_repository() {
                 ci: false,
                 checks: Box::default(),
                 contexts: Box::default(),
+                workflows: Box::default(),
                 gates: Box::default(),
                 tiers: Box::default(),
             }),

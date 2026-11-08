@@ -62,7 +62,7 @@ fn goal_template() -> core::Template {
 
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
     forge::Repository {
-        workflows: Box::default(),
+        workflows: [b"checks.yml".as_slice(), b"ci.yml", b"fuzzy.yml"].map(Box::from).into(),
         project: PROJECT,
         home,
         provider: skein_forge::api::Repository { forge: 1, repository: number },
@@ -216,6 +216,7 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
             assert_eq!(repository.owner.as_ref(), b"org", "{name}");
             assert!(repository.ci, "{name}");
             assert_eq!(repository.checks.as_ref(), [3], "{name}");
+            assert_eq!(repository.workflows.as_ref(), [Box::from(b"ci.yml".as_slice())], "{name}");
             assert_eq!(repository.gates.as_ref(), [Box::from(b"focused".as_slice())], "{name}");
             assert_eq!(
                 repository.tiers.as_ref(),

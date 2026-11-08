@@ -33,10 +33,7 @@ decision. A review's stop names its gate's reviews' charter, CI's card
 names the landing branch's required checks or every check the
 workflows report, and the view `rule K/N` draws a landing rule's card,
 the stock rule of kind 2 among them, from the forge's rules as they
-stand. The workflows by name are section 20's.
-
-- **Not yet:** 8.13, *CI's card* (`ci-card`, `look-round-25`): the card
-  has no fact "Workflows", and `ways::Repository` no `workflows`.
+stand.
 
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the

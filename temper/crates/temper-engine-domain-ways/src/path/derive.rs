@@ -12,6 +12,23 @@ use temper_engine_domain_forge_change::Way;
 const CODER: &[u8] = b"the coding agent";
 const REPAIR: &[u8] = "an agent · repairs what a check or a review found, then goes back through them".as_bytes();
 
+/// `A, B and C`: the parts joined by ", ", the last by " and "; none for no part.
+fn joined(parts: &[&[u8]]) -> Option<Box<[u8]>> {
+    let (last, preceding) = parts.split_last()?;
+    let mut words = List::uncapped();
+    let mut separator = b"".as_slice();
+    for part in preceding {
+        words.push(separator).expect("card words fit memory");
+        words.push(*part).expect("card words fit memory");
+        separator = b", ";
+    }
+    if !preceding.is_empty() {
+        words.push(b" and ").expect("card words fit memory");
+    }
+    words.push(*last).expect("card words fit memory");
+    Some(bytes::concat(words.as_slice()))
+}
+
 struct Drawing {
     stops: List<Stop>,
     repaired: bool,
@@ -46,35 +63,30 @@ impl Drawing {
     }
 
     fn ci(&mut self, inputs: &Inputs, held: &Held) {
+        let mut workflows = List::uncapped();
         let mut contexts = List::uncapped();
         if let Some(repository) = &inputs.repository {
+            for workflow in &repository.workflows {
+                if bytes::is_utf8(workflow) {
+                    workflows.push(workflow.as_ref()).expect("repository workflows fit memory");
+                }
+            }
             for context in &repository.contexts {
                 if bytes::is_utf8(context) {
                     contexts.push(context.as_ref()).expect("required checks fit memory");
                 }
             }
         }
-        let checks = match contexts.as_slice().split_last() {
-            Some((last, preceding)) => {
-                let mut parts = List::uncapped();
-                parts.push(b"the CI workflows' checks ".as_slice()).expect("card words fit memory");
-                let mut separator = b"".as_slice();
-                for context in preceding {
-                    parts.push(separator).expect("card words fit memory");
-                    parts.push(*context).expect("card words fit memory");
-                    separator = b", ";
-                }
-                if !preceding.is_empty() {
-                    parts.push(b" and ").expect("card words fit memory");
-                }
-                parts.push(*last).expect("card words fit memory");
-                parts.push(b", at the change's head").expect("card words fit memory");
-                bytes::concat(parts.as_slice())
-            }
+        let checks = match joined(contexts.as_slice()) {
+            Some(contexts) => bytes::concat(&[b"the CI workflows' checks ", &contexts, b", at the change's head"]),
             None => b"every check the repository's CI workflows report, at the change's head".as_slice().into(),
         };
-        let card =
-            card("code · holds a change until CI passes".as_bytes(), b"CI", Box::new([fact(b"Checks", &checks)]));
+        let mut facts = List::uncapped();
+        if let Some(workflows) = joined(workflows.as_slice()) {
+            facts.push(fact(b"Workflows", &workflows)).expect("two CI facts at most");
+        }
+        facts.push(fact(b"Checks", &checks)).expect("two CI facts at most");
+        let card = card("code · holds a change until CI passes".as_bytes(), b"CI", facts.into_boxed());
         self.push(stop(Actor::Code, Step::Check, b"check", opens_rule(held), card));
     }
 
