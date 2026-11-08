@@ -193,6 +193,28 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   init's no-sign-in configuration while it holds the engine; none is a
   recorded pass of the five stories.
 
+Section 2.6's *The fake box keeps two walks* has no known gap in its
+stories: the box keeps `here_key` and the browser tab, and each lower
+story the bullet names is present in its world, holding its walk's keeps
+on that world's clock. Home's plan brief and its restart story, Away's
+sequence, the chat's goal report and the usable account are the joint
+world's; the held issuer sockets and both documents are the real loop's;
+both copy stories are the one-process world's; the logged turn-away is
+the fake's own process story.
+
+- **Design departs:** 2.6, from the request `walks-lower` of 2026-11-08,
+  decided by its plan's cut:
+  - the two copy walks' stories are the one-process world's, where the
+    request has the joint world, because the joint world has no setup
+    driver: its copies stop at Waiting, and making one there would inject
+    `MakingMade`, a stub of what the walks proved;
+  - the idle-socket walk's log line is `temper fake oauth`'s own, so its
+    story is the `temper` package's focused `suite::fake`, beside the
+    fake's other process stories, where the request has one real-loop
+    test reject and log: lifting the command's private host into the
+    real loop for one line would test a copy of the process, not the
+    process.
+
 - **Not yet:** 2.6: no passing whole run is recorded for the three-test
   profile with the one fixed-callback walk serialized. Its proof belongs
   to the next after-landing run on main (11), per the request
@@ -201,12 +223,15 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   2.6: the tier's CPU against its 360 s: of the seven whole runs in
   `test-speed`'s figures at `b23901eab7`, at differing loads, four read
   over it (367.8 to 433.7 s) and three within (287.1 to 349.7 s), and
-  they hold no run with that plan's parts together. The budget is the user's.
-  2.6: the two fake-box walks retain the stock charter's 10 s wait on their
-  single worker (`agent.md`, 4.6). A person on one worker meets the charter's
-  wait too, for reasons that still hold, and this wait has no cheap repair
-  without changing what the walks show. The measured ranges and remaining
-  costs are in `test-speed`'s figures on the walks' waits, at `289ef784ef`.
+  they hold no run with that plan's parts together. The request
+  `walks-lower` put the box's twelve walks at about 81 of a run's 340 CPU s
+  by 2026-11-06's medians; ten have gone to lower worlds, and no run
+  records the tier without them, nor the two that stay, which a plan
+  compiles and does not run (11). The budget is the user's.
+  2.6: `here_key`'s first chat runs on the stock charter, whose 10 s wait
+  holds its single worker (`agent.md`, 4.6) as it holds a person's; the
+  browser tab starts no chat. No figure says what that wait costs the
+  walk now.
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and

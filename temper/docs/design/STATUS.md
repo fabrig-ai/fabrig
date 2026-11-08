@@ -644,7 +644,13 @@ into the process tier and compiled; their runtime there and the tier's
 margin after the estimated 15.9 CPU s transfer remain unobserved
 (`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
 The process tier's three tests at a time await a passing whole run after landing,
-and its CPU-budget overages remain. Reusable listener ports come from
+and its CPU-budget overages remain. The fake box keeps two walks, `here_key`
+and the browser tab; the ten others' behaviour runs in the joint world, the
+real loop, the one-process world and the fake's own stories, and the tier's
+CPU without them is read after landing. The copy stories' world and the
+issuer's log story depart from the request `walks-lower`, and polling past a
+hook that delivers nothing stands on the forge's world alone
+(`domain/testing.md`, 2.6 and 11; `protocol/setup.md`, 5.6). Reusable listener ports come from
 process-held blocks below Linux's configured ephemeral range; macOS uses
 its default boundary, and the concurrent restart proof remains after
 landing (`domain/testing.md`). A fake sandbox keeps its ports across a
