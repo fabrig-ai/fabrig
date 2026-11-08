@@ -3,9 +3,9 @@ id = "look"
 part = "look"
 kind = "feature"
 needs = []
-files = ["temper/crates/temper-client-tui/src/theme.rs", "temper/crates/temper-client-tui/src/look.rs", "temper/crates/temper-client-tui/src/place.rs", "temper/crates/temper-client-tui/src/event.rs", "temper/crates/temper-client-tui/src/state.rs", "temper/crates/temper-client-tui/src/lib.rs", "temper/crates/temper-client-tui/src/view.rs", "temper/crates/temper-client-tui/src/view/chat.rs", "temper/crates/temper-client-tui/src/tests.rs", "temper/crates/temper-client-tui/src/tests/**", "temper/docs/design/client/tui/journeys/*.css", "temper/docs/design/client/tui/journeys/*/*.txt", "temper/docs/design/client/tui/journeys/*/*.html"]
+files = ["temper/crates/temper-client-tui/src/theme.rs", "temper/crates/temper-client-tui/src/look.rs", "temper/crates/temper-client-tui/src/place.rs", "temper/crates/temper-client-tui/src/event.rs", "temper/crates/temper-client-tui/src/state.rs", "temper/crates/temper-client-tui/src/lib.rs", "temper/crates/temper-client-tui/src/view.rs", "temper/crates/temper-client-tui/src/view/chat.rs", "temper/crates/temper-client-tui/src/tests.rs", "temper/crates/temper-client-tui/src/tests/**", "temper/docs/design/client/tui/journeys/*.css", "temper/docs/design/client/tui/journeys/*/*.txt", "temper/docs/design/client/tui/journeys/*/*.html", "skein/crates/skein-ui-screen/src/render.rs", "skein/crates/skein-ui-screen/src/render/roles.rs", "skein/crates/skein-ui-screen/src/tests/render.rs", "skein/crates/skein-ui-screen/src/tests/golden/**"]
 effort = "high"
-minutes = 80
+minutes = 100
 +++
 
 ## Goal
@@ -145,3 +145,36 @@ Acceptance:
 
 As the implementer's text says; list each reader edit and each golden
 changed, and the breaks made.
+
+## Answers
+
+2026-11-08. *Does a separate skein repair land first, or does look repair
+skein-ui-screen's laying of an item's inline runs?* Look repairs it, as
+its own commit before the rest, because look's Markdown acceptance cannot
+hold without it. The reader is right: a list item holds its runs as text
+nodes and no paragraph (`skein/docs/design/ui.md`, 10, *in a quote or a
+list item*). The screen is wrong: it lays each of those text nodes as a
+line of its own, where 5.3 of `skein/docs/design/ui-screen.md` lays each
+node as the text shell prints it, so an item's runs share its line. Task
+`rule-title` has landed its changes to these files, so nothing else in
+the plan is editing them.
+
+- `files` gains `skein-ui-screen`'s `src/render.rs`, `src/render/roles.rs`,
+  `src/tests/render.rs` and `src/tests/golden/**`. Change only how an
+  item lays its text children. Consecutive text nodes under an item, from
+  its start to its first block child (a nested list, for one), are laid
+  on the item's line after its mark or number, wrapping as 5.1 says. A
+  block child keeps its own line at the item's hanging indentation. No
+  change to `skein-ui`'s reader.
+- Test it in skein first, as a row of the existing render table (lowest
+  tier): `- **How temper works**: a box.` with a nested `- nested`,
+  plus a numbered item with a code run, laid one row per item. Break the
+  rule once by hand and see the row fail. Then look's
+  `agent_markdown_bullets_keep_their_own_mark_at_every_depth` should pass
+  unchanged.
+- If a skein golden changes, check it against 5.3 and regenerate it. If
+  `skein-ui-text` turns out to have the same fault, leave it and list it
+  under `## Left`.
+- Add to step 7: `heavy cargo clippy -p skein-ui-screen --all-targets --
+  -D warnings` and `heavy cargo nextest run -p skein-ui-screen`.
+
