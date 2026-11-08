@@ -1869,7 +1869,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session .temper-doc-path { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 12px; margin-bottom: 18px !important; font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
 #app > .temper-session .temper-doc-inner h2 { margin: 0 0 4px; font: 500 28px/1.25 var(--gf-sans); letter-spacing: -.02em; color: var(--gf-ink); }
 #app > .temper-session .temper-doc-inner h3 { margin: 26px 0 8px; font: 600 17px/1.7 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
-#app > .temper-session :is(.temper-doc-sub, .temper-doc-muted) { color: var(--gf-muted); }
+#app > .temper-session .temper-doc-muted { color: var(--gf-muted); }
 #app > .temper-session .temper-doc-muted { font-size: 14px; }
 #app > .temper-session .temper-doc-inner ul { margin: 0; padding-left: 20px; }
 #app > .temper-session .temper-doc-inner li + li { margin-top: 4px; }
@@ -2594,12 +2594,10 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 .temper-connect-failed > p { flex: 1 0 100%; margin: 2px 0 0; font-size: 13.5px; color: var(--gf-error); }
 .temper-connect-failed button.temper-connect-quiet { margin-left: 8px; font-size: 13.5px; }
 
-/* The stock reference beside Configure (client/README.md, 3.5). */
+/* Tables in a chat's document (client/README.md, 3.5). */
 #app > .temper-session .temper-doc-inner td > strong,
 #app > .temper-session .temper-doc-inner td > span > strong { font-size: 14.5px; font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--gf-ink); white-space: nowrap; }
 #app > .temper-session .temper-doc-inner td { color: var(--gf-ink-2); }
-#app > .temper-session .temper-doc-flow ul { padding-left: 0; list-style: none; }
-#app > .temper-session .temper-doc-flow ol { padding-left: 20px; }
 
 /* The person's menu opens above the rail's foot (client/README.md, 5.3). */
 #app > .temper-rail > .temper-rail-foot > .temper-rail-person { position: relative; }

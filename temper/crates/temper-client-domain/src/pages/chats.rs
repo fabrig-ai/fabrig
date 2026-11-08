@@ -37,8 +37,6 @@ pub struct Chats {
     pub words: Box<[u8]>,
     pub beyond: u64,
     pub start: Option<Key>,
-    /// The reference's mode beside Ask temper, once opened; the page's alone (client/README.md, 3.5).
-    pub reference: Option<Mode>,
     pub page: Option<TaskPage>,
     pub refusal: Option<jig_client::shapes::NotOffered>,
     pub outcome: Option<jig_client::Outcome>,
@@ -67,7 +65,6 @@ impl Chats {
             words: Box::default(),
             beyond: 0,
             start: None,
-            reference: None,
             page: None,
             refusal: None,
             outcome: None,

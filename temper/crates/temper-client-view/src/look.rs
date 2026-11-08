@@ -1123,8 +1123,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-450",
         b"temper-reserved-451",
         b"temper-reserved-452",
-        b"temper-doc-sub",
-        b"temper-doc-flow",
+        b"temper-reserved-453",
+        b"temper-reserved-454",
         b"temper-reserved-455",
         b"temper-reserved-456",
         b"temper-reserved-457",
@@ -1477,10 +1477,6 @@ pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
 pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
-
-/// The stock reference beside Ask temper (temper/docs/design/client/README.md, 3.5).
-pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
-pub const DOC_FLOW: Style = Style { owner: owner(), token: 454 };
 
 /// The last word of a turn being written (client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 469 };

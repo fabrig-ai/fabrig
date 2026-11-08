@@ -493,9 +493,7 @@ pub(crate) fn rail(
     w.text(b, Word::Brand, &[]);
     b.close();
     if w.shell == Shell::Browser
-        && (root.pages().chat().is_some()
-            || root.pages().address() == &(Address::NewChat { draft: true })
-            || crate::pages::ask_page::reference(root).is_some())
+        && (root.pages().chat().is_some() || root.pages().address() == &(Address::NewChat { draft: true }))
     {
         b.open(Role::Disclosure);
         b.name(&w.say(Word::RailUnfold, &[]));

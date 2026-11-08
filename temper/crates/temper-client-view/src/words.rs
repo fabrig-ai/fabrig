@@ -73,9 +73,6 @@ pub enum Word {
     ChatWrites,
     DraftName,
     DraftGroup,
-    ReferenceGroup,
-    ReferencePath,
-    ReferenceUnchanged,
     DraftChat,
     DraftSplit,
     DraftDraft,
@@ -1541,7 +1538,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2095;
+const PHRASES: u32 = 2092;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1568,10 +1565,10 @@ const PHRASES: u32 = 2095;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3686;
+const SEGMENTS: u32 = 3683;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51485;
-const ALL: [Word; 1413] = [
+const ENGLISH_BYTES: u32 = 51396;
+const ALL: [Word; 1410] = [
     Word::WaysLede,
     Word::WaysTitle,
     Word::WaysNow,
@@ -1631,9 +1628,6 @@ const ALL: [Word; 1413] = [
     Word::ChatWrites,
     Word::DraftName,
     Word::DraftGroup,
-    Word::ReferenceGroup,
-    Word::ReferencePath,
-    Word::ReferenceUnchanged,
     Word::DraftChat,
     Word::DraftSplit,
     Word::DraftDraft,
@@ -4074,9 +4068,6 @@ impl Word {
             Self::ChatWrites => 3684,
             Self::DraftName => 3685,
             Self::DraftGroup => 3600,
-            Self::ReferenceGroup => 3698,
-            Self::ReferencePath => 3699,
-            Self::ReferenceUnchanged => 3700,
             Self::DraftChat => 3601,
             Self::DraftSplit => 3602,
             Self::DraftDraft => 3603,
@@ -5747,9 +5738,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatWrites => (&[b"A chat that writes ", b". Say what it should hold."], &[Name]),
         Word::DraftName => (&[b"a draft"], &[]),
         Word::DraftGroup => (&[b"The draft"], &[]),
-        Word::ReferenceGroup => (&[b"How temper builds temper, beside the chat"], &[]),
-        Word::ReferencePath => (&[b"temper\xe2\x80\x99s own way \xc2\xb7 a reference"], &[]),
-        Word::ReferenceUnchanged => (&[b"changes nothing"], &[]),
         Word::DraftChat => (&[b"Chat"], &[]),
         Word::DraftSplit => (&[b"Split"], &[]),
         Word::DraftDraft => (&[b"Draft"], &[]),
