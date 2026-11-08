@@ -25,6 +25,7 @@ pub(crate) enum LinkRecord {
 pub(crate) struct LinkPeer {
     pub(crate) now: Time,
     pub(crate) received: usize,
+    pub(crate) engine_frames: u32,
     pub(crate) records: List<LinkRecord>,
     pub(crate) component: engine_link::Component,
     pub(crate) out: Queue<engine_link::Request>,
@@ -62,6 +63,7 @@ impl LinkPeer {
         Self {
             now: fixtures::NOW,
             received: 0,
+            engine_frames: jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes).unwrap().frames,
             records: List::with_capacity(LINK_RECORDS),
             component: engine_link::Component::new(
                 &limits,

@@ -615,6 +615,7 @@ impl Service {
                         && engine.forge.above.is_empty()
                         && engine.store.closed()
                         && engine.workers.host.closed()
+                        && engine.workers.notes.is_empty()
                         && engine.clients.closed
                         && engine.clients.io.is_empty()
                         && match &engine.accounts {

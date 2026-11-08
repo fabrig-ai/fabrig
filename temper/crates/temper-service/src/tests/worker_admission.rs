@@ -315,10 +315,12 @@ fn a_new_wire_record_past_the_entrance_faults_the_link() {
     peer.open(&mut stand.worker);
     while stand.worker.notes().pop().is_some() {}
     load(&mut stand.worker, WATERMARK);
-    for _ in 0..stand.worker.held.capacity() {
+    let entrance = peer.engine_frames.checked_add(3).unwrap();
+    for _ in 0..entrance {
         stand.worker.link(fixtures::NOW, assignment());
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     }
+    assert_eq!(stand.worker.held.room(), 0, "the engine cap and three state slots fill the entrance");
     let link::Request::Down { down, parts } = assignment() else { panic!("assignment") };
     peer.component.down(
         fixtures::NOW,

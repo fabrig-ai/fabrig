@@ -447,10 +447,13 @@ impl Worker {
                 self.engine.push(root::Event::Ready);
             }
             link::Request::Lost => {
-                if let Connection::Socket(remote) = &mut self.connection {
-                    remote.hello_pending = false;
-                    remote.loss_pending |= remote.linked;
-                    remote.linked = false;
+                match &mut self.connection {
+                    Connection::InProcess(_) => {}
+                    Connection::Socket(remote) => {
+                        remote.hello_pending = false;
+                        remote.loss_pending |= remote.linked;
+                        remote.linked = false;
+                    }
                 }
                 self.engine.push(root::Event::Lost);
             }
@@ -517,15 +520,18 @@ impl Worker {
             }
             link::Request::Closed => self.closed = true,
             link::Request::Fact { why } => {
-                if let Connection::Socket(remote) = &mut self.connection
-                    && remote.loss_pending
-                {
-                    remote.loss_pending = false;
-                    remote.notes.push(crate::Note::Lost {
-                        worker: remote.worker.clone(),
-                        address: Box::new(remote.address),
-                        why,
-                    });
+                match &mut self.connection {
+                    Connection::InProcess(_) => {}
+                    Connection::Socket(remote) => {
+                        if remote.loss_pending {
+                            remote.loss_pending = false;
+                            remote.notes.push(crate::Note::Lost {
+                                worker: remote.worker.clone(),
+                                address: Box::new(remote.address),
+                                why,
+                            });
+                        }
+                    }
                 }
                 let reason = match why {
                     link::Loss::Closed(skein_channel::Closed::RefusedPeer(code)) => Some(crate::Refusal::Peer(code)),
