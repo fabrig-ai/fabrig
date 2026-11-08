@@ -1,4 +1,4 @@
-//! Native heap measurements (temper/docs/design/playground.md, 8 and 11).
+//! Native heap regression bounds (temper/docs/design/playground.md, 9).
 use skein_heap::{Grown, Span};
 use skein_lib::Wall;
 use skein_sim_world::Meter;
@@ -9,6 +9,34 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 const SEED: u64 = 7;
 const STARTUP_STEPS: u64 = 10_000;
+
+// The 2026-11-08 table in temper/docs/development/playground-memory.md,
+// each figure plus a quarter. Bounds follow process names, not admission order.
+const SERVICE_FIRST_STEP_HELD: i64 = 144_717 + 144_717 / 4;
+const SERVICE_FIRST_STEP_PEAK: i64 = 226_963 + 226_963 / 4;
+const LLM_FIRST_STEP_HELD: i64 = 27_449 + 27_449 / 4;
+const LLM_FIRST_STEP_PEAK: i64 = 27_449 + 27_449 / 4;
+const FORGE_FIRST_STEP_HELD: i64 = 30_002 + 30_002 / 4;
+const FORGE_FIRST_STEP_PEAK: i64 = 30_002 + 30_002 / 4;
+const VISITOR_FIRST_STEP_HELD: i64 = 1_054 + 1_054 / 4;
+const VISITOR_FIRST_STEP_PEAK: i64 = 1_068 + 1_068 / 4;
+const SERVICE_START_HELD: i64 = 239_146 + 239_146 / 4;
+const SERVICE_START_PEAK: i64 = 285_982 + 285_982 / 4;
+const LLM_START_HELD: i64 = 28_185 + 28_185 / 4;
+const LLM_START_PEAK: i64 = 28_185 + 28_185 / 4;
+const FORGE_START_HELD: i64 = 30_743 + 30_743 / 4;
+const FORGE_START_PEAK: i64 = 30_787 + 30_787 / 4;
+const VISITOR_START_HELD: i64 = 1_054 + 1_054 / 4;
+const VISITOR_START_PEAK: i64 = 1_068 + 1_068 / 4;
+const GIT_START_HELD: i64 = 3_410 + 3_410 / 4;
+const GIT_START_PEAK: i64 = 5_952 + 5_952 / 4;
+const DISK_FIRST_STEP_RETAINED: i64 = 9_393 + 9_393 / 4;
+const DISK_START_RETAINED: i64 = 124_117 + 124_117 / 4;
+const SHARED_FORGE_BEFORE_START_RETAINED: i64 = 6_981 + 6_981 / 4;
+
+fn within(process: &str, phase: &str, figure: &str, measured: i64, bound: i64) {
+    assert!(measured <= bound, "{process}, {phase}: {figure} {measured} bytes exceeds bound {bound} bytes");
+}
 
 #[derive(Clone, Copy, Default)]
 struct Held {
@@ -89,10 +117,10 @@ fn name(process: &Process<()>) -> &'static str {
 }
 
 #[test]
-#[ignore = "a measurement, run by hand: temper/docs/development/playground-memory.md"]
 fn story_as_world_at_its_first_step_and_start() {
     let (prebuilt, shared) = prebuilt();
     println!("shared forge before start: {shared} bytes (outside process spans)");
+    within("shared forge", "before start", "retained", shared, SHARED_FORGE_BEFORE_START_RETAINED);
     for after_start in [false, true] {
         let mut world = story::world_metered(A.start(SEED, Wall::EPOCH), Heap { prebuilt, processes: Vec::new() });
         story::step(&mut world);
@@ -111,10 +139,36 @@ fn story_as_world_at_its_first_step_and_start() {
             }
         }
         let phase = if after_start { "start idle" } else { "first step" };
+        let bounds = if after_start {
+            vec![
+                ("service (engine + worker)", SERVICE_START_HELD, SERVICE_START_PEAK),
+                ("fake LLM", LLM_START_HELD, LLM_START_PEAK),
+                ("fake forge HTTP", FORGE_START_HELD, FORGE_START_PEAK),
+                ("visitor", VISITOR_START_HELD, VISITOR_START_PEAK),
+                ("git", GIT_START_HELD, GIT_START_PEAK),
+            ]
+        } else {
+            vec![
+                ("service (engine + worker)", SERVICE_FIRST_STEP_HELD, SERVICE_FIRST_STEP_PEAK),
+                ("fake LLM", LLM_FIRST_STEP_HELD, LLM_FIRST_STEP_PEAK),
+                ("fake forge HTTP", FORGE_FIRST_STEP_HELD, FORGE_FIRST_STEP_PEAK),
+                ("visitor", VISITOR_FIRST_STEP_HELD, VISITOR_FIRST_STEP_PEAK),
+            ]
+        };
+        let mut names: Vec<_> = world.processes().iter().map(name).collect();
+        let mut expected: Vec<_> = bounds.iter().map(|(name, _, _)| *name).collect();
+        names.sort_unstable();
+        expected.sort_unstable();
+        assert_eq!(names, expected, "{phase}: measured processes");
+        assert_eq!(world.processes().len(), world.meter().processes.len(), "{phase}: every process is metered");
         println!("{phase}: {} world steps; bytes", world.steps());
         println!("process | held | peak");
         for (at, (process, held)) in world.processes().iter().zip(&world.meter().processes).enumerate() {
             println!("{at}: {} | {} | {}", name(process), held.now, held.peak);
+            let (_, held_bound, peak_bound) =
+                bounds.iter().find(|(expected, _, _)| *expected == name(process)).expect("named process bound");
+            within(name(process), phase, "held", held.now, *held_bound);
+            within(name(process), phase, "peak", held.peak, *peak_bound);
         }
         assert!(world.meter().processes.iter().any(|held| held.peak > 0), "the allocator measured heap");
         let Process::Service(service) = &world.processes()[0] else { panic!("service is process zero") };
@@ -122,7 +176,10 @@ fn story_as_world_at_its_first_step_and_start() {
         // The disk's final owner is held outside the world so destroying it
         // measures its retained heap, including metadata and durable copies.
         drop(world);
-        println!("{phase}: fake disk retained heap | {}", freed(disk));
+        let retained = freed(disk);
+        println!("{phase}: fake disk retained heap | {retained}");
+        let bound = if after_start { DISK_START_RETAINED } else { DISK_FIRST_STEP_RETAINED };
+        within("fake disk", phase, "retained", retained, bound);
         // Reset the root bindings outside the next world's process spans.
         drop(machine::fresh());
     }

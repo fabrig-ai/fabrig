@@ -306,17 +306,17 @@ repository's gates are still the document's
 (`protocol/configuration.md`, `domain/landing.md`), and the forge's
 world tells none of their stories (`domain/forge.md`,
 `domain/testing.md`). A goal's own branch and its landing are built,
-but for the held landing's story, ignored for a restart fault
-(`domain/forge.md`). A change relays its agents' questions through a
+and its held landing's story runs (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
 asks from a repair or a resolution, or has its words refused, and a
 step short of message room loses a foreman's verdict
 (`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
-built through ctl, but the restore's stories in the domain world and
-the joined client world are ignored (`protocol/configuration.md`,
-`client/tools.md`). Ask temper, charter 11 from template 5, configures
+built through ctl, and the domain world's restore stories run but
+one, which, with the joined client world's, stays ignored: a setting
+reset to a default the forge does not report to jig loses its state at
+restart (`protocol/configuration.md`, `client/tools.md`). Ask temper, charter 11 from template 5, configures
 through `see`, `document` and the asking `propose_settings`; its reference
 pages are built, but no walk on record has run a real model on its words
 as they stand. No address of `see` reads workers' slots, so it sizes by
@@ -725,7 +725,8 @@ into the process tier and compiled; their runtime there and the tier's
 margin after the estimated 15.9 CPU s transfer remain unobserved
 (`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
 The process tier's three tests at a time await a passing whole run after landing,
-and its CPU-budget overages remain. The fake box keeps two walks, `here_key`
+and no run on record reads the tier as it stands against its 540 CPU s.
+The fake box keeps two walks, `here_key`
 and the browser tab; the ten others' behaviour runs in the joint world, the
 real loop, the one-process world and the fake's own stories, and the tier's
 CPU without them is read after landing. The copy stories' world and the
@@ -813,11 +814,28 @@ The deployment's client, `temper-client`, is built (M1 of
 and `ctl`, run by the box's code from the shells both binaries link, its
 help, refusals and `--version`, on `temper-shell`, which the box's `temper`
 prints its table from. Its ctl story runs the box's `temper serve` as the
-engine until `temper-engine` is built, and runs after landing. It links jig's
+engine until M5 switches it to `temper-engine`, and runs after landing. It links jig's
 accounts protocol and engine-side crates through an unused line of ctl's
-manifest, and no test yet holds its closure: the boundary test is M5's
+manifest, and no test yet holds its closure: its boundary row is M5's; its
+`--version` reads a build script of its own, not `temper-version`
 (`protocol/README.status.md`, 4; `client/README.status.md`, 2). The `commands`
 page names no command's binary (`draft/deployment-binaries.status.md`).
+
+The engine's binary, `temper-engine`, is built (M2, plan `ui-engine-split`):
+`serve` of an engine alone's document with the web client, the owned
+forge's commands, `internal forge-child`, `versions`, help and `--version`
+from `temper-version`, refusing a worker alone's and a standalone document
+by the binary that runs each, in a table step test of the built binary.
+Its commands are `temper-engine-shell`'s, which the box's `temper` runs too
+with its worker's half; `temper-service`'s worker half is its `worker`
+feature, off in the engine's build; the brief's fitter is
+`temper-protocol-brief`'s. The boundary test holds its closure free of the
+worker's domain and smith's agent but `smith-domain` and three of its
+crates, named with their reason; the closure keeps the box's machine and
+the fakes' crates for the document's check (`draft/deployment-binaries.status.md`).
+`upgrade` waits on jig's rehearsal and going back, and the feature-off
+service is built only by the engine's own build, not the gate
+(`protocol/README.status.md`, 4.1 and 4.2; `release.status.md`, 3).
 
 Design documents:
 - [`README.md`](README.status.md)

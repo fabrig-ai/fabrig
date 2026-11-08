@@ -220,8 +220,10 @@ Linux and macOS, is section 11's after-landing work, owned by temper/tui.
 
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
-implementation gap. Section 10's joined story covers the running line
-before and during provisional text, commitment, navigation and closing.
+implementation gap, including section 5.15's initial history for short
+completed chats. Section 10's joined stories cover the running line before
+and during provisional text, commitment, immediate replies across repeated
+new chats, reopening, PageUp, resizing, navigation and closing.
 The focused view test holds a Writing observation before the first answer,
 through provisional words and commitment: the shared running line and the
 browser terminal say "Working", the chat bar says "Writing", and completion
@@ -998,14 +1000,14 @@ read's head explicit.
 - **Design departs:** 4.6, *The program's environment*, from the request `box-small-2`
   of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
   nothing: with no `HOME` and an XDG variable placing some of the directories, not all,
-  `program_environment` (`crates/temper/src/directories.rs`) knows no default and names
+  `program_environment` (`temper-engine-shell/src/serve.rs`) knows no default and names
   all three, one at its own default among them, where the request has each only where it
   differs. The command finds the same directories either way, and no test holds this
   case: `no_home_names_all_three` gives no XDG variable. Seen by reading.
 - **Design departs:** 4.6, *The words of a command for this machine*, from the request
   `box-small` of 2026-11-06, item 1, which has these words in any other command handed
   to the person for this machine: `temper forge run`'s refusal
-  (`crates/temper/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
+  (`temper-engine-shell/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
   directory whole, and the terminal client says `temper open`
   (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper` first on
   `PATH` each names that one. That plan's cut names the pages' commands alone, and no

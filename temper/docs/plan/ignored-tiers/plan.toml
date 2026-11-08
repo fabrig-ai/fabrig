@@ -1,0 +1,51 @@
+draft = "ignored-tiers"
+repo = "fabrig"
+sources = ["temper/docs/plan/ignored-tiers/inputs/request.md", "temper/crates/temper/tests/live_github_managed.rs", "temper/crates/temper/tests/proof_live.rs", "temper/tests/one-process/tests/memory.rs", "temper/tests/playground/tests/memory.rs", "temper/docs/development/playground-memory.md", "temper/scripts/proof-live.sh", "temper/scripts/proof-live-github-managed.sh", ".config/nextest.toml", "temper/crates/temper/tests/live.rs", "temper/crates/temper/tests/live_github.rs", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "b0-offline"
+title = "B0's two offline driver proofs join the process tier, and the live tests that need a person say what the person gives"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[slice]]
+id = 1
+story = "proof-live.sh rung-b0-offline runs B0's setup and twin walk under profile process-temper, which selects them by name, and each live test's ignore names its sign-in, held login or github.com"
+parts = ["b0-offline"]
+walk = false
+
+[[part]]
+id = "world-checks"
+title = "The playground world's native heap at start is bound in the focused suite, and the forge's two-change hint profile asserts what it printed"
+mode = "direct"
+needs = []
+design = "temper/docs/design/playground.md, 9"
+
+[[slice]]
+id = 2
+story = "The focused suite holds each playground process's first-step and start bytes within a quarter of playground-memory.md's figures, and two changes' hint wakes, fresh reads and landings by their request counts"
+parts = ["world-checks"]
+walk = false
+
+[[part]]
+id = "managed-sitting"
+title = "managed_ready_client sets up the managed GitHub sitting's fake half itself and joins the process tier; its driver still runs it as its client"
+mode = "direct"
+needs = ["b0-offline"]
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[slice]]
+id = 3
+story = "In profile process-temper, the fake GitHub, the sitting's relay and the engine start, Ready signs in by the printed link, Connect makes and installs the App, Ready adopts the one repository, and the relay finds no secret bytes"
+parts = ["managed-sitting"]
+walk = false
