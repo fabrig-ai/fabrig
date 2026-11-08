@@ -45,7 +45,7 @@ or the nearest thing, and says so in that draft's status.
 
 | | Milestone | Executes | Needs | Owner | State |
 |---|---|---|---|---|---|
-| M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | not started |
+| M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | done: landed by hand in `whole-story/mockups` |
 | P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | not started |
 | P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | not started |
 | P3 | How work runs | `surfaces.md`, 7 | M0, N1; N2 and F1 for their parts | temper/ui | not started |

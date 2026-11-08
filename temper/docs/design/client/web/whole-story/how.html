@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How work runs, on vsr</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="whole-story.css">
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">vsr <small>4 projects</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="work.html">Work</a>
+      <a href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a class="on" href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New draft or change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">Owner</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="col wide">
+      <header class="intro">
+        <p class="kicker">vsr · How work runs</p>
+        <h1 class="headline">Draft first, with the protocol core asking you</h1>
+        <p class="lede">vsr's process as temper runs it: who acts at each step, what reaches you, and what follows a landing. Ask temper to change any of it, in words; you accept its proposal, and new work follows it.</p>
+        <div class="choices"><a class="btn dark" href="#">Ask temper to change this</a><a class="btn" href="#">History · 7 changes</a></div>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>The path of a change</h2><span>the way: Draft first</span></div>
+        <div class="scroll">
+          <div class="path">
+            <div class="h"></div><div class="h">Draft</div><div class="h">Design and plan</div><div class="h">Produce</div><div class="h">Check</div><div class="h">Review</div><div class="h">Sign-off</div><div class="h">Merge</div><div class="h">After landing</div>
+            <div class="lane">You</div><div><span class="step p">with the drafter, in the terminal</span></div><div></div><div></div><div></div><div></div><div><span class="step p">protocol core only</span></div><div></div><div></div>
+            <div class="lane">Agents</div><div><span class="step a">the drafter</span></div><div><span class="step a">the goal: design, then its tree</span></div><div><span class="step a">coding agents, one per change</span></div><div></div><div><span class="step a">a reviewer</span></div><div></div><div></div><div><span class="step a">the area's owner triages</span></div>
+            <div class="line">authority: no merge tool above this line</div>
+            <div class="lane last">Code</div><div class="last"></div><div class="last"></div><div class="last"></div><div class="last"><span class="step c">CI: ASan, UBSan, -Werror, clang-tidy, cppcheck, fuzz smoke</span></div><div class="last"></div><div class="last"></div><div class="last"><span class="step c">at the checked head</span></div><div class="last"><span class="step c">tiers: fuzz 6 h, MSan, coverage</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>What reaches you</h2><span>on vsr; each project has its own</span></div>
+        <div class="grid3">
+          <div class="box">
+            <span class="who a">Agents decide, then tell you</span>
+            <ul class="small">
+              <li>wording and names inside a spec</li>
+              <li>retrying or splitting a task</li>
+              <li>implementation choices a spec leaves open</li>
+              <li>test-only changes</li>
+              <li>rerunning a known flake</li>
+            </ul>
+            <p class="small muted">Listed in Decided for you for 24 hours, to overturn.</p>
+          </div>
+          <div class="box">
+            <span class="who p">Asks you</span>
+            <ul class="small">
+              <li>a change to the protocol core</li>
+              <li>a departure from a landed design</li>
+              <li>a new dependency</li>
+            </ul>
+            <p class="small muted">While you're away: the last two are decided with the recommended choice and listed. The protocol core still asks.</p>
+          </div>
+          <div class="box">
+            <span class="who p">Always waits for you</span>
+            <ul class="small">
+              <li>money past a budget</li>
+              <li>what can't be undone: rewriting history, a force-push, deleting unlanded work</li>
+              <li>changes to this page</li>
+            </ul>
+            <p class="small muted">Away or not.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Rules by path</h2><a href="#">+ A rule</a></div>
+        <div class="scroll">
+          <table class="tbl">
+            <thead><tr><th>Paths</th><th>Review</th><th>Sign-off</th><th>Lands</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">include/vsr.h · src/protocol.* · src/transition.* · docs/protocol.md</td><td>an agent</td><td><span class="who p">you</span></td><td>once you sign off</td></tr>
+              <tr><td class="mono">src/io/ · examples/</td><td>an agent</td><td class="muted">–</td><td>on its own</td></tr>
+              <tr><td class="mono">tests/ · the rest of docs/</td><td>an agent</td><td class="muted">–</td><td>on its own</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>What follows a landing</h2><span>code triggers, agents judge</span></div>
+        <div class="grid2">
+          <div class="box">
+            <h3>vsr-rs follows vsr</h3>
+            <p class="small">Each landing on vsr's main that touches src/ or include/ makes a port change in vsr-rs, owned by Porter. Its check: vsr's C tests, built against vsr-rs.</p>
+            <div class="chips"><span class="who c">code hears the landing</span><span class="who a">Porter ports</span><span class="who c">code checks</span></div>
+          </div>
+          <div class="box">
+            <h3>Tiers on main</h3>
+            <p class="small">Nightly: fuzzing for 6 hours, MSan and TSan builds, coverage. A red becomes a finding for its area's owner, who makes the repair.</p>
+            <div class="chips"><span class="who c">code runs</span><span class="who a">the owner triages</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Budgets</h2><span>per week, reset Mondays</span></div>
+        <div class="rows">
+          <div class="row" style="grid-template-columns: 200px minmax(0, 1fr) auto"><span>Prover</span><span class="small muted">tests and proof, triage</span><span>$40</span></div>
+          <div class="row" style="grid-template-columns: 200px minmax(0, 1fr) auto"><span>Porter</span><span class="small muted">the Rust port</span><span>$60</span></div>
+          <div class="row" style="grid-template-columns: 200px minmax(0, 1fr) auto"><span>Goals</span><span class="small muted">each given its own when it starts</span><span>up to $80</span></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>
