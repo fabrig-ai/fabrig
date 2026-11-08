@@ -1,0 +1,6 @@
+draft = "inproc-runner"
+repo = "fabrig"
+sources = ["temper/docs/plan/inproc-runner/inputs/request.md", "tools/tiers/cpu.py", "skein/testing/skein-world/src/deadline.rs", "skein/tests/conformance/real/tests/suite/signal_sender.rs", ".config/nextest.toml", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
