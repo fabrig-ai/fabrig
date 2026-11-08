@@ -135,3 +135,12 @@ in jig's engine clients. One overlap could not be avoided: if
 on a catch-up, never hand-merged. `stock-roles` and `project-stock` may
 each regenerate the recordings. `project-stock` runs after `stock-roles`,
 so the second regeneration starts from the first.
+
+## Stock brief allowance
+
+The owner's answer of 2026-11-08 lowers the standard brief allowance from
+354,988 to 353,072 bytes, so charter 5 and the framed brief fit the
+400,135-byte host-part bound with the existing 498-byte margin. This is
+the exception to keeping shipped default limits from falling, for the
+owner of coding runs' limits to review before landing. Host sizing stays
+as it is.
