@@ -81,6 +81,20 @@ its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
 
+- **Not yet:** 3.5, *To begin*, and 5.3, *While To begin shows*: To begin
+  has three steps, "Tell temper how you work" first and "Start a chat"
+  third, its notes and the repository's lines name Chats, and the rail and
+  tab bar keep every row while it shows (`temper-client-domain`'s
+  `pages/home.rs`, `Facts::left`; `temper-client-view`'s `pages/home.rs`,
+  `to_begin`, and `frame.rs`, `rail` and `tabbar`). The plan `look-round-19`'s
+  task `two-steps` builds them.
+- **Not yet:** 3.5, *Its look, kept per browser*: the look has no `night`,
+  its record is three bytes and no act turns it, and no shell sets
+  `data-night` (`temper-client-domain`'s `pages/terminal.rs`,
+  `temper-client-shell-web`'s `records.rs`); 5.3: the rail draws no night
+  switch. The plan `look-round-19`'s tasks `night-keep` and `night-switch`
+  build them.
+
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
@@ -158,7 +172,7 @@ configuring chat's draft offer regardless of kind 7, drafts on for a
 fresh project, or Goals in the bar while `Domain::has_goals` holds. The
 draft offer follows the first message and retains its document and end
 conditions. The view tables cover the draft offer and its act in both shells, and Goals in
-the rail and phone tab bar while To begin keeps Home's Chats section.
+the rail and phone tab bar once To begin is gone.
 Stored drafts-off values still govern other chats. The fake-model journey
 is `chat-draft`; the after-landing check is section 11's later work.
 
