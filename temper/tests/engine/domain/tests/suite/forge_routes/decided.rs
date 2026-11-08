@@ -1,12 +1,17 @@
-//! A goal's named decision is live and durable (temper/docs/design/domain/forge.md, 5.9).
+//! A task's named decision is live and durable (temper/docs/design/domain/forge.md, 5.9).
 use super::*;
 use skein_lib::Wall;
+use temper_protocol_reaches::{Class, Classes, Item, Kind, Offer, PathSet, Reach, Reason, Subject, Way};
 
 const CHANNEL: Token = Token::new(7);
 const CALL: u64 = 96;
 const STEPS: u32 = 200; // A root call's durable round trip, without forge IO.
 
 fn start(tracked: bool, words: &[u8]) -> (World, engine::Assignment) {
+    start_as(tracked, !tracked, words)
+}
+
+fn start_as(tracked: bool, conversation: bool, words: &[u8]) -> (World, engine::Assignment) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -14,13 +19,13 @@ fn start(tracked: bool, words: &[u8]) -> (World, engine::Assignment) {
         1000,
         Gate::default(),
         None,
-        StoryLimits { slots: Some(3), ..StoryLimits::default() },
+        StoryLimits { slots: Some(3), kinds: true, ..StoryLimits::default() },
     );
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, 3, Box::new([])));
     let people::Ask::Create { project, mut batch } = world.chat(1, words) else { panic!("chat template") };
     batch[0].tracked = tracked.then_some(0);
-    batch[0].flags.conversation = !tracked;
+    batch[0].flags.conversation = conversation;
     batch[0].budget = people::Budget::AsAllowed { cap: Some(400) };
     batch[0].authority.tools = 1 | 2 | 4 | 512;
     batch[0].authority.delegation.tasks = 11;
@@ -69,27 +74,6 @@ fn rows(world: &World) -> Vec<forge_top::Decided> {
         .collect()
 }
 
-fn ask(
-    world: &mut World,
-    run: &engine::Assignment,
-    kind: temper_protocol_reaches::Kind,
-    expected: Option<temper_protocol_reaches::Reach>,
-) {
-    assert_eq!(world.scripted_call(run, CALL, tool(kind)), engine::CallAnswer::Decided { took: None, reach: expected });
-    match expected {
-        Some(reach) => {
-            assert_eq!(reach.kind, kind);
-            assert!(!reach.decided());
-            let rows = rows(world);
-            assert_eq!(rows.len(), 1);
-            assert_eq!(rows[0].reach, reach);
-            assert_eq!(rows[0].took, None);
-            assert!(rows[0].options.is_empty());
-            assert!(rows[0].why.is_empty());
-        }
-        None => assert!(rows(world).is_empty(), "root's own asks never reach the forge"),
-    }
-}
 fn reach(
     kind: temper_protocol_reaches::Kind,
     class: temper_protocol_reaches::Class,
@@ -106,106 +90,399 @@ fn reach(
     }
 }
 
-#[test]
-fn a_goal_decides_while_its_person_is_away() {
-    let (mut world, run) = start(true, b"Make a small fix");
-    away(&mut world, true, None);
-    assert_eq!(
-        world.scripted_call(&run, CALL, tool(temper_protocol_reaches::Kind::Implementation)),
-        engine::CallAnswer::Decided {
-            took: Some(Box::from(b"Small".as_slice())),
-            reach: Some(reach(
-                temper_protocol_reaches::Kind::Implementation,
-                temper_protocol_reaches::Class::Ask,
-                true
-            ))
-        }
-    );
-    let decisions = rows(&world);
-    assert_eq!(decisions.len(), 1);
-    let row = &decisions[0];
-    assert_eq!((row.project, row.party, row.task, row.number), (1, 1, run.task, 1));
-    assert_eq!(row.question.as_ref(), b"Which implementation?");
-    assert_eq!(row.options.as_ref(), &[Box::from(b"Small".as_slice()), Box::from(b"Broad".as_slice())]);
-    assert_eq!(row.took, Some(0));
-    assert_eq!(row.why.as_ref(), b"Fits the design");
-    assert!(!row.overturned);
-    world.close();
+#[derive(Clone, Copy, Debug)]
+enum Caller {
+    Goal,
+    Chat,
+    PersonTask,
+    ServedGoal,
+    GoalsChild,
 }
 
-#[test]
-fn a_chats_goal_finds_the_chats_person() {
-    let (mut world, chat) = start(false, b"Make a small fix");
-    let engine::CallAnswer::Delegated(made) = world.scripted_call(
-        &chat,
-        93,
-        engine::Tool::Goal { words: Box::from(b"Make a small fix".as_slice()), advisor: false, agree: false },
-    ) else {
-        panic!("goal delegated")
+#[derive(Clone, Copy)]
+enum After {
+    Nothing,
+    Narrow,
+    Overturn,
+}
+
+struct Case {
+    name: &'static str,
+    caller: Caller,
+    kind: Kind,
+    away: bool,
+    words: &'static [u8],
+    custom: bool,
+    expired: bool,
+    paths: &'static [&'static [u8]],
+    under: u8,
+    reach: Option<Reach>,
+    reason: &'static str,
+    after: After,
+}
+
+fn case(name: &'static str, caller: Caller, kind: Kind, class: Class, away: bool, reason: &'static str) -> Case {
+    Case {
+        name,
+        caller,
+        kind,
+        away,
+        words: b"Make a small fix",
+        custom: false,
+        expired: false,
+        paths: &[],
+        under: 0,
+        reach: Some(reach(kind, class, away)),
+        reason,
+        after: After::Nothing,
+    }
+}
+
+fn caller(case: &Case) -> (World, engine::Assignment) {
+    let (mut world, parent) = match case.caller {
+        Caller::Goal | Caller::GoalsChild => start(true, case.words),
+        Caller::Chat | Caller::ServedGoal => start(false, case.words),
+        Caller::PersonTask => start_as(false, false, case.words),
     };
-    world.until(Until::SecondAssignment);
-    let run = world.assigned.iter().find(|run| run.task == made[0].task).unwrap().clone();
-    assert_eq!(
-        world.scripted_call(&run, CALL, tool(temper_protocol_reaches::Kind::Wording)),
-        engine::CallAnswer::Decided {
-            took: Some(Box::from(b"Small".as_slice())),
-            reach: Some(reach(temper_protocol_reaches::Kind::Wording, temper_protocol_reaches::Class::Decide, false))
+    let tool = match case.caller {
+        Caller::Goal | Caller::Chat | Caller::PersonTask => return (world, parent),
+        Caller::ServedGoal => engine::Tool::Goal { words: case.words.into(), advisor: false, agree: false },
+        Caller::GoalsChild => {
+            let mut child = temper_engine_domain_world::fixtures::report_delegate(case.words, Box::new([]));
+            child.authority.tools = parent.run.authority.tools;
+            engine::Tool::Delegate { batch: Box::new([child]) }
         }
+    };
+    let answer = world.scripted_call(&parent, 93, tool);
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("child made: {answer:?}") };
+    world.until(Until::SecondAssignment);
+    let run = world.assigned.iter().find(|run| run.task == made[0].task).expect("child assignment").clone();
+    (world, run)
+}
+
+fn classes(world: &mut World, classes: Classes) {
+    use forge_top::settings;
+    use jig_domain_core::settings as s;
+    classes.check().expect("valid classes");
+    let value = settings::Value::Classes(classes);
+    let bytes = temper_engine_smith::kinds::encode(&value);
+    let size = u32::try_from(bytes.len()).expect("classes bytes fit u32");
+    let against = temper_engine_domain_world::kinds::revision(&world.store.rows);
+    world.send(engine::Event::Party(engine::PartyInput::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(300)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [30; 16],
+        digest: [30; 32],
+        change: Box::new(s::Change {
+            against,
+            items: Box::new([s::Item {
+                setting: s::Setting::Application { kind: 8, scope: 1, number: 1 },
+                edit: s::Edit::Set(s::Value::Application(bytes)),
+            }]),
+            running: s::Running::Stays,
+        }),
+        kinds: Box::new([engine::KindValue {
+            kind: 8,
+            scope: 1,
+            number: 1,
+            value: settings::SizedValue { size, value },
+        }]),
+    }));
+    world.until(Until::Ready);
+    assert_eq!(
+        temper_engine_domain_world::kinds::revision(&world.store.rows),
+        against + 1,
+        "owner applies classes: {:?}",
+        world.web_replies
     );
-    assert_eq!(rows(&world)[0].party, 1);
-    world.close();
+}
+
+fn custom_classes() -> Classes {
+    Classes {
+        items: Box::new([
+            Item { subject: Subject::Kind(Kind::Implementation), words: Box::new([]), class: Class::Decide },
+            Item { subject: Subject::Set(1), words: Box::new([]), class: Class::AskAway },
+            Item {
+                subject: Subject::Set(1),
+                words: b"Fixes that keep the wire format".as_slice().into(),
+                class: Class::Decide,
+            },
+        ]),
+        sets: Box::new([PathSet {
+            number: 1,
+            name: b"Core".as_slice().into(),
+            patterns: Box::new([b"src/core/**".as_slice().into()]),
+        }]),
+    }
+}
+
+fn assert_answer(answer: &engine::CallAnswer, expected: Option<Reach>, reason: &str) {
+    let took = expected.filter(Reach::decided).map(|_| Box::from(b"Small".as_slice()));
+    let words = if took.is_some() {
+        "Decided: carry on with Small.".to_owned()
+    } else {
+        format!(
+            "Ask: {reason}. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
+        )
+    };
+    assert_eq!(*answer, engine::CallAnswer::Decided { took, reach: expected });
+    let rendered = temper_engine_smith::answer_for_tool(answer, b"decided", 1024);
+    assert_eq!(rendered.text(), words.as_bytes());
+    assert!(!rendered.error());
+}
+
+fn assert_row(world: &World, run: &engine::Assignment, expected: Option<Reach>) {
+    let rows = rows(world);
+    let Some(reach) = expected else {
+        assert!(rows.is_empty(), "no person's question means no forge row");
+        return;
+    };
+    assert_eq!(rows.len(), 1);
+    let row = &rows[0];
+    assert_eq!((row.project, row.party, row.task, row.number), (1, 1, run.task, 1));
+    assert_eq!(row.reach, reach);
+    assert_eq!(row.question.as_ref(), b"Which implementation?");
+    assert_eq!(row.took, reach.decided().then_some(0));
+    if reach.decided() {
+        assert_eq!(row.options.as_ref(), &[Box::from(b"Small".as_slice()), Box::from(b"Broad".as_slice())]);
+        assert_eq!(row.why.as_ref(), b"Fits the design");
+    } else {
+        assert!(row.options.is_empty());
+        assert!(row.why.is_empty());
+    }
+    assert!(!row.overturned);
+}
+
+fn narrow(world: &mut World, run: &engine::Assignment, first: &engine::CallAnswer, completion: u32) {
+    let engine::CallAnswer::Decided { reach: Some(reach), .. } = first else { panic!("asked reach") };
+    let stock = Classes::stock(Way::AgentsReview);
+    classes(
+        world,
+        temper_protocol_reaches::narrowed(&stock, reach, Offer::Decide(Subject::Kind(Kind::Implementation)), b"")
+            .expect("narrowed kind"),
+    );
+    let event = world.protocol.call(
+        CHANNEL,
+        run.task,
+        run.attempt,
+        CALL + 1,
+        engine::Call { completion, position: 2, tool: tool(Kind::Implementation) },
+    );
+    world.send(event);
+    world.until(Until::Ready);
+    let answer = world.answers.last().expect("next call answered").clone();
+    assert_answer(&answer, Some(self::reach(Kind::Implementation, Class::Decide, false)), "");
+    assert_eq!(rows(world).len(), 2);
+    assert_eq!(rows(world)[1].task, run.task);
+    assert_eq!(rows(world)[1].party, 1);
+    assert_eq!(rows(world)[1].took, Some(0));
+    assert_eq!(rows(world)[1].reach, self::reach(Kind::Implementation, Class::Decide, false));
+    let before = rows(world);
+    let event = world.protocol.call(
+        CHANNEL,
+        run.task,
+        run.attempt,
+        CALL + 2,
+        engine::Call { completion, position: 1, tool: tool(Kind::Implementation) },
+    );
+    world.send(event);
+    world.until(Until::Ready);
+    assert_eq!(world.answers.last(), Some(first), "Stop asking changes only later calls");
+    assert_eq!(rows(world), before, "replay writes no row");
+}
+
+fn overturn(world: &mut World, run: &engine::Assignment) {
+    world.scripted_read_inbox(run);
+    let turns = live_task(world, run.task).turn;
+    park_after_turn(world, run, None, turns);
+    world.until(Until::Ready);
+    let attempts = world.assigned.len();
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Overturn {
+        request: Token::new(80),
+        token: Token::new(80),
+        party: 1,
+        project: 1,
+        number: 1,
+    })));
+    world.until(Until::Ready);
+    assert!(rows(world)[0].overturned);
+    assert_eq!(world.assigned.len(), attempts, "Overturn alone sends no message");
+    let words = b"I overturn your decision. Ask me again with message, as a question, and wait for my answer.";
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(81)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [81; 16],
+        ask: people::Ask::Say { project: 1, task: run.task, words: words.as_slice().into() },
+    }));
+    for _ in 0..STEPS {
+        world.tick();
+        if world.assigned.len() > attempts {
+            break;
+        }
+    }
+    let message = world
+        .web_replies
+        .iter()
+        .find_map(|reply| match reply {
+            people::Reply::Outcome(people::Outcome::Said { task, message }) if *task == run.task => Some(*message),
+            _ => None,
+        })
+        .expect("message accepted");
+    let woke = world.assigned.last().expect("woken task").clone();
+    assert_eq!(woke.task, run.task);
+    assert!(woke.attempt > run.attempt, "overturned task wakes");
+    world.until(Until::Ready);
+    assert!(
+        woke.messages.iter().any(|word| word.number == message)
+            || world
+                .delivered_messages
+                .get(&(woke.task, woke.attempt))
+                .is_some_and(|messages| messages.contains(&message)),
+        "the woken task hears the client's message"
+    );
 }
 
 #[test]
-fn its_person_here_it_is_told_to_ask() {
-    let (mut world, run) = start(true, b"Make a small fix");
-    ask(
-        &mut world,
-        &run,
-        temper_protocol_reaches::Kind::Implementation,
-        Some(reach(temper_protocol_reaches::Kind::Implementation, temper_protocol_reaches::Class::Ask, false)),
-    );
-    world.close();
-}
-
-#[test]
-fn money_waits_even_with_away_on() {
-    let (mut world, run) = start(true, b"Make a small fix");
-    away(&mut world, true, None);
-    ask(
-        &mut world,
-        &run,
-        temper_protocol_reaches::Kind::Money,
-        Some(reach(temper_protocol_reaches::Kind::Money, temper_protocol_reaches::Class::Wait, true)),
-    );
-    world.close();
-}
-
-#[test]
-fn other_is_told_to_ask() {
-    let (mut world, run) = start(true, b"Make a small fix");
-    away(&mut world, true, None);
-    ask(
-        &mut world,
-        &run,
-        temper_protocol_reaches::Kind::Other,
-        Some(reach(temper_protocol_reaches::Kind::Other, temper_protocol_reaches::Class::Wait, true)),
-    );
-    world.close();
-}
-
-#[test]
-fn past_until_it_is_told_to_ask() {
-    let (mut world, run) = start(true, b"Make a small fix");
-    let until = world.env.wall;
-    away(&mut world, true, Some(until));
-    ask(
-        &mut world,
-        &run,
-        temper_protocol_reaches::Kind::Implementation,
-        Some(reach(temper_protocol_reaches::Kind::Implementation, temper_protocol_reaches::Class::Ask, false)),
-    );
-    world.close();
+#[expect(clippy::too_many_lines, reason = "one table holds each caller and reach story without another world test")]
+fn each_callers_person_and_reach_are_kept() {
+    let set_reach =
+        Reach { reason: Reason::Set(1), sets: 1, matched: 1, ..reach(Kind::Implementation, Class::AskAway, true) };
+    let worded = Reach { under: 3, sets: 1, ..reach(Kind::Implementation, Class::Decide, true) };
+    let always = Some(Reach { reason: Reason::Always, ..reach(Kind::Wording, Class::AskAway, true) });
+    for case in [
+        case(
+            "goal here",
+            Caller::Goal,
+            Kind::Implementation,
+            Class::Ask,
+            false,
+            "implementation asks your person while they are here",
+        ),
+        Case {
+            away: true,
+            expired: true,
+            ..case(
+                "past until",
+                Caller::Goal,
+                Kind::Implementation,
+                Class::Ask,
+                false,
+                "implementation asks your person while they are here",
+            )
+        },
+        case("goal away", Caller::Goal, Kind::Implementation, Class::Ask, true, ""),
+        case("chat", Caller::Chat, Kind::Wording, Class::Decide, false, ""),
+        case("person-made untracked task", Caller::PersonTask, Kind::Wording, Class::Decide, false, ""),
+        case("served goal", Caller::ServedGoal, Kind::Wording, Class::Decide, false, ""),
+        Case {
+            reach: None,
+            ..case(
+                "Goals child",
+                Caller::GoalsChild,
+                Kind::Wording,
+                Class::Decide,
+                false,
+                "no person is asked through you: ask your requester",
+            )
+        },
+        Case {
+            words: b"Asks: always",
+            reach: always,
+            ..case("always whole", Caller::Goal, Kind::Wording, Class::AskAway, true, "your words say Asks: always")
+        },
+        Case {
+            words: b"Asks: always\nMake a small fix",
+            reach: always,
+            ..case("always first", Caller::Goal, Kind::Wording, Class::AskAway, true, "your words say Asks: always")
+        },
+        Case {
+            words: b"Make a small fix\nAsks: always",
+            reach: always,
+            ..case("always last", Caller::Goal, Kind::Wording, Class::AskAway, true, "your words say Asks: always")
+        },
+        Case {
+            words: b"Make a small fix\nAsks: always\nKeep it small",
+            reach: always,
+            ..case("always middle", Caller::Goal, Kind::Wording, Class::AskAway, true, "your words say Asks: always")
+        },
+        case("money", Caller::Goal, Kind::Money, Class::Wait, true, "money always waits for your person"),
+        case("other", Caller::Goal, Kind::Other, Class::Wait, true, "other always waits for your person"),
+        Case {
+            words: b"Make a small fix\nAsks: always later",
+            ..case("not an always line", Caller::Goal, Kind::Wording, Class::Decide, false, "")
+        },
+        Case { custom: true, ..case("custom kind", Caller::Goal, Kind::Implementation, Class::Decide, false, "") },
+        Case {
+            custom: true,
+            paths: &[b"src/core/a.rs"],
+            reach: Some(set_reach),
+            ..case(
+                "custom path",
+                Caller::Goal,
+                Kind::Implementation,
+                Class::AskAway,
+                true,
+                "changes to path set 1 ask your person, even when away",
+            )
+        },
+        Case {
+            custom: true,
+            paths: &[b"src/core/a.rs"],
+            under: 3,
+            reach: Some(worded),
+            ..case("custom worded item", Caller::Goal, Kind::Implementation, Class::Decide, true, "")
+        },
+        Case {
+            custom: true,
+            ..case(
+                "missing kind",
+                Caller::Goal,
+                Kind::Dependency,
+                Class::AskAway,
+                true,
+                "dependency asks your person, even when away",
+            )
+        },
+        Case {
+            after: After::Narrow,
+            ..case(
+                "Stop asking",
+                Caller::Goal,
+                Kind::Implementation,
+                Class::Ask,
+                false,
+                "implementation asks your person while they are here",
+            )
+        },
+        Case { after: After::Overturn, ..case("overturn chat", Caller::Chat, Kind::Wording, Class::Decide, false, "") },
+        Case {
+            after: After::Overturn,
+            ..case("overturn untracked task", Caller::PersonTask, Kind::Wording, Class::Decide, false, "")
+        },
+    ] {
+        let (mut world, run) = caller(&case);
+        if case.custom {
+            classes(&mut world, custom_classes());
+        }
+        let until = case.expired.then_some(world.env.wall);
+        away(&mut world, case.away, until);
+        let engine::Tool::Decided(mut call) = tool(case.kind) else { panic!("decided") };
+        call.paths = case.paths.iter().map(|path| Box::from(*path)).collect();
+        call.under = case.under;
+        world.scripted_read_inbox(&run);
+        eprintln!("{}", case.name);
+        let answer = world.scripted_call(&run, CALL, engine::Tool::Decided(call));
+        let completion = live_task(&world, run.task).turn;
+        assert_answer(&answer, case.reach, case.reason);
+        assert_row(&world, &run, case.reach);
+        match case.after {
+            After::Nothing => {}
+            After::Narrow => narrow(&mut world, &run, &answer, completion),
+            After::Overturn => overturn(&mut world, &run),
+        }
+        world.close();
+    }
 }
 
 #[test]
@@ -233,22 +510,6 @@ fn a_replay_answers_the_same_after_the_switch_moved() {
 }
 
 #[test]
-fn a_chat_is_told_to_ask() {
-    let (mut world, run) = start(false, b"Make a small fix");
-    away(&mut world, true, None);
-    ask(&mut world, &run, temper_protocol_reaches::Kind::Implementation, None);
-    world.close();
-}
-
-#[test]
-fn asks_always_is_told_to_ask() {
-    let (mut world, run) = start(true, b"Make a small fix\nAsks: always\nKeep it small");
-    away(&mut world, true, None);
-    ask(&mut world, &run, temper_protocol_reaches::Kind::Implementation, None);
-    world.close();
-}
-
-#[test]
 fn an_advisor_is_beyond_authority() {
     let (mut world, goal) = start(true, b"Make a small fix");
     let engine::CallAnswer::Delegated(made) = world.scripted_call(
@@ -259,7 +520,7 @@ fn an_advisor_is_beyond_authority() {
         panic!("advisor delegated")
     };
     world.until(Until::SecondAssignment);
-    let run = world.assigned.iter().find(|run| run.task == made[0].task).unwrap().clone();
+    let run = world.assigned.iter().find(|run| run.task == made[0].task).expect("child assignment").clone();
     away(&mut world, true, None);
     let answer = world.scripted_call(&run, CALL, tool(temper_protocol_reaches::Kind::Implementation));
     assert!(matches!(answer, engine::CallAnswer::ToolDenied { .. }), "{answer:?}");

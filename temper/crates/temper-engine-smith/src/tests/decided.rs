@@ -8,15 +8,17 @@ fn input(question: &str, options: &[&str], took: u64, why: &str, kind: &str) -> 
         .into_boxed_slice()
 }
 
+fn with_fields(fields: &str) -> Box<[u8]> {
+    format!(r#"{{"question":"Q","options":["A","B"],"took":0,"why":"W","kind":"tests",{fields}}}"#)
+        .into_bytes()
+        .into_boxed_slice()
+}
+
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the decoder test converts the kit's ASCII kind names into JSON strings")]
 fn decided_decodes() {
-    for (kind, expected) in [
-        ("implementation", temper_protocol_reaches::Kind::Implementation),
-        ("retry", temper_protocol_reaches::Kind::Retry),
-        ("wording", temper_protocol_reaches::Kind::Wording),
-        ("dependency", temper_protocol_reaches::Kind::Dependency),
-        ("other", temper_protocol_reaches::Kind::Other),
-    ] {
+    for expected in temper_protocol_reaches::Kind::ALL {
+        let kind = core::str::from_utf8(expected.name()).expect("kind name");
         let call = decided(b"decided", &input("Which?", &["A", "B"], 1, "Fits", kind)).expect("decision decodes");
         assert_eq!(
             call.tool,
@@ -33,7 +35,9 @@ fn decided_decodes() {
     }
     assert_eq!(
         decided(b"decided", &input("Q", &["A", "B"], 0, "W", "unknown")),
-        Err(Problem::Range(b"kind: implementation, retry, wording, dependency or other"))
+        Err(Problem::Range(
+            b"kind: wording, retry, implementation, tests, dependency, departure, money, irreversible, rules or other"
+        ))
     );
     let original = r#"{"question":"Q","options":["A","B"],"took":0,"why":"W","kind":"retry"}"#;
     for (field, member) in [
@@ -52,7 +56,28 @@ fn decided_decodes() {
         }
     }
     let schema = schema.expect("decided is declared");
-    assert!(skein_lib::bytes::find(schema, br#""additionalProperties":false"#).is_some());
+    let schema = crate::json::parse(schema).expect("schema JSON");
+    assert_eq!(schema.required(b"additionalProperties").unwrap(), &crate::json::Value::Boolean(false));
+    let properties = schema.required(b"properties").unwrap();
+    let kinds = properties.required(b"kind").unwrap().required(b"enum").unwrap().array(b"enum").unwrap();
+    assert_eq!(kinds.len(), temper_protocol_reaches::Kind::ALL.len());
+    for (value, kind) in kinds.iter().zip(temper_protocol_reaches::Kind::ALL) {
+        assert_eq!(value.text(b"kind").unwrap().as_ref(), kind.name());
+    }
+    let paths = properties.required(b"paths").unwrap();
+    assert_eq!(paths.required(b"maxItems").unwrap().number(b"maxItems").unwrap(), 16);
+    assert_eq!(paths.required(b"items").unwrap().required(b"type").unwrap().text(b"type").unwrap().as_ref(), b"string");
+    let under = properties.required(b"under").unwrap();
+    assert_eq!(under.required(b"minimum").unwrap().number(b"minimum").unwrap(), 1);
+    assert_eq!(under.required(b"maximum").unwrap().number(b"maximum").unwrap(), 20);
+    for under in [1, 20] {
+        let fields = format!(r#""paths":{:?},"under":{under}"#, vec!["x".repeat(256); 16]);
+        let decoded = decided(b"decided", &with_fields(&fields)).expect("at path and item bounds");
+        let engine::Tool::Decided(call) = decoded.tool else { panic!("decided") };
+        assert_eq!(call.paths.len(), 16);
+        assert_eq!(call.paths[0].as_ref(), "x".repeat(256).as_bytes());
+        assert_eq!(u64::from(call.under), under);
+    }
 }
 
 #[test]
@@ -80,6 +105,17 @@ fn decided_refuses_past_its_bounds() {
         decided(b"decided", &input(&"é".repeat(201), &["A", "B"], 0, "W", "retry")),
         Err(Problem::Range(b"question: at most 400 bytes"))
     );
+    for (fields, reason) in [
+        (r#""paths":[""]"#.into(), b"paths: a path is empty".as_slice()),
+        (format!(r#""paths":["{}"]"#, "é".repeat(129)), b"paths: each at most 256 bytes"),
+        (r#""paths":["/src/core.rs"]"#.into(), b"paths: repository-relative paths, no leading /"),
+        (format!(r#""paths":{:?}"#, vec!["a"; 17]), b"paths: at most 16 paths"),
+        (r#""under":0"#.into(), b"under: item number 1 to 20"),
+        (r#""under":21"#.into(), b"under: item number 1 to 20"),
+        (format!(r#""under":{}"#, u64::MAX), b"under: item number 1 to 20"),
+    ] {
+        assert_eq!(decided(b"decided", &with_fields(&fields)), Err(Problem::Range(reason)));
+    }
 }
 
 #[test]
@@ -94,12 +130,58 @@ fn decided_refuses_a_took_outside_its_options() {
 
 #[test]
 fn its_answers_read_as_the_design_says() {
-    for (took, words) in [
-        (Some(Box::from(b"A".as_slice())), b"Decided: carry on with A.".as_slice()),
-        (None, b"Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."),
+    use temper_protocol_reaches::{Class, Kind, Reach, Reason};
+    for (took, reach, reason) in [
+        (Some(Box::from(b"A".as_slice())), None, ""),
+        (None, None, "no person is asked through you: ask your requester"),
+        (None, Some((Kind::Money, Class::Wait, Reason::Kind, true)), "money always waits for your person"),
+        (
+            None,
+            Some((Kind::Implementation, Class::AskAway, Reason::Kind, true)),
+            "implementation asks your person, even when away",
+        ),
+        (
+            None,
+            Some((Kind::Implementation, Class::Ask, Reason::Kind, false)),
+            "implementation asks your person while they are here",
+        ),
+        (
+            None,
+            Some((Kind::Wording, Class::AskAway, Reason::Set(2), true)),
+            "changes to path set 2 ask your person, even when away",
+        ),
+        (
+            None,
+            Some((Kind::Wording, Class::Ask, Reason::Set(1), false)),
+            "changes to path set 1 ask your person while they are here",
+        ),
+        (None, Some((Kind::Wording, Class::AskAway, Reason::Always, true)), "your words say Asks: always"),
+        (
+            None,
+            Some((Kind::Wording, Class::Decide, Reason::Kind, false)),
+            "your person's decided list is full for today",
+        ),
+        (
+            None,
+            Some((Kind::Implementation, Class::Ask, Reason::Kind, true)),
+            "your person's decided list is full for today",
+        ),
     ] {
-        let answer = crate::answer(&engine::CallAnswer::Decided { took, reach: None });
-        assert_eq!(answer.text(), words);
+        let words = if took.is_some() {
+            "Decided: carry on with A.".into()
+        } else {
+            format!(
+                "Ask: {reason}. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
+            )
+        };
+        let reach = match reach {
+            Some((kind, class, reason, away)) => {
+                Some(Reach { kind, class, reason, under: 0, sets: 0, matched: 0, away })
+            }
+            None => None,
+        };
+        let answer = crate::answer(&engine::CallAnswer::Decided { took, reach });
+        assert_eq!(answer.text(), words.as_bytes());
         assert!(!answer.error());
     }
 }
