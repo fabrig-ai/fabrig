@@ -469,6 +469,8 @@ impl Task {
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::UseWay { .. }
+            | Act::KeepWay { .. }
             | Act::ShowReference
             | Act::Starter { .. }
             | Act::SkipToBegin
@@ -603,6 +605,8 @@ impl Task {
             | Act::ConnectModel(_)
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::UseWay { .. }
+            | Act::KeepWay { .. }
             | Act::ShowReference
             | Act::Starter { .. }
             | Act::SkipToBegin

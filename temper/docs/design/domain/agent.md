@@ -1342,9 +1342,11 @@ and not its name.
   of 65536`.
 - **Its stories:** a scripted turn of the fake model that writes a document
   (`testing.md`, 2.4), proved through ctl and walked in the journey `chat-draft`
-  (`../client/journeys.md`, 9); and a walk's own script, which builds a 30 KB note
-  in calls of under 10 KB each, one line longer than a call among it, then has a
-  fresh run find the note in its brief and change it by lines.
+  (`../client/journeys.md`, 9); and the real loop's
+  `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run`
+  (`testing.md`, 2.6), whose script builds a 30 KB note in calls of under 10 KB
+  each, one line longer than a call among it, then has a fresh run find the note
+  in its brief and change it by lines.
 
 #### A goal's report
 
@@ -1374,9 +1376,12 @@ needs no record, read or wire field of its own. The client reads and draws it
   reference's charter 5 (`../protocol/configuration.md`, 13.4 and 13.9). The
   stock's authority holds the goal's scope (13.4); a charter that does not ask
   for a report writes none, and no note yet is a normal state, never an error.
-- **Its story:** the scripted fake model writes a report in its goal script, so
-  that a walk on `temper box --fake-backends` shows one
-  (`../protocol/configuration.md`, 12.1).
+- **Its stories:** the joint world's
+  `suite::task::a_chats_goal_shows_its_report_from_its_goals_row` (`testing.md`,
+  2.6): a chat's goal writes its report, and the person reaches it from Home's
+  Goals link through the goal's row. The scripted fake model writes a report in
+  its goal script, so that a person or a journey on `temper box --fake-backends`
+  meets one (`../protocol/configuration.md`, 12.1).
 
 ### 8.4 Ask temper
 
@@ -1395,9 +1400,13 @@ proposal of settings an owner accepts (8.1).
   (4.2) and are declared `see`, `document` and `propose_settings` alone (4.3),
   with smith's `wait`. It names no repository and delegates nothing.
 - **Its instructions,** `ask.txt`, held in the binary in the `stock` module:
-  `../draft/ask-temper.md`, section 8, whole, but its parts *Showing* and
-  *Remembering*, which join with views and with `remember` at their
-  milestones. They name every address of `see`'s, those built and those not
+  `../draft/ask-temper.md`, section 8, whole, but its part *Remembering*,
+  which joins with `remember`, and of its part *Showing* all but the first
+  step: its first paragraph, its `view` example, its Views line naming
+  `path`, `way`, `charter` and `proposal` alone, and its paragraph on ways,
+  the views the client draws (`../client/README.md`, 5.16); the other views
+  and the sketches join with M3b, since a view or a mark not built yet shows
+  as code. They name every address of `see`'s, those built and those not
   yet (8.4.1).
 - **Its authority** is its chat's, policy 1's for its role: the rules and policy
   1 hold the asking family beside the others, and the delegation names charter
@@ -1469,6 +1478,7 @@ are its second milestone's (section 10).
 | `settings project-ways`, `settings project-questions` | the chat's project's ways or questions, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7 and 6 | `settings · revisions · help settings-fields` |
 | `settings landing` | the project's landing: by queue or by turn, its merge job or none, its after-landing retries and a verification's bound, and each of its repositories with how many gates and tiers it has; then that it is no setting yet, set in temper's configuration by whoever runs temper here, so that no proposal changes it | the forge's landing state, from the configuration's `landing` member (`../protocol/configuration.md`, section 3), which kinds 4 and 5 are to hold (13.2) | `settings gates OWNER/NAME · settings landing-rule N [project] · help landing` |
 | `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows; then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
+| `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../protocol/configuration.md`, 13.10): a block a way, its name, then `now` where the project runs it, its line, and its path as one line of stops, each its words and its actor in brackets, joined by ` → `; then, where the project runs none, `Yours`, its own path; then whether the person may change the settings, in a line | the root's `ways` document (`forge.md`, 8.13), made as the client's is | `settings rules · settings landing · settings project-ways · help settings` |
 | `revisions` | the history's newest page, as `settings`' history read gives it: each revision with who decided it, when, the proposal it came from, and its items without values | the family's history read | `revision N · settings · help revision` |
 | `revision N` | one revision: who decided it, when, from which proposal, whether it moved running work, its items with their values or sizes | the family's revision read | `revisions · proposal tN/K · proposal pN/K · settings` |
 | `proposal tN/K`, `proposal pN/K` | a proposal of settings, a task's in the chat's project or a party's: its reason, its items, its review against the newest settings while waiting, its state and outcome | the family's proposal read (jig's `domain/engine.md`, 7.3), rendered compactly by `temper-settings-form` beside a revision | `revision N · revisions · help proposal` |

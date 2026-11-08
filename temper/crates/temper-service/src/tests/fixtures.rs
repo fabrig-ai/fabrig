@@ -76,6 +76,7 @@ pub fn engine() -> settings::Engine {
         welcome: false,
         program_environment: Box::new([]),
         host_part: None,
+        ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
         limits: limits::profile(limits::Profile::Small),

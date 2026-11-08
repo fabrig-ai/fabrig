@@ -10,8 +10,12 @@ fn names_are_the_promised_ones() {
         assert!(!names.contains(&sample.name), "duplicate {}", sample.name);
         names.push(sample.name);
     }
-    let promised: Vec<&str> = include_str!("../names.txt").lines().collect();
-    assert_eq!(names, promised);
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        fs::write(Path::new(env!("CARGO_MANIFEST_DIR")).join("names.txt"), format!("{}\n", names.join("\n"))).unwrap();
+    } else {
+        let promised: Vec<&str> = include_str!("../names.txt").lines().collect();
+        assert_eq!(names, promised);
+    }
 }
 
 #[test]
@@ -132,6 +136,41 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 const HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "chat-view-way",
+        heading: "T10 · How changes land",
+        parts: &[
+            Part::Named { role: Role::Group, name: "Agents review" },
+            Part::Text { text: "Agents review" },
+            Part::Text { text: " · now" },
+            Part::Named { role: Role::List, name: "The way a change goes" },
+            Part::Text { text: "produce, an agent" },
+            Part::Text { text: "This is the way tally uses now." },
+        ],
+    },
+    Holds {
+        name: "chat-view-proposal",
+        heading: "T10 · How changes land",
+        parts: &[
+            Part::Named { role: Role::Group, name: "Before" },
+            Part::Named { role: Role::Group, name: "After" },
+            Part::Text { text: "you approve, a person" },
+            Part::Text { text: "review, an agent" },
+        ],
+    },
+    Holds {
+        name: "chat-view-charter",
+        heading: "T10 · How changes land",
+        parts: &[
+            Part::Named { role: Role::Group, name: "The coding agent" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "The coding agent" },
+            Part::Text { text: "an agent · makes the change" },
+            Part::Named { role: Role::Term, name: "Model" },
+            Part::Named { role: Role::Description, name: "Opus · high" },
+            Part::Named { role: Role::Term, name: "Can" },
+            Part::Named { role: Role::Term, name: "Asked to" },
+        ],
+    },
     Holds {
         name: "night-home",
         heading: "Hello is ready.",
@@ -3086,7 +3125,10 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 52] = [
+const SPENDS: [(&str, Role, &str); 55] = [
+    ("chat-view-way", Role::Paragraph, "0 spent · of 40"),
+    ("chat-view-proposal", Role::Paragraph, "0 spent · of 40"),
+    ("chat-view-charter", Role::Paragraph, "0 spent · of 40"),
     ("chat-terminal-proposal", Role::Paragraph, "0 spent · of 40"),
     ("chat-terminal", Role::Paragraph, "1 spent · of 40"),
     ("chat-terminal-draft", Role::Paragraph, "1 spent · of 40"),

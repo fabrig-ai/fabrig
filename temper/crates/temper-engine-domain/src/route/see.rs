@@ -11,6 +11,8 @@ use skein_lib::{List, Writer};
 /// What a `see` call read, for its renderer (domain/agent.md, 8.4.1).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum SeeAnswer {
+    /// The project's ways (temper/docs/design/protocol/configuration.md, 13.10).
+    Ways(Box<temper_engine_domain_ways::WaysDocument>),
     /// A `settings` family read's answer, with an inventory's context.
     Settings(Box<SeeSettings>),
     /// A read's own answer as the tool `tool` renders it: the settings family's refusal
@@ -93,6 +95,7 @@ pub(crate) enum SeeReading {
 /// One address, as its line parses in the chat's project (agent.md, 8.4.1).
 #[derive(PartialEq, Eq, Debug)]
 pub(crate) enum Address {
+    Ways,
     Inventory,
     Setting(Setting),
     Landing,
@@ -123,6 +126,7 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         words.push(line.get(from..).expect("address word")).expect("admitted address words");
     }
     match words.as_slice() {
+        [b"ways"] => Address::Ways,
         [b"settings"] => Address::Inventory,
         [b"settings", b"rules"] => Address::Setting(Setting::Rules),
         [b"settings", b"landing"] => Address::Landing,
@@ -270,8 +274,21 @@ pub(crate) fn call(
     line: Box<[u8]>,
     from: u32,
 ) {
-    let project = domain.core.tasks.delegation(key.task).expect("authorized chat delegation").project;
+    let context = domain.core.tasks.delegation(key.task).expect("authorized chat delegation");
+    let project = context.project;
     let read = match address(&line, project) {
+        Address::Ways => {
+            let party = match context.requester {
+                jig_domain_tasks::Party::Person(party) => party,
+                jig_domain_tasks::Party::Task(_) | jig_domain_tasks::Party::Deployment { .. } => {
+                    deliver(env, decision, to, line, from, SeeAnswer::Unknown);
+                    return;
+                }
+            };
+            let document = super::ways::document(domain, project, party);
+            deliver(env, decision, to, line, from, SeeAnswer::Ways(Box::new(document)));
+            return;
+        }
         Address::Inventory => core::SettingsRead::Inventory,
         Address::Setting(setting) => core::SettingsRead::Setting { setting, revision: 0 },
         Address::Revisions => core::SettingsRead::Revisions { before: None },

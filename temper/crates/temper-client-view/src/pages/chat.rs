@@ -1715,7 +1715,16 @@ fn committed<'a>(
                     b.close();
                     b.open(Role::Slot);
                     b.style(look::SAYS);
-                    skein_ui::markdown::read(value.bytes(), 2, b);
+                    crate::views::read(
+                        b,
+                        value.bytes(),
+                        2,
+                        match drawing.delegations {
+                            Some((chat, _)) => Some(chat),
+                            None => None,
+                        },
+                        words,
+                    );
                     b.close();
                     b.close();
                     b.close();
