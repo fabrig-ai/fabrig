@@ -165,6 +165,10 @@ pub enum Toasted {
         project: u32,
         until: Option<Wall>,
     },
+    StopApplied,
+    StopProposed,
+    KeptAsking,
+    KeepAskingRefused,
     AwayOff,
     AwayRefused,
     Overturned,
@@ -708,6 +712,26 @@ pub(crate) fn act(
     act: Act,
     out: &mut Queue<Request>,
 ) {
+    let closing = match &act {
+        Act::Choose { object, .. } | Act::SendReply { object } | Act::Later { object } | Act::Undo { object } => {
+            Some(*object)
+        }
+        Act::Open { object } => {
+            if let Some(open) = &pages.stop_asking
+                && open.object() != *object
+            {
+                pages.stop_asking = None;
+            }
+            None
+        }
+        Act::OpenReply { .. } | Act::CancelReply | Act::Dismiss => None,
+    };
+    if let Some(object) = closing
+        && let Some(open) = &pages.stop_asking
+        && open.object() == object
+    {
+        pages.stop_asking = None;
+    }
     match act {
         Act::Choose { object, words } => answer(pages, env, client, object, words, false),
         Act::OpenReply { object } => {
@@ -774,7 +798,11 @@ pub(crate) fn act(
                             pages.needs.toast = None;
                         }
                     }
-                    Toasted::Way { .. }
+                    Toasted::StopApplied
+                    | Toasted::StopProposed
+                    | Toasted::KeptAsking
+                    | Toasted::KeepAskingRefused
+                    | Toasted::Way { .. }
                     | Toasted::AwayOn { .. }
                     | Toasted::AwayOff
                     | Toasted::AwayRefused

@@ -2,7 +2,7 @@
 use crate::words::{Word, Words};
 use alloc::boxed::Box;
 use skein_ui::phrases::Hole;
-use temper_protocol_reaches::{Class, Classes, Kind, Reach, Reason, Subject};
+use temper_protocol_reaches::{Class, Classes, Kind, Offer, Reach, Reason, Subject};
 
 /// A subject's plural, as Stop asking and "Allowed:" name it (README 3.5, Needs you, Stop asking).
 #[must_use]
@@ -40,6 +40,38 @@ fn under_words(w: &Words, object: Box<[u8]>, under: u8, classes: Option<&Classes
         return w.say(Word::ReachUnder, &[Hole::Name(object), Hole::Name(item.words.clone())]);
     }
     object
+}
+/// An offer's words: the narrowed table's change (temper/docs/design/client/README.md, 3.5, Needs you, Stop asking).
+#[must_use]
+pub fn offer(w: &Words, classes: &Classes, reach: &Reach, offer: Offer) -> Box<[u8]> {
+    match offer {
+        Offer::Decide(subject) => {
+            w.say(Word::StopAskingDecide, &[Hole::Name(object(w, subject, reach.under, Some(classes)))])
+        }
+        Offer::Words(number) => {
+            let Some(set) = classes.set(number) else { return Box::default() };
+            w.say(Word::StopAskingWords, &[Hole::Name(set.name.clone())])
+        }
+        Offer::Split(number) => {
+            let Some(set) = classes.set(number) else { return Box::default() };
+            let mut patterns: Box<[u8]> = Box::default();
+            for (index, pattern) in set.patterns.iter().enumerate() {
+                let bit = match u32::try_from(index) {
+                    Ok(shift) => 1_u8.checked_shl(shift).unwrap_or(0),
+                    Err(_error) => 0,
+                };
+                if reach.matched & bit == 0 {
+                    continue;
+                }
+                if patterns.is_empty() {
+                    patterns.clone_from(pattern);
+                } else {
+                    patterns = w.say(Word::StopAskingPatterns, &[Hole::Name(patterns), Hole::Name(pattern.clone())]);
+                }
+            }
+            w.say(Word::StopAskingSplit, &[Hole::Name(patterns), Hole::Name(set.name.clone())])
+        }
+    }
 }
 /// What allowed a decided reach (README 3.5, Decided for you); empty for a reach that asked.
 #[must_use]

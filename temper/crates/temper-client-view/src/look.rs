@@ -1408,11 +1408,14 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-row",
         b"temper-decision-allowed",
         b"temper-why",
+        b"temper-why-offers",
     ],
     regions: &[b"temper-link"],
 };
 
 pub const WHY: Style = Style { owner: owner(), token: 689 };
+/// Stop asking offers (temper/docs/design/client/README.md, 3.5).
+pub const WHY_OFFERS: Style = Style { owner: owner(), token: 690 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS: Style = Style { owner: owner(), token: 301 };

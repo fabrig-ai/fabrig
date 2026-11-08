@@ -2,10 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Needs you*, *Stop asking* and *Keep asking*, and *What
-  the client keeps*' Stop asking: no reason line offers Stop asking, and the
-  client sends no `KeepAsking`. `ui-reaches/stop-asking`.
-
 - **Not yet:** 5.13, *What the project shows* and *The card in a chat*: the
   tab draws kind 7's "Away switch" row and a proposal's "Away switch: shown",
   from a member the kind keeps. `ui-reaches/ways-away`.

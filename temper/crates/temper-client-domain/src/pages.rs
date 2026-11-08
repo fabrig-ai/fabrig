@@ -50,6 +50,7 @@ pub mod needs;
 pub mod rail;
 pub mod report;
 pub mod start_goal;
+pub mod stop_asking;
 pub mod switcher;
 pub mod task;
 pub mod terminal;
@@ -75,6 +76,8 @@ pub struct Pages {
     listing: Option<terminal::Listing>,
     notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
+    stop_asking: Option<stop_asking::Open>,
+    keep_asking: skein_lib::List<stop_asking::Keeping>,
     decided: decided::Store,
     away: Option<away::Pending>,
     overturns: away::Overturns,
@@ -180,6 +183,7 @@ pub enum Act {
     },
     Choice(choice::Act),
     Needs(needs::Act),
+    StopAsking(stop_asking::Act),
     Away(away::Act),
     Models(models::Act),
     Switcher(switcher::Act),
@@ -330,6 +334,8 @@ impl Pages {
             listing: None,
             notes: skein_lib::List::with_capacity(8),
             needs: needs::Session::default(),
+            stop_asking: None,
+            keep_asking: skein_lib::List::uncapped(),
             away: None,
             overturns: away::Overturns::new(),
             away_focus: 0,
@@ -664,6 +670,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
+        Event::Act { act: Act::StopAsking(_) } => unreachable!("Stop asking acts resolve at the root"),
         Event::Act { act: Act::Terminal(_) } => unreachable!("terminal acts resolved before page dispatch"),
         Event::Act { act: Act::Models(act) } => {
             if pages.models.act(client, &pages.address, act, pages.playground_provider, &mut pages.serial, out) {
@@ -676,6 +683,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            pages.stop_asking = None;
             pages.rail_handles = RailHandles::None;
             pages.start = None;
             pages.switcher.close();
@@ -1378,6 +1386,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.forges_opened = None;
         pages.start = None;
     }
+    if pages.address != address {
+        pages.stop_asking = None;
+    }
     pages.needs.went(&pages.address, &address);
     pages.switcher.went(&address);
     if let (
@@ -1997,7 +2008,15 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
                 chat.restarting = false;
             }
         }
-        act @ (Act::Decide { .. } | Act::CardWords { .. } | Act::Again { .. } | Act::Confirm) => {
+        act @ Act::Decide { object, .. } => {
+            if let Some(open) = &pages.stop_asking
+                && open.object() == object
+            {
+                pages.stop_asking = None;
+            }
+            crate::acts::step(pages, env, act, out);
+        }
+        act @ (Act::CardWords { .. } | Act::Again { .. } | Act::Confirm) => {
             crate::acts::step(pages, env, act, out);
         }
         Act::OpenStart { .. }
@@ -2020,6 +2039,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Away(_)
         | Act::Terminal(_)
         | Act::Models(_)
+        | Act::StopAsking(_)
         | Act::Needs(_)
         | Act::Choice(_)
         | Act::MakeDefault
@@ -2262,6 +2282,8 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.accounts = accounts::Accounts::default();
             pages.needs.configure(false, limits, out);
             pages.needs = needs::Session::default();
+            pages.stop_asking = None;
+            pages.keep_asking.clear();
             pages.overturns = away::Overturns::new();
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();

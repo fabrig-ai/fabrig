@@ -59,6 +59,7 @@ impl Bindings {
         self.entries.push((token, act)).expect("pages bindings fit");
         Binding { owner: owner(), token }
     }
+    #[expect(clippy::too_many_lines, reason = "the binding table keeps each field input beside its page act")]
     pub fn decode(&self, token: Token, act: skein_ui::Act) -> Option<temper_client_domain::Action> {
         for (key, meaning) in &self.entries {
             if *key == token {
@@ -123,6 +124,10 @@ impl Bindings {
                     (PageAct::MessageWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::MessageWords { words: value }
                     }
+                    (
+                        PageAct::StopAsking(temper_client_domain::pages::stop_asking::Act::Words { .. }),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::StopAsking(temper_client_domain::pages::stop_asking::Act::Words { words: value }),
                     (PageAct::CardWords { object, .. }, skein_ui::Act::Input { value }) => {
                         PageAct::CardWords { object: *object, words: value }
                     }
@@ -1036,6 +1041,10 @@ pub(crate) fn toast(
                 None,
             )
         }
+        Toasted::StopApplied => (w.say(Word::StopAskingApplied, &[]), None),
+        Toasted::StopProposed => (w.say(Word::StopAskingProposed, &[]), None),
+        Toasted::KeptAsking => (w.say(Word::KeepAskingKept, &[]), None),
+        Toasted::KeepAskingRefused => (w.say(Word::KeepAskingFailed, &[]), None),
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
         Toasted::NotSent => (w.say(Word::ToastNotSent, &[]), None),
         Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
@@ -1085,7 +1094,11 @@ pub(crate) fn toast(
                 );
             }
         }
-        Toasted::Way { .. }
+        Toasted::StopApplied
+        | Toasted::StopProposed
+        | Toasted::KeptAsking
+        | Toasted::KeepAskingRefused
+        | Toasted::Way { .. }
         | Toasted::AwayOn { .. }
         | Toasted::AwayOff
         | Toasted::AwayRefused
