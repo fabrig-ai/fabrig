@@ -78,3 +78,14 @@ Task commit `9d01503711` deletes the adjacent `tabs-and-switch` Not yet entry.
 Resolve the conflict with both entries absent; retain the following `begin-sections` entry and all other status text.
 Preserve both branches’ CSS changes: the night-shadow override removals and this task’s tabs and switch rules. The log reports CSS auto-merged without conflict.
 Keep this task’s `README.status.md` deletion of the `tabs-and-switch` entry.
+
+## Rebase (2026-11-08, step merge, foreman look-round-20/tabs-and-switch/foreman-2)
+
+resolve both status conflicts by preserving tabs-and-switch and begin-sections deletions
+Rebase onto integration, where `75e10af8a5` merged `80f50a072c` (“Keep Home sections out while To begin shows”).
+The conflicts are in `temper/docs/design/client/README.status.md` and `temper/docs/design/client/browser.status.md`.
+In README.status.md, leave both tasks’ adjacent **Not yet** entries absent: `begin-sections` and `tabs-and-switch`.
+In browser.status.md, leave the `tabs-and-switch`, `begin-sections` and already-completed `night-shadows` entries absent.
+Preserve integration’s removal of “The nonempty Home sections’ suppression gap is `README.status.md`, 3.5’s.”
+This supersedes the previous Rebase instruction to retain `begin-sections`: integration has now completed it.
+Retain all other status text, this task’s CSS changes and integration’s completed changes.
