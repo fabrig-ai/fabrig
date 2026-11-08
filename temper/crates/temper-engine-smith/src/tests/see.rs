@@ -164,7 +164,7 @@ fn errors_and_pages_use_the_address_form() {
                 held: skein_lib::List::with_capacity(0),
                 pending: skein_lib::List::with_capacity(0),
             }),
-            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings",
+            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
         ),
         (
             jig_domain_core::SettingsAnswer::Revisions(jig_domain_core::reads::RevisionsPage {
@@ -348,7 +348,8 @@ fn branch_path() -> temper_engine_domain::ways::Path {
 fn ways_text_names_the_current_path_and_the_readers_permission() {
     use temper_engine_domain::ways::{WayEntry, WaysDocument};
     const PATH: &str = "ask (a person) → make (an agent) → merge (code) → main (a branch)";
-    const FOLLOWING: &str = "see: settings rules · settings landing · settings project-ways · help settings\n";
+    const FOLLOWING: &str =
+        "see: settings rules · settings landing · settings project-ways · settings project-classes · help settings\n";
     for (current, may_change, first, second, own, permission) in [
         (Some(0), true, "One · now", "Two", "", "You may change this project's settings."),
         (Some(1), false, "One", "Two · now", "", "You may not change this project's settings; an owner may."),
