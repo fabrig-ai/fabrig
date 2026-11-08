@@ -34,7 +34,16 @@ pub(super) fn draw(domain: &Domain, project: u32, party: u64, number: u32) -> wa
             name,
             facts: Box::new([
                 fact(b"Models", &models(domain, charter)),
-                fact(b"Can", ways::can(policy.inspect, policy.modify, policy.shell, policy.agents)),
+                fact(
+                    b"Can",
+                    ways::can(
+                        policy.inspect,
+                        policy.modify,
+                        policy.shell,
+                        policy.agents,
+                        policy.tools.0 & jig_domain_core::ToolFamilies::JIG.settings != 0,
+                    ),
+                ),
                 fact(b"Wakes", &wakes(charter.wake)),
                 ways::Fact {
                     label: b"Asked to".as_slice().into(),

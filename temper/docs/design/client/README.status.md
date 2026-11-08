@@ -74,9 +74,6 @@ rendered comparison and walk remain section 11's after-landing work.
   - one drawing laid out by the box's width, down the page under 560 px
     or where its stops would stand closer than 48, where the request's
     page holds two SVGs toggled at a 760 px window;
-  - the line in two tones, the signal's faint one above the dotted line
-    and the line's below, where the request fades it, since a scene
-    carries no gradient;
   - the card's caret drawn by the scene under the open stop, in a room
     of 14 of the box's pixels at the scene's foot that the card follows
     with no gap, where the request places a `::before` by a percentage
@@ -107,8 +104,13 @@ state draws the two pages (`browser.status.md`, 7.3). The repairs'
 render check and the pages' walk remain section 11's after-landing
 work.
 
-Sections 3.5, *Settings and Deployment*, 4.6 and 5.13, *The page*, *Its
-parts* and *A way's acts*, have no known gap in How work runs, by plan `ui-p3a-how`:
+- **Departs:** 5.13: A role's model is drawn among its opened terms, not
+  at its summary's right: skein's disclosure summary holds its name and
+  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  right-hand model waits for a structured summary in skein.
+
+How work runs has plan `ui-p3a-how`'s implementation, with the role summary
+departure above (3.5, *Settings and Deployment*, 4.6 and 5.13):
 `pages::how::parts`, of what `pages::how::facts` gathers, decides the
 heading's way, "Ask temper to change this", the path section's state and
 Budgets' row, and `pages::how::lanes` places each stop once in its

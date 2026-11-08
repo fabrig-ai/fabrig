@@ -70,6 +70,8 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         dispatch_input_value: forge.client.op_bytes,
         dispatch_write_workflow: 255,
         dispatch_write_branch: forge.name_bytes,
+        adopted_workflows: u32::try_from(temper_engine_domain_forge::WORKFLOWS).ok()?,
+        adopted_workflows_item: u32::try_from(temper_engine_domain_forge::WORKFLOW_BYTES).ok()?,
         dispatch_write_inputs: u32::try_from(skein_forge::api::INPUTS).ok()?,
         set_status_description: 140,
         set_status_link: 2048,

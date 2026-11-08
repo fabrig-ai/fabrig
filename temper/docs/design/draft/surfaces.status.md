@@ -28,21 +28,16 @@
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
   - 6: no design holds Team, an area's owner or a role's card
     (`standing-roles.md` has no design yet either).
-  - 7: `../client/README.md`, 5.13, *The page*, draws the way, "Ask
-    temper to change this", the ways as tabs over the path of a change,
-    and a goal's budget, but the path as a table in three lanes, You,
-    Agents and Code, a stop a pill in who acts' colour under "authority:
-    no merge tool above this line" (`../client/browser.md`, 2.5, *How
-    work runs' look*), where this section and `how.html` draw it as Ask
-    temper's ways do (`../client/README.md`, 5.16), each stop by its
-    mark, with "no merge tool above" in the legend. It draws no Roles,
-    which 5.13, *Later: the fuller page*, defers, and its heading names
-    the way without its chief departure, which waits for rules by path.
-    What reaches you, Rules by path, What follows a landing and a role's
-    budget wait for their milestones (`whole-story.execution.md`, section
-    3, P3b to P3d); its section 11 defers "History · N changes" and the
-    next step's suggestions, and keeps the project's repositories as How
-    work runs' second tab, not at its foot.
+  - 7: `../client/README.md`, 5.13, *The page*, draws the way, the path
+    as Ask temper's ways draw it, Roles by when each runs, and a goal's
+    budget; its heading names the way without its chief departure,
+    which waits for rules by path. What reaches you, Rules by path,
+    What follows a landing and a role's budget wait for their milestones (`whole-story.execution.md`,
+    section 3, P3b to P3d), and what a role does, past when it runs, for
+    P3e's words saved with its charter; its section 11
+    defers "History · N changes" and the next step's suggestions, and
+    keeps the project's repositories as How work runs' second tab, not
+    at its foot.
   - 8: `../client/README.md`, 3.5, *Members*, lists each project's
     members and the person's own deployment role, not the deployment's
     members, which no jig read lists; and *Limits* draws the `deployment`

@@ -15,6 +15,11 @@
   fifteen of the rail, Work and Deployment, `rail-new-change` to
   `night-limits`, add to it, with no CPU figure on record either.
 
+- **Departs:** 2.5: A role's model is drawn among its opened terms, not
+  at its summary's right: skein's disclosure summary holds its name and
+  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  right-hand model waits for a structured summary in skein.
+
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day

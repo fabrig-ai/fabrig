@@ -303,9 +303,9 @@ fn committed_settings_adoptions_and_roles_mark_the_ways_watch() {
 const VIEW_REPLY: Token = Token::new(800);
 const CHANNEL: Token = Token::new(7);
 const VIEW_MAIN: &[&str] =
-    &["you ask", "produce", "check", "review", "repair", "check", "update", "resolve", "merge", "verify", "main"];
+    &["you ask", "produce", "check", "review", "repair", "check", "conflict", "resolve", "merge", "verify", "main"];
 const VIEW_OTHER: &[&str] =
-    &["you ask", "produce", "check", "review", "repair", "check", "update", "resolve", "merge", "other"];
+    &["you ask", "produce", "check", "review", "repair", "check", "conflict", "resolve", "merge", "other"];
 const VIEW_AFTER: &[&str] = &["you ask", "produce", "you approve", "merge", "verify", "main"];
 
 fn view_driver() -> (Driver, engine::Assignment) {
@@ -463,6 +463,7 @@ enum Picture {
     Proposal { before: Vec<String>, after: Vec<String> },
     Charter { number: u32, who: String, name: String, facts: Vec<(String, String)> },
     Rule { kind: u32, number: u32, who: String, name: String, facts: Vec<(String, String)> },
+    Roles(Vec<String>),
     NotDrawn(String),
 }
 fn strings(words: &[&str]) -> Vec<String> {
@@ -495,6 +496,7 @@ fn drawn(view: ways::View) -> Picture {
             name: text(card.name),
             facts: card.facts.into_iter().map(|fact| (text(fact.label), text(fact.value))).collect(),
         },
+        ways::View::Roles(roles) => Picture::Roles(roles.into_iter().map(|(_, card)| text(card.name)).collect()),
         ways::View::NotDrawn(words) => Picture::NotDrawn(text(words)),
     }
 }
@@ -517,19 +519,20 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
         "check",
         "repair",
         "check",
-        "update",
+        "conflict",
         "resolve",
         "merge",
         "verify",
         "main",
     ];
     for (address, session, accept, expected) in [
+        ("roles".to_owned(), owner, false, Picture::Roles(strings(&["Chat", "Coding agent", "Reviewer"]))),
         ("way agents review".to_owned(), owner, false, Picture::Way { name: "Agents review".into(), line: "An agent makes each change, another reviews it, and code lands it.".into(), current: true, words: strings(VIEW_MAIN) }),
         ("way Draft first".to_owned(), owner, false, Picture::Way { name: "Draft first".into(), line: "You and an agent write a design draft; agents build it on its own branch, and it lands whole.".into(), current: false, words: strings(draft) }),
         ("path org/repo".to_owned(), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "main".into(), words: strings(VIEW_MAIN) }),
         ("path org/repo other".to_owned(), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "other".into(), words: strings(VIEW_OTHER) }),
         ("path org/repo @revision 1".to_owned(), owner, false, Picture::NotDrawn(format!("revision 1 isn't drawn yet; views draw the newest settings, revision {newest}."))),
-        ("charter 4".to_owned(), owner, false, Picture::Charter { number: 4, who: "an agent".into(), name: "the reviewer".into(), facts: vec![("Models".into(), "scripted".into()), ("Can".into(), "read the code and the forge; change and push its branch; run commands; start sub-agents; never merge or update".into()), ("Wakes".into(), "at once on words, results, failures and questions".into()), ("Asked to".into(), "Complete the task within its authority.".into())] }),
+        ("charter 4".to_owned(), owner, false, Picture::Charter { number: 4, who: "an agent".into(), name: "the reviewer".into(), facts: vec![("Models".into(), "scripted".into()), ("Can".into(), "read the code and the forge; change and push its branch; run commands; start sub-agents; never merge".into()), ("Wakes".into(), "at once on words, results, failures and questions".into()), ("Asked to".into(), "Complete the task within its authority.".into())] }),
         (format!("path org/repo @revision {newest}"), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "main".into(), words: strings(VIEW_MAIN) }),
         ("rule 2/1".to_owned(), owner, false, Picture::Rule { kind: 2, number: 1, who: "a landing rule · holds a merge until it is met".into(), name: "the project's rule 1".into(), facts: vec![("Covers".into(), "every branch".into()), ("Asks".into(), "CI, up to date".into()), ("Gates".into(), "the reviewer, blocking, at a clean head".into())] }),
         ("rule 1/1".to_owned(), owner, false, Picture::NotDrawn("no rule 1/1.".into())),
@@ -707,7 +710,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                     PROJECT,
                     engine::ProjectLanding {
                         by: engine::Way::Queue,
-                        merge_job: None,
+                        merge_job: Some(b"merge".as_slice().into()),
                         repositories: Box::new([engine::RepositoryChecks {
                             repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
                             gates: Box::new([]),
@@ -788,17 +791,17 @@ fn stock_ways_paths_follow_the_projects_ci_and_tiers() {
         (
             true,
             [
-                "you ask, produce, check, repair, check, you approve, update, resolve, merge, verify, main",
-                "you ask, produce, check, review, repair, check, update, resolve, merge, verify, main",
-                "draft, plan, produce ×n, merge, check, repair, goal branch, check, update, resolve, merge, verify, main",
+                "you ask, produce, check, repair, check, you approve, conflict, resolve, merge, verify, main",
+                "you ask, produce, check, review, repair, check, conflict, resolve, merge, verify, main",
+                "draft, plan, produce ×n, merge, check, repair, catch up, goal branch, check, conflict, resolve, merge, verify, main",
             ],
         ),
         (
             false,
             [
-                "you ask, produce, you approve, update, resolve, merge, main",
-                "you ask, produce, review, repair, update, resolve, merge, main",
-                "draft, plan, produce ×n, merge, goal branch, update, resolve, merge, main",
+                "you ask, produce, you approve, conflict, resolve, merge, main",
+                "you ask, produce, review, repair, conflict, resolve, merge, main",
+                "draft, plan, produce ×n, merge, goal branch, conflict, resolve, merge, main",
             ],
         ),
     ] {
