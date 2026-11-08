@@ -239,6 +239,18 @@ Code, smith's `protocol/programs.md`, 5.1).
   Task reads decide nothing and keep no named-call record. Escalations name
   their task and hold revision and give this recovery call. Read access does
   not grant messages or amendments to ended tasks, or the subscribe family.
+- **A run's subscriptions take its task's room.** `subscribe`, to a task
+  or a timer, and `subscribe_forge` each take one of the task's
+  subscriptions, at most `tasks.subscriptions` (jig's `domain/tasks.md`,
+  8.4 and section 11), where the topics the core keeps for a goal
+  (`forge.md`, 7.2) count too. A call past that room is refused, saying
+  why, as jig's `domain/engine.md`, 7.3 has every refusal do:
+  `subscribe` answers "Refused: task 4 busy: it holds its most
+  subscriptions (at most 4, counting the topics the engine keeps for a
+  goal); unsubscribe one it made to make room", and `subscribe_forge`
+  names `tasks.subscriptions` as its own room's refusals do. A
+  subscription that would leave no room in the task's inbox for its news
+  is refused as any call past the inbox is, naming the inbox.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, the room of the agent's smallest window (4.6), before any
@@ -594,6 +606,19 @@ delegate from what it knows:
   `domain/tasks.md`, section 4): all of them or none, the call's answer
   naming each change's task in the call's order. A call names either
   `words` or `changes`, never both; `changes` holds at least one.
+  A batch's change takes every member from its own object alone, the
+  members below `changes` and those to come too, and nothing from the
+  call's: a call with `changes` names no other member. One that does is
+  refused as it is decoded, before any change is made, naming the first
+  such member in the declaration's order (`repository`, `name`,
+  `landing`, `branch`, `merge`, `after`, `producer`, `llm`, `repairs`,
+  `questions`) and saying it belongs in each change: "host call member
+  belongs in each change, not beside changes: landing". A landing, a
+  producer, a route for questions or an LLM choice given once for a
+  whole batch is never dropped unheard, and the run gives it again in
+  each change's object. A member's own value is the change's, as in the
+  single form; `words` beside `changes` is refused naming `changes`, as
+  above.
 - **`producer`:** the number of the charter the change's producing
   task, its repairs, its resolutions and its checks' gates run under
   (forge.md, 8.1); left out, the forge's change charter, kind 3's number

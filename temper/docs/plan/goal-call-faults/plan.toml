@@ -1,0 +1,44 @@
+draft = "goal-call-faults"
+repo = "fabrig"
+sources = ["temper/docs/plan/goal-call-faults/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "change-batch"
+title = "A change call with changes refuses a member beside them, naming it, before any change is made"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.1"
+
+[[slice]]
+id = 1
+story = "A goal's batched change call that gives landing, producer, questions or llm once beside changes is refused, naming the member, and makes no change"
+parts = ["change-batch"]
+walk = false
+
+[[part]]
+id = "subscribe-room"
+title = "A goal's run keeps room for its own subscriptions: the core subscribes it to its landings alone, and a full room is named"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 7.2"
+
+[[slice]]
+id = 2
+story = "A goal with changes pushed subscribes from its own run to a child and a timer; past its room, the refusal names the room and its bound"
+parts = ["subscribe-room"]
+walk = false
+
+[[question]]
+id = "read-room"
+answer = """Take (c) for this plan: build nothing for item 3 beyond the design's account of the page, as you propose, naming (a) as the way to a page as large as the reply allows. Choosing between (a) and (b) is a protocol decision for the design's owner, outside this plan; I'll take it there, and a plan of its own follows its answer. Meanwhile the deployment's documents.text_bytes is aligned to init's 512 by its operator. (temper/migration, 2026-11-08)"""
+text = "Item 3: a process with no local agent (an engine alone) reads a task's words in pieces of the deployment's documents.text_bytes, 128 in the reporting deployment's document (temper init writes 512 since 2026-11-05), because the engine is never told its workers' agents' reply bound (smith's host_reply_bytes, the agent's tool_payload: 10,662 at init's figures); a larger page would reach a run past that bound as TooLarge at every offset (temper/docs/design/domain/root.md, 5.2; agent.md, section 10). A page as large as the reply allows needs that bound at the engine. Options: (a, recommended) each worker names its agents' host reply bound in its hello on jig's worker link, and the engine sizes each read by the worker running the attempt, as a local agent's does: a protocol change of jig's link, a byte count jig carries without naming smith; (b) the engine's document names each worker's reply bound in hosts.workers: a configuration change, unchecked against the worker's own; (c) neither: the page stays the documents' window, and a deployment raises its own documents.text_bytes, a figure of its configuration. This plan builds nothing for item 3 but the design's account of the page; the answer starts a plan of its own."
+parts = []

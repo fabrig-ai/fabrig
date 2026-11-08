@@ -4,6 +4,142 @@ use jig_core_world::{fixtures::live_row, stories::per_wake as story};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
+const LANDING_BASE: &[u8] = b"BASE: complete the goal.";
+const LANDING_FIRST: &[u8] = b"FIRST: delegate the work and await its results.";
+const LANDING_RESULT: &[u8] = b"RESULT: when landed, create producer-7 close-out; pass all landed reports and Left lists; retire the draft and its ten citation allowances through main CI; name the close-out and main-CI selection in the final report.";
+
+fn landing_goal(seed: u64) -> (World, (u64, u64)) {
+    let mut setup = story::setup(seed, true);
+    let charter = &mut setup.configuration.as_mut().expect("per-wake configuration").core.defaults.charters[1];
+    charter.policy.instructions = LANDING_BASE.into();
+    charter.parts = [(tasks::Reasons::FIRST, LANDING_FIRST), (tasks::Reasons::RESULT, LANDING_RESULT)]
+        .into_iter()
+        .map(|(on, instructions)| jig_domain_core::CharterPart { on, instructions: instructions.into() })
+        .collect();
+    let mut world = World::new(setup);
+    let caller = fixtures::run(&world);
+    let mut member = fixtures::member(&world, tasks::Executor::Agent { charter: 2 }, b"complete the goal");
+    member.authority.budget.spend = 60;
+    member.authority.delegation.tasks = 2;
+    let task = fixtures::delegate(&mut world, caller, 1, member);
+    let run = (task, live_row(&world, task).attempt);
+    assert_assignment(&world, task, &landing_instructions(LANDING_FIRST), story::M1, &[]);
+    assert!(live_row(&world, task).instructions.is_none(), "the charter supplies the instructions");
+    assert_eq!(live_row(&world, task).reasons, tasks::Reasons::FIRST);
+    assert_eq!(live_row(&world, task).offered, tasks::Reasons::EMPTY);
+    story::park(&mut world, caller, None);
+    (world, run)
+}
+
+fn landing_instructions(part: &[u8]) -> Vec<u8> {
+    [LANDING_BASE, b"\n\n", part].concat()
+}
+
+fn landing_delegates(world: &mut World, goal: (u64, u64)) -> [(u64, u64); 2] {
+    let mut member = fixtures::member(world, tasks::Executor::Agent { charter: 1 }, b"complete the landing");
+    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    [1, 2].map(|completion| {
+        let task = fixtures::delegate(world, goal, completion, member.clone());
+        (task, live_row(world, task).attempt)
+    })
+}
+
+fn landed(world: &mut World, run: (u64, u64), report: &[u8]) {
+    world.send(jig_test_domain::Event::Answer {
+        channel: skein_lib::Token::new(7),
+        task: run.0,
+        attempt: run.1,
+        cumulative: 0,
+        end: tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: report.into() },
+            cancel_delegates: false,
+        },
+        read: None,
+        refused: Box::new([]),
+    });
+}
+
+fn assert_landing_result(world: &World, goal: u64, reports: &[tasks::Word]) {
+    assert_assignment(world, goal, &landing_instructions(LANDING_RESULT), story::M1, reports);
+    let row = live_row(world, goal);
+    assert_eq!(row.reasons, tasks::Reasons::RESULT);
+    assert_eq!(row.offered, tasks::Reasons::RESULT);
+    assert_eq!(row.inbox.as_ref(), reports);
+    assert!(row.delegates.is_empty());
+}
+
+#[test]
+fn a_final_landing_result_supplies_the_result_part() {
+    let (mut world, goal) = landing_goal(868);
+    let delegates = landing_delegates(&mut world, goal);
+    story::turn(&mut world, goal, None);
+    story::park(&mut world, goal, None);
+    let assignments = world.assignments.len();
+    landed(&mut world, delegates[0], b"landed 75; Left: retire the draft");
+    assert_eq!(world.assignments.len(), assignments, "a non-last success does not wake the goal");
+    assert_eq!(live_row(&world, goal.0).phase, tasks::Phase::Active(tasks::Active::Idle));
+    landed(&mut world, delegates[1], b"landed 77; Left: remove ten citation allowances");
+    assert_eq!(world.assignments.len(), assignments + 1);
+    let reports = live_row(&world, goal.0).inbox.clone();
+    assert_eq!(reports.len(), 2);
+    for (word, (delegate, report)) in reports.iter().zip(delegates.iter().zip([
+        b"landed 75; Left: retire the draft".as_slice(),
+        b"landed 77; Left: remove ten citation allowances".as_slice(),
+    ])) {
+        assert_eq!(word.from, tasks::Party::Task(delegate.0));
+        assert_eq!(word.kind, tasks::MessageKind::Result(tasks::ResultKind::Report));
+        assert_eq!(word.words.as_ref(), report);
+    }
+    assert!(reports[0].number < reports[1].number);
+    assert_landing_result(&world, goal.0, &reports);
+    let final_run = fixtures::run(&world);
+    assert!(final_run.1 > goal.1);
+    story::turn(&mut world, final_run, Some(reports[1].number));
+    landed(&mut world, final_run, b"close-out and main CI selected");
+    world.close();
+}
+
+#[test]
+fn an_unoffered_landing_result_keeps_its_place_until_the_next_run() {
+    let (mut world, goal) = landing_goal(869);
+    let child = story::child(&mut world, goal);
+    story::turn(&mut world, goal, None);
+    story::park(&mut world, goal, None);
+    fixtures::ask(
+        &mut world,
+        85,
+        people::Ask::Say { project: 1, task: goal.0, words: b"review progress".as_slice().into() },
+    );
+    let words = live_row(&world, goal.0).inbox[0].clone();
+    let review = fixtures::run(&world);
+    assert_assignment(&world, goal.0, LANDING_BASE, story::M1, std::slice::from_ref(&words));
+    assert_eq!(live_row(&world, goal.0).reasons, tasks::Reasons::WORDS);
+    assert_eq!(live_row(&world, goal.0).offered, tasks::Reasons::EMPTY);
+    let assignments = world.assignments.len();
+    let relayed = world.inbound.clone();
+    landed(&mut world, child, b"landed; Left: retire the draft");
+    let report = live_row(&world, goal.0).inbox[1].clone();
+    assert_eq!(report.kind, tasks::MessageKind::Result(tasks::ResultKind::Report));
+    assert_eq!(report.from, tasks::Party::Task(child.0));
+    assert!(report.number > words.number);
+    assert_eq!(world.inbound, relayed, "the live run is not offered RESULT");
+    assert_eq!(world.assignments.len(), assignments);
+    fixtures::ask(
+        &mut world,
+        86,
+        people::Ask::Say { project: 1, task: goal.0, words: b"finish reviewing".as_slice().into() },
+    );
+    let fence = live_row(&world, goal.0).inbox[2].number;
+    assert!(fence > report.number);
+    story::turn(&mut world, review, Some(fence));
+    assert_eq!(live_row(&world, goal.0).inbox.as_ref(), std::slice::from_ref(&report), "no fence takes a kept result");
+    story::park(&mut world, review, Some(fence));
+    assert_eq!(world.assignments.len(), assignments + 1);
+    assert_landing_result(&world, goal.0, std::slice::from_ref(&report));
+    assert!(fixtures::run(&world).1 > review.1);
+    world.close();
+}
+
 fn assert_assignment(
     world: &World,
     task: u64,

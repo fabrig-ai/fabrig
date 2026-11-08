@@ -384,11 +384,14 @@ replay says the same clocks (`README.md`, 5.12).
   isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
   main (skein's `ui-web.md`, 7). When the heading is drawn, the shell moves the focus from the
   main to it, unless the focus has moved meanwhile: a focus placed since keeps its
-  place, even back on the main, and a focus request ends the wait. A new
-  entry with no main yet, as while `me` is read (`README.md`, 5.1), waits
-  for its main alike: when the main is drawn, its heading takes the focus,
-  or the main until the heading comes, unless the focus has moved or a
-  focus request came meanwhile.
+  place, even back on the main, and a focus request ends the wait. While
+  `me` is read the main is empty and marked busy (`README.md`, 5.1), so a
+  new entry then has the focus on it, and the page's heading drawn once
+  `me` is read takes it alike, the page's main being that node (skein's
+  `ui.md`, 7). A new entry with no main yet waits for its
+  main alike: when the main is drawn, its heading takes the focus, or the
+  main until the heading comes, unless the focus has moved or a focus
+  request came meanwhile.
 
 ### 2.4 Signing in
 
@@ -1591,8 +1594,16 @@ Not in the tier, each in the lowest world that shows it:
   public pages' "Sign in"; every approval state, deciding and signed out
   with and without Google; each `Authorize` state; out of date; no
   project yet with and without the welcome; the GitHub App's setup pages;
-  and night. Default: the stylesheets, the two focused tests and the
-  gallery's prints establish no rendered equality.
+  and night. It takes in the six repairs of `look-round-22`: the
+  welcome's top bar, signed in, ending with the person's name and "Sign
+  out" after its steps at each width; the top bar over an empty main
+  while `me` is read at `/chats` and `/chats/new`, until "No project yet"
+  settles, with the heading's focus once the page comes (2.3); "Code" and
+  "Project name" at 14 px on a 22.4 px line, the field and its act
+  1.59 px lower; the night welcome at 420 by 900 with no day paper under
+  its ground; "Sign in" on the public pages without Google; and the
+  Google endings' typographic apostrophe. Default: the stylesheets, the
+  focused tests and the gallery's prints establish no rendered equality.
 
 - **The chat terminal's comparison and keys** (2.5, 7.2; `README.md`,
   3.5): temper/ui compares the four `chat-terminal` requests' pages,
@@ -2395,8 +2406,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   separate, titles remain readable, navigation stays inset and content stays
   within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (4.6). Its landings page reads "temper" and
-  "Landings", optionally "Queue" and its one member, then "No landings to show yet."
+  hold nothing a browser alone shows (4.6). Every page includes the "temper" and
+  "Sign in" top bar (8.2), including unknown and empty pages. Its landings page
+  then reads "Landings", optionally "Queue" and its one member, then "No landings to show yet."
   or the stock queue's merge. The member reads "task " and eight lowercase hexadecimal
   digits, " · Goal " and eight such digits, then " · Ready " and "just now",
   "a minute ago" or decimal digits and " minutes ago". The merge reads
