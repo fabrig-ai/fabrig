@@ -6125,31 +6125,30 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
     them (3.5): a tab a way of the read, in its order, then "Yours" where
     the project runs no stock way, the current one's "now", the shown one
     selected, and the line "From more of you to more of your agents"; the
-    shown way's `line`; its path in lanes (below); while a stop is open,
-    its card, as Ask temper's page draws a stop's card, with no caret; then
+    shown way's `line`; its path, the drawing Ask temper's page draws
+    (5.16), its stops pressed, laid out by the box's width, the legend
+    under it as Ask temper's page has it; while a stop is open, its card,
+    as Ask temper's page draws a stop's card, its caret across; then
     the shown way's act at the section's right, "Use this" or "Keep it"
     (*A way's acts,* below), and a refusal under it. The shown tab and the
     open stop are the page's state, as on Ask temper's page. Until the read
     answers the section holds its title alone; once its watch has ended,
     "The ways can't be read now.", muted.
-  - *A path in lanes,* a table named "The path of a change": its first row
-    column headers, an empty one, then one a stop of the path, in its
-    order, naming the stop's step: "Ask", "Draft", "Plan", "Produce" (for
-    `produce` and `produce_many`), "Check", "Review", "Repair", "Approve",
-    "Update", "Resolve", "Merge", "Prepare", "Prove", "Turn" and "Verify",
-    and for a bar its `words`, "goal branch" or the landing branch's name.
-    Then a row each for "You", "Agents" and "Code", its row header that
-    word, then a cell a stop: in the row of the stop's actor, a person's in
-    You, an agent's in Agents, code's in Code, a button opening the stop's
-    card as a stop of Ask temper's drawing does (`Act::WayStop`), pressed
-    again closing it, current while its card is open, named by what the
-    cell says: a person's stop's `words` ("you ask", "you approve", "an
-    owner approves"), an agent's or code's its card's `name` ("the coding
-    agent", "the reviewer", "CI", "the queue", a tier's name). A bar's
-    cells hold nothing and draw its column's bar; every other cell is
-    empty. Between the Agents and Code rows, a row of one cell across every
-    column, "authority: no merge tool above this line": no agent's stop
-    stands under it (`../domain/forge.md`, 8.13).
+  - *Roles,* every agent the project's work runs
+    (`../draft/surfaces.md`, section 7): a section "Roles", at its head's
+    right, small and muted, "every agent PROJECT runs"; a row a role of
+    the view `roles` (5.16; `../domain/forge.md`, 8.13, *The project's
+    roles*), in its order: a disclosure (`confirm.rs`' and the frame's
+    kind) whose summary is the role's `name`, its `who` in small muted
+    words, and at its right its "Model" fact's value; opened, its "Can"
+    and "Asked to" facts as terms, then "Read its instructions ›", a link
+    to the role's page, `Role { project, charter }` (3.5). Every row
+    closed as the page opens. The page reads the view as the role's page
+    reads `charter N`: once as How work runs opens, again when the
+    session's `settings` watch names a newer revision; until it answers,
+    or where it is refused or `not_drawn`, the section isn't drawn. What
+    a role does, past when it runs, waits for words saved with its
+    charter (`../draft/whole-story.execution.md`, P3e).
   - *Budgets,* while one is set (`../draft/surfaces.md`, section 12): what
     a goal is given when it starts, while kind 7 has Goals shown and its
     goal's template, the one `way` names or else the first tracked one in
@@ -6174,9 +6173,7 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
   read's state and current way, kind 7's Goals and its goal template's
   budget), which the web and the terminal share (`../draft/surfaces.md`,
   section 12): the heading's way, "Ask temper to change this", the path
-  section's state and Budgets' row. The lanes are another,
-  `pages::how::lanes`: a column a stop of a path, in its order, a stop's in
-  its actor's lane and a bar's in none, every stop placed once.
+  section's state, Roles' state and Budgets' row.
 - **Its rows:**
   - *What the project shows,* live, kind 7: a row each, the state's word then
     a switch:
@@ -6628,12 +6625,21 @@ terminal draw the same path.
   the line rising to each judgement and falling back, the dotted line
   no merge tool crosses, each branch's bar, the landing branch's at its
   end; each stop its mark, an agent's a four-point star, a person's a
-  ring, code's a small square, and its words. A way draws its name and
+  ring, code's a small square, and its words; a stop made only when
+  needed (`needed`) its mark outlined, and a stop's small words
+  (`over`) over its own, smaller and fainter (`../domain/forge.md`,
+  8.13, *Drawn apart*). Who acts is the mark alone, the colours the
+  look's (`browser.md`, 2.5): a person's ring the signal's, an agent's
+  star ink, code's square grey. Under the path, on Ask temper's page and
+  How work runs, its legend: an agent, an agent when needed, a person,
+  code, and the dotted line, "no merge tool above". A way draws its name and
   line over its path; a proposal its two paths, "Before" and "After"; a
   charter or a rule its card, `who`, `name` and `facts`, as a list of
   terms; `roles` each role's card so, in its order; a `not_drawn` its words. The drawing's fallback, which the terminal
   prints, is a stop a line, its words and its actor in words ("produce,
-  an agent").
+  an agent"), then ", when needed" for a needed stop and its small words
+  in brackets: "repair, an agent, when needed (tests, review)", "merge,
+  code (into goal)".
 - **Its layout,** of the box's width `W` alone:
   - *across,* where `W` is 560 or more and its stops would stand at
     least 48 pixels apart in it (`W − 80` over the gaps between the stops
@@ -6650,21 +6656,26 @@ terminal draw the same path.
     branch's bar at `A − 8`, its words ending there at 88. The line runs
     along the base row through code's stops and the bars, rising to each
     judgement over 0.42 of a step and falling back over as much, a cubic
-    curve each way, and ends at the landing branch's bar: above the
-    dotted line it takes the
-    signal's faint tone, below it the line's, two tones in place of the
-    request's fade, since a scene carries no gradient (skein's `ui.md`,
-    11.2).
+    curve each way, and ends at the landing branch's bar: the base row
+    in the line's colour, each rise painted by a fade (skein's `ui.md`,
+    11.2) from its mark's colour at the marks' row, through a fainter
+    tone at the dotted line, to the line's colour at the base row, as the
+    look request's fade is, a person's rises in the signal's and an
+    agent's in ink, each tone one mark of the scene; a stop's small
+    words over its own at 9, centred on the stop, whichever side of the
+    line it stands.
   - *down the page,* narrower, in a column 360 pixels wide centred in the
     box, or, in a box under 360, a scene 360 wide that says its width and
     is scaled to the box, keeping its proportions, as the look request's
     narrow picture is: the dotted line down its middle at 178; a person's and an
     agent's marks at its right, at 206, their words after them; code's
-    at its left, at 150, its words before them; a stop every 40 pixels
+    at its left, at 150, its words before them; a stop's small words
+    under its own, 12 lower, on the same side; a stop every 40 pixels
     from 16, the landing branch's bar across the line's foot 38 under the
     last stop, its words before it; the scene's height its own, 14 under
-    that bar (skein's `ui.md`, 11.2).
-- **Pressed,** on Ask temper's page alone (3.5): each stop but a bar is a
+    that bar (skein's `ui.md`, 11.2); the line's fades run across the
+    column, from the marks' side to code's.
+- **Pressed,** on Ask temper's page and How work runs alone (3.5; 5.13): each stop but a bar is a
   group whose transparent area, 60 by 52 above the line and 60 by 44
   below it across, a row 28 high down the page, carries its act, so that
   a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);

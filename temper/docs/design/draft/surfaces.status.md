@@ -22,9 +22,11 @@
   - 6: no design holds Team, an area's owner or a role's card
     (`standing-roles.md` has no design yet either).
   - 7: `../client/README.md`, 5.13, *The page*, draws the way, the path
-    by who acts and a goal's budget; What reaches you, Rules by path, What
-    follows a landing and a role's budget wait for their milestones
-    (`whole-story.execution.md`, section 3, P3b to P3d); its section 11
+    as Ask temper's ways draw it, Roles by when each runs, and a goal's
+    budget; What reaches you, Rules by path, What follows a landing and a
+    role's budget wait for their milestones (`whole-story.execution.md`,
+    section 3, P3b to P3d), and what a role does, past when it runs, for
+    P3e's words saved with its charter; its section 11
     defers "History · N changes" and keeps the project's repositories as
     How work runs' second tab, not at its foot.
   - 8: `../client/README.md`, 3.5, *Settings*, keeps Forges, Accounts,

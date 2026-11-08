@@ -13,6 +13,17 @@
   (`look-round-24`'s `gallery-narrow`, at `436533537a`); no CPU figure is
   on record.
 
+- **Not yet:** 2.5, *How work runs' look*, and 7.2's `how` states
+  (`how-drawing`, `look-round-25`): the path is the lanes' table, its
+  pills blue and slate on `--gf-agent` and `--gf-code`.
+- **Not yet:** 2.5, *Ask temper's ways*, who acts' marks and the line
+  (`path-marks`, `look-round-25`): an agent's star, the legend's and the
+  rises are `--gf-signal`, code's square `--gf-ink-2`; no mark is
+  outlined, no small words over a stop; the line is two flat tones.
+- **Not yet:** 2.5, *How work runs' look*, *Roles*, and 7.2's
+  `how-draft` (`roles-page`, `look-round-25`): no Roles' rules, tokens or
+  rows.
+
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day

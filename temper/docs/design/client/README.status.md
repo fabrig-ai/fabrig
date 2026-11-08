@@ -84,9 +84,6 @@ rendered comparison and walk remain section 11's after-landing work.
   - one drawing laid out by the box's width, down the page under 560 px
     or where its stops would stand closer than 48, where the request's
     page holds two SVGs toggled at a 760 px window;
-  - the line in two tones, the signal's faint one above the dotted line
-    and the line's below, where the request fades it, since a scene
-    carries no gradient;
   - the card's caret drawn by the scene under the open stop, in a room
     of 14 of the box's pixels at the scene's foot that the card follows
     with no gap, where the request places a `::before` by a percentage
@@ -116,6 +113,20 @@ charter view and back to "Keep it", and the terminal's tables hold
 state draws the two pages (`browser.status.md`, 7.3). The repairs'
 render check and the pages' walk remain section 11's after-landing
 work.
+
+- **Not yet:**
+  - 5.13, *The page* and *Its parts*, and 5.16, *Pressed* (`how-drawing`,
+    `look-round-25`): How work runs draws its path as a table in lanes,
+    `pages::how::lanes`, with no legend, not as Ask temper's drawing.
+  - 5.16, *Drawn* and *Its layout* (`path-marks`, `look-round-25`): no
+    stop is drawn outlined or with small words over its own, and the
+    fallback says neither; an agent's star and the rises to it are the
+    signal's; the line is two tones, the signal's faint one above the
+    dotted line and the line's below, not a fade a rise; the legend has
+    no agent when needed.
+  - 5.13, *The page* (*Roles*) and *Its parts* (`roles-page`,
+    `look-round-25`): How work runs draws no Roles and reads no `roles`
+    view.
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's
