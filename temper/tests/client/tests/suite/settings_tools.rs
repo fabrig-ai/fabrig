@@ -328,7 +328,6 @@ fn ctl_accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u
 }
 
 #[test]
-#[ignore = "tools.md, 11.2: Restore awaits restore-request"]
 fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
     let mut world = restore_world();
     let agent = fixtures::agent(&mut world);
