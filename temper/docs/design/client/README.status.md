@@ -85,9 +85,6 @@ its 320 px, as the user accepted in `look-round-17`.
   its focus*: the base in the terminal's defaults, the palette without
   `sel`, the focus in the accent, and `Scheme::of_background`, are not
   built.
-- **Not yet:** 6.16: the run's settings' scheme, link file and note,
-  `Start` awaiting the terminal's background, the file read for `local`
-  and the note written, are not built.
 - **Not yet:** 6.11, 6.12 and 6.15, in the binary: bare `temper`'s
   address from the engine's link file, the note read at start, and the
   scheme left to the terminal where `COLORFGBG` declares none, are not
