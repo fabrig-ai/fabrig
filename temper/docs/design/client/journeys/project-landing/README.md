@@ -16,8 +16,9 @@ holds no act; its first replay proves the print against the live page.
   work", after the repository's done step, "work/hello is in Hello" and
   "temper can change its code now.". "Skip" and "Add Claude or another
   plan" remain available. While To begin shows, the rail lists "Home" and
-  "Ask temper" alone, with "Settings" at its foot and the night switch after it, and the phone's tab bar
-  "Home", "Ask" and "Settings", as a fresh box offers Ask temper.
+  "Ask temper" alone, with "Deployment" at its foot and the night switch
+  after it, and the phone's tab bar "Home", "Ask" and "Deployment", as a
+  fresh box offers Ask temper.
 
 The walk is recorded by `again project-landing` from its `setup`, with
 no hand driver.

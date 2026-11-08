@@ -7,8 +7,9 @@ plan, and create Hello. Wait for Home's status before starting the
 first chat. Home writes note 1; the chat's document is note 3.
 
 Reload `/projects/1/settings` to start the recording at How work runs.
-Mark the page with Alt+Shift+M. Open "+ New chat", send "Let us design
-Away mode." to start the first chat, T2, and mark its settled reply. Press "+ Draft";
+Mark the page with Alt+Shift+M. Choose "Change" from "New draft or change",
+send "Let us design Away mode." to start the first chat, T2, and mark its
+settled reply. Press "+ Draft";
 the fake model writes the 29-line Away mode document and Split opens.
 Mark it, choose Chat, and send "Add what happens to a running goal."
 The second document turn answers "Edited", "+7 −0". Mark the settled
@@ -25,7 +26,7 @@ by its draft and chat provenance. The goal's Draft link is read from
 those provenance lines, beyond its shortened specification preview.
 
 - `01.html`: How work runs with drafts On, marked.
-- `02.html`: the same page before opening "+ New chat".
+- `02.html`: the same page before choosing "Change".
 - `03.html`: the new chat with its opening words entered, before Send.
 - `04.html`: T2 after its opening fake reply, marked.
 - `05.html`: the settled chat before pressing "+ Draft".
