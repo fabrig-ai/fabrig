@@ -1872,7 +1872,9 @@ fn each_event_becomes_its_acts() {
                     passed &= host.event_of(&key) == Some(Event::LeftOff { task: Some(task) });
                     host.report(Report::Key(key));
                     passed &= host.state().left_off() == Some(task)
-                        && text(&mut host).lines().any(|line| line.starts_with(&format!(" ❯ {title}")));
+                        && text(&mut host)
+                            .lines()
+                            .any(|line| line.starts_with(&format!(" ❯ Project   {title}, a chat")));
                 }
                 passed
             }
