@@ -142,8 +142,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
     "Stop asking" opens the proposal of that rule, accepted in place by an
     owner (`what-reaches-you.md`, section 5);
   - *the choices,* the recommended one first; then "Or tell it something
-    else", a field whose words go to the asker as its next message; then,
-    in the mono line, the terminal's command to talk it through.
+    else", a field whose words go to the asker as its next message.
 - **Its kinds:** a question, money past a budget, a sign-off a rule by
   path asks, a proposal of settings, a held task: today's cards, each
   with its why.
@@ -538,6 +537,9 @@ Focused and fuzzy tests only; a walk and a render check follow landing.
 
 ## 16. Later
 
+- **Talking a need through in the terminal:** a need's card naming a
+  terminal command that opens a conversation with whoever asked. No such
+  command is designed: 11.4's `/talk` is for talking with a role.
 - **Approving in place:** an approval or a sign-off given from Needs you and posted on
   the forge as the person, with a forge credential they signed in with,
   rather than one tap to the forge's own review page (temper's
