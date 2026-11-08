@@ -390,55 +390,26 @@ fn heading(
     b.close();
 }
 pub(crate) fn terminal_models(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
-    groups_at(b, root, w, bindings, false, true);
+    for choice in &crate::shared::models(root, None, w) {
+        terminal_option(b, root, choice, true, bindings);
+    }
+    provider_lines(b, root, w, bindings, true);
 }
 fn groups(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, all: bool) {
-    groups_at(b, root, w, bindings, all, false);
-}
-fn groups_at(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, all: bool, terminal: bool) {
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
     let draft = root.pages().choice();
     let Some(models) = choice::offer(me, draft.project().expect("picker has project")) else { return };
-    let mut capacity = models.len();
-    for model in models {
-        capacity = capacity.checked_add(model.accounts.len()).expect("wire offer fits");
+    for group in &model_groups(models) {
+        let accounts = group_accounts(models, group.0);
+        heading(b, root, group.0, group.1, &accounts, w);
+        rows(b, root, *group, accounts.len() > 1, all, w, bindings);
     }
-    let mut seen = skein_lib::List::with_capacity(capacity);
-    // Accounts and unassigned providers follow their first appearance in the offer.
-    for model in models {
-        let mut accounts = skein_lib::List::with_capacity(capacity);
-        for candidate in models {
-            if candidate.provider == model.provider {
-                for account in &candidate.accounts {
-                    if !accounts.as_slice().contains(account) {
-                        accounts.push(*account).expect("wire accounts bounded");
-                    }
-                }
-            }
-        }
-        let multi = accounts.len() > 1;
-        if model.accounts.is_empty() {
-            let key = (model.provider, None);
-            if !seen.as_slice().contains(&key) {
-                seen.push(key).expect("offer groups bounded");
-                if !terminal {
-                    heading(b, root, model.provider, None, &accounts, w);
-                }
-                rows(b, root, key, &accounts, multi, all, w, bindings, terminal);
-            }
-        } else {
-            for account in &model.accounts {
-                let key = (model.provider, Some(*account));
-                if !seen.as_slice().contains(&key) {
-                    seen.push(key).expect("offer groups bounded");
-                    if !terminal {
-                        heading(b, root, model.provider, Some(*account), &accounts, w);
-                    }
-                    rows(b, root, key, &accounts, multi, all, w, bindings, terminal);
-                }
-            }
-        }
-    }
+    provider_lines(b, root, w, bindings, false);
+}
+fn provider_lines(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, terminal: bool) {
+    let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
+    let Some(project) = root.pages().choice().project() else { return };
+    let Some(models) = choice::offer(me, project) else { return };
     let ways = temper_client_domain::pages::accounts::ways(
         &me.providers,
         root.forge().playground_provider(),
@@ -461,48 +432,29 @@ fn groups_at(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings,
         }
     }
 }
-#[expect(clippy::too_many_arguments, reason = "shared picker rows retain their presentation and account group")]
 fn rows(
     b: &mut Builder,
     root: &Domain,
     group: (Option<u32>, Option<u32>),
-    accounts: &skein_lib::List<u32>,
     multi: bool,
     all: bool,
     w: &Words,
     bindings: &mut Bindings,
-    terminal: bool,
 ) {
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
     let draft = root.pages().choice();
     let Some(models) = choice::offer(me, draft.project().expect("picker has project")) else { return };
-    if !terminal {
-        b.open(Role::List);
-    }
+    b.open(Role::List);
     for (model, index) in models.iter().zip(0u32..) {
         let fits = match group.1 {
             Some(account) => model.accounts.as_slice().contains(&account),
             None => model.accounts.is_empty(),
         };
         if model.provider == group.0 && fits && (all || model.picker) && (!all || draft.finds(model)) {
-            row(
-                b,
-                root,
-                model,
-                index,
-                if multi { group.1 } else { None },
-                group.1,
-                accounts,
-                w,
-                bindings,
-                all,
-                terminal,
-            );
+            row(b, root, model, index, if multi { group.1 } else { None }, group.1, w, bindings, all);
         }
     }
-    if !terminal {
-        b.close();
-    }
+    b.close();
 }
 #[expect(clippy::too_many_arguments, reason = "a row carries the model, account heading and selection together")]
 fn row(
@@ -512,11 +464,9 @@ fn row(
     index: u32,
     preference: Option<u32>,
     account: Option<u32>,
-    accounts: &skein_lib::List<u32>,
     w: &Words,
     bindings: &mut Bindings,
     all: bool,
-    terminal: bool,
 ) {
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
     let draft = root.pages().choice();
@@ -524,31 +474,6 @@ fn row(
         Some(choice) => choice.account.or(model.accounts.get(0).copied()),
         None => None,
     };
-    if terminal {
-        b.open(Role::MenuItem);
-        b.name(&model_shown(model, w));
-        let mut description = match account {
-            Some(account) => payer(root, account, provider(root, model.provider), accounts, w),
-            None => Box::default(),
-        };
-        if draft.default_row(me) == Some(index) && account == model.accounts.get(0).copied() {
-            description = if description.is_empty() {
-                w.say(W::ModelDefault, &[])
-            } else {
-                crate::accounts::words::join(&[&description, " · ".as_bytes(), &w.say(W::ModelDefault, &[])])
-            };
-        }
-        b.description(&description);
-        b.bind(bindings.insert(Act::Choice(C::Model { index, account: preference })));
-        if draft.selected(me) == Some(index) && chosen == account {
-            b.state(State::Selected);
-        }
-        if draft.pending.is_some() {
-            b.state(State::Disabled);
-        }
-        b.close();
-        return;
-    }
     b.open(Role::Item);
     b.open(Role::Button);
     b.name(&model_shown(model, w));
@@ -584,12 +509,14 @@ fn row(
     b.close();
 }
 pub(crate) fn terminal_efforts(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
-    efforts_at(b, root, w, bindings, true);
+    for choice in &crate::shared::efforts(root, None, w) {
+        terminal_option(b, root, choice, false, bindings);
+    }
 }
 fn effort(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
-    efforts_at(b, root, w, bindings, false);
+    efforts_at(b, root, w, bindings);
 }
-fn efforts_at(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, terminal: bool) {
+fn efforts_at(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
     let draft = root.pages().choice();
     let Some(index) = draft.selected(me) else { return };
@@ -598,43 +525,161 @@ fn efforts_at(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
     if model.efforts.is_empty() {
         return;
     }
-    if !terminal {
-        b.open(Role::Group);
-        b.style(look::MODEL_EFFORT);
-        b.name(&w.say(W::Effort, &[]));
-        let label = w.say(W::Effort, &[]);
-        b.text(
-            Run::Plain,
-            &if w.shell == crate::words::Shell::Terminal {
-                crate::accounts::words::join(&[&label, b":"])
-            } else {
-                label
-            },
-        );
-        b.open(Role::Slot);
-    }
+    b.open(Role::Group);
+    b.style(look::MODEL_EFFORT);
+    b.name(&w.say(W::Effort, &[]));
+    let label = w.say(W::Effort, &[]);
+    b.text(
+        Run::Plain,
+        &if w.shell == crate::words::Shell::Terminal { crate::accounts::words::join(&[&label, b":"]) } else { label },
+    );
+    b.open(Role::Slot);
     for (effort, index) in model.efforts.iter().zip(0u32..) {
         let selected = match draft.chosen(me) {
             Some(choice) => {
                 let chosen = choice.main.effort.as_ref();
-                if terminal { chosen.or(model.effort.as_ref()) == Some(effort) } else { chosen == Some(effort) }
+                chosen == Some(effort)
             }
             None => false,
         };
-        if terminal {
-            b.open(Role::MenuItem);
-            b.name(effort.bytes());
-            b.bind(bindings.insert(Act::Choice(C::Effort { index })));
-            if selected {
-                b.state(State::Selected);
+        control(b, bindings, Role::Button, effort.bytes(), Act::Choice(C::Effort { index }), selected);
+    }
+    b.close();
+    b.close();
+}
+
+// Account groups follow their first appearance in the offer (client/README.md, 3.5, The work's account and model).
+fn model_groups(models: &skein_lib::List<c::MeModel>) -> skein_lib::List<(Option<u32>, Option<u32>)> {
+    let mut capacity = models.len();
+    for model in models {
+        capacity = capacity.checked_add(model.accounts.len()).expect("wire offer fits");
+    }
+    let mut groups = skein_lib::List::with_capacity(capacity);
+    for model in models {
+        if model.accounts.is_empty() {
+            let group = (model.provider, None);
+            if !groups.as_slice().contains(&group) {
+                groups.push(group).expect("offer groups bounded");
             }
-            b.close();
         } else {
-            control(b, bindings, Role::Button, effort.bytes(), Act::Choice(C::Effort { index }), selected);
+            for account in &model.accounts {
+                let group = (model.provider, Some(*account));
+                if !groups.as_slice().contains(&group) {
+                    groups.push(group).expect("offer groups bounded");
+                }
+            }
         }
     }
-    if !terminal {
-        b.close();
-        b.close();
+    groups
+}
+fn group_accounts(models: &skein_lib::List<c::MeModel>, provider: Option<u32>) -> skein_lib::List<u32> {
+    let mut capacity = 0_u32;
+    for model in models {
+        capacity = capacity.checked_add(model.accounts.len()).expect("wire offer fits");
     }
+    let mut accounts = skein_lib::List::with_capacity(capacity);
+    for model in models {
+        if model.provider == provider {
+            for account in &model.accounts {
+                if !accounts.as_slice().contains(account) {
+                    accounts.push(*account).expect("wire accounts bounded");
+                }
+            }
+        }
+    }
+    accounts
+}
+/// The options of the terminal model list (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn model_choices(root: &Domain, w: &Words) -> Box<[crate::shared::Choice]> {
+    let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return Box::default() };
+    let draft = root.pages().choice();
+    let Some(project) = draft.project() else { return Box::default() };
+    let Some(models) = choice::offer(me, project) else { return Box::default() };
+    let mut capacity = models.len();
+    for model in models {
+        capacity = capacity.checked_add(model.accounts.len()).expect("wire offer fits");
+    }
+    let mut choices = skein_lib::List::with_capacity(capacity);
+    for group in &model_groups(models) {
+        let accounts = group_accounts(models, group.0);
+        for (model, index) in models.iter().zip(0_u32..) {
+            let fits = match group.1 {
+                Some(account) => model.accounts.as_slice().contains(&account),
+                None => model.accounts.is_empty(),
+            };
+            if model.provider != group.0 || !fits || !model.picker {
+                continue;
+            }
+            let chosen = match draft.chosen(me) {
+                Some(choice) => choice.account.or(model.accounts.get(0).copied()),
+                None => None,
+            };
+            let mut description = match group.1 {
+                Some(account) => payer(root, account, provider(root, model.provider), &accounts, w),
+                None => Box::default(),
+            };
+            if draft.default_row(me) == Some(index) && group.1 == model.accounts.get(0).copied() {
+                description = if description.is_empty() {
+                    w.say(W::ModelDefault, &[])
+                } else {
+                    crate::accounts::words::join(&[&description, " · ".as_bytes(), &w.say(W::ModelDefault, &[])])
+                };
+            }
+            choices
+                .push(crate::shared::Choice {
+                    name: model_shown(model, w),
+                    words: description,
+                    selected: draft.selected(me) == Some(index) && chosen == group.1,
+                    act: Act::Choice(C::Model { index, account: if accounts.len() > 1 { group.1 } else { None } }),
+                })
+                .expect("choices fit offered account rows");
+        }
+    }
+    choices.into_boxed()
+}
+/// The options of the terminal effort list (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn effort_choices(root: &Domain) -> Box<[crate::shared::Choice]> {
+    let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return Box::default() };
+    let draft = root.pages().choice();
+    let Some(index) = draft.selected(me) else { return Box::default() };
+    let Some(project) = draft.project() else { return Box::default() };
+    let Some(models) = choice::offer(me, project) else { return Box::default() };
+    let Some(model) = models.get(index) else { return Box::default() };
+    let mut choices = skein_lib::List::with_capacity(model.efforts.len());
+    for (effort, index) in model.efforts.iter().zip(0_u32..) {
+        let selected = match draft.chosen(me) {
+            Some(choice) => choice.main.effort.as_ref().or(model.effort.as_ref()) == Some(effort),
+            None => false,
+        };
+        choices
+            .push(crate::shared::Choice {
+                name: effort.bytes().into(),
+                words: Box::default(),
+                selected,
+                act: Act::Choice(C::Effort { index }),
+            })
+            .expect("choices fit offered efforts");
+    }
+    choices.into_boxed()
+}
+fn terminal_option(
+    b: &mut Builder,
+    root: &Domain,
+    choice: &crate::shared::Choice,
+    described: bool,
+    bindings: &mut Bindings,
+) {
+    b.open(Role::MenuItem);
+    b.name(&choice.name);
+    if described {
+        b.description(&choice.words);
+    }
+    b.bind(bindings.insert(choice.act.clone()));
+    if choice.selected {
+        b.state(State::Selected);
+    }
+    if described && root.pages().choice().pending.is_some() {
+        b.state(State::Disabled);
+    }
+    b.close();
 }

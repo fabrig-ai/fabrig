@@ -1726,7 +1726,7 @@ fn reading_is_offered_after_the_first_page_with_more() {
     assert!(nodes[1].styles.as_slice().contains(&crate::look::THREAD_INNER));
     assert!(nodes[0].binding.is_some());
 }
-fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
+pub(super) fn answered_message(answer: c::Answer) -> temper_client_domain::Domain {
     use temper_client_domain::{Action, Event, Request, pages::Act};
     let (mut root, mut out) = history();
     let mut seen = None;

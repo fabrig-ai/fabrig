@@ -16,14 +16,14 @@ const MODELS: u32 = 1;
 // Each chat start creates one task.
 const CREATED_TASKS: u32 = 1;
 
-struct Page {
+pub(super) struct Page {
     root: crate::Domain,
-    pages: crate::pages::Pages,
-    out: Queue<Request>,
+    pub(super) pages: crate::pages::Pages,
+    pub(super) out: Queue<Request>,
 }
 
 impl Page {
-    fn new(me: Me, address: crate::Address) -> Self {
+    pub(super) fn new(me: Me, address: crate::Address) -> Self {
         let limits = fixtures::limits();
         let mut root = crate::unlinked(&limits, fixtures::SEED);
         let watch = fixtures::start(&mut root, List::with_capacity(0));
@@ -54,7 +54,7 @@ impl Page {
         );
     }
 
-    fn act(&mut self, act: crate::pages::Act) {
+    pub(super) fn act(&mut self, act: crate::pages::Act) {
         self.event(crate::pages::Event::Act { act });
     }
 
@@ -66,12 +66,12 @@ impl Page {
         task.clone()
     }
 
-    fn words(&mut self, words: &[u8]) {
+    pub(super) fn words(&mut self, words: &[u8]) {
         self.act(crate::pages::Act::ChatWords { words: words.into() });
     }
 }
 
-fn asking_me() -> Me {
+pub(super) fn asking_me() -> Me {
     let mut me = fixtures::chats::me();
     let project = me.projects.get_mut(0).expect("project");
     let stock = project.templates.get(0).expect("stock chat").clone();
@@ -98,6 +98,7 @@ fn ask_and_new_chat_start_their_template_and_open_the_chat() {
     use crate::{Address, pages::Act};
     for (me, charter, address) in [
         (asking_me(), ASKING, Address::Ask { project: fixtures::PROJECT }),
+        (asking_me(), ASKING, Address::Home { project: fixtures::PROJECT }),
         (asking_me(), 1, Address::NewChat { draft: false }),
     ] {
         let mut page = Page::new(me, address);

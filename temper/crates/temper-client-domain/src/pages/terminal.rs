@@ -356,7 +356,8 @@ impl super::Pages {
         client: &jig_client::Client,
         out: &mut skein_lib::Queue<super::Request>,
     ) -> Sending {
-        if !self.look.terminal || !draws(&self.address) {
+        let reads_commands = if let crate::Address::Home { .. } = self.address { true } else { draws(&self.address) };
+        if !self.look.terminal || !reads_commands {
             return Sending::Words;
         }
         let words = self.terminal_words();

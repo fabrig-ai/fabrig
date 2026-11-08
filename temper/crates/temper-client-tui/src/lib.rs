@@ -18,7 +18,7 @@ pub use limits::limits;
 pub use note::Note;
 pub use state::{Browser, Local, Refusal, Signing, Told, Tui};
 pub use theme::{Scheme, theme};
-pub use view::{View, build, event};
+pub use view::{View, build, escape, event, offered};
 
 #[cfg(test)]
 mod tests;

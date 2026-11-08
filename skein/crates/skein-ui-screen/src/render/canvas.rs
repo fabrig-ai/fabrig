@@ -5,7 +5,7 @@ use skein_lib::{List, usize_of};
 use skein_ui::{EntryKind, Node, Role, Tree};
 
 use super::{Info, words};
-use crate::{Cell, Focus, Frame, Paint, Position, RegionLook, Theme, width};
+use crate::{Align, Cell, Focus, Frame, Paint, Position, RegionLook, Theme, width};
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Viewport {
@@ -48,6 +48,13 @@ struct PendingItem {
     description: bool,
 }
 
+/// A gap waits for a child's first row, keeping the enclosing region's blank cells.
+#[derive(Debug)]
+struct Gap {
+    end: u32,
+    cells: List<Ink>,
+}
+
 #[derive(Debug)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -62,6 +69,7 @@ pub(super) struct Canvas {
     first_len: u16,
     row: u32,
     column: u16,
+    content_start: u16,
     indent: u16,
     continuation: u16,
     left: u16,
@@ -76,6 +84,9 @@ pub(super) struct Canvas {
     code: bool,
     quote: bool,
     cut: bool,
+    align: Align,
+    band: Option<Paint>,
+    gap: Option<Gap>,
 }
 
 impl Canvas {
@@ -95,6 +106,7 @@ impl Canvas {
             first_len: 0,
             row: 0,
             column: 0,
+            content_start: columns,
             indent: 0,
             continuation: 0,
             left: 0,
@@ -109,6 +121,38 @@ impl Canvas {
             code: false,
             quote: false,
             cut: false,
+            align: Align::Start,
+            band: None,
+            gap: None,
+        }
+    }
+
+    pub fn gap(&mut self, end: u32, paint: Paint) {
+        if self.gap.is_some() {
+            return;
+        }
+        let (left, right) = match self.edges.last() {
+            Some(edge) => {
+                let side = match edge.look.border {
+                    Some(border) => u16::from(border.sides),
+                    None => 0,
+                };
+                (edge.left.saturating_add(side), edge.right.saturating_sub(side))
+            }
+            None => (0, self.columns),
+        };
+        let mut cells = self.cells.clone();
+        for column in left..right {
+            *cells.get_mut(u32::from(column)).expect("gap column exists") = Ink::blank(paint);
+        }
+        self.gap = Some(Gap { end, cells });
+    }
+
+    pub fn cancel_gap(&mut self, end: u32) {
+        if let Some(gap) = &self.gap
+            && gap.end == end
+        {
+            self.gap = None;
         }
     }
 
@@ -151,6 +195,10 @@ impl Canvas {
     pub fn block(&mut self, code: bool, quote: bool) {
         self.code = code;
         self.quote = quote;
+    }
+    pub fn looks(&mut self, align: Align, band: Option<Paint>) {
+        self.align = align;
+        self.band = band;
     }
     pub fn line(&mut self) {
         self.dirty = self.dirty || self.room() > 0;
@@ -279,6 +327,7 @@ impl Canvas {
                 Some(ink) => ink.caret,
                 None => false,
             };
+        self.content_start = self.content_start.min(self.column);
         self.set(self.column, Ink { cell: Cell { glyph, paint }, focused, caret });
         self.column = self.column.saturating_add(1);
         if count == 2 {
@@ -314,6 +363,9 @@ impl Canvas {
                 self.column = self.column.saturating_add(1);
             }
             self.dirty = !tail.is_empty();
+            if self.dirty {
+                self.content_start = begin;
+            }
         } else {
             self.commit(frame);
             self.column = begin;
@@ -341,7 +393,9 @@ impl Canvas {
                     *cell = Ink::blank(edge.paint);
                 }
             }
-            if let Some(border) = edge.look.border {
+            if let Some(border) = edge.look.border
+                && border.sides
+            {
                 for column in [edge.left, edge.right.saturating_sub(1)] {
                     if column < edge.right
                         && let Some(cell) = self.cells.get_mut(u32::from(column))
@@ -357,9 +411,21 @@ impl Canvas {
         }
         self.column = self.left.saturating_add(self.continuation).min(self.right);
         self.dirty = false;
+        self.content_start = self.columns;
         self.cut = false;
     }
     fn commit(&mut self, frame: &mut Frame) {
+        self.lay_line();
+        if let Some(gap) = self.gap.take() {
+            let cells = core::mem::replace(&mut self.cells, gap.cells);
+            self.emit(frame);
+            self.cells = cells;
+        }
+        self.emit(frame);
+        self.reset();
+    }
+
+    fn emit(&mut self, frame: &mut Frame) {
         let visible = self.row >= self.viewport.first
             && self.row.saturating_sub(self.viewport.first) < u32::from(self.viewport.height);
         let screen_row = self
@@ -387,7 +453,33 @@ impl Canvas {
             }
         }
         self.row = self.row.saturating_add(1);
-        self.reset();
+    }
+    fn lay_line(&mut self) {
+        if let Some(paint) = self.band {
+            // An item's prefix can precede its child's indentation.
+            for column in self.left..self.right {
+                if (column < self.content_start || column >= self.column)
+                    && let Some(ink) = self.cells.get_mut(u32::from(column))
+                {
+                    ink.cell.paint = paint;
+                }
+            }
+        }
+        if self.align == Align::End && !self.single {
+            let start = self.left.saturating_add(self.indent).min(self.right);
+            let offset = self.right.saturating_sub(self.column);
+            if offset > 0 && self.column > start {
+                for column in (start..self.column).rev() {
+                    let ink = *self.cells.get(u32::from(column)).expect("line cell exists");
+                    self.set(column.saturating_add(offset), ink);
+                }
+                let paint = self.band.unwrap_or(self.background());
+                for column in start..start.saturating_add(offset) {
+                    self.set(column, Ink::blank(paint));
+                }
+                self.column = self.right;
+            }
+        }
     }
     pub fn finish(&mut self, frame: &mut Frame) {
         if self.dirty {
@@ -423,7 +515,12 @@ impl Canvas {
                 && let Some(description) = &n.description
             {
                 self.start(item.indent);
-                self.safe(description, info.get(item.at).expect("item information exists").paint, false, frame);
+                self.safe(
+                    description,
+                    info.get(item.at).expect("item information exists").description_paint(),
+                    false,
+                    frame,
+                );
                 self.finish(frame);
             }
         }
@@ -434,13 +531,18 @@ impl Canvas {
 
     pub fn enter_region(&mut self, look: RegionLook, paint: Paint, frame: &mut Frame) {
         self.finish(frame);
+        self.looks(Align::Start, None);
         let edge = Edge { look, paint, left: self.left, right: self.right };
         self.edges.push(edge).expect("open regions fit nodes");
         self.reset();
         if look.border.is_some() {
             self.border(look, true, frame);
         }
-        let inset = look.pad.saturating_add(u16::from(look.border.is_some()));
+        let side = match look.border {
+            Some(border) => border.sides,
+            None => false,
+        };
+        let inset = look.pad.saturating_add(u16::from(side));
         self.left = self.left.saturating_add(inset).min(self.right);
         self.right = self.right.saturating_sub(inset).max(self.left);
         self.column = self.left;
@@ -448,6 +550,7 @@ impl Canvas {
     }
     pub fn leave_region(&mut self, look: RegionLook, frame: &mut Frame) {
         self.finish(frame);
+        self.looks(Align::Start, None);
         if look.border.is_some() {
             self.border(look, false, frame);
         }
@@ -465,7 +568,7 @@ impl Canvas {
             self.set(column, Ink { cell: Cell { glyph: border.across, paint }, focused: false, caret: false });
         }
         let [tl, tr, bl, br] = border.corners;
-        if edge.left < edge.right {
+        if border.sides && edge.left < edge.right {
             self.set(
                 edge.left,
                 Ink { cell: Cell { glyph: if top { tl } else { bl }, paint }, focused: false, caret: false },
@@ -480,13 +583,14 @@ impl Canvas {
         self.column = edge.right;
         self.blank_line(frame);
     }
-    pub fn title(&mut self, title: &Canvas, look: RegionLook, frame: &mut Frame) {
+    pub fn title(&mut self, title: &Canvas, end: &Canvas, look: RegionLook, frame: &mut Frame) {
         // The top border is the row just committed on entry.
         let title_row = self.row.saturating_sub(1);
         let Some(border) = look.border else { return };
         let edge = *self.edges.last().expect("region is open");
-        let limit = edge.right.saturating_sub(1);
-        let mut column = edge.left.saturating_add(2);
+        let side = u16::from(border.sides);
+        let limit = edge.right.saturating_sub(side);
+        let mut column = edge.left.saturating_add(side).saturating_add(1);
         let paint = border.paint.over(edge.paint);
         if title_row < self.viewport.first
             || title_row.saturating_sub(self.viewport.first) >= u32::from(self.viewport.height)
@@ -512,6 +616,17 @@ impl Canvas {
             column = column.saturating_add(1);
         }
         if column < limit {
+            frame.put(Position { row, column }, Cell { glyph: ' ', paint });
+        }
+        // Each part keeps its two spaces and the end keeps one across glyph.
+        let needed = u32::from(title.first_len).saturating_add(u32::from(end.first_len)).saturating_add(6);
+        if end.first_len > 0 && needed <= u32::from(limit.saturating_sub(edge.left.saturating_add(side))) {
+            let mut column = limit.saturating_sub(2).saturating_sub(end.first_len);
+            frame.put(Position { row, column: column.saturating_sub(1) }, Cell { glyph: ' ', paint });
+            for ink in end.first.iter().take(usize::from(end.first_len)) {
+                frame.put(Position { row, column }, ink.cell);
+                column = column.saturating_add(1);
+            }
             frame.put(Position { row, column }, Cell { glyph: ' ', paint });
         }
     }
@@ -633,6 +748,21 @@ impl Canvas {
         }
         self.dirty = true;
     }
+}
+
+/// The sanitized width, saturated at the widest possible row.
+pub(super) fn text_width(bytes: &[u8]) -> u16 {
+    let mut cells = 0_u16;
+    let mut next = 0;
+    for at in 0..bytes.len() {
+        if at < next {
+            continue;
+        }
+        let (glyph, length) = decode(bytes.get(at..).expect("text offset exists"));
+        next = at.saturating_add(length);
+        cells = cells.saturating_add(u16::from(width(glyph)));
+    }
+    cells
 }
 
 /// One malformed byte becomes one replacement; no decoded text is collected.

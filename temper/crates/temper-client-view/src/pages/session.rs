@@ -193,3 +193,10 @@ pub(crate) fn closed_number(b: &mut Builder, w: &Words, task: u64, line: Option<
 pub(crate) fn to_terminal(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
     super::terminal::enter(b, w, bindings);
 }
+
+/// Send feedback beneath the composer (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn refusals(b: &mut Builder, root: &Domain, w: &Words) {
+    for line in &crate::shared::composer_refusals(root, w) {
+        crate::confirm::feedback(b, line);
+    }
+}
