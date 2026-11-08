@@ -1396,15 +1396,15 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-675",
         b"temper-how-wide",
         b"temper-how-way",
-        b"temper-how-scroll",
-        b"temper-how-path",
-        b"temper-how-head",
-        b"temper-how-lane",
-        b"temper-how-person",
-        b"temper-how-agent",
-        b"temper-how-code",
-        b"temper-how-bar",
-        b"temper-how-line",
+        b"temper-reserved-678",
+        b"temper-reserved-679",
+        b"temper-reserved-680",
+        b"temper-reserved-681",
+        b"temper-reserved-682",
+        b"temper-reserved-683",
+        b"temper-reserved-684",
+        b"temper-reserved-685",
+        b"temper-reserved-686",
         b"temper-how-row",
         b"temper-ways-maybe",
         b"temper-ways-why",
@@ -1832,15 +1832,6 @@ pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
 /// How work runs (temper/docs/design/client/browser.md, 2.5).
 pub const HOW_WIDE: Style = Style { owner: owner(), token: 676 };
 pub const HOW_WAY: Style = Style { owner: owner(), token: 677 };
-pub const HOW_SCROLL: Style = Style { owner: owner(), token: 678 };
-pub const HOW_PATH: Style = Style { owner: owner(), token: 679 };
-pub const HOW_HEAD: Style = Style { owner: owner(), token: 680 };
-pub const HOW_LANE: Style = Style { owner: owner(), token: 681 };
-pub const HOW_PERSON: Style = Style { owner: owner(), token: 682 };
-pub const HOW_AGENT: Style = Style { owner: owner(), token: 683 };
-pub const HOW_CODE: Style = Style { owner: owner(), token: 684 };
-pub const HOW_BAR: Style = Style { owner: owner(), token: 685 };
-pub const HOW_LINE: Style = Style { owner: owner(), token: 686 };
 pub const HOW_ROW: Style = Style { owner: owner(), token: 687 };
 
 /// Path marks and fades (temper/docs/design/client/README.md, 5.16).

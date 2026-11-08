@@ -126,9 +126,7 @@ enum Part {
     FirstButton { disclosure: &'static str, name: &'static str },
     CardChanges { title: &'static str, changes: &'static [&'static str] },
     Cards { section: &'static str, from: &'static [&'static str] },
-    HowPath { you: &'static str, agent: &'static str, code: &'static str, verify: bool },
     StyledText { style: skein_ui::Style, text: &'static [&'static str] },
-    Current { name: &'static str },
     Tabs { names: &'static [&'static str], selected: usize },
     Path { stops: &'static [&'static str] },
     Drawing { style: skein_ui::Style, count: usize },
@@ -436,7 +434,14 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "An agent makes each change, another reviews it, and code lands it." },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
-            Part::HowPath { you: "you ask", agent: "the reviewer", code: "CI", verify: true },
+            Part::Named { role: Role::Item, name: "review, an agent" },
+            Part::Named { role: Role::Item, name: "verify, code" },
+            Part::Drawing { style: temper_client_view::look::WAYS_MAIN, count: 1 },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
+            },
+            Part::NoRole { role: Role::Table },
             Part::Configured { value: false },
             Part::Named { role: Role::Button, name: "Keep it" },
             Part::Absent { role: Role::Button, name: "Use this" },
@@ -452,10 +457,15 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "the way: You approve" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Tabs { names: &["You approvenow", "Agents review", "Draft first"], selected: 0 },
-            Part::HowPath { you: "you approve", agent: "the coding agent", code: "the queue", verify: false },
-            Part::Absent { role: Role::Button, name: "CI" },
-            Part::Absent { role: Role::Button, name: "main checks" },
-            Part::Absent { role: Role::Button, name: "goal checks" },
+            Part::Named { role: Role::Item, name: "you approve, a person" },
+            Part::Drawing { style: temper_client_view::look::WAYS_MAIN, count: 1 },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
+            },
+            Part::NoRole { role: Role::Table },
+            Part::Absent { role: Role::Item, name: "check, code" },
+            Part::Absent { role: Role::Item, name: "verify, code" },
         ],
     },
     Holds {
@@ -465,8 +475,15 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "the way: Draft first" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
-            Part::HowPath { you: "draft", agent: "the coordinator", code: "goal checks", verify: true },
-            Part::Named { role: Role::ColumnHeader, name: "goal branch" },
+            Part::Named { role: Role::Item, name: "draft, a person" },
+            Part::Named { role: Role::Item, name: "goal branch, a branch" },
+            Part::Named { role: Role::Item, name: "verify, code" },
+            Part::Drawing { style: temper_client_view::look::WAYS_MAIN, count: 2 },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
+            },
+            Part::NoRole { role: Role::Table },
             Part::Named { role: Role::Heading { level: 2 }, name: "Budgets" },
             Part::StyledText {
                 style: temper_client_view::look::HOW_ROW,
@@ -482,7 +499,9 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "the way: its own" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
-            Part::HowPath { you: "you ask", agent: "the coding agent", code: "the queue", verify: false },
+            Part::Named { role: Role::Item, name: "produce, an agent" },
+            Part::Named { role: Role::Item, name: "main, a branch" },
+            Part::NoRole { role: Role::Table },
             Part::Absent { role: Role::Button, name: "Use this" },
             Part::Absent { role: Role::Button, name: "Keep it" },
         ],
@@ -493,8 +512,14 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "the way: Agents review" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
-            Part::HowPath { you: "you ask", agent: "the reviewer", code: "CI", verify: true },
-            Part::Current { name: "the reviewer" },
+            Part::Named { role: Role::Item, name: "review, an agent" },
+            Part::Drawing { style: temper_client_view::look::WAYS_MAIN, count: 1 },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
+            },
+            Part::NoRole { role: Role::Table },
+            Part::Expanded { name: "review, an agent" },
             Part::Named { role: Role::Region, name: "Review" },
             Part::Named { role: Role::Link, name: "Open the reviewer ›" },
             Part::Named { role: Role::Term, name: "Model" },
@@ -506,7 +531,7 @@ static HOLDS: [Holds; samples::N] = [
                 role: Role::Description,
                 name: "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.”",
             },
-            Part::NoStyle { style: temper_client_view::look::WAYS_CARET },
+            Part::Drawing { style: temper_client_view::look::WAYS_CARET, count: 1 },
         ],
     },
     Holds {
@@ -515,7 +540,13 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "the way: Agents review" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
-            Part::HowPath { you: "you ask", agent: "the reviewer", code: "CI", verify: true },
+            Part::Named { role: Role::Item, name: "review, an agent" },
+            Part::Drawing { style: temper_client_view::look::WAYS_MAIN, count: 1 },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
+            },
+            Part::NoRole { role: Role::Table },
             Part::Pressed { name: "Night mode" },
         ],
     },
@@ -3921,47 +3952,6 @@ fn each_state_holds_what_its_name_says() {
                         assert_eq!(String::from_utf8_lossy(&text), *expected, "{}: {section} from line", sample.name);
                     }
                 }
-                Part::HowPath { you, agent, code, verify } => {
-                    let table = descendants(tree, Role::Table, "The path of a change", sample.name);
-                    for (lane, stop) in [("You", you), ("Agents", agent), ("Code", code)] {
-                        let row = table
-                            .iter()
-                            .position(|node| {
-                                node.role == Role::RowHeader && node.name.as_deref() == Some(lane.as_bytes())
-                            })
-                            .expect("lane header");
-                        let parent = table.get(row.checked_sub(1).expect("lane row")).expect("lane parent");
-                        assert_eq!(parent.role, Role::Row, "{}: lane row", sample.name);
-                        let end = row - 1 + usize::try_from(parent.size).expect("lane span");
-                        assert!(
-                            table[row..end].iter().any(|node| {
-                                node.role == Role::Button && node.name.as_deref() == Some(stop.as_bytes())
-                            }),
-                            "{}: {stop} in {lane}",
-                            sample.name
-                        );
-                    }
-                    let headers: Vec<_> = table
-                        .iter()
-                        .filter(|node| node.role == Role::ColumnHeader)
-                        .map(|node| node.name.as_deref().expect("column name"))
-                        .collect();
-                    let main = headers.iter().position(|name| *name == b"main").expect("main bar");
-                    if *verify {
-                        assert_eq!(
-                            headers.get(main.checked_sub(1).expect("before main")),
-                            Some(&b"Verify".as_slice()),
-                            "{}: verify before main",
-                            sample.name
-                        );
-                    } else {
-                        assert!(
-                            !headers.iter().any(|name| matches!(*name, b"Check" | b"Verify")),
-                            "{}: no CI or tiers",
-                            sample.name
-                        );
-                    }
-                }
                 Part::StyledText { style, text } => {
                     let nodes = tree.nodes();
                     let start = nodes
@@ -3975,14 +3965,6 @@ fn each_state_holds_what_its_name_says() {
                         .map(|run| std::str::from_utf8(&run.text).expect("row words"))
                         .collect();
                     assert_eq!(actual, *text, "{}: row text", sample.name);
-                }
-                Part::Current { name } => {
-                    let id = find(tree, Role::Button, name, sample.name);
-                    assert!(
-                        tree.find(id).expect("stop").states.as_slice().contains(&skein_ui::State::Current),
-                        "{}: current stop",
-                        sample.name
-                    );
                 }
                 Part::Tabs { names, selected } => {
                     let tabs = descendants(tree, Role::Tabs, "Ways of working", sample.name);

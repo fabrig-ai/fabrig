@@ -105,9 +105,6 @@ render check and the pages' walk remain section 11's after-landing
 work.
 
 - **Not yet:**
-  - 5.13, *The page* and *Its parts*, and 5.16, *Pressed* (`how-drawing`,
-    `look-round-25`): How work runs draws its path as a table in lanes,
-    `pages::how::lanes`, with no legend, not as Ask temper's drawing.
   - 5.13, *The page* (*Roles*) and *Its parts* (`roles-page`,
     `look-round-25`): How work runs draws no Roles and reads no `roles`
     view.
