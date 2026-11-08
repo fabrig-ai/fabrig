@@ -170,3 +170,19 @@ it calls the new read, as `revision_begin` calls `revision_metadata`.
   projects left out. A proposal with no review key or whose items are
   gone is the decided line, as the options already say.
 
+
+2026-11-08. *A decided party proposal (`pN/K`) no longer retains the
+projects its items touched: answer it `None(Unknown)`, or widen jig's
+stored proposal history to keep them?* `None(Unknown)`; don't widen.
+`project_proposal` admits a party proposal only where it can establish
+that `project` is among its `projects`: waiting, from
+`settings_proposals`; decided, withdrawn or replaced, it can't, so it
+answers `None(Unknown)` without a load, as for a proposal of another
+project (never "not allowed"). Don't reuse `proposal_row_visible`'s
+decided party arm for this read. Its doc comment says so in one line.
+temper's view then answers a decided `pN/K` `no proposal pN/K.`; a
+waiting `pN/K` and waiting or decided `tN/K` stay as specified, and the
+table's decided row stays a `tN/K`. Add a row to the jig tests: a
+decided party proposal touching the project gets none. Retaining a
+party proposal's projects is a stored-format change for a later plan;
+name it under `## Left`.
