@@ -144,7 +144,7 @@ For a Forgejo of application.sign_in.forges, on temper's host, before temper ser
 
 `temper [ADDRESS]`
 
-Run temper's full-screen terminal client, the TUI, on an engine.
+Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.
 
 - `ADDRESS`: Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.
 

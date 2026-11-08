@@ -1,7 +1,8 @@
 """One-process suite runner and its lanes (tools/tiers/design.md, 11).
 
 The files crossing the summary boundary follow
- temper/docs/plan/inproc-runner/notes/contracts.md, 2.
+ temper/docs/plan/inproc-runner/notes/contracts.md, 2 and
+ temper/docs/plan/inproc-fixes/notes/contracts.md, 1.
 """
 import fnmatch
 import json
@@ -150,7 +151,7 @@ def duration(value):
                for number, unit in parts)
 
 
-def configuration(config, profile, env, limits):
+def configuration(config, profile, env, limits, caller_filter):
     data = tomllib.loads(Path(config).read_text())
     profiles = data.get('profile', {})
     default = profiles.get('default', {})
@@ -178,7 +179,7 @@ def configuration(config, profile, env, limits):
             if key in override:
                 raise ValueError(f'unsupported override {key}')
         compiled.append((filterset(override['filter']), override))
-    default_filter = filterset(merged.get('default-filter', 'all()'))
+    default_filter = None if caller_filter else filterset(merged.get('default-filter', 'all()'))
     groups = {name: value['max-threads'] for name, value in data.get('test-groups', {}).items()}
     return merged, compiled, default_filter, groups
 
@@ -236,7 +237,11 @@ def arguments(command, profile):
         key = argument.partition('=')[0]
         if key in selection_flags:
             skip = '=' not in argument
-        elif key in ('-E', '--filter-expr', '--ignore-default-filter', '--partition', '--skip', '--exact') or not argument.startswith('-'):
+        elif key in ('-E', '--filterset', '--filter-expr'):
+            caller_filter = True
+            skip = '=' not in argument
+        elif (argument.startswith('-E') and len(argument) > 2) or key in (
+                '--ignore-default-filter', '--partition', '--skip', '--exact') or not argument.startswith('-'):
             caller_filter = True
     return prefix, cargo, selected, no_tests, caller_filter
 
@@ -411,8 +416,12 @@ def split_jobs(plan, lanes):
                     size += length
             if ordinary:
                 jobs.append(dict(binary=binary, tests=ordinary, kind='tests', diagnostic=None))
-    return sorted(jobs, key=lambda job: (-max(t['priority'] for t in job['tests']),
-                                        -sum(t['estimate'] for t in job['tests'])))
+    return sorted(jobs, key=job_order)
+
+
+def job_order(job):
+    return (-max(test['priority'] for test in job['tests']),
+            -sum(test['estimate'] for test in job['tests']))
 
 
 def emit(kind, **fields):
@@ -431,7 +440,7 @@ class BinaryProcess:
         self.status = None
         self.reaped_at = None
         self.open_fds = set()
-        self.cancelled = False
+        self.cancelled_at = None
         names = b'|'.join(re.escape(test['name'].encode()) for test in job['tests'])
         self.announcement = re.compile(rb'(?m)^test (' + names + rb')(?: - should panic)? \.\.\. ')
         # Libtest opens its logfile close-on-exec. A named pipe lets it do so
@@ -491,7 +500,7 @@ class BinaryProcess:
                 line, _, tail = self.log.partition(b'\n')
                 self.log = bytearray(tail)
                 result, _, name = line.partition(b' ')
-                if result in (b'ok', b'failed', b'ignored'):
+                if self.cancelled_at is None and result in (b'ok', b'failed', b'ignored'):
                     self.logs[name.decode('utf-8', 'backslashreplace')] = (result, now)
         self.completed()
 
@@ -502,7 +511,7 @@ class BinaryProcess:
 
     def completed(self):
         for offset, (name, _, start, announced_at) in enumerate(self.announcements):
-            if name in self.done or name not in self.logs:
+            if (self.cancelled_at is not None and announced_at >= self.cancelled_at) or name in self.done or name not in self.logs:
                 continue
             end = self.announcements[offset + 1][1] if offset + 1 < len(self.announcements) else len(self.output)
             segment = bytes(self.output[start:end])
@@ -545,14 +554,16 @@ class BinaryProcess:
         code = os.waitstatus_to_exitcode(self.status)
         announced = [entry[0] for entry in self.announcements]
         for offset, (name, _, start, announced_at) in enumerate(self.announcements):
+            if self.cancelled_at is not None and announced_at >= self.cancelled_at:
+                continue
             if name not in self.done:
                 end = self.announcements[offset + 1][1] if offset + 1 < len(self.announcements) else len(self.output)
-                self.finish(name, 'cancelled' if self.cancelled else 'crashed',
+                self.finish(name, 'cancelled' if self.cancelled_at is not None else 'crashed',
                             max(0.0, self.reaped_at - announced_at),
                             bytes(self.output[start:end]).decode('utf-8', 'backslashreplace'), announced[:offset])
         unannounced = [test for test in self.job['tests'] if test['name'] not in announced]
         fresh = []
-        if not self.cancelled:
+        if self.cancelled_at is None:
             if not announced:
                 for test in unannounced:
                     self.finish(test['name'], 'crashed', self.reaped_at - self.start,
@@ -598,11 +609,13 @@ def lanes(plan):
                 now = time.monotonic()
                 if cancelled is None and (terminated or (first is not None and plan['global_timeout'] is not None and now - first >= plan['global_timeout'])):
                     cancelled = 'wall-hard' if terminated else 'global-timeout'
+                    jobs.clear()
                     emit('cancel', reason=cancelled)
                     kill_at = now + plan['term_grace_s']
                     for child in active:
-                        child.cancelled = True
-                        signal_group(child.child, signal.SIGTERM)
+                        if child.reaped_at is None:
+                            child.cancelled_at = now
+                            signal_group(child.child, signal.SIGTERM)
                 if cancelled and kill_at is not None and now >= kill_at:
                     for child in active:
                         signal_group(child.child, signal.SIGKILL)
@@ -638,10 +651,14 @@ def lanes(plan):
                     if child.job['kind'] == 'alone':
                         failed = any(t['outcome'] != 'passed' for t in child.done.values())
                         emit('alone', binary_id=child.job['binary']['binary_id'],
-                             test_name=child.job['tests'][0]['name'], outcome='failed' if failed else 'passed')
+                             test_name=child.job['tests'][0]['name'], outcome='failed' if failed else 'passed',
+                             output=''.join(t['output'] or '' for t in child.done.values()) if failed else None)
                     else:
                         if fresh:
-                            jobs.insert(0, dict(child.job, tests=fresh, kind='fresh'))
+                            job = dict(child.job, tests=fresh, kind='fresh')
+                            position = next((index for index, waiting in enumerate(jobs)
+                                             if waiting['kind'] != 'alone' and job_order(waiting) > job_order(job)), len(jobs))
+                            jobs.insert(position, job)
                         for item in reversed(list(child.done.values())):
                             if item['outcome'] in ('failed', 'crashed') and item['before']:
                                 test = next(t for t in child.job['tests'] if t['name'] == item['test_name'])
@@ -667,8 +684,10 @@ def write_junit(directory, results):
                              classname=binary_id, time=str(test['wall_s']))
         outcome = test['outcome']
         if outcome in ('failed', 'crashed', 'cancelled'):
-            process = results['processes'][test['process']]
-            sig = process['signal']
+            process = results['processes'][test['process']] if test['process'] is not None else None
+            sig = process['signal'] if process is not None else None
+            if outcome == 'cancelled' and sig is None:
+                sig = signal.SIGTERM
             if sig is not None and outcome != 'failed':
                 message = f'process aborted with signal {sig} ({signal.Signals(sig).name})'
                 kind = 'test abort'
@@ -690,7 +709,7 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     if directory.exists() and (not directory.is_dir() or any(directory.iterdir())):
         raise ValueError('run directory must be empty')
     prefix, cargo, selection, no_tests, caller_filter = arguments(command, profile)
-    settings, overrides, default_filter, groups = configuration(config, profile, env, limits)
+    settings, overrides, default_filter, groups = configuration(config, profile, env, limits, caller_filter)
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     directory.chmod(0o700)
     output = bytearray()
@@ -701,7 +720,7 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
 
     # Listing and build belong to the caller's prefix; metadata builds nothing.
     listed = subprocess.Popen([*prefix, cargo, 'nextest', 'list', '--message-format', 'json',
-                               '--profile', profile, *selection], env=env, stdin=subprocess.DEVNULL,
+                               '--profile', profile, '--config-file', str(Path(config).resolve()), *selection], env=env, stdin=subprocess.DEVNULL,
                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
     listing_output = bytearray()
     try:
@@ -728,6 +747,7 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
     lane_count = LANES or len(os.sched_getaffinity(0))
     code, kill_at, process = None, None, None
     wall_starved = False
+    forced_at = None
 
     def event(item):
         nonlocal lane_count
@@ -755,10 +775,16 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
             test['alone'] = item['outcome']
             if item['outcome'] == 'passed':
                 forward(f"{test['binary_id']} {test['test_name']}: may depend on an earlier test: {', '.join(test['before'])}\n")
+            else:
+                forward(f"{test['binary_id']} {test['test_name']}: failed alone too\n")
+            if item['output'] is not None:
+                forward(item['output'] + '\n')
         elif kind == 'cancel':
             results['cancelled'] = item['reason']
             forward(f"tiers: starved: {profile}: {item['reason']}\n")
 
+    if selected == 0 and no_tests == 'warn':
+        forward('warning: no tests to run\n')
     if selected:
         process = subprocess.Popen([*prefix, 'python3', '-I', '-B', str(Path(__file__).resolve()),
                                     'lanes', str(directory / 'plan.json')], env=env, stdin=subprocess.DEVNULL,
@@ -791,6 +817,7 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
                         signal_group(process, signal.SIGTERM)
                         kill_at = time.monotonic() + WALL_GRACE_S
                     if kill_at is not None and time.monotonic() >= kill_at:
+                        forced_at = time.monotonic()
                         break
                 if pending:
                     forward(pending.decode('utf-8', 'backslashreplace'))
@@ -804,21 +831,30 @@ def run(command, env, directory, profile, limits, config=Path('.config/nextest.t
             except BaseException:
                 stop(process, time.monotonic())
             raise
+    if forced_at is not None:
+        recorded = {}
+        for index, item in enumerate(results['processes']):
+            if item is not None:
+                recorded[index] = len(recorded)
+        results['processes'] = [item for item in results['processes'] if item is not None]
+        tests = {key: dict(test, process=recorded.get(test['process']))
+                 for key, test in tests.items()
+                 if test['process'] in recorded or test['outcome'] in ('passed', 'failed', 'starved')}
+    elif any(item is None for item in results['processes']) or active:
+        raise ValueError('lanes ended without reaping every started process')
+    if selected and code != 0 and forced_at is None:
+        raise ValueError(f'lanes exited with {code}')
     results['tests'] = list(tests.values())
     for binary in plan['binaries']:
         for test in binary['tests']:
             if (binary['binary_id'], test['name']) not in tests:
                 results['unobserved'].append(dict(binary_id=binary['binary_id'], test_name=test['name']))
-    # A forced session kill can leave started children without final events. Do not
-    # invent rusage for them or turn an incomplete file into a finished result.
-    if any(item is None for item in results['processes']) or active:
-        raise ValueError('lanes ended without reaping every started process')
-    if selected and code != 0:
-        raise ValueError(f'lanes exited with {code}')
     save(directory / 'results.json', results)
     write_junit(directory, results)
     (directory / 'command-output.txt').write_bytes(output)
     end = max((p['start_s'] + p['wall_s'] for p in results['processes']), default=0.0)
+    if forced_at is not None:
+        end = max(end, forced_at)
     first = min(starts.values()) if starts else end
     save(directory / 'run.json', dict(profile=profile, mode='one-process', finished=True,
                                      starved=results['cancelled'] is not None, wall_s=end - first,

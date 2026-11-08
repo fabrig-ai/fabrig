@@ -3,6 +3,33 @@ use std::{fs, os::unix::ffi::OsStrExt};
 use temper_client_tools::jig::call::Parsed;
 
 #[test]
+fn tui_help_explains_closing_and_ending_the_sign_in() {
+    assert!(crate::commands::help().contains("temper help tui"), "--help must direct readers to the TUI page");
+    let index = help::answer(&configured(&["help"])).expect("help index");
+    assert!(index.contains("temper help tui"), "the index must list the TUI page");
+    let page = help::answer(&configured(&["help", "tui"])).expect("TUI page");
+    let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
+    for required in [
+        "`q` closes the signed-in screen and keeps the sign-in",
+        "Ctrl+C also closes",
+        "on the sign-in screen, `q` types a character",
+        "The TUI has no sign-out action",
+        "Close the TUI",
+        "`temper open DIR http://HOST:PORT`",
+        "existing TUI directory",
+        "engine's loopback HTTP address",
+        "`$XDG_STATE_HOME/temper/tui`",
+        "`$HOME/.local/state/temper/tui`",
+        "choose **Sign out**",
+        "reuses and ends the existing sign-in",
+    ] {
+        assert!(text.contains(required), "TUI help must explain {required}");
+    }
+    let search = help::answer(&configured(&["help", "--search", "sign out"])).expect("sign-out search");
+    assert!(search.lines().any(|line| line.starts_with("tui:")), "sign out must discover the TUI page: {search}");
+}
+
+#[test]
 fn box_help_configures_coding_run_tools() {
     let page = help::answer(&configured(&["help", "box"])).expect("box help");
     let (before_start, _) = page.split_once("\n## 2. ").expect("box startup step");

@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 61] = [
+pub static PAGES: [Page; 62] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -264,6 +264,13 @@ pub static PAGES: [Page; 61] = [
         title: "Tier",
         summary: "A tier is a slow check of a branch after changes land on it: each run covers every landing since the last, and its verdict clears them or blames the one whose commit broke a test.",
         text: include_str!("../../../docs/help/tier.md"),
+    },
+    Page {
+        name: "tui",
+        kind: Kind::Concept,
+        title: "The TUI",
+        summary: "The TUI is temper's full-screen terminal client: closing keeps its sign-in, and the line client can end that sign-in.",
+        text: include_str!("../../../docs/help/tui.md"),
     },
     Page {
         name: "box",

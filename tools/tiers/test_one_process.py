@@ -7,6 +7,7 @@ import math
 import os
 from pathlib import Path
 import resource
+import re
 import runpy
 import shutil
 import signal
@@ -44,6 +45,25 @@ def setUpModule():
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_cancellation_keeps_result_read_before_mark(self):
+        module = runpy.run_path(str(HERE / 'one_process.py'))
+        process = module['BinaryProcess'].__new__(module['BinaryProcess'])
+        process.job = dict(binary=dict(binary_id='fixture::suite'), kind='tests')
+        process.index = 0
+        process.output, process.log = bytearray(b'test a ... '), bytearray()
+        process.announcement = re.compile(rb'(?m)^test (a) \.\.\. ')
+        process.announcements = [('a', 0, len(process.output), 1)]
+        process.logs, process.done = {}, {}
+        process.reaped_at, process.cancelled_at, process.log_writer = None, None, None
+        with mock.patch('os.read', return_value=b'ok a\n'), mock.patch('time.monotonic', return_value=2):
+            process.read(0, 'log', None)
+        process.cancelled_at = 3
+        with mock.patch('os.read', return_value=b'ok\n\ntest result: ok\n'), \
+                mock.patch('time.monotonic', return_value=4), contextlib.redirect_stdout(io.StringIO()):
+            process.read(0, 'output', None)
+        self.assertEqual([(t['test_name'], t['outcome'], t['wall_s']) for t in process.done.values()],
+                         [('a', 'passed', 1)])
+
     def test_libtest_protocol(self):
         for scenario in ('pass', 'first-failure', 'starved', 'expected-panic'):
             logfile = NATIVE / 'protocol.log'
@@ -105,6 +125,17 @@ class RunnerFixture(unittest.TestCase):
         self.results = json.loads((self.directory / 'results.json').read_text())
         self.record = json.loads((self.directory / 'run.json').read_text())
         return self.results
+
+    def invoke_bounded(self, limits, seconds=3):
+        def expired(sig, frame):
+            raise TimeoutError('runner did not finish cancellation')
+        previous = signal.signal(signal.SIGALRM, expired)
+        signal.setitimer(signal.ITIMER_REAL, seconds)
+        try:
+            return self.invoke(limits)
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, previous)
 
 
 class EndToEndTests(RunnerFixture):
@@ -186,13 +217,21 @@ class RunnerTests(RunnerFixture):
         calls = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
         self.assertEqual(len(calls), 2)
         self.assertEqual(calls[0][1:], ['nextest', 'list', '--message-format', 'json', '--profile',
-                                       'default', '-p', 'fixture'])
+                                       'default', '--config-file', str(self.config.resolve()), '-p', 'fixture'])
         self.assertEqual(calls[1][1:3], ['-I', '-B'])
         self.assertIn('lanes', calls[1])
         output = (self.directory / 'command-output.txt').read_text()
         self.assertIn('fixture listing suffix', output)
         self.assertIn('PASS', output)
         self.assertNotIn('tiers-one-process: ', output)
+
+    def test_private_configuration_reaches_the_listing(self):
+        self.config = self.root / 'private.toml'
+        self.config.write_text('[profile.default]\n')
+        self.invoke()
+        listing = json.loads((self.root / 'prefix-argv.jsonl').read_text().splitlines()[0])
+        self.assertIn('--config-file', listing)
+        self.assertEqual(listing[listing.index('--config-file') + 1], str(self.config.resolve()))
 
     def test_unterminated_output(self):
         self.env['FIXTURE_CASE'] = 'unterminated'
@@ -219,11 +258,91 @@ class RunnerTests(RunnerFixture):
         self.assertEqual(result['processes'][tests['c']['process']]['kind'], 'fresh')
         alone = [p for p in result['processes'] if p['kind'] == 'alone']
         self.assertEqual([p['tests'] for p in alone], [['b']])
+        output = (self.directory / 'command-output.txt').read_text()
+        self.assertIn('fixture::suite b: failed alone too', output)
+        self.assertEqual(output.count('crash output'), 2)
         self.directory = self.root / 'before-run'
         self.binary(native='before')
         result = self.invoke()
         self.assertEqual([t['outcome'] for t in result['tests']], ['crashed'] * 3)
         self.assertEqual(len(result['processes']), 1)
+
+    def test_cancellation_drops_waiting_processes(self):
+        self.env['FIXTURE_CASE'] = 'hang'
+        self.binary('fixture::second', names=('d',))
+        for reason, timeout, hard in [('global-timeout', 'global-timeout="1s"\n', 3),
+                                      ('wall-hard', '', 0.5)]:
+            with self.subTest(reason=reason):
+                self.directory = self.root / reason
+                self.config.write_text('[profile.default]\n' + timeout)
+                start = time.monotonic()
+                result = self.invoke_bounded({'default': {'wall_hard_s': hard}})
+                self.assertLess(time.monotonic() - start, 3)
+                self.assertEqual(result['cancelled'], reason)
+                self.assertIn(dict(binary_id='fixture::second', test_name='d'), result['unobserved'])
+                self.assertTrue(self.record['starved'])
+
+    def test_cancelled_test_whatever_libtest_reports(self):
+        self.env['FIXTURE_CASE'] = 'term-pass'
+        self.config.write_text('[profile.default]\nglobal-timeout="1s"\n')
+        self.run.__globals__['TERM_GRACE_S'] = 5
+        result = self.invoke_bounded({})
+        self.assertEqual([(t['test_name'], t['outcome']) for t in result['tests']],
+                         [('a', 'passed'), ('b', 'cancelled')])
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite', test_name='c')])
+        process = result['processes'][0]
+        self.assertEqual(process['tests'], ['a', 'b', 'c'])
+        self.assertEqual((process['exit_code'], process['signal']), (0, None))
+        failure = ET.parse(self.directory / 'junit.xml').find(".//testcase[@name='b']/failure")
+        self.assertEqual(failure.get('type'), 'test abort')
+        self.assertIn('signal 15 (SIGTERM)', failure.get('message'))
+
+    def test_forced_kill_finishes_starved(self):
+        self.env['FIXTURE_CASE'] = 'term-ignore'
+        self.run.__globals__.update(TERM_GRACE_S=5, WALL_GRACE_S=0.5)
+        start = time.monotonic()
+        result = self.invoke_bounded({'default': {'wall_hard_s': 0.5}})
+        self.assertLess(time.monotonic() - start, 3)
+        self.assertEqual(result['cancelled'], 'wall-hard')
+        self.assertEqual(result['processes'], [])
+        self.assertEqual([(t['test_name'], t['outcome'], t['process']) for t in result['tests']],
+                         [('a', 'failed', None)])
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite', test_name=n)
+                                               for n in ('b', 'c')])
+        self.assertEqual((self.record['finished'], self.record['starved'], self.record['returncode']),
+                         (True, True, -9))
+        self.assertGreaterEqual(self.record['wall_s'], 1)
+        cases = ET.parse(self.directory / 'junit.xml').findall('.//testcase')
+        self.assertEqual([c.get('name') for c in cases], ['a'])
+        self.assertEqual(cases[0].find('failure').get('type'), 'test failure')
+        self.assertEqual(cases[0].find('failure').get('message'), 'test failed')
+        sessions = [int(line) for line in (self.root / 'prefix-sessions').read_text().splitlines()]
+        self.assertEqual(self.module['session_processes'](sessions[-1]), [])
+
+    def test_forced_kill_remaps_recorded_processes(self):
+        self.env['FIXTURE_CASE'] = 'term-ignore'
+        self.run.__globals__.update(LANES=2, TERM_GRACE_S=5, WALL_GRACE_S=0.5)
+        self.binary('fixture::second', names=('d',))
+        result = self.invoke_bounded({'default': {'wall_hard_s': 0.5}})
+        self.assertEqual([(p['binary_id'], p['tests']) for p in result['processes']],
+                         [('fixture::suite', ['c']), ('fixture::second', ['d'])])
+        tests = {(t['binary_id'], t['test_name']): t for t in result['tests']}
+        self.assertEqual(tests['fixture::suite', 'a']['process'], None)
+        self.assertEqual(tests['fixture::suite', 'c']['process'], 0)
+        self.assertEqual(tests['fixture::second', 'd']['process'], 1)
+        self.assertEqual(result['unobserved'], [dict(binary_id='fixture::suite', test_name='b')])
+
+    def test_fresh_process_takes_its_place(self):
+        self.env['FIXTURE_CASE'] = 'crash'
+        self.binary('fixture::second', names=('d',))
+        self.config.write_text('[profile.default]\n[[profile.default.overrides]]\n'
+                               'filter="binary_id(=fixture::suite) & test(=a)"\npriority=10\n'
+                               '[[profile.default.overrides]]\n'
+                               'filter="binary_id(=fixture::second)"\npriority=5\n')
+        processes = sorted(self.invoke()['processes'], key=lambda p: p['start_s'])
+        self.assertEqual([(p['binary_id'], p['kind']) for p in processes],
+                         [('fixture::suite', 'tests'), ('fixture::suite', 'alone'),
+                          ('fixture::second', 'tests'), ('fixture::suite', 'fresh')])
 
     def test_global_timeout(self):
         self.env['FIXTURE_CASE'] = 'hang'
@@ -389,6 +508,8 @@ class RunnerTests(RunnerFixture):
             self.assertIsNone(self.record['returncode'])
             self.assertEqual(self.record['wall_s'], 0.0)
             self.assertEqual(result['processes'], [])
+            output = (self.directory / 'command-output.txt').read_text()
+            self.assertEqual('warning: no tests to run\n' in output, rule == 'warn')
         calls = (self.root / 'prefix-argv.jsonl').read_text().splitlines()
         self.assertEqual(len(calls), 3)
 
@@ -450,9 +571,28 @@ class RunnerTests(RunnerFixture):
         self.config.write_text('[profile.default]\ndefault-filter="none()"\n')
         with self.assertRaisesRegex(ValueError, 'default-filter'):
             self.invoke()
+        filters = [['-E', 'all()'], ['-Eall()'], ['-E=all()'],
+                   ['--filterset', 'all()'], ['--filterset=all()'],
+                   ['--filter-expr', 'all()'], ['--filter-expr=all()']]
+        for index, args in enumerate(filters):
+            with self.subTest(args=args):
+                self.directory = self.root / f'filter-{index}'
+                original = self.command
+                self.command = [*original, *args]
+                try:
+                    self.assertEqual(self.invoke()['selected'], 3)
+                finally:
+                    self.command = original
+        self.config.write_text('[profile.default]\ndefault-filter="rdeps(x)"\n')
+        self.directory = self.root / 'unsupported-unused'
         self.command.extend(['-E', 'all()'])
-        result = self.invoke()
-        self.assertEqual(result['selected'], 3)
+        self.assertEqual(self.invoke()['selected'], 3)
+        del self.command[-2:]
+        (self.root / 'prefix-argv.jsonl').unlink()
+        self.directory = self.root / 'unsupported-used'
+        with self.assertRaisesRegex(ValueError, 'unsupported filter'):
+            self.invoke()
+        self.assertFalse((self.root / 'prefix-argv.jsonl').exists())
 
 
 if __name__ == '__main__':

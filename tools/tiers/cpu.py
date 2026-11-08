@@ -410,7 +410,10 @@ def one_process_summary(directory, limits, pair, run):
         outcome, index = item['outcome'], item['process']
         if outcome not in ('passed', 'failed', 'crashed', 'starved', 'cancelled'):
             raise ValueError('invalid test outcome')
-        if (type(index) is not int or not 0 <= index < len(processes)
+        if index is None:
+            if data['cancelled'] is None or outcome not in ('passed', 'failed', 'starved'):
+                raise ValueError('invalid test process index')
+        elif (type(index) is not int or not 0 <= index < len(processes)
                 or processes[index]['kind'] not in ('tests', 'fresh')
                 or processes[index]['binary_id'] != key[0]):
             raise ValueError('invalid test process index')

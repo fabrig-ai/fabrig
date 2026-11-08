@@ -842,11 +842,17 @@ replay says the same clocks (`README.md`, 5.12).
   sets from the kept look (`README.md`, 3.5, *Its look, kept per browser*):
   - *Tokens first:* every colour of `temper.css` and `task-pages.css` comes from
     a custom property, the day's values exactly as the literals they replace, so
-    that a day page is drawn as before. One day set, on `:root`, holds the
-    `--temper-*` and `--gf-*` tokens and those the literals become, named by
-    their part (a ground, an ink, a line, a primary's ground and words);
-    one night set redefines them on `:root[data-night]`, where it outranks
-    every day set. `color-scheme` is `dark` at night.
+    that a day page is drawn as before. The day `:root` holds the
+    `--temper-*` tokens and the tokens the literals become, named by their
+    part (a ground, an ink, a line, a primary's ground and words). The five
+    greenfield day sets stay scoped to welcome, rail, session or Chats,
+    Needs you and public pages: Accounts and connection pages outside
+    those scopes keep their undefined-property fallbacks. One night set,
+    `html:root[data-night]:has(#app)`, outranks every day set.
+    `color-scheme` is `dark` at night. Embedded SVG images keep literal
+    colours, and the chat terminal's local palettes keep their own dark
+    and light; `transparent`, `currentColor` and `inherit` keep their
+    meanings. The placeholder's `loading.css` is separate.
   - *The night's colours* are fabrig.ai's, as the request's overlay draws them:
     paper `#01061b`, surface `#070d2b`, top bar `#050a24`, ink `#fafafa`,
     second ink `#d2def6`, muted `#a9b6d8`, faint and hint `#8493b8`, lines
@@ -1473,6 +1479,19 @@ Not in the tier, each in the lowest world that shows it:
   one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
+
+- **The two-step Home and night comparison** (2.5, 7.2): temper/ui
+  compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` after
+  landing, including their named states, open menus and disclosures at
+  1440, 1000 and 420 px (`../draft/look-requests.md`, section 4).
+  Include `home-begin-*`, Home with a need or chat under To begin,
+  Ask temper's restricted rail, and `night-home`, `night-ask` and
+  `night-chat-split`. Check the faint top-right glow without rings and
+  readability on every other page; refine the first night palette with
+  the user. Run the history story's night reload row after landing.
+  Default: tokens, focused tables and gallery prints establish no
+  rendered equality or browser runtime result. Home's suppression gap
+  remains `README.status.md`, 3.5's required work.
 
 - **Ask temper's repaired bar and first-run gallery** (2.5, 7.2):
   temper/ui compares the `ask-temper-place` tag at 1440 and 1000 px as

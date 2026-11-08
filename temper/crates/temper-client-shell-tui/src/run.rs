@@ -165,6 +165,18 @@ impl Run {
         self.signed_in.as_deref()
     }
 
+    /// Read the filename of `path` beneath its parent descriptor `root`, before
+    /// the first iteration. The run owns `root` and closes it on shutdown.
+    #[must_use]
+    pub fn with_local_link(mut self, root: Fd, path: &[u8]) -> Self {
+        assert!(self.start.is_some(), "local link supplied before starting");
+        assert!(self.local.owned.is_none(), "one local link root");
+        self.local.owned = Some(self.local.io.adopt_root(root).expect("local link root room"));
+        self.local.root = root;
+        self.link_file = Some(path.rsplit(|byte| *byte == b'/').next().expect("link filename").into());
+        self
+    }
+
     /// The native shell's files refused the directory.
     #[must_use]
     pub const fn refused(&self) -> bool {
@@ -254,6 +266,7 @@ impl Run {
             return;
         }
         self.closing = true;
+        self.local.closing = true;
         #[cfg(any(test, feature = "record"))]
         let saving = self.recording.is_some();
         #[cfg(not(any(test, feature = "record")))]
@@ -824,6 +837,7 @@ enum LocalStage {
     Stating,
     Reading,
     Closing,
+    ClosingRoot,
 }
 
 /// A bounded private read on the loop, with the checks of skein-shell's
@@ -832,6 +846,8 @@ struct LocalFile {
     io: io::file_layer::FileIo,
     env: Env<io::file_layer::Limits>,
     root: Fd,
+    owned: Option<Token>,
+    closing: bool,
     user: u32,
     stage: LocalStage,
     file: Option<Token>,
@@ -846,11 +862,13 @@ struct LocalFile {
 impl LocalFile {
     fn new(root: Fd, user: u32) -> Self {
         let limits =
-            io::file_layer::Limits { files: 1, read: 4097, entries: 1, whole: 4097, timeout: Duration::from_secs(30) };
+            io::file_layer::Limits { files: 2, read: 4097, entries: 1, whole: 4097, timeout: Duration::from_secs(30) };
         Self {
             io: io::file_layer::FileIo::with_limits(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             root,
+            owned: None,
+            closing: false,
             user,
             stage: LocalStage::Ready,
             file: None,
@@ -881,78 +899,99 @@ impl LocalFile {
         }
     }
 
-    #[expect(clippy::verbose_bit_mask, reason = "the private-file rule names the group and other permission bits")]
-    fn progress(&mut self, now: Time) {
+    fn event(&mut self, event: io::file::Event) {
         use io::file::{Event, Request};
+        match self.stage {
+            LocalStage::Opening => {
+                if let Event::Opened { file, .. } = event {
+                    self.file = Some(file);
+                    self.request(LocalStage::Stating, Request::Stat { owner: Token::new(1), file });
+                } else {
+                    self.finish();
+                }
+            }
+            LocalStage::Stating => {
+                if let Event::Stated { stat, .. } = event
+                    && self.private(&stat)
+                {
+                    self.request(
+                        LocalStage::Reading,
+                        Request::ReadAt {
+                            owner: Token::new(1),
+                            file: self.file.expect("opened link"),
+                            offset: 0,
+                            max: 4097,
+                        },
+                    );
+                } else {
+                    self.finish();
+                }
+            }
+            LocalStage::Reading => {
+                if let Event::Read { bytes, .. } = event
+                    && bytes.len() <= 4096
+                {
+                    self.link = Some(Secret::new(bytes.strip_suffix(b"\n").unwrap_or(&bytes).into()));
+                }
+                self.finish();
+            }
+            LocalStage::Closing => {
+                self.file = None;
+                self.stage = LocalStage::Ready;
+                self.result = Some(self.link.take());
+            }
+            LocalStage::ClosingRoot => {
+                self.owned = None;
+                self.stage = LocalStage::Ready;
+            }
+            LocalStage::Ready => unreachable!("local request in flight"),
+        }
+    }
+
+    #[expect(clippy::verbose_bit_mask, reason = "the private-file rule names the group and other permission bits")]
+    fn private(&self, stat: &io::kernel::Stat) -> bool {
+        stat.kind == io::kernel::Kind::File
+            && stat.owner == self.user
+            && stat.mode & 0o077 == 0
+            && stat.links == 1
+            && stat.size <= 4096
+    }
+
+    fn progress(&mut self, now: Time) {
+        use io::file::Request;
         self.env.now = now;
         if self.io.is_due(now) {
             io::file_layer::step::expire(&mut self.io, &self.env, &mut self.submissions);
         }
         while let Some(event) = self.events.pop() {
-            match self.stage {
-                LocalStage::Opening => {
-                    if let Event::Opened { file, .. } = event {
-                        self.file = Some(file);
-                        self.request(LocalStage::Stating, Request::Stat { owner: Token::new(1), file });
-                    } else {
-                        self.finish();
-                    }
-                }
-                LocalStage::Stating => {
-                    if let Event::Stated { stat, .. } = event
-                        && stat.kind == io::kernel::Kind::File
-                        && stat.owner == self.user
-                        && stat.mode & 0o077 == 0
-                        && stat.links == 1
-                        && stat.size <= 4096
-                    {
-                        self.request(
-                            LocalStage::Reading,
-                            Request::ReadAt {
-                                owner: Token::new(1),
-                                file: self.file.expect("opened link"),
-                                offset: 0,
-                                max: 4097,
-                            },
-                        );
-                    } else {
-                        self.finish();
-                    }
-                }
-                LocalStage::Reading => {
-                    if let Event::Read { bytes, .. } = event
-                        && bytes.len() <= 4096
-                    {
-                        self.link = Some(Secret::new(bytes.strip_suffix(b"\n").unwrap_or(&bytes).into()));
-                    }
-                    self.finish();
-                }
-                LocalStage::Closing => {
-                    self.file = None;
-                    self.stage = LocalStage::Ready;
-                    self.result = Some(self.link.take());
-                }
-                LocalStage::Ready => unreachable!("local request in flight"),
-            }
+            self.event(event);
         }
-        if self.stage == LocalStage::Ready
-            && self.io.takes()
-            && self.submissions.room() >= 2
-            && let Some(name) = self.pending.take()
-        {
+        if self.stage != LocalStage::Ready || !self.io.takes() || self.submissions.room() < 2 {
+            return;
+        }
+        if let Some(name) = self.pending.take() {
             self.request(
                 LocalStage::Opening,
                 Request::OpenReadNoFollow { owner: Token::new(1), root: self.root, name },
             );
+        } else if self.closing
+            && let Some(file) = self.owned
+        {
+            self.request(LocalStage::ClosingRoot, Request::Close { owner: Token::new(1), file });
         }
     }
 
     fn pending(&self) -> bool {
-        !self.events.is_empty() || !self.submissions.is_empty() || self.pending.is_some() || self.result.is_some()
+        !self.events.is_empty()
+            || !self.submissions.is_empty()
+            || self.pending.is_some()
+            || self.result.is_some()
+            || (self.closing && self.owned.is_some() && self.stage == LocalStage::Ready)
     }
 
     fn closed(&self) -> bool {
         self.stage == LocalStage::Ready
+            && self.owned.is_none()
             && self.io.open_files() == 0
             && self.io.takes()
             && self.pending.is_none()
