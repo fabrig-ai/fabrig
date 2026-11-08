@@ -70,6 +70,10 @@ and the rule; neither it nor any test measures a rendered stroke or the
 print at 420, which the render check after landing does (`README.md`,
 section 11).
 
+- **Not yet:** 2.5, *Ask temper's ways* (`ways-misses`, `look-round-25`):
+  with four tabs the tabs keep four columns at 760 px and under; the
+  drawing's and legend's rules are scoped to Ask temper's page alone.
+
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
 the address, visibility, focus and call-line checks. No implementation

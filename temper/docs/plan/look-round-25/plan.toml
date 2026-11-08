@@ -4,3 +4,35 @@ sources = ["temper/docs/plan/look-round-25/inputs/request.md", "temper/docs/desi
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "stops"
+title = "The path as amended, derived in the engine: conflict and resolve at the queue, catch up, stops drawn apart, \"never merge\""
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.13"
+
+[[part]]
+id = "look"
+title = "The ways page's card positions at 1000 and on a phone, four tabs two by two on a phone, its drawing shared with How work runs"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.16"
+
+[[slice]]
+id = 1
+story = "Every client is given the amended path: conflict and resolve where a change takes main at the front of its queue, catch up where a goal's branch takes main, each stop made only when needed marked so, a repair saying what it answers, and an agent that never merges"
+parts = ["stops"]
+walk = false
+
+[[slice]]
+id = 2
+story = "On Ask temper's ways, an open stop's card stands under the path as the look request's does at 1000 and on a phone, and four tabs stand two by two on a phone"
+parts = ["look"]
+walk = false

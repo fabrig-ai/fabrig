@@ -2829,17 +2829,19 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
     on and `way` names a template whose resources hold *its own goal
     branch*, as template 4's do (`../protocol/configuration.md`, 13.4);
     otherwise as a chat's change;
-  - the project's landing, by queue or by turn, and the repository's
-    CI, its test gates and its tiers, each with the branch it follows
-    (`landing.md`, 13.1; `after-landing.md`, section 2).
+  - the project's landing, by queue or by turn, whether it names a
+    merge job (8.4, *The merge job*), and the repository's CI, its test
+    gates and its tiers, each with the branch it follows (`landing.md`,
+    13.1; `after-landing.md`, section 2).
   The ways' paths and a proposal's "after" take the same derivation
   over the settings with items laid over them, each item as its
   decision would leave its setting (`../protocol/configuration.md`,
   13.10).
 - **A path** is a list of stops, each its actor, a person, an agent,
-  code or a branch's bar; its words; and what it opens: a charter, a
-  rule, a gate, a tier, the queue or the turn. The card each stop opens
-  is the path's too (below).
+  code or a branch's bar; its words; whether it is made only when
+  needed; the small words over its own, or none; and what it opens: a
+  charter, a rule, a gate, a tier, the queue or the turn. The card each
+  stop opens is the path's too (below).
 - **A typical run, with one repair,** a segment per branch the change
   lands on, each in this order:
   1. *Who starts,* on the first segment alone: for a chat's change, "you
@@ -2863,9 +2865,14 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
      where the reader holds the role, otherwise the role's name, as
      "an owner approves"; "×N" after it where it asks N people, N past
      one.
-  6. *By queue:* "update", code, and "resolve", the producer's, where a
-     covering rule that enforces asks up to date; then "merge", code,
-     opening the queue (section 9). *By turn* (`landing.md`, section
+  6. *By queue:* "conflict", code, opening the queue, and "resolve",
+     the producer's, where a covering rule that enforces asks up to
+     date: as a change takes its branch at the front of its queue
+     (section 9; section 10), the queue merges the branch's tip into it,
+     never by an agent; a clean merge is the queue's update, no stop of
+     its own, said in the conflict's and the merge's cards; a clash
+     takes the change out of the queue to its resolution (8.4). Then
+     "merge", code, opening the queue. *By turn* (`landing.md`, section
      8): "prepare", code, opening the turn; "resolve", the producer's;
      "prove", code, where the repository has test gates, opening the
      turn, its card naming the gates, since a stop opens a rule's gate
@@ -2874,22 +2881,58 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
      none is drawn; "turn", code, opening the turn.
   7. *Each tier* following the branch: on a goal's branch "check",
      code, then "repair", the template's charter's, while none is drawn;
-     on the landing branch "verify", code. A tier opens itself.
+     on the landing branch "verify", code. A tier opens itself. Then, on
+     a goal's segment where the project names a merge job, "catch up",
+     code, opening nothing: the goal's branch taking its landing
+     branch's tip, a change into it whose producer is the merge job
+     (8.2; section 10).
   8. *The branch's bar:* "goal branch" ends a goal's segment, and the
      landing branch's segment follows by its own rules, its start not
      repeated; the landing branch's bar, its name, as "main", ends the
      path.
+- **Drawn apart** (`../draft/stock-ways.md`, section 4): a stop made
+  only when needed is marked so, which a client draws outlined: each
+  "repair", "conflict", "resolve" and "catch up". The small words over a
+  stop's own, at most 16 bytes, are a repair's, what it answers:
+  "tests" where a check (CI, a check gate, a proof or a tier's check)
+  precedes it on its segment, "review" where a review gate does, "tests,
+  review" where both do; and a merge's on a goal's segment, "into goal".
+  No other stop has any.
+- **The conflict's, the resolution's, the catch-up's and the merge's
+  cards:**
+  - "conflict": `who` "code · BRANCH has moved in a way that clashes
+    with the change", "with the goal's branch" on the landing branch's
+    segment after a goal's, BRANCH the segment's branch; `name` "the
+    queue"; its facts "When", "the change reaches the front of the
+    queue: BRANCH is merged into it, never by an agent" ("the goal's
+    branch reaches" after a goal's), "Merged cleanly", "it is checked
+    again and lands" where the segment draws a "check", else "it
+    lands", and "A clash", "it leaves the queue and goes to resolve";
+  - "resolve": `who` "an agent · settles a conflict with its branch,
+    then goes back through the checks"; the producer's card;
+  - "catch up": `who` "code · takes BRANCH into the goal's branch",
+    BRANCH the landing branch; `name` "the merge job"; its facts
+    "Does", "merges BRANCH's tip into a branch made at the goal's tip,
+    landing as a change into it", "When", "the coordinator's call, as
+    BRANCH's landings touch the goal's open work", and "A conflict",
+    "goes to resolve";
+  - "merge": `who` "code · lands the change", "code · lands each change
+    into the goal's branch" on a goal's segment, and "code · lands the
+    goal on BRANCH" on the landing branch's segment after a goal's;
+    `name` "the queue"; its fact "Does", "merges exactly the commit its
+    checks saw".
 - **A stop whose setting is absent isn't drawn:** no "check" without
   CI, no tier's stops without a tier, no approval no rule asks.
-- **No agent's stop below the line:** an update, a merge, a prepare, a
-  proof and a turn are code's whatever the settings, the derivation
-  having no other actor for them.
+- **No agent's stop below the line:** a conflict, a merge, a catch-up,
+  a prepare, a proof and a turn are code's whatever the settings, the
+  derivation having no other actor for them.
 - **A stop's card,** from the same reads: for an agent, its charter's
   number and its name on the path ("the coding agent" for the producer,
   "the reviewer" for the reviews' charter, "the coordinator" for a
   goal template's), whether it holds the change (a blocking gate), the
   model and effort a run of it would take now for the reader, what its
-  tool families let it do, in words, and its instructions' first
+  tool families let it do, in words (*What an agent can*, below), and
+  its instructions' first
   sentence, whole, in quotes, within 184 bytes, and past them cut at the
   last word's end that fits with "…"; for a person, the role, how many it asks and what they
   decide; for code, what it checks or does: CI, the repository's
@@ -2898,6 +2941,16 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   stop opens its gate and names the gate's reviews' charter beside it,
   the role its card describes and opens. Every other fact's value is at
   most 128 bytes, cut the same way.
+- **What an agent can,** its card's "Can": each tool family its charter
+  holds, in this order, "read the code and the forge", "change and push
+  its branch", "run commands" and "start sub-agents", joined by "; ",
+  then "; never merge", no agent holding a merge tool and the queue's
+  update being code's. A charter with none of the four says what its
+  run holds instead: "read temper's records and the forge; propose
+  settings; never change anything" where its tools hold jig's settings
+  family, as Ask temper's do (`../protocol/configuration.md`, 13.4),
+  and otherwise "read the facts in its task; never merge", as the
+  status agent's (5.7).
 - **CI's card** names what CI is: its fact "Checks", where the landing
   branch's protection names required checks (8.7, the forge's
   `contexts`), "the CI workflows' checks A, B and C, at the change's
