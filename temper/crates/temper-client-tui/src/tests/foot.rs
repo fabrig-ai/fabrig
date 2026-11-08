@@ -65,7 +65,14 @@ pub(super) fn template(number: u32) -> c::Template {
     clippy::too_many_lines,
     reason = "one fixture supplies the chat owner and its draft through their public events"
 )]
-fn root_state(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool, state: TaskState) -> Domain {
+pub(super) fn root_state(
+    project: bool,
+    picker: bool,
+    chat: bool,
+    delegate: bool,
+    draft: bool,
+    state: TaskState,
+) -> Domain {
     let mut me = f::me(if project { &[b"Demo"] } else { &[] });
     if let Some(project) = me.projects.get_mut(0) {
         project.templates = List::from_boxed(Box::new([template(1), template(5)]));
@@ -210,7 +217,7 @@ fn root_state(project: bool, picker: bool, chat: bool, delegate: bool, draft: bo
 }
 
 #[derive(Clone, Copy)]
-enum TaskState {
+pub(super) enum TaskState {
     Idle,
     Ended,
     Result,

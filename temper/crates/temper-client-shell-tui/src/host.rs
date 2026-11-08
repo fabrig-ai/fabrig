@@ -397,6 +397,7 @@ impl Host {
                 self.act(Act::Terminal(terminal::Act::Run { command }));
                 self.tell(Told::Cleared);
             }
+            tui::Event::Stop | tui::Event::Stay | tui::Event::Log => {}
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
             tui::Event::Aside { object } => self.tell(Told::Aside { object: Some(object) }),

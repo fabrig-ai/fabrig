@@ -1,4 +1,4 @@
-//! The TUI's phrases beside the view's (temper/docs/design/client/README.md, 6.14 and 7.1).
+//! The TUI's phrases beside the view's (temper/docs/design/client/README.md, 6.14, 6.17 and 7.1).
 use crate::look;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -67,8 +67,37 @@ pub enum Word {
     Else,
     Dots,
     Numbered,
+    BoxPurpose,
+    WelcomeOpen,
+    LinkOnce,
+    InTheBrowser,
+    Step,
+    Following,
+    SignedInOwner,
+    StepsFollowed,
+    Fetching,
+    SettingUp,
+    ConnectingForgejo,
+    ConnectingGitHub,
+    FirstRepository,
+    SetUpStopped,
+    Playground,
+    PlaygroundBanner,
+    QuitOne,
+    QuitMany,
+    QuitNone,
+    StopBox,
+    DontQuit,
+    Restarting,
+    GaveUp,
+    GaveUpNote,
+    LogCommand,
+    LogHead,
+    LogEmpty,
+    ExitFront,
+    KeyCloseFront,
 }
-pub(crate) const ALL: [Word; 57] = [
+pub(crate) const ALL: [Word; 86] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -126,6 +155,35 @@ pub(crate) const ALL: [Word; 57] = [
     Word::Else,
     Word::Dots,
     Word::Numbered,
+    Word::BoxPurpose,
+    Word::WelcomeOpen,
+    Word::LinkOnce,
+    Word::InTheBrowser,
+    Word::Step,
+    Word::Following,
+    Word::SignedInOwner,
+    Word::StepsFollowed,
+    Word::Fetching,
+    Word::SettingUp,
+    Word::ConnectingForgejo,
+    Word::ConnectingGitHub,
+    Word::FirstRepository,
+    Word::SetUpStopped,
+    Word::Playground,
+    Word::PlaygroundBanner,
+    Word::QuitOne,
+    Word::QuitMany,
+    Word::QuitNone,
+    Word::StopBox,
+    Word::DontQuit,
+    Word::Restarting,
+    Word::GaveUp,
+    Word::GaveUpNote,
+    Word::LogCommand,
+    Word::LogHead,
+    Word::LogEmpty,
+    Word::ExitFront,
+    Word::KeyCloseFront,
 ];
 
 #[derive(Clone, Copy)]
@@ -139,6 +197,9 @@ enum Slot {
     Number,
     Moment,
     Clock,
+    Step,
+    Label,
+    Title,
 }
 impl Slot {
     const fn kind(self) -> HoleKind {
@@ -151,16 +212,21 @@ impl Slot {
             | Self::ApprovalAddress
             | Self::Port
             | Self::Span
-            | Self::Clock => HoleKind::Name,
+            | Self::Clock
+            | Self::Step
+            | Self::Label
+            | Self::Title => HoleKind::Name,
         }
     }
-    fn bytes(self, _domain: &Limits) -> u32 {
+    fn bytes(self, domain: &Limits) -> u32 {
         match self {
+            Self::Step => crate::limits::STEP,
+            Self::Title => domain.client.domain.text,
             Self::Address => 64,
             Self::Code => 9,
             Self::ApprovalAddress => 95,
             Self::Port => 5,
-            Self::Span => 32,
+            Self::Span | Self::Label => 32,
             Self::Number => 20,
             Self::Moment | Self::Clock => 13,
             Self::State => 11, // "Out of date" is the longest state word.
@@ -227,6 +293,35 @@ impl Word {
             Self::Else => 57,
             Self::Dots => 58,
             Self::Numbered => 59,
+            Self::BoxPurpose => 60,
+            Self::WelcomeOpen => 61,
+            Self::LinkOnce => 62,
+            Self::InTheBrowser => 63,
+            Self::Step => 64,
+            Self::Following => 65,
+            Self::SignedInOwner => 66,
+            Self::StepsFollowed => 67,
+            Self::Fetching => 68,
+            Self::SettingUp => 69,
+            Self::ConnectingForgejo => 70,
+            Self::ConnectingGitHub => 71,
+            Self::FirstRepository => 72,
+            Self::SetUpStopped => 73,
+            Self::Playground => 74,
+            Self::PlaygroundBanner => 75,
+            Self::QuitOne => 76,
+            Self::QuitMany => 77,
+            Self::QuitNone => 78,
+            Self::StopBox => 79,
+            Self::DontQuit => 80,
+            Self::Restarting => 81,
+            Self::GaveUp => 82,
+            Self::GaveUpNote => 83,
+            Self::LogCommand => 84,
+            Self::LogHead => 85,
+            Self::LogEmpty => 86,
+            Self::ExitFront => 87,
+            Self::KeyCloseFront => 88,
         }
     }
     const fn id(self) -> PhraseId {
@@ -234,6 +329,35 @@ impl Word {
     }
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::BoxPurpose => (&[b"on this machine, to try it"], &[]),
+            Self::WelcomeOpen => (&[b"Welcome. Set temper up in your browser: open this link on this machine."], &[]),
+            Self::LinkOnce => (&[b"It signs you in as this temper's owner, once, within 2 hours."], &[]),
+            Self::InTheBrowser => (&[b"In the browser"], &[]),
+            Self::Step => (&[b"", b" ", b""], &[Slot::Number, Slot::Label]),
+            Self::Following => (&[b"Setting temper up in your browser"], &[]),
+            Self::SignedInOwner => (&[b"Signed in as the owner"], &[]),
+            Self::StepsFollowed => (&[b"The steps are the browser's; this screen follows them."], &[]),
+            Self::Fetching => (&[b"fetching Forgejo\xe2\x80\xa6"], &[]),
+            Self::SettingUp => (&[b"setting up Forgejo\xe2\x80\xa6"], &[]),
+            Self::ConnectingForgejo => (&[b"connecting Forgejo\xe2\x80\xa6"], &[]),
+            Self::ConnectingGitHub => (&[b"connecting GitHub\xe2\x80\xa6"], &[]),
+            Self::FirstRepository => (&[b"making its first repository\xe2\x80\xa6"], &[]),
+            Self::SetUpStopped => (&[b"stopped: the browser says why"], &[]),
+            Self::Playground => (&[b"playground"], &[]),
+            Self::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it."], &[]),
+            Self::QuitOne => (&[b"Stop the box? ", b"'s running task stops with it."], &[Slot::Title]),
+            Self::QuitMany => (&[b"Stop the box? ", b" running tasks stop with it."], &[Slot::Number]),
+            Self::QuitNone => (&[b"Stop the box?"], &[]),
+            Self::StopBox => (&[b"Stop the box"], &[]),
+            Self::DontQuit => (&[b"Don't quit"], &[]),
+            Self::Restarting => (&[b"", b" restarting"], &[Slot::Step]),
+            Self::GaveUp => (&[b"", b" gave up"], &[Slot::Step]),
+            Self::GaveUpNote => (&[b"The box gave up: ", b". /log shows why; Ctrl+C closes."], &[Slot::Step]),
+            Self::LogCommand => (&[b"The box's recent log"], &[]),
+            Self::LogHead => (&[b"/log"], &[]),
+            Self::LogEmpty => (&[b"Nothing yet."], &[]),
+            Self::ExitFront => (&[b"Close temper and stop the box"], &[]),
+            Self::KeyCloseFront => (&[b"Ctrl+C closes temper and stops the box"], &[]),
             Self::Separator => (&[b" \xc2\xb7 "], &[]),
             Self::Between => (&[b" / "], &[]),
             Self::Byline => (&[b"written by the status agent ", b""], &[Slot::Clock]),
@@ -320,8 +444,9 @@ pub struct Words {
 impl Words {
     /// The TUI's English phrases under its owner, with domain-bounded holes.
     pub fn english(view: temper_client_view::words::Words, domain: &Limits) -> Result<Words, Invalid> {
-        let mut shapes = List::with_capacity(60);
-        let mut phrases = List::with_capacity(60);
+        let count = u32::try_from(ALL.len()).expect("the word count fits");
+        let mut shapes = List::with_capacity(count);
+        let mut phrases = List::with_capacity(count);
         let mut literal_bytes = 0_u32;
         let mut segment_count = 0_u32;
         for word in ALL {
@@ -384,7 +509,7 @@ impl Words {
         };
         let limits = PhraseLimits {
             languages: 1,
-            phrases: 60,
+            phrases: count,
             holes: 2,
             segments: segment_count,
             text_bytes: literal_bytes,

@@ -1,4 +1,4 @@
-//! The TUI's look names (temper/docs/design/client/README.md, 6.15).
+//! The TUI's look names (temper/docs/design/client/README.md, 6.15 and 6.17).
 use skein_lib::Token;
 use skein_ui::{Owner, Region, Style, look::Names};
 
@@ -37,6 +37,11 @@ pub const NOTE: Style = Style { owner: OWNER, token: 23 };
 pub const SPACED: Style = Style { owner: OWNER, token: 24 };
 /// Command names use plain weight while active, with descriptions kept in their own paint.
 pub const COMMAND: Style = Style { owner: OWNER, token: 25 };
+pub const STEP_DONE: Style = Style { owner: OWNER, token: 26 };
+pub const STEP_NOW: Style = Style { owner: OWNER, token: 27 };
+pub const STEP_AHEAD: Style = Style { owner: OWNER, token: 28 };
+pub const PLAYGROUND: Style = Style { owner: OWNER, token: 29 };
+pub const END_FAINT: Style = Style { owner: OWNER, token: 30 };
 pub const NAMES: Names<'static> = Names {
     owner: OWNER,
     prefix: b"tui",
@@ -67,6 +72,11 @@ pub const NAMES: Names<'static> = Names {
         b"tui-note",
         b"tui-spaced",
         b"tui-command",
+        b"tui-step-done",
+        b"tui-step-now",
+        b"tui-step-ahead",
+        b"tui-playground",
+        b"tui-end-faint",
     ],
     regions: &[b"tui-top", b"tui-bottom", b"tui-chat-top", b"tui-sections", b"tui-working", b"tui-box", b"tui-list"],
 };

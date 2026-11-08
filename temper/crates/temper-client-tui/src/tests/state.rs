@@ -323,3 +323,124 @@ fn the_surface_state_changes_only_when_its_facts_change() {
         assert_eq!(tui.focus(), 2, "{link:?}");
     }
 }
+
+// front, printed link, log, box state, question, /log, revision.
+type FrontFacts<'a> = (bool, Option<skein_lib::Secret>, &'a [&'a [u8]], crate::BoxState<'a>, bool, bool, u64);
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "named rows pin the front's facts and revision changes together")]
+fn the_front_states_steps_are_its_table() {
+    use crate::{BoxLine, BoxState};
+    use skein_lib::{Secret, bytes::copy_of};
+    let link = Told::BoxLine { line: BoxLine::Link { url: Secret::new(copy_of(b"the printed link")) } };
+    let another = Told::BoxLine { line: BoxLine::Link { url: Secret::new(copy_of(b"another printed link")) } };
+    let restarting = Told::BoxLine { line: BoxLine::Restarting { step: copy_of(b"forgejo-3") } };
+    let running = Told::BoxLine { line: BoxLine::Running { step: copy_of(b"forgejo-3") } };
+    let gave_up = Told::BoxLine { line: BoxLine::GaveUp { step: copy_of(b"serve") } };
+    let mut logs = skein_lib::List::with_capacity(51);
+    let mut kept = skein_lib::List::with_capacity(50);
+    for number in 0..51 {
+        let entry = copy_of(skein_lib::Decimal::of(number).as_bytes());
+        if number > 0 {
+            kept.push(entry.clone()).unwrap();
+        }
+        logs.push(Told::BoxLine { line: BoxLine::Log { line: entry } }).unwrap();
+    }
+    let mut kept_refs = skein_lib::List::with_capacity(50);
+    for entry in &kept {
+        kept_refs.push(entry.as_ref()).unwrap();
+    }
+    let rows: &[(&str, &[Told], FrontFacts<'_>)] = &[
+        ("initial", &[], (false, None, &[], BoxState::Running, false, false, 0)),
+        ("front", &[Told::Front], (true, None, &[], BoxState::Running, false, false, 1)),
+        ("same front", &[Told::Front, Told::Front], (true, None, &[], BoxState::Running, false, false, 1)),
+        (
+            "the printed link",
+            core::slice::from_ref(&link),
+            (false, Some(Secret::new(copy_of(b"the printed link"))), &[], BoxState::Running, false, false, 1),
+        ),
+        (
+            "same printed link",
+            &[link.clone(), link.clone()],
+            (false, Some(Secret::new(copy_of(b"the printed link"))), &[], BoxState::Running, false, false, 1),
+        ),
+        (
+            "another printed link",
+            &[link.clone(), another],
+            (false, Some(Secret::new(copy_of(b"another printed link"))), &[], BoxState::Running, false, false, 2),
+        ),
+        (
+            "last fifty oldest first",
+            logs.as_slice(),
+            (false, None, kept_refs.as_slice(), BoxState::Running, false, false, 51),
+        ),
+        (
+            "restarting",
+            core::slice::from_ref(&restarting),
+            (false, None, &[], BoxState::Restarting { step: b"forgejo-3" }, false, false, 1),
+        ),
+        (
+            "same restarting",
+            &[restarting.clone(), restarting.clone()],
+            (false, None, &[], BoxState::Restarting { step: b"forgejo-3" }, false, false, 1),
+        ),
+        (
+            "another step running",
+            &[restarting.clone(), Told::BoxLine { line: BoxLine::Running { step: copy_of(b"other") } }],
+            (false, None, &[], BoxState::Restarting { step: b"forgejo-3" }, false, false, 1),
+        ),
+        ("restarted", &[restarting.clone(), running.clone()], (false, None, &[], BoxState::Running, false, false, 2)),
+        ("already running", &[running], (false, None, &[], BoxState::Running, false, false, 0)),
+        (
+            "gave up",
+            &[restarting.clone(), gave_up.clone()],
+            (false, None, &[], BoxState::GaveUp { step: b"serve" }, false, false, 2),
+        ),
+        (
+            "gave up wins",
+            &[gave_up.clone(), restarting.clone()],
+            (false, None, &[], BoxState::GaveUp { step: b"serve" }, false, false, 2),
+        ),
+        (
+            "given up for good",
+            &[gave_up, Told::BoxLine { line: BoxLine::GaveUp { step: copy_of(b"other") } }],
+            (false, None, &[], BoxState::GaveUp { step: b"serve" }, false, false, 1),
+        ),
+        ("quitting", &[Told::Quitting], (false, None, &[], BoxState::Running, true, false, 1)),
+        ("same quitting", &[Told::Quitting, Told::Quitting], (false, None, &[], BoxState::Running, true, false, 1)),
+        ("stay", &[Told::Quitting, Told::Stay], (false, None, &[], BoxState::Running, false, false, 2)),
+        ("already staying", &[Told::Stay], (false, None, &[], BoxState::Running, false, false, 0)),
+        ("log", &[Told::Log], (false, None, &[], BoxState::Running, false, true, 1)),
+        ("same log", &[Told::Log, Told::Log], (false, None, &[], BoxState::Running, false, true, 1)),
+        (
+            "send lowers log",
+            &[Told::Log, Told::Unknown { words: None }],
+            (false, None, &[], BoxState::Running, false, false, 2),
+        ),
+        ("screen lowers log", &[Told::Log, Told::Went], (false, None, &[], BoxState::Running, false, false, 2)),
+    ];
+    let mut failures = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for (name, steps, want) in rows {
+        let mut tui = Tui::new(f::ADDRESS);
+        for told in *steps {
+            tui.step(told.clone());
+        }
+        let mut log = skein_lib::List::with_capacity(50);
+        for entry in tui.box_log() {
+            log.push(entry).unwrap();
+        }
+        let found = (
+            tui.front(),
+            tui.printed().cloned(),
+            log.as_slice(),
+            tui.box_state(),
+            tui.quitting(),
+            tui.log_shown(),
+            tui.revision(),
+        );
+        if found != *want {
+            failures.push(*name).unwrap();
+        }
+    }
+    assert!(failures.is_empty(), "front state rows: {failures:?}");
+}

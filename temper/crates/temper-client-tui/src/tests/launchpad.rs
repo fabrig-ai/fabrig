@@ -66,7 +66,7 @@ fn status(brief: bool) -> w::ProjectStatus {
 fn family(bytes: Box<[u8]>) -> jig_client::Family {
     jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes }
 }
-fn line(task: u64, title: &[u8], activity: u64, ended: bool) -> c::TaskLine {
+pub(super) fn line(task: u64, title: &[u8], activity: u64, ended: bool) -> c::TaskLine {
     let bounds =
         jig_client_protocol_link::Limits::new(f::limits().client.domain, f::limits().client.exchanges).unwrap();
     let mut rows =
@@ -104,7 +104,7 @@ fn inbox() -> c::Inbox {
     }
 }
 // Home's watches and reads use the same public deliveries as the root's fixtures.
-fn home(brief: Option<bool>, chats: &[c::TaskLine]) -> Domain {
+pub(super) fn home(brief: Option<bool>, chats: &[c::TaskLine]) -> Domain {
     home_cards(brief, chats, false)
 }
 #[expect(clippy::too_many_lines, reason = "one fixture answers Home watches and reads through public events")]
