@@ -565,7 +565,7 @@ impl World {
     }
     pub fn change(&mut self, against: u32, key: u8, items: Box<[s::Item]>) {
         self.driver.send(Event::Party(PartyInput::ChangeSettings {
-            kinds: Box::new([]),
+            kinds: temper_engine_domain_world::kinds::decoded(&items),
             reply_to: ReplyTo::new(Token::new(u64::from(key))),
             sign_in: self.owner,
             key: [key; 16],
@@ -573,7 +573,7 @@ impl World {
             change: Box::new(s::Change { against, items, running: s::Running::Stays }),
         }));
         self.driver.settle();
-        assert_eq!(self.head().number, against + 1, "owner's own change accepted");
+        assert_eq!(self.head().number, against + 1, "owner's own change accepted: {:?}", self.reply(key));
     }
     pub fn review(&mut self, run: &engine::Assignment, proposal: u64) -> core::documents::Proposal {
         self.driver.send(Event::Party(PartyInput::Read {
@@ -823,7 +823,14 @@ pub(super) fn parts_call(
 }
 /// Restart the root and reconnect the same person and worker, keeping the store.
 pub(super) fn restart_settings_world(world: &mut World, run: &engine::Assignment) {
-    let config = settings_config();
+    restart_configured_world(world, run, settings_config());
+}
+
+pub(super) fn restart_stock_world(world: &mut World, run: &engine::Assignment) {
+    restart_configured_world(world, run, config());
+}
+
+fn restart_configured_world(world: &mut World, run: &engine::Assignment, config: engine::Config) {
     let identity = config.core.owners[0].identity.clone();
     world.driver.reopen(config);
     let mut greeting = worker_hello();

@@ -1046,7 +1046,7 @@ fn the_stock_gives_each_project_rule_one_and_reset_restores_it() {
     let bytes = temper_engine_smith::kinds::encode(&value);
     let setting = s::Setting::Application { kind: 2, scope: PROJECT, number: 1 };
     let mut completion = 1;
-    for (revision, expected) in [(1, &stock), (2, &changed), (3, &stock)] {
+    for (revision, expected) in [(1, &stock), (2, &changed), (3, &stock), (4, &stock)] {
         for (project, expected) in [(PROJECT, expected), (other, &stock)] {
             let (text, _) = settings_whole(
                 &mut world.driver,
@@ -1081,6 +1081,10 @@ fn the_stock_gives_each_project_rule_one_and_reset_restores_it() {
             );
         } else if revision == 2 {
             world.change(2, 22, Box::new([s::Item { setting, edit: s::Edit::Reset }]));
+        } else if revision == 3 {
+            // jig rebuilds default metadata at startup; the forge's private
+            // every-project rule must still answer after that rebuild.
+            restart_stock_world(&mut world, &run);
         }
     }
 }
