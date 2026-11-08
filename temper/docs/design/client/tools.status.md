@@ -16,8 +16,6 @@ login-check dispatch, and checks a live name's exit-2 refusal and advice.
 Its worker is fake; it establishes no real login's usability.
 
 
-- **Not yet:** 5.3: `settings show charter-words` and `settings show
-  project-words` (`ui-p3e-words`'s `words-tools`).
 
 - **Departs:** 5.5, from `ui-account-again`'s request for each fixable
   account-act refusal to say why and what next: the plan limits the new

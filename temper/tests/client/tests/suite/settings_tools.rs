@@ -639,6 +639,7 @@ fn restored_forge_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 
 const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the table checks ways, questions and words through the joined ctl path")]
 fn settings_show_prints_a_projects_ways_and_questions() {
     let mut world = revision_world();
     let agent = fixtures::agent(&mut world);
@@ -688,6 +689,68 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let historical =
         call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1", b"--revision", b"2", b"--json"]);
     assert!(historical.contains("\"value\":\"foreman\""), "{historical}");
+    for (kind, selector, value, owners, name) in [
+        (
+            b"charter-words".as_slice(),
+            r#"{"kind":"charter-words","number":1}"#,
+            r#""reviews every change""#,
+            "to the deployment's owners",
+            "charter-words 1",
+        ),
+        (
+            b"project-words",
+            r#"{"kind":"project-words","project":1}"#,
+            r#"{"headline":"Our way","lede":"We review every change."}"#,
+            "to project 1's owners",
+            "project-words 1",
+        ),
+    ] {
+        let mut world = revision_world();
+        let agent = fixtures::agent(&mut world);
+        for json in [false, true] {
+            let mut argv = vec![b"settings".as_slice(), b"show", kind, b"1"];
+            if json {
+                argv.push(b"--json");
+            }
+            let shown = call(&mut world, agent, &argv);
+            assert!(shown.contains(if json { "\"value\":null" } else { "\nnone\n" }), "{shown}");
+        }
+        let file = format!(r#"{{"items":[{{"setting":{selector},"set":{value}}}]}}"#);
+        let proposal = submit_file(&mut world, agent, &file, owners);
+        for json in [false, true] {
+            let mut argv = vec![b"proposal".as_slice(), b"show", proposal.as_bytes()];
+            if json {
+                argv.push(b"--json");
+            }
+            let shown = call(&mut world, agent, &argv);
+            assert!(shown.contains(value), "{shown}");
+            assert!(shown.contains(if json { core::str::from_utf8(kind).unwrap() } else { name }), "{shown}");
+        }
+        ctl_accept(&mut world, agent, &proposal, b"accept-words");
+        let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+        assert!(inventory.contains(name), "{inventory}");
+        for json in [false, true] {
+            for historical in [false, true] {
+                let mut argv = vec![b"settings".as_slice(), b"show", kind, b"1"];
+                if historical {
+                    argv.extend([b"--revision".as_slice(), b"2"]);
+                }
+                if json {
+                    argv.push(b"--json");
+                }
+                let shown = call(&mut world, agent, &argv);
+                assert!(shown.contains(value), "{shown}");
+                assert!(!shown.contains("the stock"), "{shown}");
+            }
+            let mut argv = vec![b"revision".as_slice(), b"show", b"2"];
+            if json {
+                argv.push(b"--json");
+            }
+            let shown = call(&mut world, agent, &argv);
+            assert!(shown.contains(value), "{shown}");
+            assert!(shown.contains(if json { core::str::from_utf8(kind).unwrap() } else { name }), "{shown}");
+        }
+    }
 }
 
 #[test]
