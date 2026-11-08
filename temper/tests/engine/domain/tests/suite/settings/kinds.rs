@@ -464,7 +464,6 @@ fn decide_restore(proposal: u64) -> people::Ask {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
 fn a_landing_rule_and_the_forges_charter_changed_then_restored() {
     use temper_engine_domain_forge_change::State;
     use temper_engine_domain_world::forge_routes::{Gate, StoryLimits, Until, World};
@@ -477,7 +476,8 @@ fn a_landing_rule_and_the_forges_charter_changed_then_restored() {
         Gate::default(),
         None,
         StoryLimits { kinds: true, forge_charter: Some(1), ..StoryLimits::default() },
-    );
+    )
+    .with_settings_history();
     // The fixture imports its kinds in a release before the party edits them.
     let goal = kinds::goal(&mut world);
     let earlier_revision = kinds::revision(&world.store.rows) + 1;
@@ -563,7 +563,7 @@ fn a_landing_rule_and_the_forges_charter_changed_then_restored() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "jig/docs/design/domain/engine.md, 17.5 and 17.10: a reset to an absent application default loses its retained state at restart"]
 fn a_restore_leaves_out_a_deleted_projects_rule() {
     let mut driver = kinds::driver();
     apply(
@@ -589,7 +589,6 @@ fn a_restore_leaves_out_a_deleted_projects_rule() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: history pruning sends no ForgetReplaced (restore-request)"]
 fn forgetting_erases_the_forges_replaced_rows() {
     use temper_engine_domain_world::{direct::Driver, store::Store};
     let mut limits = kinds::limits();

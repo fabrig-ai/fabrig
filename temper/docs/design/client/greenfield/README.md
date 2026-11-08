@@ -18,6 +18,13 @@ Where this mock and `../mockups/` differ, this mock is the design
 - `phone.html`: the pages in a phone's frame.
 - `mock.css`: the look; the client's stylesheets take its rules.
 
+**How work runs** is the whole story's `../web/whole-story/how.html`
+(`../README.md`, 5.13, *The page*): this mock's `settings.html` leads its
+How work runs tab only for the rows the page keeps, What the project shows
+and Ways of working at its foot, and What needs you and Away until What
+reaches you takes their place; its Status, Funds and Telling you rows are
+not drawn.
+
 Open a page from a checkout; it needs no server. Budgets are drawn here
 but matter least: the flow, look and mechanics come first (the user,
 2026-11-05).

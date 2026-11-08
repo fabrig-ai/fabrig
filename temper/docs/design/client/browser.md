@@ -819,6 +819,41 @@ replay says the same clocks (`README.md`, 5.12).
   rule names, outweighing skein's rule and outweighed by every mark's own
   (the line's, the boundary's, a person's ring, the halo, the caret, a
   focused stop's area); skein's rule stays as it is.
+- **How work runs' look** (`README.md`, 5.13, *The page*) is the whole
+  story's `web/whole-story/how.html`, its `whole-story.css` rules taken
+  exactly, values and all, in `temper.css` under `/* ==== ui: how ==== */`,
+  which stands after the ways' rules under Settings' marker, scoped under
+  the project's frame on tokens of its own, `temper-how-*`:
+  - *its column,* `temper-how-wide` on Settings' column while How work runs
+    is its tab: `.col.wide`'s 1020 px, the frame's other tabs keeping 720;
+  - *its head,* Settings' own (`.intro`, `.kicker`, `.headline`, `.lede`),
+    "Ask temper to change this" a `.btn.dark`, Settings' primary;
+  - *a section's head,* `.shead`: its title and, at its right,
+    `temper-how-way`, "the way: NAME", as `.shead span`;
+  - *the path in lanes,* `temper-how-scroll`, `.scroll`, holding the table
+    `temper-how-path`, `.path`'s border, radius, surface and cells' padding
+    and hairlines, its columns 84 px for the lanes' names and at least 92
+    px a stop, so that it scrolls sideways in its box where they don't fit;
+    a column header `temper-how-head`, `.path .h`; a lane's row header
+    `temper-how-lane`, `.path .lane`; a stop's button a pill, `.step`, in
+    who acts' colours, `temper-how-person` the signal's pale ground and
+    ink (`.step.p`), `temper-how-agent` blue (`.step.a`) and
+    `temper-how-code` slate (`.step.c`), the open one ringed in its own
+    ink; a bar's cells `temper-how-bar`, a rule 2 px wide of ink down
+    their middle, its header in ink; the authority row's cell
+    `temper-how-line`, `.line`'s dashed rule and faint mono words; the
+    last row with no hairline under it, as `.path .last`;
+  - *who acts' colours* as tokens of the frame, `--gf-agent`,
+    `--gf-agent-pale`, `--gf-code` and `--gf-code-pale`, the mock's values by
+    day and the night palette's by night (*Day and night,* below), a
+    person's the signal's existing tokens;
+  - *the ways' tabs, line, card and act* take Ask temper's ways' rules
+    (above), the same declarations under the frame's scope: the card under
+    the table with no caret;
+  - *Budgets' row,* `temper-how-row`, `.row`'s grid with the first column
+    200 px, its small words muted and its figure at its right;
+  - *on a phone,* at 760 px and under, the column takes the frame's phone
+    width and the table keeps its columns, scrolling sideways.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
@@ -1301,13 +1336,22 @@ real key in that restored form.
   test loads the compressed module under temper's policy.
 - **The tier's window:** the tier's bundle also turns on
   `temper-client-shell-web`'s `small-window`, which names a conversation's
-  window of 131,072 bytes (`README.md`, 5.15), an eighth of a person's
-  `document_bytes`, through the same window mechanism. The long reading
+  window of 32,768 bytes, a thirty-second of a person's `document_bytes`,
+  through the same window mechanism (`README.md`, 5.15). A window holds no
+  less than `long_text`, so the feature sets the bundle's `long_text` and
+  `turn_text` to the same 32,768: the largest page `read_docs` answers
+  (`temper-docs`' `PAGE_BYTES`), so that a tier story's line holding one
+  stays whole. The long reading
   story (4.6, 14) passes that bound by at least two windows' worth and
   evicts and recovers lines at both ends. The unanchored position story
   stays within one window; it checks the words holding across a read above,
   and a window dropping lines would change what that proves, so it never
   reads the long story's chat.
+  Reading's replies are sized to the window: a reply's bytes ride on one
+  horizontally scrollable code line, its height on its paragraphs. So the
+  code lines scale with the window, and each history's bytes keep their
+  share of it, while the replies' counts and paragraphs stay: the keys
+  each step presses and the reply each step reads rest on them.
   The ordinary binary bundle and the journeys'
   never turn it on, and a long chat at the whole bound is read by hand.
 - **A chat's history:** what a reading story reads is made through
@@ -1788,7 +1832,8 @@ Not in the tier, each in the lowest world that shows it:
   with the welcome first, and reading's four page loads with anchoring off
   only for the position story. Default: compile during the plan; run in
   Chromium after landing, preserving every assertion, the forty-second
-  run deadline and the whole tier's 85 CPU-second budget. A whole-tier
+  run deadline and the whole tier's 127.5 CPU-second budget, 85 raised by
+  half by the user's word of 11-08, for now, to be revisited. A whole-tier
   run supplies the cost proof; separate story measurements do not.
 - **Reading's test past its run's forty seconds** (4.3; 4.6, 14). Default: it
   becomes two tests, the long chat's apart, and test 15, which shares its setup
@@ -2006,6 +2051,12 @@ from the engine's own answers, is where the look is tuned.
 | `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
 | `settings-away-off` | `settings` with the Away switch hidden |
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
+| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", the path in lanes with "verify" before main's bar, no act but "Keep it" while To begin's first step is left; the foot's switches (`README.md`, 5.13, *The page*) |
+| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" in You's lane |
+| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Budgets' row "Goals", "80" |
+| `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", a fourth tab, "Yours", current and shown, no act |
+| `how-card` | `how` with the review's stop pressed: its cell current, its card under the table, its model, what it can do and what it is asked to, "Open the reviewer ›" |
+| `night-how` | `how` with the night switch pressed: who acts' colours by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Settings' frame |

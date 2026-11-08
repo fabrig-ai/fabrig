@@ -1,7 +1,7 @@
 //! Bounded JSON document access for CDP replies and events.
 //!
-//! The document owns one message. Values borrow spans from it, so walking
-//! nested fields does not copy the subtree. Only requested strings unescape.
+//! The document owns one message and its value index (skein/docs/design/browser.md,
+//! 4 and 8). Lookups skip indexed subtrees. Only requested strings unescape.
 
 #![expect(clippy::disallowed_types, reason = "requested JSON strings are copied to owned byte vectors")]
 
@@ -16,10 +16,11 @@ pub enum DecodeError {
     Syntax,
 }
 
-/// One complete JSON document, without the trailing NUL.
+/// One complete JSON document, without the trailing NUL, and the index of its values.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Document {
     bytes: Box<[u8]>,
+    entries: Box<[Entry]>,
 }
 
 impl Document {
@@ -31,67 +32,77 @@ impl Document {
         if bytes.len() > limit {
             return Err(DecodeError::TooLong);
         }
-        let mut parser = Parser { bytes, at: 0 };
-        parser.space();
-        parser.value(0)?;
-        parser.space();
-        if parser.at != bytes.len() {
-            return Err(DecodeError::Syntax);
-        }
-        Ok(Document { bytes: Box::from(bytes) })
+        let count = Parser { bytes, at: 0, count: 0, entries: None }.document()?;
+        let mut entries = Entry::allocate(usize::try_from(count).expect("entry count fits the bounded message"));
+        Parser { bytes, at: 0, count: 0, entries: Some(&mut entries) }.document()?;
+        Ok(Document { bytes: Box::from(bytes), entries })
     }
 
     /// The root JSON value.
     #[must_use]
     pub fn root(&self) -> Value<'_> {
-        Value::new(&self.bytes)
+        Value { document: self, at: 0 }
     }
 }
 
-/// A valid JSON value borrowed from a validated document.
+/// A value's or a member key's place, in document order.
+/// A member's key entry is followed by its value entry.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct Entry {
+    start: u32,
+    end: u32,
+    after: u32,
+}
+
+impl Entry {
+    #[expect(clippy::disallowed_methods, reason = "validation counted the exact index length before allocation")]
+    fn allocate(count: usize) -> Box<[Entry]> {
+        core::iter::repeat_n(Entry { start: 0, end: 0, after: 0 }, count).collect()
+    }
+}
+
+/// A valid JSON value of a validated document: an entry of its index.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Value<'a> {
-    bytes: &'a [u8],
+    document: &'a Document,
+    at: u32,
 }
 
 impl<'a> Value<'a> {
-    fn new(bytes: &'a [u8]) -> Value<'a> {
-        Value { bytes: bytes.trim_ascii() }
+    fn entry(self) -> &'a Entry {
+        self.document
+            .entries
+            .get(usize::try_from(self.at).expect("index fits the document"))
+            .expect("validated value has an index entry")
     }
 
     /// The JSON representation of this value.
     #[must_use]
     pub fn raw(self) -> &'a [u8] {
-        self.bytes
+        let entry = self.entry();
+        let start = usize::try_from(entry.start).expect("offset fits the document");
+        let end = usize::try_from(entry.end).expect("offset fits the document");
+        self.document.bytes.get(start..end).expect("validated span is inside the document")
     }
 
     /// A member of an object, if it exists. Duplicate keys select the first.
     #[must_use]
     pub fn get(self, key: &[u8]) -> Option<Value<'a>> {
-        if self.bytes.first() != Some(&b'{') {
+        if self.raw().first() != Some(&b'{') {
             return None;
         }
-        let mut parser = Parser { bytes: self.bytes, at: 1 };
-        parser.space();
-        while parser.peek() != Some(b'}') {
-            let start = parser.at;
-            parser.string().ok()?;
-            let name = Value::new(self.bytes.get(start..parser.at)?).text()?;
-            parser.space();
-            parser.take(b':').ok()?;
-            parser.space();
-            let start = parser.at;
-            parser.value(0).ok()?;
-            if name.as_ref() == key {
-                return Some(Value::new(self.bytes.get(start..parser.at)?));
+        let end = self.entry().after;
+        let mut at = self.at.checked_add(1)?;
+        while at < end {
+            let name = Value { document: self.document, at };
+            let raw = name.raw();
+            let inner = raw.get(1..raw.len().checked_sub(1)?)?;
+            let equal = if inner.contains(&b'\\') { name.text()?.as_ref() == key } else { inner == key };
+            let value = Value { document: self.document, at: at.checked_add(1)? };
+            if equal {
+                return Some(value);
             }
-            parser.space();
-            if parser.peek() == Some(b',') {
-                parser.at = parser.at.checked_add(1)?;
-                parser.space();
-            } else {
-                break;
-            }
+            at = value.entry().after;
         }
         None
     }
@@ -99,19 +110,20 @@ impl<'a> Value<'a> {
     /// Iterate an array's elements.
     #[must_use]
     pub fn array(self) -> Option<Array<'a>> {
-        if self.bytes.first() != Some(&b'[') {
+        if self.raw().first() != Some(&b'[') {
             return None;
         }
-        Some(Array { bytes: self.bytes, at: 1, done: false })
+        Some(Array { document: self.document, next: self.at.checked_add(1)?, end: self.entry().after })
     }
 
     /// The unescaped UTF-8 bytes of a JSON string.
     #[must_use]
     pub fn text(self) -> Option<Box<[u8]>> {
-        if self.bytes.first() != Some(&b'"') || self.bytes.last() != Some(&b'"') {
+        let bytes = self.raw();
+        if bytes.first() != Some(&b'"') || bytes.last() != Some(&b'"') {
             return None;
         }
-        let inner = self.bytes.get(1..self.bytes.len().checked_sub(1)?)?;
+        let inner = bytes.get(1..bytes.len().checked_sub(1)?)?;
         let mut out = Vec::with_capacity(inner.len());
         let mut at = 0_usize;
         while at < inner.len() {
@@ -162,21 +174,22 @@ impl<'a> Value<'a> {
     /// An unsigned JSON integer.
     #[must_use]
     pub fn u64(self) -> Option<u64> {
-        unsigned(self.bytes)
+        unsigned(self.raw())
     }
 
     /// A signed JSON integer.
     #[must_use]
     pub fn i64(self) -> Option<i64> {
-        signed(self.bytes)
+        signed(self.raw())
     }
 
     /// A decimal CSS coordinate with its fractional part dropped toward zero.
     /// Chromium's coordinate fields are decimals rather than exponents.
     #[must_use]
     pub fn whole_pixels(self) -> Option<i64> {
+        let bytes = self.raw();
         let mut end = 0_usize;
-        for byte in self.bytes {
+        for byte in bytes {
             if *byte == b'.' {
                 break;
             }
@@ -185,13 +198,14 @@ impl<'a> Value<'a> {
             }
             end = end.checked_add(1)?;
         }
-        signed(self.bytes.get(..end)?)
+        signed(bytes.get(..end)?)
     }
 
     /// A JSON boolean.
     #[must_use]
     pub fn bool(self) -> Option<bool> {
-        match self.bytes {
+        let bytes = self.raw();
+        match bytes {
             b"true" => Some(true),
             b"false" => Some(false),
             _ => None,
@@ -201,51 +215,69 @@ impl<'a> Value<'a> {
     /// Whether this is JSON null.
     #[must_use]
     pub fn is_null(self) -> bool {
-        self.bytes == b"null"
+        self.raw() == b"null"
     }
 }
 
-/// A borrowed iterator through a validated JSON array.
+/// A borrowed iterator through a validated JSON array's entries.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Array<'a> {
-    bytes: &'a [u8],
-    at: usize,
-    done: bool,
+    document: &'a Document,
+    next: u32,
+    end: u32,
 }
 
 impl<'a> Iterator for Array<'a> {
     type Item = Value<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
+        if self.next >= self.end {
             return None;
         }
-        let mut parser = Parser { bytes: self.bytes, at: self.at };
-        parser.space();
-        if parser.peek() == Some(b']') {
-            self.done = true;
-            return None;
-        }
-        let start = parser.at;
-        parser.value(0).ok()?;
-        let value = Value::new(self.bytes.get(start..parser.at)?);
-        parser.space();
-        if parser.peek() == Some(b',') {
-            self.at = parser.at.checked_add(1)?;
-        } else {
-            self.done = true;
-        }
+        let value = Value { document: self.document, at: self.next };
+        self.next = value.entry().after;
         Some(value)
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Debug)]
 struct Parser<'a> {
     bytes: &'a [u8],
     at: usize,
+    count: u32,
+    entries: Option<&'a mut [Entry]>,
 }
 
 impl Parser<'_> {
+    fn document(&mut self) -> Result<u32, DecodeError> {
+        self.space();
+        self.value(0)?;
+        self.space();
+        if self.at != self.bytes.len() {
+            return Err(DecodeError::Syntax);
+        }
+        Ok(self.count)
+    }
+
+    fn reserve(&mut self) -> Result<u32, DecodeError> {
+        let at = self.count;
+        self.count = self.count.checked_add(1).ok_or(DecodeError::TooLong)?;
+        Ok(at)
+    }
+
+    fn finish(&mut self, at: u32, start: usize) {
+        if let Some(entries) = &mut self.entries {
+            let entry = entries
+                .get_mut(usize::try_from(at).expect("entry offset fits the bounded message"))
+                .expect("counted index has room for every entry");
+            *entry = Entry {
+                start: u32::try_from(start).expect("start fits the bounded message"),
+                end: u32::try_from(self.at).expect("end fits the bounded message"),
+                after: self.count,
+            };
+        }
+    }
+
     fn peek(&self) -> Option<u8> {
         self.bytes.get(self.at).copied()
     }
@@ -265,6 +297,8 @@ impl Parser<'_> {
     }
 
     fn value(&mut self, depth: u32) -> Result<(), DecodeError> {
+        let start = self.at;
+        let at = self.reserve()?;
         match self.peek() {
             Some(b'{') => self.object(depth),
             Some(b'[') => self.array(depth),
@@ -274,7 +308,9 @@ impl Parser<'_> {
             Some(b'n') => self.literal(b"null"),
             Some(b'-' | b'0'..=b'9') => self.number(),
             _ => Err(DecodeError::Syntax),
-        }
+        }?;
+        self.finish(at, start);
+        Ok(())
     }
 
     fn object(&mut self, depth: u32) -> Result<(), DecodeError> {
@@ -287,7 +323,10 @@ impl Parser<'_> {
             return self.take(b'}');
         }
         loop {
+            let start = self.at;
+            let at = self.reserve()?;
             self.string()?;
+            self.finish(at, start);
             self.space();
             self.take(b':')?;
             self.space();
@@ -489,7 +528,7 @@ fn valid_text(bytes: &[u8]) -> Result<(), DecodeError> {
 
 #[cfg(test)]
 mod tests {
-    use super::{DecodeError, Document};
+    use super::{DecodeError, Document, Vec};
 
     #[test]
     fn nested_reply_and_escaped_text() {
@@ -523,5 +562,95 @@ mod tests {
         assert_eq!(values.next().expect("first").whole_pixels(), Some(67));
         assert_eq!(values.next().expect("second").whole_pixels(), Some(-12));
         assert_eq!(values.next().expect("third").whole_pixels(), Some(0));
+    }
+
+    #[test]
+    fn members_skip_subtrees_at_their_own_depth() {
+        let doc =
+            Document::parse(br#"{"a":{"b":1,"c":[1,[2,{"b":3}]]},"b":{"x":"y"},"d":4}"#, 512).expect("nested members");
+        let root = doc.root();
+        assert_eq!(root.get(b"b").expect("root b").raw(), br#"{"x":"y"}"#);
+        assert_eq!(root.get(b"d").expect("past subtrees").u64(), Some(4));
+        assert!(root.get(b"c").is_none());
+        assert_eq!(root.get(b"a").expect("a").get(b"c").expect("nested c").raw(), br#"[1,[2,{"b":3}]]"#);
+    }
+
+    #[test]
+    fn duplicate_members_select_the_first() {
+        let doc = Document::parse(br#"{"k":1,"k":2,"a":{"k":3,"k":4}}"#, 100).expect("duplicates");
+        assert_eq!(doc.root().get(b"k").expect("first root member").u64(), Some(1));
+        assert_eq!(doc.root().get(b"a").expect("a").get(b"k").expect("first nested member").u64(), Some(3));
+    }
+
+    #[test]
+    fn escaped_members_match_unescaped_bytes() {
+        let doc =
+            Document::parse(br#"{"ab":1,"q\"":2,"ab":3,"a\u0062":4,"\uD83D\uDE00":5}"#, 100).expect("escaped keys");
+        assert_eq!(doc.root().get(b"ab").expect("plain key").u64(), Some(1));
+        assert_eq!(doc.root().get(b"q\"").expect("escaped quote").u64(), Some(2));
+        assert_eq!(doc.root().get("😀".as_bytes()).expect("surrogate pair key").u64(), Some(5));
+    }
+
+    #[test]
+    fn arrays_yield_whole_elements_then_nothing() {
+        let doc = Document::parse(br#"[ 1 , "x" , {"k":[2]} , [] , null ]"#, 100).expect("array");
+        let mut elements = doc.root().array().expect("array view");
+        for expected in [b"1".as_slice(), br#""x""#, br#"{"k":[2]}"#, b"[]", b"null"] {
+            assert_eq!(elements.next().expect("whole element").raw(), expected);
+        }
+        assert!(elements.next().is_none());
+        assert!(elements.next().is_none());
+        let empty = Document::parse(b"[]", 100).expect("empty array");
+        assert!(empty.root().array().expect("empty view").next().is_none());
+    }
+
+    #[test]
+    fn lookups_on_the_wrong_kind_find_nothing() {
+        for bytes in [b"[]".as_slice(), br#""x""#, b"1", b"{}"] {
+            let doc = Document::parse(bytes, 100).expect("value");
+            assert!(doc.root().get(b"k").is_none());
+        }
+        for bytes in [b"{}".as_slice(), br#""x""#] {
+            let doc = Document::parse(bytes, 100).expect("not an array");
+            assert!(doc.root().array().is_none());
+        }
+    }
+
+    #[test]
+    fn raw_keeps_internal_whitespace_exact() {
+        let doc = Document::parse(br#" { "a" : [ 1 , 2 ] , "b" : "c" } "#, 100).expect("spaces");
+        assert_eq!(doc.root().raw(), br#"{ "a" : [ 1 , 2 ] , "b" : "c" }"#);
+        assert_eq!(doc.root().get(b"a").expect("a").raw(), b"[ 1 , 2 ]");
+    }
+
+    #[test]
+    fn deepest_subtree_leaves_later_members_visible() {
+        for arrays in [63_usize, 64] {
+            let mut bytes = Vec::from(br#"{"a":"#.as_slice());
+            bytes.extend(core::iter::repeat_n(b'[', arrays));
+            bytes.push(b'0');
+            bytes.extend(core::iter::repeat_n(b']', arrays));
+            bytes.extend_from_slice(br#", "b":1}"#);
+            let parsed = Document::parse(&bytes, 512);
+            if arrays == 63 {
+                let doc = parsed.expect("64 containers are accepted");
+                assert_eq!(doc.root().get(b"b").expect("past deepest subtree").u64(), Some(1));
+            } else {
+                assert_eq!(parsed, Err(DecodeError::TooDeep));
+            }
+        }
+    }
+
+    #[test]
+    fn index_has_one_entry_per_value_and_key() {
+        let doc = Document::parse(br#"{"a":[1,2],"b":{}}"#, 100).expect("indexed members");
+        assert_eq!(doc.entries.len(), 7);
+        assert_eq!(size_of::<super::Entry>(), 12);
+        let mut entries = doc.entries.iter();
+        for expected in [(0, 18, 7), (1, 4, 2), (5, 10, 5), (6, 7, 4), (8, 9, 5), (11, 14, 6), (15, 17, 7)] {
+            let entry = entries.next().expect("entry in document order");
+            assert_eq!((entry.start, entry.end, entry.after), expected);
+        }
+        assert!(entries.next().is_none());
     }
 }
