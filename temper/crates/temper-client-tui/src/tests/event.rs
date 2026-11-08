@@ -20,7 +20,12 @@ fn each_act_is_its_event() {
             Some(Event::Typed { value: Box::from(*b"pasted") }),
         ),
         (&sign_in, field, Act::Submit, Some(Event::SignIn)),
-        (&first, quit, Act::Press, Some(Event::Quit)),
+        (
+            &first,
+            quit,
+            Act::Press,
+            Some(Event::Command { command: temper_client_domain::pages::terminal::Command::Exit }),
+        ),
         (&sign_in, field, Act::Press, None),
         (&sign_in, field, Act::Toggle, None),
         (&sign_in, field, Act::Drawing { data: Box::from([]) }, None),
