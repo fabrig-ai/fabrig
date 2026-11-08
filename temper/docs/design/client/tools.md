@@ -960,6 +960,11 @@ The table grows area by area, each with its stories (section 11).
    - **`SOURCE` names one of the account's sources** by its kind,
      `sign_in`, `key` or `program`, as `account list` prints it (section
      15).
+   - A declaration refused because NAME was issued says that the name remains
+     reserved after forgetting its account and asks for a never-used name.
+     It exits 2; JSON names `program_name_reserved`. Use a fresh request key
+     for the new declaration, since a key keeps its first answer.
+
    - **A program's login is never the tools'.** `account declare` makes
      the source; the person, or the harness, runs `temper program-login`
      on each host, outside `temper ctl`, since it hands the terminal to

@@ -1,6 +1,23 @@
 # configuration: status
 
-2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
+2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
+
+Section 13.4 has charter 11 and template 5 beside retained charter 3
+and template 3. The rules and policy 1 hold asking, tools 3,975, and
+delegate to charter 11. `ask.txt` omits Showing and Remembering. The stock
+first-request check holds 16,384 bytes on both request shapes. Existing
+project policies remain copies and require an owner's accepted proposal
+to gain the new delegation; removal of the configuring stock is deferred
+in section 11.
+
+Section 13.8 has no known gap in the sub-agent answer's payload-derived
+room: smith derives 10,662 bytes for the stock and 63,740 for the
+reference, with a floor of 4,096. Its profile table holds the answer
+equal to the outcome without changing the pinned T figures. A longer
+answer carries the omitted-byte count and asks for a new child with a
+narrower brief; temper adds no setting. The 3,000-byte delegated-answer
+story uses the simulated process world, with no real-provider result
+established here. Continuation remains deferred in section 11.
 
 Section 13.9 has the reference's charter 5 as shared instructions and
 four ordered parts, including the cut's no-design rule, and template 4
@@ -82,6 +99,13 @@ Section 13.2 has no gap in judging project ways against prospective templates
 or in the terminal refusal naming the item and rejected way.
 
 Section 13.8 has no gap in note-backed settings transport within the call payload ceiling.
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief. Its landed run proposal read needs
+  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
+  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected

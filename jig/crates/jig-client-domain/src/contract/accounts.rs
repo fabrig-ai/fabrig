@@ -111,14 +111,26 @@ pub enum AccountKeyFailure {
 pub enum AccountRefusal {
     NotLimited,
     Uses,
-    NotKept { why: AccountKeyFailure },
-    Limit { bound: AccountBound },
-    Held { provider: u32 },
-    Provider { provider: u32 },
+    /// The program source name remains reserved after its account is forgotten.
+    ProgramNameReserved,
+    NotKept {
+        why: AccountKeyFailure,
+    },
+    Limit {
+        bound: AccountBound,
+    },
+    Held {
+        provider: u32,
+    },
+    Provider {
+        provider: u32,
+    },
     Subject,
     Unknown,
     Numbers,
-    Kind { kind: AccountKind },
+    Kind {
+        kind: AccountKind,
+    },
     Closing,
     NotStarted,
     NotSignedIn,

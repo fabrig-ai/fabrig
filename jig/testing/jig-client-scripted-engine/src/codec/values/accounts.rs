@@ -183,6 +183,7 @@ pub(in crate::codec) fn wire_account_refusal(
     Ok::<_, w::Problem>(match value {
         c::AccountRefusal::NotLimited => w::AccountRefusal::NotLimited,
         c::AccountRefusal::Uses => w::AccountRefusal::Uses,
+        c::AccountRefusal::ProgramNameReserved => w::AccountRefusal::ProgramNameReserved,
         c::AccountRefusal::NotKept { why } => w::AccountRefusal::NotKept(w::AccountRefusalNotKept::new(
             limits,
             w::AccountRefusalNotKeptParts { why: wire_account_key_failure(why, limits)? },

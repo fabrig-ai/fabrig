@@ -120,6 +120,7 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         p::Refusal::NameTaken => w::Refusal::NameTaken,
         p::Refusal::Unknown => w::Refusal::Unknown,
         p::Refusal::NotOffered => w::Refusal::NotOffered,
+        p::Refusal::ProgramNameReserved => w::Refusal::ProgramNameReserved,
         p::Refusal::Provider => w::Refusal::Provider,
         p::Refusal::NoEscalationHolder => w::Refusal::NoEscalationHolder,
         p::Refusal::KeyConflict => w::Refusal::KeyConflict,

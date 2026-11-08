@@ -135,9 +135,9 @@ follow the block with
 `box: model key FILE` and `box: GitHub own App id 1, key file FILE`
 (read later).
 
-If not: a link opened once the box has given up gets no answer, and the
-terminal has said why. Mend what it said and run `temper box` again, for
-a new link. A taken port refuses before any link is printed.
+If not: once the box gives up, a link gets no answer; the terminal says why.
+Mend it; rerun `temper box` for a new link.
+A taken port refuses before any link is printed.
 `missing or nonexecutable adapter`: build `fake-claude` beside
 `temper`. `not in current init shape`: changed `CONFIG`; use empty
 directories. `retained documents must be private files`:
@@ -237,6 +237,8 @@ temper program-login --config CONFIG --data DATA --cache CACHE NAME
 temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
+
+Use a never-used NAME, even after forgetting, and a fresh KEY.
 
 `program-login`: signs in at `PROGRAMS/NAME`.
 Existing login: parent as `PROGRAMS`, name as `NAME`; skip `program-login`.

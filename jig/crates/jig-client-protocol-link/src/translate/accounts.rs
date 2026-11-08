@@ -40,6 +40,7 @@ pub(crate) fn account_refusal(value: &w::AccountRefusal) -> c::AccountRefusal {
     match value {
         w::AccountRefusal::NotLimited => c::AccountRefusal::NotLimited,
         w::AccountRefusal::Uses => c::AccountRefusal::Uses,
+        w::AccountRefusal::ProgramNameReserved => c::AccountRefusal::ProgramNameReserved,
         w::AccountRefusal::NotKept(row) => c::AccountRefusal::NotKept { why: account_key_failure(row.why()) },
         w::AccountRefusal::Limit(row) => c::AccountRefusal::Limit { bound: account_bound(row.bound()) },
         w::AccountRefusal::Held(row) => c::AccountRefusal::Held { provider: row.provider() },

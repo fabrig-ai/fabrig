@@ -51,6 +51,7 @@ pub fn recovery(object: &Object) -> Recovery {
             | Refusal::Ended { .. }
             | Refusal::Unknown
             | Refusal::NameTaken
+            | Refusal::ProgramNameReserved
             | Refusal::NotOffered
             | Refusal::NoEscalationHolder
             | Refusal::SignInRedirect { .. }

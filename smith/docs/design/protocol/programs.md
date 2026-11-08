@@ -790,6 +790,12 @@ the next turn of that same cued script (decided 2026-11-02).
 
 ## 9. Open questions
 
+- **Claude Code's own request with MCP attached** (5.1): record its overhead
+  once with smith's server, including tool search's placeholder and prefixed
+  tool names. The 2.1.312 subscription check establishes prompt replacement;
+  its about 1.1 KB figure was measured without MCP. The application's request bound
+  excludes this program-owned part.
+
 - **Anthropic's terms for a product:** whether a product that runs the
   person's own Claude Code falls under the allowance for a person's own
   use, and whether it needs Anthropic's Commercial Terms. Default:
