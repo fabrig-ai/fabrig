@@ -2,7 +2,12 @@
 
 2026-11-08. Where skein's code lags or departs from [ui-screen.md](ui-screen.md).
 
-No known implementation gap. Sections 3, 5 and 6.2 include rules without
+- **Not yet:** 5.2: a rule's end part laid before two glyphs across, and
+  a title with no start part laying no spaces at the border's start; the
+  renderer lays one glyph across after a rule's end part and two spaces
+  at the start of a title whose start part is empty.
+
+Otherwise no known implementation gap. Sections 3, 5 and 6.2 include rules without
 sides, border-end titles, end alignment, bands, unlabelled fields, marks,
 description paints, opt-in active-name paints, child spacing and options-menu selection. Paging
 uses the visible body's rows less one, at least one; paging up stops
