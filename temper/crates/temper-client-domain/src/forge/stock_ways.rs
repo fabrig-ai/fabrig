@@ -2,7 +2,7 @@
 use super::{Limits, wire_limits};
 use crate::{owner::Owner, pages::Request};
 use alloc::boxed::Box;
-use jig_client::{Client, Family, Handle, Key, Latest, Told, Watchable, contract as c};
+use jig_client::{Client, Family, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Queue};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -29,13 +29,19 @@ pub struct Tab {
 pub struct StockWays {
     project: u32,
     handle: Option<Handle>,
+    policy: Handle,
     state: State,
     configured: bool,
     pending: Option<Pending>,
     refused: Option<c::Refusal>,
 }
 #[derive(Debug)]
-struct Pending {
+enum Pending {
+    Policy { against: u32, items: List<c::SettingItem> },
+    Change(Change),
+}
+#[derive(Debug)]
+struct Change {
     key: Key,
     items: List<c::SettingItem>,
     retried: bool,
@@ -53,8 +59,17 @@ pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
 }
 impl StockWays {
     pub(crate) fn new(project: u32, next: &mut u64, limits: Limits, out: &mut Queue<Request>) -> Self {
-        let mut page =
-            Self { project, handle: None, state: State::Ended, configured: false, pending: None, refused: None };
+        let policy = Handle { asker: Owner::Pages.asker(), number: *next };
+        *next = next.checked_add(1).expect("page handles fit");
+        let mut page = Self {
+            project,
+            handle: None,
+            policy,
+            state: State::Ended,
+            configured: false,
+            pending: None,
+            refused: None,
+        };
         if let Some(subject) = watch(project, &limits) {
             let handle = Handle { asker: Owner::Pages.asker(), number: *next };
             *next = next.checked_add(1).expect("page handles fit");
@@ -68,6 +83,7 @@ impl StockWays {
         if let Some(handle) = self.handle {
             out.push(Request::Client(jig_client::Event::Unwatch { handle }));
         }
+        out.push(Request::Client(jig_client::Event::Unwatch { handle: self.policy }));
     }
     pub(crate) const fn configure(&mut self, configured: bool) {
         self.configured = configured;
@@ -165,15 +181,31 @@ impl StockWays {
                 })
                 .expect("wire bounds way items");
         }
+        let delegation = way.delegation();
         self.refused = None;
+        if delegation {
+            self.pending = Some(Pending::Policy { against: settings.newest, items });
+            out.push(Request::Client(jig_client::Event::Read {
+                handle: self.policy,
+                read: Readable::Jig(c::Read::Setting(c::ReadSetting {
+                    setting: c::Setting::ProjectPolicy { project: self.project },
+                    revision: settings.newest,
+                    proposal: None,
+                })),
+            }));
+        } else {
+            self.send_items(items, settings.newest, serial, out);
+        }
+    }
+    fn send_items(&mut self, items: List<c::SettingItem>, against: u32, serial: &mut u64, out: &mut Queue<Request>) {
         self.send(
-            Pending { key: Key { asker: Owner::Pages.asker(), number: 0 }, items, retried: false },
-            settings.newest,
+            Change { key: Key { asker: Owner::Pages.asker(), number: 0 }, items, retried: false },
+            against,
             serial,
             out,
         );
     }
-    fn send(&mut self, mut pending: Pending, against: u32, serial: &mut u64, out: &mut Queue<Request>) {
+    fn send(&mut self, mut pending: Change, against: u32, serial: &mut u64, out: &mut Queue<Request>) {
         *serial = serial.checked_add(1).expect("page requests fit");
         pending.key = Key { asker: Owner::Pages.asker(), number: *serial };
         out.push(Request::Client(jig_client::Event::Send {
@@ -185,7 +217,7 @@ impl StockWays {
                 running: c::Running::Stays,
             }))),
         }));
-        self.pending = Some(pending);
+        self.pending = Some(Pending::Change(pending));
     }
     pub(crate) fn told(
         &mut self,
@@ -224,11 +256,15 @@ impl StockWays {
             }
             Told::Answered { key, outcome }
                 if match &self.pending {
-                    Some(pending) => pending.key == *key,
-                    None => false,
+                    Some(Pending::Change(pending)) => pending.key == *key,
+                    Some(Pending::Policy { .. }) | None => false,
                 } =>
             {
                 self.answered(outcome, serial, out);
+                true
+            }
+            Told::Page { handle, page } if *handle == self.policy => {
+                self.policy_read(page, serial, out);
                 true
             }
             Told::Link { .. }
@@ -242,8 +278,44 @@ impl StockWays {
             | Told::Page { .. } => false,
         }
     }
+    fn policy_read(&mut self, page: &Readout, serial: &mut u64, out: &mut Queue<Request>) {
+        let (against, mut items) = match self.pending.take() {
+            Some(Pending::Policy { against, items }) => (against, items),
+            pending @ (Some(Pending::Change(_)) | None) => {
+                self.pending = pending;
+                return;
+            }
+        };
+        let setting = c::Setting::ProjectPolicy { project: self.project };
+        if let Some(mut policy) = whole_policy(page, setting, against) {
+            if add_delegation(&mut policy) {
+                items
+                    .push(c::SettingItem {
+                        setting,
+                        edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Policy(policy) }),
+                    })
+                    .expect("one policy joins the way items");
+            }
+            self.send_items(items, against, serial, out);
+        } else {
+            let why: &[u8] = match page {
+                Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) => b"The project policy read was refused.",
+                Readout::Jig(_) | Readout::Family { .. } | Readout::NotServed { .. } | Readout::Limit => {
+                    b"The project policy could not be read whole."
+                }
+            };
+            self.refused = Some(c::Refusal::Judged {
+                at: 0,
+                setting,
+                why: c::Text::new(why.into(), 128).expect("policy read refusal fits"),
+            });
+        }
+    }
     fn answered(&mut self, outcome: &jig_client::Outcome, serial: &mut u64, out: &mut Queue<Request>) {
-        let mut pending = self.pending.take().expect("matched pending act");
+        let mut pending = match self.pending.take().expect("matched pending act") {
+            Pending::Change(pending) => pending,
+            Pending::Policy { .. } => unreachable!("answer matched a sent change"),
+        };
         if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
             refusal: c::Refusal::Stale(stale),
             ..
@@ -276,6 +348,55 @@ impl StockWays {
         self.handle = None;
         self.state = State::Ended;
     }
+}
+
+fn whole_policy(page: &Readout, setting: c::Setting, against: u32) -> Option<Box<c::SettingPolicy>> {
+    let document = match page {
+        Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(document))) => document,
+        Readout::Jig(_) | Readout::Family { .. } | Readout::NotServed { .. } | Readout::Limit => return None,
+    };
+    if document.setting != setting || document.revision != against {
+        return None;
+    }
+    match &document.value {
+        Some(c::SettingValue::Policy(policy)) => Some(policy.clone()),
+        Some(
+            c::SettingValue::Charter(_)
+            | c::SettingValue::Template(_)
+            | c::SettingValue::Rules(_)
+            | c::SettingValue::Model(_)
+            | c::SettingValue::Application(_),
+        )
+        | None => None,
+    }
+}
+
+fn add_delegation(policy: &mut c::SettingPolicy) -> bool {
+    let mut changed = add_executors(&mut policy.ceiling.delegation);
+    for role in policy.roles.iter_mut() {
+        if role.number == 0 {
+            changed |= add_executors(&mut role.authority.delegation);
+        }
+    }
+    changed
+}
+
+fn add_executors(delegation: &mut c::Delegation) -> bool {
+    let mut kinds = List::uncapped();
+    for executor in &delegation.kinds {
+        kinds.push(*executor).expect("held executors fit");
+    }
+    let mut changed = false;
+    for executor in [c::AuthorityExecutor::Charter(5), c::AuthorityExecutor::Role(0), c::AuthorityExecutor::Job(3)] {
+        if !kinds.as_slice().contains(&executor) {
+            kinds.push(executor).expect("three executors join the policy");
+            changed = true;
+        }
+    }
+    if changed {
+        delegation.kinds = kinds;
+    }
+    changed
 }
 
 fn panel(record: &Family, limits: Limits) -> Option<w::WaysPanel> {

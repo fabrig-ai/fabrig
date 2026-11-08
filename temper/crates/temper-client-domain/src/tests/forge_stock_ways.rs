@@ -5,7 +5,7 @@ use crate::{
     forge::stock_ways::{self, State, WayAct},
     pages,
 };
-use jig_client::{Down, Key, Told, Up, Watchable, contract as c};
+use jig_client::{Down, Handle, Key, Readable, Readout, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -20,6 +20,23 @@ const STOPS: u32 = 32;
 const TABS: u32 = 3;
 // Each act is one ChangeSettings decision.
 const DECISIONS: usize = 1;
+const OLD: &[c::AuthorityExecutor] = &[c::AuthorityExecutor::Charter(1), c::AuthorityExecutor::Procedure(5)];
+const PARTIAL: &[c::AuthorityExecutor] =
+    &[c::AuthorityExecutor::Charter(1), c::AuthorityExecutor::Procedure(5), c::AuthorityExecutor::Role(0)];
+const COMPLETE: &[c::AuthorityExecutor] = &[
+    c::AuthorityExecutor::Charter(1),
+    c::AuthorityExecutor::Procedure(5),
+    c::AuthorityExecutor::Charter(5),
+    c::AuthorityExecutor::Role(0),
+    c::AuthorityExecutor::Job(3),
+];
+const COMPLETED_PARTIAL: &[c::AuthorityExecutor] = &[
+    c::AuthorityExecutor::Charter(1),
+    c::AuthorityExecutor::Procedure(5),
+    c::AuthorityExecutor::Role(0),
+    c::AuthorityExecutor::Charter(5),
+    c::AuthorityExecutor::Job(3),
+];
 const WORDS: &[(&[u8], &[u8], &[u8])] =
     &[(b"You approve", b"You decide", b"approval"), (b"Agents review", b"Code lands", b"review")];
 struct Fixture {
@@ -109,6 +126,9 @@ fn path(branch: &[u8]) -> w::BranchPath {
     .unwrap()
 }
 fn panel(project: u32, current: Option<u32>, may_change: bool) -> w::WaysPanel {
+    panel_delegation(project, current, may_change, false)
+}
+fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delegation: bool) -> w::WaysPanel {
     let mut ways = List::with_capacity(WAYS);
     for (name, line, branch) in WORDS {
         let mut items = List::with_capacity(ITEMS);
@@ -136,13 +156,7 @@ fn panel(project: u32, current: Option<u32>, may_change: bool) -> w::WaysPanel {
         ways.push(
             w::StockWay::new(
                 &w::CEILINGS,
-                w::StockWayParts {
-                    name: (*name).into(),
-                    line: (*line).into(),
-                    path: path(branch),
-                    items,
-                    delegation: true,
-                },
+                w::StockWayParts { name: (*name).into(), line: (*line).into(), path: path(branch), items, delegation },
             )
             .unwrap(),
         )
@@ -164,6 +178,80 @@ fn page_event(f: &mut Fixture, event: pages::Event) -> Queue<pages::Request> {
 }
 fn act(f: &mut Fixture, act: pages::Act) -> Queue<pages::Request> {
     page_event(f, pages::Event::Act { act })
+}
+fn reads(out: &Queue<pages::Request>) -> Box<[(Handle, c::Read)]> {
+    let mut reads = List::uncapped();
+    for request in out {
+        if let pages::Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(read) }) = request {
+            reads.push((*handle, read.clone())).unwrap();
+        }
+    }
+    reads.into_boxed()
+}
+fn read_answer(f: &mut Fixture, handle: Handle, page: Readout) -> Queue<pages::Request> {
+    page_event(f, pages::Event::Told { told: Told::Page { handle, page } })
+}
+fn policy(ceiling: &[c::AuthorityExecutor], owner: &[c::AuthorityExecutor]) -> Box<c::SettingPolicy> {
+    let mut found = None;
+    for value in jig_client_test_records::settings::settings_values().into_boxed() {
+        match value {
+            c::SettingValue::Policy(policy) => found = Some(policy),
+            c::SettingValue::Charter(_)
+            | c::SettingValue::Template(_)
+            | c::SettingValue::Rules(_)
+            | c::SettingValue::Model(_)
+            | c::SettingValue::Application(_) => {}
+        }
+    }
+    let mut policy = found.expect("whole policy fixture");
+    policy.ceiling.delegation.kinds = List::from_boxed(ceiling.into());
+    let mut authority = jig_client_test_records::settings::settings_authority();
+    authority.delegation.kinds = List::from_boxed(owner.into());
+    let mut roles = List::uncapped();
+    for role in &policy.roles {
+        roles.push(role.clone()).unwrap();
+    }
+    roles.push(c::PolicyEditRole { number: 0, authority, period_spend: 301, requests: 511, decides: 31 }).unwrap();
+    policy.roles = roles;
+    policy
+}
+fn policy_page(policy: Box<c::SettingPolicy>) -> Readout {
+    policy_document(f::PROJECT, NEXT, Some(c::SettingValue::Policy(policy)))
+}
+fn policy_document(project: u32, revision: u32, value: Option<c::SettingValue>) -> Readout {
+    Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+        setting: c::Setting::ProjectPolicy { project },
+        revision,
+        value,
+        application: None,
+        proposed: None,
+    }))))
+}
+fn way_items(policy: Option<Box<c::SettingPolicy>>) -> List<c::SettingItem> {
+    let mut items = List::uncapped();
+    for item in [
+        c::SettingItem {
+            setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 4 },
+            edit: c::SettingEdit::Removed,
+        },
+        c::SettingItem {
+            setting: c::Setting::Application { kind: 7, scope: f::PROJECT, number: 1 },
+            edit: c::SettingEdit::Set(c::SettingSet {
+                value: c::SettingValue::Application(b"whole value".as_slice().into()),
+            }),
+        },
+    ] {
+        items.push(item).unwrap();
+    }
+    if let Some(policy) = policy {
+        items
+            .push(c::SettingItem {
+                setting: c::Setting::ProjectPolicy { project: f::PROJECT },
+                edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Policy(policy) }),
+            })
+            .unwrap();
+    }
+    items
 }
 fn sends(out: Queue<pages::Request>) -> Box<[(Key, c::ChangeSettings)]> {
     let mut sent = List::uncapped();
@@ -289,25 +377,13 @@ fn use_and_keep_send_one_ordered_decision_at_newest() {
         let mut f = fixture();
         show(&mut f, &panel(f::PROJECT, current, true));
         document(&mut f, NEXT, false);
-        let sent = sends(act(&mut f, action));
+        let out = act(&mut f, action);
+        assert!(reads(&out).is_empty(), "a way without delegation reads nothing");
+        let sent = sends(out);
         assert_eq!(sent.len(), DECISIONS);
         let change = &sent.first().unwrap().1;
         assert_eq!((change.against, &change.running), (NEXT, &c::Running::Stays));
-        assert_eq!(
-            change.items.as_slice(),
-            &[
-                c::SettingItem {
-                    setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 4 },
-                    edit: c::SettingEdit::Removed
-                },
-                c::SettingItem {
-                    setting: c::Setting::Application { kind: 7, scope: f::PROJECT, number: 1 },
-                    edit: c::SettingEdit::Set(c::SettingSet {
-                        value: c::SettingValue::Application(b"whole value".as_slice().into())
-                    })
-                },
-            ]
-        );
+        assert_eq!(change.items, way_items(None));
     }
     for (current, configured, may_change, action) in [
         (Some(0), false, true, pages::Act::UseWay { project: f::PROJECT, way: 0 }),
@@ -327,6 +403,90 @@ fn use_and_keep_send_one_ordered_decision_at_newest() {
     show(&mut f, &panel(f::PROJECT, Some(0), true));
     use_way(&mut f);
     assert!(sends(act(&mut f, pages::Act::KeepWay { project: f::PROJECT })).is_empty());
+}
+
+#[test]
+fn delegation_reads_policy_then_sends_only_missing_executors() {
+    for (current, action) in [
+        (Some(0), pages::Act::UseWay { project: f::PROJECT, way: 1 }),
+        (Some(1), pages::Act::KeepWay { project: f::PROJECT }),
+    ] {
+        for (ceiling, owner, expected) in [
+            (OLD, OLD, Some((COMPLETE, COMPLETE))),
+            (PARTIAL, PARTIAL, Some((COMPLETED_PARTIAL, COMPLETED_PARTIAL))),
+            (COMPLETE, OLD, Some((COMPLETE, COMPLETE))),
+            (OLD, COMPLETE, Some((COMPLETE, COMPLETE))),
+            (COMPLETE, COMPLETE, None),
+        ] {
+            let mut f = fixture();
+            show(&mut f, &panel_delegation(f::PROJECT, current, true, true));
+            document(&mut f, NEXT, false);
+            let out = act(&mut f, action.clone());
+            let reads = reads(&out);
+            assert_eq!(reads.len(), DECISIONS);
+            let (handle, read) = reads.first().unwrap();
+            assert_eq!(
+                read,
+                &c::Read::Setting(c::ReadSetting {
+                    setting: c::Setting::ProjectPolicy { project: f::PROJECT },
+                    revision: NEXT,
+                    proposal: None,
+                })
+            );
+            assert!(sends(out).is_empty(), "the policy must arrive before sending");
+            assert_eq!(f.root.pages().stock_ways().unwrap().act(0), None);
+            assert_eq!(f.root.pages().stock_ways().unwrap().act(1), None);
+            let sent = sends(read_answer(&mut f, *handle, policy_page(policy(ceiling, owner))));
+            let expected_policy = match expected {
+                Some((ceiling, owner)) => Some(policy(ceiling, owner)),
+                None => None,
+            };
+            assert_eq!(sent.len(), DECISIONS);
+            assert_eq!(
+                sent.first().unwrap().1,
+                c::ChangeSettings { against: NEXT, items: way_items(expected_policy), running: c::Running::Stays }
+            );
+        }
+    }
+}
+
+#[test]
+fn policy_read_failure_keeps_refusal_and_sends_nothing() {
+    const REFUSED: &[u8] = b"The project policy read was refused.";
+    const FAILED: &[u8] = b"The project policy could not be read whole.";
+    for (page, why) in [
+        (Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), REFUSED),
+        (Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)), FAILED),
+        (Readout::Jig(c::ReadResult::None(c::ReadNone::TooLarge { bytes: 4096 })), FAILED),
+        (Readout::Limit, FAILED),
+        (Readout::NotServed { family: None, served: None }, FAILED),
+        (policy_document(OTHER, NEXT, Some(c::SettingValue::Policy(policy(OLD, OLD)))), FAILED),
+        (policy_document(f::PROJECT, NEWEST, Some(c::SettingValue::Policy(policy(OLD, OLD)))), FAILED),
+        (policy_document(f::PROJECT, NEXT, None), FAILED),
+        (policy_document(f::PROJECT, NEXT, Some(c::SettingValue::Application(Box::default()))), FAILED),
+    ] {
+        let mut f = fixture();
+        show(&mut f, &panel_delegation(f::PROJECT, Some(0), true, true));
+        document(&mut f, NEXT, false);
+        let out = act(&mut f, pages::Act::UseWay { project: f::PROJECT, way: 1 });
+        let handle = reads(&out).first().unwrap().0;
+        assert!(sends(out).is_empty());
+        assert!(read_answer(&mut f, handle, page).is_empty());
+        let refusal = c::Refusal::Judged {
+            at: 0,
+            setting: c::Setting::ProjectPolicy { project: f::PROJECT },
+            why: c::Text::new(why.into(), 128).unwrap(),
+        };
+        assert_eq!(f.root.pages().stock_ways().unwrap().refused(), Some(&refusal));
+        document(&mut f, NEXT, false);
+        assert_eq!(f.root.pages().stock_ways().unwrap().refused(), Some(&refusal));
+        assert_eq!(f.root.pages().stock_ways().unwrap().act(1), Some(WayAct::Use));
+        act(&mut f, pages::Act::UseWay { project: f::PROJECT, way: 1 });
+        assert_eq!(f.root.pages().stock_ways().unwrap().refused(), None);
+        read_answer(&mut f, handle, Readout::Limit);
+        show(&mut f, &panel_delegation(f::PROJECT, Some(0), true, true));
+        assert_eq!(f.root.pages().stock_ways().unwrap().refused(), None);
+    }
 }
 
 #[test]
