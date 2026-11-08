@@ -25,7 +25,7 @@ pub fn encode_start(
     values: Values,
     limits: &wire::Limits,
     charter_limits: &smith_charter::v4::Limits,
-    transcript_limits: &smith_transcript::v6::Limits,
+    transcript_limits: &smith_transcript::v7::Limits,
     endpoints: &smith_protocol_translate::Endpoints,
 ) -> Result<Frame, Error> {
     if start.grants.len() != values.credentials.len() {

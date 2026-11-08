@@ -10,7 +10,7 @@ use skein_codec::{patch::Patcher, schema};
 
 // Smith's schema at jig's smith pin, checked against smith-transcript's
 // generated code by `the_real_copy_is_smiths_schema`.
-const REAL: &str = include_str!("fixtures/smith-transcript-v6.schema");
+const REAL: &str = include_str!("fixtures/smith-transcript-v7.schema");
 // Smith's real turn alone, as its set keeps it from the baseline on.
 const REAL_SETS: crate::PatchSets = crate::PatchSets {
     sets: &[crate::PatchSet {
@@ -27,8 +27,8 @@ const REAL_SETS: crate::PatchSets = crate::PatchSets {
 };
 const CANDIDATES: [u32; 4] = [4096, 16_384, 65_536, 262_144];
 
-// 20 envelope/message + 2*4 text + 16*6 calls + 16*14 read results.
-const TYPICAL_NODES: u32 = 348;
+// 21 envelope/message + 2*4 text + 16*6 calls + 16*14 read results.
+const TYPICAL_NODES: u32 = 349;
 
 #[test]
 fn frame_capacities_cover_real_and_kept_turns() {
@@ -101,83 +101,50 @@ fn the_real_copy_is_smiths_schema() {
 }
 
 // The bounds smith-transcript's generated `Limits` names.
-const SMITH_BOUNDS: usize = 34;
+const SMITH_BOUNDS: usize = 35;
 
 /// Every bound smith's codegen names, in its declarations' order; a field
 /// added or removed at a repin fails to compile here.
 fn generated_bounds() -> [u32; SMITH_BOUNDS] {
-    let smith_transcript::v6::Limits {
-        replay_bytes,
-        text_text,
-        opaque_bytes,
-        call_id,
-        call_name,
-        call_input,
-        entry_name,
-        hit_path,
-        hit_text,
-        read_content,
-        listed_entries,
-        found_hits,
-        command_end_head,
-        command_end_last,
-        command_running_head,
-        command_running_last,
-        job_read_head,
-        job_read_last,
-        ambiguous_lines,
-        working_path_path,
-        other_path_directory,
-        other_path_path,
-        outside_path_path,
-        field_problem_field,
-        said_text,
-        call_name_name,
-        allowed_calls_names,
-        tool_result_id,
-        message_blocks,
-        program_name,
-        turn_endpoint,
-        turn_model,
-        turn_effort_some,
-        turn_messages,
-    } = smith_transcript::CEILINGS;
-    [
-        replay_bytes,
-        text_text,
-        opaque_bytes,
-        call_id,
-        call_name,
-        call_input,
-        entry_name,
-        hit_path,
-        hit_text,
-        read_content,
-        listed_entries,
-        found_hits,
-        command_end_head,
-        command_end_last,
-        command_running_head,
-        command_running_last,
-        job_read_head,
-        job_read_last,
-        ambiguous_lines,
-        working_path_path,
-        other_path_directory,
-        other_path_path,
-        outside_path_path,
-        field_problem_field,
-        said_text,
-        call_name_name,
-        allowed_calls_names,
-        tool_result_id,
-        message_blocks,
-        program_name,
-        turn_endpoint,
-        turn_model,
-        turn_effort_some,
-        turn_messages,
-    ]
+    let limits = smith_transcript::CEILINGS;
+    let smith_transcript::v7::Limits {
+        replay_bytes: _,
+        text_text: _,
+        opaque_bytes: _,
+        call_id: _,
+        call_name: _,
+        call_input: _,
+        entry_name: _,
+        hit_path: _,
+        hit_text: _,
+        read_content: _,
+        listed_entries: _,
+        found_hits: _,
+        command_end_head: _,
+        command_end_last: _,
+        command_running_head: _,
+        command_running_last: _,
+        job_read_head: _,
+        job_read_last: _,
+        ambiguous_lines: _,
+        working_path_path: _,
+        other_path_directory: _,
+        other_path_path: _,
+        outside_path_path: _,
+        field_problem_field: _,
+        said_text: _,
+        call_name_name: _,
+        allowed_calls_names: _,
+        tool_result_id: _,
+        message_blocks: _,
+        program_name: _,
+        turn_endpoint: _,
+        turn_model: _,
+        turn_effort_some: _,
+        turn_messages: _,
+        turn_system_some: _,
+    } = limits;
+    bound_values(limits)
 }
 
 /// The copy's bounds in the same order: each record field's first bound
@@ -270,10 +237,10 @@ fn maximum_type(schema: &schema::Schema, ty: schema::TypeIx) -> (u32, u32) {
     }
 }
 fn typical_turn() -> Box<[u8]> {
-    // 47 envelope/message bytes + 2 * 11 text blocks + 16 * (27 call + 65 read-result).
-    const TYPICAL_BYTES: usize = 1541;
+    // 48 envelope/message bytes + 2 * 11 text blocks + 16 * (27 call + 65 read-result).
+    const TYPICAL_BYTES: usize = 1542;
     let mut bytes = skein_lib::Writer::new(TYPICAL_BYTES);
-    bytes.put(&6_u16.to_be_bytes()).expect("version");
+    bytes.put(&7_u16.to_be_bytes()).expect("version");
     bytes.put(&[0, 0]).expect("kind, opening");
     bytes.put(&0_u32.to_be_bytes()).expect("endpoint");
     bytes.put(&0_u32.to_be_bytes()).expect("model");
@@ -303,6 +270,7 @@ fn typical_turn() -> Box<[u8]> {
         bytes.put(&[1, 0, 0]).expect("end, whole, within");
     }
     text_block(&mut bytes);
+    bytes.put(&[0]).expect("unavailable system context");
     bytes.finish()
 }
 fn text_block(bytes: &mut skein_lib::Writer) {
@@ -313,4 +281,44 @@ fn text_block(bytes: &mut skein_lib::Writer) {
 fn content(bytes: &mut skein_lib::Writer, text: &[u8]) {
     bytes.put(&u32::try_from(text.len()).expect("text").to_be_bytes()).expect("length");
     bytes.put(text).expect("content");
+}
+
+fn bound_values(limits: smith_transcript::v7::Limits) -> [u32; SMITH_BOUNDS] {
+    [
+        limits.replay_bytes,
+        limits.text_text,
+        limits.opaque_bytes,
+        limits.call_id,
+        limits.call_name,
+        limits.call_input,
+        limits.entry_name,
+        limits.hit_path,
+        limits.hit_text,
+        limits.read_content,
+        limits.listed_entries,
+        limits.found_hits,
+        limits.command_end_head,
+        limits.command_end_last,
+        limits.command_running_head,
+        limits.command_running_last,
+        limits.job_read_head,
+        limits.job_read_last,
+        limits.ambiguous_lines,
+        limits.working_path_path,
+        limits.other_path_directory,
+        limits.other_path_path,
+        limits.outside_path_path,
+        limits.field_problem_field,
+        limits.said_text,
+        limits.call_name_name,
+        limits.allowed_calls_names,
+        limits.tool_result_id,
+        limits.message_blocks,
+        limits.program_name,
+        limits.turn_endpoint,
+        limits.turn_model,
+        limits.turn_effort_some,
+        limits.turn_messages,
+        limits.turn_system_some,
+    ]
 }

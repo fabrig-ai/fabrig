@@ -35,7 +35,7 @@ use jig_client_test_domain::DIALECT;
 use jig_domain_host as host;
 use jig_ops_domain as root;
 use skein_lib::{Duration, List, Token, Writer};
-use smith_transcript::v6 as transcript;
+use smith_transcript::v7 as transcript;
 use std::collections::BTreeMap;
 
 pub struct Agents {
@@ -479,47 +479,11 @@ fn stream(owner: Token, agent: &Agent, step: &Step) -> Vec<root::AgentContent> {
 
 fn turn(agent: &Agent, texts: &[Vec<u8>], step: &Step) -> Box<[u8]> {
     let limits = transcript::CEILINGS;
-    let text = |bytes: &[u8]| {
-        transcript::Block::Text(
-            transcript::Text::new(&limits, transcript::TextParts { text: bytes.into(), replay: None })
-                .expect("bounded turn text"),
-        )
-    };
-    let message = |role, blocks: Vec<transcript::Block>| {
-        let mut list = List::with_capacity(u32::try_from(blocks.len()).expect("few blocks"));
-        for block in blocks {
-            list.push(block).expect("counted blocks");
-        }
-        transcript::Message::new(&limits, transcript::MessageParts { role, blocks: list }).expect("bounded message")
-    };
-    let call = |name: &str, input: &[u8]| {
-        transcript::Block::Call(
-            transcript::Call::new(
-                &limits,
-                transcript::CallParts {
-                    id: format!("call-{}", agent.said).into_bytes().into(),
-                    name: name.as_bytes().into(),
-                    input: input.into(),
-                    replay: None,
-                },
-            )
-            .expect("bounded call"),
-        )
-    };
-    let said = match step {
-        Step::Call { tool, input } => call(tool, input.as_bytes()),
-        Step::Yield => text(b"waiting for the delegated result"),
-        // The finish's input is its result, so a resumed run can accept it again.
-        Step::Finish(outcome) => call("finish", outcome),
-    };
-    let mut messages = List::with_capacity(u32::try_from(texts.len() + 1).expect("few messages"));
-    for words in texts {
-        messages.push(message(transcript::Role::User, vec![text(words)])).expect("counted messages");
-    }
-    messages.push(message(transcript::Role::Assistant, vec![said])).expect("counted messages");
+    let messages = turn_messages(agent, texts, step);
     let value = transcript::Turn::new(
         &limits,
         transcript::TurnParts {
+            system: None,
             model: b"model".as_slice().into(),
             effort: None,
             kind: transcript::TurnKind::Ordinary,
@@ -714,4 +678,47 @@ pub fn agent_bounds() -> Bounds {
         inbox: u32::MAX,
         unacknowledged: u32::MAX,
     }
+}
+
+fn turn_messages(agent: &Agent, texts: &[Vec<u8>], step: &Step) -> List<transcript::Message> {
+    let limits = transcript::CEILINGS;
+    let text = |bytes: &[u8]| {
+        transcript::Block::Text(
+            transcript::Text::new(&limits, transcript::TextParts { text: bytes.into(), replay: None })
+                .expect("bounded turn text"),
+        )
+    };
+    let message = |role, blocks: Vec<transcript::Block>| {
+        let mut list = List::with_capacity(u32::try_from(blocks.len()).expect("few blocks"));
+        for block in blocks {
+            list.push(block).expect("counted blocks");
+        }
+        transcript::Message::new(&limits, transcript::MessageParts { role, blocks: list }).expect("bounded message")
+    };
+    let call = |name: &str, input: &[u8]| {
+        transcript::Block::Call(
+            transcript::Call::new(
+                &limits,
+                transcript::CallParts {
+                    id: format!("call-{}", agent.said).into_bytes().into(),
+                    name: name.as_bytes().into(),
+                    input: input.into(),
+                    replay: None,
+                },
+            )
+            .expect("bounded call"),
+        )
+    };
+    let said = match step {
+        Step::Call { tool, input } => call(tool, input.as_bytes()),
+        Step::Yield => text(b"waiting for the delegated result"),
+        // The finish's input is its result, so a resumed run can accept it again.
+        Step::Finish(outcome) => call("finish", outcome),
+    };
+    let mut messages = List::with_capacity(u32::try_from(texts.len() + 1).expect("few messages"));
+    for words in texts {
+        messages.push(message(transcript::Role::User, vec![text(words)])).expect("counted messages");
+    }
+    messages.push(message(transcript::Role::Assistant, vec![said])).expect("counted messages");
+    messages
 }

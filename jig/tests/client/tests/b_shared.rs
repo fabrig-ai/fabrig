@@ -38,7 +38,7 @@ fn joint(
     let (configuration, limits, peers) = stories::shared::b_config::setup(8510, &facts, limits);
     let driver = Driver::new(configuration, limits, peers, Time::ZERO, clock(Time::ZERO));
     let codec = jig_protocol_transcript::Limits {
-        smith: smith_transcript::v6::CEILINGS,
+        smith: smith_transcript::v7::CEILINGS,
         bytes: 1_048_576,
         turn: jig_client_domain::contract::TurnLimits { messages: 2, blocks: 2, text: 32, outcome: 32 },
     };

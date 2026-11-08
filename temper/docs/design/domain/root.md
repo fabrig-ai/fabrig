@@ -288,6 +288,15 @@ release(root):   (the service's iterate)
   (`Journal::stop`, skein's `lib.md`, 11), and nothing held or at the
   door leaves again; a failed commit fails it as jig's journal says
   (jig's `domain/root.md`, section 4).
+- **A stopped journal ends the engine, naming why.** A store answer the
+  journal refuses (skein's `lib.md`, 11: an answer outside the order the
+  commits were sent) stops it as the stops above do. Whichever stopped
+  it, the root emits `Stop` in the same step, with what stopped it: the
+  commit that failed, the answer refused with the commits sent and
+  durable, the decision past the store's edge, or the counter at its
+  end. A root whose journal has stopped never stays up undeciding: the
+  engine ends with that reason in its log (`../protocol/README.md`,
+  8.2).
 
 ### 4.1 The byte budget
 

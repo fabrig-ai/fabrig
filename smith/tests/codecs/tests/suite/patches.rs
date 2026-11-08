@@ -10,7 +10,7 @@ use smith_transcript_patches::patches as fixture;
 
 use crate::support::patches;
 
-const TRANSCRIPT: &str = include_str!("../../../../crates/smith-transcript/schema/transcript-v6.schema");
+const TRANSCRIPT: &str = include_str!("../../../../crates/smith-transcript/schema/transcript-v7.schema");
 
 #[test]
 fn each_version_one_golden_patches_to_its_version_two_golden() {

@@ -1035,6 +1035,10 @@ pub enum Word {
     WorkProposedChange,
     WorkProposedChangeCount,
     WorkProposingChange,
+    /// A completed settings call that created no proposal.
+    WorkProposalFailed,
+    /// Repeated failed settings proposals, counted separately from successes.
+    WorkProposalFailedCount,
     WorkCheckedSettingsCount,
     WorkChecked,
     WorkReading,
@@ -1541,7 +1545,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2098;
+const PHRASES: u32 = 2100;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1568,10 +1572,10 @@ const PHRASES: u32 = 2098;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3673;
+const SEGMENTS: u32 = 3677;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51821;
-const ALL: [Word; 1419] = [
+const ENGLISH_BYTES: u32 = 51876;
+const ALL: [Word; 1421] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2569,6 +2573,8 @@ const ALL: [Word; 1419] = [
     Word::WorkProposedChange,
     Word::WorkProposedChangeCount,
     Word::WorkProposingChange,
+    Word::WorkProposalFailed,
+    Word::WorkProposalFailedCount,
     Word::WorkCheckedSettingsCount,
     Word::WorkChecked,
     Word::WorkReading,
@@ -4067,6 +4073,8 @@ impl Word {
             Self::WorkProposedChange => 3882,
             Self::WorkProposedChangeCount => 3883,
             Self::WorkProposingChange => 3884,
+            Self::WorkProposalFailed => 4181,
+            Self::WorkProposalFailedCount => 4182,
             Self::WorkCheckedSettingsCount => 3769,
             Self::WorkChecked => 3770,
             Self::WorkReading => 3771,
@@ -5699,6 +5707,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkProposedChange => (&[b"proposed a change"], &[]),
         Word::WorkProposedChangeCount => (&[b"proposed a change ", b"\xc3\x97"], &[Number]),
         Word::WorkProposingChange => (&[b"proposing a change"], &[]),
+        Word::WorkProposalFailed => (&[b"failed to propose a change"], &[]),
+        Word::WorkProposalFailedCount => (&[b"failed to propose a change ", b"\xc3\x97"], &[Number]),
         Word::WorkCheckedSettings => (&[b"checked settings"], &[]),
         Word::WorkCheckedSettingsCount => (&[b"checked settings ", b"\xc3\x97"], &[Number]),
         Word::WorkChecked => (&[b"checked ", b""], &[Name]),

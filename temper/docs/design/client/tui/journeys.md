@@ -172,8 +172,10 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Typing marks nothing:** a key whose event is `Typed` marks no
   frame; any other key with an event marks the frame as drawn before it
   (3.4). A key with no event marks nothing.
-- **The mark and save keys,** in either form, never reach the host, and
-  are kept as their mark alone (3.1).
+- **The mark and save keys,** in either form, never reach the host while
+  recording: a mark is kept in its own turn; a save writes the recording
+  with its end mark, keeping no key record (3.1). Without a recording,
+  both forms reach the host as any other key.
 
 ### 3.4 Marks
 
@@ -468,6 +470,9 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 
 ## 11. Open questions
 
+- **A terminal's Meta keys:** the user records by hand on their laptop
+  after landing to check marking with Alt+m and saving with Alt+s in
+  emacs' vterm. The automated walk keeps the Shift forms (8.1).
 - **The first frames' refinement:** the user takes `sign-in-approved`'s
   frames and asks for the look on them (sections 9 and 10), before the
   later surfaces of `../../draft/tui.md`, section 3 are designed. A

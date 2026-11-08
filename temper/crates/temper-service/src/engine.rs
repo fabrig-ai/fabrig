@@ -1,6 +1,6 @@
 //! One root input per pass, with completions passing held new work (protocol/README.md, 6).
 mod diagnostics;
-use crate::{End, route, stop, store::route::Up};
+use crate::{CoreWait, End, route, stop, store::route::Up};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Time, Wall};
 use temper_engine_domain as root;
@@ -41,6 +41,7 @@ pub(crate) struct Engine {
     // A refused completion that tried to pass pending new work. It goes first.
     passing: Option<Box<root::Event>>,
     begin: bool,
+    core_wait: crate::core_wait::Watch,
     pub(crate) credentials: List<u32>,
     pub(crate) ready: bool,
     settled_revision: Option<u64>,
@@ -170,6 +171,7 @@ impl Engine {
             pending: None,
             passing: None,
             begin: true,
+            core_wait: crate::core_wait::Watch::new(),
             ready: true,
             settled_revision: None,
             aborted: None,
@@ -209,6 +211,7 @@ impl Engine {
     }
     pub(crate) fn step(&mut self, event: root::Event) {
         let watcher = watcher(&event);
+        let party = party_input(&event);
         if let Err(event) = root::try_step(&mut self.domain, &self.env, event) {
             if self.pending.is_some() {
                 assert!(
@@ -221,10 +224,52 @@ impl Engine {
                 self.pending = Some(Box::new(event));
             }
             self.blocked = true;
+            if party {
+                self.observe_party(false);
+            }
         } else {
             self.admission = watcher;
+            if party {
+                self.observe_party(true);
+            }
         }
         self.drain_notes();
+    }
+    fn holding(&self) -> Option<CoreWait> {
+        if self.begin || !self.domain.ready() {
+            Some(CoreWait::Starting { step: self.domain.start_phase() })
+        } else if !self.forge_records.done() {
+            Some(CoreWait::ForgeRecords)
+        } else if !self.first_periods.is_empty() {
+            Some(CoreWait::FirstPeriods)
+        } else if !self.forge.resolving.is_empty() {
+            Some(CoreWait::Resolving)
+        } else if self.domain.commits_in_flight() >= u64::from(self.env.limits.journal.commits) {
+            Some(CoreWait::Store {
+                oldest: self.domain.oldest_commit_in_flight().expect("a full commit window is nonempty"),
+                in_flight: self.domain.commits_in_flight(),
+            })
+        } else if self.domain.backlog() >= u64::from(self.env.limits.watermark) {
+            Some(CoreWait::Watermark { backlog: self.domain.backlog(), watermark: self.env.limits.watermark })
+        } else {
+            None
+        }
+    }
+    fn observe_party(&mut self, entered: bool) {
+        if self.notes.room() == 0 {
+            return;
+        }
+        let note = if entered {
+            self.core_wait.passed()
+        } else {
+            match self.holding() {
+                Some(why) => self.core_wait.kept(self.env.now, why),
+                None => None,
+            }
+        };
+        if let Some(note) = note {
+            self.notes.push(note);
+        }
     }
     fn can_pass(&self) -> bool {
         self.passing.is_none()
@@ -431,6 +476,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         if open {
             engine.events.push(event);
         } else if let root::Event::Party(value) = event {
+            engine.observe_party(false);
             engine.clients.not_ready(value);
         }
     }
@@ -448,6 +494,12 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         return;
     }
     input_pass(engine, now);
+    if engine.blocked
+        && let Some(event) = engine.pending.as_deref()
+        && party_input(event)
+    {
+        engine.observe_party(false);
+    }
     release(engine);
     engine.forge.down(skein_forge_connection::Request::Offer);
     clients_pass(engine);
@@ -754,6 +806,23 @@ fn open_refused(engine: &mut Engine, why: jig_protocol_store::OpenRefusal) {
         why @ OpenRefusal::Set { .. } => stop::open(engine, &why),
         why @ OpenRefusal::InFlight { .. } => stop::open(engine, &why),
         why @ OpenRefusal::Check { .. } => stop::open(engine, &why),
+    }
+}
+
+fn party_input(event: &root::Event) -> bool {
+    match event {
+        root::Event::Party(root::PartyInput::Period { .. })
+        | root::Event::Worker(_)
+        | root::Event::Store(_)
+        | root::Event::Account(_)
+        | root::Event::Forge(_)
+        | root::Event::Released(_)
+        | root::Event::Credential { .. }
+        | root::Event::Setup { .. }
+        | root::Event::Restart { .. }
+        | root::Event::Stop
+        | root::Event::Resume => false,
+        root::Event::Party(_) => true,
     }
 }
 

@@ -11,7 +11,7 @@ fn charter_schema_matches_generated_code_and_all_goldens() {
 
 #[test]
 fn transcript_schema_matches_generated_code_and_all_goldens() {
-    assert_family("transcript", 6);
+    assert_family("transcript", 7);
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens()
         .fingerprints()
         .family()
         .digest();
-    let transcript = fs::read(crates.join("smith-transcript/schema/transcript-v6.schema")).expect("transcript schema");
+    let transcript = fs::read(crates.join("smith-transcript/schema/transcript-v7.schema")).expect("transcript schema");
     let transcript = skein_codec::schema::parse(&transcript)
         .expect("transcript fingerprint schema")
         .fingerprints()

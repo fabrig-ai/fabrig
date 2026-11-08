@@ -64,7 +64,8 @@ Read a task's activity from its end
 Prints: A line per event, oldest first, then `read on with: task activity TASK --before CURSOR` or `no more`
 --json: the record activity.
 Key: none.
-A turn prints whole, each part cut at 16 KB with `read on with:`;
+A turn's conversation prints whole; read its supplied system text with task turn TASK TURN.
+Each part is cut at 16 KB with `read on with:`;
 a turn past a page's bytes prints as its size and
 `read with: task turn TASK TURN`.
 With `--limit`, the page keeps its last COUNT lines, and `read on
@@ -85,7 +86,10 @@ Prints: A turn's header, then its words including the brief supplied to the run,
 Key: none.
 Read task activity TASK to find the attempt and turn as A.T, then
 task turn TASK A.T. Archived turn text includes the brief supplied to the run,
-with charter document sections and their recorded commits.
+with the selected charter-part instructions, charter document sections and
+their recorded commits. These are the retained supplied words. Older turns
+that did not retain system text have that context unavailable; task text
+and current settings cannot recover it.
 A part prints at most 16384 bytes at a time. A turn past ctl's
 bound prints its size and `past the limit; report it`, and one it
 cannot decode `unreadable; report it`, both with exit 0: report
