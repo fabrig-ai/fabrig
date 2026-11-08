@@ -184,6 +184,16 @@ repair (`client/browser.status.md`, 2.5, 4.6 and 7.3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
 landing (`client/journeys.md`, section 10).
+The drafter, charter 12, and a design session, template 6, stand in the
+stock, the whole story's P6: given no repository and declared no `goal`,
+`change` or `delegate`, started on the web by the new chat with a draft
+where `me` lists template 6, and opened again in Split (`domain/agent.md`,
+4.2, 4.3 and 8.5; `protocol/configuration.md`, 13.4; `client/README.md`,
+3.5). A project made before it keeps a policy whose delegation names no
+charter 12 (`protocol/configuration.status.md`), `chat-draft`'s recording
+predates it (`client/journeys.status.md`), no walk on record has run a
+real model on its words, and the terminal's `/draft` is the milestone T2's
+(`draft/surfaces.status.md`, 11; `draft/whole-story.execution.md`).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the

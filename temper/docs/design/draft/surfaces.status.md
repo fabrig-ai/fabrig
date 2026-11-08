@@ -62,9 +62,7 @@
     11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
     left off and Needs you are the project's until Home reads every
     project (3). No design holds 11.2's design session, the drafter in
-    the terminal or the side pane, or 11.3's talking with a role. The
-    drafter and its session on the web are `../domain/agent.md`, 8.5,
-    and `../client/README.md`, 3.5.
+    the terminal or the side pane, or 11.3's talking with a role.
   - 12: `../client/README.md`, 3.5, *A page's parts*, holds Home's and
     Needs you's rules, without owners' lines, follows or Away; 5.13,
     *The page*, keeps "What the project shows" at How work runs' foot as
