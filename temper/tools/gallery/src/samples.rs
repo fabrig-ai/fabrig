@@ -948,6 +948,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "accounts-reference", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-first-run-1", world: FirstRun { step: 1 }, address: Address::Accounts, then: Shown },
         Sample { name: "google-sign-in", world: Bare, address: CHATS, then: Then::GoogleSignIn },
+        Sample { name: "no-project", world: Bare, address: CHATS, then: Shown },
         Sample { name: "signed-out", world: Bare, address: CHATS, then: SignedOut },
         Sample { name: "out-of-date", world: Bare, address: CHATS, then: OutOfDate },
         Sample { name: "chats-empty", world: Bare, address: CHATS, then: Shown },
@@ -1444,6 +1445,9 @@ pub fn domain(sample: &Sample) -> Domain {
         let mut root = domain(&Sample { name, ..sample.clone() });
         step(&mut root, Event::Act { action: Action::Pages(Act::Terminal(T::Night)) }, &mut Queue::uncapped());
         return root;
+    }
+    if sample.name == "no-project" {
+        return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
     }
     if sample.name.starts_with("approve-") {
         return crate::worlds::approve_world(if sample.name == "approve-signed-out-google" {
