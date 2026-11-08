@@ -9,6 +9,7 @@ use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_ui::Role;
 use skein_world::{Referee, real};
+use std::path::Path;
 use temper_client_domain::{Address, Choice};
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 
@@ -87,14 +88,36 @@ impl Referee<NativeClient> for Person {
     }
 }
 
-#[expect(clippy::disallowed_methods, reason = "the sitting supplies the fake client's mode through its environment")]
-pub fn run() {
-    let mode = std::env::var("TEMPER_MANAGED_CLIENT").expect("fake sitting client mode");
-    assert!(matches!(mode.as_str(), "sign-in" | "adopt"));
-    let sign_in = mode == "sign-in";
+#[derive(Clone, Copy)]
+pub enum Mode {
+    SignIn,
+    Adopt,
+}
+
+#[expect(clippy::disallowed_methods, reason = "the sitting supplies the fake client's role through its environment")]
+pub fn role() -> Option<Mode> {
+    match std::env::var("TEMPER_MANAGED_CLIENT") {
+        Ok(mode) => match mode.as_str() {
+            "sign-in" => Some(Mode::SignIn),
+            "adopt" => Some(Mode::Adopt),
+            _ => panic!("unknown fake sitting client mode"),
+        },
+        Err(std::env::VarError::NotPresent) => None,
+        Err(std::env::VarError::NotUnicode(_)) => panic!("invalid fake sitting client mode"),
+    }
+}
+
+pub fn run(mode: Mode) {
     let mut link = String::new();
     std::io::stdin().read_line(&mut link).expect("private printed link on stdin");
-    let link = link.trim_end();
+    ready(Path::new("."), link.trim_end(), mode);
+}
+
+pub fn ready(root: &Path, link: &str, mode: Mode) {
+    let sign_in = match mode {
+        Mode::SignIn => true,
+        Mode::Adopt => false,
+    };
     let address: std::net::SocketAddr = link
         .strip_prefix("http://")
         .and_then(|url| url.split('/').next())
@@ -114,7 +137,7 @@ pub fn run() {
         Step::Press { find: Find::named(Role::Button, b"Adopt") },
         Step::See { find: Find::text(format!("{OWNER}/{NAME}").as_bytes()), within },
     ]);
-    let root = skein_shell::open_root(std::path::Path::new(".")).expect("sitting scratch root");
+    let root = skein_shell::open_root(root).expect("sitting scratch root");
     let clock = Clock::new();
     let mut world = real::World::new(Person {
         actor: skein_fake_person::Person::new(steps),

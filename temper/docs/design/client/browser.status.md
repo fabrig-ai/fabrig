@@ -11,7 +11,8 @@
   7.1's path printed for both widths adds to it: the print test alone took
   1.483 s of wall time before the second drawing and 4.069 s after
   (`look-round-24`'s `gallery-narrow`, at `436533537a`); no CPU figure is
-  on record.
+  on record. How work runs' six states, `how` to `night-how`, add to it,
+  with no CPU figure on record either.
 
 - **Not yet:** 2.5, *How work runs' look*, and 7.2's `how` states
   (`how-drawing`, `look-round-25`): the path is the lanes' table, its
@@ -63,6 +64,17 @@ reference's pane are gone. `ask-first-run` draws the ways and the eight
 gone. Story 11's phone Ask row (4.6) shows the tabs and presses "Draft
 first" to its "Use this", in the existing history story; it checks
 neither Agents review's "now" nor the line and the path. The rendered
+comparison follows landing (`README.md`, section 11).
+
+Sections 2.5, *How work runs' look*, and 7.2 have no known
+implementation gap: `temper.css`'s `/* ==== ui: how ==== */`, after the
+ways' rules, holds the wide column, the section's head and "the way:
+NAME", the path's table scrolling sideways in its box, its lanes' pills
+in who acts' colours on `--gf-agent`, `--gf-agent-pale`, `--gf-code` and
+`--gf-code-pale`, by day and by night, the bar, the authority row and
+Budgets' row, and `look.rs` names each `temper-how-*` class. The gallery
+prints `how`, `how-approve`, `how-draft`, `how-yours`, `how-card` and
+`night-how` at both widths, and its table checks each. The rendered
 comparison follows landing (`README.md`, section 11).
 
 Sections 2.3, 2.5 and 7.1 have no known implementation gap in
@@ -297,21 +309,26 @@ establish no rendered equality.
   `1d82a937df` establishes no passing run of the merged story. Whether
   reading's four stories fit one run's forty seconds is unmeasured: apart, their wall medians add to
   25.761 s (`temper/docs/development/browser-budget.md`), each with a setup they now
-  share. The long story's replies are smaller than those figures' by the bytes that
-  leave room for the position story's in the fake's joint allowance, with no line
-  fewer; its bytes alone changed.
+  share. Those figures read a 131,072-byte window; reading's histories are now
+  sized to the tier's 32,768 (4.3), their code lines scaled with it and no reply,
+  paragraph or step fewer, and their wall at that size is unmeasured.
 - **Not yet:** 4.3: no whole-tier run on record establishes that the repaired
   tier fits its 127.5 CPU-second budget, 85 raised by half by the user's word
   of 11-08, for now, to be revisited. The flagged run, of 17 tests, was
-  129.4 CPU s, 70.8 s wall. With ctl history and the 131,072-byte window,
-  all twelve final comparison runs passed, but the CPU medians remain
+  129.4 CPU s, 70.8 s wall. With ctl history and a 131,072-byte window,
+  all twelve final comparison runs passed, with CPU medians of
   20.858273 s for long, 9.178371 s for Latest and 8.399148 s for unanchored,
-  above the request's targets of about 12, 6 and 5. Short rose to 6.414108 s
-  from the baseline's 4.193832 s. Those four sum to 44.849900 s, leaving
-  82.650100 s for the rest of the tier; the final cost awaits after-landing.
+  above the request `browser-budget`'s targets of about 12, 6 and 5, and
+  6.414108 s for short, from the baseline's 4.193832 s: 44.849900 s together.
   Loads, all samples and the limits of the comparison are in
-  `temper/docs/development/browser-budget.md`. Backoff failed its CPU and wall
-  criteria and is absent; the smaller window alone establishes no CPU saving.
+  `temper/docs/development/browser-budget.md`. The request `browser-reading`
+  of 2026-11-08 cut the long story's fixture and decoding: the tier's window,
+  `long_text` and `turn_text` at 32,768 bytes, reading's code lines scaled
+  with them (4.3), and skein's decoder indexing each CDP message once (skein's
+  `browser.md`, 4). It reads no CPU figure, so what the four stories cost now
+  is unmeasured; the final cost awaits after-landing (section 5). Backoff
+  failed its CPU and wall criteria and is absent, and the 131,072-byte window
+  alone showed no CPU saving in those figures.
   The listener-full ctl failure is repaired by ending an idle connection while
   preserving calls, partial requests and bounds. Whether that also repairs
   `browser_public`'s earlier visibility-command deadline failure is unverified:

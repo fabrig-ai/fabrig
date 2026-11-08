@@ -1319,8 +1319,8 @@ Then `temper serve`, and the printed command, once, on Forgejo's host.
   puts no secret (6.3). A source added by Forgejo's command line while
   Forgejo runs works at once, so the order costs a person nothing.
 - **Its code:** the command, and the key's and the secret's making, in
-  `temper`'s `forge_sign_in.rs`, dispatched from `forge.rs`; the printed
-  bytes in `temper-forge-setup`'s `sign_in.rs`.
+  `temper-engine-shell`'s `forge_sign_in.rs`, dispatched from its
+  `forge.rs`; the printed bytes in `temper-forge-setup`'s `sign_in.rs`.
 
 ## 7. The box: wiring only
 
@@ -1949,7 +1949,8 @@ asks.
   13);
 - **A host's own units,** `temper help server`'s walk: a unit running
   `temper forge fetch`, `prepare` and `run`, beside one for `temper
-  serve`. No owned forge's record is made there, so nothing takes the
+  serve`; a deployment's engine host runs the same units on
+  `temper-engine`, its document an engine alone's (README.md, 4.2). No owned forge's record is made there, so nothing takes the
   handover (6.5), and a start on a new store lists no forge. A person
   connects that Forgejo as its admin (5.5), the handover file
   `admin_token` the token, the connect's `--api` and `--git` the
@@ -3642,16 +3643,26 @@ temper-fake-git              ordinary Rust: the fake git program's core, temper 
 │                              its two remotes (../domain/testing.md, 4.3)
 ├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-peers
 └── skein-lib, skein-io, skein-http, skein-json
-temper                       the binary: temper forge fetch|prepare|run|remove, temper box, temper init,
-                               temper fake llm|forge|git; Claude Code's launcher (6.6)
+temper-engine-shell          ordinary Rust: temper forge fetch|prepare|run|sign-in|source|remove and
+│                              internal forge-child, their rows and the checks they make, for both
+│                              binaries below (README.md, 4.1)
+├── temper-forge-setup-shell, temper-forge-setup, temper-box, temper-fake (the demo member's check)
+└── temper-service, temper-shell
+temper                       the box's binary: the forge's commands through temper-engine-shell,
+                               temper box, temper init, temper fake llm|forge|git; Claude Code's
+                               launcher (6.6)
+temper-engine                the engine's binary: the forge's commands through temper-engine-shell,
+                               on an engine alone's document (README.md, 4.2)
 ```
 
 - **The engine runs the setup host** in its protocol layer (5.1):
   temper-service maps each forge's setup onto the plans' given values
-  through `temper-forge-setup` (section 5), and depends on neither
-  `temper-forge-setup-shell` nor `temper-box`.
+  through `temper-forge-setup` (section 5), and depends on no
+  `temper-forge-setup-shell`, and on `temper-box` only for the `box.`
+  limits' reference page (`temper-service/src/limits/reference.rs`).
 - **The binary checks the machine's part and its limits** for every
-  command, `temper serve`'s included: `temper-forge-setup` checks
+  command, `temper serve`'s included, the box's and the engine's
+  through `temper-engine-shell`: `temper-forge-setup` checks
   `application.machine` and the `setup.` limits, and `temper-box` the `box.` limits, beside
   temper-service's startup.
 - **Machines, not scripts.** The plans (skein's) and the preparation

@@ -1155,6 +1155,18 @@ impl World {
         self
     }
 
+    /// Give history reads the same settings bounds as the root before startup.
+    #[must_use]
+    pub fn with_settings_history(mut self) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "history bounds precede world startup");
+        assert!(!self.root.ready(), "history bounds precede bootstrap");
+        let rows = self.store.rows.values().cloned().collect();
+        self.store = Store::with_limits(&self.env.limits);
+        self.store.seed(rows, Box::new([]));
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self
+    }
+
     /// Configure a second model, allowed by charter 2 alone, before the world's first input.
     #[must_use]
     pub fn with_producer_model(mut self, name: &[u8]) -> Self {

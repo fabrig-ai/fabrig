@@ -54,26 +54,60 @@ deferred failure accounting.
   lost-worker, hung-worker and late-worker boundary stories remain.
 
 - **Not yet:** 4: `temper versions`, `temper upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper/src/commands.rs`). 6: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 9: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
-- **Departs:** 4: a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge.status.md`, 2.8). 6, 7: `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded. 15.5, 15.6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
+- **Departs:** 4: a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper-engine-shell/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge.status.md`, 2.8). 6, 7: `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded. 15.5, 15.6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
+
+Section 4.2's `temper-engine` is present, with 4.1's rules: its
+table of `help`, `serve`, `versions`, the forge's six verbs and
+`internal forge-child`, its `help` and forge rows the constants the
+box's table holds; `--version` from `temper-version`; `versions`' lines;
+the unknown command's refusal; and a worker alone's and a standalone
+document refused before any other check, naming `temper-worker serve`
+and the box's `temper serve`, by `serve` and by each forge command that
+reads the document. Its step test runs the built binary over a table of
+those cases (`crates/temper-engine/tests/suite/main.rs`). `serve` and
+the forge's commands are `temper-engine-shell`'s, which the box's
+`temper` runs too, under its own name and with its worker's half
+(`crates/temper/src/worker_half.rs`). `temper-service`'s `worker`
+feature is on in the box's build and the worlds' and off in
+`temper-engine`'s, where a start of any shape but an engine alone is
+refused. `tests/boundary/tests/binaries.rs` holds `temper-engine`'s
+closure free of the worker's domain and smith's agent, but its four
+named exceptions. It also holds the box's machine, `temper-box`, and the
+fakes' crates, `temper-fake` with skein's fake forge, LLM and OAuth
+beneath it, which `temper-engine-shell`'s check of the document reads
+for its `box` limits and `demo` member, as the box's does (section 5;
+`../draft/deployment-binaries.status.md`). The gate builds the
+workspace whole, so its run of the step test runs a binary built with
+`worker` on; the feature-off service is compiled by `temper-engine`'s
+own build alone, as 4.1 accepts.
+
+- **Not yet:** 4.2: `temper-engine upgrade --check` and `--back`: jig's
+  rehearsal and going back (jig's `protocol/store.md`, 10.5) are not
+  built, so neither binary's table has the row. 4.1: `binaries.rs` has
+  no row for `temper-client`, which is M5's (below).
 
 Section 4's deployment client, `temper-client`, is present: its table
 of `help`, `[ADDRESS]` and `ctl`, the box's rows run by the box's code,
-its help and refusals naming `temper-client`, and `--version` with its
-build script's commit, in step tests of its package. Section 5's
+its help and refusals naming `temper-client`, and `--version`, in step
+tests of its package. Section 5's
 `temper-shell` holds the table's types and printing, the shared rows,
 `help`'s answers, the three directories and the engine's link file, and
 the box's `temper` prints from it. Built alone, the client links none of
 the engine's, the worker's, smith's agent, the box or the forge's setup,
 and `temper-protocol-records` without `forge` (`cargo tree -p
-temper-client`). No test holds that closure yet: the boundary test is
-M5's (`../draft/deployment-binaries.execution.md`). Section 4's client
+temper-client`). No test holds that closure yet: its row in
+`binaries.rs` is M5's (`../draft/deployment-binaries.execution.md`). Section 4's client
 story is written and compiled in the process tier, and runs after
 landing.
 
 - **Departs:** 4: `temper-client`'s story runs the box's `temper serve` as its engine
-  (`crates/temper/tests/suite/client_binary.rs`), because `temper-engine` isn't
-  built; M5 switches it to `temper-engine`
+  (`crates/temper/tests/suite/client_binary.rs`), written before `temper-engine`
+  was built; M5 switches it to `temper-engine`
   (`../draft/deployment-binaries.execution.md`, M5).
+- **Departs:** 4, 5: `temper-client`'s COMMIT is its own build script's
+  (`crates/temper-client/build/main.rs`, `TEMPER_CLIENT_COMMIT`), a second copy
+  of `temper-version`'s, which it doesn't link: M1 built it while `temper-version`
+  was being built beside it, and no plan has switched it yet.
 - **Departs:** 4: beyond the crates section 4 says it links, `temper-client` links:
   - `jig-protocol-accounts`, an engine crate of jig's (section 5), and through it
     `jig-protocol-config`, `jig-protocol-engine-clients`,

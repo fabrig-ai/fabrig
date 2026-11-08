@@ -2,20 +2,14 @@
 //! whence the parser's words, `temper --help`, `temper COMMAND --help` and
 //! the reference page `commands`.
 use crate::{box_command, directories, fake};
-use std::fmt::Write;
-
-pub use temper_shell::commands::{Argument, Row, Who};
+pub use temper_shell::commands::{Argument, DIRECTORIES, HELP, Row, Table, Who};
 use temper_shell::rows;
 
-const DIRECTORIES: Argument = Argument {
-    shown: "DIRECTORIES",
-    line: "[--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.",
-};
-const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
+use temper_engine_shell::forge::{FETCH, FORGE, FORGE_CHILD, PREPARE, REMOVE, RUN, SIGN_IN, SOURCE};
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
 pub const COMMANDS: [Row; 24] = [
-    rows::HELP,
+    HELP,
     Row {
         words: &["init"],
         who: Who::Deployment,
@@ -82,60 +76,12 @@ Refused, changing nothing, when the configuration directory already holds temper
         settings: &[&directories::SETTINGS],
         notes: "Checks the configuration and the agent's, makes the source's directory, then replaces itself by the program's sign-in, whose exit status is then its own. The engine need not run.",
     },
-    Row {
-        words: &["forge", "fetch"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Download an owned forge's Forgejo and runner binaries into the cache.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "Fetches only the binaries the forge's setup gives as \"fetched\", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
-    },
-    Row {
-        words: &["forge", "prepare"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Prepare an owned forge before its Forgejo first runs.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
-    },
-    Row {
-        words: &["forge", "run"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE forgejo|runner"],
-        line: "Run an owned forge's Forgejo or its runner.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
-    },
-    Row {
-        words: &["forge", "remove"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Remove a stopped box slot's forge directory, keeping the cache.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.",
-    },
-    Row {
-        words: &["forge", "source"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Add the box’s public temper sign-in source to its owned Forgejo.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "Lists the sources and adds temper when absent, under the setup deadline. Prints source added or source failed WHY and exits 0 either way: a failure keeps the box running with plain links.",
-    },
-    Row {
-        words: &["forge", "sign-in"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Make what people need to sign in to temper through a Forgejo, and print the Forgejo command that registers temper.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
-    },
+    FETCH,
+    PREPARE,
+    RUN,
+    REMOVE,
+    SOURCE,
+    SIGN_IN,
     rows::TUI,
     rows::CTL,
     Row {
@@ -186,18 +132,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         settings: &[&directories::SETTINGS],
         notes: "",
     },
-    Row {
-        words: &["internal", "forge-child"],
-        who: Who::Spawned,
-        forms: &["--parent PID --signal kill|terminate -- PROGRAM ARGS..."],
-        line: "Run an owned forge's program, sent SIGNAL when its parent PID ends.",
-        arguments: &[
-            Argument { shown: "PID", line: "The process whose end ends the program." },
-            Argument { shown: "PROGRAM", line: "The program to run, with its ARGS." },
-        ],
-        settings: &[],
-        notes: "",
-    },
+    FORGE_CHILD,
     Row {
         words: &["internal", "tui"],
         who: Who::Spawned,
@@ -265,65 +200,35 @@ Refused, changing nothing, when the configuration directory already holds temper
     },
 ];
 
+pub const TABLE: Table = Table { binary: "temper", rows: &COMMANDS };
+
 /// The row whose words begin `words`, the longest such.
 #[must_use]
 pub fn find(words: &[Box<[u8]>]) -> Option<&'static Row> {
-    temper_shell::commands::find(&COMMANDS, words)
+    TABLE.find(words)
 }
-
-/// The command words up to the first word no row continues with.
 pub(crate) fn unknown(words: &[Box<[u8]>]) -> String {
-    temper_shell::commands::unknown("temper", &COMMANDS, words)
+    TABLE.unknown(words)
 }
-
-#[expect(dead_code, reason = "keeps the binary's forms entry point beside the shared table printers")]
+#[expect(dead_code, reason = "the box keeps its forms wrapper over the shared table")]
 pub(crate) fn forms(row: &Row) -> String {
-    temper_shell::commands::forms("temper", row)
+    TABLE.forms(row)
 }
-
 pub(crate) fn refused(row: &Row, why: &str) -> String {
-    temper_shell::commands::refused("temper", row, why)
+    TABLE.refused(row, why)
 }
-
 /// `temper --help`.
 #[must_use]
 pub fn help() -> String {
-    temper_shell::commands::help("temper", &COMMANDS)
+    TABLE.help()
 }
-
 /// `temper COMMAND --help`.
 #[must_use]
 pub fn row(row: &Row) -> String {
-    temper_shell::commands::row("temper", row)
+    TABLE.row(row)
 }
-
 /// The reference page `commands`, whole, as `docs/help/reference/commands.md` holds it.
 #[must_use]
 pub fn reference() -> String {
-    let mut text = String::from(
-        "# temper's commands\n\nKind: reference\n\nEvery command of the temper binary, by who runs it: its usage, what it does, its arguments and its notes.\n",
-    );
-    for row in &COMMANDS {
-        let command = temper_shell::commands::command("temper", row);
-        let heading = if row.words.is_empty() { format!("{command} [ADDRESS]") } else { command.clone() };
-        write!(text, "\n## {heading}\n").expect("writing into a string");
-        for form in row.forms {
-            write!(text, "\n`{command} {form}`\n").expect("writing into a string");
-        }
-        write!(text, "\n{}", row.line).expect("writing into a string");
-        if row.who == Who::Spawned {
-            text.push_str(" Spawned by temper; never run by hand.");
-        }
-        text.push('\n');
-        if !row.arguments.is_empty() {
-            text.push('\n');
-            for argument in row.arguments {
-                writeln!(text, "- `{}`: {}", argument.shown, argument.line).expect("writing into a string");
-            }
-        }
-        if !row.notes.is_empty() {
-            write!(text, "\n{}\n", row.notes).expect("writing into a string");
-        }
-    }
-    text
+    TABLE.reference()
 }
