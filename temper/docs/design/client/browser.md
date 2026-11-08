@@ -253,6 +253,8 @@ replay says the same clocks (`README.md`, 5.12).
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Repositories { project }` | `/projects/<project>/settings/repositories` |
   | `Builders { project }` | `/projects/<project>/settings/builders` |
+  | `Role { project, charter }` | `/projects/<project>/settings/roles/<charter>` |
+  | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
   | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter }` | `/chats`, and its filter's query |

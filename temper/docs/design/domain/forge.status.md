@@ -2,6 +2,10 @@
 
 2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
+- **Not yet:** 8.13, *A stop's card*: an agent's "Asked to" is cut at 128 bytes, then 122 inside its quotes, mid-word and with no "…" (`look-round-24`, `asked-sentence`).
+
+- **Not yet:** 8.13, *CI's card*: its fact says "the repository's CI, at the change's head", naming neither the required checks nor the workflows (`look-round-24`, `ci-workflows`).
+
 Section 8.9 has no known implementation gap in every-project given
 rules, their project-scoped reads and held values, removal and reset, or
 branch-relative project patterns. The root checks their approval
@@ -426,3 +430,5 @@ table admits 32 changes and refuses 33 at an authority batch bound of 32.
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+
+- **Not yet:** 8.13, *A rule's card*: no view `rule K/N`; the address is unknown and draws `not_drawn` (`look-round-24`, `rule-view`).
