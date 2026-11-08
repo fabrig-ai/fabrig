@@ -5,24 +5,47 @@ use temper_client_domain::{Action, pages};
 
 #[test]
 fn the_top_bar_says_the_links_state_and_the_persons_name() {
+    use temper_client_domain::{Address, Event, Step, pages::terminal::Look};
+    let mut terminal = fixtures::reading_me_at(Address::NewChat { draft: false });
+    fixtures::root_event(&mut terminal, Event::LookKept { look: Look { terminal: true, ..Look::default() } });
     let roots = [
-        Box::new(fixtures::no_project_root()),
-        Box::new(temper_client_domain::new(&fixtures::domain_limits(), fixtures::SEED)),
-        Box::new(fixtures::signed_out()),
-        Box::new(fixtures::out_of_date()),
+        (Box::new(fixtures::no_project_root()), false),
+        (Box::new(temper_client_domain::new(&fixtures::domain_limits(), fixtures::SEED)), false),
+        (Box::new(fixtures::signed_out()), false),
+        (Box::new(fixtures::out_of_date()), false),
+        (Box::new(fixtures::reading_me_at(Address::Chats { filter: ChatsFilter::All })), true),
+        (Box::new(fixtures::reading_me_at(Address::NewChat { draft: false })), true),
+        (Box::new(fixtures::reading_me_at(Address::Welcome { step: Step::Welcome })), true),
+        (Box::new(terminal), true),
     ];
-    for root in roots {
+    let mut wrong_main = skein_lib::List::uncapped();
+    for (root, reading) in roots {
         for words in [fixtures::words(), fixtures::browser_words()] {
+            let shell = words.shell;
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_eq!(fixtures::styles(view.tree(), Role::Banner).as_ref(), [Box::from([crate::look::TOP])]);
             assert!(fixtures::find(view.tree(), Role::Disclosure, b"Menu").is_none());
+            let mut mains = 0_u32;
+            let mut wrong = false;
             for node in view.tree().nodes() {
+                if node.role == Role::Main {
+                    mains = mains.checked_add(1).expect("tree nodes fit");
+                    wrong |= (node.size == 1) != reading
+                        || node.states.as_slice().contains(&skein_ui::State::Busy) != reading;
+                }
                 assert_ne!(node.role, Role::Navigation);
                 assert!(!node.styles.as_slice().contains(&crate::look::PROJECTS));
+                if reading && node.role == Role::Region {
+                    assert_eq!(node.region, Some(crate::frame::link_region()));
+                }
+            }
+            if mains != 1 || wrong {
+                wrong_main.push((root.pages().address().clone(), shell, reading)).expect("failed rows fit");
             }
         }
     }
+    assert!(wrong_main.is_empty(), "one main, empty and busy exactly while reading me: {wrong_main:?}");
     let view = fixtures::page_view(&fixtures::no_project_root());
     assert!(fixtures::find(view.tree(), Role::Status, b"Live").is_some());
     assert!(fixtures::find(view.tree(), Role::Status, b"Pat").is_some());
@@ -509,7 +532,7 @@ fn the_unavailable_top_end_holds_only_the_link_region() {
     }
 }
 
-fn assert_top_end(view: &crate::View, children: &[(Role, Option<&[u8]>)]) {
+pub(super) fn assert_top_end(view: &crate::View, children: &[(Role, Option<&[u8]>)]) {
     let nodes = view.tree().nodes();
     let mut corner = None;
     let mut banner_end = 0;
