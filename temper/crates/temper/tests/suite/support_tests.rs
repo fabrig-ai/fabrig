@@ -70,6 +70,11 @@ fn native_landing_rules_replace_the_projects_stock_review() {
     scratch.remove();
 }
 
+#[test]
+fn turn_restart_keeps_the_moved_main_witness_on_retry() {
+    support::turn_restart::tests::keeps_the_moved_main_witness_on_retry();
+}
+
 #[cfg(target_os = "linux")]
 #[test]
 fn elsewhere_settings_follow_the_connected_project() {
