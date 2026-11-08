@@ -1662,6 +1662,13 @@ designs (`../../protocol/client.md`):
 
 ## 11. Open questions
 
+- **Reasons within account acts' not-offered answers** (section 4):
+  key add or replace and sign-in start or finish can reach this answer
+  through several core causes. Carrying each cause needs finer account
+  refusals and their translation (`../../domain/accounts.md`, section 7).
+  Default: the existing refusal. Declarations and resumes keep the
+  single meanings in section 4; clients can word those from their ask.
+
 - **Browser-approved sign-ins beyond loopback** (2), and a person's
   sign-ins listed and each ended: `../../protocol/client.md`, section 15.
   The built-in approval here signs in the approving browser's own party.

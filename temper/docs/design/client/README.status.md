@@ -6,6 +6,20 @@ Section 5.9's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
 these endings. No known gap remains in this line.
 
+Section 5.5's declaration refusals for name taken and not offered, and
+resume's not offered, have their reason and next step in the account
+outcome line. ConnectModel checks the person's own same-provider source
+on name taken and leaves not offered visible. View-table rows cover
+the words; the domain table covers that recovery distinction. The
+joined ctl story covers a forgotten name's revival and host-check
+dispatch, without establishing a real provider's login or rendered look.
+
+- **Departs:** 5.5, from `ui-account-again`'s request for each fixable
+  account-act refusal to say why and what next: the plan limits the new
+  words to those three cases. Key and sign-in acts retain generic
+  not-offered words because that refusal combines several core causes.
+  Distinguishing them remains section 11's work.
+
 Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
 in the rail after Chats and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no

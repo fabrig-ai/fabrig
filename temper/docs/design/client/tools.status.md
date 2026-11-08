@@ -8,6 +8,19 @@ starts it through ctl, reads with `see` and accepts its settings
 proposal. The command still selects any offered chat template; the
 removed stock template 3 has no special command path.
 
+Section 5.5's declaration refusals for name taken and not offered, and
+retry's not offered, have their reason and next step in text and JSON,
+including restored requests. Section 11.2's joined client-world story
+declares, forgets and declares the same name again, observes the worker's
+login-check dispatch, and checks a live name's exit-2 refusal and advice.
+Its worker is fake; it establishes no real login's usability.
+
+- **Departs:** 5.5, from `ui-account-again`'s request for each fixable
+  account-act refusal to say why and what next: the plan limits the new
+  words to those three cases. Key add or replace and sign-in start or
+  finish retain generic not-offered words because the core maps several
+  causes to that refusal. Distinguishing them remains section 14's work.
+
 Section 8.1's sign-in deadline distinguishes the last not-ready refusal
 from busy, names startup or an unanswering core, points to serve's log
 and keeps the link usable until expiry. The CLI's sign-in tests

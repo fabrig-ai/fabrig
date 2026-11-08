@@ -833,6 +833,14 @@ construction, never by a person deleting a copy.
 
 ## 7. Open questions
 
+- **Reasons for key and sign-in refusals** (section 5): a key's add or
+  replace and a sign-in's start or finish can be refused not offered
+  for several causes in the core. Distinguishing each cause for a
+  client's reason and next step needs finer account refusals and their
+  client mapping (`../client/domain/contract.md`, section 11). Default:
+  the existing refusal; a declaration's not offered and a resume's have
+  the single meanings in section 5.
+
 - **An account's other facts:** kinds 3 to 7 (3.7) wait for each provider's
   adapter to learn them, Claude Code's usage windows from its rate-limit
   events first (`../draft/account-facts.md`, section 6). The user is still
