@@ -142,6 +142,7 @@ impl Domain {
                     Some(
                         host::LinkUp::ListRead { .. }
                         | host::LinkUp::Piece { .. }
+                        | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }
