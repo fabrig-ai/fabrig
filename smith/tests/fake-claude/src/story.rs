@@ -224,6 +224,8 @@ pub enum Step {
     Deaf,
     /// Emits one assistant message, then runs its Call, CallChecked, Builtin or Act steps in order.
     Together(Vec<Step>),
+    /// Emits one assistant message and sends every Call or CallChecked before reading replies by ID.
+    AllAtOnce(Vec<Step>),
     /// Calls the named server tool, returning its answer to the model.
     Call { tool: String, input: serde_json::Value },
     /// Calls a server tool and checks its reply against scripted text.

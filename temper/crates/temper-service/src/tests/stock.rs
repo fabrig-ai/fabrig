@@ -382,14 +382,10 @@ A way is drawn, never described: way NAME draws one of temper's stock ways over 
 }
 
 fn ask_design_first_rules(words: &str) {
-    assert!(words.contains("Design-first charters: land design into g before coding."));
-    assert!(
-        words
-            .contains("Use after only for live prerequisites (your live delegates or earlier names in the same batch)")
-    );
-    assert!(words.contains(
-        "once design has landed into g, cite its path and section in words and omit its ended task from after"
-    ));
+    assert!(words.contains("confirm all required design landed into g before dispatching coding"));
+    assert!(words.contains("A push, delivery or designer report is insufficient"));
+    assert!(words.contains("Use after only for live prerequisites"));
+    assert!(words.contains("cite design's repository path and section in words; omit its ended task from after"));
 }
 
 #[test]

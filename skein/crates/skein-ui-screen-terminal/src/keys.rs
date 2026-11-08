@@ -44,6 +44,7 @@ pub struct Decoder {
     paste: List<u8>,
     ending: usize,
     answers: bool,
+    waiting: bool,
     background: Option<Option<Rgb>>,
 }
 const PASTE_END: &[u8] = b"\x1b[201~";
@@ -54,6 +55,20 @@ impl Decoder {
     /// From now on OSC answers, including late ones, are never keys.
     pub fn answers(&mut self) {
         self.answers = true;
+        self.waiting = true;
+    }
+
+    /// Ends the background wait, giving any held ESC as Escape (skein/docs/design/ui-screen.md, 6.1).
+    pub fn end_background_wait(&mut self, keys: &mut Queue<Key>) {
+        self.waiting = false;
+        match self.state {
+            State::Escape => {
+                keys.push(Key::Escape);
+                self.partial.clear();
+                self.state = State::Text;
+            }
+            State::Text | State::Sequence | State::Character { .. } | State::Paste | State::Answer { .. } => {}
+        }
     }
 
     /// The first OSC 11 answer, readable or not.
@@ -71,11 +86,12 @@ impl Decoder {
             paste: List::with_capacity(paste),
             ending: 0,
             answers: false,
+            waiting: false,
             background: None,
         }
     }
 
-    /// Before answers are enabled, a lone ESC is delivered at this read's end.
+    /// Outside the background wait, a lone ESC is delivered at this read's end.
     pub fn read(&mut self, bytes: &[u8], keys: &mut Queue<Key>) {
         for byte in bytes {
             match self.state {
@@ -100,7 +116,7 @@ impl Decoder {
         }
         match self.state {
             State::Escape => {
-                if !self.answers {
+                if !self.waiting {
                     keys.push(Key::Escape);
                     self.partial.clear();
                     self.state = State::Text;

@@ -498,8 +498,8 @@ pub(crate) fn status_words(
     (token, name)
 }
 
-/// Active work follows the bar; the conversation chooses its run or dots (client/README.md, 3.5).
-pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread::Thread) -> bool {
+/// Active work follows the bar, including while words stream (client/README.md, 3.5).
+pub(crate) fn active(root: &Domain, words: &Words) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
     let Some(me) = root.pages().me(root.client()) else { return false };
@@ -514,10 +514,11 @@ pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread:
         me,
         words,
     );
-    if token != crate::look::STATUS_ACTIVE {
-        return false;
-    }
-    words_not_begun(thread)
+    token == crate::look::STATUS_ACTIVE
+}
+/// The conversation draws dots until the reply's words begin (client/README.md, 3.5).
+pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread::Thread) -> bool {
+    active(root, words) && words_not_begun(thread)
 }
 /// A nonempty provisional line settles the work before it (client/README.md, 3.5 and 5.9).
 pub(crate) fn words_not_begun(thread: &jig_client::thread::Thread) -> bool {

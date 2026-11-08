@@ -1,13 +1,12 @@
 # Status
 
-2026-11-07. Where skein's code lags or departs from its design, and its
+2026-11-08. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The full-screen
 shell's renderer, keys, drawing and simulated terminal are built, with
-panic restoration and simulated resizes. Paging uses a fixed nine rows
-instead of the visible body's rows less one; rendering and input
-extensions remain deferred (`ui-screen.md`, sections 6.2 and 10;
-`ui-screen.status.md`). The kernel's
-records of a tree's metadata, the filesystem's status and btrfs's
+panic restoration and simulated resizes. Rendering and input extensions
+remain deferred (`ui-screen.md`, sections 3, 5.4 and 10;
+`ui-screen.status.md`). The kernel's records of a tree's metadata,
+the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
 simulation, faults and fake machine (`kernel.md`, `io.md`,
 `simulator.md`, `shell.md`, `testing.md`). The forge kit lacks the calls

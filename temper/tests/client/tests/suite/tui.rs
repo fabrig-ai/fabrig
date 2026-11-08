@@ -15,10 +15,10 @@ use temper_client_world::{
 const TUI: ClientId = ClientId(1_000);
 const ELSEWHERE: ClientId = ClientId(1_001);
 const SIGN_OUT: Token = Token::new(1);
-const CONNECTED: &str = "Connected to 127.0.0.1:8367 as Person";
+const CONNECTED: &str = "temper · Project 1";
 const SIGN_IN: &str = "Sign in this terminal to 127.0.0.1:8367";
 // Walking's one seeded project is party 1's project in `me`.
-const PROJECTS: &str = "Projects: Project 1";
+const PROJECTS: &str = "/ for commands";
 const OFFLINE: Duration = Duration::from_millis(300);
 const STEP: Duration = Duration::from_millis(50);
 const RESTART_SPAN: Duration = Duration::from_secs(2);
@@ -68,8 +68,6 @@ fn a_tuis_approval_approved_by_a_browser_draws_the_first_screen() {
     let (mut world, mut tui, browser) = approval();
     assert_eq!(tui.opens.len(), 1, "each answered ask opens once");
     let code = opened_code(&mut tui);
-    let root = world.root(browser).person();
-    let party = root.pages().me(root.client()).expect("the browser's party").party.clone();
     open_approval(&mut world, &mut tui, browser, code);
     world.event(browser, client::Event::Act { action: Action::Approve(approve::Act::Approve) }.into());
     tui.run(&mut world, fixtures::WITHIN);
@@ -79,8 +77,8 @@ fn a_tuis_approval_approved_by_a_browser_draws_the_first_screen() {
     // The take's retry precedes the signed-in stream and its first watches.
     tui.run(&mut world, fixtures::WITHIN);
     let text = tui.text();
-    let name = std::str::from_utf8(party.name.bytes()).expect("party name");
-    assert!(text.contains(&format!("Connected to 127.0.0.1:8367 as {name}")), "{text}");
+    assert!(text.contains(CONNECTED), "{text}");
+    assert!(text.contains(PROJECTS), "{text}");
     assert!(tui.status().ends_with("● Live"), "status={:?}; frame={text}", tui.status());
     assert_eq!(tui.opens.len(), 1, "the take opens no second tab");
 }
@@ -129,6 +127,71 @@ fn a_tui_signed_in_by_its_pasted_link_draws_me() {
     assert_eq!(tui.address.as_deref(), Some(ADDRESS));
 }
 
+#[test]
+fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
+    const QUESTION: &str = "Which checks should we run?";
+    const PARTS: &[&[u8]] = &[b"Run the focused checks", b" before the fuzzy suite."];
+    const ANSWER: &str = "Run the focused checks before the fuzzy suite.";
+    let mut world = fixtures::tui_asking_world(fixtures::SEED);
+    world.front().reply_in_pieces(PARTS);
+    let mut tui = Tui::start(&mut world, TUI, None);
+    tui.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    let text = tui.text();
+    for words in [CONNECTED, "Ask temper", PROJECTS, "● Live"] {
+        assert!(text.contains(words), "missing {words:?}: {text}");
+    }
+
+    tui.type_words(&mut world, "/");
+    tui.run(&mut world, STEP);
+    let text = tui.text();
+    for command in ["/model", "/new", "/chats", "/theme", "/help", "/exit"] {
+        assert!(text.contains(command), "missing {command}: {text}");
+    }
+    assert!(!text.contains("/font"), "{text}");
+    tui.press(&mut world, vec![Key::Escape]);
+    tui.run(&mut world, STEP);
+    let text = tui.text();
+    assert!(text.contains("❯ Ask temper"), "Esc clears the box: {text}");
+    assert!(!text.contains("/exit"), "Esc closes the commands: {text}");
+    assert!(text.contains(PROJECTS), "{text}");
+
+    tui.type_words(&mut world, QUESTION);
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    let front = world.front();
+    let assignment = front.assignments.last().expect("Ask temper run assigned");
+    assert_eq!(assignment.charter, 11);
+    let task = front.engine.task(assignment.task).expect("Ask temper task");
+    assert_eq!(task.spec.words.as_ref(), QUESTION.as_bytes());
+    let heading = format!("✦ Project 1 / {QUESTION} T{}", assignment.task);
+    let text = tui.text();
+    assert!(text.contains(&heading), "{text}");
+    assert!(text.contains(&format!("❯ {QUESTION}")), "{text}");
+    assert!(text.contains("✦ Run the focused checks"), "{text}");
+    assert!(text.contains("✦ Working"), "{text}");
+    assert!(!text.contains(ANSWER), "only the first piece is released: {text}");
+
+    assert!(world.front().release_reply(), "release the second piece without committing");
+    tui.run(&mut world, STEP);
+    let text = tui.text();
+    assert!(text.contains(ANSWER), "{text}");
+    assert!(text.contains("✦ Working"), "the whole reply is still provisional: {text}");
+    assert!(world.front().release_reply(), "commit the whole answer");
+    tui.run(&mut world, fixtures::WITHIN);
+    let text = tui.text();
+    assert!(text.contains(&format!("✦ {ANSWER}")), "{text}");
+    assert!(!text.contains("✦ Working"), "the run has ended: {text}");
+    assert!(text.contains(PROJECTS), "{text}");
+    assert!(text.contains("● Live"), "{text}");
+    assert!(!world.front().release_reply(), "no reply remains held after commit");
+
+    tui.type_words(&mut world, "/exit");
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, STEP);
+    assert!(tui.closed, "/exit asks the shipped host to close");
+}
+
 fn file_secret_is_in_no_frame(tui: &Tui, link: &[u8]) {
     let url = std::str::from_utf8(link).expect("fixture URL");
     let (_, secret) = url.split_once("?secret=").expect("fixture secret field");
@@ -148,6 +211,7 @@ fn a_fresh_tui_signs_in_from_the_engines_link_with_no_key() {
     assert!(tui.text().contains("Connecting to 127.0.0.1:8367"));
     tui.run(&mut world, fixtures::WITHIN);
     assert!(tui.text().contains(CONNECTED));
+    assert!(tui.text().contains(PROJECTS));
     assert!(tui.status().ends_with("● Live"));
     assert!(tui.credential().is_some(), "the file's sign-in keeps a credential");
     assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
@@ -182,6 +246,7 @@ fn a_tui_after_a_browser_spent_the_link_signs_in_by_the_next() {
     );
     assert!(tui.credential().is_some(), "reads={}; sends={}; notes={:?}", tui.reads, tui.sign_in_sends, tui.notes);
     assert!(tui.text().contains(CONNECTED));
+    assert!(tui.text().contains(PROJECTS));
     assert!(tui.status().ends_with("● Live"));
     assert!(tui.credential().is_some());
     assert_eq!(tui.sign_in_sends, 2);
@@ -225,6 +290,7 @@ fn an_expired_sign_in_is_renewed_from_the_file() {
     assert_eq!(tui.keeps.len(), 2, "erase, then keep the new sign-in");
     assert!(tui.credential().is_some());
     assert!(tui.text().contains(CONNECTED));
+    assert!(tui.text().contains(PROJECTS));
     assert!(tui.status().ends_with("● Live"));
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.approval_asks, 0);

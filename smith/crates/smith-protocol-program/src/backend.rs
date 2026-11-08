@@ -71,6 +71,9 @@ mod session_tests;
 mod stop_tests;
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod launch_tests;
 #[cfg(test)]
 mod turns_tests;
 
@@ -151,6 +154,9 @@ pub struct Settings {
     pub max_turns: u32,
     pub grace: Duration,
     pub startup: Duration,
+    /// `Some` launches through the relay's binary to die with this agent;
+    /// `None` launches the program itself (smith/docs/design/protocol/programs.md, 5.1).
+    pub parent: Option<u32>,
 }
 
 impl Settings {

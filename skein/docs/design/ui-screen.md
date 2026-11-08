@@ -93,16 +93,39 @@ host chose (its own design says how).
   - *its arrangement,* `Arrange`: `Lines`, each child on lines of its
     own, or `Spread`, its children along one row (5.3);
   - *its border,* `Border` or none: four corners, a glyph across and one
-    down, their paint, and whether the region's first level-1 heading is
-    drawn in its top border, as its title;
+    down, their paint, whether the region's first level-1 heading is
+    drawn in its top border, as its title, and whether it has sides
+    (`sides`): a box with them, or with none two rules, a row of the
+    glyph across above the region and one below it, across the frame's
+    width, with no corners and no glyph down (5.2);
   - *its padding,* the columns kept clear inside each side;
   - *its paint,* laid over the base for every cell of the region.
   A region with no look is laid in the body, as any other node is.
 - **A style token's look,** `StyleLook`: its paint, laid over its
   region's on the node that carries the token and every node under it,
-  the nearest token's last. A token with no look paints nothing.
+  the nearest token's last. A token with no look paints nothing. It also
+  says, for the node that carries it:
+  - *its alignment,* `Align`: `Start`, or `End`, its lines laid flush
+    with the end of their room, and in a border's title at the border's
+    end (5.2);
+  - *a band* (`band`): each row its lines take painted across its
+    region's inner width, so that a background shows as a band from the
+    region's inner start to its inner end (5.3);
+  - *a label* (`label`): whether a text field or a text area under it
+    lays its name before its value, as by default, or not (5.4);
+  - *a mark* (`mark`), or none: a glyph and its paint, laid in place of
+    `- ` before an unnumbered item under it (5.3);
+  - *its descriptions' paint* (`described`), or none: the paint a node
+    under it lays its description in, over its region's, in place of the
+    tokens' own (5.3);
+  - *spaced* (`spaced`): one blank row between each two children of the
+    node that carries it, and of no node under it (5.3).
+  The nearest token whose look aligns `End`, or bands, decides it for
+  the nodes under it.
 - **The focus's paint,** laid last over the focused node's cells; the
-  **placeholder's paint**, for a field's placeholder (5.4).
+  **placeholder's paint**, for a field's placeholder (5.4); the
+  **active paint** (`active`), laid as a band across an options menu's
+  active item, under the focus's paint (5.3).
 - **Its glyphs,** `Glyphs`: the focus mark drawn before the focused
   node, and the mask drawn for each character of a secret's value.
 - **Checked:** `Theme::valid` refuses two looks for one region or one
@@ -166,12 +189,33 @@ the tree's nodes and the frame's cells.
   padding, then its content at the inner width that leaves. A region
   whose border draws its title has its first level-1 heading in its top
   border, after the first corner and one glyph across, between spaces,
-  and not again inside: `╭─ temper ───╮`.
+  and not again inside: `╭─ temper ───╮`. The heading's children whose
+  token aligns `End` are drawn at the border's end instead, between
+  spaces, before one glyph across and the last corner: `╭─ temper · Hello
+  ──── 127.0.0.1:8367 ─╮`. Where the border lacks the room for both, the
+  end's part is left out first, whole; then the title is cut at its end.
+- **A region framed by rules,** its border with no sides: a row of the
+  glyph across above it and one below it, across the frame's width, in
+  the border's paint; no corners and no glyph down, so its content takes
+  the frame's width less its padding. A title it draws is laid in its
+  top rule after one glyph across, as a box's is.
 - **The body** is every node that is not in a placed region, in preorder,
   laid as lines at the frame's width. It scrolls: `Focus::scroll` is its
   first row shown. The renderer keeps the focused node's lines in view,
   moving the scroll the least it must, and never past the body's last
-  row; the frame says the scroll it used, which the shell keeps.
+  row; the frame says the scroll it used, which the shell keeps, and
+  `Focus::rows` the body's rows it laid, which the key reader pages by
+  (6.2).
+- **The body follows a log's end** (ui.md, 3.2, *an end request*): a log
+  in the body whose end request is newer than `Focus::ended` sets
+  `Focus::follow` and `Focus::ended` to it; while `follow` is set, the
+  body shows its last rows, whatever it grows by between frames, unless
+  a log in the body continues, which no shell follows, or the focused
+  node is in the body and out of the rows that shows, which wins as
+  above. A frame whose scroll is the body's last row, its body taller
+  than its room, sets it too, so that paging down to the end follows it
+  again; paging up clears it (6.2). With no log, `follow` set by the
+  application does the same.
 
 ### 5.3 The roles
 
@@ -192,8 +236,18 @@ the tree's nodes and the frame's cells.
     looks, and the focus's paint while its node has the focus; a code
     run keeps its backticks;
   - *a log:* its entries are laid whole, oldest first, without the text
-    shell's `(up, down: more lines)` command hint; reporting an edge in
-    view is deferred to section 10;
+    shell's `(up, down: more lines)` command hint, and followed as 5.2
+    says; reporting an edge in view is deferred to section 10;
+  - *an options menu* (ui.md, 3.2, *options*), while its field is in the
+    tree: one row an item, its focus columns, its name padded with spaces
+    to the longest name among the menu's items and three more, then the
+    first line of its description, cut at the row's end; each part in its
+    own nodes' paints. Its name says no `(selected)`: the active item is
+    shown, not said. The active item (5.4) has the focus mark in its
+    focus columns, the focus's paint over its cells, and the theme's
+    active paint across the menu's inner width beneath them, as a band;
+    the others' focus columns are blank. A menu with no field before it
+    is laid as any menu;
   - *a code block:* its lines are indented four spaces and cut rather
     than wrapped (5.1).
 - **A spread region** lays each child's first line on one row, the first
@@ -202,6 +256,27 @@ the tree's nodes and the frame's cells.
   the first child's end. It takes one row, whatever its children, and
   keeps no focus columns: a focused node there takes the focus's paint
   alone.
+- **Aligned to the end:** a node whose token aligns `End` lays each of
+  its lines with as many spaces before it as its room leaves after it,
+  its room the region's inner width less its indentation. A line as wide
+  as its room is laid as any line.
+- **A band:** a node whose token bands paints every cell of each row its
+  lines take, from its region's inner start to its inner end, with its
+  paint, before its text is laid on them; its indentation and a short
+  line's end are painted with it.
+- **A mark:** an unnumbered item under a token whose look gives a mark is
+  laid with the mark's glyph and a space where the text shell writes
+  `- `, the glyph in the mark's paint over the item's; its later lines
+  and blocks hang at the same indentation as under `- `. A numbered item
+  keeps its number.
+- **A description's paint:** a node under a token whose look gives a
+  `described` paint lays its description in that paint over its
+  region's, in place of its tokens' paints, so that a name and its words
+  differ (an options menu's command and what it does).
+- **Spaced:** the children of a node whose own token is `spaced` are laid
+  with one blank row between each two, in the region's paint, never
+  before the first or after the last; a child laid as no row takes no
+  gap.
 - **Not laid:** what the text shell does not print (ui-text.md, section
   5), but the placeholder, which the full-screen shell draws (5.4); a
   shortcut is the node's own words' to say.
@@ -210,14 +285,24 @@ the tree's nodes and the frame's cells.
 
 - **The focus,** `Focus`: the focused node's id or none, the caret's
   byte offset in its value, the body's scroll and the last focus request
-  honoured. The shell keeps it; the renderer and the key reader change
-  it.
+  honoured; an options menu's active item or none; whether the body
+  follows its end, and the last log end request honoured (5.2); and the
+  body's rows in the last frame laid. The shell keeps it; the renderer
+  and the key reader change it. It starts with none of them: no focus,
+  nothing active, not following, no request honoured, no rows.
+- **The active item** of an options menu (ui.md, 3.2): the shell's, while
+  the focus is in the field the menu follows. The renderer keeps it on
+  one of the menu's enabled items: one gone, disabled, or none, and it is
+  the item marked selected, or else the first; the field losing the
+  focus, or the menu leaving the tree, leaves it none.
 - **A focus request** (ui.md, 3.2) newer than the last honoured moves
   the focus to its node, the caret at its value's end. A focused node
   gone from the tree, or no longer one a person acts on, leaves the
   focus none.
 - **A text field** takes one row: `NAME: ` and its value from the offset
-  that keeps the caret in view; an empty value shows its placeholder in
+  that keeps the caret in view, or, where its token's look says no
+  label, its value alone after its focus columns, its name still the
+  tree's; an empty value shows its placeholder in
   the placeholder's paint, if it has one. A secret's value is the
   theme's mask, once per character, and never its bytes. A text area
   wraps its value as lines (5.1).
@@ -264,6 +349,14 @@ the most bytes of a paste:
   answer is the background's too, unreadable; any other answer is
   dropped; one past 64 bytes is dropped whole, through its end. Before
   `answers`, `ESC ]` is `Alt` and `]`, as the table has it.
+- **`Escape` while the background is awaited:** from `answers` until the
+  terminal's background is no longer `Waiting` (section 8), an `ESC` at a
+  read's end with nothing after it is held, since it may begin the
+  answer; the wait's end, by an answer, an unreadable one or the wait
+  passing, gives a held `ESC` as `Escape`. From then on an `ESC` alone at
+  a read's end is `Escape`, as the table has it, so a late answer split
+  right after its `ESC` reads as `Escape` and its characters; one read
+  whole is never a key.
 
 ### 6.2 The key reader
 
@@ -277,7 +370,10 @@ moved, closing, or nothing. Pure, step code under the subset.
 | `Control` `c` | anywhere | closes (section 8) |
 | `Tab`, `Down` | anywhere | the focus to the next node a person acts on, bound and enabled, in preorder, from the first after the last |
 | `BackTab`, `Up` | anywhere | the focus to the one before, from the last after the first |
-| `PageUp`, `PageDown` | anywhere | the body's scroll by its rows less one |
+| `PageUp`, `PageDown` | anywhere | the body's scroll by its rows less one (`Focus::rows`), at least one; `PageUp` clears `Focus::follow`; the frame that shows the body's last row sets it again (5.2) |
+| `Up`, `Down` | a text field or area an options menu follows | the active item to the one before or after, among the menu's enabled items, staying at the first and the last |
+| `Enter` | a text field or area an options menu follows | `Press` of the active item, in place of the field's `Submit` |
+| `Tab` | a text field or area an options menu follows | `Input` of the field's value as the active item's name, the caret at its end, where the value is a beginning of that name; else as any `Tab` |
 | `Enter` | a button, a link, a tab, a menu item, an option | `Press` |
 | `Enter`, `Char` space | a check, a choice | `Toggle` |
 | `Enter` | a text field or area that submits on enter | `Submit` |
@@ -290,6 +386,10 @@ moved, closing, or nothing. Pure, step code under the subset.
 | `Escape` | anywhere | `Press` as ui.md, 6.1 says of Escape |
 | any other | | nothing |
 
+- **A field an options menu follows:** its rows above win over those
+  for anywhere, while the menu has an enabled item; Escape there is as
+  anywhere, so that the application closes the menu by a node it names
+  Escape for (ui.md, 6.1).
 - **An act only where its role takes it** (ui.md, section 6), on a
   bound, enabled node, so the view never refuses a key's act for its
   role.
@@ -399,11 +499,19 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
     that are not UTF-8;
   - a field focused with its caret, a secret masked, a value scrolled to
     its caret, a placeholder; the body scrolled to keep the focus;
+  - a region framed by rules; a title with a part at the border's end,
+    in a frame wide enough for both and in one that cuts the title; a
+    line aligned to its end; a band, indented and wrapped;
+  - an options menu after a focused field, its names' column and its
+    active item's band, an item disabled; the body following a log's end
+    as it grows, and staying where the person scrolled up;
   - `Theme::valid`'s refusals.
 - **The keys:** the decoder's table, each sequence whole and split at
   every byte; the key reader's table, each key on each kind of focus,
   with a disabled node, a shortcut while a field has the focus, Escape in
-  a dialog and in a form, and a value at its bound.
+  a dialog and in a form, a value at its bound, the keys of a field an
+  options menu follows, and paging by the body's rows with `follow`
+  cleared and set.
 - **The drawing:** a first frame whole, one cell changed, a resize whole,
   the cursor shown and hidden, the indexed depth's nearest colours, a
   cell whose paint names no colour drawn in the terminal's defaults

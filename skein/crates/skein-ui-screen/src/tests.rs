@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use skein_ui::{Owner, Region, Style};
 
 use crate::{
-    Arrange, Border, Cell, Frame, Glyphs, Paint, Place, Position, RegionLook, Rgb, Size, StyleLook, Theme, width,
+    Arrange, Border, Cell, Frame, Glyphs, Mark, Paint, Place, Position, RegionLook, Rgb, Size, StyleLook, Theme, width,
 };
 
 const RED: Rgb = Rgb { red: 0xab, green: 0xcd, blue: 0xef };
@@ -11,7 +11,7 @@ const INK: Paint = Paint { fore: Some(RED), bold: true, italic: true, ..Paint::N
 const PAPER: Paint = Paint { back: Some(GREEN), dim: true, underline: true, reverse: true, ..Paint::NONE };
 const BASE: Paint = Paint { back: Some(Rgb { red: 0, green: 0, blue: 0 }), ..Paint::NONE };
 const BORDER: Border =
-    Border { corners: ['╭', '╮', '╰', '╯'], across: '─', down: '│', paint: INK, title: true };
+    Border { corners: ['╭', '╮', '╰', '╯'], across: '─', down: '│', paint: INK, title: true, sides: true };
 const REGION: RegionLook = RegionLook {
     region: Region { owner: Owner { number: 1 }, number: 1 },
     place: Place::Body,
@@ -20,7 +20,16 @@ const REGION: RegionLook = RegionLook {
     pad: 1,
     paint: PAPER,
 };
-const STYLE: StyleLook = StyleLook { style: Style { owner: Owner { number: 1 }, token: 1 }, paint: INK };
+const STYLE: StyleLook = StyleLook {
+    style: Style { owner: Owner { number: 1 }, token: 1 },
+    paint: INK,
+    align: crate::Align::Start,
+    band: false,
+    label: true,
+    mark: None,
+    described: None,
+    spaced: false,
+};
 const GLYPHS: Glyphs = Glyphs { focus: '>', mask: '●' };
 
 #[test]
@@ -68,7 +77,10 @@ fn paint_over_keeps_colours_and_adds_every_attribute() {
 }
 
 #[test]
+#[expect(clippy::disallowed_types, reason = "all invalid glyph rows report their failures together")]
 fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
+    use core::fmt::Write;
+    let mut failures = String::new();
     for (name, regions, styles, glyphs, valid) in [
         ("valid", &[REGION][..], &[STYLE][..], GLYPHS, true),
         ("empty looks", &[][..], &[][..], GLYPHS, true),
@@ -88,6 +100,27 @@ fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
             GLYPHS,
             true,
         ),
+        (
+            "control mark",
+            &[REGION][..],
+            &[StyleLook { mark: Some(Mark { glyph: '\n', paint: INK }), ..STYLE }][..],
+            GLYPHS,
+            false,
+        ),
+        (
+            "wide mark",
+            &[REGION][..],
+            &[StyleLook { mark: Some(Mark { glyph: '中', paint: INK }), ..STYLE }][..],
+            GLYPHS,
+            false,
+        ),
+        (
+            "combining mark",
+            &[REGION][..],
+            &[StyleLook { mark: Some(Mark { glyph: '\u{301}', paint: INK }), ..STYLE }][..],
+            GLYPHS,
+            false,
+        ),
         ("wide focus", &[REGION][..], &[STYLE][..], Glyphs { focus: '中', ..GLYPHS }, false),
         ("control mask", &[REGION][..], &[STYLE][..], Glyphs { mask: '\u{7f}', ..GLYPHS }, false),
         ("combining mask", &[REGION][..], &[STYLE][..], Glyphs { mask: '\u{301}', ..GLYPHS }, false),
@@ -106,6 +139,15 @@ fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
             false,
         ),
         (
+            "control corner without sides",
+            &[RegionLook {
+                border: Some(Border { sides: false, corners: ['\n', '╮', '╰', '╯'], ..BORDER }), ..REGION
+            }][..],
+            &[STYLE][..],
+            GLYPHS,
+            false,
+        ),
+        (
             "zero border down",
             &[RegionLook { border: Some(Border { down: '\u{200b}', ..BORDER }), ..REGION }][..],
             &[STYLE][..],
@@ -117,12 +159,16 @@ fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
             base: BASE,
             focus: INK,
             placeholder: PAPER,
+            active: Paint::NONE,
             regions: Box::from(regions),
             styles: Box::from(styles),
             glyphs,
         };
-        assert_eq!(theme.valid(), valid, "{name}");
+        if theme.valid() != valid {
+            writeln!(failures, "{name}: expected valid={valid}").expect("diagnostic writes");
+        }
     }
+    assert!(failures.is_empty(), "{failures}");
 }
 
 #[test]

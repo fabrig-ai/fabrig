@@ -20,14 +20,17 @@ pub struct Limits {
 #[must_use]
 pub fn tui() -> Limits {
     let native = native::native();
-    let view = temper_client_tui::limits(&native.client, PASTE).expect("TUI view capacities are checked");
+    let tree = native::view(&native).expect("native view capacities are checked").0.tree;
+    let view = temper_client_tui::limits(&native.client, &tree, PASTE).expect("TUI view capacities are checked");
     Limits { native, view, most: MOST, paste: PASTE, interval: INTERVAL }
 }
 
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    let Some(required) = temper_client_tui::limits(&limits.native.client, limits.paste) else { return false };
-    let Some((_, words)) = native::view(&limits.native) else { return false };
+    let Some((view, words)) = native::view(&limits.native) else { return false };
+    let Some(required) = temper_client_tui::limits(&limits.native.client, &view.tree, limits.paste) else {
+        return false;
+    };
     native::valid(&limits.native)
         && temper_client_tui::words::Words::english(words, &limits.native.client).is_ok()
         && skein_ui::valid(&limits.view)

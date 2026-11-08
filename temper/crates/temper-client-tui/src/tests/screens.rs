@@ -1,6 +1,6 @@
 use super::fixtures as f;
 use crate::{Local, Refusal, Signing, Told, Tui, look};
-use jig_client::{Link, Up};
+use jig_client::Link;
 use jig_client_protocol_wire::SignInAnswer as Answer;
 use skein_ui::{Role, Style};
 
@@ -59,7 +59,7 @@ fn the_sign_in_screen_says_each_line() {
         let field = f::find(view.tree(), Role::TextField, b"Link");
         assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
         assert!(field.states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
-        assert_eq!(field.focus, Some(1));
+        assert_eq!(field.focus, Some(if *local == Local::Ended { 2 } else { 1 }));
         assert_eq!(field.placeholder.as_deref(), Some("http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…".as_bytes()));
         assert_eq!(f::find(view.tree(), Role::Status, "● Signed out".as_bytes()).styles.as_slice(), &[look::DOWN]);
         assert_eq!(f::count(view.tree(), Role::Button), 0);
@@ -77,7 +77,7 @@ fn the_sign_in_screen_says_each_line() {
     let before = f::index(view.tree(), signed_out.id);
     let after = f::index(view.tree(), address.id);
     assert!(before < after);
-    assert_eq!(f::find(view.tree(), Role::TextField, b"Link").focus, Some(2));
+    assert_eq!(f::find(view.tree(), Role::TextField, b"Link").focus, Some(3));
     // A refusal can change while the link stays SignedOut and Tui stays still.
     let (mut root, exchange) = f::asking();
     let mut tui = Tui::new(f::ADDRESS);
@@ -90,139 +90,6 @@ fn the_sign_in_screen_says_each_line() {
     assert!(temper_client_domain::shown(&root) > before);
     assert!(!f::build(&mut view, &tui, &root).is_empty());
     f::find(view.tree(), Role::Paragraph, b"Signing in: the engine is busy; trying again.");
-}
-
-#[test]
-#[expect(clippy::too_many_lines, reason = "one table checks the first screen and its revision changes")]
-fn the_first_screen_says_the_links_state_and_me() {
-    let rows = [
-        (
-            Link::Live,
-            true,
-            true,
-            false,
-            "● Live",
-            look::LIVE,
-            b"Connected to 127.0.0.1:8367 as Owner".as_slice(),
-            Some("Projects: Hello · Demo".as_bytes()),
-        ),
-        (Link::Live, false, false, false, "● Connecting", look::WAITING, b"Connecting to 127.0.0.1:8367", None),
-        (Link::Starting, false, false, false, "● Connecting", look::WAITING, b"Connecting to 127.0.0.1:8367", None),
-        (
-            Link::Offline,
-            true,
-            true,
-            false,
-            "● Offline",
-            look::DOWN,
-            b"Connected to 127.0.0.1:8367 as Owner",
-            Some("Projects: Hello · Demo".as_bytes()),
-        ),
-        (
-            Link::OutOfDate,
-            true,
-            true,
-            false,
-            "● Out of date",
-            look::DOWN,
-            b"This temper is out of date: run the temper the engine runs.",
-            None,
-        ),
-        (
-            Link::Live,
-            true,
-            false,
-            false,
-            "● Live",
-            look::LIVE,
-            b"Connected to 127.0.0.1:8367 as Owner",
-            Some(b"No project yet".as_slice()),
-        ),
-        (
-            Link::Live,
-            true,
-            true,
-            true,
-            "● Live",
-            look::LIVE,
-            b"Connected to 127.0.0.1:8367 as Owner",
-            Some("Projects: Hello · Demo".as_bytes()),
-        ),
-        (Link::SignedOut, false, false, false, "● Connecting", look::WAITING, b"Connecting to 127.0.0.1:8367", None),
-    ];
-    for (link, has_me, has_projects, unkept, state, token, line, projects) in rows {
-        let me = if has_me { Some(f::me(if has_projects { &[b"Hello", b"Demo"] } else { &[] })) } else { None };
-        let (mut root, watch) = if link == Link::SignedOut {
-            (f::signed_out(), skein_lib::Token::new(0))
-        } else if link == Link::Starting {
-            f::starting()
-        } else {
-            f::live(me)
-        };
-        if link == Link::Offline {
-            f::client(
-                &mut root,
-                jig_client::Event::Up { up: Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped } },
-            );
-        }
-        if link == Link::OutOfDate {
-            f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: false, versions: None } });
-        }
-        assert_eq!(root.client().link().state, link);
-        let mut tui = Tui::new(f::ADDRESS);
-        tui.step(Told::Link { link });
-        if link == Link::SignedOut {
-            tui.step(Told::Local { local: Local::Signing });
-        }
-        if unkept {
-            tui.step(Told::Kept { written: false });
-        }
-        let mut view = f::view();
-        assert!(!f::build(&mut view, &tui, &root).is_empty());
-        assert_eq!(f::find(view.tree(), Role::Status, state.as_bytes()).styles.as_slice(), &[token]);
-        f::find(view.tree(), Role::Paragraph, line);
-        if let Some(line) = projects {
-            f::find(view.tree(), Role::Paragraph, line);
-        }
-        let quit = f::find(view.tree(), Role::Button, b"q to quit");
-        assert_eq!(quit.shortcut, Some(skein_ui::Shortcut { key: b'q', modifier: skein_ui::Modifier::Plain }));
-        let alerts = f::count(view.tree(), Role::Alert);
-        assert_eq!(alerts, usize::from(unkept));
-        if unkept {
-            let alert = f::find(
-                view.tree(),
-                Role::Alert,
-                b"This sign-in could not be kept: the next temper asks for a link again.",
-            );
-            assert_eq!(alert.styles.as_slice(), &[look::REFUSED]);
-        }
-        assert!(f::build(&mut view, &tui, &root).is_empty(), "unchanged build has no patches");
-        assert_eq!(f::count(view.tree(), Role::TextField), 0);
-        for node in view.tree().nodes() {
-            assert_ne!(f::text(view.tree(), node).as_ref(), b"Sign in this terminal to 127.0.0.1:8367");
-        }
-    }
-    // Reuse one view through the root's visible changes and the TUI's own ones.
-    let (mut root, watch) = f::starting();
-    f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } });
-    let mut tui = Tui::new(f::ADDRESS);
-    let mut view = f::view();
-    f::build(&mut view, &tui, &root);
-    let before = temper_client_domain::shown(&root);
-    f::deliver(&mut root, watch, f::me(&[b"Hello", b"Demo"]));
-    assert!(temper_client_domain::shown(&root) > before);
-    f::build(&mut view, &tui, &root);
-    f::find(view.tree(), Role::Status, "● Live".as_bytes());
-    let before = temper_client_domain::shown(&root);
-    f::client(
-        &mut root,
-        jig_client::Event::Up { up: Up::WatchEnded { watch, end: jig_client::contract::WatchEnd::Dropped } },
-    );
-    assert!(temper_client_domain::shown(&root) > before);
-    f::build(&mut view, &tui, &root);
-    f::find(view.tree(), Role::Status, "● Offline".as_bytes());
-    tui.step(Told::Kept { written: false });
-    assert!(!f::build(&mut view, &tui, &root).is_empty());
 }
 
 #[test]
