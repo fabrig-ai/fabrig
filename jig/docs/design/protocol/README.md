@@ -227,7 +227,7 @@ processes (smith's `protocol/hosts.md`, sections 2 and 3).
 |---|---|---|
 | the protocol layer's routing: io's tokens, events to the root, outputs to components, values between components, timers, smith's payloads decoded and encoded with smith's codec functions | each process | copied from the reference service (`service.md`, section 7), around jig's service parts (`service.md`, section 11) |
 | `iterate` and `main` | each process | copied from the reference service and the reference binary, `jig-test` |
-| an `agent` command, smith's agent shell, if its workers run agent processes from its own binary | the binary | copied from the reference binary (`service.md`, section 7) |
+| an `agent` command, smith's agent shell, and smith's agent modes beside it (`--mcp-relay`, `--program-child`), if its workers run agent processes from its own binary | the binary | copied from the reference binary (`service.md`, section 7) |
 | its configuration's own members, and their parsing | each process | its own |
 | its connectors' protocols: their systems' clients, credentials, and webhooks, on a listener of each connector's own at an address its configuration names, or on its server's, routed by path (section 13) | the engine | its own |
 | its server: the clients' listener, on jig's server part (`service.md`, 11.4), its TLS, its routes and its URL space; its own pages, bundle and API; jig's clients' component, mounted under any prefix it chooses, since jig reserves no path; every HTTP and browser guard, jig's example guards as they are, wrapped, or its own | the engine | its own, after the reference service's (`service.md`, section 7; `browser.md`, section 12) |
