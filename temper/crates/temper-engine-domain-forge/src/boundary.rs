@@ -2059,12 +2059,7 @@ pub enum Request {
         hold: crate::resources::HoldKind,
     },
 
-    /// Add a goal's topic through the core's durable task subscriptions.
-    GoalTopic {
-        goal: u64,
-        topic: Topic,
-    },
-    /// Remove a goal's CI topic after no change names that head.
+    /// Drop a goal's core CI subscription at restart (domain/forge.md, 7.2).
     GoalUntopic {
         goal: u64,
         topic: Topic,

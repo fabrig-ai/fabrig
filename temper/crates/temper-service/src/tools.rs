@@ -89,6 +89,9 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
             None,
         ),
         Problem::Range(member) => (b"host call out of range", Some(member)),
+        Problem::Beside(member) => {
+            (b"host call member belongs in each change, not beside changes", Some(member))
+        }
         Problem::UnknownTool => (b"unknown tool", None),
         Problem::Unasked(_) => (b"host call answer of an unasked kind", None),
     };
