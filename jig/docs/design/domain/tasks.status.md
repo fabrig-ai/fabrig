@@ -30,11 +30,7 @@ Section 7's next-turn LLM amendments have no known gap, including silent
 LLM-only amendments, the durable live-run mark and a stop whose terminal
 parks without spending a try.
 
-- **Not yet:** 5.6: an agent run's finish while its
-  task's delegates are live is refused, and the core fails its attempt
-  invalid (`jig-domain-core`'s `route_refused_payload`), where the section
-  has it park.
-  5.9: a drain; a project's scope; a
+- **Not yet:** 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a widening funded by whoever gives it (the task's existing funder is
   charged); moving a task under another task; successors; questions that

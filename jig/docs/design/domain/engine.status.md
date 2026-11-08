@@ -73,9 +73,6 @@ and catalogue-number reuse remain section 16's open questions.
 
 ## Gaps and departures
 
-- **Not yet:** 7.4: a finish while the task's
-  delegates are live fails its attempt invalid rather than parking it.
-
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
