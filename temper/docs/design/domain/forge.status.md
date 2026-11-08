@@ -1,6 +1,11 @@
 # forge: status
 
-2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
+
+- **Not yet:** 8.9: a project's rule 1 given for every project, held
+  while the project sets none, and a project's pattern beginning at
+  `branch`, overlapping each of its repositories in the root's approval
+  check (`../protocol/configuration.md`, 13.2 to 13.4).
 
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the

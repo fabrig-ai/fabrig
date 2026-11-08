@@ -4,3 +4,36 @@ sources = ["temper/docs/plan/ui-ways-rules/inputs/request.md", "temper/docs/plan
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "rules"
+title = "The forge holds every project's given rule 1, and a project's rule may begin at branch, covering that branch in each of its repositories"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[part]]
+id = "roles"
+title = "Draft first's coordinator, charter 5, and its goal template, template 4, join the stock, with the delegation that reaches them"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "words"
+title = "The settings form and the landing-rule help say a pattern may name a branch, and that each project's rule 1 is the stock's"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[slice]]
+id = 1
+story = "A project's rule names a branch of each of its repositories, every project holds a rule 1 given to the forge, and a goal for a draft runs from the stock's template 4 and charter 5 with no settings change"
+parts = ["rules", "roles", "words"]
+walk = false
