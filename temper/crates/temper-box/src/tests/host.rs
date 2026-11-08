@@ -22,13 +22,316 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
             parent: None,
             link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
+            front: None,
             first_link: Some(crate::host::FirstLink {
                 url: bytes::copy_of(FIRST_URL),
+                local: None,
                 secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
             }),
             after_block: bytes::copy_of(AFTER_BLOCK),
         },
     )
+}
+const LOCAL_URL: &[u8] = b"http://local/local";
+const LOCAL_SECRET: &[u8] = &[0x5c; 32];
+fn front_settings() -> crate::host::Front {
+    crate::host::Front {
+        arguments: Box::new([bytes::copy_of(b"never"), bytes::copy_of(b"tui")]),
+        link: skein_lib::Secret::new(bytes::copy_of(LOCAL_URL)),
+    }
+}
+fn front_harness(steps: &[Step], parent: Option<u32>) -> Harness {
+    Harness::with_terminal(
+        temper_forge_setup::Steps { always: Box::from(steps), asked: Box::new([]) },
+        &[],
+        true,
+        16_384,
+        &crate::limits::small(),
+        crate::host::Echo::None,
+        super::fixtures::Opening {
+            parent,
+            link_form: crate::terminal::LinkForm::Bare,
+            log_lines: Box::new([]),
+            first_link: Some(crate::host::FirstLink {
+                url: bytes::copy_of(FIRST_URL),
+                secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
+                local: Some(skein_lib::Secret::new(bytes::copy_of(LOCAL_SECRET))),
+            }),
+            front: Some(front_settings()),
+            after_block: bytes::copy_of(AFTER_BLOCK),
+        },
+    )
+}
+fn child_processes(h: &Harness) -> List<skein_io::kernel::Fd> {
+    let mut children = List::with_capacity(64);
+    for entry in h.sim.trace() {
+        if entry.pid == h.pid
+            && let Event::Complete { result: Ok(Done::Spawned { pidfd, .. }), .. } = &entry.event
+        {
+            children.push(*pidfd).unwrap();
+        }
+    }
+    children
+}
+fn front_signals(h: &Harness) -> List<(skein_io::kernel::Fd, skein_lib::Time)> {
+    let mut signals = List::with_capacity(128);
+    for entry in h.sim.trace() {
+        if entry.pid == h.pid
+            && let Event::Submit { kind: Summary::Signal { pidfd, signal: 15, to: Target::Child }, .. } = &entry.event
+        {
+            signals.push((*pidfd, entry.at)).unwrap();
+        }
+    }
+    signals
+}
+fn signals_for(h: &Harness, process: skein_io::kernel::Fd) -> List<(skein_io::kernel::Fd, skein_lib::Time)> {
+    let mut signals = List::with_capacity(128);
+    for signal in front_signals(h).into_boxed() {
+        if signal.0 == process {
+            signals.push(signal).unwrap();
+        }
+    }
+    signals
+}
+fn front_process(h: &Harness) -> skein_io::kernel::Fd {
+    *child_processes(h).get(0).unwrap()
+}
+fn process_closed_at(h: &Harness, process: skein_io::kernel::Fd) -> Option<skein_lib::Time> {
+    for entry in h.sim.trace() {
+        if entry.pid == h.pid
+            && let Event::Submit { kind: Summary::Close { fd }, .. } = entry.event
+            && fd == process
+        {
+            return Some(entry.at);
+        }
+    }
+    None
+}
+fn assert_front_settled(h: &Harness) {
+    h.sim.assert_quiescent(h.pid);
+    h.sim.assert_no_open_fds(h.pid);
+    assert_eq!(h.machine.open_handles(), 0);
+}
+fn front_log(h: &mut Harness) -> Box<[u8]> {
+    let root = h.machine.reopen_root(0);
+    let fd = h.machine.open(root, b"box/logs/tui.log", skein_fake_machine::How::ReadNoFollow).unwrap();
+    assert_eq!(h.machine.stat(fd).mode, 0o600);
+    let words = h.machine.read(fd, 0, 65_536).unwrap().into_boxed_slice();
+    h.machine.close(fd);
+    h.machine.close(root);
+    words
+}
+#[test]
+fn the_front_starts_in_the_blocks_place_with_its_descriptors() {
+    use skein_io::kernel::{Pipe, Way};
+    for (parent, arguments) in [
+        (None, [b"never".as_slice(), b"tui"].as_slice()),
+        (
+            Some(4321),
+            [
+                b"internal".as_slice(),
+                b"forge-child",
+                b"--parent",
+                b"4321",
+                b"--signal",
+                b"terminate",
+                b"--",
+                b"process_fixture",
+                b"never",
+                b"tui",
+            ]
+            .as_slice(),
+        ),
+    ] {
+        let mut h = front_harness(&[long(b"serve", &[b"never"])], parent);
+        h.hold_spawn = Some(bytes::copy_of(b"tui"));
+        h.run_until_idle();
+        assert_eq!(h.launches.len(), 1, "only the front is requested before its spawn completes");
+        let launch = h.launches.get(0).unwrap();
+        assert_eq!(launch.name.as_ref(), b"tui");
+        let mut args = List::with_capacity(u32::try_from(arguments.len()).unwrap());
+        for argument in arguments {
+            args.push(bytes::copy_of(argument)).unwrap();
+        }
+        assert_eq!(launch.args.as_ref(), args.as_slice());
+        assert_eq!(launch.environment.as_ref(), &[bytes::copy_of(b"HOME=/box"), bytes::copy_of(b"TOKEN=whole=value")]);
+        assert_eq!(
+            launch.pipes.as_ref(),
+            &[
+                Pipe { child: 1, way: Way::Out, parent: None },
+                Pipe { child: 2, way: Way::Out, parent: None },
+                Pipe { child: 3, way: Way::In, parent: None },
+                Pipe { child: 4, way: Way::In, parent: None },
+            ]
+        );
+        assert!(h.stdout().is_empty());
+        assert!(h.stderr().is_empty());
+        h.release_spawn();
+        h.run_until_idle();
+        let tui = h.child_index(b"tui");
+        assert!(h.read_fd(tui, 3, LINE_BYTES).as_ref() == LOCAL_URL, "fd 3 holds the local link");
+        assert!(h.read_fd(tui, 3, LINE_BYTES).is_empty(), "fd 3 ends after the local link");
+        let serve = h.child_index(b"serve");
+        let expected = crate::lines::joined(&[FIRST_SECRET, LOCAL_SECRET]);
+        assert!(h.read_stdin(serve, 64).as_ref() == expected.as_ref(), "serve receives both secrets in order");
+        assert!(h.read_stdin(serve, 64).is_empty());
+        assert_eq!(h.launches.len(), 2);
+        for launch in &h.launches {
+            assert_spawn_carries_no_link(launch);
+        }
+        let block = b"00:00:00Z Open this link in a browser on this machine.\n00:00:00Z It signs you in as this temper's owner, once, within 2 hours.\n00:00:00Z Opened after that, it prints a fresh one here.\n00:00:00Z In a terminal: temper http://local\n00:00:00Z Additional startup information.\n";
+        let logged = h.log();
+        let block_at = bytes::find(&logged, block).expect("the block's words are timed in box.log");
+        let serve_at = bytes::find(&logged, b"00:00:00Z Starting serve\n").unwrap();
+        assert!(block_at < serve_at);
+        assert!(h.stdout().is_empty());
+        assert!(h.stderr().is_empty());
+        for log in [logged, front_log(&mut h)] {
+            for hidden in [FIRST_URL, FIRST_SECRET, LOCAL_URL, LOCAL_SECRET] {
+                assert!(!Harness::contains(&log, hidden), "a log contains a sign-in");
+            }
+        }
+        finish_child(&mut h, b"tui", 0);
+        assert_eq!(h.run_to_end(), Exit::Code(0));
+        assert_front_settled(&h);
+    }
+}
+#[test]
+fn the_fronts_end_stops_the_box() {
+    use skein_shell::Host;
+    for (row, end, diagnostic, message, expected) in [
+        ("success", Some(Exit::Code(0)), b"".as_slice(), b"tui exited 0\n".as_slice(), 0),
+        ("failure", Some(Exit::Code(3)), b"boom\n", b"tui exited 3\n", 1),
+        ("signal", Some(Exit::Signal(9)), b"", b"tui killed by signal 9\n", 1),
+        ("refused", None, b"", b"tui did not start\n", 1),
+    ] {
+        let mut h = front_harness(
+            &[long(b"forgejo", &[b"never"]), long(b"runner", &[b"never"]), long(b"serve", &[b"never"])],
+            None,
+        );
+        h.hold_spawn = Some(bytes::copy_of(b"tui"));
+        h.run_until_idle();
+        assert!(!h.service.front_ended(), "{row}");
+        match end {
+            Some(exit) => {
+                h.release_spawn();
+                h.run_until_idle();
+                let tui = h.child_index(b"tui");
+                if !diagnostic.is_empty() {
+                    h.write_child(tui, 2, diagnostic);
+                }
+                let pid = h.hosted.get(tui).unwrap().pid;
+                h.sim.finish_service(pid, exit);
+            }
+            None => h.fail_spawn(),
+        }
+        h.run_until_idle();
+        assert!(h.service.front_ended(), "{row}");
+        assert!(h.service.exit().is_none() || end.is_none());
+        assert_eq!(h.run_to_end(), Exit::Code(expected), "{row}");
+        let logged = h.log();
+        let ended = bytes::find(&logged, message).expect("front's end logged");
+        let stopping = bytes::find(&logged, b"Stopping\n").expect("stop logged");
+        let stopped = bytes::find(&logged, b"Stopped\n").unwrap();
+        assert!(ended < stopping && stopping < stopped, "{row}");
+        if end.is_none() {
+            assert_eq!(h.launches.len(), 1, "a refused front starts no steps");
+        } else {
+            let signals = front_signals(&h);
+            // The front is no step: the remaining children stop last first.
+            let children = child_processes(&h);
+            assert_eq!(signals.len(), 6);
+            for (pair, child) in signals.as_slice().chunks_exact(2).zip(children.iter().skip(1).rev()) {
+                assert_eq!((pair[0].0, pair[1].0), (*child, *child));
+                assert!(pair[1].1.saturating_since(pair[0].1) >= Duration::from_secs(10));
+            }
+            let logged = front_log(&mut h);
+            if !diagnostic.is_empty() {
+                assert_eq!(logged.as_ref(), b"1970-01-01T00:00:00Z boom\n");
+            }
+        }
+        assert_front_settled(&h);
+    }
+}
+#[test]
+fn a_stop_signals_the_front_first_and_waits_for_it() {
+    use skein_shell::Host;
+    for (row, exit_at_first, second_stop, expected) in
+        [("cooperative", true, false, 0), ("stubborn", false, false, 1), ("second stop", false, true, 1)]
+    {
+        let mut h = front_harness(&[long(b"serve", &[b"never"])], None);
+        h.run_until_idle();
+        let front = front_process(&h);
+        let start = h.sim.now();
+        h.terminate();
+        h.run_until_idle();
+        let signals = front_signals(&h);
+        assert_eq!(signals.get(0).unwrap().0, front, "{row}: front first");
+        assert!(!h.service.is_empty());
+        assert!(!h.service.front_ended());
+        if exit_at_first {
+            finish_child(&mut h, b"tui", 0);
+        }
+        if second_stop {
+            h.terminate();
+        }
+        assert_eq!(h.run_to_end(), Exit::Code(expected), "{row}");
+        let signals = signals_for(&h, front);
+        if !exit_at_first && !second_stop {
+            assert_eq!(signals.len(), 2);
+            assert_eq!(signals.get(1).unwrap().1.saturating_since(start), Duration::from_secs(10));
+            let closed = process_closed_at(&h, front).unwrap();
+            assert_eq!(closed.saturating_since(start), Duration::from_secs(20));
+        }
+        if second_stop {
+            assert_eq!(signals.len(), 1);
+            assert_eq!(process_closed_at(&h, front), Some(start));
+        }
+        let end = if expected == 0 { b"tui exited 0\n".as_slice() } else { b"tui killed by signal 9\n" };
+        assert!(Harness::contains(&h.log(), end));
+        assert_front_settled(&h);
+    }
+}
+#[test]
+fn a_give_up_leaves_the_front_running_until_it_ends() {
+    use skein_shell::Host;
+    for terminate in [false, true] {
+        let mut h = front_harness(&[long(b"forgejo", &[b"exit", b"1"]), long(b"serve", &[b"never"])], None);
+        h.run_until_idle();
+        for delay in [500, 1_000, 2_000, 4_000, 8_000] {
+            h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(delay)));
+            h.run_until_idle();
+        }
+        assert_eq!(h.spawn_times(b"forgejo").len(), 6);
+        assert!(Harness::contains(&h.stderr(), b"forgejo exited 1; giving up\n"));
+        for _ in 0_u32..2 {
+            h.sim.advance_to(h.sim.now().saturating_add(Duration::from_secs(10)));
+            h.run_until_idle();
+        }
+        let front = front_process(&h);
+        assert!(signals_for(&h, front).is_empty(), "give-up sends no signal to the front");
+        let tui = h.child_index(b"tui");
+        assert!(h.sim.service_running(h.hosted.get(tui).unwrap().pid));
+        assert!(!h.service.is_empty());
+        assert!(!h.service.front_ended());
+        for child in &h.hosted {
+            if child.name.as_ref() != b"tui" {
+                assert!(child.closed);
+            }
+        }
+        if terminate {
+            h.terminate();
+            h.run_until_idle();
+            assert_eq!(signals_for(&h, front).len(), 1);
+        }
+        finish_child(&mut h, b"tui", 0);
+        assert_eq!(h.run_to_end(), Exit::Code(1));
+        let log = h.log();
+        assert!(Harness::contains(&log, b"tui exited 0\n"));
+        assert!(!Harness::contains(&log, b"Stopping\n"));
+        assert!(h.service.front_ended());
+        assert_front_settled(&h);
+    }
 }
 fn stop_first_link(h: &mut Harness) {
     h.terminate();
@@ -112,6 +415,8 @@ fn assert_spawn_carries_no_link(launch: &super::fixtures::Launch) {
     for value in launch.args.iter().chain(launch.environment.iter()) {
         assert!(!Harness::contains(value, FIRST_SECRET), "spawn metadata contains secret bytes");
         assert!(!Harness::contains(value, FIRST_URL), "spawn metadata contains the link");
+        assert!(!Harness::contains(value, LOCAL_SECRET), "spawn metadata contains local secret bytes");
+        assert!(!Harness::contains(value, LOCAL_URL), "spawn metadata contains the local link");
     }
 }
 #[test]
@@ -226,8 +531,10 @@ fn startup_log_and_record_diagnostics_follow_the_block() {
             parent: None,
             link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
+            front: None,
             first_link: Some(crate::host::FirstLink {
                 url: bytes::copy_of(FIRST_URL),
+                local: None,
                 secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
             }),
             after_block: bytes::copy_of(AFTER_BLOCK),
@@ -261,6 +568,7 @@ fn with_no_first_link_after_block_is_at_the_start_and_the_first_serve_link_gets_
             parent: None,
             link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
+            front: None,
             first_link: None,
             after_block: bytes::copy_of(AFTER_BLOCK),
         },
@@ -484,6 +792,7 @@ fn parent_harness(parent: Option<u32>) -> Harness {
             parent,
             link_form: crate::terminal::LinkForm::Bare,
             log_lines: Box::new([]),
+            front: None,
             first_link: None,
             after_block: Box::new([]),
         },
@@ -2067,65 +2376,76 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
     use crate::host::{Echo, Service, Settings};
     use skein_io::kernel::Fd;
 
-    let canary = b"TOKEN=canary-7f3a9c";
-    let link = crate::host::FirstLink {
-        url: bytes::copy_of(FIRST_URL),
-        secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
-    };
-    let link_debug = alloc::fmt::format(format_args!("{link:?}"));
-    assert!(link_debug == "FirstLink { .. }", "FirstLink Debug hides both fields");
-    let settings = Settings {
-        word: b"temper".as_slice().into(),
-        link_form: crate::terminal::LinkForm::Bare,
-        first_link: Some(link),
-        after_block: Box::new([]),
-        log_lines: Box::new([]),
-        parent: None,
-        program: bytes::copy_of(b"process_fixture"),
-        environment: Box::new([bytes::copy_of(b"HOME=/box"), bytes::copy_of(canary)]),
-        serve: bytes::copy_of(b"serve"),
-        listeners: Box::new([]),
-        root: Fd::new(3),
-        echo: Echo::Steps,
-        data: bytes::copy_of(b"/data"),
-        signals: Fd::new(4),
-        stdout: Fd::new(1),
-        stderr: Fd::new(2),
-    };
-    let expected = alloc::fmt::format(format_args!(
-        "Settings {{ program: {:?}, parent: None, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), link_form: Bare, word: {:?}, after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
-        settings.program,
-        settings.serve,
-        settings.listeners,
-        settings.root,
-        settings.echo,
-        settings.data,
-        settings.word,
-        settings.signals,
-        settings.stdout,
-        settings.stderr,
-    ));
-    let settings_debug = alloc::fmt::format(format_args!("{settings:?}"));
-    let service = Service::new(
-        &crate::limits::small(),
-        temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
-        settings,
-    )
-    .expect("valid limits");
-    let service_debug = alloc::fmt::format(format_args!("{service:?}"));
-    let canary_debug = alloc::fmt::format(format_args!("{canary:?}"));
-    let home_debug = alloc::fmt::format(format_args!("{:?}", b"HOME=/box"));
-    for debug in [&settings_debug, &service_debug] {
-        assert!(!debug.contains(&alloc::fmt::format(format_args!("{FIRST_URL:?}"))));
-        assert!(!debug.contains(&alloc::fmt::format(format_args!("{FIRST_SECRET:?}"))));
-        assert!(!debug.contains("canary-7f3a9c"));
-        assert!(!debug.contains(&canary_debug));
-        assert!(!debug.contains("HOME=/box"));
-        assert!(!debug.contains(&home_debug));
-        assert!(debug.contains("environment_entries: 2"));
+    for with_front in [false, true] {
+        let canary = b"TOKEN=canary-7f3a9c";
+        let link = crate::host::FirstLink {
+            url: bytes::copy_of(FIRST_URL),
+            local: if with_front { Some(skein_lib::Secret::new(bytes::copy_of(LOCAL_SECRET))) } else { None },
+            secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
+        };
+        let link_debug = alloc::fmt::format(format_args!("{link:?}"));
+        assert!(link_debug == "FirstLink { .. }", "FirstLink Debug hides both fields");
+        let settings = Settings {
+            word: b"temper".as_slice().into(),
+            link_form: crate::terminal::LinkForm::Bare,
+            front: if with_front { Some(front_settings()) } else { None },
+            first_link: Some(link),
+            after_block: Box::new([]),
+            log_lines: Box::new([]),
+            parent: None,
+            program: bytes::copy_of(b"process_fixture"),
+            environment: Box::new([bytes::copy_of(b"HOME=/box"), bytes::copy_of(canary)]),
+            serve: bytes::copy_of(b"serve"),
+            listeners: Box::new([]),
+            root: Fd::new(3),
+            echo: Echo::Steps,
+            data: bytes::copy_of(b"/data"),
+            signals: Fd::new(4),
+            stdout: Fd::new(1),
+            stderr: Fd::new(2),
+        };
+        let expected = alloc::fmt::format(format_args!(
+            "Settings {{ program: {:?}, parent: None, environment_entries: 2, serve: {:?}, listeners: {:?}, root: {:?}, echo: {:?}, data: {:?}, log_lines: [], first_link: Some(FirstLink {{ .. }}), front: {}, link_form: Bare, word: {:?}, after_block_bytes: 0, signals: {:?}, stdout: {:?}, stderr: {:?} }}",
+            settings.program,
+            settings.serve,
+            settings.listeners,
+            settings.root,
+            settings.echo,
+            settings.data,
+            if with_front {
+                "Some(Front { arguments: [[110, 101, 118, 101, 114], [116, 117, 105]], .. })"
+            } else {
+                "None"
+            },
+            settings.word,
+            settings.signals,
+            settings.stdout,
+            settings.stderr,
+        ));
+        let settings_debug = alloc::fmt::format(format_args!("{settings:?}"));
+        let service = Service::new(
+            &crate::limits::small(),
+            temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+            settings,
+        )
+        .expect("valid limits");
+        let service_debug = alloc::fmt::format(format_args!("{service:?}"));
+        let canary_debug = alloc::fmt::format(format_args!("{canary:?}"));
+        let home_debug = alloc::fmt::format(format_args!("{:?}", b"HOME=/box"));
+        for debug in [&settings_debug, &service_debug] {
+            assert!(!debug.contains(&alloc::fmt::format(format_args!("{FIRST_URL:?}"))));
+            assert!(!debug.contains(&alloc::fmt::format(format_args!("{FIRST_SECRET:?}"))));
+            assert!(!debug.contains(&alloc::fmt::format(format_args!("{LOCAL_URL:?}"))));
+            assert!(!debug.contains(&alloc::fmt::format(format_args!("{LOCAL_SECRET:?}"))));
+            assert!(!debug.contains("canary-7f3a9c"));
+            assert!(!debug.contains(&canary_debug));
+            assert!(!debug.contains("HOME=/box"));
+            assert!(!debug.contains(&home_debug));
+            assert!(debug.contains("environment_entries: 2"));
+        }
+        assert!(settings_debug == expected, "Settings Debug exposes only safe fields");
+        assert!(service_debug.contains(&expected));
     }
-    assert!(settings_debug == expected, "Settings Debug exposes only safe fields");
-    assert!(service_debug.contains(&expected));
 }
 
 // protocol/setup.md, 7.2: fetch progress belongs to the pipe and private log.
@@ -2411,8 +2731,10 @@ fn each_link_reads_on_stdout_as_its_form_has_it() {
                 parent: None,
                 link_form: form,
                 log_lines: Box::new([]),
+                front: None,
                 first_link: Some(crate::host::FirstLink {
                     url: bytes::copy_of(FIRST_URL),
+                    local: None,
                     secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
                 }),
                 after_block: bytes::copy_of(AFTER_BLOCK),
@@ -2448,6 +2770,7 @@ fn the_widest_link_is_whole_on_a_terminal_and_one_byte_more_is_refused() {
                 parent: None,
                 link_form: crate::terminal::LinkForm::Osc8,
                 log_lines: Box::new([]),
+                front: None,
                 first_link: None,
                 after_block: Box::new([]),
             },
