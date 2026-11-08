@@ -208,17 +208,37 @@ impl Side {
     /// The open or shown need's project's classes (client/README.md, 5.13): stock with no value; None until read or refused.
     #[must_use]
     pub fn classes(&self, project: u32) -> Option<&Classes> {
-        let slot = if self.ways.project == Some(project) {
-            &self.ways.classes
-        } else if self.ways.shown_project == Some(project) {
-            &self.ways.shown_classes
-        } else {
-            return None;
-        };
+        let slot = self.classes_slot(project)?;
         match &slot.value {
             Some(Asked::Classes(value)) => Some(value),
             Some(Asked::Ways(_) | Asked::Questions(_)) | None => None,
         }
+    }
+    fn classes_slot(&self, project: u32) -> Option<&Slot> {
+        if self.ways.project == Some(project) {
+            Some(&self.ways.classes)
+        } else if self.ways.shown_project == Some(project) {
+            Some(&self.ways.shown_classes)
+        } else {
+            None
+        }
+    }
+    /// The settings revision delivered to this session, until its watch ends.
+    #[must_use]
+    pub fn settings_newest(&self) -> Option<u32> {
+        Some(self.ways.document.as_ref()?.newest)
+    }
+    #[must_use]
+    pub fn classes_busy(&self, project: u32) -> bool {
+        self.classes_request(project).is_some()
+    }
+    #[must_use]
+    pub fn classes_refused(&self, project: u32) -> Option<&c::Refusal> {
+        self.classes_slot(project)?.refused.as_ref()
+    }
+    pub(crate) fn classes_request(&self, project: u32) -> Option<Token> {
+        let pending = self.classes_slot(project)?.setting.as_ref()?;
+        if pending.project == project { Some(pending.request) } else { None }
     }
     #[must_use]
     pub fn ways_asked(&self, control: Control) -> Option<&Asked> {
@@ -469,12 +489,17 @@ pub(crate) fn told(
             false
         }
         Told::Answered { key, outcome } => {
-            for control in [Control::Ways, Control::Questions, Control::Classes] {
-                if let Some(pending) = &side.ways.slot(control).setting
+            for (control, shown) in [
+                (Control::Ways, false),
+                (Control::Questions, false),
+                (Control::Classes, false),
+                (Control::Classes, true),
+            ] {
+                if let Some(pending) = &side.ways.reading_slot(control, shown).setting
                     && key.asker == crate::owner::Owner::Forge.asker()
                     && key.number == pending.request.raw()
                 {
-                    answered(side, now, control, outcome, limits, out);
+                    answered(side, now, control, shown, outcome, limits, out);
                     return true;
                 }
             }
@@ -624,28 +649,32 @@ fn bytes(asked: &Asked, limits: Limits) -> Option<Box<[u8]>> {
 pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     let Act::Set { project, asked } = act;
     let control = control(&asked);
+    let shown =
+        side.ways.project != Some(project) && side.ways.shown_project == Some(project) && control == Control::Classes;
     if side.party.is_none()
         || side.served == super::Served::OutOfDate
-        || side.ways.project != Some(project)
-        || side.ways.slot(control).setting.is_some()
+        || side.ways.reading_project(shown) != Some(project)
+        || side.ways.reading_slot(control, shown).setting.is_some()
     {
         return;
     }
     let Some(document) = &side.ways.document else { return };
     let newest = document.newest;
-    side.ways.slot_mut(control).refused = None;
-    send(side, Setting { request: Token::new(0), project, asked, retried: false }, newest, limits, out);
+    side.ways.reading_slot_mut(control, shown).refused = None;
+    send(side, Setting { request: Token::new(0), project, asked, retried: false }, shown, newest, limits, out);
 }
-fn send(side: &mut Side, mut pending: Setting, against: u32, limits: Limits, out: &mut Queue<Request>) {
-    let Some(bytes) = bytes(&pending.asked, limits) else { return };
+/// One project's setting, encoded as the set path and a settings proposal both send it.
+pub(crate) fn setting_item(project: u32, asked: &Asked, limits: Limits) -> Option<c::SettingItem> {
+    Some(c::SettingItem {
+        setting: setting(project, control(asked)),
+        edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes(asked, limits)?) }),
+    })
+}
+fn send(side: &mut Side, mut pending: Setting, shown: bool, against: u32, limits: Limits, out: &mut Queue<Request>) {
+    let Some(item) = setting_item(pending.project, &pending.asked, limits) else { return };
     let control = control(&pending.asked);
     let mut items = List::with_capacity(1);
-    items
-        .push(c::SettingItem {
-            setting: setting(pending.project, control),
-            edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }),
-        })
-        .expect("one setting");
+    items.push(item).expect("one setting");
     side.serial = side.serial.checked_add(1).expect("forge requests fit");
     pending.request = Token::new(side.serial);
     out.push(Request::Send {
@@ -657,18 +686,19 @@ fn send(side: &mut Side, mut pending: Setting, against: u32, limits: Limits, out
             running: c::Running::Stays,
         }))),
     });
-    side.ways.slot_mut(control).setting = Some(pending);
+    side.ways.reading_slot_mut(control, shown).setting = Some(pending);
     side.changed();
 }
 fn answered(
     side: &mut Side,
     now: Time,
     control: Control,
+    shown: bool,
     outcome: &jig_client::Outcome,
     limits: Limits,
     out: &mut Queue<Request>,
 ) {
-    let Some(mut pending) = side.ways.slot_mut(control).setting.take() else { return };
+    let Some(mut pending) = side.ways.reading_slot_mut(control, shown).setting.take() else { return };
     if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
         refusal: c::Refusal::Stale(stale),
         ..
@@ -676,11 +706,11 @@ fn answered(
         && !pending.retried
     {
         pending.retried = true;
-        send(side, pending, stale.newest, limits, out);
+        send(side, pending, shown, stale.newest, limits, out);
         return;
     }
-    let current = side.ways.project == Some(pending.project);
-    let slot = side.ways.slot_mut(control);
+    let current = side.ways.reading_project(shown) == Some(pending.project);
+    let slot = side.ways.reading_slot_mut(control, shown);
     if current {
         if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, .. })) = outcome {
             slot.refused = Some(refusal.clone());
@@ -696,7 +726,7 @@ fn answered(
             slot.again = true;
         }
     }
-    read(side, now, control, limits, out);
+    read_slot(side, now, control, shown, limits, out);
     side.changed();
 }
 
