@@ -34,6 +34,16 @@ of a live or reserved link. The engine table covers empty and unknown
 secrets and the eighth and ninth past links. Longer-lived history is
 deferred in section 15.
 
+Sections 4.2 and 8's local link has no known gap: `LocalLink` said after
+the printed link at start, each link reserved, returned and spent apart,
+a spent local link drawn again at once outside close and abort, an
+expired one by the next sign-in that finds none live, and a remembered
+local link's secret drawing no printed link. The engine-clients world
+holds both links signing in once in either order and crossing a
+reservation, a dead local link never printing, a restart forgetting
+both, and no printed link ever a local one's; the closing unit table
+holds close and abort drawing none.
+
 - **Design departs:** 8, from the request `ui-small-1` of 2026-11-06,
   item 1's unconditional used-link explanation: after a restart or eviction
   from the last 8 remembered links, a used link answers `link_unknown`.

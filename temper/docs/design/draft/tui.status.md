@@ -40,7 +40,15 @@
     the link the person opens in a browser (jig's `protocol/client.md`,
     section 8, *The local link*; `../client/README.md`, 6.12): the
     user's decision of 2026-11-08, `tui-native-secret`, which set aside
-    a reusable link and no link on loopback.
+    a reusable link and no link on loopback. One case is left: a TUI's
+    try by a local link the engine no longer remembers, read before a
+    restart or before 8 other links were spent or expired, is answered
+    `link_unknown` as any unknown secret and draws a printed link when
+    none is live, so the box prints again, where the request has the
+    TUI never make it print. The cut of `tui-native-secret` kept the
+    unknown secret's answer, which needs no stored history (jig's
+    `protocol/client.md`, section 8 and section 15, *Remembering why a
+    printed link failed*).
   - 4.1: the local sign-in's expiry/revocation distinction uses a note,
     because the engine answers both as signed out (`../client/README.md`,
     6.14 and section 11). The design chosen by `tui-link-colours` notes
