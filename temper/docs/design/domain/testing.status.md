@@ -193,6 +193,17 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   init's no-sign-in configuration while it holds the engine; none is a
   recorded pass of the five stories.
 
+- **Not yet:** 2.6, *The fake box keeps two walks*: the box still runs
+  ten other walks (`crates/temper/tests/fake_backends/walk/`: `status`'s
+  two, `away`, `goal`, `copy`'s two, `note_parts`, `chat_document`, and
+  `sign_in`'s ctl sign-in and idle-socket walks), and none of the lower
+  stories the bullet names is written: the joint world's plan brief, Away
+  sequence, chat's goal report and the sign-in's usable account; the
+  restart story's Skip; the real loop's held issuer sockets, document in
+  parts and whole revision after a follow-up; the fake's logged
+  turn-away; and the one-process world's Ready copies and copy beside a
+  repository. Each walk goes once its lower story runs.
+
 - **Not yet:** 2.6: no passing whole run is recorded for the three-test
   profile with the four fixed-callback walks serialized. Its proof belongs
   to the next after-landing run on main (11), per the request
