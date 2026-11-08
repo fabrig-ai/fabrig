@@ -275,6 +275,7 @@ fn turn_bytes(turn: &session::record::Turn) -> u64 {
     let opener = match &turn.kind {
         Kind::First(opener) | Kind::Window(opener) => {
             size::<Opener>()
+                + opener.system.as_ref().map_or(0, |text| len(text))
                 + match &opener.backend {
                     Backend::Direct => 0,
                     Backend::Program { name } => len(name),

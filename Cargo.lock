@@ -6092,6 +6092,7 @@ dependencies = [
  "smith-host-domain",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-transcript",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",

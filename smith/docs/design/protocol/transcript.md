@@ -77,6 +77,10 @@ A versioned record. Every turn starts with its version.
   or a program, named as the agent's configuration names it,
   `claude_code` (programs.md). For a window turn they are the window's
   it opens;
+- **system:** the exact supplied system text on an opening turn, bounded
+  as text and absent on ordinary turns. The retained copy counts toward
+  turn ownership and channel credit; it is separate from replay messages.
+  A missing value means unavailable context, never reconstructed text;
 - **usage:** the tokens the provider counted, each optional and absent
   when not reported: input, output, cache reads, cache writes and
   reasoning tokens (domain/session.md, section 6);
@@ -222,15 +226,19 @@ jobs of every earlier window and activation.
 
 ## 6. Versions
 
-- **Version 6 is current** (`transcript-v6.schema`). The local host
+- **Version 7 is current** (`transcript-v7.schema`). The local host
   records its layout in each chat's `format` (protocol/hosts.md, 5.3), so
   a local chat whose layout differs is refused as an older store.
-- **A reader reads one version,** the current, like every format
+- **A resuming reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
   version*, and nothing is translated: its host starts the run afresh
   from its brief (domain/run.md, section 6). A transcript of an older
   version is refused the same way, and is never carried over to another
   endpoint.
+- **An archival client also reads version 6** by preserving its fields and
+  marking its missing system context absent. It never reconstructs the
+  supplied instructions or brief. This is a read adapter, not resumable
+  history or an owner patch.
 - **A host may keep turns of several versions** for people to read. A
   reader is handed a transcript in one version, and only one in the
   current version resumes.
@@ -409,9 +417,9 @@ other.
   appended, a bound widened or a declaration added takes a patch the
   command writes and a version move, from the first release on (skein's
   `codec.md`, 12.2, step 3; temper's `draft/upgrades.md`, 4.3). Before the
-  baseline nothing moves: no kept text and no patch, every change in
-  place, and a host keeping turns of a build before refuses them as
-  another version (section 6).
+  baseline there is no kept text and no patch. Version 6 remains available
+  to archival readers without system context; version 7 adds that context
+  and is the only resumable version (section 6).
 - **The tests** sit low, in the codec's world (`tests/codecs`), over a
   fixture family of their own (`tests/transcript-patches`): a fixture turn
   at version 1 and 2, made by skein's command, its first patch marked

@@ -5,7 +5,7 @@ use skein_heap::Meter;
 use skein_lib::{List, Reader, Writer};
 
 use smith_charter::v4 as charter;
-use smith_transcript::v6 as transcript;
+use smith_transcript::v7 as transcript;
 
 fn charter_limits() -> charter::Limits {
     charter::Limits {
@@ -112,72 +112,7 @@ fn charter_at_its_largest_instruction_payload_stays_within_the_configured_heap_b
 #[test]
 fn turn_at_its_largest_text_payload_stays_within_the_configured_heap_bound() {
     let limits = transcript_limits();
-    let text = transcript::Text::new(
-        &limits,
-        transcript::TextParts {
-            text: vec![b'x'; usize::try_from(limits.text_text).expect("ceiling fits")].into_boxed_slice(),
-            replay: None,
-        },
-    )
-    .expect("ceiling text");
-    let mut blocks = List::with_capacity(1);
-    blocks.push(transcript::Block::Text(text)).expect("one block");
-    let message =
-        transcript::Message::new(&limits, transcript::MessageParts { role: transcript::Role::Assistant, blocks })
-            .expect("one message");
-    let mut messages = List::with_capacity(1);
-    messages.push(message).expect("one message slot");
-    let usage = transcript::Usage::new(
-        &limits,
-        transcript::UsageParts {
-            input: Some(0),
-            output: Some(0),
-            cache_read: Some(0),
-            cache_write: Some(0),
-            reasoning: Some(0),
-        },
-    )
-    .expect("usage");
-    let value = transcript::Turn::new(
-        &limits,
-        transcript::TurnParts {
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: transcript::TurnKind::Ordinary,
-            opening: if 1 == 1 {
-                Some(
-                    transcript::Opening::new(
-                        &limits,
-                        transcript::OpeningParts {
-                            affinity: transcript::Affinity::new(
-                                &limits,
-                                transcript::AffinityParts { key: [0; 16], thread: 0 },
-                            )
-                            .expect("fixture affinity"),
-                            account: None,
-                            backend: transcript::Backend::Direct,
-                        },
-                    )
-                    .expect("fixture opening"),
-                )
-            } else {
-                None
-            },
-            endpoint: Box::from(&b""[..]),
-            dialect: 0,
-            place: 1,
-            usage,
-            spent: 0,
-            jobs: 0,
-            messages,
-        },
-    )
-    .expect("turn");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-    value.encode(&mut writer).expect("measured room");
-    let wire = writer.finish();
-    drop(value);
-
+    let wire = largest_text_turn(&limits);
     let bound = transcript::Turn::decoded_bound(&limits).expect("turn heap bound");
     let meter = Meter::new();
     meter.start();
@@ -253,4 +188,75 @@ fn a_resolved_failure_attains_its_configured_path_payload_heap_bound() {
     assert!(measured.peak() <= bound, "decoded path within generated heap bound");
     drop(decoded);
     assert_eq!(meter.held(), 0, "path ownership settles");
+}
+
+fn largest_text_turn(limits: &transcript::Limits) -> Box<[u8]> {
+    let (messages, usage) = largest_text_messages(limits);
+    let value = transcript::Turn::new(
+        limits,
+        transcript::TurnParts {
+            system: None,
+            model: b"model".as_slice().into(),
+            effort: None,
+            kind: transcript::TurnKind::Ordinary,
+            opening: Some(
+                transcript::Opening::new(
+                    limits,
+                    transcript::OpeningParts {
+                        affinity: transcript::Affinity::new(
+                            limits,
+                            transcript::AffinityParts { key: [0; 16], thread: 0 },
+                        )
+                        .expect("fixture affinity"),
+                        account: None,
+                        backend: transcript::Backend::Direct,
+                    },
+                )
+                .expect("fixture opening"),
+            ),
+            endpoint: Box::from(&b""[..]),
+            dialect: 0,
+            place: 1,
+            usage,
+            spent: 0,
+            jobs: 0,
+            messages,
+        },
+    )
+    .expect("turn");
+    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
+    value.encode(&mut writer).expect("measured room");
+    let wire = writer.finish();
+    drop(value);
+    wire
+}
+
+fn largest_text_messages(limits: &transcript::Limits) -> (List<transcript::Message>, transcript::Usage) {
+    let text = transcript::Text::new(
+        limits,
+        transcript::TextParts {
+            text: vec![b'x'; usize::try_from(limits.text_text).expect("ceiling fits")].into_boxed_slice(),
+            replay: None,
+        },
+    )
+    .expect("ceiling text");
+    let mut blocks = List::with_capacity(1);
+    blocks.push(transcript::Block::Text(text)).expect("one block");
+    let message =
+        transcript::Message::new(limits, transcript::MessageParts { role: transcript::Role::Assistant, blocks })
+            .expect("one message");
+    let mut messages = List::with_capacity(1);
+    messages.push(message).expect("one message slot");
+    let usage = transcript::Usage::new(
+        limits,
+        transcript::UsageParts {
+            input: Some(0),
+            output: Some(0),
+            cache_read: Some(0),
+            cache_write: Some(0),
+            reasoning: Some(0),
+        },
+    )
+    .expect("usage");
+    (messages, usage)
 }

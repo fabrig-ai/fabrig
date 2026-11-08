@@ -1,5 +1,5 @@
 //! Small codec entrances (skein/docs/foundation/testing-strategy.md, section 1).
-use crate::v6::Limits;
+use crate::v7::Limits;
 
 /// Two bytes or items at each independently bounded codec entrance.
 pub const SMALL: Limits = Limits {
@@ -37,4 +37,5 @@ pub const SMALL: Limits = Limits {
     turn_model: 2,
     turn_effort_some: 2,
     turn_messages: 2,
+    turn_system_some: 2,
 };

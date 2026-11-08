@@ -22,6 +22,7 @@ fn history(input: u64) -> smith_domain::Transcript {
             ..smith_domain::session::fixture::turn(
                 b"fake-1".as_slice().into(),
                 record::Kind::First(Box::new(record::Opener {
+                    system: None,
                     affinity: llm::Affinity { key: [0; 16], thread: 0 },
                     account: Some(0),
                     backend: record::Backend::Direct,
@@ -168,6 +169,7 @@ fn a_window_from_an_unnamed_endpoint_is_carried_over() {
     assert_eq!(
         window.kind,
         record::Kind::Window(Box::new(record::Opener {
+            system: Some(first.system.clone()),
             affinity: llm::Affinity { key: [0; 16], thread: 0 },
             account: Some(0),
             backend: record::Backend::Direct,

@@ -98,57 +98,23 @@ pub(super) fn tell_turn(conversation: &mut Conversation, out: &mut Queue<Request
     let Some(next) = sequence.checked_add(1) else {
         return Some(history::sequence_limit());
     };
-    let mut messages = List::with_capacity(conversation.transcript.len().saturating_sub(*told));
-    for message in conversation.transcript.iter().skip(usize::try_from(*told).expect("u32 fits")) {
-        let mut blocks = List::with_capacity(count(message.content.len()));
-        for block in &message.content {
-            let block = match block {
-                Block::ToolCall(call) => Block::ToolCall(crate::llm::ToolCall {
-                    id: call.id.clone(),
-                    name: call.name.clone(),
-                    input: call.input.clone(),
-                    call: Decoded::Historical,
-                    replay: call.replay.clone(),
-                }),
-                Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {
-                    block.clone()
-                }
-            };
-            blocks.push(block).expect("one copied block per original");
-        }
-        messages
-            .push(Message { role: message.role, content: blocks.into_boxed() })
-            .expect("one copied message per original");
-    }
+    let messages = copied_messages(&conversation.transcript, *told);
     *sequence = next;
     *told = conversation.transcript.len();
+    let dialect = *dialect;
+    let kind = opening_kind(conversation, next);
     let turn = crate::record::Turn {
         version: crate::record::VERSION,
-        kind: if conversation.window_turn {
-            conversation.window_turn = false;
-            crate::record::Kind::Window(Box::new(crate::record::Opener {
-                affinity: conversation.affinity,
-                account: conversation.account,
-                backend: conversation.backend.clone(),
-            }))
-        } else if next == 1 {
-            crate::record::Kind::First(Box::new(crate::record::Opener {
-                affinity: conversation.affinity,
-                account: conversation.account,
-                backend: conversation.backend.clone(),
-            }))
-        } else {
-            crate::record::Kind::Ordinary
-        },
+        kind,
         endpoint: Some(conversation.endpoint),
         model: conversation.model.clone(),
         effort: conversation.effort.clone(),
-        dialect: *dialect,
+        dialect,
         sequence: next,
         usage,
         spent,
         jobs: conversation.jobs.highest,
-        messages: messages.into_boxed(),
+        messages,
     };
     out.push(Request::Turn { opener: conversation.opener, turn });
     None
@@ -186,4 +152,48 @@ pub(super) struct Cursor {
     pub(super) sequence: u32,
     pub(super) told: u32,
     pub(super) pending: Option<Usage>,
+}
+
+fn copied_messages(transcript: &List<Message>, told: u32) -> Box<[Message]> {
+    let mut messages = List::with_capacity(transcript.len().saturating_sub(told));
+    for message in transcript.iter().skip(usize::try_from(told).expect("u32 fits")) {
+        let mut blocks = List::with_capacity(count(message.content.len()));
+        for block in &message.content {
+            let block = match block {
+                Block::ToolCall(call) => Block::ToolCall(crate::llm::ToolCall {
+                    id: call.id.clone(),
+                    name: call.name.clone(),
+                    input: call.input.clone(),
+                    call: Decoded::Historical,
+                    replay: call.replay.clone(),
+                }),
+                Block::Text { .. } | Block::Refusal { .. } | Block::Opaque { .. } | Block::ToolResult { .. } => {
+                    block.clone()
+                }
+            };
+            blocks.push(block).expect("one copied block per original");
+        }
+        messages
+            .push(Message { role: message.role, content: blocks.into_boxed() })
+            .expect("one copied message per original");
+    }
+    messages.into_boxed()
+}
+
+fn opening_kind(conversation: &mut Conversation, next: u32) -> crate::record::Kind {
+    if !conversation.window_turn && next != 1 {
+        return crate::record::Kind::Ordinary;
+    }
+    let opener = Box::new(crate::record::Opener {
+        system: Some(conversation.system.clone()),
+        affinity: conversation.affinity,
+        account: conversation.account,
+        backend: conversation.backend.clone(),
+    });
+    if conversation.window_turn {
+        conversation.window_turn = false;
+        crate::record::Kind::Window(opener)
+    } else {
+        crate::record::Kind::First(opener)
+    }
 }

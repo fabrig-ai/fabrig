@@ -362,7 +362,17 @@ pub fn turn(
         spent,
         turn: record.clone(),
     };
-    let bytes = format!("{record:?}").into_bytes().into_boxed_slice();
+    let mut configured = skein_lib::List::with_capacity(1);
+    configured
+        .push(smith_protocol_channel::Endpoint {
+            name: b"scripted".as_slice().into(),
+            number: record.endpoint.expect("recorded endpoint").0,
+            dialect: record.dialect,
+        })
+        .expect("one endpoint");
+    let endpoints = smith_protocol_channel::Endpoints::new(configured);
+    let bytes = smith_protocol_channel::encode_turn(record, &smith_transcript::CEILINGS, &endpoints)
+        .expect("bounded archived turn");
     temper_engine_smith::turn(request, bytes).expect("typed turn")
 }
 
