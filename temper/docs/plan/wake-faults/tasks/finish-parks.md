@@ -124,3 +124,15 @@ Resolve both conflicts by preserving that commit’s deletions alongside finish-
 - In `tasks.status.md`, remove finish-parks’ 5.6 gap and covered-entries’ 8.1/8.3/8.6/9 covered-entry gap. Retain 5.5, the separate 8.6 preparation-to-claim message gap, and later entries.
 `jig/crates/jig-domain-tasks/src/run.rs` auto-merged; preserve covered-entries’ claim reset change and finish-parks’ terminal admission change.
 Keep the repair limited to resolving these overlaps; do not restore either task’s removed status entries.
+
+## Rebase (2026-11-08, step merge, foreman wake-faults/finish-parks/foreman-2)
+
+rebase and combine finish-parks’ status deletions with start-refusals’ deletions
+The conflicts are in `jig/docs/design/domain/engine.status.md` and `jig/docs/design/domain/tasks.status.md`.
+Integration commit `57f98a13fc` (`Preserve refused starts as permanent or busy outcomes`) removes adjacent gaps from the same paragraphs.
+Resolve both conflicts by preserving both tasks’ deletions:
+- In `engine.status.md`, remove finish-parks’ 7.4 live-delegate finish gap and start-refusals’ section 8 invalid-start gap. Retain the 7.1 preparation-to-claim gap.
+- In `tasks.status.md`, remove start-refusals’ 5.5 refused-start gap and finish-parks’ 5.6 live-delegate finish gap. Start the remaining **Not yet** paragraph at the separate 8.6 preparation-to-claim message gap; retain subsequent entries.
+Keep covered-entries’ earlier gap deletions intact.
+This supersedes the previous Rebase instruction to retain the section 8 and 5.5 gaps: start-refusals has now closed them.
+Preserve finish-parks’ implementation and integration’s refused-start changes; limit the conflict repair to these status overlaps.
