@@ -1115,10 +1115,10 @@ otherwise teach.
   repository adopted again (`forge.md`, 8.9; 8.4.2); another project's
   eligibility is acceptance's, said to the owner who decides.
 - **temper's own way:** asked to set a project up the way temper builds
-  itself (the page's "Start from it", `../client/README.md`, 3.5), it
+  itself, in the person's own words, it
   reads the stock page `how-temper-builds-temper` with `see help`
-  (`../protocol/documentation.md`, 2.2), the same page the person reads
-  beside the page, and proposes its settings for the deployment, its
+  (`../protocol/documentation.md`, 2.2), a page of temper's the person
+  may read too, and proposes its settings for the deployment, its
   models among those the inventory's offer names. What the deployment cannot do
   yet it says, and leaves out; workers stay the deployment's.
 - **A proposal, and its outcome:** once the person agrees, one proposal,
