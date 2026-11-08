@@ -3,6 +3,7 @@ pub mod listeners;
 #[path = "../support/mod.rs"]
 pub mod support;
 
+mod agent_modes;
 mod box_listeners;
 mod configuration;
 mod fake;

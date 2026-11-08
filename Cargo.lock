@@ -4882,6 +4882,7 @@ dependencies = [
  "smith-local-domain",
  "smith-local-process-world",
  "smith-local-service",
+ "smith-protocol-program",
  "temper-box",
  "temper-client-bundle",
  "temper-client-domain",
