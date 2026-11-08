@@ -20,7 +20,16 @@ Contracts: `notes/contracts.md`; standing rules: `notes/common.md`.
    (`tools/tiers/design.md`, 10.2 and 11.9), built to `notes/contracts.md`, section 2,
    beside `runner`. Needs nothing.
 
-The repairs item 10 of the request finds and the plan's close follow in the next batch.
+4. `repairs`: every tree's focused and fuzzy suites through `tools/tiers/one-process`,
+   green where nextest is green, each test that fails only in one process repaired at
+   its cause; the command's end-to-end rows over the runner's fixtures; the mode's own
+   faults the real suites show. Needs `starved`, `runner` and `summary`.
+5. `close` (docs): `tools/tiers/design.status.md` says where the mode lags or departs,
+   as built. Needs `repairs`.
+
+Five tasks, as the request asks (four or five): its "the runner, its summary and
+command" is two, `runner` and `summary`, so that both start at once, meeting at the run
+directory's files (`notes/contracts.md`, 2).
 
 ## Decisions
 
@@ -61,5 +70,11 @@ this plan's first batch touches a file another draft changes.
 
 ## Critical path
 
-`starved`, `runner` and `summary` start at once; the repairs need all three, and the
-close needs the repairs: `runner` (the longest) → repairs → close.
+`starved` (about 100 implementer-minutes), `runner` (300) and `summary` (180) start at
+once; `repairs` (300) needs all three, and `close` (45) needs `repairs`: `runner` →
+`repairs` → `close`, about 645 minutes.
+
+## In a process of its own
+
+None yet. The task `repairs` names here each test it puts in the test group
+`process-of-its-own` (`tools/tiers/design.md`, 11.3), with why.
