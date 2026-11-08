@@ -2,8 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 13.10: no stock way lays kind 8 (`ui-reaches/classes-ways`).
-
 - **Not yet:** 13.2, 13.4: kind 7's `ProjectWays` still holds `away`, in
   the wire, the store, the forge's stock and every reader of it
   (`ui-reaches/ways-away`).
