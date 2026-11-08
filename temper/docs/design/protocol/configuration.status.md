@@ -26,6 +26,14 @@ Charters 2, 5 and 7 carry acceptance-to-assertion evidence from producer
 reports through coordinator handoff to close-out, keeping uncovered items
 unresolved despite empty Left lists or passing CI. The domain story
 checks delivered rules and retained evidence, not real-model compliance.
+Charter 5's specifications identify facts at risk in help trimming and
+replacement patches; charters 2, 5 and 7 require a before/after fact mapping
+and named retention assertions. Missing preservation evidence remains
+unresolved acceptance through production, report reads and close-out,
+despite passing addition checks and page bounds. The focused domain story
+covers scripted deletion and retention of the answer-number hint alongside
+the early-start explanation and resolving pointer; it establishes no
+recovered patch, walk transcript or real-model compliance.
 Their deliverable-to-evidence mapping includes each requested row's
 measured timing, rejecting suite totals and arithmetic averages as
 substitutes. Missing measurements remain unfinished and go for repair;
