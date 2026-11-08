@@ -74,7 +74,7 @@ fn forge_list_encodes_the_repository_resource_host() {
         false,
     )
     .unwrap();
-    let bytes = family::forges(domain.forges(), &w::CEILINGS).unwrap();
+    let bytes = family::forges(domain.forges(), false, &w::CEILINGS).unwrap();
     let rows = wire::decode_forges(&bytes, &w::CEILINGS).expect("forge rows");
     assert_eq!(rows.forges().get(0).unwrap().host(), b"git.example:3000", "resource host missing from wire");
     assert_eq!(rows.forges().get(0).unwrap().host(), family::host(b"https://git.example:3000/git").as_ref());
@@ -1088,7 +1088,7 @@ fn a_row_s_fetched_reaches_the_wire() {
             forge::Offer::Offered,
         );
         row.fetched = Some(forge::SetUpFetched { binary, done: 10, total });
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, &w::CEILINGS).unwrap();
+        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let w::Connection::SettingUp(setup) = rows.forges().get(0).unwrap().connection() else { panic!("setting up") };
         assert_eq!(setup.step(), &Some(w::SetUpStep::Fetch));
@@ -1115,13 +1115,13 @@ fn forges_encode_the_domains_rows_without_settings() {
         let mut failure = value.clone();
         failure.rows[0].connection = forge::Connection::SetUpFailed { why: b"stopped".as_slice().into() };
         failure.rows[0].failed = failed;
-        let bytes = family::forges(failure, &w::CEILINGS).unwrap();
+        let bytes = family::forges(failure, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
         let w::Connection::SetUpFailed(failure) = rows.get(0).unwrap().connection() else { panic!("setup failure") };
         assert_eq!(failure.at(), &expected);
         assert_eq!(failure.why(), b"stopped");
     }
-    let bytes = family::forges(value, &w::CEILINGS).unwrap();
+    let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
     let rows = temper_client_protocol_wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
     let expected = [
         (
@@ -1299,7 +1299,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
         );
         row.first = Some(first);
         let value = forge::Forges { rows: Box::new([row]) };
-        let bytes = family::forges(value, &w::CEILINGS).unwrap();
+        let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
         let first = rows.get(0).unwrap().first().as_ref().unwrap();
         assert_eq!((first.org(), first.repository()), (b"team".as_slice(), b"widget".as_slice()));
@@ -1556,6 +1556,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
                 ended_stop: Some(forge::AdminStop::Refused { status: 403, stage: forge::SetupStage::Token }),
             }]),
         },
+        false,
         &w::CEILINGS,
     )
     .unwrap();
@@ -1630,7 +1631,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
                 ended_stop: None,
             }]),
         };
-        let bytes = family::forges(value, &w::CEILINGS).expect("the row is still available");
+        let bytes = family::forges(value, false, &w::CEILINGS).expect("the row is still available");
         let rows = temper_client_protocol_wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(rows.forges().len(), 1);
         let owned = rows.forges().as_slice()[0].owned();
@@ -2698,7 +2699,7 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
             copying: true,
             state,
         }]);
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, &w::CEILINGS).unwrap();
+        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let forges = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let making = forges.forges().get(0).unwrap().makings().get(0).unwrap();
         assert_eq!((making.org(), making.name()), (b"work".as_slice(), b"copied".as_slice()));
@@ -3528,12 +3529,12 @@ fn away_answer(answer: Option<root::ApplicationAnswer>) -> w::Outcome {
 #[test]
 fn set_away_reads_as_the_forges_event() {
     const PROJECT: u32 = 9; // Deliberately differs from the envelope's project 7.
-    for (on, until, kinds) in [(true, Some(123), 15), (false, None, 0)] {
+    for (on, until) in [(true, Some(123)), (false, None)] {
         assert_eq!(
             away_request(w::Request::SetAway(
-                w::SetAway::new(&w::CEILINGS, w::SetAwayParts { project: PROJECT, on, until, kinds },).unwrap()
+                w::SetAway::new(&w::CEILINGS, w::SetAwayParts { project: PROJECT, on, until },).unwrap()
             )),
-            root::Application::SetAway { project: PROJECT, on, until: away_wall(until), kinds }
+            root::Application::SetAway { project: PROJECT, on, until: away_wall(until) }
         );
     }
     for (answer, expected) in [
@@ -3613,6 +3614,7 @@ fn away_and_decided_subjects_are_scoped() {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks Away and both decision lists through the family encoder")]
 fn their_documents_encode() {
     const PROJECT: u32 = 9;
     const PARTY: u64 = 3;
@@ -3622,7 +3624,6 @@ fn their_documents_encode() {
             project: PROJECT,
             since: skein_lib::Wall::from_nanos(11),
             until: away_wall(until),
-            kinds: 15,
             landed: 4,
             off: away_wall(off),
         };
@@ -3635,11 +3636,8 @@ fn their_documents_encode() {
         let got = wire::decode_aways(&bytes, &w::CEILINGS).unwrap().into_parts();
         assert_eq!(
             got.rows.as_slice(),
-            &[w::AwayRow::new(
-                &w::CEILINGS,
-                w::AwayRowParts { project: PROJECT, since: 11, until, kinds: 15, landed: 4, off }
-            )
-            .unwrap()]
+            &[w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: PROJECT, since: 11, until, landed: 4, off })
+                .unwrap()]
         );
     }
     for overturned in [false, true] {
@@ -3651,15 +3649,60 @@ fn their_documents_encode() {
             took: b"First".as_slice().into(),
             why: b"Fits".as_slice().into(),
             overturned,
+            reach: temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            },
         };
         let bytes = family::document(
-            forge::Document::Decisions(forge::DecisionsView { project: PROJECT, rows: Box::new([row]) }),
+            forge::Document::Decisions(forge::DecisionsView {
+                project: PROJECT,
+                rows: Box::new([row]),
+                asked: Box::new([forge::AskedView {
+                    number: 13,
+                    task: 52,
+                    at: skein_lib::Wall::from_nanos(45),
+                    reach: temper_protocol_reaches::Reach {
+                        kind: temper_protocol_reaches::Kind::Wording,
+                        class: temper_protocol_reaches::Class::Decide,
+                        reason: temper_protocol_reaches::Reason::Kind,
+                        under: 0,
+                        sets: 0,
+                        matched: 0,
+                        away: false,
+                    },
+                }]),
+                cut: overturned,
+            }),
             &fixtures::forge_table(&[]),
             &w::CEILINGS,
         )
         .unwrap();
         let got = wire::decode_decisions(&bytes, &w::CEILINGS).unwrap().into_parts();
         assert_eq!(got.project, PROJECT);
+        assert_eq!(got.cut, overturned);
+        assert_eq!(got.asked.len(), 1);
+        assert_eq!(
+            (got.asked.as_slice()[0].number(), got.asked.as_slice()[0].task(), got.asked.as_slice()[0].at()),
+            (13, 52, 45)
+        );
+        assert_eq!(
+            got.asked.as_slice()[0].reach(),
+            &temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false
+            })
+        );
         assert_eq!(
             got.rows.as_slice(),
             &[w::Decision::new(
@@ -3672,6 +3715,19 @@ fn their_documents_encode() {
                     took: b"First".as_slice().into(),
                     why: b"Fits".as_slice().into(),
                     overturned,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: w::ReachKind::Wording,
+                            class: w::ReachClass::Decide,
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: false
+                        }
+                    )
+                    .unwrap(),
                 }
             )
             .unwrap()]
@@ -3683,7 +3739,12 @@ fn their_documents_encode() {
             .unwrap();
     assert!(wire::decode_aways(&bytes, &w::CEILINGS).unwrap().rows().is_empty());
     let bytes = family::document(
-        forge::Document::Decisions(forge::DecisionsView { project: PROJECT, rows: Box::new([]) }),
+        forge::Document::Decisions(forge::DecisionsView {
+            project: PROJECT,
+            rows: Box::new([]),
+            asked: Box::new([]),
+            cut: false,
+        }),
         &forges,
         &w::CEILINGS,
     )

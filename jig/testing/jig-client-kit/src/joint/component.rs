@@ -70,6 +70,7 @@ impl Composition {
         let settings = clients::Settings {
             provider: None,
             link_secret: None,
+            local_secret: None,
             approval: true,
             addresses: Box::new([]),
             link: None,
@@ -527,7 +528,7 @@ impl Composition {
                 let record = driver.world.take_moved(source);
                 self.event(Event::MovedTaken { exchange, record });
             }
-            Request::Link { .. } | Request::LocalLink { .. } | Request::Closed => {}
+            Request::Link { .. } | Request::LocalLink { .. } | Request::LinkSignedIn | Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }
     }

@@ -480,6 +480,7 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
     temper::run(temper::Command::Box {
         directories: support::configuration::directories(scratch.path()),
         echo: temper_box::host::Echo::None,
+        no_tui: true,
     })
     .expect_err("box refused")
 }
@@ -563,7 +564,8 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
     assert_eq!(
         temper::run(temper::Command::Box {
             directories: support::configuration::directories(scratch.path()),
-            echo: temper_box::host::Echo::None
+            echo: temper_box::host::Echo::None,
+            no_tui: true,
         }),
         Err(format!(
             "temper box: configuration {}: absent; temper init writes one\n",
@@ -971,6 +973,7 @@ fn every_command_checks_setup_before_reading_files() {
             temper::run(temper::Command::Box {
                 directories: support::configuration::directories(scratch.path()),
                 echo: temper_box::host::Echo::None,
+                no_tui: true,
             })
             .expect_err("box refused"),
         ),

@@ -200,7 +200,7 @@ fn rows(root: &mut Domain, watch: Token, parts: Box<[w::ForgeRowParts]>) {
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).unwrap()),
+                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).unwrap()),
             },
         },
     );
@@ -1901,8 +1901,7 @@ fn task_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
 fn spell(f: &mut Fixture, off: Option<u64>, until: Option<u64>, landed: u64) {
     let mut rows = List::with_capacity(1);
     rows.push(
-        w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: f::PROJECT, since: 10, until, off, landed, kinds: 7 })
-            .unwrap(),
+        w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: f::PROJECT, since: 10, until, off, landed }).unwrap(),
     )
     .unwrap();
     up(

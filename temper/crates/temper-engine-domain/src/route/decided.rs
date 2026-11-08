@@ -19,10 +19,11 @@ pub(crate) fn call(
             party,
             project: context.project,
             task: key.task,
+            always: false,
             call,
         }));
     } else {
-        decide_call(domain, &env.limits, decision, to, key, CallAnswer::Decided { took: None });
+        decide_call(domain, &env.limits, decision, to, key, CallAnswer::Decided { took: None, reach: None });
     }
 }
 

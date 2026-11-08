@@ -557,14 +557,14 @@ fn decided(value: &Value) -> Result<temper_engine_domain_forge::DecidedCall, Pro
         return Err(Problem::Range(b"why: at most 400 bytes"));
     }
     let kind = match value.required(b"kind")?.text(b"kind")?.as_ref() {
-        b"implementation" => forge::DecisionKind::Implementation,
-        b"retry" => forge::DecisionKind::Retry,
-        b"wording" => forge::DecisionKind::Wording,
-        b"dependency" => forge::DecisionKind::Dependency,
-        b"other" => forge::DecisionKind::Other,
+        b"implementation" => temper_protocol_reaches::Kind::Implementation,
+        b"retry" => temper_protocol_reaches::Kind::Retry,
+        b"wording" => temper_protocol_reaches::Kind::Wording,
+        b"dependency" => temper_protocol_reaches::Kind::Dependency,
+        b"other" => temper_protocol_reaches::Kind::Other,
         _ => return Err(Problem::Range(b"kind: implementation, retry, wording, dependency or other")),
     };
-    Ok(forge::DecidedCall { question, options: options.into_boxed(), took, why, kind })
+    Ok(forge::DecidedCall { question, options: options.into_boxed(), took, why, kind, paths: Box::new([]), under: 0 })
 }
 
 fn number(value: &Value, field: &'static [u8]) -> Result<u64, Problem> {

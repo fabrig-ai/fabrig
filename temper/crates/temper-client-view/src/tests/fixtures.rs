@@ -615,7 +615,7 @@ pub(super) fn root_at_with_values(
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                             ),
                         },
                     },
@@ -2186,7 +2186,7 @@ pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_doma
                 Some(wall) => Some(wall.as_nanos()),
                 None => None,
             },
-            kinds: 7,
+
             landed: 0,
             off: match off {
                 Some(wall) => Some(wall.as_nanos()),
@@ -2310,7 +2310,7 @@ impl ReadPage {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                             ),
                         },
                     });

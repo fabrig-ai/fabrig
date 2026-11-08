@@ -59,12 +59,18 @@ versioned record Approvals { rows: list 32 ApprovalRow more: u32 }
 record Looked { project: u32 }
 
 # Away and decisions (temper/docs/design/client/README.md, 4.6).
-record SetAway { project: u32 on: bool until: option u64 kinds: u8 }
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachClass { decide, ask, ask_away, wait }
+record ReachSet { number: u8 }
+enum ReachReason { kind, set: ReachSet, always }
+record Reach { kind: ReachKind class: ReachClass reason: ReachReason under: u8 sets: u8 matched: u8 away: bool }
+record SetAway { project: u32 on: bool until: option u64 }
 record Overturn { project: u32 number: u32 }
-record AwayRow { project: u32 since: u64 until: option u64 kinds: u8 landed: u64 off: option u64 }
+record AwayRow { project: u32 since: u64 until: option u64 landed: u64 off: option u64 }
 versioned record Aways { rows: list 1024 AwayRow }
-record Decision { number: u32 task: u64 at: u64 question: bytes 400 took: bytes 120 why: bytes 400 overturned: bool }
-versioned record Decisions { project: u32 rows: list 64 Decision }
+record Decision { number: u32 task: u64 at: u64 question: bytes 400 took: bytes 120 why: bytes 400 overturned: bool reach: Reach }
+record Asked { number: u32 task: u64 at: u64 reach: Reach }
+versioned record Decisions { project: u32 rows: list 128 Decision asked: list 128 Asked cut: bool }
 enum OverturnRefusal { already, unknown }
 record OverturnRefused { reason: OverturnRefusal }
 
@@ -123,7 +129,7 @@ enum MakingState { waiting, making, made: MakingMade, adopting: MakingMade, fail
 record RepositoryMaking { org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto state: MakingState }
 enum StartsWith { repository, copies: CopyAddresses, nothing }
 record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository starts_with: StartsWith installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
-versioned record Forges { forges: list 16 ForgeRow }
+versioned record Forges { forges: list 16 ForgeRow linked: bool }
 
 # The forge's reads (temper/docs/design/client/forge.md, 9).
 record SettingRead { kind: u32 scope: u32 number: u32 }
@@ -275,13 +281,8 @@ enum QuestionsRoute { none, foreman, up }
 record ProjectQuestions { route: QuestionsRoute }
 record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }
 # What reaches a person (temper/docs/design/domain/forge.md, 5.10).
-enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
-enum ReachClass { decide, ask, ask_away, wait }
 record ReachKindOf { kind: ReachKind }
-record ReachSet { number: u8 }
 enum ClassSubject { kind: ReachKindOf, set: ReachSet }
 record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }
 record PathSet { number: u8 name: bytes 40 patterns: list 6 bytes 80 }
 record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }
-enum ReachReason { kind, set: ReachSet, always }
-record Reach { kind: ReachKind class: ReachClass reason: ReachReason under: u8 sets: u8 matched: u8 away: bool }

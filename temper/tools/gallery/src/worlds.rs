@@ -1028,7 +1028,9 @@ fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("making rows")),
+        bytes: wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).expect("making rows"),
+        ),
     };
     step(
         root,
@@ -1055,7 +1057,9 @@ fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Ready rows")),
+        bytes: wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).expect("Ready rows"),
+        ),
     };
     step(
         root,
@@ -1288,7 +1292,7 @@ fn forges(world: World) -> Box<[u8]> {
         )
         .expect("forge row");
     }
-    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows }).expect("gallery forges"))
+    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows, linked: false }).expect("gallery forges"))
 }
 fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::ChangePanel> {
     use temper_client_protocol_wire::v1 as w;
@@ -5328,7 +5332,6 @@ pub(super) fn away_record(on: bool) -> Box<[u8]> {
             project: PROJECT,
             since: wall.as_nanos(),
             until: Some(until.as_nanos()),
-            kinds: 7,
             landed: 0,
             off: if on { None } else { Some(wall.as_nanos()) },
         },
@@ -5386,7 +5389,6 @@ pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
             project: PROJECT,
             since: now - 534 * minute,
             until: None,
-            kinds: 7,
             landed: 0,
             off: if name == "home-away-one" { Some(now - minute) } else { None },
         },
@@ -5497,6 +5499,19 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
                     took: took.as_bytes().into(),
                     why: why.as_bytes().into(),
                     overturned: name == "home-away-overturned" && number == 2,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: w::ReachKind::Wording,
+                            class: w::ReachClass::Decide,
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: false,
+                        },
+                    )
+                    .expect("fixture reach fits"),
                 },
             )
             .expect("Home decision"),
@@ -5504,7 +5519,11 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
         .expect("four Home decisions");
     }
     wire::decisions(
-        &w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project: PROJECT, rows }).expect("Home decisions"),
+        &w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project: PROJECT, rows, asked: List::with_capacity(0), cut: false },
+        )
+        .expect("Home decisions"),
     )
 }
 

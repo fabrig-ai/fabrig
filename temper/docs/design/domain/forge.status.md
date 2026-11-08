@@ -2,7 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
-
 Section 8.9 has no known implementation gap in every-project given
 rules, their project-scoped reads and held values, removal and reset, or
 branch-relative project patterns. The root checks their approval
@@ -16,7 +15,16 @@ decision, for the `ways` read, `see ways` and the `View` read alike. A
 focused table holds the look request's three paths with CI and both
 tiers, the same with neither, and by turn; the fuzzy test, 64 seeds of
 random rules, finds no agent's stop for an update, a merge, a prepare,
-a proof or a turn, and every path ending at a bar.
+a proof or a turn, and every path ending at a bar. A card's "Asked to"
+is its charter's first sentence within `ASKED`, 184 bytes with its
+quotes, every fact past its bound cut on a word with "…"
+(`temper-engine-domain-ways`, `words.rs`, `cut_on_word`), the charter's
+and the rule's views alike; the worst small ways document still fits its
+decision. A review's stop names its gate's reviews' charter, CI's card
+names the landing branch's required checks or every check the
+workflows report, and the view `rule K/N` draws a landing rule's card,
+the stock rule of kind 2 among them, from the forge's rules as they
+stand. The workflows by name are section 20's.
 
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the
@@ -344,12 +352,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 
 - **Not yet:** 5.5: no person's fact `KeepAsking`
   (`ui-reaches/keep-asking`).
-
-- **Not yet:** 5.8, 5.9: `Away` keeps `kinds` and `SetAway` carries them;
-  `decided` is judged by those bits, not by the project's classes; a call
-  writes a row only when decided, with no reach; a project keeps 64 rows,
-  the oldest erased whatever its age, by no limit; the document has no
-  `asked` and no `cut` (`ui-reaches/decide-forge`).
 
 - **Not yet:** 5.9: the root finds a person for a goal alone, a tracked
   task, and answers a goal whose words say `Asks: always` itself, handing

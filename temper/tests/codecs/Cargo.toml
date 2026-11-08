@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+temper-protocol-reaches.workspace = true
 skein-scratch.workspace = true
 skein-lib.workspace = true
 

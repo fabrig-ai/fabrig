@@ -634,6 +634,7 @@ impl TuiWorld {
             background: None,
             boxed: false,
             address: address.into(),
+            front: false,
             local: false,
             note: None,
             kept: Vec::new(),

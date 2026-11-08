@@ -13,7 +13,6 @@ use skein_lib::{Env, List, Queue, Wall};
 pub enum Act {
     Overturn { project: u32, number: u32 },
     Toggle { project: u32 },
-    Kinds { project: u32, kinds: u8 },
     Until { project: u32, eight: bool },
     Limits { project: u32 },
 }
@@ -72,16 +71,16 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
             out.push(Request::Show { address: Address::Settings { project }, replace: false });
             return;
         }
-        Act::Toggle { project } | Act::Kinds { project, .. } | Act::Until { project, .. } => project,
+        Act::Toggle { project } | Act::Until { project, .. } => project,
     };
     if root.pages.away.is_some() || !root.forge.away_available() {
         return;
     }
     let row = root.forge.away(project);
     let mut on = root.away_on(project, env.wall);
-    let (mut until, mut kinds) = match row {
-        Some(row) => (row.until, row.kinds),
-        None => (Some(away::next_eight(env.wall, root.zone_minutes())), away::DEFAULT_KINDS),
+    let mut until = match row {
+        Some(row) => row.until,
+        None => Some(away::next_eight(env.wall, root.zone_minutes())),
     };
     match act {
         Act::Toggle { .. } => {
@@ -90,13 +89,12 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
                 until = Some(away::next_eight(env.wall, root.zone_minutes()));
             }
         }
-        Act::Kinds { kinds: choice, .. } => kinds = choice,
         Act::Until { eight, .. } => {
             until = if eight { Some(away::next_eight(env.wall, root.zone_minutes())) } else { None };
         }
         Act::Overturn { .. } | Act::Limits { .. } => unreachable!("Limits returned before requesting"),
     }
-    let Some(request) = away::ask(project, on, until, kinds, &env.limits.forge) else { return };
+    let Some(request) = away::ask(project, on, until, &env.limits.forge) else { return };
     root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
     let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
     root.pages.away = Some(Pending { key, project, on, until });

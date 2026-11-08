@@ -1028,13 +1028,6 @@ fn no_project_draws_no_path() {
 }
 
 const AWAY_TITLE: &str = "While you’re away, agents may decide";
-const AWAY_KINDS: [(&str, u8); 4] = [
-    ("Implementation choices within a task", 1),
-    ("Retries and splitting a failing task", 2),
-    ("A design document’s wording", 4),
-    ("Adding a dependency", 8),
-];
-const LOCKED: &str = "Budgets, sign-ins, machines, what is hard to reverse: always wait";
 const EIGHT: &[u8] = b"08:00, the end of quiet hours";
 fn away_settings(row: Option<w::AwayRowParts>) -> (d::Domain, Token) {
     let (mut root, _, _, _, _, _, _, _, watch) = f::root_at_with_values(
@@ -1053,8 +1046,8 @@ fn away_settings(row: Option<w::AwayRowParts>) -> (d::Domain, Token) {
     away_deliver(&mut root, watch, row);
     (root, watch)
 }
-fn away_row(kinds: u8, until: Option<u64>, off: Option<u64>) -> w::AwayRowParts {
-    w::AwayRowParts { project: f::PROJECT, since: 0, until, kinds, landed: 0, off }
+fn away_row(until: Option<u64>, off: Option<u64>) -> w::AwayRowParts {
+    w::AwayRowParts { project: f::PROJECT, since: 0, until, landed: 0, off }
 }
 fn away_deliver(root: &mut d::Domain, watch: Token, row: Option<w::AwayRowParts>) {
     let mut rows = List::with_capacity(1);
@@ -1146,11 +1139,7 @@ fn settings_answer(root: &mut d::Domain, attempt: Token, outcome: w::Outcome) {
 fn away_answer(root: &mut d::Domain, attempt: Token) {
     settings_answer(root, attempt, w::Outcome::Away);
 }
-fn drawn_choices(view: &crate::View, kinds: u8, until: &[u8]) {
-    for (label, bit) in AWAY_KINDS {
-        let id = find(view.tree(), Role::Check, label.as_bytes());
-        assert_eq!(node(view.tree(), id).states.as_slice().contains(&State::Pressed), kinds & bit != 0, "{label}");
-    }
+fn drawn_choices(view: &crate::View, until: &[u8]) {
     assert_eq!(selected(view.tree(), b"Away until"), until);
 }
 #[test]
@@ -1170,11 +1159,7 @@ fn the_section_follows_what_needs_you() {
                 .iter()
                 .filter(|n| n.styles.as_slice().contains(&look::SETTINGS_SETTING))
                 .count(),
-            2
-        );
-        assert_eq!(
-            f::nodes_text(setting_row(view.tree(), b"Kinds of decision")).as_ref(),
-            b"Kinds of decisionEach shows afterwards as decided for you, with Overturn."
+            1
         );
         assert_eq!(
             f::nodes_text(setting_row(view.tree(), b"Away until")).as_ref(),
@@ -1193,61 +1178,37 @@ fn no_section_while_no_switch() {
 fn defaults_with_no_row() {
     let (root, _) = away_settings(None);
     for view in [how_view(&root, false), how_view(&root, true)] {
-        drawn_choices(&view, 7, EIGHT);
-    }
-}
-#[test]
-fn a_kind_writes_through_set_away() {
-    for browser in [false, true] {
-        for (label, bit) in AWAY_KINDS {
-            let (mut root, _) = away_settings(Some(away_row(10, None, None)));
-            let mut view = how_view(&root, browser);
-            let (_, sent) = away_send(&mut root, &mut view, Role::Check, label.as_bytes());
-            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: true, until: None, kinds: 0b1010 ^ bit });
-        }
+        drawn_choices(&view, EIGHT);
     }
 }
 #[test]
 fn the_select_writes_until() {
     for browser in [false, true] {
         for (label, until) in [(EIGHT, Some(28_800_000_000_000)), (b"I turn it off".as_slice(), None)] {
-            let (mut root, _) = away_settings(Some(away_row(8, None, None)));
+            let (mut root, _) = away_settings(Some(away_row(None, None)));
             let mut view = how_view(&root, browser);
             let (_, sent) = away_send(&mut root, &mut view, Role::Option, label);
-            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: true, until, kinds: 8 });
+            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: true, until });
         }
     }
 }
 #[test]
 fn it_works_while_off() {
     for browser in [false, true] {
-        for (role, label, kinds, eight, until) in [
-            (Role::Check, AWAY_KINDS[0].0.as_bytes(), 6, true, Some(28_800_000_000_000)),
-            (Role::Check, AWAY_KINDS[1].0.as_bytes(), 5, true, Some(28_800_000_000_000)),
-            (Role::Check, AWAY_KINDS[2].0.as_bytes(), 3, true, Some(28_800_000_000_000)),
-            (Role::Check, AWAY_KINDS[3].0.as_bytes(), 15, true, Some(28_800_000_000_000)),
-            (Role::Option, EIGHT, 7, true, Some(28_800_000_000_000)),
-            (Role::Option, b"I turn it off".as_slice(), 7, false, None),
+        for (role, label, eight, until) in [
+            (Role::Option, EIGHT, true, Some(28_800_000_000_000)),
+            (Role::Option, b"I turn it off".as_slice(), false, None),
         ] {
-            let (mut root, watch) = away_settings(Some(away_row(7, Some(28_800_000_000_000), Some(0))));
+            let (mut root, watch) = away_settings(Some(away_row(Some(28_800_000_000_000), Some(0))));
             let mut view = how_view(&root, browser);
             let (attempt, sent) = away_send(&mut root, &mut view, role, label);
-            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: false, until, kinds });
+            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: false, until });
             away_answer(&mut root, attempt);
-            away_deliver(&mut root, watch, Some(away_row(sent.kinds, sent.until, Some(0))));
+            away_deliver(&mut root, watch, Some(away_row(sent.until, Some(0))));
             let view = how_view(&root, browser);
-            drawn_choices(&view, kinds, if eight { EIGHT } else { b"I turn it off" });
+            drawn_choices(&view, if eight { EIGHT } else { b"I turn it off" });
             assert!(!root.away_on(f::PROJECT, f::NOW));
         }
-    }
-}
-#[test]
-fn locked_stays_unticked_and_disabled() {
-    let (root, _) = away_settings(Some(away_row(15, None, None)));
-    for mut view in [how_view(&root, false), how_view(&root, true)] {
-        let id = find(view.tree(), Role::Check, LOCKED.as_bytes());
-        assert_eq!(node(view.tree(), id).states.as_slice(), &[State::Disabled]);
-        assert_eq!(crate::act(&mut view, id, Act::Toggle), None);
     }
 }
 #[test]
@@ -1272,9 +1233,9 @@ fn limits_focuses_the_section() {
 }
 #[test]
 fn an_expired_until_still_reads_eight() {
-    let (root, _) = away_settings(Some(away_row(8, Some(0), None)));
+    let (root, _) = away_settings(Some(away_row(Some(0), None)));
     for view in [how_view(&root, false), how_view(&root, true)] {
-        drawn_choices(&view, 8, EIGHT);
+        drawn_choices(&view, EIGHT);
     }
 }
 #[test]
@@ -1284,14 +1245,7 @@ fn away_controls_are_numbered_in_the_terminal() {
     let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
     skein_ui_text::render(view.tree(), b"temper", None, &mut print);
     let controls: Vec<_> = print.numbers.as_slice().to_vec();
-    for (role, label) in [
-        (Role::Check, AWAY_KINDS[0].0.as_bytes()),
-        (Role::Check, AWAY_KINDS[1].0.as_bytes()),
-        (Role::Check, AWAY_KINDS[2].0.as_bytes()),
-        (Role::Check, AWAY_KINDS[3].0.as_bytes()),
-        (Role::Option, EIGHT),
-        (Role::Option, b"I turn it off".as_slice()),
-    ] {
+    for (role, label) in [(Role::Option, EIGHT), (Role::Option, b"I turn it off".as_slice())] {
         assert!(controls.contains(&find(view.tree(), role, label)), "numbered {label:?}");
     }
 }
@@ -1458,7 +1412,7 @@ fn dismissal_refusals_stay_in_the_repository_row() {
             family: f::FORGE,
             version: temper_client_protocol_wire::CLIENT_VERSION,
             bytes: temper_client_protocol_wire::forges(
-                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
             ),
         };
         drive(

@@ -11,11 +11,11 @@ fn input(question: &str, options: &[&str], took: u64, why: &str, kind: &str) -> 
 #[test]
 fn decided_decodes() {
     for (kind, expected) in [
-        ("implementation", forge::DecisionKind::Implementation),
-        ("retry", forge::DecisionKind::Retry),
-        ("wording", forge::DecisionKind::Wording),
-        ("dependency", forge::DecisionKind::Dependency),
-        ("other", forge::DecisionKind::Other),
+        ("implementation", temper_protocol_reaches::Kind::Implementation),
+        ("retry", temper_protocol_reaches::Kind::Retry),
+        ("wording", temper_protocol_reaches::Kind::Wording),
+        ("dependency", temper_protocol_reaches::Kind::Dependency),
+        ("other", temper_protocol_reaches::Kind::Other),
     ] {
         let call = decided(b"decided", &input("Which?", &["A", "B"], 1, "Fits", kind)).expect("decision decodes");
         assert_eq!(
@@ -26,6 +26,8 @@ fn decided_decodes() {
                 took: 1,
                 why: Box::from(b"Fits".as_slice()),
                 kind: expected,
+                paths: Box::new([]),
+                under: 0,
             })
         );
     }
@@ -96,7 +98,7 @@ fn its_answers_read_as_the_design_says() {
         (Some(Box::from(b"A".as_slice())), b"Decided: carry on with A.".as_slice()),
         (None, b"Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."),
     ] {
-        let answer = crate::answer(&engine::CallAnswer::Decided { took });
+        let answer = crate::answer(&engine::CallAnswer::Decided { took, reach: None });
         assert_eq!(answer.text(), words);
         assert!(!answer.error());
     }

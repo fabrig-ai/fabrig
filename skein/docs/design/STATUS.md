@@ -49,7 +49,10 @@ acting or reading, retaining their folding, focus and outside-press
 checks and their deadlines (`ui-web.md`, 14.2).
 Markdown flows have their own owner, bounded reader and deterministic
 layout; scenes may state their height and the web puts that SVG in its
-figure's flow. The case scenes and text fallback are held by host tests
+figure's flow, and their width, the web scaling that SVG to the
+figure's width and a press's point back to the scene's pixels. The text
+shell prints once a group's `NAME:` that its nearest such ancestor
+printed. The case scenes and text fallback are held by host tests
 (`ui.md`, `ui-web.md`, `ui-text.md`). Node hints are bounded text carried
 by attribute patches, shown as `title` on the web and omitted by the text
 shell (`ui.md`, 3.2; `ui-web.md`, section 6; `ui-text.md`, section 5).

@@ -56,7 +56,6 @@ impl Bindings {
         self.entries.push((token, act)).expect("pages bindings fit");
         Binding { owner: owner(), token }
     }
-    #[expect(clippy::too_many_lines, reason = "one dispatch decodes the page bindings and drawing payloads")]
     pub fn decode(&self, token: Token, act: skein_ui::Act) -> Option<temper_client_domain::Action> {
         for (key, meaning) in &self.entries {
             if *key == token {
@@ -113,10 +112,6 @@ impl Bindings {
                     (PageAct::Models(temper_client_domain::pages::models::Act::Name(..)), skein_ui::Act::Submit) => {
                         PageAct::Models(temper_client_domain::pages::models::Act::Add)
                     }
-                    (
-                        PageAct::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
-                        skein_ui::Act::Toggle,
-                    ) => PageAct::Away(*choice),
                     (
                         PageAct::Choice(temper_client_domain::pages::choice::Act::Find { .. }),
                         skein_ui::Act::Input { value },

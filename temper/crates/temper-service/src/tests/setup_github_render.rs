@@ -108,7 +108,7 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
 }
 
 pub(super) fn status(service: &crate::Service, json: bool) -> tools::jig::Printed {
-    let bytes = crate::family::forges(service.engine.as_ref().unwrap().domain.forges(), &w::CEILINGS).unwrap();
+    let bytes = crate::family::forges(service.engine.as_ref().unwrap().domain.forges(), false, &w::CEILINGS).unwrap();
     render(&[b"forge", b"list"], json, &Record::Forges(bytes))
 }
 

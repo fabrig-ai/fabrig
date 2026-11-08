@@ -120,13 +120,6 @@ pub enum Word {
     SettingsProposalWithdrawn,
 
     AwaySettingsTitle,
-    AwayKinds,
-    AwayKindsLine,
-    AwayImplementation,
-    AwayRetry,
-    AwayWording,
-    AwayDependency,
-    AwayLocked,
     AwaySettingsUntil,
     AwayUntilLine,
     AwayEight,
@@ -1542,7 +1535,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2096;
+const PHRASES: u32 = 2089;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1569,10 +1562,10 @@ const PHRASES: u32 = 2096;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3699;
+const SEGMENTS: u32 = 3692;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51503;
-const ALL: [Word; 1414] = [
+const ENGLISH_BYTES: u32 = 51245;
+const ALL: [Word; 1407] = [
     Word::WaysLede,
     Word::WaysTitle,
     Word::WaysNow,
@@ -1677,13 +1670,6 @@ const ALL: [Word; 1414] = [
     Word::SettingsProposalRejected,
     Word::SettingsProposalWithdrawn,
     Word::AwaySettingsTitle,
-    Word::AwayKinds,
-    Word::AwayKindsLine,
-    Word::AwayImplementation,
-    Word::AwayRetry,
-    Word::AwayWording,
-    Word::AwayDependency,
-    Word::AwayLocked,
     Word::AwaySettingsUntil,
     Word::AwayUntilLine,
     Word::AwayEight,
@@ -3201,13 +3187,6 @@ impl Word {
             Self::SettingsProposalRejected => 3929,
             Self::SettingsProposalWithdrawn => 3930,
             Self::AwaySettingsTitle => 3658,
-            Self::AwayKinds => 3659,
-            Self::AwayKindsLine => 3660,
-            Self::AwayImplementation => 3661,
-            Self::AwayRetry => 3662,
-            Self::AwayWording => 3663,
-            Self::AwayDependency => 3664,
-            Self::AwayLocked => 3665,
             Self::AwaySettingsUntil => 3666,
             Self::AwayUntilLine => 3667,
             Self::AwayEight => 3668,
@@ -5912,13 +5891,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LoadingEarlierName => (&[b"Loading earlier messages"], &[]),
         Word::LoadingEarlierFailed => (&[b"Couldn't load earlier messages"], &[]),
         Word::AwaySettingsTitle => (&[b"While you\xe2\x80\x99re away, agents may decide"], &[]),
-        Word::AwayKinds => (&[b"Kinds of decision"], &[]),
-        Word::AwayKindsLine => (&[b"Each shows afterwards as decided for you, with Overturn."], &[]),
-        Word::AwayImplementation => (&[b"Implementation choices within a task"], &[]),
-        Word::AwayRetry => (&[b"Retries and splitting a failing task"], &[]),
-        Word::AwayWording => (&[b"A design document\xe2\x80\x99s wording"], &[]),
-        Word::AwayDependency => (&[b"Adding a dependency"], &[]),
-        Word::AwayLocked => (&[b"Budgets, sign-ins, machines, what is hard to reverse: always wait"], &[]),
         Word::AwaySettingsUntil => (&[b"Away until"], &[]),
         Word::AwayUntilLine => (&[b"When it isn\xe2\x80\x99t turned off by hand."], &[]),
         Word::AwayEight => (&[b"08:00, the end of quiet hours"], &[]),

@@ -10,7 +10,7 @@ use skein_ui::{Binding, Builder, Role, Run, State, Style, phrases::Hole};
 use temper_client_domain::{
     Address, ChatsFilter, Domain,
     forge::{
-        self, away, listed,
+        self, listed,
         ways::{self, Asked, Control, Route, Ways},
     },
     pages::{Act, away::Act as Away},
@@ -514,38 +514,11 @@ fn away_settings(
     }
     b.close();
     let row_value = root.forge().away(project);
-    let (kinds, eight) = match row_value {
-        Some(row) => (row.kinds, row.until.is_some()),
-        None => (away::DEFAULT_KINDS, true),
+    let eight = match row_value {
+        Some(row) => row.until.is_some(),
+        None => true,
     };
     let disabled = root.pages().away_busy();
-    row(b, w, &w.say(Word::AwayKinds, &[]), Some(Word::AwayKindsLine));
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_CHECKS);
-    for (bit, word) in [
-        (1, Word::AwayImplementation),
-        (2, Word::AwayRetry),
-        (4, Word::AwayWording),
-        (8, Word::AwayDependency),
-        (0, Word::AwayLocked),
-    ] {
-        b.open(Role::Slot);
-        b.open(Role::Check);
-        b.name(&w.say(word, &[]));
-        if bit != 0 {
-            b.bind(bindings.insert(Act::Away(Away::Kinds { project, kinds: kinds ^ bit })));
-            if kinds & bit != 0 {
-                b.state(State::Pressed);
-            }
-        }
-        if bit == 0 || disabled {
-            b.state(State::Disabled);
-        }
-        b.close();
-        b.close();
-    }
-    b.close();
-    b.close();
     row(b, w, &w.say(Word::AwaySettingsUntil, &[]), Some(Word::AwayUntilLine));
     b.open(Role::Select);
     b.name(&w.say(Word::AwaySettingsUntil, &[]));

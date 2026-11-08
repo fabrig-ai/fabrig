@@ -2714,7 +2714,6 @@ static HOLDS: [Holds; samples::N] = [
         heading: "How work runs in tally.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
-            Part::Named { role: Role::Check, name: "Implementation choices within a task" },
             Part::Named { role: Role::Select, name: "Away until" },
         ],
     },
@@ -4373,17 +4372,9 @@ fn settings_away_draws_the_default_choices() {
     let sample = samples::samples().into_iter().find(|sample| sample.name == "settings-away").expect("Away settings");
     assert_eq!(samples::mockup(&sample).as_deref(), Some("../greenfield/settings.html#away"));
     let view = view(&sample);
-    for (role, name, state, expected) in [
-        (Role::Check, "Implementation choices within a task", skein_ui::State::Pressed, true),
-        (Role::Check, "Retries and splitting a failing task", skein_ui::State::Pressed, true),
-        (Role::Check, "A design document’s wording", skein_ui::State::Pressed, true),
-        (Role::Check, "Adding a dependency", skein_ui::State::Pressed, false),
-        (Role::Option, "08:00, the end of quiet hours", skein_ui::State::Selected, true),
-    ] {
-        let id = find(view.tree(), role, name, sample.name);
-        let node = view.tree().nodes().iter().find(|node| node.id == id).expect("Away control");
-        assert_eq!(node.states.as_slice().contains(&state), expected, "{name}");
-    }
+    let id = find(view.tree(), Role::Option, "08:00, the end of quiet hours", sample.name);
+    let node = view.tree().nodes().iter().find(|node| node.id == id).expect("Away until");
+    assert!(node.states.as_slice().contains(&skein_ui::State::Selected));
 }
 
 #[test]

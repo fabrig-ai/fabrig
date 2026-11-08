@@ -191,7 +191,9 @@ impl Story {
                 options: Box::new([b"Small".as_slice().into(), b"Broad".as_slice().into()]),
                 took: 0,
                 why: b"Fits the design".as_slice().into(),
-                kind: forge::DecisionKind::Implementation,
+                kind: temper_protocol_reaches::Kind::Implementation,
+                paths: Box::new([]),
+                under: 0,
             }),
         ) else {
             panic!("tool answer")
@@ -542,7 +544,7 @@ fn a_goal_decides_while_away_then_waits_on_home_after_overturn_and_off() {
     story.sees(b"Away is off: questions wait for you again.");
     story.answer(&run, b"Try the other implementation");
     assert!(story.call(&run, 4, b"decided", LOCAL_DECISION).starts_with("Ask: your person is here"));
-    assert_eq!(story.decisions(), decisions, "off saves no second decision");
+    asked_after(&decisions, &story.decisions());
     assert!(story.call(&run, 5, b"message", br#"{"target":1,"form":"question","words":"Which local implementation while here?\nChoice: Use the small implementation\nChoice: Use the broad implementation"}"#).starts_with("Message "));
     story.sees(b"Which local implementation while here?");
     story.sees(b"One thing was decided for you.");
@@ -578,7 +580,7 @@ fn on_crosses_the_roots_and_reaches_every_device() {
     let row = story.row(CLIENT).expect("the switch delivered its row");
     assert_eq!(row.since, story.env.wall);
     assert_eq!(row.until, Some(Wall::from_nanos(28_800_000_000_000)));
-    assert_eq!((row.kinds, row.landed, row.off), (7, 0, None));
+    assert_eq!((row.landed, row.off), (0, None));
     assert_eq!(story.row(SECOND_DEVICE), Some(row), "the other device hears the party's watch");
     let stored = story.stored();
     assert_eq!(
@@ -588,7 +590,6 @@ fn on_crosses_the_roots_and_reaches_every_device() {
             project: PROJECT,
             since: row.since,
             until: row.until,
-            kinds: row.kinds,
             landed: row.landed,
             off: row.off,
         }
@@ -609,15 +610,14 @@ fn on_crosses_the_roots_and_reaches_every_device() {
 }
 
 #[test]
-fn off_keeps_the_choices() {
+fn off_keeps_until() {
     let mut story = Story::new();
     story.toggle();
-    story.act(away::Act::Kinds { project: PROJECT, kinds: 9 });
     let first = story.stored();
     story.after(Duration::from_secs(60));
     story.toggle();
     let off = story.stored();
-    assert_eq!((off.kinds, off.until), (9, first.until), "off retains both choices");
+    assert_eq!(off.until, first.until, "off retains until");
     assert_eq!((off.since, off.landed, off.off), (first.since, first.landed, Some(story.env.wall)));
     assert!(!story.probes[CLIENT.0].root.person().away_on(PROJECT, story.env.wall));
     // Go beyond the old 08:00: the retained choice means the next 08:00 on re-entry.
@@ -626,7 +626,7 @@ fn off_keeps_the_choices() {
     let on = story.stored();
     assert_eq!(on.since, story.env.wall, "on again starts a new spell");
     assert!(on.since > first.since);
-    assert_eq!((on.kinds, on.off), (9, None));
+    assert_eq!(on.off, None);
     assert_eq!(on.until, Some(Wall::from_nanos(115_200_000_000_000)));
     assert!(story.probes[CLIENT.0].root.person().away_on(PROJECT, story.env.wall));
 }
@@ -646,7 +646,7 @@ fn a_goal_is_answered_by_the_switch() {
     assert_eq!(row.at, story.env.wall);
     assert_eq!(row.question.as_ref(), b"Which implementation?");
     assert_eq!(row.options.as_ref(), &[Box::from(b"Small".as_slice()), Box::from(b"Broad".as_slice())]);
-    assert_eq!(row.took, 0);
+    assert_eq!(row.took, Some(0));
     assert_eq!(row.why.as_ref(), b"Fits the design");
     assert!(!row.overturned);
     let form = story.facts(CLIENT).away.expect("Home hears the decision on its open watch");
@@ -665,7 +665,7 @@ fn a_goal_is_answered_by_the_switch() {
         story.decide(goal, 2),
         "Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
     );
-    assert_eq!(story.decisions(), decisions, "asking saves no new decision");
+    asked_after(&decisions, &story.decisions());
     assert_eq!(
         story.facts(CLIENT).away.expect("decisions remain after off").span,
         Some((story.stored().since, Some(story.env.wall)))
@@ -694,7 +694,7 @@ fn past_until_the_client_draws_off_and_the_root_says_ask() {
         story.decide(goal, 2),
         "Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
     );
-    assert_eq!(story.decisions(), decisions, "expired Away saves no new decision");
+    asked_after(&decisions, &story.decisions());
     assert_eq!(story.stored(), before, "the call does not write the expired Away row");
     assert_eq!(story.facts(CLIENT).away.expect("the earlier decision remains").span, Some((before.since, Some(until))));
 }
@@ -767,4 +767,15 @@ fn another_partys_home_shows_nothing() {
     story.event(other, Temper::went(Address::Forges));
     story.home(CLIENT);
     assert_eq!(story.facts(CLIENT).away.expect("owner still sees the decision").showing, 1);
+}
+
+fn asked_after(before: &[forge::Decided], after: &[forge::Decided]) {
+    assert_eq!(after.len(), before.len() + 1, "a judged ask writes its own row");
+    assert_eq!(&after[..before.len()], before, "earlier decisions stay");
+    let row = after.last().expect("the ask appended a row");
+    assert_eq!(row.took, None);
+    assert!(row.options.is_empty());
+    assert!(row.why.is_empty());
+    assert_eq!(row.reach.class, temper_protocol_reaches::Class::Ask);
+    assert!(!row.reach.away);
 }

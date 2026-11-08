@@ -411,7 +411,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
             )
             .expect("row capacity");
     }
-    v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges")
+    v1::Forges::new(&limits, v1::ForgesParts { forges, linked: false }).expect("forges")
 }
 
 #[test]
@@ -445,10 +445,14 @@ fn each_forge_offer_round_trips() {
         .expect("forge row");
         forges.push(row).expect("three rows");
     }
-    let record = v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges");
-    let bytes = crate::forges(&record);
-    assert_eq!(crate::decode_forges(&bytes, &limits), Some(record));
-    assert_eq!(crate::decode_forges(&fixtures::trailing(&bytes), &limits), None);
+    for linked in [false, true] {
+        let record = v1::Forges::new(&limits, v1::ForgesParts { forges: forges.clone(), linked }).expect("forges");
+        let bytes = crate::forges(&record);
+        let decoded = crate::decode_forges(&bytes, &limits).expect("forges decode");
+        assert_eq!(decoded.linked(), linked);
+        assert_eq!(decoded, record);
+        assert_eq!(crate::decode_forges(&fixtures::trailing(&bytes), &limits), None);
+    }
 }
 
 #[test]
@@ -567,7 +571,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         .expect("schema row");
         let mut forges = List::with_capacity(1);
         forges.push(row).expect("one row");
-        let record = v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges }).expect("schema forges");
+        let record = v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges, linked: false }).expect("schema forges");
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), None);
     }
 }
@@ -620,12 +624,13 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
     let row = at.forges().get(0).expect("row");
     let length = at.measure().checked_add(row.measure()).expect("seventeen rows fit");
     let mut writer = skein_lib::Writer::new(usize::try_from(length).expect("length"));
-    writer.put(&4_u16.to_be_bytes()).expect("version");
+    writer.put(&u16::try_from(crate::CLIENT_VERSION).expect("version fits").to_be_bytes()).expect("version");
     writer.put(&17_u32.to_be_bytes()).expect("row count");
     for row in at.forges() {
         row.encode(&mut writer).expect("row bytes");
     }
     row.encode(&mut writer).expect("extra row bytes");
+    writer.put(&[u8::from(at.linked())]).expect("linked");
     assert_eq!(crate::decode_forges(&writer.finish(), &limits), None);
     for numbers in [&[2, 1][..], &[1, 1][..]] {
         let record = forges_rows(numbers, &v1::Connection::NotSetUp);
@@ -678,7 +683,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     .expect("forge row");
                     let mut forges = List::with_capacity(1);
                     forges.push(row).expect("one forge");
-                    let record = v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges");
+                    let record = v1::Forges::new(&limits, v1::ForgesParts { forges, linked: false }).expect("forges");
                     assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
                 }
             }
@@ -1511,7 +1516,7 @@ fn repository_makings_round_trip_at_the_bound_and_refuse_one_more() {
         if let Ok(row) = row {
             let mut rows = List::with_capacity(1);
             rows.push(row).unwrap();
-            let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows }).unwrap();
+            let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows, linked: false }).unwrap();
             let encoded = crate::forges(&record);
             assert_eq!(crate::decode_forges(&encoded, &limits), Some(record));
             let mut smaller = limits;
@@ -1667,7 +1672,7 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
         };
         let mut rows = List::with_capacity(1);
         rows.push(v1::ForgeRow::new(&limits, row).unwrap()).unwrap();
-        let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows }).unwrap();
+        let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows, linked: false }).unwrap();
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
     }
 }
@@ -1699,23 +1704,16 @@ fn decisions_round_trip_and_refuse_trailing_bytes() {
 }
 
 #[test]
-fn away_requests_round_trip_and_validate_kinds() {
+fn away_requests_round_trip() {
     let limits = fixtures::limits();
-    for kinds in [0, 7, 15, 16, u8::MAX] {
-        for on in [false, true] {
-            for until in [None, Some(u64::MAX)] {
-                let value =
-                    v1::SetAway::new(&limits, v1::SetAwayParts { project: u32::MAX, on, until, kinds }).unwrap();
-                let request =
-                    v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::SetAway(value) }).unwrap();
-                let bytes = crate::requesting(&request);
-                if kinds > 15 {
-                    assert_eq!(crate::decode_requesting(&bytes, &limits), None);
-                } else {
-                    assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
-                    assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
-                }
-            }
+    for on in [false, true] {
+        for until in [None, Some(u64::MAX)] {
+            let value = v1::SetAway::new(&limits, v1::SetAwayParts { project: u32::MAX, on, until }).unwrap();
+            let request =
+                v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::SetAway(value) }).unwrap();
+            let bytes = crate::requesting(&request);
+            assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
+            assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
         }
     }
     let value = v1::Overturn::new(&limits, v1::OverturnParts { project: u32::MAX, number: u32::MAX }).unwrap();
@@ -1763,7 +1761,6 @@ fn aways_rows_are_bounded_at_construction_and_decode() {
             project: u32::MAX,
             since: u64::MAX,
             until: Some(u64::MAX),
-            kinds: 15,
             landed: u64::MAX,
             off: Some(u64::MAX),
         },
@@ -1809,13 +1806,26 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
             took: Box::new([b't'; 120]),
             why: Box::new([b'w'; 400]),
             overturned: true,
+            reach: v1::Reach::new(
+                &v1::CEILINGS,
+                v1::ReachParts {
+                    kind: v1::ReachKind::Wording,
+                    class: v1::ReachClass::Decide,
+                    reason: v1::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
+            )
+            .unwrap(),
         },
     )
     .unwrap();
-    for count in [0, 64, 64 + 1] {
+    for count in [0, 128, 128 + 1] {
         let mut rows = List::with_capacity(count);
         let mut writer =
-            skein_lib::Writer::new(10 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
+            skein_lib::Writer::new(15 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
         writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
         writer.put(&u32::MAX.to_be_bytes()).unwrap();
         writer.put(&count.to_be_bytes()).unwrap();
@@ -1823,9 +1833,14 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
             rows.push(row.clone()).unwrap();
             row.encode(&mut writer).unwrap();
         }
+        writer.put(&0_u32.to_be_bytes()).unwrap();
+        writer.put(&[0]).unwrap();
         let bytes = writer.finish();
-        let made = v1::Decisions::new(&limits, v1::DecisionsParts { project: u32::MAX, rows });
-        if count > 64 {
+        let made = v1::Decisions::new(
+            &limits,
+            v1::DecisionsParts { project: u32::MAX, rows, asked: List::with_capacity(0), cut: false },
+        );
+        if count > 128 {
             assert_eq!(
                 made.unwrap_err(),
                 v1::Problem { path: v1::Path::DecisionsRows, reason: skein_codec::Reason::Bound }

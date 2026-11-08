@@ -623,7 +623,12 @@ fn settle_home(
                     wire::decisions(
                         &w::Decisions::new(
                             &w::CEILINGS,
-                            w::DecisionsParts { project: f::PROJECT, rows: fixture.rows.clone() },
+                            w::DecisionsParts {
+                                project: f::PROJECT,
+                                rows: fixture.rows.clone(),
+                                asked: List::with_capacity(0),
+                                cut: false,
+                            },
                         )
                         .unwrap(),
                     )
@@ -3286,6 +3291,19 @@ fn away_fixture(count: u32) -> AwayFixture {
                     took: b"In serve".as_slice().into(),
                     why: b"The store changes a record.".as_slice().into(),
                     overturned: false,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: w::ReachKind::Wording,
+                            class: w::ReachClass::Decide,
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: false,
+                        },
+                    )
+                    .unwrap(),
                 },
             )
             .unwrap(),
@@ -3300,7 +3318,6 @@ fn away_fixture(count: u32) -> AwayFixture {
                     project: f::PROJECT,
                     since: STATUS_NOW - 50 * STATUS_MINUTE,
                     until: None,
-                    kinds: 7,
                     landed: 1,
                     off: None,
                 },

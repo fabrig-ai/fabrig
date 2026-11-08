@@ -33,6 +33,7 @@ pub enum Unusable {
     Limits,
     Seed,
     LinkSecret,
+    LocalSecret,
 }
 #[derive(Debug)]
 pub struct Component {
@@ -53,6 +54,7 @@ pub struct Component {
 impl Component {
     pub fn new(mut settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
         let given = settings.link_secret.take();
+        let local_given = settings.local_secret.take();
         if !crate::valid(&env.limits) {
             return Err(Unusable::Limits);
         }
@@ -78,6 +80,16 @@ impl Component {
             && secret.expose().len() != crate::LINK_SECRET_BYTES
         {
             return Err(Unusable::LinkSecret);
+        }
+        if let Some(secret) = &local_given {
+            if secret.expose().len() != crate::LINK_SECRET_BYTES {
+                return Err(Unusable::LocalSecret);
+            }
+            if let Some(printed) = &given
+                && sign_in::constant_time_eq(secret.expose(), printed.expose())
+            {
+                return Err(Unusable::LocalSecret);
+            }
         }
         if let Some(identity) = &settings.link {
             let bytes = identity.key.subject.len().checked_add(identity.login.len()).ok_or(Unusable::Limits)?;
@@ -133,7 +145,13 @@ impl Component {
         } else {
             value.fresh_link(Which::Printed, env, out);
         }
-        value.fresh_link(Which::Local, env, out);
+        if let Some(secret) = local_given
+            && value.settings.link.is_some()
+        {
+            value.local.live = Some(Link { secret, until: env.now.saturating_add(env.limits.link_span) });
+        } else {
+            value.fresh_link(Which::Local, env, out);
+        }
         out.push(Request::Secrets(SecretsRequest::Get { owner: SecretOwner::PublicNames }));
         Ok(value)
     }
