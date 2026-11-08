@@ -277,9 +277,9 @@ fn the_coordinators_parts_load_the_whole_first_edition_as_written() {
     let text = include_str!("../stock/coordinator.md");
     let mut sections = text.split("## ");
     assert_eq!(sections.next(), Some(""), "the first heading opens the file");
-    let sections: Vec<_> = sections.map(|section| section.split_once('\n').expect("heading line")).collect();
+    let sections: Box<[_]> = sections.map(|section| section.split_once('\n').expect("heading line")).collect();
     assert_eq!(
-        sections.iter().map(|(heading, _)| *heading).collect::<Vec<_>>(),
+        sections.iter().map(|(heading, _)| *heading).collect::<Box<[_]>>().as_ref(),
         [
             "shared",
             "part, on: first",
@@ -393,11 +393,13 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut run = (0, Setting::Charter(1));
     for charter in &defaults.charters {
-        let bytes = jig_domain_core::charter_owned_bytes(charter).unwrap();
+        let resolved = settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
+        let bytes = jig_domain_core::charter_owned_bytes(&resolved).unwrap();
         if bytes > run.0 {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
+    assert_eq!(run, (13_123, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         (b"core.policy_bytes", 5886, Setting::Policy(1), "the stock's policy 1 needs 5886 bytes"),
@@ -479,7 +481,9 @@ fn each_charters_run_bytes_floor_names_that_charter() {
         let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
         // Isolate each run policy from larger stock runs.
         defaults.charters = Box::new([charter.clone()]);
-        let needed = jig_domain_core::charter_owned_bytes(charter).unwrap();
+        let resolved =
+            jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
+        let needed = jig_domain_core::charter_owned_bytes(&resolved).unwrap();
         let mut limits = engine.limits;
         limits.core.run_bytes = u32::try_from(needed).unwrap();
         assert_eq!(crate::stock::floors(&defaults, &limits), Ok(()));
@@ -1176,16 +1180,21 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
         if expected.is_empty() {
             assert!(authority.delegation.kinds.is_empty());
         } else {
-            let executors: Vec<_> = policy
+            let executors: Box<[_]> = policy
                 .ceiling
                 .delegation
                 .kinds
                 .iter()
                 .copied()
-                .filter(|kind| !matches!(kind, jig_domain_authority::Executor::Role(_)))
+                .filter(|kind| match kind {
+                    jig_domain_authority::Executor::Role(_) => false,
+                    jig_domain_authority::Executor::Job(_)
+                    | jig_domain_authority::Executor::Charter(_)
+                    | jig_domain_authority::Executor::Procedure(_) => true,
+                })
                 .chain(expected.iter().map(|role| jig_domain_authority::Executor::Role(*role)))
                 .collect();
-            assert_eq!(authority.delegation.kinds.as_ref(), executors);
+            assert_eq!(authority.delegation.kinds.as_ref(), executors.as_ref());
         }
     }
 }
@@ -1426,6 +1435,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     expected.policy.instructions = coordinator.policy.instructions.clone();
     expected.parts = coordinator.parts.clone();
     expected.policy.resume = false;
+    expected.policy.waiting = skein_lib::Duration::ZERO;
     expected.policy.tools = jig_domain_tasks::Tools(1023);
     expected.wake = jig_domain_tasks::WakePolicy {
         words: jig_domain_tasks::WakeRule::Immediate,

@@ -24,8 +24,15 @@ fn configured() -> smith_agent_shell::config::Configuration {
 fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Assignment {
     let engine = engine(&generated());
     let charter = engine.charters.iter().find(|charter| charter.number == number).unwrap();
-    let policy =
+    let mut policy =
         jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core).unwrap().policy;
+    // The maximal wake selects every part; jig joins them after the shared instructions.
+    let mut instructions = policy.instructions.into_vec();
+    for part in &charter.parts {
+        instructions.extend_from_slice(b"\n\n");
+        instructions.extend_from_slice(&part.instructions);
+    }
+    policy.instructions = instructions.into_boxed_slice();
     let mut assignment = fixtures::assignment_with(fixtures::repository(1, b"org", b"repo"));
     assignment.charter = number;
     assignment.run.policy = policy;
@@ -53,6 +60,8 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
     assignment.run.contract = if open {
         jig_domain_tasks::Contract::Report { words: 32 }
+    } else if number == 5 {
+        jig_domain_tasks::Contract::Report { words: engine.limits.core.tasks.result_bytes }
     } else if number == 10 {
         jig_domain_tasks::Contract::Report { words: 64 }
     } else if number == 9 {
@@ -105,6 +114,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (1, true, 41_087, 359_048),
         (2, false, 36_104, 364_031),
         (4, false, 32_670, 367_465),
+        (5, false, 45_093, 355_042),
         (6, false, 33_894, 366_241),
         (9, false, 31_337, 368_798),
         (10, false, 31_052, 369_083),
@@ -182,7 +192,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
     for (number, open) in
-        [(1, false), (1, true), (2, false), (4, false), (6, false), (9, false), (10, false), (11, true)]
+        [(1, false), (1, true), (2, false), (4, false), (5, false), (6, false), (9, false), (10, false), (11, true)]
     {
         let mut assignment = assignment(number, open, 0);
         assignment.sections = whole_spec_sections(&brief, OTHER);
