@@ -32,6 +32,27 @@ mode = "direct"
 needs = ["stops"]
 design = "temper/docs/design/domain/forge.md, 8.13"
 
+[[part]]
+id = "fade"
+title = "skein: a scene's mark may have its stroke painted by a linear fade, its stops coloured by their tokens"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 11.2"
+
+[[part]]
+id = "marks"
+title = "The path's marks: outlined when needed, the words over a stop, the agent's star in ink, each rise a fade"
+mode = "direct"
+needs = ["look", "fade"]
+design = "temper/docs/design/client/README.md, 5.16"
+
+[[part]]
+id = "how"
+title = "How work runs draws its path as Ask temper's ways do, the lanes and their blue gone"
+mode = "direct"
+needs = ["stops", "marks"]
+design = "temper/docs/design/client/README.md, 5.13"
+
 [[slice]]
 id = 1
 story = "Every client is given the amended path: conflict and resolve where a change takes main at the front of its queue, catch up where a goal's branch takes main, each stop made only when needed marked so, a repair saying what it answers, and an agent that never merges"
@@ -48,4 +69,10 @@ walk = false
 id = 3
 story = "How work runs lists every agent the project's work runs, the foreman and the status agent among them, each with when it runs, its model, what it can and what it is asked"
 parts = ["roles"]
+walk = false
+
+[[slice]]
+id = 4
+story = "How work runs and Ask temper's ways draw vsr's path as how.html has it: who acts by mark, a person's ring orange, an agent's star ink, code grey, no blue; a stop made only when needed outlined, a repair saying what it answers; the line a continuous fade"
+parts = ["fade", "marks", "how"]
 walk = false

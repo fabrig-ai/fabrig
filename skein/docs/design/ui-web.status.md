@@ -78,6 +78,11 @@ The host table reads the Markdown cases and compares their SVG bytes.
   `a_module_not_found_says_so_and_offers_to_try_again` passing there: the plan that wrote
   them ran focused and fuzzy alone, the tier waiting for its run after landing
   (the `bundle-loading` plan's figures on the browser tier, at `668f7cd3e5`).
+- **Not yet:** 8, 12 and 13: a fade drawn as a `linearGradient` in its SVG's `<defs>`, its
+  mark's `stroke="url(#ID)"` and `data-fade`, its id from `svg::draw`'s `ids` and the page
+  part's `skein-ui-fade-<node id>`, and `skein-ui.css`'s default stroke skipping a faded
+  mark (`skein-ui-web`'s `svg.rs` and `page.rs`, `skein-ui-bundle`'s `skein-ui.css`); task
+  `fade` of plan `look-round-25`.
 - **Not yet:** 7: no run on record shows that tier within its budget with
   `log_reading`'s seven stories, from the plan `chat-reading-c`, which waits for its run
   after landing likewise.
