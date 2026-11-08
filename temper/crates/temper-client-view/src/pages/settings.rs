@@ -1,4 +1,4 @@
-//! A project's settings frame and repositories (temper/docs/design/client/README.md, 3.5, Settings).
+//! How work runs and Deployment's frames (temper/docs/design/client/README.md, 3.5, Settings and Deployment).
 use crate::{
     forge::bindings::{Bindings as ForgeBindings, Meaning, WaysRow},
     frame::Bindings,
@@ -24,6 +24,8 @@ pub(crate) enum Tab {
     Accounts,
     Models,
     Builders,
+    Members,
+    Limits,
 }
 
 /// A flow's return tab (temper/docs/design/client/README.md, 3.5, The flows' paths).
@@ -69,7 +71,7 @@ pub(crate) fn way_path(
 #[expect(clippy::too_many_arguments, reason = "choices and ways share one path drawing")]
 fn flow_path(
     b: &mut Builder,
-    root: &Domain,
+    _root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
     project: Option<u32>,
@@ -80,7 +82,7 @@ fn flow_path(
     if w.shell == crate::words::Shell::Terminal {
         return;
     }
-    let Some(project) = project else { return };
+    let Some(_project) = project else { return };
     let (word, address) = match tab {
         FlowTab::Forges => (Word::ForgesTitle, Address::Forges),
         FlowTab::Accounts => (Word::SettingsAccountsTab, Address::Accounts),
@@ -100,11 +102,7 @@ fn flow_path(
     b.close();
     b.open(Role::Slot);
     b.style(look::TRAIL);
-    for (name, address) in [
-        (project_name(root, w, project), Address::Home { project }),
-        (w.say(Word::RailSettings, &[]), Address::Settings { project }),
-        (w.say(word, &[]), address),
-    ] {
+    for (name, address) in [(w.say(Word::DeploymentTitle, &[]), Address::Accounts), (w.say(word, &[]), address)] {
         crate::link(b, &name, bindings.insert(Act::Go { address }));
         b.text(Run::Plain, &name);
         b.close();
@@ -128,7 +126,13 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.open(Role::Slot);
     b.style(look::SETTINGS_INTRO);
     let name = project_name(root, w, project);
-    text(b, Role::Paragraph, &w.say(Word::SettingsKicker, &[Hole::Name(name.clone())]), look::SETTINGS_KICKER);
+    let deployment = deployment(tab);
+    let kicker = if deployment {
+        w.say(Word::DeploymentTitle, &[])
+    } else {
+        w.say(Word::SettingsKicker, &[Hole::Name(name.clone())])
+    };
+    text(b, Role::Paragraph, &kicker, look::SETTINGS_KICKER);
     let (heading, lede) = match tab {
         Tab::HowWorkRuns => (Word::SettingsHowHeading, Word::SettingsHowLede),
         Tab::Repositories => (Word::SettingsRepositoriesHeading, Word::SettingsRepositoriesLede),
@@ -136,29 +140,38 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         Tab::Accounts => (Word::SettingsAccountsHeading, Word::SettingsAccountsLede),
         Tab::Models => (Word::ModelsHeading, Word::ModelsLede),
         Tab::Builders => (Word::SettingsBuildersHeading, Word::SettingsBuildersLede),
+        Tab::Members => (Word::MembersHeading, Word::MembersLede),
+        Tab::Limits => (Word::LimitsHeading, Word::LimitsLede),
     };
     let title = match tab {
         Tab::HowWorkRuns | Tab::Repositories => w.say(heading, &[Hole::Name(name.clone())]),
-        Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(heading, &[]),
+        Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders | Tab::Members | Tab::Limits => w.say(heading, &[]),
     };
     text(b, Role::Heading { level: 1 }, &title, look::SETTINGS_HEADLINE);
     let lede = match tab {
         Tab::Repositories => w.say(lede, &[Hole::Name(name)]),
-        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders => w.say(lede, &[]),
+        Tab::HowWorkRuns | Tab::Forges | Tab::Accounts | Tab::Models | Tab::Builders | Tab::Members | Tab::Limits => {
+            w.say(lede, &[])
+        }
     };
     text(b, Role::Paragraph, &lede, look::SETTINGS_LEDE);
     b.close();
     b.open(Role::Navigation);
-    b.name(&w.say(Word::RailSettings, &[]));
+    b.name(&w.say(if deployment { Word::DeploymentTitle } else { Word::SettingsHowTab }, &[]));
     b.style(look::SETTINGS_TABS);
     for (item, word, address) in [
         (Tab::HowWorkRuns, Word::SettingsHowTab, Address::Settings { project }),
         (Tab::Repositories, Word::SettingsRepositoriesTab, Address::Repositories { project }),
-        (Tab::Forges, Word::ForgesTitle, Address::Forges),
         (Tab::Accounts, Word::SettingsAccountsTab, Address::Accounts),
+        (Tab::Forges, Word::ForgesTitle, Address::Forges),
         (Tab::Models, Word::ModelsTab, Address::Models { project }),
         (Tab::Builders, Word::SettingsBuildersTab, Address::Builders { project }),
+        (Tab::Members, Word::MembersTab, Address::Members),
+        (Tab::Limits, Word::LimitsTab, Address::Limits),
     ] {
+        if self::deployment(item) != deployment {
+            continue;
+        }
         let name = w.say(word, &[]);
         crate::link(b, &name, bindings.insert(Act::Go { address }));
         b.text(Run::Plain, &name);
@@ -168,11 +181,17 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         match item {
             Tab::Forges => crate::frame::forge_mark(b, root, w, false),
             Tab::Accounts => crate::frame::account_mark(b, root, w, false),
-            Tab::HowWorkRuns | Tab::Repositories | Tab::Models | Tab::Builders => {}
+            Tab::HowWorkRuns | Tab::Repositories | Tab::Models | Tab::Builders | Tab::Members | Tab::Limits => {}
         }
         b.close();
     }
     b.close();
+}
+fn deployment(tab: Tab) -> bool {
+    match tab {
+        Tab::HowWorkRuns | Tab::Repositories => false,
+        Tab::Accounts | Tab::Forges | Tab::Models | Tab::Builders | Tab::Members | Tab::Limits => true,
+    }
 }
 /// Opens the column without a project's kicker or tabs (README.md, 3.5, Settings).
 pub(crate) fn open_alone(b: &mut Builder, heading: &[u8], lede: &[u8]) {

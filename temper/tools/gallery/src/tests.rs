@@ -897,7 +897,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "builders",
         heading: "Where agents work.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Builders · 3" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Workers · 3" },
             Part::Text { text: "Workshop" },
             Part::Text { text: "Finishing" },
             Part::Text { text: "Away" },
@@ -911,14 +911,14 @@ static HOLDS: [Holds; samples::N] = [
         name: "builders-none",
         heading: "Where agents work.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Builders · 0" },
-            Part::Text { text: "No builder is connected." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Workers · 0" },
+            Part::Text { text: "No worker is connected." },
         ],
     },
     Holds {
         name: "builders-not-owner",
         heading: "Where agents work.",
-        parts: &[Part::Text { text: "Builders are seen by the deployment’s owners." }],
+        parts: &[Part::Text { text: "Workers are seen by the deployment’s owners." }],
     },
     Holds {
         name: "forges-empty",
@@ -2663,7 +2663,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "repositories",
         heading: "What tally works on.",
         parts: &[
-            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Navigation, name: "How work runs" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 1" },
             Part::Named { role: Role::Text, name: "robin/tally" },
             Part::Named { role: Role::Link, name: "Add repositories" },
@@ -2695,7 +2695,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "forges-in-settings",
         heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Navigation, name: "Deployment" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Your forges · 1" },
         ],
     },
@@ -2704,7 +2704,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "What agents run on.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 1" },
-            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Navigation, name: "Deployment" },
             Part::Named { role: Role::Text, name: "Signed in as Robin" },
             Part::Named { role: Role::Button, name: "Sign out" },
         ],
@@ -2724,11 +2724,9 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
             Part::Named { role: Role::Check, name: "Away switch" },
-            Part::Named { role: Role::Link, name: "Builders" },
-            Part::Named { role: Role::Link, name: "Forges" },
-            Part::Named { role: Role::Link, name: "Accounts" },
+            Part::Links { style: temper_client_view::look::SETTINGS_TABS, names: &["How work runs", "Repositories"] },
             Part::Absent { role: Role::Link, name: "Start" },
-            Part::Named { role: Role::Navigation, name: "Settings" },
+            Part::Named { role: Role::Navigation, name: "How work runs" },
         ],
     },
     Holds {

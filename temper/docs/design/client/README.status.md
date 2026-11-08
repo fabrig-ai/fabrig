@@ -718,10 +718,6 @@ read's head explicit.
 - **Not yet:** 3.5, *Work*, *What the reads lack*: no read lists a landed
   draft ready to start a goal; a chat's card holds its changes, not its other
   delegates; a change's card names no maker.
-- **Not yet:** 3.5, *Settings and Deployment*: Forges, Accounts, Models and
-  Builders are Settings' tabs, under the kicker "PROJECT · settings", the page
-  says "builder", and Members and Limits have no address or page
-  (`temper-client-view`'s `pages/settings.rs` and `pages/builders.rs`).
 - **Not yet:** 3.5, *Members*: the deployment's own members. jig's `me` gives
   the person's `deployment_role` alone, and no read lists the deployment's
   roster (jig's `domain/people.md`, section 3).

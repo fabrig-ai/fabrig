@@ -14,6 +14,7 @@ pub mod builders;
 pub mod calls;
 pub mod changes;
 pub mod chat;
+pub mod members;
 /// Whether the project's settings offer writing drafts (client/README.md, 5.13).
 #[must_use]
 pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
@@ -91,6 +92,7 @@ pub struct Pages {
     task: Option<task::Task>,
     accounts: accounts::Accounts,
     builders: builders::Builders,
+    members: Option<members::Members>,
     models: models::Models,
     switcher: switcher::Switcher,
     pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
@@ -342,6 +344,7 @@ impl Pages {
             task: None,
             accounts: accounts::Accounts::default(),
             builders: builders::Builders::default(),
+            members: None,
             models: models::Models::new(),
             switcher: switcher::Switcher::default(),
             connect_model: None,
@@ -378,6 +381,11 @@ impl Pages {
     pub fn choice(&self) -> &choice::Draft {
         &self.choice
     }
+    #[must_use]
+    pub fn members(&self) -> Option<&members::Members> {
+        self.members.as_ref()
+    }
+
     #[must_use]
     pub fn builders(&self) -> Option<&builders::Builders> {
         if self.builders_open { Some(&self.builders) } else { None }
@@ -679,6 +687,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             leave_conversations(pages, out);
             pages.accounts.leave(out);
             pages.builders.leave(out);
+            pages.members = None;
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
@@ -1003,6 +1012,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             None => false,
         };
     pages.builders.configure(role, &mut pages.next, out);
+    if let Some(members) = &mut pages.members {
+        members.configure(accounts::current_me(client), &mut pages.next, out);
+    }
     let showing = pages.watching
         && pages.project.is_some()
         && match pages.address {
@@ -1099,6 +1111,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
     if start_goal::told(pages, env, client, &told, out) {
         return true;
     }
+    if let Some(members) = &mut pages.members
+        && members.told(&told)
+    {
+        return true;
+    }
     if pages.has_goals.told(&told) {
         return true;
     }
@@ -1154,6 +1171,7 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     pages.start = None;
     pages.accounts.leave(out);
     pages.builders.leave(out);
+    pages.members = None;
     if let Some(mut page) = pages.connect_model.take() {
         page.leave();
     }
@@ -1308,6 +1326,13 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.notes.clear();
         pages.listing = None;
     }
+    if address == Address::Members {
+        if pages.members.is_none() {
+            pages.members = Some(members::Members::new());
+        }
+    } else {
+        pages.members = None;
+    }
     let mut opening = chat::document::Mode::Chat;
     let mut started = false;
     if let Some(chats) = &pages.chats
@@ -1374,12 +1399,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.builders.leave(out);
         pages.accounts_open = address == Address::Accounts;
         pages.builders_open = match &address {
-            Address::Builders { .. } => true,
+            Address::Builders { .. } | Address::Limits => true,
             Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Members
-            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -2075,6 +2099,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         if (pages.party.is_some() && pages.party != Some(me.party.number)) || parked {
             pages.accounts.leave(out);
             pages.builders.leave(out);
+            pages.members = None;
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
@@ -2151,6 +2176,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             }
             pages.accounts.leave(out);
             pages.builders.leave(out);
+            pages.members = None;
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }

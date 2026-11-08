@@ -49,3 +49,5 @@ pub(crate) fn serves_pages(root: &temper_client_domain::Domain, forge: u16) -> b
         None => true,
     }
 }
+
+pub(crate) mod deployment;
