@@ -131,7 +131,12 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
     match domain.forge.setting(7, project, 1) {
         Some(settings::SizedValue { value: settings::Value::Ways(value), .. }) => Some(value),
         Some(settings::SizedValue {
-            value: settings::Value::Rule(_) | settings::Value::Charter(_) | settings::Value::Questions(_),
+            value:
+                settings::Value::Rule(_)
+                | settings::Value::Charter(_)
+                | settings::Value::Questions(_)
+                | settings::Value::CharterWords(_)
+                | settings::Value::ProjectWords(_),
             ..
         })
         | None => None,

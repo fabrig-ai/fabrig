@@ -167,9 +167,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 ## Gaps and departures
 
 
-- **Not yet:** 13.2: kinds 9 and 10, a charter's words and a project's
-  words, as the forge's values: no `CharterWords` or `ProjectWords` is
-  judged, kept, erased or stored (`ui-p3e-words`'s `words-value`).
 
 - **Not yet:** 13.2: kinds 9 and 10 declared to jig, taken at the wire's
   entrances, and read and proposed as `charter-words` and `project-words`

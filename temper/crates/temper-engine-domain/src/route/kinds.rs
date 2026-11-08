@@ -142,7 +142,11 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
     };
     let ways = match value {
         settings::Value::Ways(ways) => ways,
-        settings::Value::Rule(_) | settings::Value::Charter(_) | settings::Value::Questions(_) => return None,
+        settings::Value::Rule(_)
+        | settings::Value::Charter(_)
+        | settings::Value::Questions(_)
+        | settings::Value::CharterWords(_)
+        | settings::Value::ProjectWords(_) => return None,
     };
     if ways.way == 0 {
         return None;
@@ -194,7 +198,11 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
     };
     let rule = match value {
         settings::Value::Rule(rule) => rule,
-        settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_) => return None,
+        settings::Value::Charter(_)
+        | settings::Value::Questions(_)
+        | settings::Value::CharterWords(_)
+        | settings::Value::ProjectWords(_)
+        | settings::Value::Ways(_) => return None,
     };
     if !rule.enforce || rule.approvals.is_empty() {
         return None;
