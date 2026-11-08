@@ -15,6 +15,7 @@ fn a_sign_in_answer_puts_its_credential_on_each_exchange() {
         h.sign_in(With::Link { secret: Secret::new(Box::new(LINK_SECRET)), held: None }).expect("sign-in exchange");
     assert!(h.link.credential().is_none());
     h.answer(exchange, &signed_in(PARTY, &CREDENTIAL));
+    assert_eq!(h.link.expires(), Some(skein_lib::Wall::from_nanos(10)));
     assert!(h.has(&Request::Signing { signing: Signing::SignedIn { party: PARTY } }));
     h.send(ATTEMPT, KEY, message());
     assert_eq!(h.credentials().as_slice().last(), Some(&Some(Secret::new(Box::new(CREDENTIAL)))));
@@ -22,7 +23,12 @@ fn a_sign_in_answer_puts_its_credential_on_each_exchange() {
 #[test]
 fn a_held_credential_is_carried_without_an_exchange() {
     let mut h = Harness::new(&limits());
+    let exchange =
+        h.sign_in(With::Link { secret: Secret::new(Box::new(LINK_SECRET)), held: None }).expect("sign-in exchange");
+    h.answer(exchange, &signed_in(PARTY, &CREDENTIAL));
+    h.out = Queue::uncapped();
     assert_eq!(h.sign_in(held()), None);
+    assert_eq!(h.link.expires(), None);
     assert!(h.out.is_empty());
     h.send(ATTEMPT, KEY, message());
     assert_eq!(h.credentials().as_slice(), &[Some(Secret::new(Box::new(CREDENTIAL)))]);
@@ -74,11 +80,14 @@ fn a_lost_sign_out_keeps_the_credential() {
 #[test]
 fn a_signed_out_answer_drops_the_credential() {
     let mut h = Harness::new(&limits());
-    assert_eq!(h.sign_in(held()), None);
+    let exchange =
+        h.sign_in(With::Link { secret: Secret::new(Box::new(LINK_SECRET)), held: None }).expect("sign-in exchange");
+    h.answer(exchange, &signed_in(PARTY, &CREDENTIAL));
     let exchange = h.sign_out();
     h.answer(exchange, &[0]);
     assert!(h.has(&Request::Signing { signing: Signing::SignedOut }));
     assert!(h.link.credential().is_none());
+    assert_eq!(h.link.expires(), None);
 }
 
 #[test]
@@ -114,6 +123,7 @@ fn a_sign_in_answer_with_no_token_leaves_none_held() {
     answer.encode(&mut bytes).expect("measured sign-in");
     h.answer(exchange, &bytes.finish());
     assert!(h.link.credential().is_none());
+    assert_eq!(h.link.expires(), Some(skein_lib::Wall::from_nanos(10)));
     assert_eq!(h.link.generation, generation.checked_add(1).expect("next generation"));
     assert!(h.has(&Request::Signing { signing: Signing::SignedIn { party: PARTY } }));
 }
@@ -137,6 +147,7 @@ fn a_link_carries_the_attempts_held_credential_and_keeps_it_on_a_tokenless_answe
     answer.encode(&mut bytes).expect("answer");
     h.answer(exchange, &bytes.finish());
     assert_eq!(h.link.credential(), Some(&Secret::new(Box::new(CREDENTIAL))));
+    assert_eq!(h.link.expires(), Some(skein_lib::Wall::from_nanos(10)));
     assert!(h.has(&Request::Signing { signing: Signing::SignedIn { party: PARTY } }));
     h.send(ATTEMPT, KEY, message());
     assert_eq!(h.credentials().as_slice().last(), Some(&Some(Secret::new(Box::new(CREDENTIAL)))));
@@ -312,6 +323,7 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
             );
             if !trailing && expected == (Signing::SignedIn { party: PARTY }) {
                 assert_eq!(h.link.credential(), Some(&Secret::new(Box::new(CREDENTIAL))));
+                assert_eq!(h.link.expires(), Some(skein_lib::Wall::from_nanos(300)));
             }
         }
     }
