@@ -77,6 +77,7 @@ pub struct Side {
     playground: playground::State,
     deployment: deployment::State,
     forges: forges::State,
+    linked: Option<bool>,
     forges_open: bool,
     dismissed: dismissed::State,
     dismissed_open: bool,
@@ -116,6 +117,7 @@ impl Side {
             playground: playground::State::new(),
             deployment: deployment::State::new(),
             forges: forges::State::Unknown,
+            linked: None,
             forges_open: false,
             dismissed: dismissed::State::Unknown,
             dismissed_open: false,
@@ -217,6 +219,11 @@ impl Side {
     #[must_use]
     pub const fn panel(&self) -> Option<&panel::Panel> {
         self.panel.as_ref()
+    }
+    /// Whether the printed link signed in, once the forges watch delivered (client/README.md, 4.6).
+    #[must_use]
+    pub const fn linked(&self) -> Option<bool> {
+        self.linked
     }
     #[must_use]
     pub const fn forges(&self) -> &forges::State {

@@ -36,9 +36,10 @@ file the site serves beside it (5.1). The site that links them is
 - **Apple Silicon's file, for the site:**
   `.github/workflows/release-macos.yml`, started by a dispatch alone on
   GitHub's `macos-26`, builds `temper` for release at the commit it is
-  started on, checks that it runs, and leaves it with that commit as the
-  run's artifact `temper-Darwin-arm64`, which the site's host fetches; no
-  tag, no release, no signature but the linker's (5.1).
+  started on, strips it and signs it again ad hoc, checks that it runs,
+  and leaves it with that commit as the run's artifact
+  `temper-Darwin-arm64`, which the site's host fetches; no tag, no
+  release, no signature but an ad hoc one (5.1).
 
 ## 2. The file
 
@@ -133,7 +134,7 @@ The site's install line downloads
 Apple Silicon. Apple Silicon's, `Darwin-arm64`, needs a Mac to build:
 GitHub's hosted `macos-26` runners, free on the public repository, the
 ones `domain/testing.md`, 2.8 runs on. It is the site's file, not a
-release's: no tag names it and no checksum file goes beside it.
+release's: no tag names it, and the workflow writes no checksum.
 
 - **One workflow,** `.github/workflows/release-macos.yml`, beside
   `macos.yml`: started by a dispatch alone (`workflow_dispatch`; no
@@ -153,24 +154,36 @@ release's: no tag names it and no checksum file goes beside it.
   `aarch64-apple-darwin`, under the release profile exactly as the
   workspace's `Cargo.toml` has it: the workflow sets no profile, flag
   or feature of its own, and builds nothing else.
-- **Its signature is the linker's,** ad hoc, which is all Apple
-  Silicon needs to run a file. No Developer ID, no notarization: curl
-  marks nothing it downloads as quarantined, so Gatekeeper never asks
-  (section 7).
-- **Its checks, before the upload:** `file` names it a Mach-O 64-bit
-  arm64 executable, and `temper --help` exits 0 with its usage line
-  first (`usage: temper COMMAND [ARGUMENT...]`). A failed check
-  annotates the run with what it found and uploads nothing.
+- **Stripped on the runner:** after the build, Xcode's `strip` takes
+  the symbols out of `target/release/temper`, in place. Stripping
+  invalidates the linker's ad hoc signature, without which Apple
+  Silicon runs no file, so `codesign --force --sign -` signs it again,
+  ad hoc, and `codesign --verify` checks the new signature; a strip,
+  signature or verification that fails uploads nothing. Only Apple's
+  tools remake the signature, so the file is stripped here, where it
+  is built, and not on the host that publishes it. The build before
+  it keeps the release profile as it is, which sets no `strip`.
+- **Its signature is ad hoc,** the one `codesign` makes after the
+  strip, which is all Apple Silicon needs to run a file. No Developer
+  ID, no notarization: curl marks nothing it downloads as quarantined,
+  so Gatekeeper never asks (section 7).
+- **Its checks, before the upload,** on the stripped file: `file`
+  names it a Mach-O 64-bit arm64 executable, and `temper --help` exits
+  0 with its usage line first (`usage: temper COMMAND [ARGUMENT...]`),
+  which also shows that Apple Silicon runs it under its new signature.
+  A failed check annotates the run with what it found and uploads
+  nothing.
 - **What it hands over:** one artifact of the run,
   `temper-Darwin-arm64`, kept 7 days, holding two files at its root:
-  `temper`, the binary, and `commit`, the full SHA of the commit built,
-  one line. GitHub's artifact is a zip, which keeps no file mode.
-  `commit` names the build beside the file, as section 3's `--version`
-  does within it.
+  `temper`, the stripped and signed binary, and `commit`, the full SHA
+  of the commit built, one line. GitHub's artifact is a zip, which
+  keeps no file mode. `commit` names the build beside the file, as
+  section 3's `--version` does within it.
 - **Where it goes is the site's:** the host that serves fabrig.ai
   fetches the artifact and serves `temper` at `/temper/Darwin-arm64`,
-  and starts the workflow when it wants a newer file; both happen
-  outside the repository.
+  gzipped and with its checksum, both made there, and starts the
+  workflow when it wants a newer file; all of it happens outside the
+  repository.
 
 ## 6. Proved on a fresh machine
 
@@ -201,7 +214,7 @@ release's: no tag names it and no checksum file goes beside it.
 - **Apple Silicon at a release:** 5.1's file among a tag's files, with
   its checksum, and a Developer ID signature and notarization for a
   file a browser downloads. Default: the site's file alone, signed ad
-  hoc by the linker.
+  hoc on the runner after its strip.
 - **The client and `temper ctl` showing the version** of the
   deployment they reach, which may differ from their own binary's: a
   field of the deployment's document. Default: `--version` alone.

@@ -14,6 +14,7 @@ pub enum Line {
     Background(Rgb),
     Address(Box<[u8]>),
     Local,
+    Front,
     Box,
     Stored { key: Box<[u8]>, bytes: Box<[u8]> },
     Credential(Box<[u8]>),
@@ -32,6 +33,7 @@ pub enum Line {
     Kept { written: bool },
     Opened { opened: bool },
     Found(Option<Box<[u8]>>),
+    BoxLine(Box<[u8]>),
     Send { exchange: u64, message: Sent, credential: Option<Box<[u8]>> },
     Stream(Option<Box<[u8]>>),
     Unstream,
@@ -144,7 +146,8 @@ impl Line {
                 w.number(u64::from(rgb.green));
                 w.number(u64::from(rgb.blue));
             }
-            Self::Address(bytes)
+            Self::BoxLine(bytes)
+            | Self::Address(bytes)
             | Self::Credential(bytes)
             | Self::Erase(bytes)
             | Self::Signed(bytes)
@@ -153,7 +156,8 @@ impl Line {
                 w.bytes(key);
                 w.bytes(bytes);
             }
-            Self::Local
+            Self::Front
+            | Self::Local
             | Self::Box
             | Self::Read
             | Self::Start
@@ -222,6 +226,8 @@ impl Line {
             Self::Screen { .. } => "screen",
             Self::Address(_) => "address",
             Self::Local => "local",
+            Self::Front => "front",
+            Self::BoxLine(_) => "box-line",
             Self::Box => "box",
             Self::Background(_) => "background",
             Self::Noted(_) => "noted",
@@ -571,6 +577,8 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
             blue: u8::try_from(r.number()?).map_err(|_| "number overflow")?,
         }),
         b"local" => Line::Local,
+        b"front" => Line::Front,
+        b"box-line" => Line::BoxLine(r.bytes()?),
         b"box" => Line::Box,
         b"noted" => Line::Noted(r.note()?),
         b"found" => Line::Found(r.optional()?),
