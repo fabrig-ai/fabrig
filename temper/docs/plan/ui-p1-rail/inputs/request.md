@@ -1,33 +1,34 @@
-# ui-engine-split: the engine's own binary, and the service split
+# ui-p1-rail: the rail, Work, and Deployment
 
-Milestone M2 of `temper/docs/design/draft/deployment-binaries.execution.md`: the engine, the service's split and `temper-engine`, with its web, `forge`, `versions`, `upgrade`, help and `--version`. The draft is `temper/docs/design/draft/deployment-binaries.md`, sections 4 and 9.2, the engine's half. The user's word, written by the draft's author; the director routed M2 here. Nothing in the draft is reopened. The user's development process stays as it is: no new CI and no build job.
+Milestone P1 of `temper/docs/design/draft/whole-story.execution.md`: `temper/docs/design/draft/surfaces.md`, sections 2, 5 and 8. The user's go of 2026-11-08, about 16:25Z. Its look is the mockups on main, `temper/docs/design/client/web/whole-story/` (`work.html`, the rail as each mockup draws it, and their `README.md` for precedence over the greenfield mock). Nothing in the drafts is reopened.
 
 ## What it executes
 
-- **`temper-service` splits** so that an engine-alone service composes without the worker's crates, cutting section 4's couplings on the engine's side:
-  - `fit_brief` moves out of `temper-engine-smith` into a crate the engine and the worker both link;
-  - the engine's limits read no worker domain or checkout crate;
-  - `temper-protocol-records`' `forge` feature is on only where it's needed.
+As the execution's P1 to P6 entry says:
+- **The design first:** `client/README.md`'s rail and pages, `client/browser.md` where the browser differs, and the greenfield mock's README for what it now defers to.
+- **Then the build:** the rail as `surfaces.md` 2 draws it; Work's one list (section 5); and Deployment (section 8). Each comes from the engine's reads, with what a read lacks named in the page's lag.
+- **Places the new rail drops** keep a way in, where `surfaces.md` gives one. Ask temper's "What temper remembers about you" (its M4, not built yet) gets a place in the person's menu, beside Deployment, laptop/web's pick: leave a named slot there.
 
-  The standalone service that composes both stays for the box and the tests, and the box's `temper` keeps every command it has.
-- **A `temper-engine` package and binary:** `serve` (an engine-alone document), `forge …`, `versions`, `upgrade`, `help`, `internal forge-child`, and `--version`. It's the only binary to embed the browser bundle. It refuses a document with a worker member, naming `temper-worker` as the binary that would run it.
-- **The engine's half of the boundary test** (section 4): `temper-engine`'s dependency closure, as `cargo tree` gives it, holds no worker domain and no smith agent. Any cut that costs more than it gives is named as that binary's exception, with its reason.
-- **The design first:** the service's and setup's design sections this changes, with their status files, and the draft's status for M2.
-
-The worker's package and `program-login` are M3's, built on this split by the owner of coding runs. Leave the worker's side composing as today, and name in `plan.md` what M3 takes from this split.
+Home and Needs you are `ui-p2-home`'s, running beside this plan. Keep off their pages' files and meet them in the rail's shared parts, as one rail.
 
 ## Its tests
 
-Focused and fuzzy only:
-- `temper-engine`'s step tests: `--version`, its help, an unknown command refused, a worker's document refused naming `temper-worker`;
-- the engine's dependency closure.
+Focused and fuzzy only, as the execution's entry says:
+- the gallery's states for the rail, Work and Deployment at a laptop's and a phone's width, day and night;
+- the client's joint world for Work across two projects;
+- a fuzz test of the rail's and Work's parts against `surfaces.md` section 12's rules, across random settings and their moves.
 
-The draft's cluster story on separate binaries is written and compiled in M3 or M5, not here.
+Journeys the change makes stale are regenerated with `temper-client-journeys again`, as generation. New journeys and the walk come after landing.
+
+## Who hears first
+
+`plan.md` names every change to `temper-client-domain` for the TUI's owner. It names every change to `temper-engine-domain` and `forge_route.rs` for the owner of coding runs.
 
 ## Sources
 
-- `temper/docs/design/draft/deployment-binaries.md`
-- `temper/docs/design/draft/deployment-binaries.execution.md`
+- `temper/docs/design/draft/surfaces.md`
+- `temper/docs/design/draft/whole-story.execution.md`
+- `temper/docs/design/client/web/whole-story/README.md`
 
 
 ## For every task of this plan

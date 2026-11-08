@@ -1,4 +1,4 @@
-//! Builders reads the joined engine's deployment (client/README.md, 3.5, Builders).
+//! Workers reads the joined engine's deployment (temper/docs/design/client/README.md, 3.5).
 use super::model::{follow, open, see};
 use skein_ui::Role;
 use temper_client_domain::pages::builders::Read;
@@ -13,7 +13,7 @@ fn an_owner_reads_the_engines_worker_on_builders() {
         &mut world,
         client,
         vec![
-            see(Role::Heading { level: 2 }, "Builders · 1".as_bytes()),
+            see(Role::Heading { level: 2 }, "Workers · 1".as_bytes()),
             see(Role::Text, b"worker"),
             see(Role::Text, "1 slot · 0 in use".as_bytes()),
             see(Role::Text, b"Connected"),
@@ -40,7 +40,7 @@ fn a_person_with_no_role_is_told_who_sees_them() {
         client,
         vec![
             see(Role::Status, b"Live"),
-            see(Role::Paragraph, "Builders are seen by the deployment’s owners.".as_bytes()),
+            see(Role::Paragraph, "Workers are seen by the deployment’s owners.".as_bytes()),
         ],
     );
     let root = world.root(client).person();

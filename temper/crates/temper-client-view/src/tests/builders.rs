@@ -134,7 +134,7 @@ fn each_host_is_a_line_with_its_slots_and_state() {
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let tree = view.tree();
         assert_eq!(skein_ui::outline::check(tree), None);
-        named(tree, Role::Heading { level: 2 }, "Builders · 4");
+        named(tree, Role::Heading { level: 2 }, "Workers · 4");
         let mut lines = rows(tree).iter().filter(|n| n.role == Role::Slot && n.size == 8);
         for (name, state) in
             [("one", "Connected"), ("two", "Draining"), ("three", "Not connected"), ("four", "Not connected")]
@@ -152,7 +152,7 @@ fn each_host_is_a_line_with_its_slots_and_state() {
         }
         assert!(lines.next().is_none());
         let facts =
-            named(tree, Role::Paragraph, "Each agent’s role names which builders it runs on. Ask temper to change it.");
+            named(tree, Role::Paragraph, "Each agent’s role names which workers it runs on. Ask temper to change it.");
         assert!(facts.styles.as_slice().contains(&look::SETTINGS_FACTS));
     }
 }
@@ -174,7 +174,7 @@ fn a_host_with_no_name_says_its_channel() {
     doc.hosts.push(host(None, true, false)).unwrap();
     let root = delivered(doc);
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        named(view.tree(), Role::Text, "Builder 7");
+        named(view.tree(), Role::Text, "Worker 7");
     }
 }
 #[test]
@@ -187,8 +187,8 @@ fn no_host_connected_says_so_above_any_lines() {
         let root = delivered(doc);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let tree = view.tree();
-            named(tree, Role::Heading { level: 2 }, if retained { "Builders · 1" } else { "Builders · 0" });
-            let empty = named(tree, Role::Paragraph, "No builder is connected.");
+            named(tree, Role::Heading { level: 2 }, if retained { "Workers · 1" } else { "Workers · 0" });
+            let empty = named(tree, Role::Paragraph, "No worker is connected.");
             assert!(empty.styles.as_slice().contains(&look::SETTINGS_EMPTY));
             if retained {
                 assert!(
@@ -211,7 +211,7 @@ fn no_role_is_one_line() {
     assert!(watch.is_none());
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let tree = view.tree();
-        named(tree, Role::Paragraph, "Builders are seen by the deployment’s owners.");
+        named(tree, Role::Paragraph, "Workers are seen by the deployment’s owners.");
         assert!(!main(tree).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_SECTION)));
     }
 }
@@ -228,7 +228,7 @@ fn an_unread_document_claims_nothing() {
             );
         }
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            named(view.tree(), Role::Heading { level: 2 }, "Builders");
+            named(view.tree(), Role::Heading { level: 2 }, "Workers");
             assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_LINES)
                 || n.styles.as_slice().contains(&look::SETTINGS_EMPTY)
                 || n.styles.as_slice().contains(&look::SETTINGS_FACTS)));
@@ -242,7 +242,7 @@ fn an_unread_document_claims_nothing() {
         },
     );
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        named(view.tree(), Role::Heading { level: 2 }, "Builders");
+        named(view.tree(), Role::Heading { level: 2 }, "Workers");
     }
 }
 #[test]
@@ -253,7 +253,7 @@ fn a_cut_document_says_so() {
         let root = delivered(doc);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             assert_eq!(
-                main(view.tree()).iter().any(|n| n.name.as_deref() == Some(b"Some builder facts were omitted.")),
+                main(view.tree()).iter().any(|n| n.name.as_deref() == Some(b"Some worker facts were omitted.")),
                 cut
             );
         }
@@ -273,7 +273,7 @@ fn the_tab_has_no_act() {
         assert!(main(view.tree()).iter().all(|n| n.role != Role::Button));
         let rail = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&look::RAIL)).unwrap();
         assert!(view.tree().nodes().iter().any(|n| n.role == Role::Link
-            && n.name.as_deref() == Some(b"Settings")
+            && n.name.as_deref() == Some(b"Deployment")
             && n.states.as_slice().contains(&State::Current)));
         assert_eq!(rail.role, Role::Navigation);
     }
@@ -283,9 +283,9 @@ fn the_page_says_builder() {
     let root = delivered(document());
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let text = String::from_utf8_lossy(&f::nodes_text(main(view.tree()))).to_lowercase();
-        assert!(text.contains("builder"));
+        assert!(text.contains("worker"));
         assert!(!text.contains("host"));
-        assert!(!text.contains("worker"));
+        assert!(!text.contains("builder"));
     }
 }
 #[test]
@@ -308,7 +308,7 @@ fn a_full_document_fits_the_tree_bound() {
         named(
             view.tree(),
             Role::Paragraph,
-            "Each agent’s role names which builders it runs on. Ask temper to change it.",
+            "Each agent’s role names which workers it runs on. Ask temper to change it.",
         );
     }
 }

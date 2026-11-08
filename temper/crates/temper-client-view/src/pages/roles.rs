@@ -83,6 +83,9 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Work { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }

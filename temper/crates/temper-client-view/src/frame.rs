@@ -3,7 +3,10 @@ use alloc::boxed::Box;
 use skein_lib::{List, Token};
 use skein_ui::{Binding, Builder, Region, Role, Run};
 use temper_client_domain::{Address, Domain, pages::Act as PageAct};
-use temper_client_domain::{ChatsFilter, GoalsFilter, pages::switcher};
+use temper_client_domain::{
+    WorkFilter,
+    pages::{rail, switcher},
+};
 #[must_use]
 pub const fn owner() -> skein_ui::Owner {
     skein_ui::Owner { number: temper_client_domain::owner::Owner::Pages.asker().0 }
@@ -249,14 +252,19 @@ pub(crate) fn switcher(
     bindings: &mut Bindings,
     project: u32,
     sign_in: &crate::forge_sign_in::Forges,
+    parts: rail::Parts,
 ) {
     if let Some(me) = root.pages().me(root.client()) {
         builder.open(Role::Disclosure);
         builder.style(crate::look::PROJECTS);
         let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
-        builder.name(&name);
+        let across = rail::across(root);
+        builder.name(&if across { words.say(crate::words::Word::AllProjects, &[]) } else { name });
         builder.open(Role::Slot);
         builder.style(crate::look::PROJECTS_MENU);
+        if parts.all_projects {
+            all_projects(builder, root, words, bindings, me.projects.len(), across);
+        }
         for selected in [true, false] {
             for row in &me.projects {
                 if (row.project == project) == selected {
@@ -272,7 +280,7 @@ pub(crate) fn switcher(
                     }
                     builder.open(Role::Button);
                     project_row(builder, root, words, row.project, &name);
-                    if selected {
+                    if selected && !across {
                         builder.state(skein_ui::State::Pressed);
                     }
                     builder.bind(bindings.insert(PageAct::Project { project: row.project }));
@@ -301,13 +309,79 @@ pub(crate) fn switcher(
         }
         new_project_form(builder, root, words, bindings);
         let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
-        let label = words.say(crate::words::Word::SettingsFor, &[skein_ui::phrases::Hole::Name(name)]);
+        let label = words.say(crate::words::Word::RailHowFor, &[skein_ui::phrases::Hole::Name(name)]);
         crate::link(builder, &label, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
         builder.text(Run::Plain, &label);
         builder.close();
+        action(
+            builder,
+            Role::Link,
+            &words.say(crate::words::Word::RailDeployment, &[]),
+            PageAct::Go { address: Address::Accounts },
+            false,
+            bindings,
+        );
         builder.close();
         builder.close();
         builder.close();
+    }
+}
+fn all_projects(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    projects: u32,
+    across: bool,
+) {
+    use crate::words::{Shell, Word};
+    use skein_ui::phrases::Hole;
+    let name = w.say(Word::AllProjects, &[]);
+    let count = w.say(Word::RailProjectsCount, &[Hole::Number(u64::from(projects))]);
+    let mut filter = match root.pages().address() {
+        Address::Inbox { filter } => *filter,
+        Address::Home { .. }
+        | Address::Work { .. }
+        | Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Chats { .. }
+        | Address::NewChat { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Ask { .. }
+        | Address::Settings { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
+        | Address::Repositories { .. }
+        | Address::Adopt { .. }
+        | Address::Accounts
+        | Address::Forges
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Members
+        | Address::Limits
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. } => temper_client_domain::address::Filter::ALL,
+    };
+    filter.project = None;
+    if w.shell == Shell::Browser {
+        b.open(Role::Slot);
+        b.style(crate::look::PROJECTS_ROW);
+    }
+    b.open(Role::Button);
+    b.name(&name);
+    if across {
+        b.state(skein_ui::State::Pressed);
+    }
+    b.bind(bindings.insert(PageAct::Go { address: Address::Inbox { filter } }));
+    if w.shell == Shell::Terminal {
+        w.text(b, Word::SwitcherRow, &[Hole::Name(name), Hole::Name(count.clone())]);
+    }
+    b.close();
+    if w.shell == Shell::Browser {
+        text(b, Role::Text, &count, Some(crate::look::PROJECTS_REPO));
+        b.close();
     }
 }
 fn project_row(b: &mut Builder, root: &Domain, w: &crate::words::Words, project: u32, name: &[u8]) {
@@ -472,7 +546,6 @@ pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: 
 
 /// The rail (temper/docs/design/client/README.md, 5.3).
 #[expect(clippy::too_many_arguments, reason = "the rail carries page-owned forge facts beside its frame bindings")]
-#[expect(clippy::too_many_lines, reason = "one rail keeps its navigation, foot and browser night switch in order")]
 pub(crate) fn rail(
     b: &mut Builder,
     root: &Domain,
@@ -484,6 +557,7 @@ pub(crate) fn rail(
     sign_in: &crate::forge_sign_in::Forges,
 ) {
     use crate::words::{Shell, Word};
+    let parts = rail::parts(&rail::facts(root, project, times.now));
     b.open(Role::Navigation);
     b.style(crate::look::RAIL);
     let name = crate::pages::project_name(root.pages().me(root.client()), project).expect("open project has a name");
@@ -501,50 +575,20 @@ pub(crate) fn rail(
         b.style(crate::look::RAIL_UNFOLD);
         b.close();
     }
-    switcher(b, root, w, bindings, project, sign_in);
-    if w.shell == Shell::Browser {
+    switcher(b, root, w, bindings, project, sign_in, parts);
+    if w.shell == Shell::Browser && parts.away {
         away(b, root, w, bindings, times, project, crate::look::AWAY_CHIP);
     }
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    let beginning = temper_client_domain::pages::home::beginning(root, project, times.now);
-    entries(b, root, w, bindings, project, shown(root, project), false, beginning);
+    entries(b, root, w, bindings, project, parts, false);
     b.close();
-    if !beginning {
-        b.open(Role::Slot);
-        b.style(crate::look::RAIL_NEW);
-        crate::link(
-            b,
-            &w.say(Word::NewChat, &[]),
-            bindings.insert(PageAct::Go { address: Address::NewChat { draft: false } }),
-        );
-        w.text(b, Word::NewChatLink, &[]);
-        b.close();
-        b.open(Role::Menu);
-        b.name(&w.say(Word::RailNewMenu, &[]));
-        for (name, description, draft) in [
-            (Word::RailNewChat, Word::RailNewChatDescription, false),
-            (Word::RailNewGoal, Word::RailNewGoalDescription, true),
-        ] {
-            if draft && !temper_client_domain::pages::drafts_offered(root, project) {
-                continue;
-            }
-            b.open(Role::MenuItem);
-            b.name(&w.say(name, &[]));
-            b.description(&w.say(description, &[]));
-            b.bind(bindings.insert(PageAct::Go { address: Address::NewChat { draft } }));
-            b.close();
-        }
-        b.open(Role::MenuItem);
-        b.style(crate::look::RAIL_NEW_ALL);
-        b.name(&w.say(Word::RailNewAll, &[]));
-        b.bind(bindings.insert(PageAct::Go { address: Address::Settings { project } }));
-        b.close();
-        b.close();
-        b.close();
-    }
+    new_box(b, root, w, bindings, project, parts);
     b.open(Role::Slot);
     b.style(crate::look::RAIL_FOOT);
+    if parts.away {
+        away(b, root, w, bindings, times, project, crate::look::AWAY);
+    }
     if root.forge().playground_running() && !root.forge().leaving() {
         let name = w.say(Word::BannerSetUp, &[]);
         crate::link(b, &name, forge.insert(crate::forge::bindings::Meaning::EndPlayground));
@@ -570,8 +614,7 @@ pub(crate) fn rail(
     if behind && w.shell == Shell::Browser {
         text(b, Role::Status, &w.say(Word::Behind, &[]), Some(crate::look::BEHIND));
     }
-    away(b, root, w, bindings, times, project, crate::look::AWAY);
-    settings_link(b, root, w, bindings, project);
+    deployment_link(b, root, w, bindings);
     person(b, root, w, bindings);
     if root.client().link().sign_out_lost {
         text(b, Role::Alert, &w.say(Word::SignOutLost, &[]), None);
@@ -604,6 +647,7 @@ fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mu
             b.name(me.party.name.bytes());
             for (word, act) in [
                 (Word::SettingsAccountsTab, PageAct::Go { address: Address::Accounts }),
+                // The place of "What temper remembers about you" (client/README.md, 5.3).
                 (Word::SignOut, PageAct::SignOut),
             ] {
                 b.open(Role::MenuItem);
@@ -628,9 +672,6 @@ fn away(
     style: skein_ui::Style,
 ) {
     use crate::words::{TimeForm, Word};
-    if !root.away_shown(project, times.now) {
-        return;
-    }
     let on = root.away_on(project, times.now);
     let until = match root.forge().away(project) {
         Some(row) => row.until,
@@ -675,87 +716,65 @@ pub(crate) fn tabbar(
     project: u32,
     wall: skein_lib::Wall,
 ) {
-    let beginning = temper_client_domain::pages::home::beginning(root, project, wall);
+    let parts = rail::parts(&rail::facts(root, project, wall));
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) }, true, beginning);
-    if beginning || !goals_shown(root, project) {
-        settings_link(b, root, w, bindings, project);
+    entries(b, root, w, bindings, project, parts, true);
+    if !parts.work {
+        b.style(crate::look::TABBAR_BEGINNING);
+        deployment_link(b, root, w, bindings);
     }
     b.close();
 }
 
-fn goals_current(root: &Domain) -> bool {
-    if let Address::Goals { .. } = root.pages().address() {
-        return true;
-    }
-    if let Some(page) = root.pages().task()
-        && let Some(task) = page.document(root.client())
-    {
-        return page.shape == temper_client_domain::pages::task::Shape::Tracked || task.goal.is_some();
-    }
-    false
-}
-
-fn goals_shown(root: &Domain, project: u32) -> bool {
-    let shown = match root.forge().ways(project) {
-        Some(ways) => ways.goals,
-        None => false,
-    };
-    shown || goals_current(root) || root.has_goals(project)
-}
-
-#[expect(clippy::struct_excessive_bools, reason = "the frame keeps each entry’s visibility or current state together")]
+#[expect(clippy::struct_excessive_bools, reason = "one current state per navigation entry")]
 struct Shown {
     home: bool,
     inbox: bool,
-    chats: bool,
-    changes: bool,
+    work: bool,
+    how: bool,
 }
-// Navigation follows project ways and keeps the open page (client/README.md, 5.3).
-fn shown(root: &Domain, project: u32) -> Shown {
-    let (home, inbox, chats) = match root.pages().address() {
-        Address::Home { .. } => (true, false, false),
-        Address::Inbox { .. } => (false, true, false),
-        Address::Chats { .. } | Address::NewChat { .. } => (false, false, true),
-        Address::Chat { .. } => (false, false, !crate::pages::chat::asking(root)),
-        Address::Task { .. }
-        | Address::Accounts
-        | Address::ConnectModel { .. }
-        | Address::Forges
-        | Address::ConnectForge { .. }
-        | Address::Adopt { .. }
+fn shown(root: &Domain) -> Shown {
+    let (home, inbox, work, how) = match root.pages().address() {
+        Address::Home { .. } => (true, false, false, false),
+        Address::Inbox { .. } => (false, true, false, false),
+        Address::Work { .. }
+        | Address::Goals { .. }
         | Address::Changes { .. }
-        | Address::Settings { .. }
-        | Address::Models { .. }
-        | Address::Builders { .. }
+        | Address::Chats { .. }
+        | Address::NewChat { .. }
+        | Address::Task { .. } => (false, false, true, false),
+        Address::Chat { .. } => (false, false, !crate::pages::chat::asking(root), false),
+        Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
-        | Address::Goals { .. }
-        | Address::Ask { .. }
-        | Address::Welcome { .. } => (false, false, false),
+        | Address::Adopt { .. } => (false, false, false, true),
+        Address::Ask { .. }
+        | Address::Accounts
+        | Address::Forges
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Members
+        | Address::Limits
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. } => (false, false, false, false),
     };
-    let changes = match root.forge().ways(project) {
-        Some(ways) => ways.changes,
-        None => false,
-    } || root.pages().address() == &(Address::Changes { project });
-    Shown { home, inbox, chats, changes }
+    Shown { home, inbox, work, how }
 }
-#[expect(clippy::too_many_arguments, reason = "navigation receives its shell and To begin filter independently")]
 fn entries(
     b: &mut Builder,
     root: &Domain,
     w: &crate::words::Words,
     bindings: &mut Bindings,
     project: u32,
-    shown: Shown,
+    parts: rail::Parts,
     tab: bool,
-    beginning: bool,
 ) {
     use crate::words::Word;
-    let Shown { home, inbox, chats, changes } = shown;
+    let Shown { home, inbox, work, how } = shown(root);
     action(
         b,
         Role::Link,
@@ -764,14 +783,13 @@ fn entries(
         home,
         bindings,
     );
-    if !beginning {
-        let count = root.pages().needs().count(root.client(), root.forge().approvals(), project);
-        let name = if count.count == 0 {
+    if parts.needs_you {
+        let name = if parts.count == 0 {
             w.say(Word::NeedsYou, &[])
         } else {
             w.say(
-                if count.cut { Word::NeedsYouCountCut } else { Word::NeedsYouCount },
-                &[skein_ui::phrases::Hole::Number(u64::from(count.count))],
+                if parts.cut { Word::NeedsYouCountCut } else { Word::NeedsYouCount },
+                &[skein_ui::phrases::Hole::Number(u64::from(parts.count))],
             )
         };
         crate::link(
@@ -786,11 +804,11 @@ fn entries(
         if inbox {
             b.state(skein_ui::State::Current);
         }
-        if count.count == 0 {
+        if parts.count == 0 {
             b.text(Run::Plain, &name);
         } else {
-            let number = skein_lib::Decimal::of(u64::from(count.count));
-            let suffix = number.as_bytes().len().checked_add(usize::from(count.cut)).expect("count suffix fits");
+            let number = skein_lib::Decimal::of(u64::from(parts.count));
+            let suffix = number.as_bytes().len().checked_add(usize::from(parts.cut)).expect("count suffix fits");
             let prefix = name.len().checked_sub(suffix).expect("count is the phrase suffix");
             b.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
             b.open(Role::Text);
@@ -799,73 +817,118 @@ fn entries(
             b.close();
         }
         b.close();
-        if goals_shown(root, project) {
-            action(
-                b,
-                Role::Link,
-                &w.say(Word::Goals, &[]),
-                PageAct::Go { address: Address::Goals { project, filter: GoalsFilter::All } },
-                goals_current(root),
-                bindings,
-            );
-        }
+    }
+    if parts.work {
         action(
             b,
             Role::Link,
-            &w.say(Word::Chats, &[]),
-            PageAct::Go { address: Address::Chats { filter: ChatsFilter::All } },
-            chats,
+            &w.say(Word::RailWork, &[]),
+            PageAct::Go { address: Address::Work { project, filter: WorkFilter::All } },
+            work,
             bindings,
         );
     }
-    if let Some(me) = root.pages().me(root.client())
-        && jig_client::shapes::template(me, project, temper_client_domain::pages::chats::ASKING_TEMPLATE).is_some()
-    {
-        let name = w.say(Word::AskTitle, &[]);
-        crate::link(b, &name, bindings.insert(PageAct::Go { address: ask_address(root, project) }));
-        b.text(Run::Plain, &w.say(if tab { Word::AskTab } else { Word::AskTitle }, &[]));
+    if parts.ask {
+        crate::link(
+            b,
+            &w.say(Word::AskTitle, &[]),
+            bindings.insert(PageAct::Go { address: ask_address(root, project) }),
+        );
+        w.text(b, if tab { Word::AskTab } else { Word::AskTitle }, &[]);
         if root.pages().address() == &(Address::Ask { project }) || crate::pages::chat::asking(root) {
             b.state(skein_ui::State::Current);
         }
         b.close();
     }
-    if changes && !beginning {
+    if parts.how && !tab {
+        b.open(Role::Slot);
+        b.style(crate::look::RAIL_SEP);
+        b.close();
         action(
             b,
             Role::Link,
-            &w.say(Word::Changes, &[]),
-            PageAct::Go { address: Address::Changes { project } },
-            root.pages().address() == &(Address::Changes { project }),
+            &w.say(Word::SettingsHowTab, &[]),
+            PageAct::Go { address: Address::Settings { project } },
+            how,
             bindings,
         );
     }
 }
-
-fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
-    let name = w.say(crate::words::Word::RailSettings, &[]);
-    crate::link(b, &name, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
+fn new_box(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    parts: rail::Parts,
+) {
+    use crate::words::Word;
+    match parts.new {
+        rail::New::Hidden => return,
+        rail::New::Change | rail::New::DraftOrChange => {}
+    }
+    b.open(Role::Slot);
+    b.style(crate::look::RAIL_NEW);
+    match parts.new {
+        rail::New::Hidden => {}
+        rail::New::Change => action(
+            b,
+            Role::Link,
+            &w.say(Word::RailNewChange, &[]),
+            PageAct::Go { address: Address::NewChat { draft: false } },
+            false,
+            bindings,
+        ),
+        rail::New::DraftOrChange => {
+            b.open(Role::Menu);
+            b.name(&w.say(Word::RailNewDraftOrChange, &[]));
+            for (name, description, address) in [
+                (Word::DraftDraft, Word::RailDraftDescription, Address::NewChat { draft: true }),
+                (Word::DelegationLineChange, Word::RailChangeDescription, Address::NewChat { draft: false }),
+                (Word::AskTitle, Word::RailAskDescription, ask_address(root, project)),
+            ] {
+                if name == Word::AskTitle && !parts.ask {
+                    continue;
+                }
+                b.open(Role::MenuItem);
+                b.name(&w.say(name, &[]));
+                b.description(&w.say(description, &[]));
+                b.bind(bindings.insert(PageAct::Go { address }));
+                b.close();
+            }
+            b.close();
+        }
+    }
+    b.close();
+}
+fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
+    let name = w.say(crate::words::Word::RailDeployment, &[]);
+    crate::link(b, &name, bindings.insert(PageAct::Go { address: Address::Accounts }));
     b.text(Run::Plain, &name);
     let current = match root.pages().address() {
-        Address::Settings { .. }
+        Address::Accounts
+        | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Members
+        | Address::Limits
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. } => true,
+        Address::Home { .. }
+        | Address::Inbox { .. }
+        | Address::Work { .. }
+        | Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Chats { .. }
+        | Address::NewChat { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Ask { .. }
+        | Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
-        | Address::Accounts
-        | Address::ConnectModel { .. }
-        | Address::Forges
-        | Address::ConnectForge { .. }
-        | Address::Adopt { .. } => true,
-        Address::Chat { .. }
-        | Address::Ask { .. }
-        | Address::Goals { .. }
-        | Address::Changes { .. }
-        | Address::Home { .. }
-        | Address::Inbox { .. }
-        | Address::Chats { .. }
-        | Address::NewChat { .. }
-        | Address::Task { .. }
+        | Address::Adopt { .. }
         | Address::Welcome { .. } => false,
     };
     if current {

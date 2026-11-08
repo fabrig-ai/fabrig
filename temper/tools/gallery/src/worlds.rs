@@ -2,6 +2,10 @@
 //! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
 use temper_fixtures::client_documents as documents;
 mod chat_work;
+mod rail_work;
+pub(super) fn rail_work_world(name: &str, address: Address) -> Domain {
+    rail_work::world(name, address)
+}
 mod views;
 mod ways;
 pub(super) fn ways_world(name: &str) -> Domain {
@@ -4573,6 +4577,9 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        "rail-new-change" | "rail-all-projects" | "rail-across" | "work" | "work-pair" | "work-drafts"
+        | "work-goals" | "work-changes" | "work-empty" | "members" | "members-refused" | "limits"
+        | "limits-not-owner" | "night-work" | "night-limits" => rail_work::NOW,
         name if name.starts_with("approve-") => Wall::from_nanos(120_000_000_000),
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
