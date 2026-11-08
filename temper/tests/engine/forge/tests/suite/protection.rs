@@ -158,3 +158,58 @@ fn refresh_after_protected_write(world: &mut World, name: &str) {
         "{name}: refusal triggers refresh"
     );
 }
+
+#[test]
+fn a_protected_merge_holds_without_retrying() {
+    // A typed protection refusal holds the procedure (temper/docs/design/domain/forge.md, 6).
+    use temper_engine_domain_forge_change as change;
+    use temper_engine_forge_world::{
+        changes::{change_row, change_step},
+        translate,
+    };
+
+    let mut rule = protection(false, &[]);
+    rule.contexts = Box::new([]);
+    rule.approvals = 1;
+    let mut world = World::with_protection(15, rule, false);
+    world.adopt();
+    world.produce(b"temper/51");
+    world.status(b"temper/51", raw::Check::Passed);
+    let pull = world.open_pull(b"temper/51", b"main");
+    let head = translate::commit(world.branch(b"temper/51"));
+    let mut row = change_row();
+    row.pull = Some(pull);
+    row.change.last_head = Some(head);
+    row.change.since = world.wall();
+    row.change.state = change::State::First { head, ready_since: world.wall() };
+    row.change.owns_turn = true;
+    world.event(top::Event::Change { row });
+    assert!(matches!(
+        change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
+        change::Decision::Effect(change::Effect::Merge { .. })
+    ));
+    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else {
+        panic!("refused change");
+    };
+    assert!(
+        saved
+            .effect_account
+            .as_ref()
+            .expect("refused effect")
+            .words
+            .windows(b"forge protection refused the write".len())
+            .any(|words| words == b"forge protection refused the write")
+    );
+    assert_eq!(
+        change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
+        change::Decision::Hold(change::Hold::Failed)
+    );
+    assert_eq!(change_step(&mut world, 3, change::Status::Unknown, Box::new([])), change::Decision::None);
+    assert_eq!(world.writes(), 1, "the refused merge is never retried");
+    assert!(
+        !world
+            .observations()
+            .iter()
+            .any(|observation| matches!(observation, skein_fake_forge_domain::Observation::Merged { .. }))
+    );
+}

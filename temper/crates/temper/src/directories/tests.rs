@@ -1,6 +1,7 @@
 use super::*;
-use std::path::Path;
-fn args(values: &[&str]) -> Vec<Argument> {
+use std::path::{Path, PathBuf};
+
+fn args(values: &[&str]) -> Vec<Box<[u8]>> {
     values.iter().map(|s| Box::from(s.as_bytes())).collect()
 }
 pub(crate) fn scratch(name: &str) -> PathBuf {
@@ -23,16 +24,4 @@ pub(crate) fn given(root: &Path) -> Directories {
     )
     .expect("given")
     .0
-}
-#[test]
-fn a_missing_document_refuses_before_making_data_or_cache() {
-    let root = scratch("missing");
-    let dirs = given(&root);
-    assert_eq!(
-        dirs.read().expect_err("missing"),
-        format!("configuration {}: absent; temper init writes one", dirs.document().display())
-    );
-    assert!(!super::super::path(&dirs.data).exists());
-    assert!(!super::super::path(&dirs.cache).exists());
-    std::fs::remove_dir_all(root).expect("cleanup");
 }
