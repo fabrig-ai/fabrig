@@ -735,7 +735,7 @@ fn the_left_off_chats_are_ordered_and_bounded() {
                 line(8, b"Second", 3, false),
                 line(CHAT, b"Newest", 4, false),
             ][..],
-            &["Newest", "Second", "Older"][..],
+            &[("Newest", "00:00"), ("Second", "00:00"), ("Older", "00:00")][..],
         ),
         (
             "tie and bound",
@@ -745,16 +745,22 @@ fn the_left_off_chats_are_ordered_and_bounded() {
                 line(9, b"Higher", 2, false),
                 line(8, b"Lower", 2, false),
             ][..],
-            &["Lower", "Higher", "Third"][..],
+            &[("Lower", "00:00"), ("Higher", "00:00"), ("Third", "00:00")][..],
         ),
+        ("clock", &[line(CHAT, b"Morning", BRIEF_AT, false)][..], &[("Morning", "07:42")][..]),
     ] {
         let root = home(None, chats);
         let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
         assert_eq!(usize::try_from(part.left_off.len()).unwrap(), expected.len(), "{name} read bound");
+        for (index, (row, (_, at))) in part.left_off.iter().zip(expected).enumerate() {
+            assert_eq!(row.kind, launchpad::LeftKind::Chat { number: u32::try_from(index + 1).unwrap() }, "{name}");
+            assert_eq!(row.project.as_ref(), b"Hello", "{name}");
+            assert_eq!(row.at.as_ref(), at.as_bytes(), "{name}");
+        }
         let view = build(&root, &Tui::new(f::ADDRESS));
         let lines = left_off_lines(&view);
         assert_eq!(usize::try_from(lines.len()).unwrap(), expected.len(), "{name}");
-        for (line, title) in lines.iter().zip(expected) {
+        for (line, (title, _)) in lines.iter().zip(expected) {
             assert_eq!(
                 line.as_ref(),
                 skein_lib::bytes::concat(&[title.as_bytes(), " · waiting on you".as_bytes()]).as_ref(),
@@ -908,5 +914,113 @@ fn the_picked_left_off_row_has_its_mark_and_paint() {
         assert_eq!(row[0].paint.back, None);
         assert_eq!(row[79].paint.back, None);
         assert_eq!(row[12].paint.fore, Some(Rgb { red: 0x9a, green: 0x93, blue: 0x88 }));
+    }
+}
+
+#[test]
+fn the_launchpad_surface_follows_the_displayed_facts() {
+    use crate::{Event as E, Own};
+    let mut ordinary = Tui::new(f::ADDRESS);
+    for (name, page, words, list, expected) in [
+        ("need", SurfacePage::Home { brief: true, needs: true }, "", false, Some(E::Own { command: Own::Needs })),
+        ("words", SurfacePage::Home { brief: true, needs: true }, "words", false, None),
+        ("list", SurfacePage::Home { brief: true, needs: true }, "", true, None),
+        ("no need", SurfacePage::Home { brief: false, needs: false }, "", false, None),
+        ("chat", SurfacePage::Chat, "", false, None),
+    ] {
+        let mut root = surface_root(page);
+        f::event(
+            &mut root,
+            Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: words.as_bytes().into() }) },
+        );
+        if list {
+            f::event(
+                &mut root,
+                Event::Act {
+                    action: d::Action::Pages(d::pages::Act::Terminal(d::pages::terminal::Act::Run {
+                        command: d::pages::terminal::Command::Chats,
+                    })),
+                },
+            );
+        }
+        let view = build(&root, &ordinary);
+        assert_eq!(crate::walk_key(&view), expected, "{name}");
+    }
+    let root = home(None, &[line(OLDER_CHAT, b"Older", 1, false), line(CHAT, b"Newest", 2, false)]);
+    let view = build(&root, &ordinary);
+    for (number, expected) in [(0, None), (1, Some(CHAT)), (2, Some(OLDER_CHAT)), (3, None)] {
+        assert_eq!(crate::chat_number(&view, number), expected, "chat {number}");
+    }
+    for (name, page, selected, expected) in [
+        (
+            "chat selected",
+            SurfacePage::Home { brief: false, needs: false },
+            Some(CHAT),
+            Some(b"http://127.0.0.1:8367/chats/9".as_slice()),
+        ),
+        (
+            "home",
+            SurfacePage::Home { brief: false, needs: false },
+            None,
+            Some(b"http://127.0.0.1:8367/projects/1".as_slice()),
+        ),
+        (
+            "stale selection",
+            SurfacePage::Home { brief: false, needs: false },
+            Some(ENDED_CHAT),
+            Some(b"http://127.0.0.1:8367/projects/1".as_slice()),
+        ),
+        ("chat page", SurfacePage::Chat, None, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+        ("signed out", SurfacePage::SignedOut, None, None),
+    ] {
+        let root = surface_root(page);
+        ordinary.step(Told::LeftOff { task: selected });
+        assert_eq!(crate::focus(&build(&root, &ordinary)), expected, "{name}");
+    }
+    // The reader does not read goals yet; a goal is supplied as launchpad data.
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::LeftOff { task: Some(CHAT) });
+    let mut part = launchpad::read(&root, &tui, &f::words(), NOW);
+    part.left_off.get_mut(0).unwrap().kind = launchpad::LeftKind::Goal;
+    let mut view = build(&root, &tui);
+    let foot = foot::read(&root, &tui, &f::words(), NOW);
+    view::signed(&mut view, &view::Signed { body: view::Body::Launchpad(part), foot }, &mut Queue::uncapped());
+    assert_eq!(crate::focus(&view), Some(b"http://127.0.0.1:8367/tasks/9".as_slice()), "goal selected");
+    assert_eq!(crate::chat_number(&view, 1), None, "goals have no chat number");
+    let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
+    assert_eq!(
+        crate::event(&view, field.id, skein_ui::Act::Submit),
+        Some(E::Open { address: Box::from(*b"http://127.0.0.1:8367/tasks/9") })
+    );
+    for (name, page, expected) in [
+        ("brief and need", SurfacePage::Home { brief: true, needs: true }, Own::ALL.as_slice()),
+        ("neither", SurfacePage::Home { brief: false, needs: false }, &[Own::Change, Own::Ask, Own::Open][..]),
+        ("chat", SurfacePage::Chat, &[Own::Open][..]),
+        ("no project", SurfacePage::NoProject, &[][..]),
+        ("signed out", SurfacePage::SignedOut, &[][..]),
+    ] {
+        let root = surface_root(page);
+        assert_eq!(crate::offered_own(&root, &tui).as_ref(), expected, "{name}");
+    }
+    // Facts used by the keys and focus are replaced when a view is reused.
+    crate::build(&mut view, &tui, &f::signed_out(), NOW, &mut Queue::uncapped());
+    assert_eq!(crate::focus(&view), None);
+    assert_eq!(crate::walk_key(&view), None);
+    assert_eq!(crate::chat_number(&view, 2), None);
+}
+
+#[derive(Clone, Copy)]
+enum SurfacePage {
+    Home { brief: bool, needs: bool },
+    Chat,
+    NoProject,
+    SignedOut,
+}
+fn surface_root(page: SurfacePage) -> Domain {
+    match page {
+        SurfacePage::Home { brief, needs } => home_cards(Some(brief), &[line(CHAT, b"Chat", BRIEF_AT, false)], needs),
+        SurfacePage::Chat => question_root(),
+        SurfacePage::NoProject => f::live(Some(f::me(&[]))).0,
+        SurfacePage::SignedOut => f::signed_out(),
     }
 }

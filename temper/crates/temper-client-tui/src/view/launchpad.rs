@@ -33,10 +33,22 @@ pub(crate) struct Launchpad {
     pub tick: Option<Wall>,
 }
 #[derive(Debug)]
+#[cfg_attr(not(test), expect(dead_code, reason = "tui-launchpad draws the row's project and clock"))]
 pub(crate) struct LeftOff {
     pub task: u64,
+    pub project: Box<[u8]>,
     pub title: Box<[u8]>,
+    pub kind: LeftKind,
+    pub at: Box<[u8]>,
     pub state: Box<[u8]>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum LeftKind {
+    Chat {
+        number: u32,
+    },
+    #[cfg_attr(not(test), expect(dead_code, reason = "tui-launchpad reads the goal row"))]
+    Goal,
 }
 #[derive(Debug)]
 pub(crate) struct Line {
@@ -83,7 +95,7 @@ fn name(me: &c::Me, number: u32) -> Option<Box<[u8]>> {
     }
     None
 }
-fn left_off(root: &Domain, project: u32, me: &c::Me, words: &Words) -> List<LeftOff> {
+fn left_off(root: &Domain, project: u32, me: &c::Me, words: &Words, wall: Wall) -> List<LeftOff> {
     let mut lines = List::with_capacity(3);
     let tasks = match root.pages().chats() {
         Some(chats) => chats.live(root.client()),
@@ -92,7 +104,7 @@ fn left_off(root: &Domain, project: u32, me: &c::Me, words: &Words) -> List<Left
     let Some(tasks) = tasks else { return lines };
     // Three passes keep only the next line, without copying or sorting Home's rows.
     let mut previous: Option<&c::TaskLine> = None;
-    for _line in 0_u32..3 {
+    for place in 0_u32..3 {
         let mut newest: Option<&c::TaskLine> = None;
         for line in &tasks.rows {
             if line.project != project || chats::ended(&line.chip) {
@@ -115,6 +127,9 @@ fn left_off(root: &Domain, project: u32, me: &c::Me, words: &Words) -> List<Left
         lines
             .push(LeftOff {
                 task: line.chip.task,
+                project: name(me, project).expect("launchpad's project has a name"),
+                kind: LeftKind::Chat { number: place.checked_add(1).expect("three chat numbers") },
+                at: words.view().time(TimeForm::Clock, line.last_activity, wall).0,
                 title: copy_of(line.chip.title.bytes()),
                 state: shared::chat_state(line, me, words.view()),
             })
@@ -153,7 +168,7 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
             }
         }
     }
-    part.left_off = left_off(root, project, me, words);
+    part.left_off = left_off(root, project, me, words, wall);
     let count = match facts.needs {
         home::Needs::Unknown => 0,
         home::Needs::Count { count, .. } => count,
