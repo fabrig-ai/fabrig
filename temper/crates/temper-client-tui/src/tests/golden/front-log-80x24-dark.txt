@@ -1,0 +1,57 @@
+╭─ temper · Hello ─────────────────────────────────────────────────────── box ─╮
+│ csv-export is two of three tasks in; its last task is running.               │
+│                                            written by the status agent 10:12 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ Where you left off
+   csv-export · Working
+
+ /log
+   10:41:02 forgejo exited 1: database is locked
+   10:41:03 forgejo restarting, 2 of 5 within 10 min
+   10:41:05 forgejo listening on 127.0.0.1:8368
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯ Ask temper
+────────────────────────────────────────────────────────────────────────────────
+ / for commands · forgejo-3 restarting          Claude Opus 5.5 · high · ● Live
+--
+aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadddaaa
+a..............................................................................a
+a............................................ddddddddddddddddddddddddddddddddd.a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.cccccccccccccccccc.............................................................
+.............dddddddddd.........................................................
+................................................................................
+.cccc...........................................................................
+...ddddddddddddddddddddddddddddddddddddddddddddd................................
+...ddddddddddddddddddddddddddddddddddddddddddddddddd............................
+...dddddddddddddddddddddddddddddddddddddddddddd.................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+eeaaaaaaaaaa....................................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.dddddddddddddddddeeeeeeeeeeeeeeeeeeee..........dddddddddddddddddddddddddffffff.
+--
+a: fore #6A655C
+b: fore #E08A68 bold
+c: bold
+d: fore #9A9388
+e: fore #E08A68
+f: fore #8FC28F
+cursor 21 2

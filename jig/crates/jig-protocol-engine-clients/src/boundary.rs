@@ -101,6 +101,8 @@ pub enum Request {
     LocalLink {
         secret: Secret,
     },
+    /// The printed link signed a person in, made or kept, each time (protocol/client.md, 8).
+    LinkSignedIn,
     TakeMoved {
         exchange: Token,
         source: u32,
@@ -215,6 +217,8 @@ pub struct Settings {
     pub addresses: Box<[u16]>,
     pub link: Option<people::Identity>,
     pub link_secret: Option<Secret>,
+    /// The local link's first secret, drawn by startup (protocol/client.md, 8, *A secret given*).
+    pub local_secret: Option<Secret>,
     /// Whether the component holds sign-ins approved by a browser (protocol/client.md, 8).
     pub approval: bool,
     pub deployment_provider: u16,

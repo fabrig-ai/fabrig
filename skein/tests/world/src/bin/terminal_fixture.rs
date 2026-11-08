@@ -3,8 +3,17 @@ use skein_io::kernel::{Complete, Fd, Submit};
 use skein_io::{Event, Io, Limits, Request, Window};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Queue, Time, Token, Wall};
-use skein_shell::{Clock, Config, Host, Input, Keys, Watch, drive, open_signals, raw_input};
-use std::{collections::VecDeque, process::ExitCode};
+use skein_shell::{
+    Clock, Config, Host, Input, Keys, Watch, close_startup_fd, drive, open_signals, open_terminal, raw_input,
+    take_foreground,
+};
+use std::{
+    collections::VecDeque,
+    fs::File,
+    io::Read as _,
+    os::unix::process::CommandExt,
+    process::{Command, ExitCode},
+};
 
 struct Terminal {
     io: Io,
@@ -119,12 +128,49 @@ impl Host for Terminal {
 }
 fn main() -> ExitCode {
     skein_fail_stop::install();
+    match std::env::args().nth(1).as_deref() {
+        Some("child") => return child(),
+        Some("foreground") => {
+            let status = Command::new(std::env::current_exe().expect("the fixture's executable"))
+                .arg("child")
+                .process_group(0)
+                .status()
+                .expect("a child in its own process group");
+            if !status.success() {
+                return ExitCode::FAILURE;
+            }
+            let terminal = open_terminal().expect("the parent's controlling terminal");
+            take_foreground(terminal).expect("the parent takes its terminal back");
+            close_startup_fd(terminal);
+            eprintln!("back");
+        }
+        Some(_) | None => {}
+    }
     let Input::Terminal { kept, .. } = raw_input(Fd::new(0), Keys::Pass).expect("terminal input") else {
         return ExitCode::FAILURE;
     };
     let result = run();
     kept.restore().expect("startup modes restored after drive");
     result
+}
+fn child() -> ExitCode {
+    let terminal = open_terminal().expect("the child's controlling terminal");
+    take_foreground(terminal).expect("the child takes the terminal's foreground");
+    // The descriptor's alias makes a blocking File without an unsafe ownership conversion.
+    let mut input = File::open(format!("/dev/fd/{}", terminal.raw())).expect("the terminal as a blocking file");
+    let Input::Terminal { kept, .. } = raw_input(terminal, Keys::Pass).expect("the child's terminal modes") else {
+        close_startup_fd(terminal);
+        return ExitCode::FAILURE;
+    };
+    eprintln!("foreground");
+    let mut key = [0];
+    let result = input.read_exact(&mut key);
+    kept.restore().expect("the child restores its terminal modes");
+    drop(input);
+    close_startup_fd(terminal);
+    result.expect("one key from the terminal");
+    eprintln!("child key {}", char::from(key[0]));
+    ExitCode::SUCCESS
 }
 fn run() -> ExitCode {
     let limits = Limits { sockets: 3, intake: 8, receive: 1, output: 256, sends: 8, ..Limits::TEST };

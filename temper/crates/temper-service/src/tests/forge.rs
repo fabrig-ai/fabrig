@@ -939,7 +939,7 @@ fn a_refused_job_log_origin_is_visible_and_logged_once_until_restart() {
         Some(b"Job-log origin refused: https://unrelated.example.test:443".as_slice())
     );
     assert!(rows.rows[1].ended.is_none(), "diagnostics belong to one forge");
-    let bytes = crate::family::forges(rows, &temper_client_protocol_wire::v1::CEILINGS).unwrap();
+    let bytes = crate::family::forges(rows, false, &temper_client_protocol_wire::v1::CEILINGS).unwrap();
     assert!(temper_client_protocol_wire::decode_forges(&bytes, &temper_client_protocol_wire::v1::CEILINGS).is_some());
     engine.forge.origins.clear(1);
     assert!(engine.forge.origins.rows(engine.domain.forges()).rows[0].ended.is_none());

@@ -337,7 +337,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
             )
             .expect("row capacity");
     }
-    v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges")
+    v1::Forges::new(&limits, v1::ForgesParts { forges, linked: false }).expect("forges")
 }
 
 #[test]
@@ -371,10 +371,14 @@ fn each_forge_offer_round_trips() {
         .expect("forge row");
         forges.push(row).expect("three rows");
     }
-    let record = v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges");
-    let bytes = crate::forges(&record);
-    assert_eq!(crate::decode_forges(&bytes, &limits), Some(record));
-    assert_eq!(crate::decode_forges(&fixtures::trailing(&bytes), &limits), None);
+    for linked in [false, true] {
+        let record = v1::Forges::new(&limits, v1::ForgesParts { forges: forges.clone(), linked }).expect("forges");
+        let bytes = crate::forges(&record);
+        let decoded = crate::decode_forges(&bytes, &limits).expect("forges decode");
+        assert_eq!(decoded.linked(), linked);
+        assert_eq!(decoded, record);
+        assert_eq!(crate::decode_forges(&fixtures::trailing(&bytes), &limits), None);
+    }
 }
 
 #[test]
@@ -493,7 +497,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         .expect("schema row");
         let mut forges = List::with_capacity(1);
         forges.push(row).expect("one row");
-        let record = v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges }).expect("schema forges");
+        let record = v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges, linked: false }).expect("schema forges");
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), None);
     }
 }
@@ -546,12 +550,13 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
     let row = at.forges().get(0).expect("row");
     let length = at.measure().checked_add(row.measure()).expect("seventeen rows fit");
     let mut writer = skein_lib::Writer::new(usize::try_from(length).expect("length"));
-    writer.put(&4_u16.to_be_bytes()).expect("version");
+    writer.put(&u16::try_from(crate::CLIENT_VERSION).expect("version fits").to_be_bytes()).expect("version");
     writer.put(&17_u32.to_be_bytes()).expect("row count");
     for row in at.forges() {
         row.encode(&mut writer).expect("row bytes");
     }
     row.encode(&mut writer).expect("extra row bytes");
+    writer.put(&[u8::from(at.linked())]).expect("linked");
     assert_eq!(crate::decode_forges(&writer.finish(), &limits), None);
     for numbers in [&[2, 1][..], &[1, 1][..]] {
         let record = forges_rows(numbers, &v1::Connection::NotSetUp);
@@ -604,7 +609,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     .expect("forge row");
                     let mut forges = List::with_capacity(1);
                     forges.push(row).expect("one forge");
-                    let record = v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges");
+                    let record = v1::Forges::new(&limits, v1::ForgesParts { forges, linked: false }).expect("forges");
                     assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
                 }
             }
@@ -1437,7 +1442,7 @@ fn repository_makings_round_trip_at_the_bound_and_refuse_one_more() {
         if let Ok(row) = row {
             let mut rows = List::with_capacity(1);
             rows.push(row).unwrap();
-            let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows }).unwrap();
+            let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows, linked: false }).unwrap();
             let encoded = crate::forges(&record);
             assert_eq!(crate::decode_forges(&encoded, &limits), Some(record));
             let mut smaller = limits;
@@ -1593,7 +1598,7 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
         };
         let mut rows = List::with_capacity(1);
         rows.push(v1::ForgeRow::new(&limits, row).unwrap()).unwrap();
-        let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows }).unwrap();
+        let record = v1::Forges::new(&limits, v1::ForgesParts { forges: rows, linked: false }).unwrap();
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
     }
 }
