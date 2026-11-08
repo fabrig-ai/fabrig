@@ -548,6 +548,227 @@ fn task_report_selectors_render_complete_retained_continuations() {
 // temper/docs/design/protocol/configuration.md, 13.9; jig/docs/design/domain/people.md, 8.
 type PersonWorld = temper_engine_domain_world::forge_routes::World;
 
+// temper/docs/design/domain/agent.md, 4.3 and 4.4: reports reach the coordinator,
+// whose close-out words must carry them across the sibling read boundary.
+#[test]
+fn close_out_receives_complete_implementation_reports() {
+    use std::fmt::Write;
+    let (mut world, mut goal) = reference_person_world("none");
+    let mut handoff = String::from("Close out the plan.\n\n");
+    let mut producers = Vec::new();
+    for number in 1..=3 {
+        let spec = format!("Implement part {number}; change file{number} to fixed.");
+        let (change, producer) = close_out_change(&mut world, &goal, number, &spec, 2);
+        let mut report = format!("Implemented part {number}. Checks: focused passed.\n");
+        report.push_str(&"Report evidence. ".repeat(40));
+        report.push_str("\nLeft: document the retention caveat.\n");
+        close_out_land(&mut world, change, &producer, report.as_bytes());
+        let (read, pieces) = close_out_report(&mut world, &goal, producer.task);
+        assert_eq!(read, report, "handoff retains the whole report, including its tail");
+        assert!(pieces > 1, "report collection follows result continuations");
+        writeln!(handoff, "Change task {change}; producer task {}:\n{read}", producer.task).expect("report handoff");
+        handoff.push_str("Left disposition: retention caveat accepted as left for the next goal.\n\n");
+        producers.push((producer.task, report));
+    }
+    person_park(&mut world, &goal);
+    goal = person_assignment(&mut world, 5, Some(&goal));
+    let instructions = String::from_utf8_lossy(&goal.run.policy.instructions);
+    for rule in [
+        "collect complete implementation reports",
+        "field=result",
+        "next: OFFSET",
+        "each report's change and producer task numbers",
+        "every Left item and its disposition",
+        "in the close-out change's words",
+        "name the unavailable material as an unresolved gap",
+        "resolve the report gap before declaring close-out complete",
+        "exceed the work's bounds",
+        "do not silently truncate",
+    ] {
+        assert!(instructions.contains(rule), "coordinator report handoff requires: {rule}");
+    }
+    let (_, close_out) = close_out_change(&mut world, &goal, 10, &handoff, 7);
+    assert_close_out_reports(&close_out, &handoff, &producers);
+    // Let the main-branch watch observe all three merges before the restart oracle.
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll_max);
+    world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+    world.close();
+    let (mut world, goal) = reference_person_world("none");
+    let missing = format!(
+        "Close out the plan.\nUnresolved gap: producer task {} report unavailable; request it.",
+        producers[2].0
+    );
+    let (_, incomplete) = close_out_change(&mut world, &goal, 11, &missing, 7);
+    assert_close_out_reports(&incomplete, &missing, &[]);
+    world.close();
+}
+
+fn close_out_change(
+    world: &mut PersonWorld,
+    goal: &engine::Assignment,
+    number: u32,
+    words: &str,
+    charter: u32,
+) -> (u64, engine::Assignment) {
+    let input = serde_json::to_vec(&serde_json::json!({"words":words,"producer":charter,"questions":"up"}))
+        .expect("change input");
+    let call = person_tool(goal, number, b"change", &input);
+    let engine::CallAnswer::Delegated(made) = world.scripted_call(goal, u64::from(number), call.tool) else {
+        panic!("change delegated")
+    };
+    let change = made[0].task;
+    for _ in 0..200 {
+        world.tick();
+        if let Some(run) = world.assigned.iter().rev().find(|run| {
+            run.charter == charter
+                && world.root.tasks().task(run.task).is_some_and(|row| row.requester == tasks::Party::Task(change))
+        }) && world.store.pending.is_empty()
+        {
+            return (change, run.clone());
+        }
+    }
+    panic!("change {change} producer assigned");
+}
+
+fn person_end(world: &mut PersonWorld, run: &engine::Assignment, end: tasks::End) {
+    world.scripted_read_inbox(run);
+    let turns = world.root.tasks().task(run.task).expect("finishing run").turn;
+    let mut event = world.protocol.answer(Token::new(7), run.task, run.attempt, 0, end, engine::Parts::none());
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Up { up: host::LinkUp::Answer { answer, .. }, .. },
+        ..
+    }) = &mut event
+    else {
+        panic!("worker answer")
+    };
+    answer.turns = turns;
+    world.send(event);
+}
+
+fn close_out_push(world: &mut PersonWorld, producer: &engine::Assignment) {
+    use skein_fake_forge_domain::{self as fake, api as raw};
+    let branch = producer.workspace.repositories[0].push.clone().expect("producer branch");
+    let raw::Answer::Commit(head) =
+        world.external(1, raw::Op::Read(raw::Read::Branch { branch: b"main".as_slice().into() }))
+    else {
+        panic!("main head")
+    };
+    world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: head }));
+    let pushed =
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1).expect("push");
+    world.external(
+        1,
+        raw::Op::Write(raw::Write::Status {
+            commit: pushed,
+            context: b"build".as_slice().into(),
+            state: raw::Check::Passed,
+            description: b"focused passed".as_slice().into(),
+            link: Box::new([]),
+        }),
+    );
+}
+
+fn close_out_land(world: &mut PersonWorld, change: u64, producer: &engine::Assignment, report: &[u8]) {
+    use temper_engine_domain_forge as forge;
+    close_out_push(world, producer);
+    let before = world.assigned.len();
+    person_end(
+        world,
+        producer,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                title: tasks::ChangeTitle::new(b"Implementation".as_slice().into()),
+                connector: 1,
+                kind: 2,
+                resource: forge::tag(1, 2),
+                words: report.into(),
+            },
+            cancel_delegates: false,
+        },
+    );
+    for _ in 0..200 {
+        world.tick();
+        if let Some(gate) = world.assigned.get(before).cloned() {
+            assert_eq!(gate.charter, 4);
+            person_end(
+                world,
+                &gate,
+                tasks::End::Finished {
+                    result: tasks::TaskResult::Verdict {
+                        code: 1,
+                        fields: Box::new([]),
+                        words: b"approved".as_slice().into(),
+                    },
+                    cancel_delegates: false,
+                },
+            );
+            break;
+        }
+    }
+    for _ in 0..200 {
+        world.tick();
+        if world.store.rows.values().any(|stored| matches!(stored,
+            engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::Change(row)
+                if row.task == change && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
+        )) && world.store.pending.is_empty() {
+            return;
+        }
+    }
+    panic!("implementation change {change} landed");
+}
+
+fn close_out_report(world: &mut PersonWorld, goal: &engine::Assignment, producer: u64) -> (String, u32) {
+    let mut report = String::new();
+    for piece in 0..20 {
+        let input = format!(r#"{{"task":{producer},"field":"result","from":{}}}"#, report.len());
+        let number = 100 + u32::try_from(producer).expect("fixture task") * 20 + piece;
+        let call = person_tool(goal, number, b"read_task", input.as_bytes());
+        let answer = world.scripted_call(goal, u64::from(number), call.tool);
+        let rendered = temper_engine_smith::answer_bounded(&answer, 256);
+        assert!(!rendered.error(), "{}", String::from_utf8_lossy(rendered.text()));
+        let text = String::from_utf8_lossy(rendered.text());
+        let label = format!("Result from {}:\n", report.len());
+        let body = text.split_once(&label).expect("report result label").1;
+        if let Some((words, next)) = body.rsplit_once("\nnext: ") {
+            report.push_str(words);
+            assert_eq!(next.parse::<usize>().expect("continuation offset"), report.len());
+        } else {
+            report.push_str(body);
+            return (report, piece + 1);
+        }
+    }
+    panic!("complete report within twenty pieces");
+}
+
+fn assert_close_out_reports(run: &engine::Assignment, handoff: &str, reports: &[(u64, String)]) {
+    let words = run
+        .sections
+        .iter()
+        .filter_map(|section| match &section.body {
+            engine::BriefBody::Text(bytes) => Some(String::from_utf8_lossy(bytes)),
+            engine::BriefBody::Missing(_) => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(words.contains(handoff), "producer receives the complete handoff");
+    for (task, report) in reports {
+        assert!(words.contains(&format!("producer task {task}:\n{report}")));
+        assert!(words.contains("Left disposition: retention caveat accepted as left for the next goal."));
+    }
+    let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
+    for rule in [
+        "complete implementation reports in your words",
+        "Task numbers alone grant no report access",
+        "missing, cut or incomplete report is an unresolved gap",
+        "ask your requester with `message`",
+        "do not conclude that no gaps remain",
+        "Specifications and landed diffs cannot replace reports or their Left lists",
+        "handoff exceeds the work's bounds",
+    ] {
+        assert!(instructions.contains(rule), "close-out report review requires: {rule}");
+    }
+}
+
 #[test]
 fn reference_goal_person_question_round_trip() {
     for missing in ["rules", "project", "creator", "none", "existing"] {
@@ -984,19 +1205,7 @@ fn person_assignment(world: &mut PersonWorld, charter: u32, after: Option<&engin
 }
 
 fn person_park(world: &mut PersonWorld, run: &engine::Assignment) {
-    world.scripted_read_inbox(run);
-    let turns = world.root.tasks().task(run.task).expect("live run").turn;
-    let mut event =
-        world.protocol.answer(Token::new(7), run.task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
-    let engine::Event::Worker(engine::WorkerInput::Link {
-        link: engine::Link::Up { up: host::LinkUp::Answer { answer, .. }, .. },
-        ..
-    }) = &mut event
-    else {
-        panic!("wait ends run")
-    };
-    answer.turns = turns;
-    world.send(event);
+    person_end(world, run, tasks::End::Parked);
     world.until(temper_engine_domain_world::forge_routes::Until::Ready);
 }
 

@@ -115,6 +115,30 @@ fn forty_eight_calls_per_response_derive_with_two_models() {
 }
 
 #[test]
+fn child_answers_follow_the_declared_piece_through_receiving_and_rendering() {
+    for (payload, output, answer_bytes) in [(256, 512, 4096), (10_662, 8_192, 10_662), (63_740, 48_000, 63_740)] {
+        let mut selected = profile();
+        selected.declared.tool_payload = payload;
+        let mut configuration = declarations();
+        configuration.endpoints[0].limits.window = 1_048_576;
+        configuration.endpoints[0].limits.output = output;
+        let limits = super::derive(&selected, &configuration).expect("survey profile derives");
+        let run = limits.domain.run;
+        let feedback = limits.domain.session.delegated_result_bytes;
+        assert_eq!(run.answer_bytes, answer_bytes);
+        assert_eq!(feedback, smith_domain::feedback_bound(&run).expect("complete delegated feedback"));
+        assert!(feedback > u64::from(answer_bytes), "feedback holds the answer and its marker and usage");
+        assert!(u64::from(limits.channel.transcript.text_text) >= u64::from(answer_bytes));
+        assert!(u64::from(limits.channel.transcript.said_text) >= feedback);
+        assert!(
+            u64::from(limits.llm.translation.rendered_result)
+                >= feedback + u64::from(smith_protocol_llm::CUT_MARKER_BYTES),
+            "rendering holds complete feedback and its overflow marker"
+        );
+    }
+}
+
+#[test]
 fn a_turn_holds_a_reasoning_block_at_the_completions_share() {
     use smith_transcript::{Opaque, OpaqueParts};
     let selected = standard();
