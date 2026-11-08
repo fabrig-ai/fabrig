@@ -28,8 +28,8 @@ and saved work remain, no try or backoff is charged by the interruption,
 and the task is due again. Jobs retain their claims for restart recovery.
 
 Sections 7.1, 7.2, 7.4 and 9 have no known gap in selecting a charter's
-parts from a run's reasons, retaining the prepared offering through a
-claim, or taking only offered messages at a turn's fence. Later runs
+parts from a run's reasons or taking only offered messages at a turn's
+fence, beyond the **Not yet** entries below. Later runs
 take `later`, reselecting the kept account when its provider changes;
 charter documents still reach every run. The core-world per-wake table
 covers first and later instructions and choices, a kept question,
@@ -72,6 +72,14 @@ and catalogue-number reuse remain section 16's open questions.
 
 
 ## Gaps and departures
+
+- **Not yet:** 7.1: a message or an entry that arrives between a run's
+  preparation and its claim, and would add to its reasons, is kept back
+  rather than preparing the run again. 7.4: a finish while the task's
+  delegates are live fails its attempt invalid rather than parking it; an
+  entry left undecided under a covering part wakes the task again. 8: an
+  invalid start other than a transcript's is the invalid class, not the
+  permanent one.
 
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
