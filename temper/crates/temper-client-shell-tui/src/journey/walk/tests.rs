@@ -2,8 +2,7 @@ use super::*;
 use crate::host::{Duties, Host, Report};
 use crate::journey::{Facts, Recorder};
 use jig_client::{Message, Request};
-use jig_client_protocol_wire as w;
-use skein_lib::{Duration, List, Reader, Time, Token, Wall, Writer};
+use skein_lib::{Time, Token, Wall};
 use skein_ui_screen::Size;
 use temper_client_tui::Scheme;
 
@@ -87,6 +86,8 @@ impl World {
             size: Size { rows: 24, columns: 80 },
             scheme: Scheme::Dark,
             address: b"127.0.0.1:8367".as_slice().into(),
+            local: false,
+            note: None,
             kept: Vec::new(),
             credential: None,
         };
@@ -168,79 +169,13 @@ fn approval_saves() -> [Box<[u8]>; 3] {
     [initial, waiting, world.save()]
 }
 
-fn stream(world: &mut World, event: &w::StreamEvent) -> Duties {
-    let mut writer = Writer::new(usize::try_from(event.measure()).expect("stream size"));
-    event.encode(&mut writer).expect("stream fits");
-    world.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(writer.finish()) }))
-}
-
 fn connect(world: &mut World) {
-    let limits = &w::CEILINGS;
-    let mut served = List::with_capacity(1);
-    served
-        .push(
-            w::Served::new(limits, w::ServedParts { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION })
-                .expect("Jig version"),
-        )
-        .expect("one owner");
-    let hello = w::StreamEvent::Hello(
-        w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
-    );
-    let duties = stream(world, &hello);
-    let watch = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-                let open = w::Open::decode(limits, &mut Reader::new(bytes)).expect("watch request");
-                if open.subject().owner() == &w::Owner::Jig
-                    && w::Subject::decode(limits, &mut Reader::new(open.subject().record())).expect("Jig subject")
-                        == w::Subject::Me
-                {
-                    return Some(open.watch());
-                }
-            }
-            None
-        })
-        .expect("Me watch");
-    let text = |bytes: &[u8]| {
-        w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes.into(), cut: false }).expect("text")
-    };
-    let me = w::Me::new(
-        limits,
-        w::MeParts {
-            party: w::MeParty::new(
-                limits,
-                w::MePartyParts { number: 7, kind: w::PartyKind::Person, login: text(b"owner"), name: text(b"Owner") },
-            )
-            .expect("party"),
-            projects: Box::new([]),
-            needs: w::Needs::new(limits, w::NeedsParts { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 })
-                .expect("needs"),
-            needs_total: 0,
-            updates: w::Count::new(limits, w::CountParts { value: 0, limited: false }).expect("count"),
-            results_seen: 0,
-            cut: false,
-            retention: Duration::from_secs(1000),
-            deployment_role: None,
-            providers: Box::new([]),
-            providers_cut: false,
-            key_bytes: 256,
-            redirect_bytes: 256,
-            words_bytes: 8192,
-        },
-    )
-    .expect("Me");
-    let value = w::DeliveryValue::Me(me);
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("Me size"));
-    value.encode(&mut writer).expect("Me fits");
-    let document =
-        w::Owned::new(limits, w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() })
-            .expect("Me document");
-    let delivery =
-        w::StreamEvent::Delivery(w::Delivery::new(limits, w::DeliveryParts { watch, document }).expect("delivery"));
-    stream(world, &delivery);
+    let duties = world.report(Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(crate::host::tests::hello_bytes()),
+    }));
+    world.report(Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(crate::host::tests::me_bytes(&duties)),
+    }));
 }
 
 fn written(records: &[Line]) -> Box<[u8]> {
@@ -250,7 +185,6 @@ fn written(records: &[Line]) -> Box<[u8]> {
     }
     bytes.into()
 }
-
 fn key(key: Key) -> Line {
     Line::Key { key, event: None }
 }

@@ -30,7 +30,7 @@ a..............................................................................a
 a..............................................................................a
 a.ccccccccccccccccccccccccccc..................................................a
 a.cccccccccccccccccccccccccccccccccccccccccc...................................a
-a.ddddddddeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedddddddddddddd.....a
+a.ddddddddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadddddddddddddd.....a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
@@ -46,12 +46,10 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
 ................................................................................
-.cccccccccccccc....................................................ffffffffffff.
+.cccccccccccccc....................................................dddddddddddd.
 --
-a: fore #B5AEA3 back #FFFEFD
-b: fore #B8664E back #FFFEFD bold
-c: fore #7A736A back #FFFEFD
-d: fore #34312C back #F4F0E9
-e: fore #B5AEA3 back #F4F0E9
-f: fore #B8664E back #FFFEFD
+a: fore #B5AEA3
+b: fore #B8664E bold
+c: fore #7A736A
+d: fore #B8664E
 cursor 7 10

@@ -1681,7 +1681,17 @@ temper box
 
   It signs you in as this temper's owner, once, within 2 hours.
   Opened after that, it prints a fresh one here.
+  In a terminal: temper http://127.0.0.1:8367
   ```
+
+  The last line names the TUI's command (`../client/README.md`, 6.11) at
+  the link's own origin, its `http://HOST:PORT`, for a terminal that
+  finds no engine's link file (`../client/README.md`, 6.12): the word
+  that runs this binary, `temper` where `temper` on `PATH` is this
+  binary and its path otherwise, `~` for the home directory, then the
+  origin.
+  It is the first block's alone, on stderr with the lines around it; a
+  fresh link is printed as below.
 
   The box draws the link's secret as jig's sign-in component draws one
   (jig's `protocol/client.md`, section 8): 32 bytes from the platform's

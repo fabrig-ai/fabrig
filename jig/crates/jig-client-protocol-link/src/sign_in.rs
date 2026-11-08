@@ -4,11 +4,15 @@ use crate::{
     component::{Attempt, ExchangeKind},
 };
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{Queue, Reader, Secret, Token, Writer};
+use skein_lib::{Queue, Reader, Secret, Token, Wall, Writer};
 impl Link {
     #[must_use]
     pub fn credential(&self) -> Option<&Secret> {
         self.credential.as_ref()
+    }
+    #[must_use]
+    pub fn expires(&self) -> Option<Wall> {
+        self.expires
     }
     pub(super) fn sign_in(&mut self, with: With, out: &mut Queue<Request>) {
         self.cancel_approval_take();
@@ -136,6 +140,7 @@ impl Link {
                         let fields = value.into_parts();
                         self.end_sign_in(out);
                         self.credential = fields.token.or(held);
+                        self.expires = Some(Wall::from_nanos(fields.expires));
                         self.generation = self.generation.saturating_add(1);
                         Signing::SignedIn { party: fields.party }
                     }
@@ -143,8 +148,8 @@ impl Link {
                     Ok(w::SignInAnswer::Busy) if reader.remaining() == 0 => Signing::Busy,
                     Ok(w::SignInAnswer::Full(value)) if reader.remaining() == 0 => Signing::Full {
                         sign_ins: value.sign_ins(),
-                        earliest: skein_lib::Wall::from_nanos(value.earliest()),
-                        link_until: skein_lib::Wall::from_nanos(value.link_until()),
+                        earliest: Wall::from_nanos(value.earliest()),
+                        link_until: Wall::from_nanos(value.link_until()),
                     },
                     Ok(w::SignInAnswer::LinkUsed) if reader.remaining() == 0 => Signing::LinkUsed,
                     Ok(w::SignInAnswer::LinkExpired) if reader.remaining() == 0 => Signing::LinkExpired,
@@ -207,6 +212,7 @@ impl Link {
                 let fields = value.into_parts();
                 self.end_sign_in(out);
                 self.credential = fields.token;
+                self.expires = Some(Wall::from_nanos(fields.expires));
                 self.generation = self.generation.saturating_add(1);
                 Signing::SignedIn { party: fields.party }
             }
@@ -219,8 +225,8 @@ impl Link {
             w::ApprovalSignInAnswer::Busy => Signing::Busy,
             w::ApprovalSignInAnswer::Full(value) => Signing::Full {
                 sign_ins: value.sign_ins(),
-                earliest: skein_lib::Wall::from_nanos(value.earliest()),
-                link_until: skein_lib::Wall::from_nanos(value.until()),
+                earliest: Wall::from_nanos(value.earliest()),
+                link_until: Wall::from_nanos(value.until()),
             },
         }
     }

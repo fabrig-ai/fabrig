@@ -637,7 +637,14 @@ handles, as every presentation does (sections 7 and 8).
 
   Beside its state, the link names the party confirmed, each declared
   owner whose version the last hello does not serve (below), and a
-  sign-out that did not reach the engine (section 12). A stream refused
+  sign-out that did not reach the engine (section 12). It names too the
+  expiry of the sign-in it holds, `expires`, a wall time, as the last
+  sign-in's answer said it (`../../protocol/client.md`, section 8): a
+  sign-in made or kept by a link, a service's credential or an
+  approval's take. It is none for a credential given `Held` until a
+  sign-in's answer names one, and none once signed out, the credential
+  dropped with it; so an application that keeps a sign-in across its own
+  restart keeps its expiry beside its credential, as it likes. A stream refused
   full adds `streams_full { bound, size }`, naming the component or
   transport bound (`../../protocol/client.md`, 4 and 17.2). `Link(state)`
   tells the caller when this fact arrives even if the state is unchanged;

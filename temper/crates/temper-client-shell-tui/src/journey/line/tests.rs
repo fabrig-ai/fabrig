@@ -3,7 +3,7 @@ use jig_client::Message;
 use skein_lib::{Time, Token, Wall};
 use skein_ui_screen::Size;
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::Scheme;
+use temper_client_tui::{Note, Scheme};
 
 fn bytes(text: &[u8]) -> Box<[u8]> {
     text.into()
@@ -27,6 +27,15 @@ fn records_have_their_exact_text_and_round_trip() {
         (Line::Screen { size: Size { rows: 24, columns: 80 }, scheme: Scheme::Dark }, b"screen 24 80 dark\n"),
         (Line::Screen { size: Size { rows: 0, columns: u16::MAX }, scheme: Scheme::Light }, b"screen 0 65535 light\n"),
         (Line::Address(bytes(b"localhost:8367")), b"address \"localhost:8367\"\n"),
+        (Line::Local, b"local\n"),
+        (Line::Noted(Note::Until(Wall::EPOCH)), b"noted until 0\n"),
+        (Line::Noted(Note::Until(Wall::from_nanos(u64::MAX))), b"noted until 18446744073709551615\n"),
+        (Line::Noted(Note::SignedOut), b"noted signed-out\n"),
+        (Line::Found(None), b"found none\n"),
+        (Line::Found(Some(bytes(b"http://127.0.0.1:8367/link"))), b"found \"http://127.0.0.1:8367/link\"\n"),
+        (Line::Note(Note::Until(Wall::from_nanos(300_000_000_000))), b"note until 300000000000\n"),
+        (Line::Note(Note::SignedOut), b"note signed-out\n"),
+        (Line::Read, b"read\n"),
         (Line::Stored { key: bytes(b"key"), bytes: bytes(b"value") }, b"stored \"key\" \"value\"\n"),
         (Line::Credential(bytes(b"")), b"credential \"\"\n"),
         (
@@ -159,6 +168,16 @@ fn unreadable_rows_name_their_line() {
         ("unknown opened", b"opened other\n", "unknown outcome"),
         ("unknown message", b"send 0 other \"\" none\n", "unknown message kind"),
         ("unknown optional", b"stream other\n", "expected bytes or none"),
+        ("unknown start note", b"noted other\n", "unknown note"),
+        ("unknown note", b"note other\n", "unknown note"),
+        ("note missing time", b"noted until\n", "expected field"),
+        ("note overflow", b"note until 18446744073709551616\n", "number overflow"),
+        ("note leading zero", b"noted until 01\n", "invalid number"),
+        ("signed out extra", b"note signed-out 0\n", "extra field"),
+        ("found missing", b"found\n", "expected field"),
+        ("found invalid", b"found other\n", "expected bytes or none"),
+        ("local fields", b"local extra\n", "extra field"),
+        ("read fields", b"read extra\n", "extra field"),
         ("missing field", b"seed\n", "expected field"),
         ("extra field", b"start extra\n", "extra field"),
         ("seed overflow", b"seed 18446744073709551616\n", "number overflow"),
