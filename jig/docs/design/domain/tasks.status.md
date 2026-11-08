@@ -30,9 +30,7 @@ Section 7's next-turn LLM amendments have no known gap, including silent
 LLM-only amendments, the durable live-run mark and a stop whose terminal
 parks without spending a try.
 
-- **Not yet:** 5.5: a start its host refused before the run's first turn
-  is the invalid class (`jig-domain-hub-link`'s `payload::ending`), where
-  the section has it permanent. 5.6: an agent run's finish while its
+- **Not yet:** 5.6: an agent run's finish while its
   task's delegates are live is refused, and the core fails its attempt
   invalid (`jig-domain-core`'s `route_refused_payload`), where the section
   has it park. 8.1, 8.3, 8.6, 9: an entry a run was offered under a
