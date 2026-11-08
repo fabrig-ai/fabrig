@@ -59,10 +59,23 @@
     shared running line says "✦ Working", rather than the frames'
     "waiting on your words" and "✦ working", so both clients use their
     shared words. Active commands carry the focus mark and accent over
-    their band, as every options list does. The header and chat top line
-    have no blank row before the body, and the chat top line has one
-    column of padding at either end. These are the landing account's
+    the band where the theme has one, as every options list does. The
+    header has no blank row before the body. These are the landing account's
     explained differences; real-terminal refinement remains
     `../client/README.md`, section 11's after-landing check.
+  - 3, 4.4 and 5: the user's requests of 2026-11-08, from a walk on
+    their own box (emacs vterm, 150 by 39, a solarized-dark ground), and
+    the look request `tui-chat-title-below` (plan `tui-launchpad-2`):
+    while the launchpad's box is empty, Up and Down move through up to
+    three chats under "Where you left off" and Enter opens the one
+    selected; `/effort` is offered wherever `/model` is, the launchpad
+    included, its choice taken by the chat the box starts; the person's
+    words lie on a band one step in lightness from the terminal's own
+    answered background, or, with no answer, in the dim colour after an
+    accent "❯", the palette keeping no `sel`; a Markdown bullet is "•",
+    never "✦"; and a chat's title, cut to 20 characters at a word, with
+    its number and the engine's place ("box", "box:PORT" or `HOST:PORT`,
+    the box told by the engine's link file), is in the rule above the box
+    rather than a top line (`../client/README.md`, 6.12 to 6.15).
 - **Open:**
   - 3: the side pane, needs from elsewhere, the hand-offs and a checkout's project, refined on recorded frames as the launchpad and a chat were.

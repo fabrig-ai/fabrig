@@ -2,6 +2,13 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 3.2: the start's `background` and `box` facts, which the
+  recorder does not write and the replay does not read (plan
+  `tui-launchpad-2`). 9: `launchpad-chat`'s frames draw the chat's top
+  line and the `sel` band, not the rule above the box and the dim
+  person's words of `../README.md`, 6.14 and 6.15, until it is recorded
+  again.
+
 No known implementation gap. Sections 2 to 8 have recording, shipped-host
 replay, proof, shared redaction and scan, themed prints and generation.
 Section 8.2's browser-format setup follows its browser journey before the

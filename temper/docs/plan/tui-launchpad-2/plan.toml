@@ -3,3 +3,36 @@ repo = "fabrig"
 sources = ["temper/docs/plan/tui-launchpad-2/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/tui/journeys.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "rule-title"
+title = "skein's renderer lays an end-only title in a rule, two glyphs across from its end"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-screen.md, 5.2"
+
+[[part]]
+id = "look"
+title = "The TUI's band from the terminal's own ground, /effort on the launchpad, Markdown bullets, and the plan's shared surface"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.15"
+
+[[part]]
+id = "seam"
+title = "The TUI's start carries the terminal's background and whether it is on a box, recorded and replayed"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.13"
+
+[[slice]]
+id = 1
+story = "The launchpad and a chat as the user asked on 2026-11-08: the band on any ground, /effort on the launchpad, a bullet's dot, the box known from its link file"
+parts = ["rule-title", "look", "seam"]
+walk = false
