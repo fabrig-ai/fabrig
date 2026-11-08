@@ -64,11 +64,21 @@ No compatibility is kept: none is owed before v0.1.0.
 | `tui-surface` | screen-entries, view-shared | temper-client-tui (events, state, names, themes, words, view parts) | 5 | 210 |
 | `tui-foot` | tui-surface, view-lists, screen-entries | temper-client-tui (`view/foot.rs`: running line, box, quiet line, lists) | 6 | 240 |
 | `tui-launchpad` | tui-foot | temper-client-tui (`view/launchpad.rs`), the joint world's TUI story's words | 7 | 180 |
+| `tui-chat` | tui-foot, view-lists | temper-client-tui (`view/chat.rs`), temper-client-view (`shared::working`) | 7 | 240 |
+| `host-launchpad` | tui-surface, domain-home | temper-client-shell-tui (`host.rs`: look, navigation, acts) | 6 | 210 |
+| `joint` | host-launchpad, tui-launchpad, tui-chat | temper/tests/client (the TUI's launchpad asking temper) | 8 | 150 |
+| `again` | journey-setup, tui-launchpad, tui-foot, tui-chat, host-launchpad, joint | the TUI's journeys recorded; the account | 9 | 150 |
 
-The TUI's view, host and shared words, the domain's change, the joint story and the
-journeys follow in later batches.
+Waves are as fab starts them once their needs merge: skein's chain (`screen-looks`,
+`screen-lists`, `screen-label`, `screen-entries`) beside `view-shared`, `domain-home` and
+`journey-setup`; then `view-lists`; `tui-surface`; `tui-foot` beside `host-launchpad`;
+`tui-launchpad` beside `tui-chat`, in files of their own; `joint`; `again` last, whose
+last commit carries the account (`notes/account.md`).
 
 ## Critical path
 
-`screen-looks` → `screen-lists` → the TUI's view → its host → the journeys recorded
-again, with the account in the last commit.
+`screen-looks` (150) → `screen-lists` (210) → `screen-label` (60) → `screen-entries`
+(120) → `tui-surface` (210) → `tui-foot` (240) → `tui-chat` (240) → `joint` (150) →
+`again` (150): about 1,530 implementer-minutes end to end, the skein chain first. The
+temper side's early tasks (`view-shared`, `view-lists`, `domain-home`, `host-launchpad`)
+run beside it and are off the path.

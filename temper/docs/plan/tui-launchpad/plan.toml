@@ -150,3 +150,55 @@ id = 11
 story = "Signed in on a project, the TUI draws temper · PROJECT with the address at the border's end, the brief and its byline, where you left off and what needs you over the foot; with no project, no brief, nothing needing you, offline or narrow, as the design says"
 parts = ["tui-launchpad"]
 walk = false
+
+[[part]]
+id = "tui-chat"
+title = "The TUI's chat: its top line and its conversation read as the browser's chat terminal reads it, following its end"
+mode = "direct"
+needs = ["tui-foot", "view-lists"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 12
+story = "On a chat the TUI draws ✦ PROJECT / TITLE TN with the address, the person's words on a band after ❯, a run's line under ▸ with its time, the answer after ✦ growing whole with its end and numbered lists, and follows its end"
+parts = ["tui-chat"]
+walk = false
+
+[[part]]
+id = "host-launchpad"
+title = "The TUI's host: the terminal's look at start, the launchpad at the person's first project, the root's shows followed, and the TUI's events as the root's acts"
+mode = "direct"
+needs = ["tui-surface", "domain-home"]
+design = "temper/docs/design/client/README.md, 6.13"
+
+[[slice]]
+id = 13
+story = "In the host's world, a signed-in start gives the root the terminal's look, goes to Home of the first project, sends a question from the box as Ask temper's new chat and follows the root to it; /theme redraws in the other scheme; /exit closes"
+parts = ["host-launchpad"]
+walk = false
+
+[[part]]
+id = "joint"
+title = "The client's joint world proves the TUI's launchpad asking temper and the chat's answer drawn"
+mode = "direct"
+needs = ["host-launchpad", "tui-launchpad", "tui-chat"]
+design = "temper/docs/design/client/README.md, 10"
+
+[[slice]]
+id = 14
+story = "In the joint world, a signed-in TUI opens on its project's launchpad, a question typed and sent opens an Ask temper chat, and the chat's answer is drawn"
+parts = ["joint"]
+walk = false
+
+[[part]]
+id = "again"
+title = "sign-in-approved recorded again to the launchpad, launchpad-chat recorded on a fake box set up to Hello, and the request's account in the last commit"
+mode = "direct"
+needs = ["journey-setup", "tui-launchpad", "tui-foot", "tui-chat", "host-launchpad", "joint"]
+design = "temper/docs/design/client/tui/journeys.md, 9"
+
+[[slice]]
+id = 15
+story = "temper-client-journeys again records sign-in-approved ending on the launchpad of a box with no project, and launchpad-chat from Hello's launchpad through the commands to Ask temper's answer; the last commit carries the account"
+parts = ["again"]
+walk = false
