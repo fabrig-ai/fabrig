@@ -7,9 +7,6 @@ hangup ignored at startup, or `Kept::on_abort` restoring the terminal
 before a panic's report. The macOS build and runtime gaps in section 9
 below remain; the Linux tests do not prove the Darwin arms.
 
-- **Not yet:** 6: a panic's report closing with its `panicked at` line
-  and message after the backtrace: `skein-fail-stop` writes them once,
-  before it (`skein-fail-stop/src/lib.rs`, `install`).
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
   startup. 6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
