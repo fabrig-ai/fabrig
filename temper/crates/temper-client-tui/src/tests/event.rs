@@ -35,3 +35,19 @@ fn each_act_is_its_event() {
     f::build(&mut sign_in, &tui, &f::live(Some(f::me(&[]))).0);
     assert_eq!(crate::event(&sign_in, field, Act::Submit), None);
 }
+
+#[test]
+fn arrows_leave_every_screen_to_the_key_reader() {
+    use temper_client_domain::{Address, Event as DomainEvent, Place};
+    let mut launchpad = f::live(Some(f::me(&[b"Hello"]))).0;
+    f::event(&mut launchpad, DomainEvent::Went { place: Place::Address(Address::Home { project: 1 }) });
+    let mut chat = f::live(Some(f::me(&[b"Hello"]))).0;
+    f::event(&mut chat, DomainEvent::Went { place: Place::Address(Address::Chat { task: 9 }) });
+    for root in [&f::signed_out(), &launchpad, &chat] {
+        let mut view = f::view();
+        f::build(&mut view, &Tui::new(f::ADDRESS), root);
+        for arrow in [crate::Arrow::Up, crate::Arrow::Down] {
+            assert_eq!(crate::arrow(&view, arrow), None);
+        }
+    }
+}

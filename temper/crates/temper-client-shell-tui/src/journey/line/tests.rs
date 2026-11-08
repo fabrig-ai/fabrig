@@ -1,7 +1,7 @@
 use super::{Line, Sent, Streamed, Unreadable, lines};
 use jig_client::Message;
 use skein_lib::{Time, Token, Wall};
-use skein_ui_screen::Size;
+use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
 use temper_client_tui::{Note, Scheme};
 
@@ -27,7 +27,9 @@ fn records_have_their_exact_text_and_round_trip() {
         (Line::Screen { size: Size { rows: 24, columns: 80 }, scheme: Scheme::Dark }, b"screen 24 80 dark\n"),
         (Line::Screen { size: Size { rows: 0, columns: u16::MAX }, scheme: Scheme::Light }, b"screen 0 65535 light\n"),
         (Line::Address(bytes(b"localhost:8367")), b"address \"localhost:8367\"\n"),
+        (Line::Background(Rgb { red: 0, green: 43, blue: 255 }), b"background 0 43 255\n"),
         (Line::Local, b"local\n"),
+        (Line::Box, b"box\n"),
         (Line::Noted(Note::Until(Wall::EPOCH)), b"noted until 0\n"),
         (Line::Noted(Note::Until(Wall::from_nanos(u64::MAX))), b"noted until 18446744073709551615\n"),
         (Line::Noted(Note::SignedOut), b"noted signed-out\n"),
@@ -161,6 +163,14 @@ fn unreadable_rows_name_their_line() {
         ("version overflow", b"journey 4294967296\n", "number overflow"),
         ("unknown kind", b"unknown\n", "unknown record kind"),
         ("unknown scheme", b"screen 24 80 other\n", "unknown scheme"),
+        ("background red overflow", b"background 256 0 0\n", "number overflow"),
+        ("background green overflow", b"background 0 256 0\n", "number overflow"),
+        ("background blue overflow", b"background 0 0 256\n", "number overflow"),
+        ("background missing red", b"background\n", "expected field"),
+        ("background missing green", b"background 0\n", "expected field"),
+        ("background missing blue", b"background 0 0\n", "expected field"),
+        ("background extra", b"background 0 0 0 0\n", "extra field"),
+        ("box extra", b"box extra\n", "extra field"),
         ("unknown key", b"key other none\n", "unknown key"),
         ("unknown streamed", b"streamed other\n", "unknown streamed kind"),
         ("unknown full", b"streamed full other 0\n", "unknown full kind"),

@@ -6,7 +6,7 @@ use jig_client::{Message, Request};
 use jig_client_protocol_wire::v19 as w;
 use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
-use skein_ui_screen::Size;
+use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
 use temper_client_domain::{
     self as root, Address, Place,
@@ -22,9 +22,15 @@ fn host() -> Host {
 }
 
 fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
+    start_look(host, credential, None, false)
+}
+
+fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rgb>, boxed: bool) -> Duties {
     host.report(Report::Start(Start {
         size: Size { columns: 80, rows: 24 },
         scheme: Scheme::Dark,
+        background,
+        boxed,
         address: b"127.0.0.1:8367".as_slice().into(),
         local: false,
         note: None,
@@ -263,6 +269,8 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         let duties = host.report(Report::Start(Start {
             size: Size { columns: 80, rows: 24 },
             scheme: Scheme::Dark,
+            background: None,
+            boxed: false,
             address: address.as_bytes().into(),
             local: false,
             note: None,
@@ -661,6 +669,8 @@ fn local_row(row: LocalRow, failures: &mut Vec<String>) {
     let duties = host.report(Report::Start(Start {
         size: Size { columns: 80, rows: 24 },
         scheme: Scheme::Dark,
+        background: None,
+        boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
         local: row.local,
         kept: Vec::new(),
@@ -932,7 +942,15 @@ fn launchpad_me(projects: bool) -> w::Me {
         .expect("template");
         let mut writer = Writer::new(usize::try_from(template.measure()).expect("template size"));
         template.encode(&mut writer).expect("template fits");
-        let templates = pieces(&[writer.finish()]);
+        let asking = writer.finish();
+        let mut chat = template.into_parts();
+        chat.number = jig_client::shapes::CHAT;
+        chat.name = records::wire_text(b"Chat");
+        chat.label = 8;
+        let chat = w::Template::new(&w::CEILINGS, chat).expect("chat template");
+        let mut writer = Writer::new(usize::try_from(chat.measure()).expect("chat template size"));
+        chat.encode(&mut writer).expect("chat template fits");
+        let templates = pieces(&[asking, writer.finish()]);
         let mut charters = List::with_capacity(1);
         charters.push(5).expect("one charter");
         let creating = w::CreatingBounds::new(
@@ -1023,8 +1041,12 @@ fn delivery(host: &mut Host, watch: u64, value: &w::DeliveryValue) -> Duties {
 }
 
 fn signed_host(projects: bool) -> (Host, u64, Duties) {
+    signed_host_look(projects, None, false)
+}
+
+fn signed_host_look(projects: bool, background: Option<Rgb>, boxed: bool) -> (Host, u64, Duties) {
     let mut host = host();
-    start(&mut host, Some(Secret::new(Box::new([7; 40]))));
+    start_look(&mut host, Some(Secret::new(Box::new([7; 40]))), background, boxed);
     let hello = hello_for(&host);
     let duties =
         host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
@@ -1033,6 +1055,118 @@ fn signed_host(projects: bool) -> (Host, u64, Duties) {
     let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(projects)));
     let duties = admit(&mut host, duties);
     (host, me, duties)
+}
+
+const NEWEST: u64 = 9;
+const OLDER: u64 = 8;
+const BACKGROUND: Rgb = Rgb { red: 0x19, green: 0x18, blue: 0x16 };
+const BAND: Rgb = Rgb { red: 0x2d, green: 0x2c, blue: 0x2a };
+const DIM: Rgb = Rgb { red: 0x9a, green: 0x93, blue: 0x88 };
+
+fn chat_chip(task: u64, title: &[u8]) -> w::Chip {
+    let chip = records::owner_chip_record(
+        w::ChipPhase::Active(
+            w::ChipPhaseActive::new(&w::CEILINGS, w::ChipPhaseActiveParts { value: w::RunStage::Idle }).expect("idle"),
+        ),
+        w::Phase::Idle,
+    );
+    let mut reader = Reader::new(chip.rows());
+    let mut rows = Vec::new();
+    while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("chip piece") {
+        let mut fact = w::Fact::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("chip fact");
+        if let w::Fact::Chip(row) = fact {
+            let mut row = row.into_parts();
+            let mut fields = row.value.into_parts();
+            fields.task = task;
+            fields.title = records::wire_text(title);
+            row.value = w::ChipFields::new(&w::CEILINGS, fields).expect("chat chip");
+            fact = w::Fact::Chip(w::ChipRow::new(&w::CEILINGS, row).expect("chat row"));
+        }
+        rows.push(fact);
+    }
+    records::chip_from_rows(&rows)
+}
+
+fn left_off_host() -> Host {
+    let (mut host, _, mut duties) = signed_host(true);
+    // The first wave can fill the exchange slots; give its watch retry a turn.
+    host.clocks(Time::from_nanos(host.env.limits.client.domain.backoff.first.as_nanos()), Wall::EPOCH);
+    let again = host.report(Report::Due);
+    duties.asked.extend(admit(&mut host, again).asked);
+    let subject = duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+            if open.subject().owner() != &w::Owner::Jig {
+                return None;
+            }
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+            matches!(&subject, w::Subject::Tasks(tasks) if *tasks.query().label() == Some(8)).then_some(subject)
+        })
+        .expect("launchpad's chats watch");
+    let watched = watch(&duties, &subject);
+    let mut rows = Vec::new();
+    for (task, title, activity) in [(OLDER, b"Older".as_slice(), 1), (NEWEST, b"Newest".as_slice(), 2)] {
+        let mut row = records::task_line_record().into_parts();
+        row.chip = chat_chip(task, title);
+        row.project = 3;
+        row.last_activity = activity;
+        row.ended_at = None;
+        let row = w::TaskLine::new(&w::CEILINGS, row).expect("chat line");
+        let mut writer = Writer::new(usize::try_from(row.measure()).expect("chat size"));
+        row.encode(&mut writer).expect("chat fits");
+        rows.push(writer.finish());
+    }
+    let tasks = w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&rows), more: false }).expect("two chats");
+    delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks));
+    host.frame();
+    host
+}
+
+fn person_chat(host: &mut Host) {
+    let duties = give(host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
+    let task_watch = watch(
+        &duties,
+        &w::Subject::Task(
+            w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: NEWEST }).expect("task subject"),
+        ),
+    );
+    let activity = read_exchange(&duties, "activity");
+    let mut task = records::task_record().into_parts();
+    task.project = 3;
+    task.chip = chat_chip(NEWEST, b"Newest");
+    task.activity = 1;
+    task.result = None;
+    delivery(host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).expect("chat"))));
+    let source = w::ActivityLine::new(
+        &w::CEILINGS,
+        w::ActivityLineParts {
+            task: NEWEST,
+            position: 1,
+            at: 0,
+            line: w::Activity::Words(
+                w::ActivityWords::new(
+                    &w::CEILINGS,
+                    w::ActivityWordsParts {
+                        message: 1,
+                        by: w::Requester::Person(
+                            w::RequesterPerson::new(&w::CEILINGS, w::RequesterPersonParts { value: 7 })
+                                .expect("person"),
+                        ),
+                        kind: w::MessageKind::Words,
+                        words: b"Person words".as_slice().into(),
+                    },
+                )
+                .expect("words"),
+            ),
+        },
+    )
+    .expect("activity");
+    let row =
+        w::DecodedActivityLine::new(&w::CEILINGS, w::DecodedActivityLineParts { source, decoded: None }).expect("line");
+    read_reply(host, activity, &w::ReadValue::Activity(records::activity_rows(&[row])));
 }
 
 fn give(host: &mut Host, event: Event) -> Duties {
@@ -1182,6 +1316,10 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
         "dark look",
         "light look",
         "theme",
+        "band",
+        "dim words",
+        "boxed",
+        "unboxed",
         "created chat",
         "show chat",
         "show ask",
@@ -1189,7 +1327,8 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
         "new",
         "exit",
     ] {
-        let (mut host, me, _) = signed_host(row != "project appears");
+        let (mut host, me, _) =
+            signed_host_look(row != "project appears", (row == "band").then_some(BACKGROUND), row == "boxed");
         let passed = match row {
             "first project once" => {
                 let before = host.state().focus();
@@ -1207,6 +1346,8 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.report(Report::Start(Start {
                     size: Size { columns: 80, rows: 24 },
                     scheme: if light { Scheme::Light } else { Scheme::Dark },
+                    background: None,
+                    boxed: false,
                     address: b"127.0.0.1:8367".as_slice().into(),
                     local: false,
                     kept: vec![],
@@ -1231,6 +1372,20 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                         .flatten()
                         .any(|cell| palette.iter().any(|(_, colour)| cell.paint.fore == Some(*colour)))
             }
+            "band" | "dim words" => {
+                person_chat(&mut host);
+                let frame = host.frame();
+                (0..frame.size().rows).filter_map(|row| frame.row(row)).any(|cells| {
+                    cells.windows(b"Person words".len()).any(|words| {
+                        words.iter().map(|cell| cell.glyph).eq("Person words".chars())
+                            && words.iter().all(|cell| {
+                                cell.paint.back == (row == "band").then_some(BAND)
+                                    && cell.paint.fore == (row == "dim words").then_some(DIM)
+                            })
+                    })
+                })
+            }
+            "boxed" | "unboxed" => host.state().boxed() == (row == "boxed"),
             "created chat" => {
                 typed(&mut host, b"Please help");
                 let duties = give(&mut host, Event::Send);
@@ -1289,6 +1444,11 @@ fn each_event_becomes_its_acts() {
     let mut failures = Vec::new();
     for row in [
         "home words",
+        "left off arrows",
+        "left off enter",
+        "left off escape",
+        "left off typed",
+        "left off commands",
         "chat words",
         "chat send",
         "create",
@@ -1307,6 +1467,58 @@ fn each_event_becomes_its_acts() {
     ] {
         let (mut host, _, _) = signed_host(row != "no project");
         let passed = match row {
+            "left off arrows" => {
+                let mut host = left_off_host();
+                let mut passed = true;
+                for (key, task, title) in
+                    [(Key::Down, NEWEST, "Newest"), (Key::Down, OLDER, "Older"), (Key::Up, NEWEST, "Newest")]
+                {
+                    passed &= host.event_of(&key) == Some(Event::LeftOff { task: Some(task) });
+                    host.report(Report::Key(key));
+                    passed &= host.state().left_off() == Some(task)
+                        && text(&mut host).lines().any(|line| line.starts_with(&format!(" ❯ {title}")));
+                }
+                passed
+            }
+            "left off enter" => {
+                let mut host = left_off_host();
+                let event = host.event_of(&Key::Down).expect("first chat");
+                give(&mut host, event);
+                host.frame();
+                let selected = host.state().left_off() == Some(NEWEST)
+                    && host.event_of(&Key::Enter)
+                        == Some(Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
+                let duties = host.report(Report::Key(Key::Enter));
+                read_exchange(&duties, "activity");
+                watch(
+                    &duties,
+                    &w::Subject::Task(
+                        w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: NEWEST }).expect("task subject"),
+                    ),
+                );
+                selected && host.root.pages().address() == &Address::Chat { task: NEWEST }
+            }
+            "left off escape" | "left off typed" | "left off commands" => {
+                let mut host = left_off_host();
+                host.report(Report::Key(Key::Down));
+                host.frame();
+                if row == "left off escape" {
+                    let event = host.event_of(&Key::Escape);
+                    host.report(Report::Key(Key::Escape));
+                    event == Some(Event::LeftOff { task: None }) && host.state().left_off().is_none()
+                } else if row == "left off typed" {
+                    host.report(Report::Key(Key::Char('a')));
+                    host.state().left_off().is_none() && host.event_of(&Key::Down).is_none()
+                } else {
+                    host.report(Report::Key(Key::Char('/')));
+                    host.frame();
+                    let event = host.event_of(&Key::Down);
+                    host.report(Report::Key(Key::Down));
+                    host.state().left_off().is_none()
+                        && event.is_none()
+                        && text(&mut host).lines().any(|line| line.starts_with("❯ /chats"))
+                }
+            }
             "home words" | "create" => {
                 typed(&mut host, b"Please help");
                 if row == "home words" {
@@ -1473,7 +1685,12 @@ fn read_exchange(duties: &Duties, wanted: &str) -> skein_lib::Token {
                 let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope");
                 if owned.owner() == &w::Owner::Jig {
                     let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
-                    if matches!((&read, wanted), (w::Read::Inbox(_), "inbox") | (w::Read::Question(_), "question")) {
+                    if matches!(
+                        (&read, wanted),
+                        (w::Read::Inbox(_), "inbox")
+                            | (w::Read::Question(_), "question")
+                            | (w::Read::Activity(_), "activity")
+                    ) {
                         return Some(*exchange);
                     }
                 }
