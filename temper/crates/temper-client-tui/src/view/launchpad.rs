@@ -49,7 +49,8 @@ fn push(lines: &mut List<Line>, role: Role, words: &[u8], style: Option<Style>) 
 fn project(root: &Domain, me: &c::Me) -> Option<u32> {
     match root.pages().address() {
         Address::Home { project } => Some(*project),
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Ask { .. }

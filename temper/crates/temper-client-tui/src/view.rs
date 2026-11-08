@@ -274,6 +274,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
         let body = match root.pages().address() {
             temper_client_domain::Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
             temper_client_domain::Address::Home { .. }
+            | temper_client_domain::Address::AllHome
             | temper_client_domain::Address::Inbox { .. }
             | temper_client_domain::Address::Chats { .. }
             | temper_client_domain::Address::NewChat { .. }
