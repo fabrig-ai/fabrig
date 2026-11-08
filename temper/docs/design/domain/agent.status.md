@@ -185,5 +185,5 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   `model_document`), because its scripts are static, so on `temper box
   --fake-backends` a fresh box's first chat's goal alone writes a report: a
   later goal is refused its note and ends with none.
-- **Not yet:** 8.4: `ask.txt` has no Showing part. 8.4.1: `ways` is no
+- **Not yet:** 8.4.1: `ways` is no
   address: `see ways` answers as an unknown one.

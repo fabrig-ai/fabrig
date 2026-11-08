@@ -55,6 +55,7 @@ fn addresses_parse_in_the_chats_project() {
         ("change 1", Address::NotYet),
         ("changes", Address::NotYet),
         ("inbox", Address::NotYet),
+        ("ways", Address::NotYet),
         ("Settings", Address::Unknown),
         ("settings charter", Address::Unknown),
         ("settings charter 0", Address::Unknown),

@@ -1161,6 +1161,7 @@ fn an_asking_chat_reads_each_address() {
             false,
         ),
         ("me", "see me: not there yet.", "not there yet.", true),
+        ("ways", "see ways: not there yet.", "not there yet.", true),
         ("task 4 tree", "see task 4 tree: not there yet.", "not there yet.", true),
         ("goals ended", "see goals ended: not there yet.", "not there yet.", true),
         ("bogus", "see: no address bogus; addresses:", temper_engine_smith::ADDRESSES, true),
