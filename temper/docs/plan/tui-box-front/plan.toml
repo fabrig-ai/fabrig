@@ -56,3 +56,16 @@ id = 2
 story = "temper box in a terminal runs the TUI in front: signed in with nothing pasted, the welcome follows the browser's steps, the playground says so, quitting asks while work runs and stops the box, and a failing step shows on the quiet line and in /log"
 parts = ["tui-front", "box-front"]
 walk = false
+
+[[part]]
+id = "account"
+title = "The landing's account of the look request tui-box-front, and the plan's status entries closed"
+mode = "direct"
+needs = ["tui-front", "box-front"]
+design = "temper/docs/design/draft/look-requests.md, 5"
+
+[[slice]]
+id = 3
+story = "The landing accounts for every frame and state of the look request, each landed, differing with its reason, or deferred to a named owner"
+parts = ["account"]
+walk = false
