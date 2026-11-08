@@ -158,6 +158,7 @@ fn start_signed_in() {
         stored: stored.clone(),
     }));
     host.start(path.as_bytes(), stored, secret);
+    night(&document, host.night());
     let page = Rc::new(RefCell::new(host::page(&host.bounds.tree, facts.primary)));
     let dom = Dom::new(mount, &page, &inbox, Report::Act, &[]);
     let history = Rc::new(history::web::History::new(Rc::clone(&inbox), Report::Place));
@@ -180,6 +181,19 @@ fn start_signed_in() {
     };
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
+}
+/// The page follows the domain's look even when keeping it is refused (client/README.md, 3.5).
+#[cfg(target_arch = "wasm32")]
+fn night(document: &web_sys::Document, on: bool) {
+    let html = document.document_element().expect("document html");
+    if html.has_attribute("data-night") == on {
+        return;
+    }
+    if on {
+        html.set_attribute("data-night", "").expect("set night look");
+    } else {
+        html.remove_attribute("data-night").expect("remove night look");
+    }
 }
 #[cfg(target_arch = "wasm32")]
 impl<P: ShellPlatform> Shell<P> {
@@ -220,6 +234,8 @@ impl<P: ShellPlatform> Shell<P> {
         };
         #[cfg(not(feature = "record"))]
         let duties = self.host.report(report);
+        let document = web_sys::window().expect("window").document().expect("document");
+        night(&document, self.host.night());
         let navigates = duties.show.is_some();
         let shown = self.carry(inbox, duties, read_on);
         navigates.then_some(shown)

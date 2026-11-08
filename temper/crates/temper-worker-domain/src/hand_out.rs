@@ -2,9 +2,19 @@
 //! each of smith's payloads goes out to be encoded, and what it was for waits
 //! here, in order, until it comes back, once.
 
+use alloc::boxed::Box;
 use jig_domain_host as host;
 use skein_lib::Token;
 use smith_host_domain as agent;
+
+/// An encoded start refusal waiting for process cleanup and its diagnostic.
+#[derive(Debug)]
+pub(crate) struct StartRefusal {
+    /// The typed reason the hub uses to classify the start.
+    pub(crate) cause: host::StartCause,
+    /// Encoded refusal words, outside the model's transcript.
+    pub(crate) why: Box<[u8]>,
+}
 
 /// What a payload handed out is for.
 #[derive(Debug)]

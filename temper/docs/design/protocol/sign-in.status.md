@@ -15,6 +15,13 @@ handover before connecting. The five repair stories' outcomes and the
 combined default-box proof remain unverified as recorded in
 `setup.status.md`, 7.1, 7.2 and 13.4.
 
+Section 9.3's cross-site restart admission is repaired in the client
+link: cancelled watch exchanges and cleanup calls retain transport
+credit until their HTTP reply or failure, so the first authorization
+waits for room. The focused stream table covers replies and failures
+against the browser's fetch table. The browser story's checks are
+unchanged. Local `Lost` uses the busy page, as section 9.3 now records.
+
 - **Not yet:** 2.4: public reading's deployment: no proxy configuration caches `/jig/v1/public/` by deployment, `Host` and path, keeps no stale copy, or limits an address, and no deployment sets jig's public limits.
   2.5: the proxy's own rules are played against scripted upstreams, not
   temper's service (`temper/tests/one-process/src/public/checks.rs`):
@@ -36,17 +43,13 @@ combined default-box proof remain unverified as recorded in
   disables the runner and proves no default box with all its processes,
   managed or multi-person deployment, remote host or production TLS.
 - **Not yet:** 9.3: exploratory browser runs sometimes drew the temporary
-  busy page without an authorize HTTP request. The successful fresh-profile
-  pairs do not settle that admission/loss path; its cause is unknown
-  (`temper/docs/development/ui-repo-link-review.md`).
-  The cross-site restart failure is transport admission loss: cancelled watch
-  exchanges and cleanup calls still occupied the browser's fetch table after
-  the client stopped counting them. The unsent authorization became `Lost`,
-  which draws the same busy page. `jig-client-protocol-link` now counts every
-  emitted HTTP exchange until its reply or failure; the client's existing
-  authorization wait therefore waits for transport credit. This also explains
-  how that busy page can appear without an authorize HTTP request; the
-  exploratory runs did not trace their failed exchange's source.
+  busy page without an authorize HTTP request
+  (`temper/docs/development/ui-repo-link-review.md`). The repaired fetch
+  admission path explains how an unsent authorization can become `Lost`,
+  but those exploratory runs did not trace their failed exchange's source;
+  their attribution remains unknown. People's restoration refusal is a
+  separate provider departure (`jig/docs/design/protocol/client.status.md`,
+  section 18); section 10 keeps startup readiness separate.
 - **Design departs:** 9.9, from the request `ui-repo-link` of 2026-11-06,
   decided by its cut: the failure's status is a browser Forges-row line
   and a log entry; the terminal has the log alone. The cut chose page
