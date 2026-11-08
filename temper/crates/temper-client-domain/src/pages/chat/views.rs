@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Readable, Readout, contract as c};
-use skein_lib::{Duration, List, Map, Queue, Reader, Time};
+use skein_lib::{Duration, List, Map, Queue, Time};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 /// A view's last answer, kept while a newer revision is read.
@@ -226,7 +226,5 @@ fn reading(read: &Reading, limits: forge::Limits) -> Option<Readable> {
 }
 fn answer(page: &Readout, limits: forge::Limits) -> Option<w::View> {
     let Readout::Family { family: wire::FORGE, record: Some(bytes) } = page else { return None };
-    let mut reader = Reader::new(bytes);
-    let answer = w::ViewAnswer::decode(&forge::wire_limits(&limits)?, &mut reader).ok()?;
-    if reader.is_empty() { Some(answer.into_parts().view) } else { None }
+    Some(wire::decode_view_answer(bytes, &forge::wire_limits(&limits)?)?.into_parts().view)
 }
