@@ -1113,6 +1113,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "home-two-left",
         heading: "Hello is ready.",
         parts: &[
+            Part::Named { role: Role::Link, name: "Ask temper" },
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
         ],
@@ -2572,6 +2573,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "chats-first-run-1",
         heading: "Talk to an agent",
         parts: &[
+            Part::Named { role: Role::Link, name: "Ask temper" },
             Part::Absent { role: Role::List, name: "Suggested requests" },
             Part::Named { role: Role::Paragraph, name: "None." },
             Part::Named { role: Role::Region, name: "Playground" },
@@ -3691,6 +3693,7 @@ fn goal_and_chat_queries_keep_live_and_ended_rows_separate() {
 
 #[test]
 fn reference_lede_names_the_worlds_templates_in_number_order() {
+    use jig_client::contract as c;
     let sample =
         samples::samples().into_iter().find(|sample| sample.name == "goals-reference").expect("reference goals");
     let root = samples::domain(&sample);
@@ -3706,9 +3709,13 @@ fn reference_lede_names_the_worlds_templates_in_number_order() {
         vec![
             (2, b"goal".as_slice()),
             (4, b"goal for a draft".as_slice()),
-            (5, b"Plan, then wait for me".as_slice()),
-            (6, b"One agent, one branch".as_slice()),
+            (6, b"Plan, then wait for me".as_slice()),
+            (7, b"One agent, one branch".as_slice()),
         ]
+    );
+    assert_eq!(
+        templates.iter().find(|template| template.number == 5).expect("Ask temper template").executor,
+        c::TemplateExecutor::Charter(11)
     );
     let view = view(&sample);
     let nodes = view.tree().nodes();
