@@ -237,9 +237,7 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
-NAME must never have been used in this deployment. Forgetting its account
-keeps the program name reserved. If declaration reports that reservation,
-choose a never-used NAME and a fresh KEY, then run the declaration again.
+Use a never-used NAME, even after forgetting, and a fresh KEY.
 
 `program-login`: signs in at `PROGRAMS/NAME`.
 Existing login: parent as `PROGRAMS`, name as `NAME`; skip `program-login`.
