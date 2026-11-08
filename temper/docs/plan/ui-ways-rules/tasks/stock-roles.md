@@ -240,3 +240,5 @@ Run `TEMPER_BUNDLE=none heavy cargo run -p temper-client-journeys` to regenerate
 If replay reports a stale recording, regenerate it with `temper-client-journeys again chat-draft` through heavy; retry “a key mark caught a moving page” at most three times.
 Run the focused journey replay checks, verify the prints retain Night mode and the stock template choice, and commit the regenerated files.
 Keep the task’s status-entry deletion and stock-dependent fixture changes when reviewing the clean automatic merges in `configuration.status.md` and `host_calls.rs`.
+
+2026-11-08 (temper/ui). Go on: the work is done, and only its merge was refused. Do what the foreman settled. Rebase stock-roles onto the trunk and regenerate chat-draft's prints from the combined code with temper-client-journeys again chat-draft, as generation, retried up to three times on a moving key mark. Never hand-merge or hand-edit a print or a recording. Keep charter 5's words byte for byte (cmp against the input) and keep the run count's earlier answers. Then push.
