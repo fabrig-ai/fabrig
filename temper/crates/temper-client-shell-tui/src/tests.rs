@@ -1204,6 +1204,7 @@ fn each_event_becomes_its_acts() {
         "no project",
         "help",
         "dismiss",
+        "escape",
         "aside",
         "reply words",
         "reply choice",
@@ -1251,10 +1252,12 @@ fn each_event_becomes_its_acts() {
             }
             "unknown" => {
                 typed(&mut host, b"/zz");
+                let before = host.state().box_written();
                 let duties = give(&mut host, Event::Send);
                 duties.asked.is_empty()
                     && host.state().unknown() == Some(b"/zz".as_slice())
                     && host.root.pages().chats().is_some_and(|chat| chat.words.is_empty())
+                    && host.state().box_written() > before
             }
             "unknown send" | "unknown went" => {
                 host.tell(temper_client_tui::Told::Unknown { words: Some(b"/zz".as_slice().into()) });
@@ -1272,8 +1275,12 @@ fn each_event_becomes_its_acts() {
                 give(&mut host, Event::Send).asked.is_empty() && host.state().box_written() == before
             }
             "help" => {
+                typed(&mut host, b"/help");
+                let before = host.state().box_written();
                 give(&mut host, Event::Command { command: Command::Help });
                 host.root.pages().notes().last() == Some(&terminal::Note::Help)
+                    && host.root.pages().chats().is_some_and(|chats| chats.words.is_empty())
+                    && host.state().box_written() > before
             }
             "dismiss" => {
                 typed(&mut host, b"/");
@@ -1281,6 +1288,27 @@ fn each_event_becomes_its_acts() {
                 give(&mut host, Event::Dismiss);
                 host.root.pages().chats().is_some_and(|chats| chats.words.is_empty())
                     && host.state().box_written() > before
+            }
+            "escape" => {
+                typed(&mut host, b"/");
+                host.frame();
+                let expected = temper_client_tui::escape(&host.view);
+                let event = host.event_of(&Key::Escape);
+                let mut direct = host;
+                let (mut keyed, _, _) = signed_host(true);
+                typed(&mut keyed, b"/");
+                keyed.frame();
+                if let Some(event) = expected.clone() {
+                    give(&mut direct, event);
+                } else {
+                    direct.report(Report::Due);
+                }
+                keyed.report(Report::Key(Key::Escape));
+                event == expected
+                    && keyed.root.pages().chats().map(|chats| &chats.words)
+                        == direct.root.pages().chats().map(|chats| &chats.words)
+                    && keyed.state().box_written() == direct.state().box_written()
+                    && keyed.state().aside() == direct.state().aside()
             }
             "aside" => {
                 let object = jig_client::contract::ObjectKey::Task(9);
