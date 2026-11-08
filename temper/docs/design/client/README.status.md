@@ -940,3 +940,12 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the first screen and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
+
+- **Not yet:** 3.5, 5.1, 5.3, 6.6 (the look request `outside-pages`):
+  outside a project the frame is the banner still, its menu holding the
+  switcher, the navigation and the link's state; the sign-in page, the
+  `Authorize` place and the approval page are cards; the pages not about
+  the work are one paragraph with no heading; with no project yet, Chats
+  and `NewChat` say "Make one from the project switcher." and other
+  addresses draw their pages; the approval page signed out on a Google
+  deployment says to open a printed link it never prints.
