@@ -12,8 +12,8 @@ implementation gap remains in these rules. The `home-begin-*` states
 cover two steps and the cut navigation. The existing history story has
 the night reload row, compiled but not run; it adds no test function.
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
-system preference and night placeholder separate. The nonempty Home
-sections' suppression gap is `README.status.md`, 3.5's.
+system preference and night placeholder separate.
+
 
 Sections 2.5 and 7.2 have no known implementation gap in the
 `ask-temper-place` repairs: the bar's tag is visible, its separator is

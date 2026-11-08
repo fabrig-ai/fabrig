@@ -1,0 +1,51 @@
+draft = "look-round-20"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-20/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "begin"
+title = "Home's Needs you and Chats left out while To begin shows, whatever they hold, in both shells"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "frame"
+title = "Ask temper's three tabs on a phone while To begin shows; the night switch visible in the folded rail and on a phone's chat layout"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[part]]
+id = "shadows"
+title = "The night's shadows keep the day's colours, through the tokens"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 1
+story = "A new project's Home with a need and a chat started elsewhere shows the To begin card alone, until its last step or a skip brings Needs you and Chats back"
+parts = ["begin"]
+walk = false
+
+[[slice]]
+id = 2
+story = "At 420 px, Ask temper's page as Start opens it closes on the three tabs Home, Ask and Settings, its switch at the chat bar's right; beside a Split the folded rail keeps the switch at its foot"
+parts = ["frame"]
+walk = false
+
+[[slice]]
+id = 3
+story = "At night the menus, cards, the selected Split and Latest cast the day's shadows, as the night-mode request draws them"
+parts = ["shadows"]
+walk = false
