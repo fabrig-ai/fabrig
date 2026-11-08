@@ -1,6 +1,9 @@
 use std::{fs, path::Path};
 fn forbidden(source: &str) -> bool {
     let compact: String = source.chars().filter(|c| !c.is_whitespace()).collect();
+    // Calls through the setup's process boundary are not std process operations
+    // (temper/docs/design/protocol/setup.md, 11).
+    let compact = compact.replace("temper_forge_setup_shell::process::", "ForgeProcess::");
     compact.contains("std::process")
         || compact.contains("process::") && compact.contains("usestd::{")
         || ["CommandExt", "try_lock", "lock_shared", ".lock()"].iter().any(|name| compact.contains(name))
@@ -62,6 +65,20 @@ fn process_and_file_locks_stay_in_their_declared_modules() {
         if source.is_dir() {
             scan(&source);
         }
+    }
+}
+#[test]
+fn calls_through_the_process_boundary_do_not_exempt_direct_operations() {
+    for (source, expected) in [
+        ("use std::{fs}; temper_forge_setup_shell :: process :: child()", false),
+        ("use std::{fs}; temper_forge_setup_shell::process::child(); std::process::Command", true),
+        ("use std::{fs, process::Child}; temper_forge_setup_shell::process::child()", true),
+        ("use std::{fs}; temper_forge_setup_shell::process::child(); file.lock()", true),
+        ("use std::{fs}; temper_forge_setup_shell::process::child(); file.try_lock()", true),
+        ("use std::{fs}; temper_forge_setup_shell::process::child(); file.lock_shared()", true),
+        ("use std::{fs}; temper_forge_setup_shell::process::child(); CommandExt", true),
+    ] {
+        assert_eq!(forbidden(source), expected, "{source}");
     }
 }
 #[test]
