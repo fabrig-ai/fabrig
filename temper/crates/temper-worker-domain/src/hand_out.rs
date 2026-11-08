@@ -10,10 +10,26 @@ use smith_host_domain as agent;
 /// An encoded start refusal waiting for process cleanup and its diagnostic.
 #[derive(Debug)]
 pub(crate) struct StartRefusal {
-    /// The typed reason the hub uses to classify the start.
-    pub(crate) cause: host::StartCause,
+    /// Whether smith lacked room or found the start invalid.
+    pub(crate) class: StartClass,
     /// Encoded refusal words, outside the model's transcript.
     pub(crate) why: Box<[u8]>,
+}
+
+/// A start's refusal policy (`temper/docs/design/domain/worker.md`, 4.3).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum StartClass {
+    Busy,
+    Invalid(host::StartCause),
+}
+
+impl StartClass {
+    pub(crate) fn event(self, owner: Token, why: Box<[u8]>) -> host::FromAgent {
+        match self {
+            StartClass::Busy => host::FromAgent::StartBusy { owner },
+            StartClass::Invalid(cause) => host::FromAgent::StartRefused { owner, cause, why },
+        }
+    }
 }
 
 /// What a payload handed out is for.
@@ -43,7 +59,7 @@ pub(crate) enum Finish {
     Parked,
     Failed(host::RunFailure),
     /// smith refused the start before any run began.
-    Refused(host::StartCause),
+    Refused(StartClass),
 }
 
 impl Finish {
@@ -53,8 +69,8 @@ impl Finish {
             agent::RunResult::Parked => Finish::Parked,
             agent::RunResult::Failed { failure } => Finish::Failed(crate::translate::run_failure(failure)),
             agent::RunResult::Refused { refusal } => Finish::Refused(match refusal {
-                agent::Refusal::Invalid(why) => crate::translate::start_cause(*why),
-                agent::Refusal::Busy => host::StartCause::Other,
+                agent::Refusal::Invalid(why) => StartClass::Invalid(crate::translate::start_cause(*why)),
+                agent::Refusal::Busy => StartClass::Busy,
             }),
         }
     }

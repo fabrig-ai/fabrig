@@ -23,7 +23,15 @@ tests keeping them out. The design departs from the request in the top
 bar's link region, which the terminal prints, the GitHub App's setup
 pages' fonts and the stylesheets' accent; temper/ui's rendered comparison
 follows landing (`client/README.status.md`, 5.1; `client/forge.status.md`,
-9.1; `client/browser.status.md`, 2.5). The TUI's approval ask, locally
+9.1; `client/browser.status.md`, 2.5). Its render check's six misses are
+repaired by `look-round-22`: the welcome's top bar ends with the person's
+name and "Sign out"; while `me` is read the top bar stands over an empty
+busy main; the public pages offer "Sign in" with or without Google; the
+column's field names are 14 px; the night ground fills the window; and
+the Google endings take the typographic apostrophe. The welcome's bar
+before `me` lacks the welcome's look, and no test walks the heading's
+focus from that main (`client/browser.status.md`, 2.3 and 2.5;
+`protocol/sign-in.status.md`, 4.3). The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
 The local box's private link file, holding the engine's local link
@@ -125,9 +133,9 @@ rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10). On a phone, Ask temper's composer and
 model picker stand above its three tabs by a selector browsers accept,
 and the five first-run Ask gallery states draw To begin's restricted rail
-and tabs; the history story's phone row has no supplied passing run, and
-the gallery's tests exceed their 1 CPU s budget until a cost repair
-(`client/browser.status.md`, 2.5 and 7.3).
+and tabs, and the history story, with its phone row, passes its runs
+alone; the gallery's tests exceed their 1 CPU s budget until a cost
+repair (`client/browser.status.md`, 2.5, 4.6 and 7.3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
 landing (`client/journeys.md`, section 10).
@@ -392,7 +400,8 @@ work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
-(`domain/root.md`). A live delegate counts no stall and a stall's hold reaches its
+(`domain/root.md`); how the engine is to learn its workers' reply bound is the
+design owner's decision (`domain/agent.md`, section 10). A live delegate counts no stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
@@ -409,6 +418,11 @@ its staged files. The parked producer's proof uses fake git and disk, with a del
 as its first commit; the `resume-told` request's real-checkout proof and deployment
 replay are not on record. Parking with markers still loses that run's own edits,
 while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+A start smith refuses as busy spends no try, but `temper help task` still
+says an "invalid results" hold may mean a start refused before any turn,
+which spends a permanent try (`domain/worker.md`). Template 4's report
+reaches its run as at most 1,024 bytes, jig's contract text bound, where
+the reference gives it 63,738 (`protocol/configuration.md`).
 Saved work in the task's saved set
 is deleted through its release, and a clean update's repair names its failed
 check and carries its output before the base's contents; their real-deployment
@@ -757,6 +771,17 @@ client-world story uses a fake worker. The request's broader wording
 for key and sign-in refusals remains deferred because their not-offered
 answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
 `client/README.md`, 5.5 and section 11).
+
+The deployment's client, `temper-client`, is built (M1 of
+`draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
+and `ctl`, run by the box's code from the shells both binaries link, its
+help, refusals and `--version`, on `temper-shell`, which the box's `temper`
+prints its table from. Its ctl story runs the box's `temper serve` as the
+engine until `temper-engine` is built, and runs after landing. It links jig's
+accounts protocol and engine-side crates through an unused line of ctl's
+manifest, and no test yet holds its closure: the boundary test is M5's
+(`protocol/README.status.md`, 4; `client/README.status.md`, 2). The `commands`
+page names no command's binary (`draft/deployment-binaries.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)

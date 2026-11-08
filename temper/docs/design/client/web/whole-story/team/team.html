@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team profile, Team</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+<script src="../whole-story.js"></script>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">shop <small>1 project</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="work.html">Work</a>
+      <a class="on" href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">You</a>
+    </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
+  </nav>
+
+  <main class="main">
+    <div class="col wide">
+      <header class="intro">
+        <p class="kicker">shop · Team</p>
+        <h1 class="headline">Who owns what on shop</h1>
+        <p class="lede">Three of you, and each area's owners sign off on its changes. A finding or a red goes to its area's owners. No standing role owns an area yet.</p>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Areas</h2><a href="#">+ An area</a></div>
+        <div class="scroll">
+          <table class="tbl">
+            <thead><tr><th>Area</th><th>Paths</th><th>Owners</th><th>Now, from temper's records</th><th>Sign-off</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">Payments</td><td class="mono">payments/</td><td><div class="chips"><span class="who p">you</span><span class="who p">Sam</span></div></td><td>1 change waiting for its second sign-off.</td><td>two of you</td></tr>
+              <tr><td class="strong">Storefront</td><td class="mono">storefront/ · templates/</td><td><span class="who p">Kit</span></td><td>1 sign-off waiting, 2 days.</td><td>Kit</td></tr>
+              <tr><td class="strong">Everything else</td><td class="mono">the rest of the repository</td><td><div class="chips"><span class="who p">you</span><span class="who p">Sam</span><span class="who p">Kit</span></div></td><td>1 sign-off waiting; 1 finding open.</td><td>one of you</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>People</h2><a href="#">+ Invite</a></div>
+        <div class="grid3">
+          <div class="box">
+            <b>You</b>
+            <p class="small muted">Owner of shop · payments, everything else</p>
+            <p class="small">2 sign-offs waiting. Signed 4 last week; asked for 3 changes.</p>
+          </div>
+          <div class="box">
+            <b>Sam</b>
+            <p class="small muted">Member · payments, everything else</p>
+            <p class="small">Nothing waiting. Signed 5 on Saturday; asked for 2 changes.</p>
+          </div>
+          <div class="box">
+            <b>Kit</b>
+            <p class="small muted">Member · storefront, everything else</p>
+            <p class="small">1 sign-off waiting, 2 days. Started the coupons goal.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-label="The next step">
+        <div class="shead">
+          <div class="intro" style="gap: 4px">
+            <h2 style="font-size: 20px; font-weight: 500">Hand an area to a role</h2>
+            <p class="small muted">The next step, when you want it</p>
+          </div>
+          <a class="btn dark" href="#">Choose an area</a>
+        </div>
+        <p class="small">A standing role is an agent that owns an area for good: it triages its findings and reds, makes their repairs, answers what its rules let it, and writes its own Now for you here. You stay its owner: what reaches you still reaches you.</p>
+        <div class="grid2">
+          <div class="box">
+            <span class="who a">Suggested</span>
+            <b>Tests and flakes</b>
+            <p class="small">7 flaky test reruns and 2 red tests in a month, each triaged by one of you. A role would own tests/ and report weekly.</p>
+          </div>
+          <div class="box">
+            <span class="who a">Suggested</span>
+            <b>Dependencies</b>
+            <p class="small">4 dependency bumps last month, each a chat. A role would keep them current within your rules.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

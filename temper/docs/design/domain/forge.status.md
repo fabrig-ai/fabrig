@@ -2,6 +2,7 @@
 
 2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
+
 Section 8.9 has no known implementation gap in every-project given
 rules, their project-scoped reads and held values, removal and reset, or
 branch-relative project patterns. The root checks their approval
@@ -96,6 +97,11 @@ Section 8.1 has no known implementation gap in bounding a pull request's
 body at 65,536 bytes independently of `forge.client.op_bytes`, with a
 marked cut and the change's stored words kept whole. The engine's batch
 table admits 32 changes and refuses 33 at an authority batch bound of 32.
+
+Section 7.2 has no known gap in a goal's topics from the core: they are
+its landing branches' alone, and a goal's CI subscription held at
+restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
+`restored`, by `Request::GoalUntopic`), while a task's own stays.
 
 - **Not yet:**
   - 10, 18: no supplied result shows the three-thread real-process trial

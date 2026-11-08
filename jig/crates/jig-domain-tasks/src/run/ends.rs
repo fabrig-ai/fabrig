@@ -1,9 +1,10 @@
-//! One rule for dependencies and ending authority (domain/tasks.md, 5.7, 5.8 and section 7).
+//! One rule for delegates, dependencies and ending authority (domain/tasks.md, 5.6–5.8 and section 7).
 use crate::domain::{Domain, record};
 use crate::{Active, End, Executor, Phase, TaskResult, Was};
 
 /// Whether an active task may go on, and why not (domain/tasks.md, 5.7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent facts keep their separate claim and finish rules")]
 pub(crate) struct Kept {
     /// A dependency is pending.
     pub(crate) dependencies: bool,
@@ -13,6 +14,8 @@ pub(crate) struct Kept {
     pub(crate) open: bool,
     /// Its immutable spec requires a requester question it has not sent.
     pub(crate) owes: bool,
+    /// An active agent has live delegates, so its ended run cannot hear a refusal (5.6).
+    agent_delegates: bool,
 }
 
 impl Domain {
@@ -42,9 +45,16 @@ pub(crate) fn kept(domain: &Domain, task: u64) -> Kept {
 /// Publication borrows its row mutably; closing keeps cancellation's partial result.
 pub(crate) fn for_record(row: &crate::TaskRecord) -> Kept {
     match row.phase {
-        Phase::Active(_) | Phase::Held { was: Was::Active(_), .. } => pending(&row.waiting_on, row.flags.ended_by)
-            .with_question(question(&row.questions, row.requester))
-            .with_owing(row.spec.asks && !row.asked_requester),
+        Phase::Active(_) | Phase::Held { was: Was::Active(_), .. } => {
+            let mut kept = pending(&row.waiting_on, row.flags.ended_by)
+                .with_question(question(&row.questions, row.requester))
+                .with_owing(row.spec.asks && !row.asked_requester);
+            kept.agent_delegates = match row.executor {
+                Executor::Agent { .. } => !row.delegates.is_empty(),
+                Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => false,
+            };
+            kept
+        }
         Phase::Waiting
         | Phase::Closing(_)
         | Phase::Held { was: Was::Waiting | Was::Closing(_), .. }
@@ -59,6 +69,7 @@ pub(crate) fn pending(dependencies: &[u64], ended_by: crate::EndedBy) -> Kept {
         question: None,
         open: ended_by == crate::EndedBy::Requester,
         owes: false,
+        agent_delegates: false,
     }
 }
 
@@ -143,9 +154,19 @@ impl Kept {
             }
     }
 
-    /// A run's own finish (5.7): as `parks`, and kept by its own question a failure parks too.
+    /// A judged run's finish (5.6, 5.7): live delegates wait, and an own question parks a failure too.
     pub(crate) fn run_parks(self, end: &End) -> bool {
-        self.parks(end) || (self.question.is_some() && finished(end))
+        let delegates = self.agent_delegates
+            && match end {
+                End::Finished { cancel_delegates, .. } => !cancel_delegates,
+                End::FinishedWithFollowups { .. }
+                | End::Exceeded(_)
+                | End::Parked
+                | End::Failed(_)
+                | End::Refused
+                | End::Recheck => false,
+            };
+        self.parks(end) || (self.question.is_some() && finished(end)) || delegates
     }
 }
 

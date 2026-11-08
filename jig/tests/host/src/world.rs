@@ -680,6 +680,7 @@ impl World {
                 | FromAgent::Withdrawn { .. }
                 | FromAgent::Refused { .. }
                 | FromAgent::StartRefused { .. }
+                | FromAgent::StartBusy { .. }
                 | FromAgent::Yielded { .. }
                 | FromAgent::Turn { .. }
                 | FromAgent::Faulted { .. },

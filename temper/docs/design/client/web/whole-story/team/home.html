@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team profile, Home</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+<script src="../whole-story.js"></script>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">shop <small>1 project</small></span>
+    <div class="nav">
+      <a class="on" href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="work.html">Work</a>
+      <a href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">You</a>
+    </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
+  </nav>
+
+  <main class="main">
+    <div class="col">
+      <header class="intro">
+        <p class="kicker">Monday 08:40 · you last looked Friday 17:55</p>
+        <h1 class="headline">9 changes landed since Friday. Two sign-offs wait on you; one waits on Kit.</h1>
+        <p class="lede">Agents reviewed every change. Sam signed off five on Saturday, including the refund rounding fix, so payments has one change waiting for its second sign-off: yours. The coupon goal is two of three changes in. Nothing failed after landing.</p>
+        <p class="byline">Written by the status agent at 08:31</p>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Your sign-offs · 2</h2><a href="needs.html">All needs</a></div>
+        <div class="card need">
+          <p class="from"><span class="chip">payments/</span> Retry a declined card once, after 2 s · asked by Sam · reviewed by an agent</p>
+          <p class="q">Sign off "Retry a declined card once"? 1 of 2 signed: Sam.</p>
+          <p class="why">payments/ needs two of you. +38 −6 in payments/retry.go, its tests green.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Sign off on Forgejo ↗</a>
+            <a class="choice" href="#">See the change</a>
+            <a class="choice quiet" href="#">Ask for a change</a>
+          </div>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">coupons</span> Expired coupons say why · goal "coupons", 2 of 3 · asked by Kit</p>
+          <p class="q">Sign off "Expired coupons say why"?</p>
+          <p class="why">Every change needs one of you. The reviewer passed it with one note, answered.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Sign off on Forgejo ↗</a>
+            <a class="choice" href="#">See the change</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>The team's queue</h2><span>whose turn it is</span></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">Kit's turn · 1</span>
+            <div><p>Storefront: product page shows stock per size.</p><p class="small muted">Reviewed by an agent Saturday; storefront is Kit's area.</p></div>
+            <span class="r">waiting 2 d</span>
+          </div>
+          <div class="row">
+            <span class="mono">Sam's turn · 0</span>
+            <div><p class="muted">Nothing waits on Sam.</p></div>
+            <span class="r"></span>
+          </div>
+          <div class="row">
+            <span class="mono">Agents · 3</span>
+            <div><p>One change in review, one being repaired after its CI failed, one being made.</p></div>
+            <span class="r">no one needed</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Landed since Friday · 9</h2><a href="work.html">Work</a></div>
+        <div class="rows">
+          <div class="row"><span class="mono">Sat 11:20 · Sam</span><div><p>Refund amounts round half to even.</p><p class="small muted">payments/ · signed by you and Sam</p></div><span class="r">#212</span></div>
+          <div class="row"><span class="mono">Sat 10:05 · Sam</span><div><p>Order emails name the courier.</p><p class="small muted">signed by Sam</p></div><span class="r">#210</span></div>
+          <div class="row"><span class="mono">Fri 18:40 · Kit</span><div><p>Coupon codes are case-insensitive.</p><p class="small muted">goal "coupons" · signed by you</p></div><span class="r">#208</span></div>
+          <div class="row"><span class="mono">and 6 more</span><div><p class="muted">Wording, tests and one dependency bump.</p></div><a class="r" href="work.html">All</a></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Decided for you · 1</h2><a href="how.html">What reaches you</a></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">shop · CI · Sat 09:12</span>
+            <div><p>A checkout test timed out once.</p><p class="took">Reran it.</p><p class="small muted">Retries are decided and listed, as Agents review allows.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+        </div>
+      </section>
+
+      <div class="ask"><span>Ask temper: why did the coupon goal take two repairs?</span><span class="mono">Enter</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

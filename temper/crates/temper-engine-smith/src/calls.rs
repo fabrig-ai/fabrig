@@ -604,21 +604,20 @@ fn change_batch_options(value: &Value) -> Result<(), Problem> {
     if value.field(b"words")?.is_some() {
         return Err(Problem::Range(b"changes"));
     }
-    let options: &[(&[u8], &[u8])] = &[
-        (b"repository", b"repository: put inside each changes item"),
-        (b"name", b"name: put inside each changes item"),
-        (b"landing", b"landing: put inside each changes item"),
-        (b"branch", b"branch: put inside each changes item"),
-        (b"merge", b"merge: put inside each changes item"),
-        (b"after", b"after: put inside each changes item"),
-        (b"producer", b"producer: put inside each changes item"),
-        (b"llm", b"llm: put inside each changes item"),
-        (b"questions", b"questions: put inside each changes item"),
-        (b"repairs", b"repairs: put inside each changes item"),
-    ];
-    for (field, message) in options {
-        if value.field(field)?.is_some() {
-            return Err(Problem::Range(message));
+    for member in [
+        b"repository".as_slice(),
+        b"name",
+        b"landing",
+        b"branch",
+        b"merge",
+        b"after",
+        b"producer",
+        b"llm",
+        b"repairs",
+        b"questions",
+    ] {
+        if value.field(member)?.is_some() {
+            return Err(Problem::Beside(member));
         }
     }
     Ok(())

@@ -151,16 +151,18 @@ temper-client-shell-terminal    the terminal: temper's host, its settings and li
 └── jig-client-shell-native     jig's native transport: skein's HTTP client with jig-client-protocol-http; the small store's file and the credential's
 temper-client-tui               the TUI: its state, its events, its pages as skein-ui's tree, its words, its look's names and its theme (6.11 to 6.16)
 └── skein-ui-screen             skein's full-screen shell's renderer: the theme, the frame, the focus (skein's ui-screen.md)
-temper-client-shell-tui         the TUI's host, its seam, and its loop over the native transport and skein's full-screen terminal (6.13, 6.16)
+temper-client-shell-tui         the TUI's host, its seam, and its loop over the native transport and skein's full-screen terminal (6.13, 6.16); its start (6.11, 6.12)
 └── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
-temper                          the binary; `temper open` runs the terminal, `temper [ADDRESS]` the TUI (../protocol/README.md, section 4)
+temper-shell                    what every binary of temper's starts from: its table's rows and help, the three directories, the engine's link at rest (6.12)
+temper                          the box's binary; `temper open` runs the terminal, `temper [ADDRESS]` the TUI (../protocol/README.md, section 4)
+temper-client                   the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/README.md, section 4)
 temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (browser.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
 └── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
 
 for agents
 temper-client-tools             the agents' tools on jig-client, beside the view (tools.md, section 4)
-temper-client-shell-cli         `temper ctl`, over jig-client-shell-native (tools.md, section 8)
+temper-client-shell-cli         `temper ctl`, over jig-client-shell-native, and its start (tools.md, section 8)
 
 for tests
 skein-fake-person               the person, on skein-ui's tree (../domain/testing.md, 4.4)
@@ -215,9 +217,27 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   builds from, so that the two say the same thing alike (6.14, *Its
   words*). The view's builders and bindings stay its own.
 - **`temper-client-shell-tui`** holds, as modules: `host`, the TUI's
-  one seam (6.13); `run`, its loop (6.16); and `limits`, the client's
+  one seam (6.13); `run`, its loop (6.16); `limits`, the client's
   from `temper-client-shell-terminal`'s with the TUI's view and screen
-  limits beside them.
+  limits beside them; and `start`, the TUI's arguments and start (6.11,
+  6.12): the address, the directory and what it keeps, the engine's link
+  file read, the terminal's scheme and depth, the opener, and `run`.
+- **The clients' start, one for two binaries.** The box's `temper` and
+  `temper-client` each run the TUI and `ctl` by the same code, in the
+  shells both link, never through the other binary
+  (`../draft/deployment-binaries.md`, section 4):
+  - `temper [ADDRESS]` and `temper-client [ADDRESS]` call
+    `temper_client_shell_tui::start::run`, given the binary's name for
+    the lines it prints (6.11);
+  - `temper ctl` and `temper-client ctl` call
+    `temper_client_shell_cli::start::run`, whose lines name `temper ctl`
+    in both (`tools.md`, 8.1);
+  - an argument naming an engine's address or a sign-in link is read by
+    `temper_client_shell_terminal::address`, for the TUI and for `temper
+    open` (6.1);
+  - the engine's link file is `temper-shell`'s `link_file`, which the
+    engine writes and the TUI reads (6.12), and the TUI's state directory
+    is made private by `temper-shell`'s `directories`.
 - **Step code under the subset:** the domain, the forge's side, the
   view, the TUI's state, view and theme, and the wire. **Ordinary
   Rust:** the terminal's host, the TUI's host and loop, and the
@@ -393,6 +413,8 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
+| `Role { project, charter }` | none: the look request `ask-temper-ways`'s card names the role it opens | one role of the project, a charter: its name, who it is and its facts, as Ask temper's `charter N` view draws it (*A role's or a rule's page,* below) | `me`; the forge's read `View` of `charter N` in the project (4.6) | none |
+| `Rule { project, kind, number }` | none, as `Role`'s | one landing rule, of the deployment (kind 1) or the project (kind 2): what it covers and asks, as the view `rule K/N` draws it (*A role's or a rule's page,* below) | `me`; the forge's read `View` of `rule K/N` in the project (4.6) | none |
 | `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings: the ways to pick, drawn (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them; To begin's facts, as Home reads them, for the rail (*Home,* below); the project's `ways` (4.6) | start an Ask temper chat from its composer; show a way's tab and a stop's card in place; "Use this" or "Keep it", jig's `ChangeSettings` (5.13) |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
@@ -2872,7 +2894,10 @@ keeps (`../protocol/configuration.md`, section 2).
       `who` beside it in grey ("an agent · holds a change until it
       approves"), and, where the stop opens a charter, a gate or a rule,
       a link "Open NAME ›" at its right, NAME the card's `name` ("the
-      reviewer"), to the project's Settings; then its `facts`, each label
+      reviewer"), to what it opens: a charter's role,
+      `Role { project, charter }`, a gate's its reviews' charter's role,
+      the gate's `charter`, and a rule's page, `Rule { project, kind,
+      number }` (*A role's or a rule's page,* below); then its `facts`, each label
       small, faint and in mono over against its value ("Model", "Can",
       "Asked to"; a person's role and what they decide; code's checks,
       the queue or the turn). A bar opens no card.
@@ -2923,6 +2948,21 @@ keeps (`../protocol/configuration.md`, section 2).
   like any other there; refused, jig's words stay under the composer, the
   words kept. The chat names no repository. A way's act starts no chat:
   it changes the settings at once (5.13).
+- **A role's or a rule's page:** `Role { project, charter }` and `Rule {
+  project, kind, number }`, what a stop's card opens, each a page in
+  Settings' frame with How work runs' tab current, reading the forge's
+  `View` (4.6) of `charter N` or `rule K/N` in the project, the same
+  read and the same card a reply's view draws (5.16): its heading, level
+  1, the card's `name` with a capital ("The reviewer", "The project's
+  rule 1"); its `who` under it, muted; then its `facts`, each label
+  small, faint and in mono over against its value, as a stop's card's
+  are. On a phone, "‹", a link named "How work runs" to `Settings {
+  project }`, alone before the heading. Until the read answers the page
+  says "Reading NAME…" (NAME "role N" or "rule K/N"); a `not_drawn`
+  answer, a refusal or a failed read says, muted, in a line, that it
+  can't be read now, and the address. It has no act: a role's or a
+  rule's change is a proposal, Ask temper's. The terminal prints its
+  heading, `who` and facts, as any page.
 - **temper's own way,** the stock page `how-temper-builds-temper`
   (`../protocol/documentation.md`, 2.2), has no way in from this page
   (the look request `ask-temper-ways`, the user, 2026-11-08): the client
@@ -4131,13 +4171,18 @@ the person to check existence and grant the repository to the App.
   - `words`, at most 64 bytes, as the path draws them ("you ask",
     "produce ×n", "an owner approves", "main");
   - `opens`, `Opens`: `nothing`, `charter` (`charter`), `rule` (`kind`,
-    `scope`, `number`), `gate` (`number`), `tier` (`name`), `queue` or
+    `scope`, `number`), `gate` (`number`, and `charter`, its reviews'
+    charter, the role its card opens), `tier` (`name`), `queue` or
     `turn`;
   - `card`, `Card`: `who`, at most 128 bytes, as "an agent · holds a
     change until it approves"; `name`, at most 64, as "the reviewer",
     "owner", "CI" or "main"; `facts`, at most 4, each a `Fact`, `label`
-    at most 32 bytes and `value` at most 128, as "Model" and "Opus 5.5 ·
-    high", "Can", "Asked to".
+    at most 32 bytes and `value` at most 184, as "Model" and "Opus 5.5 ·
+    high", "Can", "Asked to": the engine makes every value at most 128
+    bytes but an agent's "Asked to", its instructions' first sentence
+    in quotes, at most 184 (`../domain/forge.md`, 8.13), so that the worst
+    ways document and the worst view answer still fit one decision's
+    delivery in the smallest profile.
 - **A project's ways, the subject `ways`:** of the project's scope, for a
   party with a role there, its window unused; on the wire `Watching`'s
   `ways`, `WaysSubject`: `project`. The root makes its document, since
@@ -4163,7 +4208,8 @@ the person to check existence and grant the repository to the App.
   party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,
   a `WayView`, `name`, `line`, `path` and `current`; `path`, a `BranchPath`;
   `proposal`, a `ProposalView`, `before` and `after`; `charter`, a
-  `CharterView`, `charter` and its `card`; or `not_drawn`, `words`, at
+  `CharterView`, `charter` and its `card`; `rule`, a `RuleView`, `kind`,
+  `number` and its `card`; or `not_drawn`, `words`, at
   most 512 bytes, saying in a line why it is not drawn.
 - **A proposal's items, the read `ProposalItems`:** its answer,
   `ProposalItemsAnswer`, holds the items and `owned_approval`, whether one of
@@ -5172,7 +5218,9 @@ repository, and the cues the playground's, copied in from its read:
   repository" (3.5).
   *Where it departs from its mockup, since 2026-11-04* (the user's
   greenfield pass; the mockup is not edited): the frame holds temper
-  box's line and the steps, and no person's name or "Sign out"; the
+  box's line and the steps, then the top bar's right as on every page
+  outside a project, signed in the person's name and "Sign out" (3.5,
+  *Its frame*; the look request `outside-pages`); the
   Welcome step's "Set up temper" card comes first and is the default,
   its words "Your forge: a Forgejo temper runs for you, or GitHub. Your
   model: ChatGPT or Claude.", the playground's card after it, "A
@@ -6479,8 +6527,10 @@ terminal draw the same path.
   [BRANCH]`, a repository of the chat's project, its landing branch when
   left out; `proposal tN/K`, a waiting proposal's path before and after
   over the project's home repository's landing branch; `charter N`, a
-  role. A path or a charter takes `@revision N`, drawn when N is the
-  newest revision; an older one is not drawn yet, and says so.
+  role; `rule K/N`, a landing rule, K 1 for the deployment's and 2 for
+  the chat's project's, N its number. A path or a charter takes
+  `@revision N`, drawn when N is the newest revision; an older one is not
+  drawn yet, and says so.
 - **Read when shown:** the chat page reads each address it shows once,
   through the forge's read `View` in the chat's project (4.6), equal
   addresses sharing one read, and again when the session's `settings`
@@ -6495,19 +6545,24 @@ terminal draw the same path.
   end; each stop its mark, an agent's a four-point star, a person's a
   ring, code's a small square, and its words. A way draws its name and
   line over its path; a proposal its two paths, "Before" and "After"; a
-  charter its card, `who`, `name` and `facts`, as a list of terms; a
-  `not_drawn` its words. The drawing's fallback, which the terminal
+  charter or a rule its card, `who`, `name` and `facts`, as a list of
+  terms; a `not_drawn` its words. The drawing's fallback, which the terminal
   prints, is a stop a line, its words and its actor in words ("produce,
   an agent").
 - **Its layout,** of the box's width `W` alone:
-  - *across,* 140 pixels high, where `W` is 560 or more and its stops
-    stand at least 48 pixels apart: the dotted line
+  - *across,* where `W` is 560 or more and its stops would stand at
+    least 48 pixels apart in it (`W − 80` over the gaps between the stops
+    before the last bar): a scene `A` wide and 140 high, `A` being `W`
+    from 720 up and 720 under it, so that in a box under 720 the scene
+    says its width and is scaled to the box, keeping its proportions, as
+    the look request's picture is, 658 by 127.94 in a box 658 wide
+    (skein's `ui.md`, 11.2): the dotted line
     at 72; a person's and an agent's marks at 40, their words over them
     at 22; code's at 106, its words under it at 131; the stops before the
-    last bar evenly from 12 to `W − 68`, the first's words anchored at its
+    last bar evenly from 12 to `A − 68`, the first's words anchored at its
     start, the others' at their middle; a goal's branch's bar in a stop's
     place, dimmer, its words over the dotted line at 88; the landing
-    branch's bar at `W − 8`, its words ending there at 88. The line runs
+    branch's bar at `A − 8`, its words ending there at 88. The line runs
     along the base row through code's stops and the bars, rising to each
     judgement over 0.42 of a step and falling back over as much, a cubic
     curve each way, and ends at the landing branch's bar: above the
@@ -6527,15 +6582,18 @@ terminal draw the same path.
   below it across, a row 28 high down the page, carries its act, so that
   a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);
   the open stop has a pale ring of 15 behind its mark and its words in
-  ink, bold, and, across, the scene grows 14 pixels at its foot for its
-  card's caret, a point under the open stop whose base meets the card's
-  top edge, the card following the drawing with no gap (3.5); down the
-  page there is no caret. Its fallback's lines are then buttons doing the same,
+  ink, bold, and the scene grows at its foot by what is 14 pixels in the
+  box (14 × `A` / `W` across, rounded to a whole pixel of the scene; 14
+  down the page), so that the card, following the drawing with no gap of
+  its own (3.5), stands 14 pixels under it as the request's does: across,
+  that room holds the card's caret, a point under the open stop 6 pixels
+  of the box high and 12 wide, its base on the scene's foot, where the
+  card's top edge is; down the page there is no caret. Its fallback's lines are then buttons doing the same,
   expanded while their card shows, for the keyboard, a screen reader and
   the fake person. In a reply nothing is pressed.
 - **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
   in a reply opening its card, the views `queue`, `task N tree` and
-  `task N timeline`, and the TUI's drawing of views, temper/tui's.
+  `task N timeline`. The TUI prints views: `../draft/surfaces.md`, 11.5.
 
 ## 6. The terminal shells
 
@@ -6836,6 +6894,15 @@ it (6.14). `temper open` stays the tests' line client
 
   A panic aborts the process (fail-stop), the terminal left as it was
   found (6.16).
+- **In the deployment's client,** `temper-client [ADDRESS]` is the same
+  TUI by the same start (section 2), its lines naming `temper-client`
+  where the table above names `temper`: `temper-client: the TUI needs a
+  terminal on stdin and stdout`, `run temper-client http://HOST:PORT and
+  paste it`, and, bare with no terminal, `temper-client: no command;
+  temper-client --help lists them`. Its directory, its `address` and its
+  `sign-in` note are the same files (6.12), so either binary finds what
+  the other kept, and it reads the engine's link file as the box's
+  `temper` does (`../protocol/README.md`, section 4).
 
 ### 6.12 Its directory
 
@@ -6895,7 +6962,7 @@ it (6.14). `temper open` stays the tests' line client
     with none, no file is kept and the TUI reads none. On macOS,
     `DATA/printed-link`, in the deployment's data directory. KEY is the
     first 8 bytes of the SHA-256 of the data directory's absolute path,
-    as 16 lowercase hex digits. One function, `temper`'s
+    as 16 lowercase hex digits. One function, `temper-shell`'s
     `link_file::path`, makes it for the engine and for the TUI.
   - *Its deployment:* the engine keys it by the data directory it runs
     on, however it was named; the TUI by the deployment its environment

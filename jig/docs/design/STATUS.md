@@ -56,10 +56,17 @@ and per-account offer narrowing (`domain/accounts.md`, 3.7;
 Run reasons, ordered charter parts and first/later LLM choices are built
 through configuration, store and client records. A run takes the parts
 its reasons meet, and its fences leave unoffered or paced messages for
-the next run; an undecided entry wakes it again. The core-world table
-holds the per-wake story, including an arrival between preparation and
-claim (`domain/tasks.md`, 8.6; `domain/engine.md`, 7.1, 7.2 and 7.4;
-`domain/hosts.md`, 6.4). Resumed parts, documents per part and choices
+the next run; an undecided entry wakes it again unless its run covered
+the entry's kind, when it waits for a change, and a reason arriving
+before a run's claim prepares it again. The core-world table holds the
+per-wake story, including a question and a due result arriving between
+preparation and claim and a covered escalation across a restart
+(`domain/tasks.md`, 8.6; `domain/engine.md`, 7.1, 7.2 and 7.4;
+`domain/hosts.md`, 6.4). A start refused before its first turn spends a
+transient try for its transcript and a permanent one otherwise, an
+agent's busy refusal none, and an agent's finish while its task's
+delegates are live parks with no try spent (`domain/tasks.md`, 5.5 and
+5.6; `domain/hosts.md`, section 8). Resumed parts, documents per part and choices
 per wake kind remain deferred (`domain/tasks.md`, section 13), as do
 tool access to `later` and client refusal paths within parts
 (`domain/engine.md`, section 16; `client/domain/contract.md`, section 11).

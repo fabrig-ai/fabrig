@@ -316,6 +316,8 @@ fn view_driver() -> (Driver, engine::Assignment) {
     limits.people.people = 4;
     limits.people.sign_ins = 3;
     limits.people.requests = 12;
+    limits.authority.segments = 4; // A forge rule names its host, owner and repository.
+    config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
     limits.tasks.parameters = 4; // A tier procedure carries repository, tip, tier and run.
     limits.tasks.spec_bytes = 256; // The tier specification includes its commit and branch.
     let settings_family = config.core.settings.tools.settings;
@@ -460,6 +462,7 @@ enum Picture {
     Path { repository: Option<String>, branch: String, words: Vec<String> },
     Proposal { before: Vec<String>, after: Vec<String> },
     Charter { number: u32, who: String, name: String, facts: Vec<(String, String)> },
+    Rule { kind: u32, number: u32, who: String, name: String, facts: Vec<(String, String)> },
     NotDrawn(String),
 }
 fn strings(words: &[&str]) -> Vec<String> {
@@ -485,11 +488,19 @@ fn drawn(view: ways::View) -> Picture {
             name: text(card.name),
             facts: card.facts.into_iter().map(|fact| (text(fact.label), text(fact.value))).collect(),
         },
+        ways::View::Rule { kind, number, card } => Picture::Rule {
+            kind,
+            number,
+            who: text(card.who),
+            name: text(card.name),
+            facts: card.facts.into_iter().map(|fact| (text(fact.label), text(fact.value))).collect(),
+        },
         ways::View::NotDrawn(words) => Picture::NotDrawn(text(words)),
     }
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "view address and rule card rows share one project and proposal")]
 fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
     let (mut driver, run) = view_driver();
     let member = member(&mut driver);
@@ -520,23 +531,77 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
         ("path org/repo @revision 1".to_owned(), owner, false, Picture::NotDrawn(format!("revision 1 isn't drawn yet; views draw the newest settings, revision {newest}."))),
         ("charter 4".to_owned(), owner, false, Picture::Charter { number: 4, who: "an agent".into(), name: "the reviewer".into(), facts: vec![("Models".into(), "scripted".into()), ("Can".into(), "read the code and the forge; change and push its branch; run commands; start sub-agents; never merge or update".into()), ("Wakes".into(), "at once on words, results, failures and questions".into()), ("Asked to".into(), "Complete the task within its authority.".into())] }),
         (format!("path org/repo @revision {newest}"), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "main".into(), words: strings(VIEW_MAIN) }),
+        ("rule 2/1".to_owned(), owner, false, Picture::Rule { kind: 2, number: 1, who: "a landing rule · holds a merge until it is met".into(), name: "the project's rule 1".into(), facts: vec![("Covers".into(), "every branch".into()), ("Asks".into(), "CI, up to date".into()), ("Gates".into(), "the reviewer, blocking, at a clean head".into())] }),
+        ("rule 1/1".to_owned(), owner, false, Picture::NotDrawn("no rule 1/1.".into())),
+        ("rule 3/1".to_owned(), owner, false, Picture::NotDrawn("no view rule 3/1; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N · rule K/N.".into())),
+        ("rule 2/0".to_owned(), owner, false, Picture::NotDrawn("no view rule 2/0; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N · rule K/N.".into())),
+        ("rule 2/1 @revision 2".to_owned(), owner, false, Picture::NotDrawn("no view rule 2/1 @revision 2; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N · rule K/N.".into())),
         ("path org/missing".to_owned(), owner, false, Picture::NotDrawn("no repository org/missing in this project.".into())),
         ("proposal p99/1".to_owned(), owner, false, Picture::NotDrawn("no proposal p99/1.".into())),
         ("proposal t99/1".to_owned(), owner, false, Picture::NotDrawn("no proposal t99/1.".into())),
-        ("path malformed".to_owned(), owner, false, Picture::NotDrawn("no view path malformed; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N.".into())),
+        ("path malformed".to_owned(), owner, false, Picture::NotDrawn("no view path malformed; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N · rule K/N.".into())),
         ("charter 99".to_owned(), owner, false, Picture::NotDrawn("no charter 99.".into())),
         (proposal_address.clone(), owner, false, Picture::Proposal { before: strings(VIEW_MAIN), after: strings(VIEW_AFTER) }),
         ("way unknown".to_owned(), owner, false, Picture::NotDrawn("no way unknown; the ways are You approve, Agents review and Draft first.".into())),
-        ("way".to_owned(), owner, false, Picture::NotDrawn("no view way; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N.".into())),
+        ("way".to_owned(), owner, false, Picture::NotDrawn("no view way; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N · rule K/N.".into())),
         ("charter 99".to_owned(), member, false, Picture::NotDrawn("no charter 99.".into())),
         (proposal_address.clone(), member, false, Picture::Proposal { before: strings(VIEW_MAIN), after: strings(&["you ask", "produce", "an owner approves", "merge", "verify", "main"]) }),
         (proposal_address.clone(), owner, true, Picture::NotDrawn(format!("proposal t{task}/{proposal} is decided; a decided proposal's paths aren't drawn yet."))),
+        ("rule 2/1".to_owned(), owner, false, Picture::Rule { kind: 2, number: 1, who: "a landing rule · holds a merge until it is met".into(), name: "the project's rule 1".into(), facts: vec![("Covers".into(), "every branch".into()), ("Approvals".into(), "you approve".into())] }),
+        ("rule 2/1".to_owned(), member, false, Picture::Rule { kind: 2, number: 1, who: "a landing rule · holds a merge until it is met".into(), name: "the project's rule 1".into(), facts: vec![("Covers".into(), "every branch".into()), ("Approvals".into(), "an owner approves".into())] }),
     ] {
         if accept {
             driver.send(Event::Party(PartyInput::Ask { reply_to: ReplyTo::new(Token::new(50)), sign_in: owner, key: [50; 16], models: Box::new([]), ask: people::Ask::DecideProposal { project: people::DEPLOYMENT, proposer: people::Proposer::Task(task), proposal, decision: people::ProposalDecision::Accept, running: Some(people::Running::Stays) } }));
             driver.settle();
         }
         assert_eq!(drawn(read_view(&mut driver, session, &address).expect("authorized view")), expected, "{address}");
+    }
+    for (key, forge_pattern, last, covers) in [
+        (70, false, forge::GateLast::Exact(b"main".as_slice().into()), "the branch main"),
+        (71, false, forge::GateLast::Open(b"temper".as_slice().into()), "branches beginning temper"),
+        (72, true, forge::GateLast::Exact(b"main".as_slice().into()), "org/repo's branch main"),
+        (73, true, forge::GateLast::Open(Box::new([])), "org/repo's every branch"),
+        (74, true, forge::GateLast::Open(b"temper".as_slice().into()), "org/repo's branches beginning temper"),
+    ] {
+        let mut advice = rule();
+        advice.enforce = false;
+        if forge_pattern {
+            advice.pattern.segments = [b"forge".as_slice(), b"host", b"org", b"repo"].map(Box::from).into();
+        }
+        advice.pattern.last = last;
+        advice.gates = Box::new([
+            settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Exact },
+            settings::RuleGate { number: 2, blocking: false, freshness: forge::JudgeFreshness::Clean },
+        ]);
+        advice.approvals = Box::new([
+            settings::RuleApproval { role: 0, people: 2, freshness: forge::JudgeFreshness::Clean },
+            settings::RuleApproval { role: 1, people: 1, freshness: forge::JudgeFreshness::Exact },
+        ]);
+        let kind = if forge_pattern { 1 } else { 2 };
+        let scope = if forge_pattern { 0 } else { PROJECT };
+        let against = kinds::revision(&driver.store.rows);
+        driver.send(kinds::change(
+            owner,
+            against,
+            key,
+            Box::new([kinds::item(kind, scope, 1, &settings::Value::Rule(advice))]),
+        ));
+        driver.settle();
+        assert_eq!(kinds::revision(&driver.store.rows), against + 1, "{key}: {:?}", driver.delivered);
+        assert_eq!(
+            drawn(read_view(&mut driver, member, &format!("rule {kind}/1")).expect("rule advice")),
+            Picture::Rule {
+                kind,
+                number: 1,
+                who: "a landing rule · advice, enforcing nothing".into(),
+                name: if forge_pattern { "the deployment's rule 1" } else { "the project's rule 1" }.into(),
+                facts: vec![
+                    ("Covers".into(), covers.into()),
+                    ("Gates".into(), "the reviewer, advice; the reviewer, advice, at a clean head".into()),
+                    ("Approvals".into(), "an owner approves ×2; a role 1 approves".into())
+                ],
+            }
+        );
     }
     let owner_view = read_view(&mut driver, owner, "charter 4");
     assert_eq!(read_view(&mut driver, member, "charter 4"), owner_view);

@@ -532,7 +532,11 @@ them (5.7).
   - *the run's own:* it reported failing;
   - *the agent's:* it crashed, broke its channel's rules, stalled;
   - *lost:* its host went away;
-  - *invalid:* a result that broke its contract.
+  - *invalid:* a result that broke its contract. A start its host
+    refused before the run's first turn gave no result, so it is never
+    invalid: one refused for its transcript is transient, one refused as
+    any other invalid assignment permanent, and one refused busy no
+    failure (below).
 
   A refusal before anything ran (a host busy, a writer slot taken, no
   room to gather a brief) is no failure: the task claims again after a
@@ -606,7 +610,10 @@ them (5.7).
 - **A task ends after its delegates.** An executor that finishes while
   delegates of its task are live is refused, naming them, unless its
   finish asks for them to be cancelled, so a task that depends on another
-  waits for that task's whole subtree. Its result goes to its requester
+  waits for that task's whole subtree. An agent's run has ended by the
+  time its finish is judged and could hear no refusal, so its finish
+  parks it instead, with no try spent, and the task waits for its
+  delegates' results (engine.md, 7.4). Its result goes to its requester
   once it has closed (5.1).
 - **A task ends done after its dependencies.** A done result while one
   of them is pending is not taken (5.7), so a task's requester and
@@ -1366,8 +1373,8 @@ circle, each for another of the set, so that none of them could end.
 | a timer | itself | yes |
 
 Proposals and escalations waiting for its decision are not messages: they
-are entries of its own (section 9), which wake it subject to the
-person-answer wait in 8.6.
+are entries of its own (section 9), which wake it as they arrive, and
+again when a run leaves one undecided only as 8.6 says.
 
 ### 8.2 The inbox
 
@@ -1471,9 +1478,9 @@ A wake policy is data, from a closed vocabulary:
 - **timers:** wake at a time, or every period.
 
 A proposal or an escalation waiting for its decision always wakes a
-task: no policy may keep a decision from whoever must make it. After
-reading an escalation, a holder may park awaiting its person delegate
-without that same entry waking it again (8.6).
+task: no policy may keep a decision from whoever must make it. One a run
+was offered under a part that covered it and left undecided wakes the
+task again only when it changes (8.6).
 
 A message a run refused, left unread or wasn't offered (8.2 and 8.6) is
 judged again when the run ends, as if it arrived then: it wakes the task
@@ -1581,24 +1588,44 @@ those parts are for.
   and every kind named in the `on` of a part it reads; under a charter with
   none, or for a task with instructions of its own (section 7), every
   message, as a charter with no parts gave every run before. The parts are
-  those its preparation chose (engine.md, 7.1, step 2), so a message that
-  arrives between its preparation and its claim is offered or kept by them.
+  those its preparation chose (engine.md, 7.1, step 2).
+- **Every reason waiting at its claim.** A message or an entry that
+  arrives between a run's preparation and its claim, and whose kind would
+  join its reasons (one its wake policy lets wake it, of a kind that
+  chooses parts, that its prepared reasons don't hold), prepares the run
+  again, so that the run starts with every reason waiting for it, a due
+  result among them, and every part those reasons choose. One whose kind
+  would add no reason is offered or kept by the parts prepared. Each such
+  preparation adds a kind to the reasons, so a run prepares again at most
+  once per kind.
 - **What isn't offered keeps its place** (8.2): it is neither carried at the
   run's start nor relayed to it, no fence takes it, and when the run ends it
   is judged again as if it arrived then (8.3), when it may wake the next run,
   which then runs for its kind.
-- **An entry left undecided is judged again.** When a run ends with a
-  proposal or an escalation still waiting for its task's decision, the
-  task is woken again for its kind, as an unread message would wake it,
-  except for this bounded person-answer wait: a holder that committed
-  reading an escalation and parks with a direct person delegate still
-  unanswered stays idle for that entry. The held task and its decision
-  entry remain unchanged. Unread or refused entries still wake it;
-  proposals keep their wake. Another actionable message or a new escalation
-  wakes it normally, and the person's result follows the holder's result
-  wake policy. Each new attempt must read the entry itself. Restart
-  reoffers unresolved entries, and the escalation's stall and routing
-  remain in force (section 9).
+- **An entry left undecided waits for a change, once a run covered it.**
+  When a run ends with a proposal or an escalation still waiting for its
+  task's decision, what the run was offered decides:
+  - *covered:* the run was offered the entry's kind (a part it read names
+    the kind in its `on`; or its charter has no parts, or its task has
+    instructions of its own, so it read its instructions for every kind).
+    The run had the entry and left it, so the entry doesn't wake the task
+    again by itself. It is offered to the task's next run, whatever wakes
+    it, its kind among that run's reasons (8.3), and it wakes the task
+    when it changes: a new hold of its held task or a new holder makes a
+    new entry, which wakes as an entry's arrival does (section 9), and a
+    message about it, such as its person delegate's result or a notice of
+    its held task, wakes by its own kind.
+  - *not covered:* no part the run read names the kind, as a cut whose
+    part is for `first` alone names no escalation. The task is woken
+    again for the entry's kind, as an unread message would wake it, and
+    its next run reads the part for it.
+  - An entry the run refused (8.2) wakes the task again, covered or not.
+
+  The held task and its entry are unchanged either way, and the entry's
+  stall and routing stay in force (section 9). The task keeps the kinds
+  its last run was offered (`../protocol/store.md`, section 5), so a
+  restart wakes an idle holder only for an entry its last run wasn't
+  offered.
 - **The set,** as the store keeps it, is bits: bit 0 for `first`, then
   bits 1 to 13 for the kinds that choose parts, in the order above; no
   other bit is set (`../protocol/store.md`, section 5).
@@ -1692,8 +1719,8 @@ proposed, what an action needs, and what an acceptance funds.
 - **Waking.** Its arrival wakes the task it waits for (8.3), is relayed
   to that task's live run as messages are, whatever the run's parts (8.6),
   and is in the brief of its next run (engine.md, section 9). Left
-  undecided when that run ends, it wakes the task again for its kind,
-  subject to the read escalation's person-answer wait (8.6). For a party,
+  undecided when that run ends, it wakes the task again for its kind
+  unless that run was offered its kind, when it waits for a change (8.6). For a party,
   it appears in their inbox at once. Waiting for a person neither decides
   the escalation nor resets its stall time.
 - **Deciding.** A holder accepts, rejects with a reason, or passes it up
@@ -1937,9 +1964,6 @@ the newest when it moved.
 - **Wake defaults:** which kinds wake each charter's tasks, and how
   batching is tuned; whether a cheap model should triage news before a
   coordinator wakes. Tuned from use.
-- **Other waits for an undecided entry** (8.6): beyond the read
-  escalation's wait for a person delegate, whether an entry should await
-  another actionable change is left to use.
 - **Later, for parts:** a part given as a message when a resumed run first
   meets its kind, so that a charter whose runs resume may have parts;
   documents chosen per part (engine.md, 17.9); an LLM choice per kind of
@@ -1963,3 +1987,9 @@ the newest when it moved.
   `finish` with no call to its host (engine.md, 7.3 and 7.4), and costs a turn;
   parking stays underneath it, as a refusal can't cover every path to a finish.
   Default: it parks, an application's charter saying beforehand to call `wait`.
+- **A finish put off for live delegates, told** (5.6; engine.md, 7.4):
+  whether the next run is told that its task's last run finished while
+  its delegates were live, a bounded note the tasks store keeps for its
+  brief. Default: it isn't, the plan `wake-faults`'s answer of
+  2026-11-08; revisited if a model is seen finishing again and again while
+  its delegates run.
