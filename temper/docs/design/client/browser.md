@@ -409,12 +409,12 @@ replay says the same clocks (`README.md`, 5.12).
   (jig's `client/domain/client.md`, section 12).
 - **Signed out,** by "Sign out" (`README.md`, 6.6; jig's sign-out clears
   the cookie) or with no link: the main is the view's
-  signed-out paragraph (`README.md`, 5.1), in the browser's words:
-  "Signed out. To sign in, open a sign-in link temper printed."
-  The view takes its shell's words at construction; the terminal's stay
-  "Signed out." with its own line (`README.md`, 6.6).
+  signed-out column (`README.md`, 5.1), its heading "Signed out" and,
+  in the browser's words, "To sign in, open a sign-in link temper
+  printed." The view takes its shell's words at construction; the
+  terminal's heading stands alone, with its own line (`README.md`, 6.6).
   With a way of signing in configured, the main is the sign-in page
-  instead: temper's mark, "Sign in" and "Continue with Google", the ways
+  instead: "Sign in" and "Continue with Google", the ways
   read from the page's `temper-sign-in` meta at start
   (`../protocol/sign-in.md`, section 7); the link leaves for Google's
   sign-in and comes back to the page's address. Where the deployment
@@ -456,7 +456,7 @@ replay says the same clocks (`README.md`, 5.12).
 ### 2.5 The look
 
 - **temper's style tokens,** under the owner's prefix `temper-`, on the
-  nodes the mockups style: the frame's banner, navigation and main; the
+  nodes the mockups style: the frame's top bar or rail, navigation and main; the
   cards; the conversation's turns; the composers. The view sets them
   (`README.md`, 5.1); the terminal prints none.
 - **The first paint, the placeholder's:** the shell's `loading.html` and
@@ -503,8 +503,9 @@ replay says the same clocks (`README.md`, 5.12).
   subset to Latin, with its licence beside it; the page fetches nothing
   from another host. The mockups' icons are decorative background
   images drawn by `temper.css` from the bundle's SVG files, each in its
-  own colour (the brand mark the accent's, the menu's ☰ its summary's,
-  the send arrow white): never masks, which a browser fetches under
+  own colour (the rail's unfold ☰ its summary's, the send arrow white;
+  temper's mark is the "✦" in the signal, a character, not an image):
+  never masks, which a browser fetches under
   CORS and so refuses to a page opened as a file, as the journeys'
   prints are (`journeys.md`, 5.4).
   Every control keeps its words as its name. Nothing a person must know
@@ -517,7 +518,7 @@ replay says the same clocks (`README.md`, 5.12).
   length of a rule for a part inside main at that scale, to two
   decimals, rather than zoom it (the user, 2026-10-26). What a zoom
   would leave stays: hairlines, the media queries' widths, and the
-  banner with its wordmark, at the mockups' own. What a zoom scales
+  top bar with its mark, at the mockups' own. What a zoom scales
   but no length of temper's names is written out at the scale too:
   main's own text size, which its parts inherit with their `em`
   spacing; a native control's own size; skein's sheet's lengths inside
@@ -585,8 +586,8 @@ replay says the same clocks (`README.md`, 5.12).
   (`#app:has(> .temper-welcome)`), so that no other page changes: IBM
   Plex Sans, bundled under `files/fonts/` with its licence (SIL OFL
   1.1), 15 px on paper (#f7f7f5) in ink (#18181b), ✦ before temper's
-  name in the signal colour (#c2410c). The banner is a top bar, 22 px
-  by 32 px, the brand, temper box's line in 14 px muted words, its
+  name in the signal colour (#c2410c). Its frame is the top bar
+  (*Outside a project*, below), 22 px by 32 px, the brand, temper box's line in 14 px muted words, its
   "temper box" ink and bold, and the steps at its right in 14.5 px
   words, each a link holding a numbered 24 px circle and its label, the
   current one filled ink, a done one ticked green, joined by short
@@ -696,29 +697,10 @@ replay says the same clocks (`README.md`, 5.12).
   stops clear of the tab bar, and the connection flows' primaries, Settings'
   and a dialog's stand at least 44 px tall. Every other control keeps what the
   mock draws.
-- **The navigation** of a page that is no project's sits in the banner
-  after the projects, as in the mockups. At phone width, 760 px and under as in the mockups, the
-  banner keeps temper's name and the view's "Menu" alone (`README.md`,
-  5.1): its summary a ☰, an image drawn over its word, and its
-  content the project's switcher, its first row, the navigation and
-  the corner (the link's state, the person, "Sign out") in a panel
-  that opens under the banner's end, as `terminal-chat.css` draws the
-  mockups' menu. Theirs
-  holds the navigation alone, which leaves a phone no way to choose a
-  project or sign out; temper's holds the corner and the projects too.
-  Wider, `temper.css` draws the menu's content in the banner whether
-  it is open or not, and its summary not at all, where the browser
-  lets a closed disclosure's content be drawn (`::details-content`);
-  elsewhere the ☰ is drawn at every width. Choosing an entry folds the
-  menu: skein's page folds its open disclosures when its address moves
-  (skein's `ui-web.md`, section 7).
-- **The banner is one quiet line,** on the canvas with no fill of its
-  own: its words on the wordmark's baseline, the navigation plain
-  words, the inactive ones `--temper-faint`, the current one ink. The
-  switcher draws the open project's name with a chevron; wider than
-  phone width its list drops under it, the open one ticked. "Set up
-  temper →" is the banner's one coloured control, outlined in the
-  accent, its arrow drawn by the sheet (`README.md`, 5.1).
+- **No frame but the top bar outside a project** (`README.md`, 5.1; the
+  look request `outside-pages`): a page that is no project's has no
+  navigation, switcher or menu, at any width; the top bar is drawn as
+  *Outside a project* (below) says.
 - **The Chats page and every chat are the greenfield mock's**
   (`README.md`, 3.5): each selector the document names is the mock's rule
   copied onto the client's own classes, pixel for pixel, under the sheet's
@@ -954,6 +936,14 @@ replay says the same clocks (`README.md`, 5.12).
     spacing, in capitals.
   - *Night* follows the client's look, as on the rail's pages, through
     `--gf-*`; the server's pages and the boot have none.
+  - *The old look is gone for good:* the banner, its menu and corner,
+    the sign-in card and the unavailable card have no token and no rule
+    (`README.md`, 5.1); `files/brand.svg` is not in the bundle; the
+    stylesheets' accent, `--temper-accent` and the light terminal's
+    `--accent`, is the signal, `#c2410c`. Two focused tests keep it so:
+    every class `temper.css` selects is one `look.rs` names, and no
+    source of the bundle or of the server's pages names the old mark's
+    `#b8664e`.
 
 ### 2.6 The bundle in the binary
 
@@ -2130,8 +2120,9 @@ from the engine's own answers, is where the look is tuned.
 | `inbox-reference` | the reference world's *Needs you* |
 | `accounts-reference` | the reference world's accounts |
 | `accounts-first-run-1` | the first run's accounts at step 1: the playground's account |
-| `signed-out` | signed out |
-| `out-of-date` | a bundle older than the engine |
+| `signed-out` | signed out: the top bar's mark alone, and the column "Signed out" with the printed link's words (2.5, *Outside a project*) |
+| `out-of-date` | a bundle older than the engine: the column "Out of date" |
+| `no-project` | signed in, `me` naming no project, on a deployment with no welcome: the top bar with the person and "Sign out", and the column "No project yet" with the form "New project" (`README.md`, 3.5, *With no project yet*) |
 | `approve-typing` | the approval page at `/terminal`, no code: "Sign in a terminal?", the field holding a code typed in lower case with a space, `wdjb mjht`, and Check (`README.md`, 3.5, *The approval page*) |
 | `approve-unread` | the same field after Check with a code that doesn't read, `WDJB-MJH`: its alert |
 | `approve-asking` | `/terminal?code=WDJB-MJHT` read waiting, asked two minutes before: the code, "Asked 2 min ago", the warning, Approve and Refuse |
@@ -2142,6 +2133,7 @@ from the engine's own answers, is where the look is tuned.
 | `approve-used` | the same decided twice: Approve answered used |
 | `approve-unknown` | a code the engine doesn't know: "Unknown code" and "Type a code" |
 | `approve-signed-out` | the approval page with the browser signed out: "Sign in first", the printed link first, then the page's address again |
+| `approve-signed-out-google` | the same with Google's way given: "Sign in, and this page comes back with your terminal's code." and "Continue with Google", its `then` `/terminal?code=WDJB-MJHT` |
 | `approve-busy` | a read answered busy: "temper couldn't answer just now" and Try again |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
@@ -2243,8 +2235,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   `/public`, and drops what the page showed.
 - **Anyone, signed in or not,** sees the same pages at these addresses:
   the answers are the same for every visitor. A signed-in person's
-  cookie goes with the `GET` and is never read. The banner offers "Sign
-  in" where the deployment has a way, and nothing else of a person's.
+  cookie goes with the `GET` and is never read. The top bar (2.5,
+  *Outside a project*) offers "Sign in" at its right where the deployment
+  has a way, and nothing else of a person's.
 
 ### 8.3 What it shows
 
