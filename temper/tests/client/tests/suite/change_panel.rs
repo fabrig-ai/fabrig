@@ -387,7 +387,7 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
             },
             Step::See { find: review.clone(), within: fixtures::WITHIN },
             Step::See { find: Find::exactly_named(Role::Button, b"Open"), within: fixtures::WITHIN },
-            Step::See { find: Find::exactly_named(Role::Button, b"Later"), within: fixtures::WITHIN },
+            Step::Gone { find: Find::exactly_named(Role::Button, b"Later"), within: fixtures::WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);

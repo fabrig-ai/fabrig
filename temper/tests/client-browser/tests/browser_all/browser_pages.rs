@@ -178,6 +178,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Address(b"/chats/new".as_slice().into()),
         // This chat read docs without starting work; its Work filter is empty.
         Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        see(Find::exactly_named(Role::Button, b"Closed")),
         press(Role::Button, b"Closed"),
         Step::Address(b"/chats?state=closed".as_slice().into()),
         Step::Person(PersonStep::Reload),

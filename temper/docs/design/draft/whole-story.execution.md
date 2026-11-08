@@ -65,7 +65,7 @@ or the nearest thing, and says so in that draft's status.
 | | Milestone | Executes | Needs | Owner | Rank | State |
 |---|---|---|---|---|---|---|
 | M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | must | done |
-| P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | must | in flight |
+| P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | must | landed; its repair waits (section 5) |
 | P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | must | in flight |
 | P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `stock-ways.md`, 4 | M0 | temper/ui | must | landed; its repair starts (section 5) |
 | P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | nice | not started |
@@ -284,14 +284,15 @@ lands when it's ready.
 
 ## 5. Readiness
 
-As read on 2026-11-08 at 17:14Z, from the areas' work in flight, and
-P3's rows at 19:45Z, as P3a retired. Plans
+As read on 2026-11-08 at 17:14Z, from the areas' work in flight,
+P3's rows at 19:45Z, as P3a retired, and P1's and P8's at 22:55Z, as P1
+retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
 |---|---|---|
 | M0 | done | |
-| P1 | in flight | `ui-p1-rail` |
+| P1 | landed; its repair waits | `ui-p1-rail` drew the rail as this draft stood at its cut; a repair draws To begin's rail with its hairline and "How work runs", turns the words that still send a person to Settings, and takes the phone's "Needs" and Away across projects (`surfaces.status.md`, 2 and 10); Team in the rail waits for a read of a project's members or roles (P4a), and Needs you's count across projects for P2 |
 | P2 | in flight | `ui-p2-home` |
 | P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes; its repair draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles (`surfaces.status.md`, 7 and 13) |
 | P3b, P3c, P3d | wait | N1, N2 or F1 and R1, by their needs |
@@ -302,7 +303,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P5b | waits | P5a and R2, by its needs |
 | P6 | in flight | `ui-drafter` |
 | P7 | waits | P2 |
-| P8 | waits | P1 and P6 |
+| P8 | waits | P6 |
 | N1 | in flight | `ui-reaches` |
 | N2 | waits | N1, by its needs |
 | N3a, N3b | wait | N1, by their needs |

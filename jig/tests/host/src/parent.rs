@@ -300,6 +300,7 @@ impl Parent {
             Request::Agent(ToAgent::Grant { .. }) => Vec::new(),
             Request::Up(
                 LinkUp::ListRead { .. }
+                | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }

@@ -42,7 +42,8 @@ impl Roles {
     ) {
         let project = match address {
             Address::Settings { project } | Address::Role { project, .. } | Address::Rule { project, .. } => *project,
-            Address::Inbox { .. }
+            Address::AllHome
+            | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Work { .. }
@@ -170,7 +171,8 @@ fn view_address(address: &Address) -> Box<[u8]> {
             b"/",
             Decimal::of(u64::from(*number)).as_bytes(),
         ]),
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }
