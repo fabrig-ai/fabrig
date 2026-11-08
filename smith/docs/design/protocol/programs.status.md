@@ -36,16 +36,6 @@ fake status supplies it; this does not establish a real-login render check.
   (`backend/native.rs`), rather than failing that program's run (plan
   `program-burst-files`).
 
-- **Not yet:** 5.1: an answer's program is told by any token the program
-  owns: the agent service's `file_event`
-  (`smith-agent-service/src/service/program.rs`) routes a file answer to
-  main or a child whose `Backend::owns` matches its owner, pipes and
-  the check's pipes included. A tool's file operation (the domain's `Id`
-  tokens and io's pipe tokens share one form) whose owner equals a live
-  pipe token reaches that program with nothing outstanding, the likely
-  cause of the deployment abort with several `sub_agent` children
-  (plan `program-burst-files`).
-
 - **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`
   (`smith-protocol-program/src/backend/stream.rs`) checks its tools and
