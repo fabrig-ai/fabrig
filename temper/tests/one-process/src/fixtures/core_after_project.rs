@@ -260,7 +260,7 @@ impl Judge {
     fn after_apply(&mut self, caller: &mut Caller) {
         self.queue(
             caller,
-            &[&["account", "declare", "1", "claude_code", LOGIN, "--key", "refused-declaration"]],
+            &[&["account", "declare", "1", "claude_code", LOGIN, "--key", "recovered-declaration"]],
             Stage::Declare,
         );
     }
@@ -293,26 +293,15 @@ impl Judge {
     fn check_answers(&mut self, caller: &Caller, now: Time) {
         while self.answered < caller.answers.len() {
             let answer = &caller.answers[self.answered];
-            if self.stage == Stage::Declare {
-                assert!(
-                    answer.exit == Exit::Code(2)
-                        && String::from_utf8_lossy(&answer.error).contains("name remains reserved"),
-                    "forgotten declaration: {:?} {} {}",
-                    answer.exit,
-                    String::from_utf8_lossy(&answer.output),
-                    String::from_utf8_lossy(&answer.error)
-                );
-            } else {
-                assert_eq!(
-                    answer.exit,
-                    Exit::Code(0),
-                    "stage {:?}, call {}: {} {}",
-                    self.stage,
-                    self.answered,
-                    String::from_utf8_lossy(&answer.output),
-                    String::from_utf8_lossy(&answer.error)
-                );
-            }
+            assert_eq!(
+                answer.exit,
+                Exit::Code(0),
+                "stage {:?}, call {}: {} {}",
+                self.stage,
+                self.answered,
+                String::from_utf8_lossy(&answer.output),
+                String::from_utf8_lossy(&answer.error)
+            );
             self.answered += 1;
             self.deadline = now.saturating_add(ANSWER_BOUND);
         }
