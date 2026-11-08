@@ -147,8 +147,17 @@ reload and Back; a Drafts button moving Closed as ways arrive remains a
 separate look decision (`client/browser.md`, 4.6 and 5).
 Fresh projects offer drafts;
 Ask temper chats offer one even with drafts off, and a project holding a
-goal shows Goals in its bar. Home can still show To begin and Chats, so
-the bar supplies the goal's entry. The mock's drafts-off default remains
+goal shows Goals in its bar once To begin is gone. To begin has two
+steps, repository first, and cuts Home and Ask temper's navigation to
+Home, Ask temper and Settings. Home still draws nonempty Needs you and
+Chats under that card, contrary to `to-begin-two-steps`; the required
+suppression remains in `client/README.status.md`, 3.5. The night switch,
+kept browser look, day/night tokens and three night gallery states are
+built, with a day first visit and a separate chat-terminal palette.
+Temper/ui's rendered comparisons and browser reload row follow landing;
+system preference, a night placeholder and palette refinement remain
+later work (`client/browser.md`, sections 2.5 and 5;
+`client/journeys.md`, sections 9 and 10). The mock's drafts-off default remains
 a recorded departure; the fake-model `chat-draft` journey starts with
 drafts on, and the real-box checks follow landing (`client/README.md`,
 `client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four

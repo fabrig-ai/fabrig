@@ -2,6 +2,16 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
+two-step `project-landing` print and the three `night-*` gallery states.
+The five journeys' prints include the unpressed night switch, with no
+night choice in their recordings. No known implementation gap remains
+in this drawing route; the nonempty Home sections' suppression remains
+`README.status.md`, 3.5's gap. Temper/ui's rendered comparison of all
+three requests remains section 10's after-landing work; replayed prints
+establish no rendered equality. The unrelated retained `chat-draft`
+inventory and redaction gaps below remain.
+
 Section 7 has no known gap in refreshing either request branch:
 `scripts/look-refresh.sh` takes `look-requests` and `tui-requests`, using
 the checked-out branch's remote-tracking lease, requests over

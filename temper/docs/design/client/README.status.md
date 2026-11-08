@@ -2,6 +2,24 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.3 have the two-step To begin, repository first,
+the two-count facts and notes, and restricted navigation on Home and
+Ask temper in both shells. The browser adds the night switch after the
+rail's foot; the four-byte look record restores night, accepts the old
+three-byte record as day, and drives `html[data-night]` before drawing.
+A first visit is day; the terminal shells have no night switch.
+Domain, view and host tables cover these paths. The browser reload row
+is written and compiled, with no supplied runtime result; render checks
+and refinement remain section 11's after-landing work.
+
+- **Not yet:** 3.5, *To begin*: nonempty Needs you and Chats still draw
+  under the card, contrary to `to-begin-two-steps` and the plan's request.
+  `temper-client-view`'s `pages/home.rs`, `needs` and `chats`, return only
+  when their count is zero and To begin shows. The task's account retained
+  and checked the empty-section behaviour alone; `home-needs-under-begin`
+  still draws a question and chat. Temper/ui owns the missing suppression
+  in both shells; this is required behaviour, not deferred design.
+
 Section 5.9's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
 these endings. No known gap remains in this line.
@@ -42,7 +60,11 @@ is live with a party. The base uses the terminal's default colours,
 focus uses the accent, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
-present. Section 11 keeps the flags, design-location cleanup, terminal
+present. The simulated run checks a runtime link outside fresh TUI state
+roots, the connected Owner screen without input, no approval request and
+descriptor cleanup. The binary's path rows keep that deployment link
+across fresh state directories and explicit configuration/cache paths.
+Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
