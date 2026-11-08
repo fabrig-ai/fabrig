@@ -5,6 +5,8 @@ pub enum PersonFact {
     ToBegin { project: u32 },
     /// The person started `goal` from `chat`'s document.
     GoalFrom { project: u32, chat: u64, goal: u64, at: u64 },
+    /// Keep asking for this project and subject, at the client's clock.
+    KeepAsking { project: u32, subject: temper_protocol_reaches::Subject, at: u64 },
 }
 
 /// A dismissal's answer (temper/docs/design/domain/forge.md, 5.5).
@@ -29,7 +31,31 @@ pub(crate) fn dismiss(
     what: PersonFact,
     out: &mut Queue<Request>,
 ) {
+    let replaced = match what {
+        PersonFact::KeepAsking { project, subject, .. } => {
+            let first = PersonFact::KeepAsking { project, subject, at: 0 };
+            match d.dismissed.range((party, first)..).next() {
+                Some(((owner, held), ())) => match *held {
+                    PersonFact::KeepAsking { project: held_project, subject: held_subject, .. }
+                        if *owner == party && held_project == project && held_subject == subject =>
+                    {
+                        Some(*held)
+                    }
+                    PersonFact::ToBegin { .. } | PersonFact::GoalFrom { .. } | PersonFact::KeepAsking { .. } => None,
+                },
+                None => None,
+            }
+        }
+        PersonFact::ToBegin { .. } | PersonFact::GoalFrom { .. } => None,
+    };
     let answer = if d.dismissed.contains_key(&(party, what)) {
+        DismissAnswer::Dismissed
+    } else if let Some(previous) = replaced {
+        d.dismissed.remove(&(party, previous));
+        out.push(Request::Erase { key: Key::Dismissed { party, what: previous } });
+        d.dismissed.insert((party, what), ()).expect("replacement has room");
+        out.push(Request::Save { record: Stored::Dismissed { party, what }, release: None, read_afresh: None });
+        out.push(Request::Marked { tasks: Box::new([DISMISSED_SUBJECT]) });
         DismissAnswer::Dismissed
     } else if d.dismissed.len() == d.dismissed.capacity() || party_full(d, party) {
         DismissAnswer::TooLarge
@@ -46,7 +72,9 @@ pub(crate) fn erase_project(d: &mut Domain, project: u32, out: &mut Queue<Reques
     let mut erases = List::with_capacity(d.dismissed.len());
     for ((party, what), ()) in &d.dismissed {
         let held = match what {
-            PersonFact::ToBegin { project } | PersonFact::GoalFrom { project, .. } => project,
+            PersonFact::ToBegin { project }
+            | PersonFact::GoalFrom { project, .. }
+            | PersonFact::KeepAsking { project, .. } => project,
         };
         if *held == project {
             erases.push((*party, *what)).expect("bounded dismissal rows");

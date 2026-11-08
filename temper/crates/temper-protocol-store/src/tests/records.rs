@@ -1702,6 +1702,12 @@ fn dismissed_rows_round_trip_at_the_field_bounds() {
         for what in [
             forge::PersonFact::ToBegin { project },
             forge::PersonFact::GoalFrom { project, chat: party, goal: u64::MAX, at: u64::MAX },
+            forge::PersonFact::KeepAsking {
+                project,
+                subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Rules),
+                at: u64::MAX,
+            },
+            forge::PersonFact::KeepAsking { project, subject: temper_protocol_reaches::Subject::Set(u8::MAX), at: 0 },
         ] {
             let row = forge::Stored::Dismissed { party, what };
             let bytes = records::encode(&row);

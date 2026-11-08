@@ -350,9 +350,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     charter 1's words: goals and chats share that charter, so a chat's call answers
     ask (`agent.status.md`, 4.3).
 
-- **Not yet:** 5.5: no person's fact `KeepAsking`
-  (`ui-reaches/keep-asking`).
-
 - **Not yet:** 5.9: the root finds a person for a goal alone, a tracked
   task, and answers a goal whose words say `Asks: always` itself, handing
   the forge no `always` (`ui-reaches/decide-root`).
