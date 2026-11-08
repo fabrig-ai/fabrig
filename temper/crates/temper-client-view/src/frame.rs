@@ -309,6 +309,17 @@ pub(crate) fn switcher(
         }
         new_project_form(builder, root, words, bindings);
         let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
+        if parts.team {
+            let label = words.say(crate::words::Word::TeamFor, &[skein_ui::phrases::Hole::Name(name.clone())]);
+            action(
+                builder,
+                Role::Link,
+                &label,
+                PageAct::Go { address: Address::Team { project } },
+                root.pages().address() == &(Address::Team { project }),
+                bindings,
+            );
+        }
         let label = words.say(crate::words::Word::RailHowFor, &[skein_ui::phrases::Hole::Name(name)]);
         crate::link(builder, &label, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
         builder.text(Run::Plain, &label);
@@ -735,7 +746,9 @@ struct Shown {
     inbox: bool,
     work: bool,
     how: bool,
+    team: bool,
 }
+#[expect(clippy::match_like_matches_macro, reason = "the step crate excludes matches!; its address check uses if let")]
 fn shown(root: &Domain) -> Shown {
     let (home, inbox, work, how) = match root.pages().address() {
         Address::Home { .. } => (true, false, false, false),
@@ -764,7 +777,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::ConnectModel { .. }
         | Address::Welcome { .. } => (false, false, false, false),
     };
-    Shown { home, inbox, work, how }
+    Shown { home, inbox, work, how, team: if let Address::Team { .. } = root.pages().address() { true } else { false } }
 }
 fn entries(
     b: &mut Builder,
@@ -776,7 +789,7 @@ fn entries(
     tab: bool,
 ) {
     use crate::words::Word;
-    let Shown { home, inbox, work, how } = shown(root);
+    let Shown { home, inbox, work, how, team } = shown(root);
     action(
         b,
         Role::Link,
@@ -827,6 +840,16 @@ fn entries(
             &w.say(Word::RailWork, &[]),
             PageAct::Go { address: Address::Work { project, filter: WorkFilter::All } },
             work,
+            bindings,
+        );
+    }
+    if parts.team && !tab {
+        action(
+            b,
+            Role::Link,
+            &w.say(Word::TeamTitle, &[]),
+            PageAct::Go { address: Address::Team { project } },
+            team,
             bindings,
         );
     }

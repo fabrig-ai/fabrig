@@ -169,6 +169,10 @@ impl Default for Team {
     }
 }
 impl Team {
+    #[expect(
+        clippy::match_like_matches_macro,
+        reason = "the step crate excludes matches!; its address check uses if let"
+    )]
     pub(crate) fn configure(
         &mut self,
         address: &Address,
@@ -177,13 +181,13 @@ impl Team {
         next: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        let Address::Team { project } = address else {
+        let Some(project) = super::address_project(address) else {
             self.leave(out);
             return;
         };
-        if self.project != Some(*project) {
+        if self.project != Some(project) {
             self.leave(out);
-            self.project = Some(*project);
+            self.project = Some(project);
             self.reading = Reading::Refresh;
         }
         if self.reading == Reading::Refresh {
@@ -195,14 +199,15 @@ impl Team {
             self.reading = Reading::Asked;
             out.push(Request::Client(jig_client::Event::Read {
                 handle,
-                read: Readable::Jig(c::Read::Project { project: *project }),
+                read: Readable::Jig(c::Read::Project { project }),
             }));
         }
-        self.configure_others(you, limits, next, out);
+        let on_team = if let Address::Team { .. } = address { true } else { false };
+        self.configure_others(you, on_team, limits, next, out);
     }
-    fn configure_others(&mut self, you: u64, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) {
+    fn configure_others(&mut self, you: u64, on_team: bool, limits: &Limits, next: &mut u64, out: &mut Queue<Request>) {
         let mut wanted = List::with_capacity(OTHERS);
-        if let Some(document) = &self.document {
+        if on_team && let Some(document) = &self.document {
             for person in &gather(document, you, None, &[]).people {
                 if !person.you && wanted.len() < OTHERS {
                     wanted.push(person.party).expect("at most OTHERS people");

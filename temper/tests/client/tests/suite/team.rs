@@ -24,6 +24,10 @@ fn settle(world: &mut Clients) {
 
 fn people(world: &Clients, who: ClientId, expected: &[[&[u8]; 3]]) {
     let tree = world.tree(who);
+    assert!(
+        matches!(TreeFace::new(tree).find(&Find::exactly_named(Role::Link, b"Team")), Found::Node(_)),
+        "{who:?}: Team in the rail"
+    );
     let Found::Node(main) = TreeFace::new(tree).find(&Find::named(Role::Main, b"")) else {
         panic!("Team's main column missing");
     };

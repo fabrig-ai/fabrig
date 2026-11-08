@@ -4910,7 +4910,7 @@ and what is current is the view's. Its rules:
 |---|---|---|
 | "All projects", the switcher's first row | the person is in two projects or more | `me`'s projects |
 | "Needs you"'s count | it is more than zero | `pages().needs().count(..)`, as above |
-| "Team" | the project has a second member or a standing role | a project's members and its standing roles: none is gathered, so Team stays hidden (status) |
+| "Team" | the project has a second member or a standing role | the project's people, from its document (3.5, *Team*), and standing roles, none gathered |
 | "Ask temper", in the rail, the tab bar and the new box's menu | `me` lists template 5 for the project | `me`'s templates |
 | the Away switch and chip | 3.5's *Away* shows it | `Domain::away_shown` |
 | the new box's menu, "+ New draft or change" | the project offers drafts | `drafts_offered`; else "+ New change" alone |
