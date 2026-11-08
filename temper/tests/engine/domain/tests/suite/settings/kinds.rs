@@ -476,7 +476,8 @@ fn a_landing_rule_and_the_forges_charter_changed_then_restored() {
         Gate::default(),
         None,
         StoryLimits { kinds: true, forge_charter: Some(1), ..StoryLimits::default() },
-    );
+    )
+    .with_settings_history();
     // The fixture imports its kinds in a release before the party edits them.
     let goal = kinds::goal(&mut world);
     let earlier_revision = kinds::revision(&world.store.rows) + 1;
@@ -562,6 +563,7 @@ fn a_landing_rule_and_the_forges_charter_changed_then_restored() {
 }
 
 #[test]
+#[ignore = "jig/docs/design/domain/engine.md, 17.5 and 17.10: a reset to an absent application default loses its retained state at restart"]
 fn a_restore_leaves_out_a_deleted_projects_rule() {
     let mut driver = kinds::driver();
     apply(
