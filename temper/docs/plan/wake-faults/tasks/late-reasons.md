@@ -121,3 +121,13 @@ Rebase onto the landing trunk. The conflicting commit is `f15f70e6d77ef81cf31137
 Both tasks delete adjacent sentences in the same paragraphs; combine their deletions rather than selecting either whole side.
 The two `per_wake.rs` files merged automatically. Preserve both tasks’ rows and helpers under `notes/contracts.md`, section 3.
 No core behavior change is needed to resolve this merge refusal.
+
+## Rebase (2026-11-08, step merge, foreman wake-faults/late-reasons/foreman-2)
+
+Combine late-reasons and start-refusals status deletions when rebasing.
+Rebase onto `origin/wake-faults/integration`; commit `57f98a13fce9e86f0356812c0229b4031424dfd8` (“Preserve refused starts as permanent or busy outcomes”) deletes adjacent status text.
+- Resolve `jig/docs/design/domain/engine.status.md` by removing both the 7.1 late-arrival gap and section 8 invalid-start gap. Retain the 7.4 live-delegates gap and all unrelated target text.
+- Preserve the automatic merge in `jig/docs/design/domain/tasks.status.md`: both the 8.6 late-arrival gap naming `preparation_current` and the 5.5 refused-start gap must be absent. Retain the 5.6 live-delegates gap and remaining entries.
+Keep the covered-entry deletions already present on both branches.
+Combine the sentence deletions; do not select either whole side of the conflicting paragraph.
+No core behavior change is needed for this merge refusal.
