@@ -26,6 +26,7 @@ mod start_goal;
 mod switcher;
 mod task;
 mod welcome;
+mod work;
 use super::fixtures;
 use crate::{
     Action, Address,
