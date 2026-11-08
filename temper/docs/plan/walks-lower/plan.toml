@@ -51,3 +51,36 @@ id = 1
 story = "What the fake box's status, Away, goal and sign-in walks proved runs in the joint world, the real loop and the fake's own stories, each failing first where it guards a fix"
 parts = ["status", "away", "goal", "model", "issuer"]
 walk = false
+
+[[part]]
+id = "notes"
+title = "A long document built in parts and revised by a fresh run, and a chat's document revised whole after a follow-up, in the real loop"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[part]]
+id = "copies"
+title = "A copy beside a repository and Ready's two copies, made in order and adopted, in the one-process world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[slice]]
+id = 2
+story = "What the fake box's document and copy walks proved runs in the real loop and the one-process world, where the agents' tools and the service's copies are real"
+parts = ["notes", "copies"]
+walk = false
+
+[[part]]
+id = "prune"
+title = "The fake box keeps two walks: each other walk goes once its lower story runs, with what names it"
+mode = "direct"
+needs = ["status", "away", "goal", "model", "issuer", "notes", "copies"]
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[slice]]
+id = 3
+story = "The process tier's fake box runs the here-and-key walk and the ChatGPT browser tab alone, and every behaviour the other ten checked runs in its lower world"
+parts = ["prune"]
+walk = false

@@ -25,10 +25,10 @@ and only then deletes the walk.
 | `goal::a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list` | joint world, `goal-story` | `suite::task::a_chats_goal_shows_its_report_from_its_goals_row` | `a_finished_goals_page_shows_its_report` starts at the page, with no chat and no report note; the route is new |
 | `sign_in::a_chatgpt_sign_in_on_the_fake_box_leaves_a_usable_model_and_ready_can_create` | joint world, `model-story` | `suite::connect_model::a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account` and its reloaded twin, through their shared `welcome_moves_on` | the browser-tab walk walks the same path to Ready; the one check only this one makes is the account read usable after the sign-in |
 | `sign_in::a_chatgpt_sign_in_beside_a_browsers_idle_issuer_sockets_leaves_ready_able_to_create` | real loop, `issuer-sockets`; the fake's stories, `issuer-log` | `temper/tests/real-loop` `suite::sign_in::a_sign_in_beside_a_browsers_idle_issuer_sockets_completes_and_past_the_cap_is_turned_away`; `temper` `suite::fake::the_oauth_fake_logs_each_connection_it_turns_away_at_its_cap` | the fix has two halves (`8cba1c07a3`): the capacity is `temper-fake`'s, met by the real engine on real sockets in the real loop; the log line is `temper fake oauth`'s own, so it is the fake process's story beside its others. Each is red without its half |
-| `note_parts::a_long_document_is_built_in_parts_on_the_fake_box` | real loop, `note-parts` (next batch) | `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run` | the real loop's hosted agents have the real tools |
-| `chat_document::a_chat_document_is_written_and_revised_on_the_fake_box` | real loop, `chat-document` (next batch) | `suite::notes::a_chats_document_is_revised_whole_after_a_follow_up` | not covered by `note_parts`: its follow-up `task message` and whole-body revision are paths `note_parts` never takes, so it goes beside it, short |
-| `copy::readys_two_copies_are_adopted_in_order_with_the_first_as_home` | **one-process world**, not the joint world, `copy-ready` (next batch) | `temper/tests/one-process` `suite::ready_copies::readys_two_copies_are_made_in_order_and_adopted_with_the_first_as_home` | the joint world has no setup driver: its copies stop at Waiting, and making them there would inject `MakingMade`, a stub of what the walk proves. The one-process world runs the service's copies (`forge.md`, 4.5) and a native person who presses Ready |
-| `copy::a_copy_is_made_and_adopted_through_ctl_on_the_fake_box` | **one-process world**, `copy-ctl` (next batch) | `suite::copy::a_copy_beside_a_repository_joins_its_project_keeping_the_sources_workflow` | not covered: 4.5's stories hold the copy's rows, act and recovery, but none a copy joining a project that holds a repository, its provider identity, `home` false on the finished resource, or the source's own workflow kept beside the starter |
+| `note_parts::a_long_document_is_built_in_parts_on_the_fake_box` | real loop, `note-parts` | `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run` | the real loop's hosted agents have the real tools |
+| `chat_document::a_chat_document_is_written_and_revised_on_the_fake_box` | real loop, `chat-document` | `suite::notes::a_chats_document_is_revised_whole_after_a_follow_up` | not covered by `note_parts`: its follow-up `task message` and whole-body revision are paths `note_parts` never takes, so it goes beside it, short |
+| `copy::readys_two_copies_are_adopted_in_order_with_the_first_as_home` | **one-process world**, not the joint world, `copy-ready` | `temper/tests/one-process` `suite::ready_copies::readys_two_copies_are_made_in_order_and_adopted_with_the_first_as_home` | the joint world has no setup driver: its copies stop at Waiting, and making them there would inject `MakingMade`, a stub of what the walk proves. The one-process world runs the service's copies (`forge.md`, 4.5) and a native person who presses Ready |
+| `copy::a_copy_is_made_and_adopted_through_ctl_on_the_fake_box` | **one-process world**, not the joint world, `copy-ctl` | `suite::copy::a_copy_beside_a_repository_joins_its_project_keeping_the_sources_workflow` | not covered: 4.5's stories hold the copy's rows, act and recovery, but none a copy joining a project that holds a repository, its provider identity, `home` false on the finished resource, or the source's own workflow kept beside the starter |
 
 None goes to the browser tier (`temper/docs/design/client/browser.md`,
 section 4). A keep a lower world can't hold without a stub is its task's
@@ -36,25 +36,49 @@ section 4). A keep a lower world can't hold without a stub is its task's
 
 ## Parts and tasks
 
-Batch 1, released with the design:
+| Part | Task | Needs | Minutes | Batch |
+|---|---|---|---|---|
+| `status` | `status-stories` | — | 120 | 1 |
+| `away` | `away-story` | — | 120 | 1 |
+| `goal` | `goal-story` | — | 90 | 1 |
+| `model` | `model-story` | — | 45 | 1 |
+| `issuer` | `issuer-sockets` | — | 120 | 1 |
+| `issuer` | `issuer-log` | — | 50 | 1 |
+| `notes` | `note-parts` | — | 150 | 2 |
+| `notes` | `chat-document` | `note-parts` | 60 | 2 |
+| `copies` | `copy-ctl` | — | 100 | 2 |
+| `copies` | `copy-ready` | `copy-ctl` | 150 | 2 |
+| `prune` | `walks-go` | every task above | 75 | 2 |
 
-| Part | Task | Needs | Minutes |
-|---|---|---|---|
-| `status` | `status-stories` | — | 120 |
-| `away` | `away-story` | — | 120 |
-| `goal` | `goal-story` | — | 90 |
-| `model` | `model-story` | — | 45 |
-| `issuer` | `issuer-sockets` | — | 120 |
-| `issuer` | `issuer-log` | — | 50 |
+Slices: 1, the joint world's and the issuer's stories; 2, the real loop's
+and the one-process world's; 3, the walks going.
 
-Next batch (being written): `notes` (`note-parts`, then `chat-document`),
-`copies` (`copy-ctl`, then `copy-ready`), and `prune` (`walks-go`, after
-every other task).
+Decisions, beyond the request's rulings:
+
+- **The copies go to the one-process world,** not the joint world the
+  request named: the joint world can't make a copy without injecting
+  `MakingMade`. The request allows it ("say where one can't").
+- **The idle-socket walk splits in two:** the real loop holds the
+  issuer's capacity against the real engine on real sockets; the log
+  line is `temper fake oauth`'s own, so its story is the fake process's,
+  in the `temper` package's focused `suite`, beside its others. Lifting
+  `temper::fake`'s private host into the real loop for one log line
+  would test a copy of the process, not the process.
+- **`chat_document` is not deleted as covered:** it goes beside
+  `note_parts` in the real loop, short.
+- **One task deletes the walks,** after every story has merged, so that
+  no two branches meet in `walk.rs` or the status files; it runs each
+  lower story by name first and keeps any walk whose story is missing
+  or lacks a keep.
+- **Two copy tasks and two notes tasks run in turn,** each pair sharing
+  a world's file: one writer per file.
 
 ## Critical path, as it stands
 
-`copy-ctl` (90) → `copy-ready` (150) → `walks-go` (60): about five hours
-of implementer time; `note-parts` → `chat-document` runs beside it.
+`note-parts` (150) → `chat-document` (60) → `walks-go` (75), and
+`copy-ctl` (100) → `copy-ready` (150) → `walks-go` (75): about five and a
+half hours of implementer time to the last landing; batch 1's tasks run
+beside them and need nothing.
 
 ## Overlaps with other drafts
 
