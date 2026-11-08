@@ -169,8 +169,8 @@ fn headings_and_ledes_name_counts_and_the_one_branch_name_across_repositories() 
         let (mut root, watch) = opened();
         show(&mut root, watch, &panel(&[queue(b"owner/repo", b"main", count, false)], 0, false, b"main"));
         let view = view(&root, true);
-        assert!(f::find(view.tree(), Role::Heading { level: 1 }, heading.as_bytes()).is_some(), "{heading}");
-        assert!(contains(&main_words(&root), ". Each change is checked on top of main before it lands."));
+        assert!(f::find(view.tree(), Role::Heading { level: 2 }, heading.as_bytes()).is_some(), "{heading}");
+        assert!(contains(&main_words(&root), "Each change is checked on top of main before it lands."));
     }
     for (branches, heading, lede) in [
         ([b"main".as_slice(), b"main".as_slice()], "Two changes are on the way to main.", "top of main"),
@@ -332,9 +332,11 @@ fn ordinals_follow_english_endings_including_the_teens() {
 #[test]
 fn loading_ended_and_empty_keep_their_own_words_and_the_landed_rule() {
     let (mut root, watch) = opened();
-    assert_eq!(&*main_words(&root), "Shop · landing".as_bytes());
+    assert!(contains(&main_words(&root), "Shop · Work"));
+    assert!(!contains(&main_words(&root), "Nothing in flight yet."));
     up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::NotServed });
-    assert_eq!(&*main_words(&root), "Shop · landingShown on the forge.".as_bytes());
+    assert!(contains(&main_words(&root), "Shop · Work"));
+    assert!(contains(&main_words(&root), "Shown on the forge."));
     let (mut root, watch) = opened();
     show(&mut root, watch, &panel(&[], 0, false, b"main"));
     for browser in [false, true] {
@@ -352,7 +354,7 @@ fn loading_ended_and_empty_keep_their_own_words_and_the_landed_rule() {
     }
 }
 #[test]
-fn changes_is_current_after_chats_in_the_rail_and_absent_from_the_tabbar() {
+fn work_is_current_for_changes_in_the_rail_and_tabbar() {
     let (mut root, watch) = opened();
     show(&mut root, watch, &panel(&[], 0, false, b"main"));
     let mut view = view(&root, true);
@@ -368,10 +370,10 @@ fn changes_is_current_after_chats_in_the_rail_and_absent_from_the_tabbar() {
             }
             if node.styles.as_slice().contains(&look::RAIL_NAV) {
                 assert_eq!(rows.len(), 4);
-                for (row, name) in rows.iter().zip([b"Home".as_slice(), b"Needs you", b"Chats", b"Changes"]) {
+                for (row, name) in rows.iter().zip([b"Home".as_slice(), b"Needs you", b"Work", b"How work runs"]) {
                     assert_eq!(row.name.as_deref(), Some(name));
                 }
-                let row = rows.last().unwrap();
+                let row = rows.get(2).unwrap();
                 assert!(row.states.as_slice().contains(&skein_ui::State::Current));
                 changes = Some(row.id);
             } else {
@@ -381,7 +383,7 @@ fn changes_is_current_after_chats_in_the_rail_and_absent_from_the_tabbar() {
             }
         }
     }
-    assert_eq!(crate::href(&mut view, changes.unwrap()).as_deref(), Some(b"/projects/1/changes".as_slice()));
+    assert_eq!(crate::href(&mut view, changes.unwrap()).as_deref(), Some(b"/projects/1/work".as_slice()));
 }
 #[test]
 fn a_changes_task_bar_opens_with_its_projects_changes_breadcrumb() {

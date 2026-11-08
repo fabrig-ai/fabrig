@@ -303,11 +303,14 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
                 | Address::Chats { .. }
                 | Address::NewChat { .. }
                 | Address::Ask { .. }
+                | Address::Members
+                | Address::Limits
                 | Address::Accounts
                 | Address::Forges
                 | Address::ConnectForge { .. }
                 | Address::ConnectModel { .. }
                 | Address::Welcome { .. }
+                | Address::Work { .. }
                 | Address::Task { .. }
                 | Address::Goals { .. }
                 | Address::Changes { .. }

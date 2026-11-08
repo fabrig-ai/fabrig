@@ -200,12 +200,11 @@ fn chat_from_new_chat(world: &mut ChatWorld, task: u64) -> jig_client_kit::harne
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.at_text_shell(person);
     let see = |find| Step::See { find, within: fixtures::WITHIN };
-    let press = |role, name: &[u8]| Step::Press { find: Find::exactly_named(role, name) };
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
-    world.person(person, vec![see(Find::exactly_named(Role::Link, b"+ New chat"))]);
+    world.person(person, vec![see(Find::exactly_named(Role::Menu, b"New draft or change"))]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
-    assert!(printed(world, person).contains("+ New chat"));
-    world.person(person, vec![press(Role::Link, b"+ New chat"), see(composer())]);
+    assert!(printed(world, person).contains("New draft or change"));
+    world.person(person, fixtures::start_change(true).into_iter().chain([see(composer())]).collect());
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert_eq!(world.root(person).person().pages().address(), &Address::NewChat { draft: false });
@@ -320,7 +319,7 @@ fn a_new_chat_lands_its_delegated_change_and_closes_in_your_chats() {
     world.person(
         person,
         vec![
-            press(Role::Link, b"Chats"),
+            Step::Go { address: fixtures::chats_page() },
             see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
             press(Role::Button, b"Closed"),
             see(Find::exactly_named(Role::Link, b"T1")),

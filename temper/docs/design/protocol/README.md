@@ -216,10 +216,9 @@ test doubles   temper fake llm|forge|oauth|git ...
     name `temper`; so do `ctl`'s own help and its lines (`temper ctl: `),
     which no binary changes.
   - **`temper-client --version`** prints one line, `temper-client VERSION
-    (COMMIT)`, as `../release.md`, section 3, gives `temper`'s: VERSION
-    the package's, the workspace's; COMMIT set by the package's own build
-    script, which reruns when `HEAD` or the index moves. It is a flag, as
-    `--help` is, and no row; `version` is no command of its.
+    (COMMIT)`, as `../release.md`, section 3, gives every binary's: VERSION
+    and COMMIT `temper-version`'s (4.1). It is a flag, as `--help` is, and
+    no row; `version` is no command of its.
   - A first word that is no row of its table, no address and no flag is
     refused as `temper`'s are, `temper-client: no command WORD;
     temper-client --help lists them`, exit 1: `box`, `serve`, `open` and
@@ -617,7 +616,7 @@ core:
 |---|---|---|---|
 | `crates/temper-service` | services | the engine's and the worker's services and their one-process composition, in an engine, a worker and a system module, as jig's reference service is: each `iterate`, the routing, the clients' listener on jig's server part, with jig's clients' component and its default HTTP mapping mounted, temper's forge routes, and the browser's page and bundle served (`../client/browser.md`, 2.2), startup from configuration's bytes, start and end; temper's profile `small`. The worker's half is its `worker` feature (4.1), on by default and in the box's binary and the worlds: with it off, the worker's types are uninhabited, its modules and crates absent, and a start whose document's nearest shape (15.1) isn't an engine alone is refused; the engine's half names no worker crate, its limits of the worker's checkout and git component its own mirrors, which the worker's half converts | the roots, `temper-engine-smith`, `temper-protocol-brief`, jig's components, smith's codecs and `smith-protocol-translate`, temper's codec crates and components, `skein-forge-connection`, `skein-io`, `skein-json`; with `worker`, the worker's root, checkout and git component, `jig-protocol-worker-link`, `jig-protocol-worker-agents` and smith's host half |
 | `crates/temper` | binary | the box's binary: the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `machine` and the setup's and the box's limits checked by their own crates (configuration.md, section 2); `serve` and the forge's commands are `temper-engine-shell`'s, given the worker's half of a start, its agent, root, program sources and launcher, which this binary holds | `temper-service` with `worker`, `temper-engine-shell`, `temper-shell`, `skein-shell`, `smith-agent-shell`, `smith-local-service`'s profile, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-box`, `temper-client-bundle` |
-| `crates/temper-client` | binary | `temper-client`, the deployment's client (section 4): its table of three rows, its parser and help, `--version` and the build script that sets its commit; the TUI and `ctl` it runs are its shells' (`../client/README.md`, section 2) | `temper-shell`, `temper-client-shell-tui`, `temper-client-shell-cli`, `skein-shell`, `skein-fail-stop` |
+| `crates/temper-client` | binary | `temper-client`, the deployment's client (section 4): its table of three rows, its parser and help, and `--version`; the TUI and `ctl` it runs are its shells' (`../client/README.md`, section 2) | `temper-shell`, `temper-version`, `temper-client-shell-tui`, `temper-client-shell-cli`, `skein-shell`, `skein-fail-stop` |
 | `crates/temper-forge-setup` | step code | the forge's setup, but for reconcile, which is skein's (`skein-forge-setup`): its types and checks, and the setup mapped onto reconcile's given values, with the kit's check of them; the preparation's machine; `app.ini` and the runner's files; the processes' specs; the configuration's steps, `steps` and `Step`. Names no host | setup.md, section 11 |
 | `crates/temper-forge-setup-shell` | hosts | ordinary Rust: the hosts of `temper forge prepare` and `run`: commands, files, the forge's locks and the exec (setup.md, 6.4); HTTP on skein-http over skein-io | setup.md, section 11 |
 | `crates/temper-box` | machine, host | the box's machine, step code, and its host, ordinary Rust, on skein-io's processes; nothing of the setup but its steps (setup.md, 7.3) | setup.md, section 11 |
@@ -639,8 +638,8 @@ core:
 | `crates/temper-client-shell-cli` | shell | `temper ctl`: its host ordinary Rust, one call per process over jig's native transport, and its start, which `temper ctl` and `temper-client ctl` run (`../client/tools.md`, section 8) | `../client/tools.md`, section 4 |
 | `crates/temper-settings-form` | codecs | the settings file's form and words and `FIELDS`, shared by the client and the engine (`../client/tools.md`, 5.3; documentation.md, section 8) | `skein-lib`, `skein-json`, `skein-codec`, `jig-client-protocol-wire` |
 | `crates/temper-docs` | data | the help pages compiled in, with their paging and search, of no side (documentation.md, sections 2 and 3) | `skein-lib` |
-| `crates/temper-engine` | binary | the engine's binary, its table and `main` (4.2) | `temper-engine-shell`, `temper-shell`, `temper-version`, `temper-service` without `worker`, `skein-shell` |
-| `crates/temper-engine-shell` | hosts | ordinary Rust: `serve`'s host and its start for any document, the worker's half given by the binary that holds one (`serve::WorkerHalf`), none by `temper-engine`; the forge's commands, beside `temper-forge-setup-shell`'s hosts; the bundle read or embedded; the GitHub, Google and accounts runtimes; the rows both tables hold (4.1) | `temper-service`, `temper-shell`, `temper-forge-setup`, `temper-forge-setup-shell`, `temper-box`, `temper-client-bundle`, `skein-shell` |
+| `crates/temper-engine` | binary | the engine's binary, its table and `main` (4.2) | `temper-engine-shell`, `temper-shell`, `temper-version`, `temper-service` without `worker`, `jig-protocol-store` and `temper-protocol-store` (for `versions`), `skein-shell`, `skein-io`, `skein-fail-stop` |
+| `crates/temper-engine-shell` | hosts | ordinary Rust: `serve`'s host and its start for any document, the worker's half given by the binary that holds one (`serve::WorkerHalf`), none by `temper-engine`; the forge's commands, beside `temper-forge-setup-shell`'s hosts; the bundle read or embedded; the GitHub, Google and accounts runtimes; the rows both tables hold (4.1); `setup`, the document's check that `serve` and the forge's commands make, the box's limits and the `demo` member included | `temper-service`, `temper-shell`, `temper-forge-setup`, `temper-forge-setup-shell`, `temper-box` (the box's limits), `temper-fake` (the `demo` member), `temper-client-bundle`, `skein-shell` |
 | `crates/temper-shell` | shell | ordinary Rust, of no side: the commands' table, `Row` and its renderings under a binary's name (4.1), and the shared `help`, `[ADDRESS]` and `ctl` rows; the directories and their settings; `help` over `temper-docs`; the engine's link file, written by serve and read by the TUI (`../client/README.md`, 6.12) | `skein-shell`, `skein-io` (a kernel error's number, in a file's refusal), `jig-protocol-config`, `temper-docs`, `skein-lib` |
 | `crates/temper-version` | data | `VERSION` and `COMMIT` (`../release.md`, section 3): its build script reads git, its library holds both; linked by the binaries' packages alone | nothing; its script, `std` alone |
 | `crates/temper-protocol-brief` | translation | a charter's brief fitted to the room its run leaves, cut from its last section with each cut's line (`../domain/agent.md`, 4.3), for the engine's translation and the worker's service alike | `smith-domain-run`, `skein-lib` |
@@ -1284,6 +1283,18 @@ Each document keeps its own; these cross them:
 - **The description's Rust reader's home.** Default: temper's process
   tier's support (15.5); skein-world's, once a second product runs a
   cluster of its own.
+- **The box's members in the engine's closure** (4.2): `temper-engine`
+  checks a document's `box.` limits and `demo` member as the box's
+  binary does, so it links the box's machine and the fakes' crates,
+  `temper-box` and `temper-fake`, with none of their commands (section
+  5). Default: so; a check of those members in a crate of no side would
+  cut both from its closure.
+- **The box's `versions` and `upgrade`** (section 4): the draft gives
+  both to `temper-engine` (4.2) and has the box keep the commands it
+  has (`../draft/deployment-binaries.md`, sections 3 and 9), and the box
+  has neither yet. Default: the box's table keeps both rows as section 4
+  designs them, until the draft's M5 settles the box's table
+  (`../draft/deployment-binaries.execution.md`).
 
 ## 15. The cluster
 

@@ -45,6 +45,9 @@ impl Roles {
             Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Work { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -170,6 +173,9 @@ fn view_address(address: &Address) -> Box<[u8]> {
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Work { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }

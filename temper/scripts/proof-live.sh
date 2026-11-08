@@ -8,8 +8,8 @@ cd "$(dirname "$0")/.."
 if [ "${1-}" = rung-b0-offline ]; then
     [ "$#" -eq 1 ] || { printf '%s\n' 'usage: scripts/proof-live.sh rung-b0-offline' >&2; exit 2; }
     export NEXTEST_DOUBLE_SPAWN=0
-    # No live account is admitted by the offline proofs.
-    exec ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --test proof_live --profile live-temper --ignore-default-filter --run-ignored only --no-fail-fast
+    # No live account is admitted by the offline proofs (domain/testing.md, 2.6).
+    exec ${TEMPER_WRAPPER:+"$TEMPER_WRAPPER"} cargo nextest run -p temper --test proof_live --profile process-temper --no-fail-fast
 fi
 case ${1-} in
     '') test_name=a_real_model_answers_a_chat_and_pushes_a_small_change ;;

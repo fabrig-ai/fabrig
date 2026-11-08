@@ -88,26 +88,27 @@ fn a_switch_turned_off_and_back_holds_across_a_reload() {
     super::model::follow(
         &mut world,
         chat,
-        vec![
-            super::model::see(Role::Link, b"New chat"),
-            super::model::press(Role::Link, b"New chat"),
-            super::model::see(Role::Button, b"Sonnet 5.5"),
-            super::model::press(Role::Button, b"Sonnet 5.5"),
-            Step::Type {
-                find: Find::named(Role::TextArea, b"What do you want done?"),
-                words: b"Hello".as_slice().into(),
-            },
-            Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
-            super::model::see(Role::Disclosure, b"Model"),
-        ],
+        fixtures::start_change(false)
+            .into_iter()
+            .chain([
+                super::model::see(Role::Button, b"Sonnet 5.5"),
+                super::model::press(Role::Button, b"Sonnet 5.5"),
+                Step::Type {
+                    find: Find::named(Role::TextArea, b"What do you want done?"),
+                    words: b"Hello".as_slice().into(),
+                },
+                Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
+                super::model::see(Role::Disclosure, b"Model"),
+            ])
+            .collect(),
     );
     let owner = world.client(fixtures::PARTY, fixtures::chats_page());
     super::model::follow(
         &mut world,
         owner,
         vec![
-            super::model::see(Role::Link, b"Settings"),
-            super::model::press(Role::Link, b"Settings"),
+            super::model::see(Role::Link, b"Deployment"),
+            super::model::press(Role::Link, b"Deployment"),
             super::model::see(Role::Link, b"Models"),
             super::model::press(Role::Link, b"Models"),
             super::model::see(Role::Check, b"Sonnet 5.5 in the picker"),
@@ -275,18 +276,19 @@ fn a_models_list_arrives_fails_narrows_and_keeps_the_persons_switch() {
     super::model::follow(
         &mut world,
         chat,
-        vec![
-            super::model::see(Role::Link, b"New chat"),
-            super::model::press(Role::Link, b"New chat"),
-            super::model::see(Role::Button, b"Sonnet 5.5"),
-            super::model::press(Role::Button, b"Sonnet 5.5"),
-            Step::Type {
-                find: Find::named(Role::TextArea, b"What do you want done?"),
-                words: b"Hello".as_slice().into(),
-            },
-            Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
-            super::model::see(Role::Disclosure, b"Model"),
-        ],
+        fixtures::start_change(false)
+            .into_iter()
+            .chain([
+                super::model::see(Role::Button, b"Sonnet 5.5"),
+                super::model::press(Role::Button, b"Sonnet 5.5"),
+                Step::Type {
+                    find: Find::named(Role::TextArea, b"What do you want done?"),
+                    words: b"Hello".as_slice().into(),
+                },
+                Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
+                super::model::see(Role::Disclosure, b"Model"),
+            ])
+            .collect(),
     );
     let task = {
         let person = world.root(chat).person();
@@ -298,8 +300,8 @@ fn a_models_list_arrives_fails_narrows_and_keeps_the_persons_switch() {
         &mut world,
         owner,
         vec![
-            super::model::see(Role::Link, b"Settings"),
-            super::model::press(Role::Link, b"Settings"),
+            super::model::see(Role::Link, b"Deployment"),
+            super::model::press(Role::Link, b"Deployment"),
             super::model::see(Role::Link, b"Models"),
             super::model::press(Role::Link, b"Models"),
             super::model::see(Role::Check, b"Sonnet 5.5 in the picker"),

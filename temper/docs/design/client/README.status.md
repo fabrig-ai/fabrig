@@ -761,6 +761,27 @@ read's head explicit.
   `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
   `rename-row` has opening the form on such a page not panic; no reason is recorded
   for this site. Seen by reading; no test holds it.
+- **Not yet:** 5.3, *The rail's parts*: Team is never shown. No read gives the
+  rail a project's members (jig's `Read::Project` is the Members tab's) or a
+  standing role (`../draft/standing-roles.md`), and Team has no page
+  (`../draft/surfaces.md`, section 6), so `rail::facts` gathers neither.
+- **Not yet:** 3.5, *Work*, *What the reads lack*: no read lists a landed
+  draft ready to start a goal; a chat's card holds its changes, not its other
+  delegates; a change's card names no maker.
+- **Not yet:** 3.5, *Members*: the deployment's own members. jig's `me` gives
+  the person's `deployment_role` alone, and no read lists the deployment's
+  roster (jig's `domain/people.md`, section 3).
+- **Not yet:** 3.5, *Limits*: the configuration's profile and overrides
+  (`../protocol/configuration.md`, section 7) have no read and an owner's
+  change of them no act; the tab draws the `deployment` document's capacities
+  alone.
+- **Not yet:** 5.3, *All projects*: on a page across projects, the rail's
+  "Needs you" counts the open project's needs and "Home" opens the open
+  project's Home, until Needs you and Home read across projects
+  (`../draft/surfaces.md`, sections 3 and 4).
+- **Not yet:** 5.3, the person's menu: "What temper remembers about you" has
+  no page yet (`../draft/whole-story.execution.md`, M4), so its place is
+  empty.
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -979,14 +1000,14 @@ read's head explicit.
 - **Design departs:** 4.6, *The program's environment*, from the request `box-small-2`
   of 2026-11-06, item 1, decided by its plan's cut, which takes `resolve` as all or
   nothing: with no `HOME` and an XDG variable placing some of the directories, not all,
-  `program_environment` (`crates/temper/src/directories.rs`) knows no default and names
+  `program_environment` (`temper-engine-shell/src/serve.rs`) knows no default and names
   all three, one at its own default among them, where the request has each only where it
   differs. The command finds the same directories either way, and no test holds this
   case: `no_home_names_all_three` gives no XDG variable. Seen by reading.
 - **Design departs:** 4.6, *The words of a command for this machine*, from the request
   `box-small` of 2026-11-06, item 1, which has these words in any other command handed
   to the person for this machine: `temper forge run`'s refusal
-  (`crates/temper/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
+  (`temper-engine-shell/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
   directory whole, and the terminal client says `temper open`
   (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper` first on
   `PATH` each names that one. That plan's cut names the pages' commands alone, and no
