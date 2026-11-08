@@ -514,14 +514,11 @@ pub enum Word {
     HomeSeven,
     HomeEight,
     HomeNine,
-    HomeAnswerMany,
     HomeNeedsNone,
     HomeNeedsOne,
     HomeNeedsMany,
     HomeNeedsCut,
     HomeNeedsCount,
-    HomeNeedsEmpty,
-    HomeInARow,
     HomeQuestion,
     HomeProposal,
     HomeHeld,
@@ -530,8 +527,6 @@ pub enum Word {
     HomeAllChatsCut,
     HomeAllChatsName,
     HomeAskLine,
-    HomeAnswer,
-    HomeAnswerName,
     HomeChatName,
     HomeWaiting,
     HomeClosed,
@@ -964,8 +959,6 @@ pub enum Word {
     HomeDecisionOverturned,
     HomeDecisionEnded,
     HomeDecisionLanded,
-    HomeStillNeedsCount,
-    HomeStillNeeds,
     HomeDecidedCount,
     HomeDecidedMany,
     HomeDecidedOne,
@@ -1551,6 +1544,33 @@ pub enum Word {
     ApproveNo,
     ApproveType,
     ApproveAgain,
+    NeedsAcross,
+    NeedsProject,
+    NeedsOldest,
+    NeedsTell,
+    NeedsHeadCut,
+    AllHomeAcross,
+    AllHomeIn,
+    AllHomeOne,
+    AllHomeAway,
+    AllHomePhoneLooked,
+    AllHomePhoneByline,
+    AllHomeDecided,
+    AllHomeReaches,
+    AllHomeProjects,
+    AllHomeAllNeeds,
+    HomeCardTell,
+    HomeCardMore,
+    HomeCardsMore,
+    HomeCardsOneMore,
+    HomeBranchRed,
+    AllHomeDecidedTitle,
+    HomeAskPlaceholder,
+    HomeAsk,
+    NeedsDecidedLifetime,
+    NeedsAllowed,
+    NeedsDecidedOne,
+    NeedsDecidedMany,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -1625,7 +1645,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2178;
+const PHRASES: u32 = 2198;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1652,10 +1672,10 @@ const PHRASES: u32 = 2178;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3859;
+const SEGMENTS: u32 = 3907;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52741;
-const ALL: [Word; 1496] = [
+const ENGLISH_BYTES: u32 = 53030;
+const ALL: [Word; 1516] = [
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
@@ -2146,14 +2166,11 @@ const ALL: [Word; 1496] = [
     Word::HomeSeven,
     Word::HomeEight,
     Word::HomeNine,
-    Word::HomeAnswerMany,
     Word::HomeNeedsNone,
     Word::HomeNeedsOne,
     Word::HomeNeedsMany,
     Word::HomeNeedsCut,
     Word::HomeNeedsCount,
-    Word::HomeNeedsEmpty,
-    Word::HomeInARow,
     Word::HomeQuestion,
     Word::HomeProposal,
     Word::HomeHeld,
@@ -2162,8 +2179,6 @@ const ALL: [Word; 1496] = [
     Word::HomeAllChatsCut,
     Word::HomeAllChatsName,
     Word::HomeAskLine,
-    Word::HomeAnswer,
-    Word::HomeAnswerName,
     Word::HomeChatName,
     Word::HomeWaiting,
     Word::HomeClosed,
@@ -2583,8 +2598,6 @@ const ALL: [Word; 1496] = [
     Word::HomeDecisionOverturned,
     Word::HomeDecisionEnded,
     Word::HomeDecisionLanded,
-    Word::HomeStillNeedsCount,
-    Word::HomeStillNeeds,
     Word::HomeDecidedCount,
     Word::HomeDecidedMany,
     Word::HomeDecidedOne,
@@ -3152,6 +3165,33 @@ const ALL: [Word; 1496] = [
     Word::ApproveNo,
     Word::ApproveType,
     Word::ApproveAgain,
+    Word::NeedsAcross,
+    Word::NeedsProject,
+    Word::NeedsOldest,
+    Word::NeedsTell,
+    Word::NeedsHeadCut,
+    Word::AllHomeAcross,
+    Word::AllHomeIn,
+    Word::AllHomeOne,
+    Word::AllHomeAway,
+    Word::AllHomePhoneLooked,
+    Word::AllHomePhoneByline,
+    Word::AllHomeDecided,
+    Word::AllHomeReaches,
+    Word::AllHomeProjects,
+    Word::AllHomeAllNeeds,
+    Word::HomeCardTell,
+    Word::HomeCardMore,
+    Word::HomeCardsMore,
+    Word::HomeCardsOneMore,
+    Word::HomeBranchRed,
+    Word::AllHomeDecidedTitle,
+    Word::HomeAskPlaceholder,
+    Word::HomeAsk,
+    Word::NeedsDecidedLifetime,
+    Word::NeedsAllowed,
+    Word::NeedsDecidedOne,
+    Word::NeedsDecidedMany,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
@@ -3680,14 +3720,11 @@ impl Word {
             Self::HomeSeven => 3328,
             Self::HomeEight => 3329,
             Self::HomeNine => 3330,
-            Self::HomeAnswerMany => 3331,
             Self::HomeNeedsNone => 3145,
             Self::HomeNeedsOne => 3146,
             Self::HomeNeedsMany => 3147,
             Self::HomeNeedsCut => 3148,
             Self::HomeNeedsCount => 3149,
-            Self::HomeNeedsEmpty => 3150,
-            Self::HomeInARow => 3151,
             Self::HomeQuestion => 3152,
             Self::HomeProposal => 3153,
             Self::HomeHeld => 3154,
@@ -3696,8 +3733,6 @@ impl Word {
             Self::HomeAllChatsCut => 3157,
             Self::HomeAllChatsName => 3158,
             Self::HomeAskLine => 3159,
-            Self::HomeAnswer => 3160,
-            Self::HomeAnswerName => 3161,
             Self::HomeChatName => 3162,
             Self::HomeWaiting => 3163,
             Self::HomeClosed => 3164,
@@ -4126,8 +4161,6 @@ impl Word {
             Self::HomeDecisionOverturned => 3653,
             Self::HomeDecisionEnded => 3652,
             Self::HomeDecisionLanded => 3651,
-            Self::HomeStillNeedsCount => 3650,
-            Self::HomeStillNeeds => 3649,
             Self::HomeDecidedCount => 3648,
             Self::HomeDecidedMany => 3647,
             Self::HomeDecidedOne => 3646,
@@ -4679,6 +4712,33 @@ impl Word {
             Self::TaskTooLarge => 2018,
             Self::TaskTooLinked => 2020,
             Self::TaskMalformed => 2019,
+            Self::NeedsAcross => 4320,
+            Self::NeedsProject => 4321,
+            Self::NeedsOldest => 4322,
+            Self::NeedsTell => 4323,
+            Self::NeedsHeadCut => 4324,
+            Self::AllHomeAcross => 4325,
+            Self::AllHomeIn => 4326,
+            Self::AllHomeOne => 4327,
+            Self::AllHomeAway => 4328,
+            Self::AllHomePhoneLooked => 4329,
+            Self::AllHomePhoneByline => 4330,
+            Self::AllHomeDecided => 4331,
+            Self::AllHomeReaches => 4332,
+            Self::AllHomeProjects => 4333,
+            Self::AllHomeAllNeeds => 4334,
+            Self::HomeCardTell => 4335,
+            Self::HomeCardMore => 4336,
+            Self::HomeCardsMore => 4337,
+            Self::HomeCardsOneMore => 4338,
+            Self::HomeBranchRed => 4339,
+            Self::AllHomeDecidedTitle => 4340,
+            Self::NeedsDecidedMany => 4346,
+            Self::NeedsDecidedOne => 4345,
+            Self::NeedsAllowed => 4344,
+            Self::NeedsDecidedLifetime => 4343,
+            Self::HomeAsk => 4342,
+            Self::HomeAskPlaceholder => 4341,
         };
         let owner =
             if number >= 100 { crate::frame::owner() } else { temper_client_domain::forge::words::owner(connector) };
@@ -4709,9 +4769,6 @@ const SET_UP_FAILURE_BYTES: u32 = temper_client_domain::forge::forges::FAILURE_B
 // Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/README.md, 5.3).
 fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(13).ok_or(Invalid::Overflow)
-}
-fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
-    joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
 // Thirty-two 64-byte project names, each with room for the five-byte conjunction
 // (client/README.md, 5.13).
@@ -4793,10 +4850,6 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         || word == Word::HomeMaking
     {
         return Ok(joined.max(512));
-    }
-    // The phone link names the joined title, question and its colon (3.5).
-    if word == Word::HomeAnswerName && !last {
-        return home_answer_bytes(joined);
     }
     if word == Word::SwitcherRow && last {
         return switcher_repository_bytes(joined);
@@ -5018,7 +5071,6 @@ impl Words {
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(switcher_repository_bytes(joined)?)
-                .max(home_answer_bytes(joined)?)
                 .max(SETTINGS_PROJECT_NAMES_BYTES)
                 .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow)?)
@@ -5506,14 +5558,38 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeSeven => (&[b"Seven"], &[]),
         Word::HomeEight => (&[b"Eight"], &[]),
         Word::HomeNine => (&[b"Nine"], &[]),
-        Word::HomeAnswerMany => (&[b"Answer, one at a time"], &[]),
+        Word::NeedsAcross => (&[b"Needs you \xc2\xb7 all projects"], &[]),
+        Word::NeedsProject => (&[b"Needs you \xc2\xb7 ", b""], &[Name]),
+        Word::NeedsOldest => (&[b"oldest first"], &[]),
+        Word::NeedsTell => (&[b"Or tell it something else"], &[]),
+        Word::AllHomeAcross => (&[b"", b" changes landed across ", b" projects."], &[Number, Name]),
+        Word::AllHomeIn => (&[b"", b" changes landed in ", b"."], &[Number, Name]),
+        Word::AllHomeOne => (&[b"One change landed in ", b"."], &[Name]),
+        Word::AllHomeAway => (&[b"", b" \xc2\xb7 away ", b" to ", b""], &[Name, Name, Name]),
+        Word::AllHomePhoneLooked => (&[b"", b" \xc2\xb7 last looked ", b" ago"], &[Name, Name]),
+        Word::AllHomePhoneByline => (&[b"The status agent, ", b""], &[Name]),
+        Word::AllHomeDecided => (&[b"", b" \xe2\x80\xba"], &[Name]),
+        Word::AllHomeReaches => (&[b"What reaches you"], &[]),
+        Word::AllHomeProjects => (&[b"Projects"], &[]),
+        Word::AllHomeAllNeeds => (&[b"All needs"], &[]),
+        Word::HomeCardTell => (&[b"Tell it something else"], &[]),
+        Word::HomeCardMore => (&[b"More"], &[]),
+        Word::HomeCardsMore => (&[b"", b" more"], &[Number]),
+        Word::HomeCardsOneMore => (&[b"One more"], &[]),
+        Word::AllHomeDecidedTitle => (&[b"Decided for you"], &[]),
+        Word::NeedsDecidedMany => (&[b"", b" were decided for you."], &[Name]),
+        Word::NeedsDecidedOne => (&[b"One was decided for you."], &[]),
+        Word::NeedsAllowed => (&[b"Allowed: "], &[]),
+        Word::NeedsDecidedLifetime => (&[b"for 24 hours, then in each task's history"], &[]),
+        Word::HomeAsk => (&[b"Ask"], &[]),
+        Word::HomeAskPlaceholder => (&[b"Ask temper about your projects"], &[]),
+        Word::HomeBranchRed => (&[b"", b" red"], &[Name]),
+        Word::NeedsHeadCut => (&[b"Needs you \xc2\xb7 ", b"+"], &[Number]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),
         Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
         Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
-        Word::HomeNeedsEmpty => (&[b"Work carries on, and this page tells you what changed when you come back."], &[]),
-        Word::HomeInARow => (&[b"Answer in a row"], &[]),
         Word::HomeQuestion => (&[b"a question"], &[]),
         Word::HomeProposal => (&[b"a proposal"], &[]),
         Word::HomeHeld => (&[b"held"], &[]),
@@ -5522,8 +5598,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeAllChatsCut => (&[b"All ", b"+"], &[Number]),
         Word::HomeAllChatsName => (&[b"", b" chats"], &[Name]),
         Word::HomeAskLine => (&[b"", b": ", b""], &[Name, Name]),
-        Word::HomeAnswer => (&[b"Answer"], &[]),
-        Word::HomeAnswerName => (&[b"", b" ", b""], &[Name, Name]),
         Word::HomeChatName => (&[b"", b", ", b", ", b""], &[Name, Name, Name]),
         Word::HomeWaiting => (&[b"waiting on you"], &[]),
         Word::HomeClosed => (&[b"closed"], &[]),
@@ -6148,8 +6222,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeDecisionOverturned => (&[b"Overturned: it asks you again"], &[]),
         Word::HomeDecisionEnded => (&[b"ended ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
         Word::HomeDecisionLanded => (&[b"landed ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
-        Word::HomeStillNeedsCount => (&[b"Still needs you \xc2\xb7 ", b""], &[Number]),
-        Word::HomeStillNeeds => (&[b"Still needs you"], &[]),
         Word::HomeDecidedCount => (&[b"Decided for you \xc2\xb7 ", b""], &[Number]),
         Word::HomeDecidedMany => (&[b"", b" things were decided for you."], &[Name]),
         Word::HomeDecidedOne => (&[b"One thing was decided for you."], &[]),

@@ -570,6 +570,95 @@ fn a_busy_worker_takes_work_again_once_it_frees_a_slot() {
 }
 
 #[test]
+fn a_draining_worker_takes_nothing_even_once_it_frees_a_slot() {
+    fn worker(h: &mut Harness, channel: Token, job: jig_domain_link::JobBound) {
+        h.step(Event::Hello {
+            worker: u32::try_from(channel.raw()).expect("fixture channel").checked_rem(64).expect("membership"),
+            channel,
+            hello: Hello {
+                slots: 2,
+                stop_bound: Duration::ZERO,
+                bounds: fixtures::bounds(),
+                jobs: Box::new([job]),
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        });
+    }
+    let mut h = Harness::new(LIMITS);
+    let job = jig_domain_link::JobBound {
+        kind: jig_domain_link::JobKind(7),
+        spec: 4,
+        result: 8,
+        deadline: Duration::from_secs(3),
+    };
+    worker(&mut h, C1, job);
+    assert_eq!(h.place(R1, A1, 1), C1);
+    h.step(Event::Draining { channel: C1 });
+    h.start(R2, A2, 2);
+    h.step(Event::StartJob { reply_to: to(A3), run: R3, attempt: A3, workstream: 3, job, adopt: false });
+    h.answer(C1, R1, A1, Answer::Ended, 1);
+    h.acknowledge(R1, A1);
+    assert!(h.settle().is_empty(), "neither a run nor a job uses the freed draining slots");
+    worker(&mut h, C2, job);
+    assert_eq!(
+        &*h.settle(),
+        &[assign(C2, R2, A2), placed(R2, A2), Request::AssignJob { channel: C2, run: R3, attempt: A3 }, placed(R3, A3)]
+    );
+}
+
+#[test]
+fn a_draining_workers_next_channel_is_placed_on() {
+    let mut h = Harness::new(LIMITS);
+    h.hello(C1, 1, &[], &[]);
+    h.step(Event::Draining { channel: C1 });
+    h.start(R1, A1, 1);
+    assert!(h.settle().is_empty());
+    h.step(Event::Lost { channel: C1 });
+    // The same configured worker returns on a new channel; the harness answers its logins.
+    let hello = Hello {
+        slots: 1,
+        stop_bound: Duration::ZERO,
+        bounds: fixtures::bounds(),
+        jobs: Box::new([]),
+        workstreams: Box::new([]),
+        hosting: Box::new([]),
+    };
+    h.step(Event::Hello { worker: 37, channel: C2, hello });
+    assert_eq!(&*h.settle(), &[assign(C2, R1, A1), placed(R1, A1)]);
+}
+
+#[test]
+fn a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused() {
+    for another in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        h.hello(C1, 1, &[], &[]);
+        if another {
+            h.hello(C2, 1, &[], &[]);
+        }
+        h.step(Event::Start {
+            placement: Some(crate::PlacementConstraint { channel: C1, kind: HostKind::Worker }),
+            version: crate::Version { charter: 1, revision: 1 },
+            grants: Box::new([]),
+            reply_to: to(A1),
+            run: R1,
+            attempt: A1,
+            workstream: 1,
+            kinds: Kinds::Workers,
+            assignment: references(),
+        });
+        h.step(Event::Draining { channel: C1 });
+        if another {
+            assert_eq!(&*h.settle(), &[assign(C2, R1, A1), placed(R1, A1)]);
+        } else {
+            assert!(h.settle().is_empty(), "the chosen attempt waits without a recheck refusal");
+            h.hello(C2, 1, &[], &[]);
+            assert_eq!(&*h.settle(), &[assign(C2, R1, A1), placed(R1, A1)]);
+        }
+    }
+}
+
+#[test]
 fn a_cancelled_attempt_refused_as_busy_is_withdrawn() {
     let mut h = Harness::new(LIMITS);
     h.hello(C1, 2, &[], &[]);

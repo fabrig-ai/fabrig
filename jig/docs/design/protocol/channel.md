@@ -240,6 +240,7 @@ answer, and a **notice** is not answered.
 | logins | for each program source the engine named (5.2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/hosts.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../domain/accounts.md`, 3.7) | notice: once checked after each `sources`, then on each change |
 | signed out | a program source's name; whether the program's sign-out ran, or failed, with bounded detail | answer to a sign out |
 | list read | a read's number; at most 256 rows, each a name of at most 128 bytes, a shown name of at most 64, a window, an output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../domain/hosts.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
+| draining | none: the worker has started to shut down, and the fleet places nothing more on this channel (`../domain/engine.md`, section 8) | notice: once as its shutdown begins, before anything its cancelled runs send, and again after each hello while it shuts down (`../domain/hosts.md`, 6.7) |
 
 - **Every login notice is whole:** the current `sources` list, each name
   once, including an empty list. An explicit check publishes it even when
@@ -351,8 +352,10 @@ tags stay fixed (`README.md`, 7).
 - **Each side sends in its domain's order,** and skein's channel keeps it.
   The fleet and the hub rely on it: an answer goes after the turns it
   counts (`../domain/hosts.md`, 6.4), messages go in their order, a
-  start's before those sent after it (`../domain/tasks.md`, 8.2), and
-  acknowledgements in the order of the commits they follow.
+  start's before those sent after it (`../domain/tasks.md`, 8.2), a
+  worker's draining before the answers of the runs its shutdown cancels
+  (`../domain/hosts.md`, 6.7), and acknowledgements in the order of the
+  commits they follow.
 - **After a redial, everything kept goes again,** in order, after the
   hello: the hub's unacknowledged turns and answers, with the refusals
   they carry, and its relays still waiting; the engine's program

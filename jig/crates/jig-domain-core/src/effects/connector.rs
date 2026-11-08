@@ -124,6 +124,15 @@ pub enum EffectRefusal {
     Unavailable,
 }
 
+/// A default a connector stored that the application no longer gives
+/// (jig/docs/design/domain/engine.md, 17.5; jig/docs/design/domain/connectors.md, section 17).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct DroppedDefault {
+    pub kind: u32,
+    pub scope: u32,
+    pub number: u32,
+}
+
 /// A connector's answer in jig's vocabulary, after root translation.
 /// Application settings: jig/docs/design/domain/engine.md, 17.5;
 /// jig/docs/design/domain/connectors.md, section 17.
@@ -141,6 +150,7 @@ pub enum Event {
     SettingsDefaults {
         connector: u16,
         defaults: Box<[DefaultState]>,
+        dropped: Box<[DroppedDefault]>,
     },
     Resource {
         project: u32,

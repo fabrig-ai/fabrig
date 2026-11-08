@@ -198,6 +198,7 @@ impl Engine {
             }
             Request::Up(
                 LinkUp::ListRead { .. }
+                | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }

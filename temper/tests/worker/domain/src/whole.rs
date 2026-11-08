@@ -203,6 +203,7 @@ impl World {
 
     fn link(&mut self, up: host::LinkUp) {
         match up {
+            host::LinkUp::Draining => {}
             host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (RUN, self.attempt)),
             host::LinkUp::Call { run, attempt, call, tool, writes, input, .. } => {
                 assert_eq!((run, attempt), (RUN, self.attempt));

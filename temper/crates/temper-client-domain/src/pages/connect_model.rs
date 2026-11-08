@@ -56,6 +56,7 @@ pub const fn open(address: &Address) -> bool {
         Address::ConnectModel { .. } | Address::Welcome { step: Step::Model { .. } } => true,
         Address::Forges
         | Address::ConnectForge { .. }
+        | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
@@ -129,6 +130,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         Address::Welcome { .. } => Address::Welcome { step: Step::Model { way } },
         Address::Forges
         | Address::ConnectForge { .. }
+        | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
@@ -158,6 +160,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         Address::ConnectModel { way } | Address::Welcome { step: Step::Model { way } } => (*way)?,
         Address::Forges
         | Address::ConnectForge { .. }
+        | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }

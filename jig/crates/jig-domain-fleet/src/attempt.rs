@@ -791,7 +791,7 @@ pub(crate) fn answer(
     };
     follow(domain, id, before);
     match answer {
-        // After the attempt has left its slot, which would lift the draining.
+        // After the attempt has left its slot, which would lift the busy mark.
         Answer::Busy => channel::drain(domain, from),
         Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid => {}
     }

@@ -83,7 +83,13 @@ impl Forge {
                 green(&forge, &repository, to);
             }
             if matches!(self.story, Story::PlaygroundA) {
-                if from != Some(to) && branch != metadata.default_branch {
+                // Keep the landing branch's move too: a queue may land the
+                // pushed head as a merge commit (temper/docs/design/domain/forge.md, 8.7).
+                let landed_push = self
+                    .merged
+                    .iter()
+                    .any(|&(head, commit)| commit == to && self.pushed.iter().any(|push| push.commit == head));
+                if from != Some(to) && (branch != metadata.default_branch || landed_push) {
                     let object = forge.domain.object(to).expect("pushed object");
                     self.pushed.push(Pushed {
                         branch,

@@ -563,7 +563,6 @@ fn a_landing_rule_and_the_forges_charter_changed_then_restored() {
 }
 
 #[test]
-#[ignore = "jig/docs/design/domain/engine.md, 17.5 and 17.10: a reset to an absent application default loses its retained state at restart"]
 fn a_restore_leaves_out_a_deleted_projects_rule() {
     let mut driver = kinds::driver();
     apply(

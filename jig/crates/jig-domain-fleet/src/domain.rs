@@ -149,6 +149,7 @@ impl Domain {
                 token: Token::new(0),
                 slots: limits.engine_slots,
                 draining: false,
+                shutting_down: false,
                 hosts: skein_lib::Set::with_capacity(limits.engine_slots),
                 workstreams: Map::with_capacity(0),
                 uses: 0,
@@ -254,7 +255,7 @@ impl Domain {
                     EngineHello::Expected | EngineHello::Heard => false,
                 },
             };
-            if admitted && kinds.allows(host.kind) && !host.draining {
+            if admitted && kinds.allows(host.kind) && !(host.draining || host.shutting_down) {
                 return None;
             }
         }
@@ -292,7 +293,7 @@ impl Domain {
                     EngineHello::Expected | EngineHello::Heard => false,
                 },
             };
-            if !admitted || !kinds.allows(host.kind) || host.draining {
+            if !admitted || !kinds.allows(host.kind) || host.draining || host.shutting_down {
                 continue;
             }
             crate::needs::version_shortfall(&self.needs, version, &host.evidence)?;
@@ -352,7 +353,7 @@ impl Domain {
                     kind: value.kind,
                     slots: value.slots,
                     used: value.hosts.len(),
-                    draining: value.draining,
+                    draining: value.draining || value.shutting_down,
                     connected: true,
                     grace_until: None,
                 })
@@ -502,8 +503,10 @@ impl Domain {
 }
 
 /// Handles one event and emits its requests.
+#[expect(clippy::too_many_lines, reason = "the fleet routes the complete event vocabulary in one step")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Draining { channel } => channel::draining(domain, channel),
         Event::Needs(needs) => crate::needs::replace(domain, &env.limits, needs),
         Event::CleanupPrograms { names } => {
             domain.cleanup_programs = names;
