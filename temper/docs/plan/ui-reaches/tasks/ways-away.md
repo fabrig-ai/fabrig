@@ -102,3 +102,13 @@ Options, each decided:
 ## Report
 
 The implementer's report: the record as generated, the readers edited (by package), the lint expectations removed, the sizes changed, the rows deleted and why, the regenerated files, and the runs' counts.
+
+## Rebase (2026-11-08, step merge, foreman ui-reaches/ways-away/foreman-1)
+
+Resolve README.status.md by preserving both tasks’ status deletions.
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Integration commit `3a6433059b2f12be8cf57031ae5ee5fd23df28ce` removes the section 10 **Not yet** entry for `ui-reaches/reaches-story`.
+Branch commit `e47e9293bea885847be02fcde1264ba3438c7ea2` removes the adjacent section 5.13 **Not yet** entry for `ui-reaches/ways-away`.
+Resolve the conflict with both entries absent; preserve the following TUI Needs you entry.
+Also retain the branch’s deletion of the **Design departs** sub-entry beginning `5.13: the tab's "Away switch" row says "Hidden"`.
+Preserve all other integration changes. No code change is needed for this refusal.
