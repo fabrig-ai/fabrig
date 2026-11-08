@@ -37,3 +37,23 @@ id = 1
 story = "A project's rule names a branch of each of its repositories, every project holds a rule 1 given to the forge, and a goal for a draft runs from the stock's template 4 and charter 5 with no settings change"
 parts = ["rules", "roles", "words"]
 walk = false
+
+[[part]]
+id = "stock"
+title = "The binary gives every project its rule 1 and the deployment none, and the tests that assumed the deployment's stock rule move with it"
+mode = "direct"
+needs = ["rules", "roles"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "reference"
+title = "The reference's project sets its own rule 1, main's, naming a branch, over the stock's rule on every branch"
+mode = "direct"
+needs = ["rules", "roles"]
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 2
+story = "A fresh project lands by its own stock rule 1, reset brings it back, the deployment holds no rule until its owners add one, and the reference's project keeps its goals' branches free of the stock's CI and review"
+parts = ["stock", "reference"]
+walk = false
