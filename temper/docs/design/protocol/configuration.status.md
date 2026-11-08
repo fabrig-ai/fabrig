@@ -2,6 +2,16 @@
 
 2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+- **Not yet:** 13.2: the client wire and the store hold no
+  `ProjectClasses` and the wire no `Reach` (`ui-reaches/reach-wire`).
+
+- **Not yet:** 13.2: kind 8 has no value of the forge's, no stock and no
+  reader of its record (`ui-reaches/classes-value`).
+
+- **Not yet:** 13.2: the forge declares no kind 8, so no project's
+  classes are judged, kept, read or erased, and no agent's `settings` or
+  `propose_settings` names `project-classes` (`ui-reaches/classes-kind`).
+
 Sections 13.2 to 13.4 have the branch-relative project patterns and the
 forge's every-project rule defaults, including removal and reset, held
 rules and the client and run settings reads. The binary supplies kind 2's

@@ -1792,7 +1792,7 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 
 ### 13.2 temper's kinds
 
-temper declares seven kinds of its own beside jig's, each owned by the
+temper declares eight kinds of its own beside jig's, each owned by the
 forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 
 | Kind | Scope | Numbers | Value | Decided by |
@@ -1804,6 +1804,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 | 5, a repository's gates | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
 | 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none, foreman or up (`../domain/forge.md`, 8.11) | that project's owners |
 | 7, a project's ways | each project | 1 | what the project shows and the way a goal starts by, a `ProjectWays` (below) | that project's owners |
+| 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../domain/forge.md`, 5.10) | that project's owners |
 
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../client/README.md`, 5.13):
@@ -1816,6 +1817,21 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   `tracked` set. Its bound, the
   kind's, is its encoding; the engine decides nothing by it. A value of
   a project's questions is its route alone, a `ProjectQuestions` record.
+- **A project's classes' value** is a `ProjectClasses` record in
+  temper's codec, the table of `../domain/forge.md`, 5.10, member for
+  member: `items`, at most 20 `ClassItem { subject, words, class }`, its
+  `subject` a `ClassSubject`, `kind` with a `ReachKind` or `set` with a
+  set's number, its `words` at most 120 bytes, its `class` a
+  `ReachClass`; and `sets`, at most 6 `PathSet { number, name, patterns
+  }`, its name at most 40 bytes and at most 6 patterns of 80. `ReachKind`
+  names the ten kinds and `ReachClass` the four classes, `decide`, `ask`,
+  `ask_away` and `wait`, in 5.10's order. A judgement of the engine's
+  reads it: the forge's `decided` (`../domain/forge.md`, 5.9) and no
+  other. Its bound, the kind's, is the encoding of a table full at every
+  bound. A project with no value has Agents review's table
+  (`../domain/forge.md`, 5.10). The same codec's `Reach`, `{ kind, class,
+  reason, under, sets, matched, away }` with `reason` a `ReachReason`,
+  `kind`, `set` with a set's number, or `always`, is 5.10's reach.
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, section 3's rule member for member but `connector` and `kind`,
   which are always the forge's and its merge: `pattern`, `enforce`,
@@ -1851,10 +1867,13 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
     removed: the forge always has all three charters, and an owner who
     wants the stock's back resets it;
   - *a project's questions* that is not one of the three routes;
+  - *a project's classes* that does not decode as a `ProjectClasses`,
+    or that `Classes::check` refuses (`../domain/forge.md`, 5.10), the
+    refusal naming the item or the set at fault;
   - *a project's ways* with a `way` neither 0 nor a template the project
     would offer after the whole decision, read by the root from the core
     through its active settings decision as an approval's eligible people
-    are read from its people; a removed or reset item of kind 6 or 7 is always good,
+    are read from its people; a removed or reset item of kind 6, 7 or 8 is always good,
     the project going back to the stock (13.4). A proposal may install a
     template and select it as the project's way in the same acceptance.
     A refusal names the item and the rejected way number;
@@ -1903,7 +1922,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 - **Erased with their project.** A project deleted (jig's
   `RemoveProject`, jig's `domain/people.md`, 5.2) has its settings
   erased by the connector owning each kind: the forge erases its kinds
-  2, 4, 5, 6 and 7 of that project's scope, their current changes and the
+  2, 4, 5, 6, 7 and 8 of that project's scope, their current changes and the
   items of pending proposals among them, in the deletion's steps, and
   the deployment's kinds 1 and 3 stay. A project made later, its number
   never the deleted one's, starts from the stock defaults.
@@ -1913,8 +1932,8 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   (`../client/forge.md`, section 9); jig's documents give their states
   and sizes alone. A read asks in a scope: the deployment's, by a party
   with a role in the deployment, for any kind; or a project's, by a party
-  with a role in that project, for a kind of each project's scope (2, 6
-  and 7) in that scope alone.
+  with a role in that project, for a kind of each project's scope (2, 6,
+  7 and 8) in that scope alone.
 - **Never pinned.** Every merge is judged by the landing rules the
   forge holds then, the deployment's and its project's, whatever
   revision its change was made in: what work may do is always current,
