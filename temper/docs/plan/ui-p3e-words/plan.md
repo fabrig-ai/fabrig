@@ -32,16 +32,16 @@ Released:
 | `words` | `tasks/words-wire.md` | | `CharterWords` and `ProjectWords` on the client wire and in the store, `StockWay.headline` and `WaysPanel.words`, regenerated, nothing filled | 60 |
 | `words` | `tasks/words-value.md` | `words-wire` | the forge's kinds 9 and 10: values, judgement, `charter_words`, `project_words`, erasure, the store's and smith's codecs | 90 |
 | `stock` | `tasks/way-headlines.md` | `words-wire` | each stock way's headline, in the ways and the read | 75 |
+| `words` | `tasks/words-kind.md` | `words-value` | kinds 9 and 10 declared to jig, at the wire's entrances, `charter-words` and `project-words` in a run's `settings`, `see` and `propose_settings`, the settings form; an owner's change read back | 150 |
+| `how` | `tasks/how-words.md` | `way-headlines` | How work runs' heading and lede from a stock way's headline and the project's words; a proposal card's names for kinds 9 and 10 | 100 |
 
 To come, in the next batches (their parts join `plan.toml` as they are released):
 
 | Part | Task | Needs | What it makes run | Minutes |
 |---|---|---|---|---|
-| `words` | `words-kind` | `words-value` | kinds 9 and 10 declared to jig, at the wire's entrances, `charter-words` and `project-words` in a run's `settings`, `see` and `propose_settings`, the settings form | 150 |
 | `words` | `words-tools` | `words-kind` | `temper ctl settings show charter-words` and `project-words`, the help | 60 |
 | `stock` | `charter-lines` | `words-kind` | kind 9's stock words for charters 1, 2, 4, 5, 6, 9, 10, 11 and 12 | 60 |
 | `how` | `project-words-read` | `way-headlines`, `words-kind` | the `ways` read carries the project's words, kind 10; the engine world reads them back after an owner's change | 75 |
-| `how` | `how-words` | `way-headlines` | How work runs' heading and lede from a stock way's headline and the project's words | 100 |
 | `ask` | `ask-words` | `words-kind` | Ask temper's sentence; a configuring story whose proposal carries a charter's and the project's words, accepted and read back | 60 |
 
 About 830 implementer-minutes in all.

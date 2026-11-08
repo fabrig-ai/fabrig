@@ -49,3 +49,16 @@ id = 3
 story = "A fresh deployment's ways read gives each stock way its headline, and the forge holds each stock charter's line"
 parts = ["stock"]
 walk = false
+
+[[part]]
+id = "how"
+title = "How work runs heads its page with the words: a stock way's headline, or the project's own headline and lede"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[slice]]
+id = 4
+story = "How work runs heads the page with the headline of the stock way the project runs, or with the project's own words, kind 10, where it runs none"
+parts = ["how"]
+walk = false
