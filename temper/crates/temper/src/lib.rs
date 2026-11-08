@@ -2,7 +2,7 @@
 // tests::configuration includes the shared integration fixture, which names temper::directories.
 extern crate self as temper;
 use jig_protocol_config::{self as config, read};
-use skein_io::kernel::{Error, Exit, Fd};
+use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use skein_shell::{Clock, Config, Kernel};
 use std::{
@@ -57,10 +57,10 @@ pub mod forge;
 mod forge_sign_in;
 pub mod github_logs;
 mod google_runtime;
-pub mod help;
+pub use temper_shell::help;
 mod host;
 mod init;
-pub mod link_file;
+pub use temper_shell::link_file;
 pub mod open;
 mod printed;
 mod program_login;
@@ -70,6 +70,7 @@ mod tui;
 mod worker_alone;
 pub use host::{Host, ending as service_ending};
 use json::CONFIG_BYTES;
+use temper_shell::directories::unread;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
@@ -301,45 +302,6 @@ fn path(bytes: &[u8]) -> &Path {
 fn member(document: &skein_json::Document, at: u32, key: &[u8]) -> u32 {
     read::Object::new(document, at).expect("named checked object").member(document, key).expect("named checked member")
 }
-fn errno(error: Error) -> i32 {
-    match error {
-        Error::Refused => 111,
-        Error::Busy => 11,
-        Error::Reset => 104,
-        Error::BrokenPipe => 32,
-        Error::NotConnected => 107,
-        Error::AddressInUse => 98,
-        Error::AddressNotAvailable => 99,
-        Error::Unreachable => 101,
-        Error::TimedOut => 110,
-        Error::TooManyOpenFiles => 24,
-        Error::NoBufferSpace => 12,
-        Error::Cancelled => 125,
-        Error::TooLate | Error::NotFound => 2,
-        Error::Exists => 17,
-        Error::NotADirectory => 20,
-        Error::IsADirectory => 21,
-        Error::NotEmpty => 39,
-        Error::Permission => 13,
-        Error::NoSpace => 28,
-        Error::ReadOnly => 30,
-        Error::TooManyLinks => 40,
-        Error::NameTooLong => 36,
-        Error::Escape => 18,
-        Error::NotAFile => 6,
-        Error::InvalidArgument => 22,
-        Error::Other(number) => number,
-    }
-}
-fn unread(why: skein_shell::Unread) -> String {
-    match why {
-        skein_shell::Unread::Absent => "absent".into(),
-        skein_shell::Unread::NotAFile => "not a file".into(),
-        skein_shell::Unread::TooLarge { max } => format!("past {max} bytes"),
-        skein_shell::Unread::Unsafe(_) => "readable by others or reached through a link".into(),
-        skein_shell::Unread::Kernel(error) => format!("errno {}", errno(error)),
-    }
-}
 fn file_path(at: config::Path) -> String {
     let mut found = service::startup::Problems::empty();
     found.push(at, service::startup::What::Jig(config::What::Unreadable));
@@ -531,7 +493,8 @@ fn prepare_with_limits(
         )
         .map(|line| line.into_bytes().into_boxed_slice()),
         given,
-        directories.program_environment(
+        directories::program_environment(
+            directories,
             &skein_shell::environment(),
             std::env::current_dir().map_err(|why| why.to_string())?.as_os_str().as_bytes(),
             &printed::running_word(&skein_shell::environment()),
