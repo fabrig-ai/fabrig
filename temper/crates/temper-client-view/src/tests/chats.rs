@@ -1088,7 +1088,7 @@ fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
     root
 }
 
-fn no_project_root(welcome: Option<bool>) -> Domain {
+pub(super) fn no_project_root(welcome: Option<bool>) -> Domain {
     let template = fixtures::root_in_project(None);
     let mut me = template.pages().me(template.client()).unwrap().clone();
     me.projects.clear();
@@ -1097,22 +1097,57 @@ fn no_project_root(welcome: Option<bool>) -> Domain {
 
 #[test]
 fn no_welcome_and_no_project_says_so() {
-    let root = no_project_root(Some(false));
-    for words in [fixtures::words(), fixtures::browser_words()] {
-        let mut view = fixtures::view_of(words);
-        let tree = fixtures::build(&mut view, &root);
-        let mut main = None;
-        for (index, node) in tree.nodes().iter().enumerate() {
-            if node.role == Role::Main {
-                main = Some(index);
+    use temper_client_domain::{
+        Action, Address, Event, Place,
+        pages::{Act, switcher},
+    };
+    let mut root = no_project_root(Some(false));
+    for address in [
+        Address::Chats { filter: ChatsFilter::All },
+        Address::NewChat { draft: false },
+        Address::Inbox { filter: temper_client_domain::address::Filter::ALL },
+        Address::Accounts,
+        Address::Settings { project: fixtures::PROJECT },
+    ] {
+        fixtures::root_event(&mut root, Event::Went { place: Place::Address(address) });
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut view = fixtures::view_of(words);
+            fixtures::build(&mut view, &root);
+            let tree = view.tree();
+            assert_eq!(
+                fixtures::main_text(tree).as_ref(),
+                b"No project yetMake your first one, or ask an owner to add you to theirs."
+            );
+            assert_eq!(fixtures::styles(tree, Role::Main).as_ref(), [Box::from([crate::look::OUTSIDE])]);
+            let form = fixtures::find(tree, Role::Form, b"New project").expect("first project form");
+            let field = fixtures::person_find(tree, Role::TextField, b"Project name").expect("project name");
+            let button = fixtures::person_find(tree, Role::Button, b"Create").expect("create");
+            let mut form_end = None;
+            for (index, node) in tree.nodes().iter().enumerate() {
+                if node.id == form {
+                    form_end = Some(index.checked_add(usize::try_from(node.size).unwrap()).unwrap());
+                }
+                if node.id == field {
+                    assert!(node.states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
+                    assert!(index < form_end.expect("field in the form"));
+                }
+                if node.id == button {
+                    assert!(index < form_end.expect("create in the form"));
+                }
+            }
+            assert_eq!(
+                fixtures::styles(tree, Role::Button).as_ref(),
+                [Box::from([]), Box::from([crate::look::OUTSIDE_PRIMARY])]
+            );
+            assert!(fixtures::find(tree, Role::Region, b"LLM account").is_none());
+            assert_eq!(
+                crate::act(&mut view, field, skein_ui::Act::Input { value: b"First".as_slice().into() }),
+                Some(Action::Pages(Act::Switcher(switcher::Act::NewWords { words: b"First".as_slice().into() })))
+            );
+            for (node, act) in [(field, skein_ui::Act::Submit), (button, skein_ui::Act::Press)] {
+                assert_eq!(crate::act(&mut view, node, act), Some(Action::Pages(Act::Switcher(switcher::Act::Create))));
             }
         }
-        let main_text = fixtures::node_text(tree, main.expect("chats main"));
-        assert_eq!(main_text.as_ref(), b"No project yetMake one from the project switcher.");
-        assert!(fixtures::find(tree, Role::Heading { level: 1 }, b"No project yet").is_some());
-        assert!(fixtures::find(tree, Role::Paragraph, b"Make one from the project switcher.").is_some());
-        assert!(fixtures::find(tree, Role::Complementary, b"Project").is_none());
-        assert!(fixtures::find(tree, Role::Form, b"New project").is_some());
     }
 }
 
@@ -1136,13 +1171,52 @@ fn the_chats_page_offers_nothing_of_the_welcome() {
 }
 
 #[test]
-fn welcome_or_unknown_deployments_keep_the_chats_page() {
-    for welcome in [Some(true), None] {
-        let root = no_project_root(welcome);
-        let view = fixtures::page_view(&root);
-        assert!(fixtures::find(view.tree(), Role::Complementary, b"Project").is_none(), "{welcome:?}");
-        assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"Talk to an agent.").is_some(), "{welcome:?}");
-        assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"No project yet").is_none(), "{welcome:?}");
+fn welcome_or_unknown_deployments_choose_their_no_project_page() {
+    use temper_client_domain::{Action, Address, Event, Place, Step, pages::Act};
+    let (mut offered, watch, _, _, _) =
+        fixtures::root_at_full(Address::Welcome { step: Step::Welcome }, &fixtures::domain_limits(), b"Shop");
+    let mut me = offered.pages().me(offered.client()).unwrap().clone();
+    me.projects.clear();
+    fixtures::deliver_me(&mut offered, watch, me);
+    fixtures::root_event(
+        &mut offered,
+        Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All }) },
+    );
+    let setup = Action::Pages(Act::Go { address: Address::Welcome { step: Step::Forge { forge: None } } });
+    let cases = [
+        (Box::new(no_project_root(None)), b"Talk to an agent.".as_slice(), None, None, None),
+        (
+            Box::new(no_project_root(Some(true))),
+            b"No project yet",
+            Some(b"Setting temper up makes your first project.".as_slice()),
+            Some(setup.clone()),
+            None,
+        ),
+        (
+            Box::new(offered),
+            b"No project yet",
+            Some(b"Setting temper up makes your first project.".as_slice()),
+            Some(setup),
+            Some(Action::Pages(Act::Playground)),
+        ),
+    ];
+    for (root, heading, line, setup, playground) in cases {
+        for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, heading).is_some());
+            assert!(fixtures::find(view.tree(), Role::Form, b"New project").is_none());
+            let paragraph =
+                fixtures::find(view.tree(), Role::Paragraph, b"Setting temper up makes your first project.");
+            assert_eq!(paragraph.is_some(), line.is_some());
+            let primary = fixtures::person_find(view.tree(), Role::Link, b"Set up temper");
+            let secondary = fixtures::person_find(view.tree(), Role::Button, b"Try the playground");
+            for (node, expected) in [(primary, setup.clone()), (secondary, playground.clone())] {
+                let action = match node {
+                    Some(id) => crate::act(&mut view, id, skein_ui::Act::Press),
+                    None => None,
+                };
+                assert_eq!(action, expected);
+            }
+        }
     }
 }
 

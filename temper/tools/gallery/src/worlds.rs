@@ -463,6 +463,9 @@ fn world_in_layout(
                             if let Some(name) = picker {
                                 picker::frame(&mut me, name);
                             }
+                            if goals == Some("no-project") {
+                                me.projects.clear();
+                            }
                             Some(c::Delivery::Me(Box::new(me)))
                         }
                         c::Subject::Accounts => {
@@ -642,7 +645,7 @@ fn world_in_layout(
                 jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                     use temper_client_protocol_wire::{self as wire, v1};
                     match wire::decode_reading(&record.bytes, &v1::CEILINGS).expect("gallery forge read").read() {
-                        v1::Read::Deployment => deployment_read(&mut root, read, &mut out),
+                        v1::Read::Deployment => deployment_read(&mut root, read, goals != Some("no-project"), &mut out),
                         v1::Read::Playground => {
                             // A resetting sample leaves the next read pending.
                             if w != (FirstRun { step: 10 }) || !playground_read {
@@ -1273,11 +1276,11 @@ fn gallery_pull(
     use temper_client_protocol_wire::v1 as w;
     w::Pull::new(limits, w::PullParts { number, address: Box::from(address) }).expect("pull")
 }
-fn deployment_read(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+fn deployment_read(root: &mut Domain, read: Token, welcome: bool, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};
     let answer = v1::DeploymentAnswer::new(
         &v1::CEILINGS,
-        v1::DeploymentAnswerParts { welcome: true, owned: true, program_login: None },
+        v1::DeploymentAnswerParts { welcome, owned: true, program_login: None },
     )
     .expect("deployment answer");
     step(

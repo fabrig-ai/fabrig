@@ -1190,7 +1190,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 :root:has(.temper-welcome) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
 #app:has(> .temper-welcome) { --temper-mono: var(--gf-sans); --temper-ink: var(--gf-ink); --temper-muted: var(--gf-muted); --temper-faint: var(--gf-faint); --temper-line: var(--gf-line); --temper-paper: var(--gf-surface); --temper-canvas: var(--gf-paper); }
 /* The top bar: the brand, temper box's line, the steps at its right. */
-#app:has(> .temper-welcome) > .temper-banner { position: static; min-height: 0; flex-wrap: wrap; justify-content: space-between; padding: 22px 32px; border: 0; background: var(--gf-paper); gap: 12px 24px; }
+#app:has(> .temper-welcome) > .temper-top { position: static; min-height: 0; flex-wrap: wrap; justify-content: space-between; padding: 22px 32px; border: 0; background: var(--gf-paper); gap: 12px 24px; }
 #app:has(> .temper-welcome) .temper-brand { min-height: 34px; gap: 8px; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
 #app:has(> .temper-welcome) .temper-brand::before { content: '✦'; width: auto; height: auto; background: none; color: var(--gf-signal); font-weight: 400; }
 #app:has(> .temper-welcome) .temper-brand::after { display: none; }
@@ -1323,7 +1323,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > :is(.temper-welcome, .temper-home, .temper-settings) .temper-welcome-sheet-foot > button:disabled { opacity: .45; cursor: default; }
 #app > :is(.temper-welcome, .temper-home, .temper-settings) .temper-welcome-sheet :focus-visible:not([tabindex="-1"]) { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 @media (max-width: 760px) {
-  #app:has(> .temper-welcome) > .temper-banner { padding: 14px 16px; }
+  #app:has(> .temper-welcome) > .temper-top { padding: 14px 16px; }
   #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > a { font-size: 0; gap: 0; padding: 6px 4px; }
   #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > a::before { font-size: 13px; }
   #app:has(> .temper-welcome) .temper-flow-step + .temper-flow-step::before { width: 8px; margin: 0 2px; }
@@ -2943,6 +2943,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 .temper-top-end > [role=status] { overflow: hidden; text-overflow: ellipsis; }
 .temper-top-end > button { flex: none; min-height: 32px; padding: 4px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: none; color: var(--gf-ink); font: 500 14px/1.4 var(--gf-sans); }
 .temper-top-end > button:hover { background: var(--gf-hover); }
+.temper-top-end > [data-region=temper-link]:not(:has(> .temper-offline)) { display: none; }
 /* The column: a heading, its words, then its acts. */
 .temper-outside { width: min(400px, calc(100% - 32px)); margin: 0 auto; padding: max(40px, 12vh) 0 80px; }
 .temper-outside h1 { margin: 0 0 8px; font: 600 28px/1.25 var(--gf-sans); letter-spacing: -.01em; color: var(--gf-ink); overflow-wrap: anywhere; }
