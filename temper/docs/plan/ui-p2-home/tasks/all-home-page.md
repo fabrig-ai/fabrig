@@ -126,3 +126,14 @@ What you changed, the helpers of `home.rs` this page reuses, where the
 phone's form and the wide one split, the calls you made inside the
 sketches, the tests and their counts, each new row's rule and how it
 failed when broken, and your implementation and check minutes apart.
+
+## Rebase (2026-11-08, step merge, foreman ui-p2-home/all-home-page/foreman-1)
+
+preserve both vocabularies and recompute words.rs declarations during rebase
+The merge conflicts only in `temper/crates/temper-client-view/src/words.rs`, where both branches update vocabulary counts and `ALL` length.
+Main commit `f358753b09` adds four role-reading words; integration merge `c3612fec99` carries them alongside this plan’s vocabulary.
+Keep `RoleReading`, `RoleUnreadable`, `RoleRuleReading`, and `RoleRuleUnreadable`, including their IDs and English forms.
+Keep all sixteen Home/card words from `d9a00af040`, including IDs 4325–4340 and their English forms.
+For the inspected integration tip, the combined declarations are `PHRASES = 2117`, `SEGMENTS = 3752`, `ENGLISH_BYTES = 51813`, and `ALL` length 1435.
+Regenerate counted declarations with `tests::accounts::english_phrase_declarations_match_the_vocabulary`, through heavy with `SKEIN_CODEGEN_WRITE=1`; then verify that test without generation.
+Retain the automatic merges in `temper.css`, `pages.rs`, and `root.rs`, and run the task’s focused checks after resolving the conflict.
