@@ -7,11 +7,70 @@
 //! Fcntl duplicates the live input descriptor; restoration consumes and
 //! closes that duplicate once. No call retains a pointer to Rust storage.
 //! Writes borrow a live byte slice only until the synchronous call returns.
+//! Open borrows a terminated path; signal masks are local initialized C
+//! storage. No call retains either pointer, and the prior mask is restored.
 #![expect(unsafe_code, reason = "terminal calls borrow local storage only until return (shell.md, 7.5)")]
 
 use crate::terminal::{Input, Kept, Keys, Modes};
 use skein_io::kernel::{Error, Fd, Size};
 use std::{mem::MaybeUninit, ptr};
+
+pub(crate) fn open_terminal() -> Result<Fd, Error> {
+    // SAFETY: the path is terminated and open retains no pointer to it.
+    let fd = unsafe { libc::open(c"/dev/tty".as_ptr(), libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC) };
+    if fd < 0 { Err(Error::Other(crate::system::last_errno())) } else { Ok(Fd::new(fd)) }
+}
+
+pub(crate) fn take_foreground(terminal: Fd) -> Result<(), Error> {
+    // SAFETY: sigset_t is C storage, initialized by sigemptyset below.
+    let mut blocked: libc::sigset_t = unsafe { std::mem::zeroed() };
+    // SAFETY: sigemptyset initializes this live signal set.
+    if unsafe { libc::sigemptyset(ptr::from_mut(&mut blocked)) } != 0 {
+        return Err(Error::Other(crate::system::last_errno()));
+    }
+    // SAFETY: blocked is initialized and SIGTTOU is a valid signal.
+    if unsafe { libc::sigaddset(ptr::from_mut(&mut blocked), libc::SIGTTOU) } != 0 {
+        return Err(Error::Other(crate::system::last_errno()));
+    }
+    let mut previous = MaybeUninit::uninit();
+    // SAFETY: blocked is initialized; the prior thread mask is written to live storage.
+    let error = unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, ptr::from_ref(&blocked), previous.as_mut_ptr()) };
+    if error != 0 {
+        return Err(Error::Other(error));
+    }
+    // SAFETY: successful pthread_sigmask initialized the prior mask.
+    let previous = unsafe { previous.assume_init() };
+    // SAFETY: getpgrp reads the calling process's group and borrows no storage.
+    let group = unsafe { libc::getpgrp() };
+    // SAFETY: tcsetpgrp borrows no storage, and SIGTTOU is blocked in this thread.
+    let result = if unsafe { libc::tcsetpgrp(terminal.raw(), group) } == 0 {
+        Ok(())
+    } else {
+        Err(Error::Other(crate::system::last_errno()))
+    };
+    // SAFETY: previous is initialized and borrowed only until the thread mask is restored.
+    let error = unsafe { libc::pthread_sigmask(libc::SIG_SETMASK, ptr::from_ref(&previous), ptr::null_mut()) };
+    result?;
+    if error == 0 { Ok(()) } else { Err(Error::Other(error)) }
+}
+
+#[cfg(test)]
+pub(crate) fn signal_mask() -> Vec<i32> {
+    // SAFETY: sigset_t is C storage; zeroing also initializes any unused storage.
+    let mut mask: libc::sigset_t = unsafe { std::mem::zeroed() };
+    // SAFETY: a null input only reads this thread's mask into live storage.
+    assert_eq!(unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, ptr::null(), ptr::from_mut(&mut mask)) }, 0);
+    let bits = size_of_val(&mask).checked_mul(8).expect("signal set bits fit");
+    let mut members = Vec::new();
+    // The set's storage bounds all signal numbers; unsupported numbers return -1.
+    for signal in 1..=i32::try_from(bits).expect("signal numbers fit") {
+        // SAFETY: mask is initialized; sigismember only reads it during this call.
+        if unsafe { libc::sigismember(ptr::from_ref(&mask), signal) } == 1 {
+            members.push(signal);
+        }
+    }
+    members
+}
 
 fn read(fd: Fd) -> Result<libc::termios, Error> {
     let mut modes = MaybeUninit::uninit();

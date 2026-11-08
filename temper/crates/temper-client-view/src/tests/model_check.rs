@@ -382,6 +382,7 @@ fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
         &v::CEILINGS,
         v::ForgesParts {
             forges: super::connect_forge::first_rows(super::connect_forge::connected(), super::connect_forge::made()),
+            linked: false,
         },
     )
     .unwrap();

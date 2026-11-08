@@ -27,6 +27,7 @@ fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
 
 fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rgb>, boxed: bool) -> Duties {
     host.report(Report::Start(Start {
+        front: false,
         size: Size { columns: 80, rows: 24 },
         scheme: Scheme::Dark,
         background,
@@ -58,6 +59,22 @@ fn empty(duties: &Duties) {
     assert!(duties.address.is_none());
     assert!(duties.open.is_none());
     assert!(!duties.close);
+}
+
+#[test]
+fn a_box_line_report_is_told_to_the_tui() {
+    use temper_client_tui::{BoxLine, BoxState};
+
+    let mut host = host();
+    start(&mut host, None);
+    let step = b"forgejo-3".as_slice();
+    let line = b"forge is restarting".as_slice();
+    empty(&host.report(Report::Front(BoxLine::Restarting { step: step.into() })));
+    empty(&host.report(Report::Front(BoxLine::Log { line: line.into() })));
+
+    let state = host.state.as_ref().expect("started TUI");
+    assert_eq!(state.box_state(), BoxState::Restarting { step });
+    assert_eq!(state.box_log().collect::<Vec<_>>(), vec![line]);
 }
 
 #[test]
@@ -267,6 +284,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
     ] {
         let mut host = host();
         let duties = host.report(Report::Start(Start {
+            front: false,
             size: Size { columns: 80, rows: 24 },
             scheme: Scheme::Dark,
             background: None,
@@ -475,6 +493,7 @@ enum LocalWant {
     Read,
     Ask,
     Send,
+    SendHeld,
     Wait,
     Keep,
     Pasted,
@@ -484,6 +503,7 @@ enum LocalWant {
     Quiet,
 }
 struct LocalRow {
+    front: bool,
     name: &'static str,
     local: bool,
     note: Option<Note>,
@@ -496,14 +516,15 @@ struct LocalRow {
 #[expect(clippy::too_many_lines, reason = "one table holds the engine-link outcomes and sign-out judgements")]
 fn the_engines_link_signs_in_and_falls_back() {
     use LocalAct::{Answer, Approve, Connect, Due, End, Found, Lost, Paste};
-    use LocalWant::{Ask, Ended, Keep, Pasted, Quiet, Read, Send, Taking, Until, Wait};
+    use LocalWant::{Ask, Ended, Keep, Pasted, Quiet, Read, Send, SendHeld, Taking, Until, Wait};
     let found = || Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET)));
     let fresh = || Found(Some(local_link("127.0.0.1:8367", FRESH_SECRET)));
-    let row = |name, steps| LocalRow { name, local: true, note: None, held: false, first: Read, steps };
+    let row = |name, steps| LocalRow { front: false, name, local: true, note: None, held: false, first: Read, steps };
     let mut rows = vec![
         row("fresh", vec![]),
-        LocalRow { name: "disabled", local: false, note: None, held: false, first: Ask, steps: vec![] },
+        LocalRow { front: false, name: "disabled", local: false, note: None, held: false, first: Ask, steps: vec![] },
         LocalRow {
+            front: false,
             name: "signed out note",
             local: true,
             note: Some(Note::SignedOut),
@@ -587,6 +608,7 @@ fn the_engines_link_signs_in_and_falls_back() {
         ("after expiry", UNTIL + 1, Read),
     ] {
         rows.push(LocalRow {
+            front: false,
             name,
             local: true,
             note: Some(Note::Until(Wall::from_nanos(UNTIL))),
@@ -610,6 +632,7 @@ fn the_engines_link_signs_in_and_falls_back() {
         ));
     }
     rows.push(LocalRow {
+        front: false,
         name: "no held note",
         local: true,
         note: None,
@@ -618,6 +641,7 @@ fn the_engines_link_signs_in_and_falls_back() {
         steps: vec![(End(UNTIL), Read)],
     });
     rows.push(LocalRow {
+        front: false,
         name: "held signed out",
         local: true,
         note: Some(Note::SignedOut),
@@ -626,6 +650,7 @@ fn the_engines_link_signs_in_and_falls_back() {
         steps: vec![(End(UNTIL), Ask)],
     });
     rows.push(LocalRow {
+        front: false,
         name: "paste after sign out",
         local: true,
         note: Some(Note::SignedOut),
@@ -634,6 +659,7 @@ fn the_engines_link_signs_in_and_falls_back() {
         steps: vec![(Paste, Pasted), (Answer(signed_in_answer()), Keep), (Connect, Until)],
     });
     rows.push(LocalRow {
+        front: false,
         name: "approval after sign out",
         local: true,
         note: Some(Note::SignedOut),
@@ -642,6 +668,7 @@ fn the_engines_link_signs_in_and_falls_back() {
         steps: vec![(Approve, Taking), (Answer(signed_in_answer()), Keep), (Connect, Until), (Due(SECOND), Quiet)],
     });
     rows.push(LocalRow {
+        front: false,
         name: "same expiry already noted",
         local: true,
         note: Some(Note::Until(Wall::from_nanos(UNTIL))),
@@ -650,6 +677,7 @@ fn the_engines_link_signs_in_and_falls_back() {
         steps: vec![(found(), Send), (Answer(signed_in_answer()), Keep), (Connect, Quiet)],
     });
     rows.push(LocalRow {
+        front: false,
         name: "held has no expiry",
         local: true,
         note: None,
@@ -657,6 +685,79 @@ fn the_engines_link_signs_in_and_falls_back() {
         first: Quiet,
         steps: vec![(Connect, Quiet)],
     });
+    rows.extend([
+        LocalRow {
+            front: true,
+            name: "front fresh",
+            local: true,
+            note: None,
+            held: false,
+            first: Read,
+            steps: vec![(found(), Send), (Answer(signed_in_answer()), Keep)],
+        },
+        LocalRow {
+            front: true,
+            name: "front held",
+            local: true,
+            note: None,
+            held: true,
+            first: Read,
+            steps: vec![
+                (found(), SendHeld),
+                (
+                    Answer(w::SignInAnswer::SignedIn(
+                        w::SignedIn::new(&w::CEILINGS, w::SignedInParts { token: None, party: 7, expires: UNTIL })
+                            .expect("held sign-in"),
+                    )),
+                    Quiet,
+                ),
+            ],
+        },
+        LocalRow {
+            front: true,
+            name: "front held reread",
+            local: true,
+            note: None,
+            held: true,
+            first: Read,
+            steps: vec![
+                (found(), SendHeld),
+                (Answer(w::SignInAnswer::LinkUsed), Wait),
+                (Due(SECOND), Read),
+                (fresh(), SendHeld),
+            ],
+        },
+        LocalRow {
+            front: true,
+            name: "front held then expiry",
+            local: true,
+            note: None,
+            held: true,
+            first: Read,
+            steps: vec![
+                (found(), SendHeld),
+                (
+                    Answer(w::SignInAnswer::SignedIn(
+                        w::SignedIn::new(&w::CEILINGS, w::SignedInParts { token: None, party: 7, expires: UNTIL })
+                            .expect("held sign-in"),
+                    )),
+                    Quiet,
+                ),
+                (Connect, Until),
+                (End(UNTIL), Read),
+                (fresh(), Send),
+            ],
+        },
+        LocalRow {
+            front: true,
+            name: "front signed-out note",
+            local: true,
+            note: Some(Note::SignedOut),
+            held: false,
+            first: Read,
+            steps: vec![],
+        },
+    ]);
     let mut failures = Vec::new();
     for row in rows {
         local_row(row, &mut failures);
@@ -667,6 +768,7 @@ fn the_engines_link_signs_in_and_falls_back() {
 fn local_row(row: LocalRow, failures: &mut Vec<String>) {
     let mut host = host();
     let duties = host.report(Report::Start(Start {
+        front: row.front,
         size: Size { columns: 80, rows: 24 },
         scheme: Scheme::Dark,
         background: None,
@@ -677,6 +779,9 @@ fn local_row(row: LocalRow, failures: &mut Vec<String>) {
         credential: row.held.then(|| Secret::new(Box::new([7; 40]))),
         note: row.note,
     }));
+    if host.state().front() != row.front {
+        failures.push(format!("{}: front state", row.name));
+    }
     local_check(&mut host, &duties, row.first, row.name, failures);
     let mut exchange = local_exchange(&duties);
     for (act, want) in row.steps {
@@ -742,13 +847,16 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
         .asked
         .iter()
         .filter(|request| {
-            matches!(request, Request::Exchange { message: Message::SignInLink(_), credential: None, .. })
+            matches!(request, Request::Exchange { message: Message::SignInLink(_), credential, .. }
+                if if matches!(want, LocalWant::SendHeld) {
+                    credential.as_ref().is_some_and(|held| held.expose() == [7; 40])
+                } else { credential.is_none() })
         })
         .count();
     let (read, ask, send, note, keep) = match want {
         LocalWant::Read => (true, 0, 0, None, None),
         LocalWant::Ask => (false, 1, 0, None, None),
-        LocalWant::Send | LocalWant::Pasted => (false, 0, 1, None, None),
+        LocalWant::Send | LocalWant::SendHeld | LocalWant::Pasted => (false, 0, 1, None, None),
         LocalWant::Wait | LocalWant::Quiet | LocalWant::Taking => (false, 0, 0, None, None),
         LocalWant::Keep => (false, 0, 0, None, Some(Some(Secret::new(Box::new([7; 40]))))),
         LocalWant::Until => (false, 0, 0, Some(Note::Until(Wall::from_nanos(UNTIL))), None),
@@ -767,7 +875,7 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
     {
         failures.push(format!("{name}: approval take absent"));
     }
-    if keep.is_some() && duties.keep != keep {
+    if (keep.is_some() || matches!(want, LocalWant::Quiet | LocalWant::SendHeld)) && duties.keep != keep {
         failures.push(format!("{name}: credential duty"));
     }
     if matches!(want, LocalWant::Read | LocalWant::Wait) && host.state().local() != Local::Signing {
@@ -776,7 +884,7 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
     let frame = host.frame();
     let print = frame.print();
     let text = String::from_utf8(frame.text().into_vec()).expect("UTF-8 frame");
-    if matches!(want, LocalWant::Read) && !text.contains("Connecting to 127.0.0.1:8367") {
+    if matches!(want, LocalWant::Read) && !host.state().front() && !text.contains("Connecting to 127.0.0.1:8367") {
         failures.push(format!("{name}: connecting text"));
     }
     if matches!(want, LocalWant::Wait)
@@ -901,7 +1009,7 @@ fn pieces(items: &[Box<[u8]>]) -> Box<[u8]> {
     writer.finish()
 }
 
-fn launchpad_me(projects: bool) -> w::Me {
+pub(crate) fn launchpad_me(projects: bool) -> w::Me {
     let mut me = records::frame_record().into_parts();
     me.retention = Duration::from_secs(1000);
     if projects {
@@ -1004,7 +1112,7 @@ fn launchpad_me(projects: bool) -> w::Me {
     w::Me::new(&w::CEILINGS, me).expect("Me")
 }
 
-fn watch(duties: &Duties, subject: &w::Subject) -> u64 {
+pub(crate) fn watch(duties: &Duties, subject: &w::Subject) -> u64 {
     duties
         .asked
         .iter()
@@ -1025,6 +1133,10 @@ fn watch(duties: &Duties, subject: &w::Subject) -> u64 {
 }
 
 fn delivery(host: &mut Host, watch: u64, value: &w::DeliveryValue) -> Duties {
+    host.report(delivery_report(watch, value))
+}
+
+pub(crate) fn delivery_report(watch: u64, value: &w::DeliveryValue) -> Report {
     let mut writer = Writer::new(usize::try_from(value.measure()).expect("delivery size"));
     value.encode(&mut writer).expect("delivery fits");
     let document = w::Owned::new(
@@ -1035,9 +1147,7 @@ fn delivery(host: &mut Host, watch: u64, value: &w::DeliveryValue) -> Duties {
     let event = w::StreamEvent::Delivery(
         w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery"),
     );
-    host.report(Report::Heard(jig_client::Event::Streamed {
-        message: jig_client::Streamed::Record(stream_bytes(&event)),
-    }))
+    Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(stream_bytes(&event)) })
 }
 
 fn signed_host(projects: bool) -> (Host, u64, Duties) {
@@ -1064,11 +1174,16 @@ const BAND: Rgb = Rgb { red: 0x2d, green: 0x2c, blue: 0x2a };
 const DIM: Rgb = Rgb { red: 0x9a, green: 0x93, blue: 0x88 };
 
 fn chat_chip(task: u64, title: &[u8]) -> w::Chip {
+    chat_chip_stage(task, title, w::RunStage::Idle)
+}
+
+fn chat_chip_stage(task: u64, title: &[u8], stage: w::RunStage) -> w::Chip {
+    let working = stage == w::RunStage::Due;
     let chip = records::owner_chip_record(
         w::ChipPhase::Active(
-            w::ChipPhaseActive::new(&w::CEILINGS, w::ChipPhaseActiveParts { value: w::RunStage::Idle }).expect("idle"),
+            w::ChipPhaseActive::new(&w::CEILINGS, w::ChipPhaseActiveParts { value: stage }).expect("stage"),
         ),
-        w::Phase::Idle,
+        if working { w::Phase::Due } else { w::Phase::Idle },
     );
     let mut reader = Reader::new(chip.rows());
     let mut rows = Vec::new();
@@ -1081,6 +1196,12 @@ fn chat_chip(task: u64, title: &[u8]) -> w::Chip {
             fields.title = records::wire_text(title);
             row.value = w::ChipFields::new(&w::CEILINGS, fields).expect("chat chip");
             fact = w::Fact::Chip(w::ChipRow::new(&w::CEILINGS, row).expect("chat row"));
+        } else if working && let w::Fact::ChipDetails(row) = fact {
+            let mut row = row.into_parts();
+            let mut fields = row.value.into_parts();
+            fields.live_delegates = 0;
+            row.value = w::ChipDetailsFields::new(&w::CEILINGS, fields).expect("working details");
+            fact = w::Fact::ChipDetails(Box::new(w::ChipDetailsRow::new(&w::CEILINGS, row).expect("details row")));
         }
         rows.push(fact);
     }
@@ -1088,53 +1209,7 @@ fn chat_chip(task: u64, title: &[u8]) -> w::Chip {
 }
 
 fn left_off_host() -> Host {
-    let (mut host, _, mut duties) = signed_host(true);
-    // The first wave can fill the exchange slots; give its watch retry a turn.
-    host.clocks(Time::from_nanos(host.env.limits.client.domain.backoff.first.as_nanos()), Wall::EPOCH);
-    let again = host.report(Report::Due);
-    duties.asked.extend(admit(&mut host, again).asked);
-    let subject = duties
-        .asked
-        .iter()
-        .find_map(|request| {
-            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
-            if open.subject().owner() != &w::Owner::Jig {
-                return None;
-            }
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            matches!(&subject, w::Subject::Tasks(tasks) if *tasks.query().label() == Some(8)).then_some(subject)
-        })
-        .expect("launchpad's chats watch");
-    let mut rows = Vec::new();
-    for (task, title, activity) in [(OLDER, b"Older".as_slice(), 1), (NEWEST, b"Newest".as_slice(), 2)] {
-        let mut row = records::task_line_record().into_parts();
-        row.chip = chat_chip(task, title);
-        row.project = 3;
-        row.last_activity = activity;
-        row.ended_at = None;
-        let row = w::TaskLine::new(&w::CEILINGS, row).expect("chat line");
-        let mut writer = Writer::new(usize::try_from(row.measure()).expect("chat size"));
-        row.encode(&mut writer).expect("chat fits");
-        rows.push(writer.finish());
-    }
-    let tasks = w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&rows), more: false }).expect("two chats");
-    // Navigation replaces the rail's watch; rows go to the current page's watch.
-    for _ in 0..host.env.limits.client.domain.watches {
-        let watched = watch(&duties, &subject);
-        let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
-        duties.asked.extend(admit(&mut host, arrived).asked);
-        let chats = host.root.pages().chats().expect("launchpad chats");
-        if chats.live(host.root.client()).is_some() {
-            break;
-        }
-        let due = root::next_deadline(&host.root).expect("chat watch retry");
-        host.clocks(due, Wall::EPOCH);
-        let again = host.report(Report::Due);
-        duties.asked.extend(admit(&mut host, again).asked);
-    }
-    host.frame();
-    host
+    home_host(false)
 }
 
 fn person_chat(host: &mut Host) {
@@ -1325,6 +1400,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
     for row in [
         "first project once",
         "project appears",
+        "project lost",
         "dark look",
         "light look",
         "theme",
@@ -1352,10 +1428,22 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
                 stayed && host.root.pages().address() == &Address::Home { project: 3 }
             }
+            "project lost" => {
+                delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(false)));
+                let inbox = host.root.pages().address() == &Address::Inbox { filter: root::address::Filter::ALL };
+                let mut next = launchpad_me(true).into_parts();
+                let mut reader = Reader::new(&next.projects);
+                let _ = skein_codec::piece::split(&mut reader).expect("first project");
+                let project = skein_codec::piece::split(&mut reader).expect("second project").expect("project");
+                next.projects = pieces(&[project]);
+                delivery(&mut host, me, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, next).expect("next me")));
+                inbox && host.root.pages().address() == &Address::Home { project: 5 }
+            }
             "dark look" | "light look" => {
                 let mut host = self::host();
                 let light = row == "light look";
                 host.report(Report::Start(Start {
+                    front: false,
                     size: Size { columns: 80, rows: 24 },
                     scheme: if light { Scheme::Light } else { Scheme::Dark },
                     background: None,
@@ -1455,6 +1543,10 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
 fn each_event_becomes_its_acts() {
     let mut failures = Vec::new();
     for row in [
+        "stop",
+        "stay",
+        "front log",
+        "bare log",
         "home words",
         "left off arrows",
         "left off enter",
@@ -1530,6 +1622,24 @@ fn each_event_becomes_its_acts() {
                         && event.is_none()
                         && text(&mut host).lines().any(|line| line.starts_with("❯ /chats"))
                 }
+            }
+            "stop" => give(&mut host, Event::Stop).close,
+            "stay" => {
+                host.tell(temper_client_tui::Told::Quitting);
+                !give(&mut host, Event::Stay).close && !host.state().quitting()
+            }
+            "front log" | "bare log" => {
+                let front = row == "front log";
+                if front {
+                    host.tell(temper_client_tui::Told::Front);
+                }
+                typed(&mut host, b"/log");
+                let before = host.state().box_written();
+                let duties = give(&mut host, Event::Log);
+                duties.asked.is_empty()
+                    && host.state().log_shown() == front
+                    && host.root.pages().chats().is_some_and(|chats| chats.words.is_empty() == front)
+                    && (host.state().box_written() > before) == front
             }
             "home words" | "create" => {
                 typed(&mut host, b"Please help");
@@ -1843,30 +1953,55 @@ fn waiting_host() -> Host {
 fn admit(host: &mut Host, mut duties: Duties) -> Duties {
     let mut pending = std::collections::VecDeque::from(core::mem::take(&mut duties.asked));
     while let Some(request) = pending.pop_front() {
-        if let Request::Exchange { exchange, message: Message::Watch(_), .. } = &request {
-            let answer = w::OpenAnswer::Admitted;
-            let mut writer = Writer::new(usize::try_from(answer.measure()).expect("admission size"));
-            answer.encode(&mut writer).expect("admission fits");
-            pending.extend(reply(host, *exchange, writer.finish()).asked);
-        } else if let Request::Exchange { exchange, message: Message::Read(_), .. } = &request {
-            let answer = w::ReadAnswer::None(
-                w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
-                    .expect("background read"),
-            );
-            let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-            answer.encode(&mut writer).expect("answer fits");
-            pending.extend(reply(host, *exchange, writer.finish()).asked);
-        } else if let Request::Exchange { exchange, message: Message::Unwatch(_), .. } = &request {
-            let answer = w::CloseAnswer::Closed;
-            let mut writer = Writer::new(usize::try_from(answer.measure()).expect("close size"));
-            answer.encode(&mut writer).expect("close fits");
-            pending.extend(reply(host, *exchange, writer.finish()).asked);
-        } else if matches!(&request, Request::Save { .. } | Request::Erase { .. }) {
-            pending.extend(host.report(Report::Heard(jig_client::Event::Stored)).asked);
+        if let Some(report) = background_reply(&request) {
+            pending.extend(host.report(report).asked);
         }
         duties.asked.push(request);
     }
     duties
+}
+
+pub(crate) fn background_reply(request: &Request) -> Option<Report> {
+    let Request::Exchange { exchange, message, .. } = request else {
+        return matches!(request, Request::Save { .. } | Request::Erase { .. })
+            .then_some(Report::Heard(jig_client::Event::Stored));
+    };
+    let read = w::ReadAnswer::None(
+        w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
+            .expect("background read"),
+    );
+    let size = match message {
+        Message::Watch(_) => w::OpenAnswer::Admitted.measure(),
+        Message::Unwatch(_) => w::CloseAnswer::Closed.measure(),
+        Message::Read(_) => read.measure(),
+        Message::Authorize(_)
+        | Message::ApprovalAsk(_)
+        | Message::ApprovalRead(_)
+        | Message::ApprovalDecide(_)
+        | Message::Request(_)
+        | Message::StreamGone(_)
+        | Message::SignInLink(_)
+        | Message::SignInApproval(_)
+        | Message::SignInService
+        | Message::SignOut => return None,
+    };
+    let mut writer = Writer::new(usize::try_from(size).expect("answer size"));
+    match message {
+        Message::Watch(_) => w::OpenAnswer::Admitted.encode(&mut writer).expect("watch admitted"),
+        Message::Unwatch(_) => w::CloseAnswer::Closed.encode(&mut writer).expect("watch closed"),
+        Message::Read(_) => read.encode(&mut writer).expect("read answer"),
+        Message::Authorize(_)
+        | Message::ApprovalAsk(_)
+        | Message::ApprovalRead(_)
+        | Message::ApprovalDecide(_)
+        | Message::Request(_)
+        | Message::StreamGone(_)
+        | Message::SignInLink(_)
+        | Message::SignInApproval(_)
+        | Message::SignInService
+        | Message::SignOut => unreachable!("background answer"),
+    }
+    Some(Report::Heard(jig_client::Event::Reply { exchange: *exchange, message: writer.finish() }))
 }
 
 fn one_asking_task(bytes: &[u8]) -> bool {
@@ -1934,4 +2069,200 @@ fn hello_for(host: &Host) -> Box<[u8]> {
         w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
     ))
+}
+
+enum FrontAct {
+    Key(Key),
+    Event(Event),
+    Send(&'static [u8]),
+    Line(temper_client_tui::BoxLine),
+}
+
+enum FrontWant {
+    Quit { close: bool, asking: bool },
+    Log { shown: bool, unknown: Option<&'static [u8]> },
+    Line(temper_client_tui::BoxLine),
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table checks the front’s quit, command and box-line rules")]
+fn in_front_quitting_asks_while_work_runs() {
+    use temper_client_tui::{BoxLine, BoxState, Told};
+    let close = || FrontAct::Key(Key::Control(b'c'));
+    let asked = || FrontWant::Quit { close: false, asking: true };
+    let closed = || FrontWant::Quit { close: true, asking: false };
+    let mut rows = vec![
+        ("bare working", false, true, vec![(close(), closed())]),
+        ("front idle", true, false, vec![(close(), closed())]),
+        ("ask twice", true, true, vec![(close(), asked()), (close(), FrontWant::Quit { close: true, asking: true })]),
+        (
+            "exit",
+            true,
+            true,
+            vec![
+                (FrontAct::Send(b"/exit"), asked()),
+                (FrontAct::Send(b"/exit"), FrontWant::Quit { close: true, asking: true }),
+            ],
+        ),
+        (
+            "stay",
+            true,
+            true,
+            vec![
+                (close(), asked()),
+                (FrontAct::Event(Event::Stay), FrontWant::Quit { close: false, asking: false }),
+                (close(), asked()),
+            ],
+        ),
+        (
+            "stop",
+            true,
+            true,
+            vec![(close(), asked()), (FrontAct::Event(Event::Stop), FrontWant::Quit { close: true, asking: true })],
+        ),
+    ];
+    let gave_up = BoxLine::GaveUp { step: b"forge".as_slice().into() };
+    rows.push((
+        "given up",
+        true,
+        true,
+        vec![(FrontAct::Line(gave_up.clone()), FrontWant::Line(gave_up)), (close(), closed())],
+    ));
+    for (name, front, words) in [
+        ("log", true, b"/log".as_slice()),
+        ("log begun", true, b"/lo"),
+        ("bare log", false, b"/log"),
+        ("bare log begun", false, b"/lo"),
+    ] {
+        rows.push((
+            name,
+            front,
+            true,
+            vec![(
+                FrontAct::Send(words),
+                FrontWant::Log { shown: front, unknown: if front { None } else { Some(words) } },
+            )],
+        ));
+    }
+    let printed = local_link("127.0.0.1:8367", FRESH_SECRET);
+    for (name, line) in [
+        ("link", BoxLine::Link { url: printed }),
+        ("box log", BoxLine::Log { line: b"recent".as_slice().into() }),
+        ("restarting", BoxLine::Restarting { step: b"forge".as_slice().into() }),
+        ("running", BoxLine::Running { step: b"forge".as_slice().into() }),
+        ("gave-up", BoxLine::GaveUp { step: b"forge".as_slice().into() }),
+    ] {
+        rows.push((name, true, true, vec![(FrontAct::Line(line.clone()), FrontWant::Line(line))]));
+    }
+    let mut failures = Vec::new();
+    for (name, front, running, steps) in rows {
+        let mut host = if running { home_host(true) } else { signed_host(true).0 };
+        if front {
+            host.tell(Told::Front);
+        }
+        // Running must clear a known restart, rather than leave an already running box alone.
+        host.report(Report::Front(BoxLine::Restarting { step: b"forge".as_slice().into() }));
+        for (act, want) in steps {
+            let duties = match act {
+                FrontAct::Key(key) => host.report(Report::Key(key)),
+                FrontAct::Event(event) => give(&mut host, event),
+                FrontAct::Send(words) => {
+                    typed(&mut host, words);
+                    give(&mut host, Event::Send)
+                }
+                FrontAct::Line(line) => host.report(Report::Front(line)),
+            };
+            let passed = match want {
+                FrontWant::Quit { close, asking } => duties.close == close && host.state().quitting() == asking,
+                FrontWant::Log { shown, unknown } => {
+                    duties.asked.is_empty()
+                        && !duties.close
+                        && host.state().log_shown() == shown
+                        && host.state().unknown() == unknown
+                        && host.words().is_empty()
+                }
+                FrontWant::Line(line) => {
+                    !duties.close
+                        && match line {
+                            BoxLine::Link { url } => host.state().printed() == Some(&url),
+                            BoxLine::Log { line } => host.state().box_log().collect::<Vec<_>>() == vec![line.as_ref()],
+                            BoxLine::Restarting { step } => {
+                                host.state().box_state() == BoxState::Restarting { step: &step }
+                            }
+                            BoxLine::Running { .. } => host.state().box_state() == BoxState::Running,
+                            BoxLine::GaveUp { step } => host.state().box_state() == BoxState::GaveUp { step: &step },
+                        }
+                }
+            };
+            if !passed {
+                failures.push(name);
+            }
+        }
+    }
+    assert!(failures.is_empty(), "front rows: {failures:?}");
+}
+
+fn working_chip(task: u64, title: &[u8]) -> w::Chip {
+    chat_chip_stage(task, title, w::RunStage::Due)
+}
+
+pub(crate) fn home_host(running: bool) -> Host {
+    let (mut host, _, mut duties) = signed_host(true);
+    // The first wave can fill the exchange slots; give its watch retry a turn.
+    host.clocks(Time::from_nanos(host.env.limits.client.domain.backoff.first.as_nanos()), Wall::EPOCH);
+    let again = host.report(Report::Due);
+    duties.asked.extend(admit(&mut host, again).asked);
+    let subject = home_subject(&duties);
+    let tasks = home_tasks(running);
+    // Navigation replaces the rail's watch; rows go to the current page's watch.
+    for _ in 0..host.env.limits.client.domain.watches {
+        let watched = watch(&duties, &subject);
+        let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
+        duties.asked.extend(admit(&mut host, arrived).asked);
+        let chats = host.root.pages().chats().expect("launchpad chats");
+        if chats.live(host.root.client()).is_some() {
+            break;
+        }
+        let due = root::next_deadline(&host.root).expect("chat watch retry");
+        host.clocks(due, Wall::EPOCH);
+        let again = host.report(Report::Due);
+        duties.asked.extend(admit(&mut host, again).asked);
+    }
+    host.frame();
+    host
+}
+
+pub(crate) fn home_tasks(running: bool) -> w::Tasks {
+    let mut rows = Vec::new();
+    for (task, title, activity) in [(OLDER, b"Older".as_slice(), 1), (NEWEST, b"Newest".as_slice(), 2)] {
+        let mut row = records::task_line_record().into_parts();
+        row.chip = if running { working_chip(task, title) } else { chat_chip(task, title) };
+        if running {
+            row.waits_on = w::WaitsOn::Nothing;
+        }
+        row.project = 3;
+        row.last_activity = activity;
+        row.ended_at = None;
+        let row = w::TaskLine::new(&w::CEILINGS, row).expect("chat line");
+        let mut writer = Writer::new(usize::try_from(row.measure()).expect("chat size"));
+        row.encode(&mut writer).expect("chat fits");
+        rows.push(writer.finish());
+    }
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&rows), more: false }).expect("two chats")
+}
+
+pub(crate) fn home_subject(duties: &Duties) -> w::Subject {
+    duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+            if open.subject().owner() != &w::Owner::Jig {
+                return None;
+            }
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+            matches!(&subject, w::Subject::Tasks(tasks) if *tasks.query().label() == Some(8)).then_some(subject)
+        })
+        .expect("launchpad's chats watch")
 }

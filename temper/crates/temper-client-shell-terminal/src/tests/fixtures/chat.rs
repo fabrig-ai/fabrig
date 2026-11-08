@@ -505,7 +505,7 @@ fn demo_forges() -> Box<[u8]> {
             .expect("demo forge"),
         )
         .expect("one demo forge");
-    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).expect("demo forges"))
+    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).expect("demo forges"))
 }
 
 pub fn composer_over_page(words: &[u8]) -> skein_ui::Tree {

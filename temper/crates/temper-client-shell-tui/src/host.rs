@@ -22,6 +22,7 @@ pub const LOCAL_AGAIN: Duration = Duration::from_secs(1);
 pub const EXPIRY_SLACK: Duration = Duration::from_secs(60);
 
 struct Need {
+    held: bool,
     reads: u8,
     digest: Option<[u8; 32]>,
     phase: Phase,
@@ -43,6 +44,8 @@ pub struct Start {
     pub kept: Vec<jig_client::Record>,
     pub credential: Option<Secret>,
     pub note: Option<tui::Note>,
+    /// Whether the TUI is in front of a box.
+    pub front: bool,
 }
 
 pub enum Report {
@@ -51,9 +54,17 @@ pub enum Report {
     Key(Key),
     Resize(Size),
     Heard(jig_client::Event),
-    Kept { written: bool },
-    Opened { opened: bool },
-    Local { link: Option<Secret> },
+    Kept {
+        written: bool,
+    },
+    Opened {
+        opened: bool,
+    },
+    Local {
+        link: Option<Secret>,
+    },
+    /// A line of the box's, read.
+    Front(temper_client_tui::BoxLine),
 }
 
 #[derive(Default)]
@@ -151,9 +162,11 @@ impl Host {
         if self.closed && !matches!(report, Report::Heard(_) | Report::Kept { .. }) {
             return Duties::default();
         }
+        let project = self.root.pages().project();
         let mut duties = Duties::default();
         match report {
             Report::Local { link } => self.found(link),
+            Report::Front(line) => self.tell(Told::BoxLine { line }),
             Report::Start(start) => self.start(start, &mut duties),
             Report::Due => {
                 root::fire(&mut self.root, &self.env, &mut self.out);
@@ -176,7 +189,7 @@ impl Host {
                                 self.event(event, &mut duties);
                             }
                         }
-                        Command::Close => self.close(&mut duties),
+                        Command::Close => self.quit(&mut duties),
                         Command::Nothing if key == Key::Escape => {
                             if let Some(event) = tui::escape(&self.view) {
                                 self.event(event, &mut duties);
@@ -197,7 +210,7 @@ impl Host {
         self.route(&mut duties);
         root::take(&mut self.root, &self.env, &mut self.out);
         self.route(&mut duties);
-        self.launchpad();
+        self.launchpad(project);
         self.route(&mut duties);
         if let Some(aside) = self.state().aside()
             && shared::question(&self.root, self.view.words().view()).is_none_or(|question| question.object != aside)
@@ -223,7 +236,10 @@ impl Host {
             self.need = None;
         }
         self.tell(Told::Link { link: state });
-        if credential != self.credential && (credential.is_some() || state == Link::SignedOut) {
+        if credential != self.credential
+            && (credential.is_some() || state == Link::SignedOut)
+            && !self.need.as_ref().is_some_and(|need| need.held && state == Link::SignedOut)
+        {
             let dropped = self.credential.is_some() && credential.is_none();
             duties.keep = Some(credential.clone());
             self.credential = credential;
@@ -257,6 +273,9 @@ impl Host {
     fn start(&mut self, start: Start, duties: &mut Duties) {
         assert!(self.state.is_none(), "the TUI starts once");
         self.state = Some(tui::Tui::new(&start.address));
+        if start.front {
+            self.tell(Told::Front);
+        }
         self.size = start.size;
         self.background = start.background;
         self.boxed = start.boxed;
@@ -274,7 +293,7 @@ impl Host {
         self.step(Event::Start {
             address: Address::Inbox { filter: Filter::ALL },
             kept,
-            with: start.credential.map(With::Held),
+            with: if start.front { None } else { start.credential.map(With::Held) },
         });
         self.step(Event::LookKept {
             look: Look {
@@ -287,7 +306,9 @@ impl Host {
                 night: false,
             },
         });
-        if self.credential.is_none() {
+        if start.front {
+            self.need_local(true, duties);
+        } else if self.credential.is_none() {
             self.begin_local(duties);
         }
     }
@@ -300,7 +321,11 @@ impl Host {
         {
             return;
         }
-        self.need = Some(Need { reads: 1, digest: None, phase: Phase::Reading });
+        self.need_local(false, duties);
+    }
+
+    fn need_local(&mut self, held: bool, duties: &mut Duties) {
+        self.need = Some(Need { held, reads: 1, digest: None, phase: Phase::Reading });
         self.tell(Told::Local { local: Local::Signing });
         duties.local = true;
     }
@@ -340,9 +365,10 @@ impl Host {
         }
         need.digest = Some(digest);
         need.phase = Phase::Signing(None);
+        let held = if need.held { self.credential.clone() } else { None };
         self.local_signing = true;
         self.step(Event::Client {
-            event: jig_client::Event::SignIn { with: With::Link { secret: link.secret, held: None } },
+            event: jig_client::Event::SignIn { with: With::Link { secret: link.secret, held } },
         });
     }
 
@@ -408,7 +434,7 @@ impl Host {
             },
             tui::Event::Command { command: TuiCommand::Exit } => {
                 self.tell(Told::Cleared);
-                self.close(duties);
+                self.quit(duties);
             }
             tui::Event::Command { command: TuiCommand::New } => {
                 if let Some(project) = self.root.pages().project() {
@@ -419,6 +445,15 @@ impl Host {
             tui::Event::Command { command } => {
                 self.act(Act::Terminal(terminal::Act::Run { command }));
                 self.tell(Told::Cleared);
+            }
+            tui::Event::Stop => self.close(duties),
+            tui::Event::Stay => self.tell(Told::Stay),
+            tui::Event::Log => {
+                if self.state().front() {
+                    self.act(Act::Terminal(terminal::Act::Dismiss));
+                    self.tell(Told::Log);
+                    self.tell(Told::Cleared);
+                }
             }
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
@@ -456,6 +491,8 @@ impl Host {
                 .copied()
             {
                 self.event(tui::Event::Command { command }, duties);
+            } else if self.state().front() && tui::LOG_COMMAND.starts_with(words) {
+                self.event(tui::Event::Log, duties);
             } else {
                 let words = Some(words.into());
                 self.act(Act::Terminal(terminal::Act::Dismiss));
@@ -489,7 +526,15 @@ impl Host {
         self.tell(Told::Went);
     }
 
-    fn launchpad(&mut self) {
+    fn launchpad(&mut self, project: Option<u32>) {
+        if self.root.client().link().state == Link::Live
+            && let Some(project) = project.or(self.root.pages().project())
+            && let Some(me) = self.root.pages().me(self.root.client())
+            && !me.projects.iter().any(|row| row.project == project)
+        {
+            self.went(Address::Inbox { filter: Filter::ALL });
+            return;
+        }
         if self.root.pages().address() == &(Address::Inbox { filter: Filter::ALL })
             && self.root.client().link().state == Link::Live
             && let Some(me) = self.root.pages().me(self.root.client())
@@ -644,6 +689,18 @@ impl Host {
                 }
                 Down::Duty(Duty::Show { address, .. }) => self.show(address),
             }
+        }
+    }
+
+    fn quit(&mut self, duties: &mut Duties) {
+        if !self.state().front()
+            || self.state().quitting()
+            || matches!(self.state().box_state(), tui::BoxState::GaveUp { .. })
+            || !tui::work_runs(&self.root, self.state())
+        {
+            self.close(duties);
+        } else {
+            self.tell(Told::Quitting);
         }
     }
 

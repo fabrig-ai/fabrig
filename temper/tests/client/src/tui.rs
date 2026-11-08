@@ -1,4 +1,4 @@
-//! The TUI's shipped host in the joint world (temper/docs/design/client/README.md, 6.13;
+//! The TUI's shipped host in the joint world (temper/docs/design/client/README.md, 6.13 and 6.17;
 //! temper/docs/design/domain/testing.md, 6.3).
 use crate::{app::Temper, front::Joint};
 use jig_client_kit::harness::{ClientId, Until, World};
@@ -9,7 +9,7 @@ use temper_client_shell_tui::{
     host::{Duties, Host, Report, Settings, Start},
     limits,
 };
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{BoxLine, Note, Scheme};
 
 pub const ADDRESS: &[u8] = b"127.0.0.1:8367";
 
@@ -34,12 +34,24 @@ pub struct Tui {
     pub frames: Vec<String>,
     pub sign_in_sends: usize,
     file: File,
+    handed: Option<Secret>,
 }
 
 impl Tui {
     /// Links `who` and starts the shipped host at 80 by 24 with no small-store records.
     pub fn start(world: &mut World<Temper, Joint>, who: ClientId, credential: Option<Secret>) -> Self {
         Self::with_file(world, who, credential, File::Absent, None)
+    }
+
+    /// Starts in front of a box with its handed local link.
+    pub fn front(world: &mut World<Temper, Joint>, who: ClientId, credential: Option<Secret>) -> Self {
+        Self::build(world, who, credential, File::Engine, None, true)
+    }
+
+    /// Carries a line read from the box through the shipped host's seam.
+    pub fn boxed(&mut self, world: &mut World<Temper, Joint>, line: BoxLine) {
+        self.clocks(world);
+        self.report(world, Report::Front(line));
     }
 
     /// Starts with the supplied file and the address's retained sign-in note.
@@ -50,6 +62,18 @@ impl Tui {
         file: File,
         note: Option<Note>,
     ) -> Self {
+        Self::build(world, who, credential, file, note, false)
+    }
+
+    fn build(
+        world: &mut World<Temper, Joint>,
+        who: ClientId,
+        credential: Option<Secret>,
+        file: File,
+        note: Option<Note>,
+        front: bool,
+    ) -> Self {
+        let handed = front.then(|| Secret::new(world.front().local_link().expect("the box's handed local link")));
         let limits = limits::tui();
         world.front().link_client(who, limits.native.client.client.domain);
         let now = world.now();
@@ -70,10 +94,12 @@ impl Tui {
             frames: Vec::new(),
             sign_in_sends: 0,
             file,
+            handed,
         };
         tui.report(
             world,
             Report::Start(Start {
+                front,
                 local,
                 note,
                 size: Size { columns: 80, rows: 24 },
@@ -165,11 +191,11 @@ impl Tui {
         }
         if duties.local {
             self.reads += 1;
-            let link = match &self.file {
+            let link = self.handed.take().or_else(|| match &self.file {
                 File::Absent => None,
                 File::Bytes(link) => Some(link.clone()),
                 File::Engine => world.front().local_link().map(Secret::new),
-            };
+            });
             self.report(world, Report::Local { link });
         }
         if let Some(address) = duties.address {

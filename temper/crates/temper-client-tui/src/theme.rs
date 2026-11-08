@@ -1,4 +1,4 @@
-//! The TUI's two themes (temper/docs/design/client/README.md, 6.15).
+//! The TUI's two themes (temper/docs/design/client/README.md, 6.15 and 6.17).
 use crate::look;
 use alloc::boxed::Box;
 use skein_ui_screen::{Align, Arrange, Border, Glyphs, Mark, Paint, Place, RegionLook, Rgb, StyleLook, Theme};
@@ -154,6 +154,11 @@ fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, back: Option<Rgb>) -> Bo
         StyleLook { described: Some(fore(dim)), active_name: Some(Paint::NONE), ..style(look::COMMAND, bold) },
         style(look::NOTE, fore(dim)),
         StyleLook { spaced: true, ..style(look::SPACED, Paint::NONE) },
+        StyleLook { mark: Some(Mark { glyph: '✓', paint: fore(good) }), ..style(look::STEP_DONE, Paint::NONE) },
+        StyleLook { mark: Some(Mark { glyph: '▸', paint: fore(accent) }), ..style(look::STEP_NOW, bold) },
+        StyleLook { mark: Some(Mark { glyph: '·', paint: fore(faint) }), ..style(look::STEP_AHEAD, fore(dim)) },
+        StyleLook { align: Align::End, ..style(look::PLAYGROUND, fore(accent)) },
+        StyleLook { align: Align::End, ..style(look::END_FAINT, fore(faint)) },
         StyleLook { mark: Some(Mark { glyph: '•', paint: Paint::NONE }), ..style(look::BULLETS, Paint::NONE) },
         StyleLook { mark: Some(Mark { glyph: ' ', paint: Paint::NONE }), ..style(look::LEFT_OFF, Paint::NONE) },
         StyleLook {
