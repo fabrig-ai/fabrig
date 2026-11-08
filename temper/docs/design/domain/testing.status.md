@@ -280,9 +280,7 @@ the fake's own process story.
   establishes no real launch with
   `--model claude-haiku-5-5 --effort low` or live landing. That evidence
   remains after-landing work (11): the plan compiles the live story
-  without running it, and no worker holds its login. The pair's `#[ignore]`
-  reasons still say "a person's sitting" and "owner-run only"
-  (`crates/temper/tests/live.rs`).
+  without running it, and no worker holds its login.
   2.7: the held record's guard is shown on the fake issuer and on stubs
   alone (`crates/temper/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,
@@ -353,3 +351,18 @@ the fake's own process story.
   sitting kills the box; and a `stat` of the record's path disarms it,
   where the draft has an explicit export, because a record back at its
   path owes nothing whichever return brought it.
+
+- **Not yet:** 2.6: B0's two offline proofs are ignored and run by
+  `scripts/proof-live.sh rung-b0-offline` alone, under profile
+  `live-temper` with `--run-ignored only` (`crates/temper/tests/proof_live.rs`);
+  `.config/nextest.toml`'s `process-temper` selects neither them nor
+  `managed_ready_client`. 2.7: of the tests that need a person, the landing
+  pair's and the rung's `#[ignore]` reasons say "a person's sitting" and
+  "owner-run only", naming no held login, and
+  `a_real_model_answers_a_chat_and_pushes_a_small_change`'s names no
+  sign-in (`crates/temper/tests/live.rs`).
+- **Not yet:** 2.6: `managed_ready_client` is ignored and runs only as the
+  managed sitting's client, its mode and link the sitting's
+  (`crates/temper/tests/support/managed_client.rs`): nothing but
+  `scripts/proof-live-github-managed.py` sets up its fake sitting. 2.7:
+  `managed_relay`'s reason says "owner-run only", naming no github.com.
