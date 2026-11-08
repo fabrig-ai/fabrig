@@ -4937,7 +4937,11 @@ name = "temper-client"
 version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
+ "skein-scratch",
  "skein-shell",
+ "temper-client-shell-cli",
+ "temper-client-shell-tui",
+ "temper-shell",
 ]
 
 [[package]]

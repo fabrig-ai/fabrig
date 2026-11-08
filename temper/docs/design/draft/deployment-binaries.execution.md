@@ -6,7 +6,7 @@
 
 | Milestone | Draft parts | Owner | Needs | Its walk | State |
 |---|---|---|---|---|---|
-| M1, the client: `temper-client`, the TUI, `ctl`, their help, `--version`; dropped under option D of 5 | 4, 9.1 | temper/tui | — | none: step tests, and the draft's ctl story (10) run after landing | designed, building: plan `client-binary` |
+| M1, the client: `temper-client`, the TUI, `ctl`, their help, `--version`; dropped under option D of 5 | 4, 9.1 | temper/tui | — | none: step tests, and the draft's ctl story (10) run after landing | built: plan `client-binary`; the ctl story (10) runs after landing |
 | M2, the engine: the service's split and `temper-engine`, with its web, `forge`, `versions`, `upgrade`, help and `--version` | 4, 9.2 | temper/ui | — | none: the draft's cluster story (10) run after landing | not started |
 | M3, the worker: `temper-worker`, `program-login`, help, `--version`, and naming the agent's program | 4, 9.2 | temper/migration | M2's split of the service; M4's smith crate for reading the agent's document | none: the same cluster story | not started |
 | M4, the agent: `temper-agent` and its modes, and smith's crate for the agent's document without the agent service | 4, 9.3 | smith's agent's owner, named when it starts | — | none | not started |
