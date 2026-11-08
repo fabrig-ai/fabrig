@@ -1412,7 +1412,7 @@ pub const NAMES: Names<'static> = Names {
     regions: &[b"temper-link"],
 };
 
-pub const WHY: Style = Style { owner: owner(), token: 659 };
+pub const WHY: Style = Style { owner: owner(), token: 689 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS: Style = Style { owner: owner(), token: 301 };
