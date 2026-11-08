@@ -8,7 +8,7 @@ use jig_client::{Event, Request};
 use skein_lib::{Secret, Time, Wall};
 use skein_ui_screen::Size;
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::Scheme;
+use temper_client_tui::{Note, Scheme};
 
 /// The start's facts, in the file's order.
 pub struct Facts {
@@ -18,6 +18,8 @@ pub struct Facts {
     pub size: Size,
     pub scheme: Scheme,
     pub address: Box<[u8]>,
+    pub local: bool,
+    pub note: Option<Note>,
     pub kept: Vec<jig_client::Record>,
     pub credential: Option<Secret>,
 }
@@ -30,6 +32,8 @@ impl Facts {
             size: self.size,
             scheme: self.scheme,
             address: self.address.clone(),
+            local: self.local,
+            note: self.note,
             kept: self.kept.clone(),
             credential: self.credential.clone(),
         });
@@ -61,11 +65,17 @@ impl Recorder {
         ] {
             this.keep(&line);
         }
+        if facts.local {
+            this.keep(&Line::Local);
+        }
         for record in &facts.kept {
             this.keep(&Line::Stored { key: record.key.clone(), bytes: record.bytes.clone() });
         }
         if let Some(credential) = &facts.credential {
             this.keep(&Line::Credential(credential.expose().into()));
+        }
+        if let Some(note) = facts.note {
+            this.keep(&Line::Noted(note));
         }
         this
     }
@@ -77,6 +87,7 @@ impl Recorder {
 
     pub fn report(&mut self, host: &mut Host, report: Report) -> Duties {
         let line = match &report {
+            Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
             Report::Start(_) => Line::Start,
             Report::Due => Line::Due,
             Report::Key(key) => {
@@ -197,8 +208,14 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
     if let Some(credential) = &duties.keep {
         lines.push(Line::Keep(credential.as_ref().map(|secret| secret.expose().into())));
     }
+    if let Some(note) = duties.note {
+        lines.push(Line::Note(note));
+    }
     if let Some(address) = &duties.address {
         lines.push(Line::Signed(address.clone()));
+    }
+    if duties.local {
+        lines.push(Line::Read);
     }
     if let Some(address) = &duties.open {
         lines.push(Line::Browse(address.clone()));
@@ -210,16 +227,43 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
 }
 
 pub(super) fn is_ask(line: &Line) -> bool {
-    matches!(
-        line,
-        Line::Send { .. }
-            | Line::Stream(_)
-            | Line::Unstream
-            | Line::Save { .. }
-            | Line::Erase(_)
-            | Line::Keep(_)
-            | Line::Signed(_)
-            | Line::Browse(_)
-            | Line::Quit
-    )
+    duty_order(line).is_some()
+}
+
+pub(super) fn duty_order(line: &Line) -> Option<u8> {
+    match line {
+        Line::Send { .. } | Line::Stream(_) | Line::Unstream | Line::Save { .. } | Line::Erase(_) => Some(0),
+        Line::Keep(_) => Some(1),
+        Line::Note(_) => Some(2),
+        Line::Signed(_) => Some(3),
+        Line::Read => Some(4),
+        Line::Browse(_) => Some(5),
+        Line::Quit => Some(6),
+        Line::Journey { .. }
+        | Line::Seed(_)
+        | Line::Clocks { .. }
+        | Line::Screen { .. }
+        | Line::Address(_)
+        | Line::Local
+        | Line::Stored { .. }
+        | Line::Credential(_)
+        | Line::Noted(_)
+        | Line::Turn { .. }
+        | Line::Start
+        | Line::Due
+        | Line::Key { .. }
+        | Line::Resize(_)
+        | Line::Reply { .. }
+        | Line::Unanswered(_)
+        | Line::Streamed(_)
+        | Line::Gone
+        | Line::Saved
+        | Line::Unsaved
+        | Line::Kept { .. }
+        | Line::Opened { .. }
+        | Line::Found(_)
+        | Line::Deadline(_)
+        | Line::Mark(_)
+        | Line::End(_) => None,
+    }
 }

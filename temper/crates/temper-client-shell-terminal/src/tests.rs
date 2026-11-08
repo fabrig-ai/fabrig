@@ -128,3 +128,35 @@ fn validity_refuses_unusable_io_and_overflowing_operation_counts() {
     limits.io.sockets = u32::MAX;
     assert!(!limits::valid(&limits));
 }
+
+#[test]
+fn the_native_preset_receives_every_supported_membership() {
+    use jig_client_protocol_wire as w;
+    use skein_lib::{Reader, Writer};
+    // Small and Standard serve up to nine memberships (client/tools.md, 12).
+    for (count, accepted) in [(3, true), (9, true), (10, false)] {
+        let mut parts = jig_client_test_records::frame_two_projects_record().into_parts();
+        let mut reader = Reader::new(&parts.projects);
+        let size = reader.u32().expect("membership size");
+        let project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(reader.bytes(size).expect("membership")))
+            .expect("membership record");
+        let mut projects = Vec::new();
+        for number in 1..=count {
+            let mut row = project.clone().into_parts();
+            row.project = number;
+            let row = w::MeProject::new(&w::CEILINGS, row).expect("membership");
+            let mut bytes = Writer::new(usize::try_from(row.measure()).expect("membership fits"));
+            row.encode(&mut bytes).expect("measured membership");
+            let bytes = bytes.finish();
+            projects.extend_from_slice(&u32::try_from(bytes.len()).expect("membership size").to_be_bytes());
+            projects.extend_from_slice(&bytes);
+        }
+        parts.projects = projects.into();
+        let frame = w::Me::new(&w::CEILINGS, parts).expect("me frame");
+        let received = link::translate::documents::frame(frame, &fixtures::link_limits());
+        assert_eq!(received.is_ok(), accepted, "{count} memberships through native preset: {received:?}");
+        if let Ok(frame) = received {
+            assert_eq!(frame.projects.len(), count);
+        }
+    }
+}

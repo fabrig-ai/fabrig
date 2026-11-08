@@ -1,5 +1,5 @@
 //! The full-screen terminal on tagged io (skein/docs/design/ui-screen.md, 8).
-use crate::{Decoder, Depth, ENTER, Key, LEAVE, draw, draw_bound};
+use crate::{ASK_BACKGROUND, Decoder, Depth, ENTER, Key, LEAVE, draw, draw_bound};
 use skein_io::{
     Event, Io, Request, Window,
     kernel::{Complete, Fd, Op, Submit},
@@ -9,7 +9,7 @@ use skein_lib::{
     stream::{Down, Read, Up},
     usize_of,
 };
-use skein_ui_screen::{Cell, Frame, Position, Size};
+use skein_ui_screen::{Cell, Frame, Position, Rgb, Size};
 
 const NAMESPACE: u8 = 1;
 const READ: u32 = 4096;
@@ -21,6 +21,14 @@ pub struct Settings {
     pub depth: Depth,
     pub most: Size,
     pub paste: u32,
+    pub background: Option<Duration>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Background {
+    Waiting,
+    Answered(Rgb),
+    Unanswered,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -59,6 +67,8 @@ pub struct Terminal {
     raw: Queue<Submit>,
     events: Queue<Event>,
     intake: Input,
+    background: Background,
+    background_deadline: Option<Time>,
     writable: bool,
     last: Frame,
     newest: Frame,
@@ -71,6 +81,11 @@ pub struct Terminal {
 }
 
 impl Terminal {
+    #[must_use]
+    pub const fn background(&self) -> Background {
+        self.background
+    }
+
     fn io_limits(settings: &Settings) -> Option<skein_io::Limits> {
         draw_bound(settings.most)?;
         if settings.paste == 0 || settings.interval.as_nanos() == 0 {
@@ -119,6 +134,8 @@ impl Terminal {
                 reading: false,
                 ended: false,
             },
+            background: if settings.background.is_some() { Background::Waiting } else { Background::Unanswered },
+            background_deadline: None,
             writable: false,
             last: Frame::new(settings.most),
             newest: Frame::new(settings.most),
@@ -136,6 +153,12 @@ impl Terminal {
         self.input = Some(self.io.adopt_read_pipe(input)?);
         self.output = Some(self.io.adopt_write_pipe(output, None)?);
         self.control(ENTER);
+        if self.settings.background.is_some() {
+            for byte in ASK_BACKGROUND {
+                self.bytes.push(*byte).expect("ENTER and background query fit control output");
+            }
+            self.intake.decoder.answers();
+        }
         self.demand_output(Time::ZERO);
         Ok(())
     }
@@ -208,7 +231,11 @@ impl Terminal {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        match (self.io.next_deadline(), self.draw_deadline()) {
+        let next = match (self.io.next_deadline(), self.draw_deadline()) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        };
+        match (next, self.background_deadline) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         }
@@ -232,8 +259,19 @@ impl Terminal {
                 Some(at) => now >= at,
                 None => false,
             }
+            || match self.background_deadline {
+                Some(at) => now >= at,
+                None => false,
+            }
     }
     pub fn iterate(&mut self, now: Time) {
+        if self.input.is_some()
+            && self.background == Background::Waiting
+            && self.background_deadline.is_none()
+            && let Some(wait) = self.settings.background
+        {
+            self.background_deadline = Some(now.saturating_add(wait));
+        }
         for _ in 0..self.completions.len() {
             let mut complete = self.completions.pop().expect("counted completion");
             assert!(Self::owns(complete.op), "host routes terminal completions");
@@ -252,6 +290,7 @@ impl Terminal {
             now,
         );
         self.events(now);
+        self.answer_background(now);
         self.output(now);
         if self.phase == Phase::Open
             && let Some(input) = self.input
@@ -283,6 +322,25 @@ impl Terminal {
         }
         if self.phase == Phase::Draining && self.io.is_empty() && self.submissions.is_empty() {
             self.phase = Phase::Closed;
+        }
+    }
+    fn answer_background(&mut self, now: Time) {
+        if self.background != Background::Waiting {
+            return;
+        }
+        self.background = match self.intake.decoder.background() {
+            Some(Some(rgb)) => Background::Answered(rgb),
+            Some(None) => Background::Unanswered,
+            None => {
+                let due = match self.background_deadline {
+                    Some(at) => now >= at,
+                    None => false,
+                };
+                if self.intake.ended || due { Background::Unanswered } else { Background::Waiting }
+            }
+        };
+        if self.background != Background::Waiting {
+            self.background_deadline = None;
         }
     }
     fn output(&mut self, now: Time) {

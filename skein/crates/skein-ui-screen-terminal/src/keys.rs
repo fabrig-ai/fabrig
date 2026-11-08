@@ -1,6 +1,7 @@
 //! Bounded byte decoding (skein/docs/design/ui-screen.md, 6.1).
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, bytes};
+use skein_ui_screen::Rgb;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Key {
@@ -31,31 +32,50 @@ enum State {
     Sequence,
     Character { alt: bool },
     Paste,
+    Answer { escape: bool },
 }
 
 #[derive(Debug)]
+#[expect(clippy::option_option, reason = "the decoder contract distinguishes no answer, unreadable and RGB")]
 pub struct Decoder {
     state: State,
     partial: List<u8>,
     overlong: bool,
     paste: List<u8>,
     ending: usize,
+    answers: bool,
+    background: Option<Option<Rgb>>,
 }
 const PASTE_END: &[u8] = b"\x1b[201~";
+const SEQUENCE: u32 = 16;
+const ANSWER: u32 = 64;
 
 impl Decoder {
+    /// From now on OSC answers, including late ones, are never keys.
+    pub fn answers(&mut self) {
+        self.answers = true;
+    }
+
+    /// The first OSC 11 answer, readable or not.
+    #[must_use]
+    pub const fn background(&self) -> Option<Option<Rgb>> {
+        self.background
+    }
+
     #[must_use]
     pub fn new(paste: u32) -> Decoder {
         Decoder {
             state: State::Text,
-            partial: List::with_capacity(16),
+            partial: List::with_capacity(ANSWER),
             overlong: false,
             paste: List::with_capacity(paste),
             ending: 0,
+            answers: false,
+            background: None,
         }
     }
 
-    /// A lone ESC at this read's end is delivered immediately.
+    /// Before answers are enabled, a lone ESC is delivered at this read's end.
     pub fn read(&mut self, bytes: &[u8], keys: &mut Queue<Key>) {
         for byte in bytes {
             match self.state {
@@ -64,6 +84,9 @@ impl Decoder {
                     if *byte == b'[' || *byte == b'O' {
                         self.partial.push(*byte).expect("sequence introducer fits");
                         self.state = State::Sequence;
+                    } else if *byte == b']' && self.answers {
+                        self.partial.push(*byte).expect("answer introducer fits");
+                        self.state = State::Answer { escape: false };
                     } else {
                         self.partial.clear();
                         self.text(*byte, true, keys);
@@ -72,15 +95,18 @@ impl Decoder {
                 State::Sequence => self.sequence(*byte, keys),
                 State::Character { alt } => self.character(*byte, alt, keys),
                 State::Paste => self.pasted(*byte, keys),
+                State::Answer { escape } => self.answer(*byte, escape),
             }
         }
         match self.state {
             State::Escape => {
-                keys.push(Key::Escape);
-                self.partial.clear();
-                self.state = State::Text;
+                if !self.answers {
+                    keys.push(Key::Escape);
+                    self.partial.clear();
+                    self.state = State::Text;
+                }
             }
-            State::Text | State::Sequence | State::Character { .. } | State::Paste => {}
+            State::Text | State::Sequence | State::Character { .. } | State::Paste | State::Answer { .. } => {}
         }
     }
 
@@ -138,8 +164,10 @@ impl Decoder {
     }
 
     fn sequence(&mut self, byte: u8, keys: &mut Queue<Key>) {
-        if self.partial.push(byte).is_err() {
+        if self.partial.len() == SEQUENCE {
             self.overlong = true;
+        } else {
+            self.partial.push(byte).expect("sequence has room");
         }
         if !(0x40..=0x7e).contains(&byte) {
             return;
@@ -165,6 +193,26 @@ impl Decoder {
             };
             if let Some(key) = key {
                 keys.push(key);
+            }
+        }
+        self.partial.clear();
+        self.overlong = false;
+        self.state = State::Text;
+    }
+
+    fn answer(&mut self, byte: u8, escape: bool) {
+        if self.partial.push(byte).is_err() {
+            self.overlong = true;
+        }
+        if byte != 0x07 && !(escape && byte == b'\\') {
+            self.state = State::Answer { escape: byte == 0x1b };
+            return;
+        }
+        if !self.overlong && self.background.is_none() {
+            let bytes = self.partial.as_slice();
+            let payload = if byte == 0x07 { bytes.strip_suffix(b"\x07") } else { bytes.strip_suffix(b"\x1b\\") };
+            if let Some(payload) = payload {
+                self.background = background(payload);
             }
         }
         self.partial.clear();
@@ -205,4 +253,44 @@ impl Decoder {
             self.paste.push(byte).expect("paste has room");
         }
     }
+}
+
+#[expect(clippy::option_option, reason = "the decoder contract distinguishes no answer, unreadable and RGB")]
+fn background(answer: &[u8]) -> Option<Option<Rgb>> {
+    let tail = answer.strip_prefix(b"\x1b]11")?;
+    if tail.is_empty() {
+        return Some(None);
+    }
+    let payload = tail.strip_prefix(b";")?;
+    Some(rgb(payload))
+}
+
+fn rgb(payload: &[u8]) -> Option<Rgb> {
+    let payload = payload.strip_prefix(b"rgb:")?;
+    let end = bytes::find(payload, b"/")?;
+    let red = component(payload.get(..end)?)?;
+    let payload = payload.get(end.checked_add(1)?..)?;
+    let end = bytes::find(payload, b"/")?;
+    let green = component(payload.get(..end)?)?;
+    let blue = component(payload.get(end.checked_add(1)?..)?)?;
+    Some(Rgb { red, green, blue })
+}
+
+fn component(hex: &[u8]) -> Option<u8> {
+    if hex.is_empty() || hex.len() > 4 {
+        return None;
+    }
+    let mut value = 0_u8;
+    for (position, byte) in hex.iter().enumerate() {
+        let digit = match byte {
+            b'0'..=b'9' => byte.checked_sub(b'0')?,
+            b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10)?,
+            b'A'..=b'F' => byte.checked_sub(b'A')?.checked_add(10)?,
+            0..=b'/' | b':'..=b'@' | b'G'..=b'`' | b'g'..=u8::MAX => return None,
+        };
+        if position < 2 {
+            value = value.checked_mul(16)?.checked_add(digit)?;
+        }
+    }
+    if hex.len() == 1 { value.checked_mul(17) } else { Some(value) }
 }

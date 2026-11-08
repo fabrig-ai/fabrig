@@ -1931,9 +1931,18 @@ fn opens_window_is_true_of_first_and_window_turns_only() {
     };
     let affinity = Affinity { key: [0; 16], thread: 0 };
     for (kind, expected) in [
-        (Kind::First(Box::new(crate::record::Opener { affinity, account: None, backend: Backend::Direct })), true),
+        (
+            Kind::First(Box::new(crate::record::Opener {
+                system: None,
+                affinity,
+                account: None,
+                backend: Backend::Direct,
+            })),
+            true,
+        ),
         (
             Kind::Window(Box::new(crate::record::Opener {
+                system: None,
                 affinity,
                 account: Some(7),
                 backend: Backend::Program { name: b"claude_code".as_slice().into() },

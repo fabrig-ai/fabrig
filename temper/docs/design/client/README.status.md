@@ -10,6 +10,12 @@ on Settings. The opening retains the configuring page's starters and
 reference, as the renamed-page draft specifies. The post-landing walk,
 views and preferences remain section 11's work.
 
+Section 3.5's settings-proposal call names distinguish failed attempts from
+created proposals, including mixed outcomes. The view's
+`failed_settings_proposals_do_not_claim_a_change` holds single, repeated
+and mixed calls and failures after two or eight reads, with failure
+descriptions and rows retained. No known gap remains in that wording.
+
 Sections 2 and 6.11 to 6.16 have no known implementation gap in the
 TUI's crates, command, private directory, host seam, pasted-link sign-in,
 live first screen, themes and closing. Section 10's frame goldens,

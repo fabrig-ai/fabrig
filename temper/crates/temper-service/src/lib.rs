@@ -39,6 +39,9 @@ pub mod worker_settings;
 pub use worker::{Worker, WorkerRuntime};
 pub mod workers;
 pub use accounts::AccountsRuntime;
+mod core_wait;
+pub use core_wait::CoreWait;
+pub use temper_engine_domain::JournalStop;
 mod engine;
 mod route;
 mod setup;
@@ -64,6 +67,9 @@ pub enum Stop {
         task: u64,
         bytes: u32,
         limit: u32,
+    },
+    Journal {
+        why: JournalStop,
     },
     CommitFailed {
         number: u64,
@@ -152,6 +158,11 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// The gate has kept a party's input for at least 1 s (protocol/README.md, 8.2).
+    CoreWaiting {
+        why: CoreWait,
+    },
+    CoreAnswers,
     /// A forge's link changed or was refused (temper/docs/design/domain/forge.md, 4.6).
     ForgeLink {
         forge: u16,

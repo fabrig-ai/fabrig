@@ -102,6 +102,11 @@ pub(super) fn worker_limits(engine: &engine::Limits) -> worker::Limits {
     // Retain the stock chat's 64-turn activation across its resume.
     limits.host.transcript_bytes = 131_072;
     limits.agent.transcript_bytes = 131_072;
+    // An opening turn keeps its supplied system text beside its conversation messages.
+    limits.host.turn_bytes = limits.host.transcript_bytes;
+    limits.agent.turn_bytes = limits.agent.transcript_bytes;
+    limits.host.turn_queue_bytes = limits.host.turn_bytes * u64::from(limits.agent.turns);
+    limits.agent.unacknowledged_bytes = limits.host.turn_queue_bytes;
     limits.bounds.message_bytes = engine.tasks.message_bytes.max(4096);
     limits.bounds.inbox = engine.tasks.run_inbox.max(8);
     limits.host.inbox = limits.bounds.inbox;

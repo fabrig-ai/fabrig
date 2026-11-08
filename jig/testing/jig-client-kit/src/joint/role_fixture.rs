@@ -105,7 +105,7 @@ fn roles(driver: &mut Driver, now: Time, wall: Wall) {
 
 fn with_driver(driver: Driver, receiving: &jig_client_test_domain::Limits) -> Joint {
     let codec = jig_protocol_transcript::Limits {
-        smith: smith_transcript::v6::CEILINGS,
+        smith: smith_transcript::v7::CEILINGS,
         bytes: 1_048_576,
         turn: client::TurnLimits { messages: 8, blocks: 8, text: 128, outcome: 128 },
     };

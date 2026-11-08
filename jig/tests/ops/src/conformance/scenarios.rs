@@ -173,7 +173,7 @@ impl State {
 }
 
 fn transcript(turn: u32, spent: u64) -> Box<[u8]> {
-    use smith_transcript::v6 as t;
+    use smith_transcript::v7 as t;
     let limits = t::CEILINGS;
     let text = t::Text::new(&limits, t::TextParts { text: b"shared scenario turn".as_slice().into(), replay: None })
         .expect("text");
@@ -185,6 +185,7 @@ fn transcript(turn: u32, spent: u64) -> Box<[u8]> {
     let value = t::Turn::new(
         &limits,
         t::TurnParts {
+            system: None,
             model: b"model".as_slice().into(),
             effort: None,
             kind: t::TurnKind::Ordinary,

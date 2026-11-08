@@ -74,6 +74,7 @@ pub fn turn() -> smith_domain::Turn {
         model: b"model".as_slice().into(),
         effort: None,
         kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
+            system: None,
             affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
             account: None,
             backend: smith_domain::session::record::Backend::Direct,

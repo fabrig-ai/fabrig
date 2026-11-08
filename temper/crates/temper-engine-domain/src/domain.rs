@@ -63,6 +63,7 @@ pub struct Domain {
     pub(crate) calendar: calendar::Calendar,
     pub(crate) trials: temper_engine_domain_trials::Trials,
     pub(crate) journal: Journal,
+    pub(crate) journal_stop: Option<crate::JournalStop>,
     /// Store credit: sent and cumulatively answered commit numbers.
     pub(crate) sent_commit: u64,
     pub(crate) durable_commit: u64,
@@ -488,6 +489,7 @@ impl Domain {
             #[cfg(test)]
             start_phases: Queue::uncapped(),
             journal: Journal::uncapped(1, 0),
+            journal_stop: None,
             sent_commit: 0,
             durable_commit: 0,
             stop_pending: false,
@@ -576,6 +578,35 @@ impl Domain {
     pub fn forge_missing_link(&self) -> Option<forge::MissingLink> {
         self.forge.missing_link(&self.core.tasks)
     }
+    /// Why the journal stopped, when the root stopped it or refused an answer;
+    /// a failed commit is the store's own stop (domain/root.md, section 4).
+    #[must_use]
+    pub const fn journal_stop(&self) -> Option<crate::JournalStop> {
+        self.journal_stop
+    }
+
+    /// Sent commits still awaiting the store's cumulative answer (domain/root.md, section 4).
+    #[must_use]
+    pub fn commits_in_flight(&self) -> u64 {
+        self.sent_commit.checked_sub(self.durable_commit).expect("store answers only sent commits")
+    }
+
+    /// The oldest sent commit awaiting durability (domain/root.md, section 4).
+    #[must_use]
+    pub fn oldest_commit_in_flight(&self) -> Option<u64> {
+        if self.commits_in_flight() == 0 {
+            None
+        } else {
+            Some(self.durable_commit.checked_add(1).expect("an outstanding commit follows durable"))
+        }
+    }
+
+    /// Admitted work held at the root's watermark (domain/root.md, section 4).
+    #[must_use]
+    pub fn backlog(&self) -> u64 {
+        backlog(self)
+    }
+
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 9.1).
     #[must_use]
     pub fn ready(&self) -> bool {
@@ -799,6 +830,7 @@ fn finish_close(
     if finishing_only && !decision.overrun() {
         assert!(decision.write_free() && !domain.core.counters.dirty(), "stopping finishing makes no commit");
     }
+    let journal_stop = decision.stop_reason(&domain.core.counters, persist_header);
     crate::decision::accept_routed(
         &mut domain.journal,
         &mut domain.core.counters,
@@ -814,6 +846,7 @@ fn finish_close(
         domain.durable_commit = commits;
     }
     if domain.journal.stopped() {
+        domain.journal_stop = journal_stop;
         // Immediate outputs assembled alongside this failed cohort must not
         // reach the journal's door either.
         for _ in 0..out.len() {

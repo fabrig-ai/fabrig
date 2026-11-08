@@ -99,7 +99,7 @@ pub fn save_turn(
     read: Option<Token>,
     opens_window: bool,
     turn: &smith_domain::Turn,
-    limits: &transcript::v6::Limits,
+    limits: &transcript::v7::Limits,
     endpoints: &Endpoints,
 ) -> Result<File, StoreError> {
     if place == 0 || place != turn.sequence {
@@ -137,7 +137,7 @@ pub(super) fn turn_opens_window_bounded(bytes: &[u8], file_bytes: u32) -> Result
 /// Decode only the last window's ordered files, retaining their saved bodies for forwarding.
 pub fn decode_turns(
     files: &[Box<[u8]>],
-    limits: &transcript::v6::Limits,
+    limits: &transcript::v7::Limits,
     endpoints: &Endpoints,
 ) -> Result<(Option<Transcript>, Option<Token>), StoreError> {
     decode_turns_bounded(files, limits, endpoints, crate::local_store_v1::CEILINGS.turn_body)
@@ -145,7 +145,7 @@ pub fn decode_turns(
 
 pub(super) fn decode_turns_bounded(
     files: &[Box<[u8]>],
-    limits: &transcript::v6::Limits,
+    limits: &transcript::v7::Limits,
     endpoints: &Endpoints,
     file_bytes: u32,
 ) -> Result<(Option<Transcript>, Option<Token>), StoreError> {
@@ -271,6 +271,7 @@ pub(crate) mod tests {
             model: b"model".as_slice().into(),
             effort: None,
             kind: smith_domain::session::record::Kind::Window(Box::new(smith_domain::session::record::Opener {
+                system: None,
                 affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
                 account: None,
                 backend: smith_domain::session::record::Backend::Direct,

@@ -31,7 +31,7 @@ fn layouts() -> String {
         let bytes: Vec<String> = digest.iter().map(|byte| format!("0x{byte:02x}")).collect();
         writeln!(code, "    {field}: [{}],", bytes.join(", ")).expect("a String takes the line");
     }
-    let smith = fs::read(store().join("src/tests/fixtures/smith-transcript-v6.schema")).expect("checked smith schema");
+    let smith = fs::read(store().join("src/tests/fixtures/smith-transcript-v7.schema")).expect("checked smith schema");
     let smith = skein_codec::schema::parse(&smith).expect("smith schema valid").fingerprints().family().digest();
     for (field, digest) in [("skein_oauth", skein_oauth::FINGERPRINT), ("smith_transcript", smith)] {
         let bytes: Vec<String> = digest.iter().map(|byte| format!("0x{byte:02x}")).collect();

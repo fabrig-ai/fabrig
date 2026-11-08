@@ -399,3 +399,32 @@ impl Host for Recorded {
         self.host.exit()
     }
 }
+
+impl Caller {
+    /// A new client's own sign-in directory on the same simulated disk.
+    pub(crate) fn at_directory(root: Fd, directory: &[u8]) -> Self {
+        let mut caller = Self::scripted(root);
+        caller.directory = directory.into();
+        caller
+    }
+}
+
+impl Caller {
+    pub(crate) fn pending_answer(&self) -> String {
+        format!(
+            "exit={:?}, pending={}, stdout={}, stderr={}",
+            self.exit,
+            self.pending,
+            String::from_utf8_lossy(&self.output),
+            String::from_utf8_lossy(&self.error)
+        )
+    }
+}
+
+impl Recorded {
+    /// Keep wire bytes while the incident's referee checks terminal answers.
+    pub(crate) fn capturing(mut self) -> Self {
+        self.wire = crate::referee::client::Wire::capturing();
+        self
+    }
+}
