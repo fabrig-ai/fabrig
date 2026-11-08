@@ -199,6 +199,8 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     d::Value::Ways(d::ProjectWays { drafts, goals, changes, away, way })
                 }
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
+                // words-value replaces these undecodable stand-ins with the forge's values.
+                w::SettingValue::Line(_) | w::SettingValue::Words(_) => return Err(Undecodable),
             };
             d::Edit::Set(d::SizedValue { value, size })
         }

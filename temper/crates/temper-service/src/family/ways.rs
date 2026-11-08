@@ -37,6 +37,8 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
                 w::StockWay::new(
                     limits,
                     w::StockWayParts {
+                        // way-headlines supplies the stock way's headline.
+                        headline: b"".as_slice().into(),
                         name: way.name,
                         line: way.line,
                         path: path(way.path, limits)?,
@@ -51,6 +53,8 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
     let panel = w::WaysPanel::new(
         limits,
         w::WaysPanelParts {
+            // project-words-read supplies the project's words.
+            words: None,
             project: document.project,
             ways: entries,
             current: document.current,

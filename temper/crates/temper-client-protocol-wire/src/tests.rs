@@ -1007,6 +1007,27 @@ fn ways_panel_round_trips() {
     let bytes = crate::watching(&watch);
     assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
     assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+    for parts in [
+        v1::ProjectWordsParts { headline: b"h".as_slice().into(), lede: b"l".as_slice().into() },
+        v1::ProjectWordsParts { headline: Box::new([b'h'; 120]), lede: Box::new([b'l'; 480]) },
+    ] {
+        let expected_size = parts.headline.len() + parts.lede.len() + 8;
+        let words = v1::ProjectWords::new(&limits, parts).expect("project words within their byte bounds");
+        let mut writer = skein_lib::Writer::new(usize::try_from(words.measure()).expect("words size"));
+        words.encode(&mut writer).expect("measured words fit");
+        let bytes = writer.finish();
+        assert_eq!(bytes.len(), expected_size, "two text lengths and their bytes");
+        let mut reader = Reader::new(&bytes);
+        assert_eq!(v1::ProjectWords::decode(&limits, &mut reader), Ok(words.clone()));
+        assert!(reader.is_empty());
+        let panel = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_smallest.bin"), &limits)
+            .expect("smallest ways panel");
+        let panel = v1::WaysPanel::new(&limits, v1::WaysPanelParts { words: Some(words), ..panel.into_parts() })
+            .expect("ways panel with project words");
+        let bytes = crate::ways_panel(&panel);
+        assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
+        assert_eq!(crate::decode_ways_panel(&fixtures::trailing(&bytes), &limits), None);
+    }
     for bytes in [
         include_bytes!("../golden/record_ways_panel_smallest.bin").as_slice(),
         include_bytes!("../golden/record_ways_panel_full.bin").as_slice(),
