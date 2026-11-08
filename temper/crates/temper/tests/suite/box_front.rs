@@ -7,7 +7,7 @@ use crate::support::{self, patience::Patience};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Signal, Size, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Token};
 use skein_shell::{Config, Kernel, Wait, keeper};
-use std::{collections::BTreeMap, fs, os::unix::ffi::OsStrExt, path::Path};
+use std::{collections::BTreeMap, fmt::Write, fs, os::unix::ffi::OsStrExt, path::Path};
 
 // One read, one write and their cancellation records fit the terminal's ring.
 const OPERATIONS: u32 = 8;
@@ -146,7 +146,17 @@ impl Terminal {
             skein_shell::terminal_modes(self.master).is_ok_and(|modes| !modes.lines && !modes.echo && !modes.signals);
         let connecting = skein_lib::bytes::find(&self.bytes, b"Connecting").is_some();
         let live = skein_lib::bytes::find(&self.bytes, b"Live").is_some();
-        format!("raw={raw}, connecting={connecting}, live={live}, terminal bytes={}", self.bytes.len())
+        let mut progress = String::new();
+        write!(&mut progress, "raw={raw}, connecting={connecting}, live={live}, terminal bytes={}", self.bytes.len())
+            .expect("progress text");
+        #[cfg(target_os = "linux")]
+        for pid in support::parent::Guard::observing_test().pids() {
+            let status = fs::read_to_string(format!("/proc/{pid}/status")).unwrap_or_default();
+            let state = status.lines().find(|line| line.starts_with("State:")).unwrap_or("state unavailable");
+            let wait = fs::read_to_string(format!("/proc/{pid}/wchan")).unwrap_or_default();
+            write!(&mut progress, "; process {pid}: {state}, wait={wait}").expect("progress text");
+        }
+        progress
     }
     fn stopped(&mut self, root: &Path) -> Exit {
         let mut patience = Patience::arm("box stops with its front", support::WITHIN);
@@ -183,7 +193,13 @@ impl Drop for Terminal {
     }
 }
 fn log(root: &Path) -> String {
-    fs::read_to_string(root.join("data/box/logs/box.log")).unwrap_or_default()
+    let mut text = String::new();
+    for name in ["box", "serve", "tui"] {
+        if let Ok(log) = fs::read_to_string(root.join(format!("data/box/logs/{name}.log"))) {
+            write!(&mut text, "{name}:\n{log}").expect("log text");
+        }
+    }
+    text
 }
 
 #[test]
