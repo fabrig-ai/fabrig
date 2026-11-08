@@ -50,6 +50,7 @@ pub(crate) fn outcome(core: &crate::Core, answer: accounts::Answer) -> people::O
         }
         accounts::Refusal::ProgramNameReserved => people::Refusal::ProgramNameReserved,
         accounts::Refusal::Limit { bound } => people::Refusal::Limit { which: limit(bound) },
+        accounts::Refusal::NameTaken => people::Refusal::NameTaken,
         accounts::Refusal::Numbers => people::Refusal::Limit { which: people::LimitKind::Arithmetic },
         accounts::Refusal::SignInRedirect { why } => people::Refusal::SignInRedirect {
             why: match why {

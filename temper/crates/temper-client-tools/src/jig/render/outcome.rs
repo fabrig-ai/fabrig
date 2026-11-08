@@ -14,6 +14,8 @@ pub(crate) struct Operation {
     /// Present only for a live call; restored requests retain their operation word.
     pub tool: Option<&'static crate::jig::table::Tool>,
     pub account: Option<Account>,
+    /// The declaration's provider and program name, retained from its durable ask.
+    pub declaration: Option<(u32, Box<[u8]>)>,
     pub task: Option<u64>,
     pub ended_task: Option<c::Phase>,
     pub asked: Option<Asked>,
@@ -136,7 +138,14 @@ impl Operation {
                 ),
             },
         };
-        Self::with_words(ask, word, task)
+        let mut operation = Self::with_words(ask, word, task);
+        if let Ask::Jig(ask) = ask
+            && let c::Ask::AccountChange { change: c::AccountChange::DeclareProgram { provider, name, .. }, .. } =
+                ask.as_ref()
+        {
+            operation.declaration = Some((*provider, name.clone()));
+        }
+        operation
     }
     fn with_words(ask: &Ask, word: &'static [u8], task: Option<u64>) -> Self {
         let mut proposal_decision = false;
@@ -153,6 +162,7 @@ impl Operation {
             word,
             tool: None,
             account: None,
+            declaration: None,
             task,
             ended_task: None,
             asked: None,
@@ -584,6 +594,13 @@ fn encode(
     out.object_end();
 }
 fn refused_json(operation: &Operation, refusal: &c::Refusal, out: &mut Encoder) {
+    let mut measure = Text::measure();
+    if account_next(operation, refusal, &mut measure) {
+        let mut write = Text::writing_exact(measure);
+        account_next(operation, refusal, &mut write);
+        out.key(b"next");
+        out.string(&write.finish());
+    }
     ended_json(operation, refusal, out);
     if let Some(asked) = asked(operation, refusal) {
         out.key(b"bound");
@@ -809,6 +826,7 @@ fn moved_in(account: u32, renewed: bool, out: &mut Text) {
 
 mod ceiling;
 
+#[expect(clippy::too_many_lines, reason = "specialized refusal cases share the generic refusal suffix")]
 fn refused_text(
     operation: &Operation,
     refusal: &c::Refusal,
@@ -877,6 +895,9 @@ fn refused_text(
         spent_pool(operation, project, *needed, *left, me, out);
         return;
     }
+    if account_refusal(operation, refusal, out) {
+        return;
+    }
     out.put(operation.tool_name());
     out.put(b": ");
     acts::refusal(refusal, &document::phrasebook(limits.text), out);
@@ -917,6 +938,48 @@ fn refused_text(
             None => out.put(operation.tool_name()),
         }
     }
+}
+
+/// Account refusals with one actionable meaning (client/tools.md, 5.5).
+fn account_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    if let Some((provider, name)) = &operation.declaration {
+        if *refusal == c::Refusal::NameTaken {
+            out.put(b"account declare: program name ");
+            out.put(name);
+            out.put(b" is taken");
+        } else if *refusal == c::Refusal::NotOffered {
+            out.put(b"account declare: provider ");
+            out.number(u64::from(*provider));
+            out.put(b" offers you no program login");
+        } else {
+            return false;
+        }
+    } else if operation.word == b"retry" && *refusal == c::Refusal::NotOffered {
+        out.put(b"account retry: the source is not limited, so there is nothing to resume");
+    } else {
+        return false;
+    }
+    out.put(b"\n");
+    account_next(operation, refusal, out);
+    true
+}
+fn account_next(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
+    if let Some((_, name)) = &operation.declaration {
+        if *refusal == c::Refusal::NameTaken {
+            out.put(b"Declare under another name. If account list shows a source of yours named ");
+            out.put(name);
+            out.put(b", check its login instead: account verify ACCOUNT --source program");
+        } else if *refusal == c::Refusal::NotOffered {
+            out.put(b"me prints each provider's ways; declare with a provider whose line names programs");
+        } else {
+            return false;
+        }
+    } else if operation.word == b"retry" && *refusal == c::Refusal::NotOffered {
+        out.put(b"account list shows its state and what it needs");
+    } else {
+        return false;
+    }
+    true
 }
 
 fn restore_refusal(operation: &Operation, refusal: &c::Refusal, prefix: &[u8], out: &mut Text) -> bool {

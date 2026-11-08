@@ -1,4 +1,4 @@
-//! Supplied accounts and the playground model (temper/docs/design/client/README.md, 3.5 and 4.8).
+//! Supplied accounts and the playground model (temper/docs/design/client/README.md, 3.5, 4.8 and 5.5).
 use super::settings;
 use crate::look;
 use crate::{
@@ -557,6 +557,7 @@ pub(super) fn key_field(
     }
     b.close();
 }
+#[expect(clippy::too_many_lines, reason = "the account act's outcomes stay in one renderer")]
 pub(super) fn outcome(
     b: &mut Builder,
     root: &Domain,
@@ -622,7 +623,20 @@ pub(super) fn outcome(
                 crate::cards::text(b, Role::Paragraph, &super::connect_model::command_line(root, w, name));
             }
             Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, .. }))) => {
-                crate::cards::refusal(b, w, refusal);
+                if let Some((word, name)) = act_refusal(&pending.ask, refusal) {
+                    let hole = match name {
+                        Some(name) => Some(Hole::Name(skein_lib::bytes::copy_of(name))),
+                        None => None,
+                    };
+                    let value = words::say(w, word, hole.as_slice());
+                    b.open(Role::Status);
+                    b.style(look::REFUSAL);
+                    b.name(&value);
+                    b.text(Run::Plain, &value);
+                    b.close();
+                } else {
+                    crate::cards::refusal(b, w, refusal);
+                }
             }
             Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(outcome)))) => {
                 crate::cards::outcome(b, w, outcome);
@@ -661,6 +675,75 @@ pub(super) fn outcome(
     } else if form.returned() && form.paste_state(root.client()) != accounts::PasteState::Closed {
         // A departed sign-in's address come back to by hand while it still waits (client/README.md, 5.5).
         paste(b, root, w, bindings, form, false);
+    }
+}
+
+fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&'a [u8]>)> {
+    let change = match ask {
+        c::Ask::AccountChange { change, .. } => change,
+        c::Ask::ReadLists { .. }
+        | c::Ask::Restore { .. }
+        | c::Ask::ChangeSettings(_)
+        | c::Ask::ChangeModel(_)
+        | c::Ask::MoveToNewest(_)
+        | c::Ask::Create { .. }
+        | c::Ask::Propose { .. }
+        | c::Ask::Withdraw { .. }
+        | c::Ask::Message { .. }
+        | c::Ask::Compound { .. }
+        | c::Ask::Answer { .. }
+        | c::Ask::Take { .. }
+        | c::Ask::HandBack { .. }
+        | c::Ask::Decide { .. }
+        | c::Ask::Release { .. }
+        | c::Ask::Lift { .. }
+        | c::Ask::Amend { .. }
+        | c::Ask::Stop { .. }
+        | c::Ask::Cancel { .. }
+        | c::Ask::Move { .. }
+        | c::Ask::Seen { .. }
+        | c::Ask::EditNote { .. }
+        | c::Ask::DeleteNote { .. }
+        | c::Ask::ChangePolicy { .. }
+        | c::Ask::SetRoles { .. }
+        | c::Ask::MakeService { .. }
+        | c::Ask::Rename { .. }
+        | c::Ask::RemoveProject { .. }
+        | c::Ask::MakeProject { .. }
+        | c::Ask::SetPool { .. }
+        | c::Ask::SignIn { .. }
+        | c::Ask::SignOut { .. }
+        | c::Ask::SetVisibility { .. } => return None,
+    };
+    match change {
+        c::AccountChange::DeclareProgram { name, .. } => {
+            if *refusal == c::Refusal::NameTaken {
+                Some((W::ProgramNameTaken, Some(name)))
+            } else if *refusal == c::Refusal::NotOffered {
+                Some((W::ProgramNotOffered, None))
+            } else {
+                None
+            }
+        }
+        c::AccountChange::Resume { .. } => {
+            if *refusal == c::Refusal::NotOffered {
+                Some((W::ResumeNotOffered, None))
+            } else {
+                None
+            }
+        }
+        c::AccountChange::CheckProgram { .. }
+        | c::AccountChange::AddKey { .. }
+        | c::AccountChange::ReplaceKey { .. }
+        | c::AccountChange::RemoveKey { .. }
+        | c::AccountChange::Remove { .. }
+        | c::AccountChange::MoveAccount { .. }
+        | c::AccountChange::MoveSource { .. }
+        | c::AccountChange::SetUses { .. }
+        | c::AccountChange::MoveOut { .. }
+        | c::AccountChange::Written { .. }
+        | c::AccountChange::MoveIn { .. }
+        | c::AccountChange::FinishSignIn { .. } => None,
     }
 }
 fn is_owner(root: &Domain) -> bool {
