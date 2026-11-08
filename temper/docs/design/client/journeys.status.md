@@ -15,6 +15,15 @@ three requests remains section 10's after-landing work; replayed prints
 establish no rendered equality. The unrelated retained `chat-draft`
 inventory and redaction gaps below remain.
 
+Section 8.1 has no known gap in a save's control found outside a menu:
+`temper-client-shell-web`'s `journey.rs`, `control`, skips a node under
+`Role::Menu`, and `a_saves_control_skips_a_menu_item_for_the_pages_link`
+holds it. By plan `ui-p1-rail`, `chat-draft` starts on Chats and presses
+its "+ New chat", and its prints, `project-landing`'s and
+`welcome-playground`'s draw the new rail (`README.md`, 5.3);
+`chat-draft`'s later renewal for opening history stands on that plan's
+code.
+
 Section 7 has no known gap in refreshing either request branch:
 `scripts/look-refresh.sh` takes `look-requests` and `tui-requests`, using
 the checked-out branch's remote-tracking lease, requests over
