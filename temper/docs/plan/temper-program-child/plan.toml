@@ -4,3 +4,35 @@ sources = ["temper/docs/plan/temper-program-child/inputs/request.md", "AGENTS.md
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "temper-modes"
+title = "temper's binary dispatches smith's --program-child mode beside --mcp-relay, proven by a table test of the built binary"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 4"
+
+[[part]]
+id = "jig-test-modes"
+title = "jig-test, the reference binary, dispatches smith's --mcp-relay and --program-child modes"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/service.md, 7"
+
+[[slice]]
+id = 1
+story = "temper --program-child PID SCRIPT auth status runs a signed-in scripted Claude Code whose status reads Usable, its exit code and stdout passed through"
+parts = ["temper-modes"]
+walk = false
+
+[[slice]]
+id = 2
+story = "jig-test --program-child PID SCRIPT auth status reads Usable for a signed-in scripted Claude Code, and jig-test --mcp-relay reaches smith's relay"
+parts = ["jig-test-modes"]
+walk = false
