@@ -330,10 +330,3 @@ fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style
     b.text(Run::Plain, words);
     b.close();
 }
-
-pub(crate) fn reference(root: &Domain) -> Option<temper_client_domain::pages::chat::document::Mode> {
-    match root.pages().chats() {
-        Some(chats) => chats.reference,
-        None => None,
-    }
-}
