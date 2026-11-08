@@ -24,6 +24,15 @@ Charters 2, 5 and 7 carry acceptance-to-assertion evidence from producer
 reports through coordinator handoff to close-out, keeping uncovered items
 unresolved despite empty Left lists or passing CI. The domain story
 checks delivered rules and retained evidence, not real-model compliance.
+Their deliverable-to-evidence mapping includes each requested row's
+measured timing, rejecting suite totals and arithmetic averages as
+substitutes. Missing measurements remain unfinished and go for repair;
+accepted Left, passing CI and status entries cannot waive acceptance.
+The coordinator requires evidence for every requested deliverable before
+close-out; only the person can change the requested scope. The focused
+domain story retains both missing and complete per-row evidence through
+bounded report reads and checks the assigned rules at all three roles;
+it establishes no real-model compliance.
 Charter 5's result part also requires acceptance evidence before finishing,
 recovering an absent CI-selection header from a cut job log with a larger
 read. The engine domain story checks the applied result-wake instructions,

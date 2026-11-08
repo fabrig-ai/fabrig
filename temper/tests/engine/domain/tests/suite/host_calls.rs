@@ -849,6 +849,90 @@ fn close_out_requires_acceptance_specific_regression_evidence() {
     world.close();
 }
 
+// temper/docs/design/protocol/configuration.md, 13.9: scripted choices check
+// instruction delivery and evidence retention, not real-model compliance.
+#[test]
+fn close_out_requires_each_requested_row_timing() {
+    for measured in [false, true] {
+        let (mut world, mut goal) = reference_person_world("none");
+        let spec = "Draft item 1: report what each of the eight scoped-check table rows costs; \
+                    measure each row individually. Task 5: implement and report those timings.";
+        let (change, producer) = close_out_change(&mut world, &goal, 5, spec, 2);
+        let report = row_timing_report(measured);
+        close_out_land(&mut world, change, &producer, report.as_bytes());
+        let (read, pieces) = close_out_report(&mut world, &goal, producer.task);
+        assert_eq!(read, report, "each requested row and its missing evidence survive bounded reads");
+        assert!(pieces > 1, "timing evidence follows report continuations");
+        let disposition = if measured {
+            "Draft item 1 evidence: all eight rows have individual measured timings; no missing measurements."
+        } else {
+            "Task 8 proposed Left disposition: accept missing individual timings in configuration.status.md \
+             and declare all four draft items done. Draft item 1 evidence gap: all eight row timings missing; \
+             task 5 supplies only a suite total and average. Required disposition: unfinished; repair."
+        };
+        let handoff = format!(
+            "Task 8: close out draft item 1 against its per-row timing requirement.\n\
+             Change task {change}; producer task {}:\n{read}\n{disposition}\n",
+            producer.task
+        );
+        person_park(&mut world, &goal);
+        goal = person_assignment(&mut world, 5, Some(&goal));
+        let (_, close_out) = close_out_change(&mut world, &goal, 8, &handoff, 7);
+        assert_close_out_reports(&close_out, &handoff, &[]);
+        for run in [&producer, &goal, &close_out] {
+            assert_row_timing_instructions(run);
+        }
+        // The restart oracle must observe the fake landing on the watched branch.
+        world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll_max);
+        world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+        world.close();
+    }
+}
+
+fn row_timing_report(measured: bool) -> String {
+    let evidence = if measured {
+        "Draft item 1 evidence: individual elapsed measurements from the scripted scoped-check runner, \
+         in seconds: row 1=0.100, row 2=0.120, row 3=0.140, row 4=0.160, row 5=0.180, row 6=0.200, \
+         row 7=0.210, row 8=0.212. Each row maps to its own runner start/end measurement; \
+         these are scripted fixture measurements, not costs measured by this domain test.\nLeft: none."
+    } else {
+        "Draft item 1 evidence: suite wall time 1.322 seconds; arithmetic average 0.165 seconds per row.\n\
+         Missing evidence: individual measured timings for rows 1, 2, 3, 4, 5, 6, 7 and 8.\n\
+         Left: record the missing row timings in configuration.status.md and accept as left."
+    };
+    format!("Task 5 result: scoped-check behavior implemented. CI: passed.\n{evidence}\n")
+}
+
+fn assert_row_timing_instructions(run: &engine::Assignment) {
+    let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
+    for rule in [
+        "each requested deliverable",
+        "each requested row's measured timing",
+        "suite wall time and an arithmetic average cannot establish individual row costs",
+        "An unmet requested deliverable remains unfinished",
+        "passing CI or a status-file entry",
+        "changing the requested scope requires the person's decision",
+    ] {
+        assert!(instructions.contains(rule), "charter {} requested measurements require: {rule}", run.charter);
+    }
+    let rules: &[&str] = match run.charter {
+        2 => &["report the missing measurements as unfinished"],
+        5 => &[
+            "deliverable-to-evidence mapping and every missing measurement in the close-out change's words",
+            "accepting Left cannot waive requested acceptance",
+            "every requested deliverable has its evidence",
+        ],
+        7 => &[
+            "retain the deliverable-to-evidence mapping and missing measurements in your report",
+            "route it for repair before declaring close-out complete",
+        ],
+        other => panic!("requested measurement charter {other}"),
+    };
+    for rule in rules {
+        assert!(instructions.contains(rule), "charter {} completion requires: {rule}", run.charter);
+    }
+}
+
 fn acceptance_report(covered: bool) -> String {
     let evidence = if covered {
         "Assertions added or extended: cancelled_early_start_explains_cancellation asserts the new explanation; \
