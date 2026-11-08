@@ -782,8 +782,8 @@ keeps (`../protocol/configuration.md`, section 2).
   2026-11-06):
   - *Started by sending:* a chat a person has just started opens with its
     composer focused, as soon as its composer shows (skein's `ui-web.md`, 7):
-    from a new chat, its draft, `Ask`, a starter and a suggested request
-    alike. "Start goal" is none of these: it opens the goal's page, its heading
+    from a new chat, its draft, `Ask` and a suggested request alike.
+    "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
   - *Opened any other way,* its composer asks for nothing. From a list or a
     link, a new entry, the chat opens on its heading, so that a person reading
@@ -8748,22 +8748,14 @@ own tests:
 
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
-  instructions. The opening keeps the configuring page's starters and reference;
-  an opening led by a question remains a separate look decision. The other
-  views, sketches and preferences join at M3b and M4 of
+  instructions. The other views, sketches and preferences join at M3b and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
-- **The ways on Ask temper's page** (3.5, 5.13): the opening's "What it
-  sets" and "Ways to begin" give way to the ways as tabs drawn from the
-  `ways` read, "Use this", "Keep it" and "Yours" among them, and a stop's
-  card opening in place: the look request `ask-temper-ways`, its plan
-  `look-ask-ways` (`../draft/stock-ways.status.md`). Default: the read and
-  the acts in the domain, drawn by no page until then.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
   way, a proposal's two paths and a charter's card in a reply and in the
-  chat's document at 1440, 1000 and 420 px, with the fallback a narrow page
-  keeps, against the look request's pages, and walks a real Ask temper
-  chat asked to show a way. M3b adds a stop pressed opening its card, the
-  views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
+  chat's document at 1440, 1000 and 420 px, across and down the page,
+  against the look request's pages, and walks a real Ask temper
+  chat asked to show a way. M3b adds a stop pressed in a reply opening
+  its card, the views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
   of views, temper/tui's (`../draft/ask-temper.execution.md`, M3b). A view
   at an older revision, and a decided proposal's paths, wait for a read of
   the settings as a revision left them. Default: the focused tables and
@@ -9250,8 +9242,8 @@ own tests:
   the focus on its summary, and no toast.
 - **A press that starts a chat, on a phone** (3.5, *Where the focus stands on a
   chat*; the request `ui-composer-focus` of 2026-11-06): the tree has no width, so
-  a starter's or a suggested request's press asks for the composer's focus there
-  too, and a browser that lets a press's activation outlive the answer may raise
+  a suggested request's press asks for the composer's focus there too,
+  and a browser that lets a press's activation outlive the answer may raise
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
   a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
   same focus at every width.
