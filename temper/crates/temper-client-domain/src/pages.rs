@@ -43,6 +43,7 @@ pub mod home;
 pub mod inbox;
 pub mod models;
 pub mod needs;
+pub mod rail;
 pub mod report;
 pub mod start_goal;
 pub mod switcher;
