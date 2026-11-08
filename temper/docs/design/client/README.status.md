@@ -18,11 +18,6 @@ and refinement remain section 11's after-landing work.
   when their count is zero and To begin shows, in both shells; the
   gallery's `home-needs-under-begin` still draws a question and a chat
   (`look-round-20`'s `begin-sections`).
-- **Not yet:** 3.5, *One layout for every chat* and *Ask temper's page*,
-  and 5.3, the night switch and the tab bar: on a phone, Ask temper's page
-  as Start opens it draws no tab bar, and the switch has no box on a chat's
-  layout, the rail hidden; beside a Split, the folded rail hides the switch
-  at every width (`look-round-20`'s `tabs-and-switch`).
 
 Section 5.9's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
