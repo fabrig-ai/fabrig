@@ -494,8 +494,11 @@ The browser tier holds its twelve tests, with the call line, model picker,
 welcome sign-in and four reading stories in four merged tests, compiled
 with story labels for failed steps but with no run in Chromium yet. Reading's
 four stories, apart, passed with ctl history
-and a 131,072-byte window, but their CPU medians sum to
-44.849900 s and the three targets remain unmet; no whole-tier run proves the
+and a 131,072-byte window, their CPU medians summing to
+44.849900 s against three unmet targets. The tier's window, `long_text` and
+`turn_text` are now 32,768 bytes, reading's code lines scaled with them, and
+skein's decoder indexes each CDP message once, with no CPU figure on record
+since; no whole-tier run proves the
 repair within its 127.5 CPU s, 85 raised by half by the user's word of 11-08,
 for now, to be revisited. The listener-full ctl failure is repaired; the public
 visibility-command failure remains unverified. A whole-bound manual reading
