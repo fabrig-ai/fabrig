@@ -26,6 +26,7 @@ pub struct Settings {
     pub directory: Box<[u8]>,
     pub address: Box<[u8]>,
     pub scheme: Option<Scheme>,
+    pub boxed: bool,
     pub link_file: Option<Box<[u8]>>,
     pub note: Option<Note>,
     pub files: Option<Fd>,
@@ -36,6 +37,10 @@ pub struct Settings {
     pub record: Option<Fd>,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "box placement, opening, closing and refusal are independent run facts"
+)]
 pub struct Run {
     host: host::Host,
     shell: jig_client_shell_native::Shell,
@@ -56,6 +61,7 @@ pub struct Run {
     operations: u32,
     start: Option<(Option<Scheme>, Box<[u8]>)>,
     loaded: Option<(Option<Secret>, Vec<jig_client::Record>)>,
+    boxed: bool,
     link_file: Option<Box<[u8]>>,
     local: LocalFile,
     note: Option<Note>,
@@ -145,6 +151,7 @@ impl Run {
             operations,
             start: Some((settings.scheme, settings.address.clone())),
             loaded: None,
+            boxed: settings.boxed,
             link_file: settings.link_file,
             local: LocalFile::new(root, user),
             note: settings.note,
@@ -353,38 +360,44 @@ impl Run {
 
     fn started(&mut self, credential: Option<Secret>, kept: Vec<jig_client::Record>) {
         let (scheme, address) = self.start.take().expect("the shell loads once");
-        let scheme = scheme.unwrap_or_else(|| match self.terminal.background() {
-            Background::Answered(rgb) => Scheme::of_background(rgb),
-            Background::Waiting | Background::Unanswered => Scheme::Dark,
-        });
+        let background = match self.terminal.background() {
+            Background::Answered(rgb) => Some(rgb),
+            Background::Waiting | Background::Unanswered => None,
+        };
+        let scheme = scheme.unwrap_or_else(|| background.map_or(Scheme::Dark, Scheme::of_background));
         let size = self.terminal.size();
         self.size = Some(size);
+        let start = host::Start {
+            size,
+            scheme,
+            background,
+            boxed: self.boxed,
+            address,
+            local: self.link_file.is_some(),
+            kept,
+            credential,
+            note: self.note,
+        };
         #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
             let mut recorder = journey::Recorder::new(&journey::Facts {
                 seed: recording.seed,
                 now: Time::ZERO,
                 wall: Wall::EPOCH,
-                size,
-                scheme,
-                address: address.clone(),
-                local: self.link_file.is_some(),
-                note: self.note,
-                kept: kept.clone(),
-                credential: credential.clone(),
+                size: start.size,
+                scheme: start.scheme,
+                background: start.background,
+                boxed: start.boxed,
+                address: start.address.clone(),
+                local: start.local,
+                note: start.note,
+                kept: start.kept.clone(),
+                credential: start.credential.clone(),
             });
             recorder.turn(self.env.now, self.env.wall);
             recording.recorder = Some(recorder);
         }
-        self.report(host::Report::Start(host::Start {
-            size,
-            scheme,
-            address,
-            local: self.link_file.is_some(),
-            kept,
-            credential,
-            note: self.note,
-        }));
+        self.report(host::Report::Start(start));
     }
 
     fn reports(&mut self) {
@@ -1010,6 +1023,7 @@ mod tests {
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
             scheme: Some(Scheme::Dark),
+            boxed: false,
             link_file: None,
             note: None,
             files: None,

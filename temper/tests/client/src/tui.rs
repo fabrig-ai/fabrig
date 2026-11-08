@@ -78,6 +78,8 @@ impl Tui {
                 note,
                 size: Size { columns: 80, rows: 24 },
                 scheme: Scheme::Dark,
+                background: None,
+                boxed: false,
                 address: ADDRESS.into(),
                 kept: Vec::new(),
                 credential,

@@ -57,13 +57,13 @@ pub fn valid(limits: &Limits) -> bool {
 pub fn terminal(
     limits: &Limits,
     depth: skein_ui_screen_terminal::Depth,
-    scheme: bool,
+    _scheme: bool,
 ) -> skein_ui_screen_terminal::Settings {
     skein_ui_screen_terminal::Settings {
         interval: limits.interval,
         depth,
         most: limits.most,
         paste: limits.paste,
-        background: if scheme { None } else { Some(BACKGROUND) },
+        background: Some(BACKGROUND),
     }
 }

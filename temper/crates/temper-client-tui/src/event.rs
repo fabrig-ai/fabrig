@@ -13,6 +13,7 @@ pub enum Event {
     Stop,
     Stay,
     Log,
+    LeftOff { task: Option<u64> },
 }
 
 /// The TUI's own command (temper/docs/design/client/README.md, 6.17).

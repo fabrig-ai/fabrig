@@ -24,6 +24,8 @@ pub struct Tui {
     unknown: Option<Box<[u8]>>,
     focus: u64,
     box_written: u64,
+    left_off: Option<u64>,
+    boxed: bool,
     front: bool,
     printed: Option<Secret>,
     box_log: Queue<Box<[u8]>>,
@@ -70,6 +72,10 @@ pub enum Told {
         columns: u16,
     },
     Went,
+    LeftOff {
+        task: Option<u64>,
+    },
+    Boxed,
     Cleared,
     Aside {
         object: Option<jig_client::contract::ObjectKey>,
@@ -141,6 +147,8 @@ impl Tui {
             gave_up: None,
             quitting: false,
             log_shown: false,
+            left_off: None,
+            boxed: false,
         }
     }
     #[must_use]
@@ -278,6 +286,14 @@ impl Tui {
             }
         }
     }
+    #[must_use]
+    pub const fn left_off(&self) -> Option<u64> {
+        self.left_off
+    }
+    #[must_use]
+    pub const fn boxed(&self) -> bool {
+        self.boxed
+    }
     fn empty(&mut self) {
         self.field = copy_of(b"");
         self.written = self.written.saturating_add(1);
@@ -380,11 +396,23 @@ impl Tui {
             Told::Went => {
                 let focus = self.focus.saturating_add(1);
                 let written = self.box_written.saturating_add(1);
-                let changed = self.focus != focus || self.box_written != written || self.log_shown;
+                let changed =
+                    self.focus != focus || self.box_written != written || self.log_shown || self.left_off.is_some();
                 self.log_shown = false;
+                self.left_off = None;
                 self.focus = focus;
                 self.command_words = Box::default();
                 self.box_written = written;
+                changed
+            }
+            Told::LeftOff { task } => {
+                let changed = self.left_off != task;
+                self.left_off = task;
+                changed
+            }
+            Told::Boxed => {
+                let changed = !self.boxed;
+                self.boxed = true;
                 changed
             }
             Told::CommandWords { value } => {

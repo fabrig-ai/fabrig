@@ -56,12 +56,26 @@ fn template(number: u32) -> c::Template {
     clippy::too_many_lines,
     reason = "one fixture supplies the chat owner and its draft through their public events"
 )]
-fn root(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool) -> Domain {
+fn root(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool, efforts: bool) -> Domain {
     let mut me = f::me(if project { &[b"Demo"] } else { &[] });
     if let Some(project) = me.projects.get_mut(0) {
         project.templates = List::from_boxed(Box::new([template(1), template(5)]));
         if picker {
-            project.models = List::from_boxed(Box::new([model()]));
+            project.defaults = List::from_boxed(Box::new([c::MeDefault {
+                template: d::pages::chats::ASKING_TEMPLATE,
+                choice: c::LlmChoice {
+                    account: Some(1),
+                    main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                    subagents: List::with_capacity(0),
+                    later: None,
+                },
+            }]));
+            let mut model = model();
+            if !efforts {
+                model.efforts.clear();
+                model.effort = None;
+            }
+            project.models = List::from_boxed(Box::new([model]));
         }
     }
     if project && !picker {
@@ -191,19 +205,48 @@ fn root(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool) ->
 fn the_tui_offers_its_commands() {
     use Command::{Chats, Close, Effort, Exit, Help, Model, New, Pause, StartOver, Theme};
     let words = f::words();
-    let mut failures = List::with_capacity(7);
-    for (name, project, picker, chat, delegate, draft, want) in [
-        ("launchpad picker", true, true, false, false, false, &[Model, New, Chats, Theme, Help, Exit][..]),
-        ("launchpad no picker", true, false, false, false, false, &[New, Chats, Theme, Help, Exit][..]),
-        ("no project", false, false, false, false, false, &[Theme, Help, Exit][..]),
-        ("chat", true, true, true, false, false, &[Model, Effort, Pause, Close, New, Chats, Theme, Help, Exit][..]),
-        ("chat delegate", true, true, true, true, false, &[Model, Effort, Pause, New, Chats, Theme, Help, Exit][..]),
+    let mut failures = List::with_capacity(8);
+    for (name, project, picker, chat, delegate, draft, efforts, want) in [
+        (
+            "launchpad picker",
+            true,
+            true,
+            false,
+            false,
+            false,
+            true,
+            &[Model, Effort, New, Chats, Theme, Help, Exit][..],
+        ),
+        ("launchpad no efforts", true, true, false, false, false, false, &[Model, New, Chats, Theme, Help, Exit][..]),
+        ("launchpad no picker", true, false, false, false, false, true, &[New, Chats, Theme, Help, Exit][..]),
+        ("no project", false, false, false, false, false, true, &[Theme, Help, Exit][..]),
+        (
+            "chat",
+            true,
+            true,
+            true,
+            false,
+            false,
+            true,
+            &[Model, Effort, Pause, Close, New, Chats, Theme, Help, Exit][..],
+        ),
+        (
+            "chat delegate",
+            true,
+            true,
+            true,
+            true,
+            false,
+            true,
+            &[Model, Effort, Pause, New, Chats, Theme, Help, Exit][..],
+        ),
         (
             "chat draft",
             true,
             true,
             true,
             false,
+            true,
             true,
             &[Model, Effort, Pause, Close, StartOver, New, Chats, Theme, Help, Exit][..],
         ),
@@ -214,10 +257,11 @@ fn the_tui_offers_its_commands() {
             true,
             true,
             true,
+            true,
             &[Model, Effort, Pause, New, Chats, Theme, Help, Exit][..],
         ),
     ] {
-        let root = root(project, picker, chat, delegate, draft);
+        let root = root(project, picker, chat, delegate, draft, efforts);
         let task = if let Some(chat) = root.pages().chat() { chat.task(root.client()) } else { None };
         if chat {
             assert!(temper_client_view::shared::offered(&root, task, Close), "{name}");

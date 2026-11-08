@@ -114,6 +114,21 @@ fn the_address_prefers_given_then_file_then_kept_then_default() {
 }
 
 #[test]
+fn on_a_box_requires_a_link_for_the_selected_engine() {
+    let engine = "127.0.0.1:8367".parse().expect("engine address");
+    let other = LINK.replacen(":8367", ":9000", 1);
+    for (link, expected) in [
+        (Some(LINK.as_bytes()), true),
+        (Some(other.as_bytes()), false),
+        (None, false),
+        (Some(b"not a link".as_slice()), false),
+        (Some(b"http://127.0.0.1:8367".as_slice()), false),
+    ] {
+        assert_eq!(tui::on_box(link, engine), expected);
+    }
+}
+
+#[test]
 fn the_link_path_is_the_same_deployments_as_the_box() {
     let expected = crate::link_file::path(b"/working/deployment", Some(b"/runtime"), cfg!(target_os = "linux"));
     for (state, extra) in [

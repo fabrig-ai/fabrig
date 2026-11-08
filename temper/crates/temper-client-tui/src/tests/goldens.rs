@@ -73,7 +73,15 @@ fn the_tuis_screens_are_their_goldens() {
     let mut checks = List::with_capacity(8);
     for ((name, _, _, scheme, size, want), view) in rows.iter().zip(views.iter()) {
         checks
-            .push(Golden { name, tree: view.tree(), scheme: *scheme, size: *size, focus: Focus::default(), want })
+            .push(Golden {
+                name,
+                tree: view.tree(),
+                scheme: *scheme,
+                background: Some(theme::palette(*scheme)[0].1),
+                size: *size,
+                focus: Focus::default(),
+                want,
+            })
             .unwrap();
     }
     check(checks.as_slice());
@@ -85,6 +93,7 @@ pub(crate) struct Golden<'a> {
     pub tree: &'a skein_ui::Tree,
     pub scheme: Scheme,
     pub size: Size,
+    pub background: Option<skein_ui_screen::Rgb>,
     pub focus: Focus,
     pub want: &'a [u8],
 }
@@ -94,10 +103,10 @@ pub(crate) struct Golden<'a> {
 #[expect(clippy::disallowed_methods, reason = "test diagnostics join the mismatching frames into one failure")]
 pub(crate) fn check(rows: &[Golden<'_>]) {
     let mut mismatches = Vec::new();
-    for Golden { name, tree, scheme, size, focus, want } in rows {
+    for Golden { name, tree, scheme, background, size, focus, want } in rows {
         let mut focus = *focus;
         let mut frame = Frame::new(*size);
-        render(tree, &theme(*scheme), *size, &mut focus, &mut frame);
+        render(tree, &theme(*scheme, *background), *size, &mut focus, &mut frame);
         let printed = frame.print();
         if printed.as_ref() != *want {
             mismatches.push(format!(
