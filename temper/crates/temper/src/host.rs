@@ -11,6 +11,7 @@ pub struct Host {
     pub service: Service,
     directories: Directories,
     pub(super) store: Box<[u8]>,
+    pub(super) link_file: Option<std::path::PathBuf>,
     output: Box<dyn Write>,
     output_failed: bool,
     wait_check: bool,
@@ -26,6 +27,7 @@ impl Host {
             service,
             directories,
             store,
+            link_file: None,
             output: Box::new(io::stdout()),
             output_failed: false,
             // QA launches sanitized child environments. Test/debug programs
@@ -34,6 +36,13 @@ impl Host {
             now: Time::ZERO,
             watch: Watch::new(),
             clock: skein_shell::Clock::new(),
+        }
+    }
+    pub(super) fn keep_link(&self, url: &[u8]) {
+        if let Some(path) = &self.link_file
+            && let Err(why) = crate::link_file::keep(path, url, skein_shell::effective_user())
+        {
+            eprintln!("temper serve: link file {why}");
         }
     }
 }
@@ -118,6 +127,8 @@ impl skein_shell::Host for Host {
             {
                 self.output_failed = true;
                 self.service.shutdown();
+            } else {
+                self.keep_link(&link);
             }
         }
         if self.wait_check {

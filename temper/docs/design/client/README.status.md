@@ -73,9 +73,6 @@ section 11). The ground, scrollbar and foot repairs are recorded in
 remains intentional: `>_` and the status words leave the path less than
 its 320 px, as the user accepted in `look-round-17`.
 
-- **Not yet:** 6.12, *The engine's link, kept at rest*: `temper`'s
-  `link_file`, serve writing the file at its start under the box and at
-  each `Link`, and removing it at exit, are not built.
 - **Not yet:** 6.12, `sign-in`, and 6.14, *Signed in from the engine's
   link*, in `temper-client-tui`: `Note`, and the view's "Connecting to
   HOST:PORT" while the TUI signs in from the file, with no refusal line

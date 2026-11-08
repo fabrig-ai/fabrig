@@ -113,7 +113,7 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep running. Logs: `DATA/box/logs/box.log` and each step's log beside it.
+Keep running. Logs: `DATA/box/logs/box.log`; step logs sit beside it.
 
 Expect:
 
@@ -124,6 +124,7 @@ http://127.0.0.1:PORT/jig/v1/sign-in/link?secret=...
 
 It signs you in as this temper's owner, once, within 2 hours.
 Opened after that, it prints a fresh one here.
+In a terminal: temper http://127.0.0.1:PORT
 ```
 
 For a fresh fake box, the kernel chooses `PORT` and its four other ports,

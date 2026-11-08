@@ -60,6 +60,7 @@ mod google_runtime;
 pub mod help;
 mod host;
 mod init;
+pub mod link_file;
 pub mod open;
 mod printed;
 mod program_login;
@@ -692,6 +693,10 @@ fn given_secret(input: &mut impl std::io::Read) -> Result<Option<skein_lib::Secr
 }
 
 fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
+    let environment = skein_shell::environment();
+    let runtime =
+        environment.iter().find(|(name, _)| name.as_ref() == b"XDG_RUNTIME_DIR").map(|(_, value)| value.as_ref());
+    let link_file = link_file::path(&directories.data, runtime, cfg!(target_os = "linux"));
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
     let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
     let answers = requests + 1;
@@ -704,6 +709,16 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     }
     let link_secret = if boxed { given_secret(&mut std::io::stdin().lock())? } else { None };
     let bytes = directories.read()?;
+    let first_link = if let Some(secret) = &link_secret {
+        let named = setup::check(&bytes, &directories.jig())?.named;
+        if named.link {
+            Some(temper_service::clients::first_link_url(address(&named.clients)?, named.public.as_ref(), secret))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let prepared =
         prepare_with_limits(directories, &bytes, &mut owned, boxed, link_secret, &service::stock::Given::Stock);
@@ -743,7 +758,15 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     };
     let mut host = Host::new(service, directories.clone());
     host.store = store;
-    Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut host))
+    host.link_file = link_file;
+    if let Some(url) = first_link {
+        host.keep_link(&url);
+    }
+    let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
+    if let Some(path) = &host.link_file {
+        link_file::forget(path);
+    }
+    Ok(exit)
 }
 /// The effective user's login (protocol/setup.md, 8.2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
