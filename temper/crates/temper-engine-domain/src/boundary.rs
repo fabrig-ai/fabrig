@@ -1,7 +1,7 @@
 //! The engine boundary, wrapping its typed peers (jig's domain/root.md, 2).
 pub use crate::route::approvals::{ApprovalRow, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
-use crate::{CallKey, Delivery, Key, Range, Record, Write};
+use crate::{CallKey, Delivery, Key, Range, Record, RunPolicy, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
@@ -145,6 +145,13 @@ pub struct KindValue {
 pub fn asking(tools: jig_domain_tasks::Tools) -> bool {
     let families = jig_domain_core::ToolFamilies::JIG;
     tools.0 & families.ask.0 != 0 && tools.0 & !(families.ask.0 | families.settings) == 0
+}
+
+/// A run of this policy is given no repository: an asking charter's, or one that
+/// names none of inspect, modify and shell (temper/docs/design/domain/agent.md, 4.2).
+#[must_use]
+pub fn no_workspace(policy: &RunPolicy) -> bool {
+    asking(policy.tools) || !(policy.inspect || policy.modify || policy.shell)
 }
 
 /// What a `document` call does with its body (temper/docs/design/domain/agent.md, 8.4.3).

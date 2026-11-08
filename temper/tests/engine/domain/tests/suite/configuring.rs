@@ -671,11 +671,11 @@ fn a_proposal_selects_the_template_it_installs() {
         let mut world = World::stock();
         let run = world.chat(ASK_TEMPLATE, world.owner, 20);
         let mut value = see_value(&mut world.driver, &run, 1, "settings template 5");
-        value["number"] = json!(6);
+        value["number"] = json!(8);
         value["tracked"] = json!(1);
-        let ways = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":6});
+        let ways = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":8});
         let mut items = vec![
-            json!({"setting":{"kind":"template","number":6},"set":value}),
+            json!({"setting":{"kind":"template","number":8},"set":value}),
             json!({"setting":{"kind":"project-ways","project":PROJECT},"set":ways}),
         ];
         if reverse {
@@ -688,13 +688,13 @@ fn a_proposal_selects_the_template_it_installs() {
         };
         assert_eq!(settings.items.len(), 2);
         assert_eq!(world.head().number, 1, "proposing publishes neither item");
-        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 6"}"#);
+        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 8"}"#);
         assert!(error, "the proposed template is not published");
         let (text, _) = see_whole(&mut world.driver, &run, 13, "settings project-ways");
         assert!(text.contains("\"way\":0"), "proposing keeps the stock way: {text}");
         world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
         assert_eq!(world.head().number, 2, "one acceptance makes one revision");
-        let installed = see_value(&mut world.driver, &run, 30, "settings template 6");
+        let installed = see_value(&mut world.driver, &run, 30, "settings template 8");
         assert_eq!(installed, value);
         let (text, _) = see_whole(&mut world.driver, &run, 40, "settings project-ways");
         let body = text.lines().nth(1).expect("ways value");
@@ -725,7 +725,7 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         ("zero", added.clone(), 0, true),
         ("current", added.clone(), ASK_TEMPLATE, true),
         ("installed", added.clone(), 7, true),
-        ("absent", added, 6, false),
+        ("absent", added, 8, false),
         (
             "removed",
             s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Removed },
@@ -1933,7 +1933,8 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         configuration.core.defaults.models[0].shown = Some(b"Scripted model".as_slice().into());
         let mut bounds = limits();
         // A model edit retains one old version per charter, including the settings charter.
-        bounds.settings.versions += u32::from(from_note);
+        bounds.settings.versions =
+            u32::try_from(configuration.core.defaults.charters.len()).expect("one old version per charter");
         bounds.notes.body_bytes = 65_536;
         bounds.journal.transcript_bytes = 131_072;
         bounds.loads.bytes = 131_072;

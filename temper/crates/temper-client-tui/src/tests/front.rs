@@ -82,6 +82,7 @@ fn the_front_views_are_their_goldens() {
             ]));
         }
         let mut foot = view::foot::read(&root, &tui, &words, f::NOW);
+        foot.project.clone_from(&part.project);
         foot.closed =
             Some(if *playground { b"Scripted model".as_slice() } else { "Claude Opus 5.5 · high".as_bytes() }.into());
         let mut view = f::view();

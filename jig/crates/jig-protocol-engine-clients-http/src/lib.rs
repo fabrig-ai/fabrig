@@ -238,6 +238,7 @@ impl Mount {
         };
         match message {
             kit::ToTransport::Reply { reply, .. } => {
+                call.reply_owed = false;
                 let (status, body): (u16, Box<[u8]>) = match reply {
                     kit::Reply::Record(body) => (200, body),
                     kit::Reply::NotARecord => (400, Box::new([])),
@@ -253,6 +254,7 @@ impl Mount {
             kit::ToTransport::Streamed { message, .. } => call.stream(env, message),
             kit::ToTransport::StreamEnded { why, .. } => call.end(env, why),
             kit::ToTransport::Public { reply, .. } => {
+                call.reply_owed = false;
                 let (response, body) = public::answered(reply, self.settings.max_age, env.now);
                 call.respond_with(response, body, &env.limits);
             }
