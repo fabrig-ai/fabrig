@@ -93,13 +93,26 @@ pub(super) fn asking_me() -> Me {
     me
 }
 
+pub(super) fn drafting_me() -> Me {
+    let mut me = fixtures::chats::me();
+    let project = me.projects.get_mut(0).expect("project");
+    let stock = project.templates.get(0).expect("stock chat").clone();
+    let mut drafting = stock.clone();
+    drafting.number = 6;
+    drafting.executor = TemplateExecutor::Charter(12);
+    project.templates = List::from_boxed(Box::new([stock, drafting]));
+    project.creating.as_mut().expect("creating").within.charters = List::from_boxed(Box::new([1, 12]));
+    me
+}
+
 #[test]
 fn ask_and_new_chat_start_their_template_and_open_the_chat() {
     use crate::{Address, pages::Act};
-    for (me, charter, address) in [
-        (asking_me(), ASKING, Address::Ask { project: fixtures::PROJECT }),
-        (asking_me(), ASKING, Address::Home { project: fixtures::PROJECT }),
-        (asking_me(), 1, Address::NewChat { draft: false }),
+    for (me, charter, address, words) in [
+        (asking_me(), ASKING, Address::Ask { project: fixtures::PROJECT }, b"My workflow".as_slice()),
+        (asking_me(), ASKING, Address::Home { project: fixtures::PROJECT }, b"My workflow"),
+        (asking_me(), 1, Address::NewChat { draft: false }, b"My workflow"),
+        (drafting_me(), 12, Address::NewChat { draft: true }, b"My workflow\n\nWrite this up as a draft beside us."),
     ] {
         let mut page = Page::new(me, address);
         page.words(b"My workflow");
@@ -108,7 +121,7 @@ fn ask_and_new_chat_start_their_template_and_open_the_chat() {
         }
         let task = page.task();
         assert_eq!(task.executor, Executor::Agent { charter });
-        assert_eq!(task.spec.words.bytes(), b"My workflow");
+        assert_eq!(task.spec.words.bytes(), words);
         assert!(task.symbols.is_empty(), "asking names no repository");
         let chats = page.pages.chats().expect("asking chats");
         assert_eq!(chats.words.as_ref(), b"My workflow");
@@ -941,13 +954,16 @@ fn the_first_message_carries_the_words() {
 }
 #[test]
 fn the_chat_opens_in_split() {
-    let mut page = Page::new(fixtures::chats::me(), crate::Address::NewChat { draft: true });
-    page.words(b"Draft");
-    page.act(crate::pages::Act::StartChat);
-    start_answer(&mut page);
-    let chat = page.pages.chat().unwrap();
-    assert_eq!(chat.mode, crate::pages::chat::document::Mode::Split);
-    assert!(chat.writing);
+    for (me, charter) in [(fixtures::chats::me(), 1), (drafting_me(), 12)] {
+        let mut page = Page::new(me, crate::Address::NewChat { draft: true });
+        page.words(b"Draft");
+        page.act(crate::pages::Act::StartChat);
+        assert_eq!(page.task().executor, Executor::Agent { charter });
+        start_answer(&mut page);
+        let chat = page.pages.chat().unwrap();
+        assert_eq!(chat.mode, crate::pages::chat::document::Mode::Split);
+        assert!(chat.writing);
+    }
 }
 #[test]
 fn a_new_chat_with_no_draft_opens_in_chat() {

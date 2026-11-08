@@ -1501,17 +1501,47 @@ fn a_chat_with_only_work_notes_has_no_document() {
 #[test]
 fn mode_and_show_section_are_page_state() {
     use crate::pages::chat::document::Mode;
-    let mut f = f::opened();
-    let mut serial = SERIAL;
-    assert_eq!(f.chat.mode, Mode::Chat);
-    for (act, mode, shown, count) in [
-        (Act::ShowSection { line: 31 }, Mode::Split, Some(31), 1),
-        (Act::Mode { mode: Mode::Draft }, Mode::Draft, Some(31), 1),
-        (Act::ShowSection { line: 7 }, Mode::Draft, Some(7), 2),
-        (Act::Mode { mode: Mode::Chat }, Mode::Chat, Some(7), 2),
+    for (me, charter, picked, opening) in [
+        (fixtures::chats::me(), 1, None, Mode::Chat),
+        (super::chats::drafting_me(), 12, None, Mode::Split),
+        (super::chats::drafting_me(), 1, None, Mode::Chat),
+        (super::chats::drafting_me(), 12, Some(Mode::Chat), Mode::Chat),
     ] {
-        f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, act, &mut serial, &mut f.out);
-        assert_eq!((f.chat.mode, f.chat.shown, f.chat.shown_count), (mode, shown, count));
+        let mut f = f::opened();
+        let mut serial = SERIAL;
+        let env = fixtures::env(&fixtures::limits());
+        let forge = crate::forge::Side::new(&env.limits.forge, fixtures::SEED);
+        let mut task = f::task();
+        task.chip.executor = c::ChipExecutor::Agent { charter };
+        f::deliver(&mut f.client, f.watch, task.clone());
+        if let Some(mode) = picked {
+            f.chat.act(&env, &f.client, Act::Mode { mode }, &mut serial, &mut f.out);
+        }
+        f.chat.goal_watch(&f.client, &forge, &mut f.out);
+        for event in [
+            Event::Watch { handle: crate::pages::me_handle(), subject: Watchable::Jig(c::Subject::Me) },
+            Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: f.me,
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                },
+            },
+        ] {
+            f.client.step_unlinked(Time::ZERO, skein_lib::Wall::EPOCH, event, &mut Queue::uncapped());
+        }
+        f.chat.goal_watch(&f.client, &forge, &mut f.out);
+        assert_eq!(f.chat.mode, opening, "charter {charter}, picked {picked:?}");
+        for (act, mode, shown, count) in [
+            (Act::ShowSection { line: 31 }, Mode::Split, Some(31), 1),
+            (Act::Mode { mode: Mode::Draft }, Mode::Draft, Some(31), 1),
+            (Act::ShowSection { line: 7 }, Mode::Draft, Some(7), 2),
+            (Act::Mode { mode: Mode::Chat }, Mode::Chat, Some(7), 2),
+        ] {
+            f.chat.act(&env, &f.client, act, &mut serial, &mut f.out);
+            f::deliver(&mut f.client, f.watch, task.clone());
+            f.chat.goal_watch(&f.client, &forge, &mut f.out);
+            assert_eq!((f.chat.mode, f.chat.shown, f.chat.shown_count), (mode, shown, count));
+        }
     }
 }
 
