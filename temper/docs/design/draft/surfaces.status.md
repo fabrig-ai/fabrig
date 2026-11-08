@@ -59,9 +59,25 @@
     no rule by path or follow; no state of Home across projects, Needs
     you's list, Team or the phone's tabs is held, and no journey records
     the rail, Work or Deployment as drawn here.
+- **Design departs:**
+  - 11.1, 13 and 15: `../client/README.md`, 6.14, *Where you left off*,
+    ends each chat's row with "/chats N", N its place, which `/chats N`
+    opens, where the mockups draw "/chats" once, on the first row, and
+    number no row. Decided by the cut of `tui-whole-t1`, from 15's
+    default, a list numbered as the launchpad numbers it; the mockups
+    win (13), so a look request or T2 draws the rows as they do.
+  - 11.1 and 13: `../client/README.md`, 6.14, draws a need's row as
+    Home's line alone (*Needs you*), with no asker or age, where the Pair
+    mockup (`../client/tui/whole-story/pair/launchpad.html`) has "asked
+    by the change 20 min ago"; and a left-off row's time today as the
+    view's clock, "18:40", where it has "today 18:40". Decided by the cut
+    of `tui-whole-t1`, whose list of the launchpad's departures from its
+    mockups names neither. The code also lacks the blank row under the
+    header that the mockups and the design draw
+    (`../client/README.status.md`, 6.14).
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
-    design takes the default, `/chats N` (`../client/README.md`, 6.14).
+    design takes `/chats N` (above).
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
   - 7 and 15: Repositories at How work runs' foot, or in Deployment.
   - 2 and 15: `Chats` kept at its address, or folded away.
