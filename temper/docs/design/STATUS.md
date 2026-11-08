@@ -16,6 +16,9 @@ with joint-world approval and refusal stories (`client/README.md`, 7.1).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
+The recorder takes Alt+m and Alt+s beside the Shift forms; without a
+recording, both forms reach the host. The user's manual terminal check
+remains later work (`client/tui/journeys.md`, 3.1 and 11).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 11; `client/browser.md`, section 5).
 Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
