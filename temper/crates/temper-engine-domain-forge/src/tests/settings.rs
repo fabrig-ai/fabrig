@@ -90,6 +90,36 @@ fn judge_accepts_rules_within_their_bounds() {
     let base = bounded_item();
     let rows = [
         ("deployment first", base.clone(), Ok(())),
+        (
+            "project branch exact",
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(rule(
+                    GatePattern {
+                        segments: Box::new([Box::from(b"branch".as_slice())]),
+                        last: GateLast::Exact(b"main".as_slice().into()),
+                    },
+                    BOTH,
+                ))
+            },
+            Ok(()),
+        ),
+        (
+            "project branch open",
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(rule(
+                    GatePattern {
+                        segments: Box::new([Box::from(b"branch".as_slice())]),
+                        last: GateLast::Open(Box::new([])),
+                    },
+                    BOTH,
+                ))
+            },
+            Ok(()),
+        ),
         ("deployment last", Item { number: BOUNDS.landing_rules, ..base.clone() }, Ok(())),
         ("project first", Item { kind: Kind::ProjectRules.number(), scope: PROJECT, ..base.clone() }, Ok(())),
         (
@@ -132,6 +162,28 @@ fn judge_refuses_each_fault_by_name() {
     extra_segments.push(Box::from(b"extra".as_slice())).expect("one past bound fits fixture");
     let rows = [
         ("kind 4", Item { kind: 4, ..base.clone() }, Err(Refusal::Kind)),
+        (
+            "deployment branch exact",
+            with_rule(rule(
+                GatePattern {
+                    segments: Box::new([Box::from(b"branch".as_slice())]),
+                    last: GateLast::Exact(b"main".as_slice().into()),
+                },
+                BOTH,
+            )),
+            Err(Refusal::Pattern),
+        ),
+        (
+            "deployment branch open",
+            with_rule(rule(
+                GatePattern {
+                    segments: Box::new([Box::from(b"branch".as_slice())]),
+                    last: GateLast::Open(Box::new([])),
+                },
+                BOTH,
+            )),
+            Err(Refusal::Pattern),
+        ),
         ("deployment scope", Item { scope: 2, ..base.clone() }, Err(Refusal::Scope)),
         ("project scope", Item { kind: 2, ..base.clone() }, Err(Refusal::Scope)),
         ("number zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),

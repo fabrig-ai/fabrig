@@ -58,7 +58,11 @@ impl Domain {
     ) {
         let before = core::mem::replace(
             &mut self.held_rules,
-            settings::HeldRules { deployment: Box::new([]), projects: Map::with_capacity(env.limits.judge_projects) },
+            settings::HeldRules {
+                deployment: Box::new([]),
+                every_project: Box::new([]),
+                projects: Map::with_capacity(env.limits.judge_projects),
+            },
         );
         for item in items {
             self.keep_setting(revision, proposal, item, out);
@@ -67,16 +71,13 @@ impl Domain {
             self.drop_proposal_settings(proposal, out);
         }
         self.rebuild_settings();
-        let deployment_changed = before.deployment != self.held_rules.deployment;
         let mut wake = List::with_capacity(self.changes.capacity());
         for (task, row) in &self.changes {
             if row.terminal() {
                 continue;
             }
             let Some(repository) = self.repositories.get(&row.repository) else { continue };
-            if deployment_changed
-                || before.projects.get(&repository.project) != self.held_rules.projects.get(&repository.project)
-            {
+            if held_for_project(&before, repository.project) != self.landing_rules(repository.project) {
                 wake.push(*task).expect("one wake per live change");
             }
         }
@@ -206,6 +207,9 @@ impl Domain {
     pub fn give_settings_defaults(&mut self, stock: Box<[settings::Stock]>) -> Box<[settings::DefaultState]> {
         let mut states = List::uncapped();
         for item in &stock {
+            if item.kind == 2 && item.scope == 0 {
+                continue;
+            }
             let key =
                 SettingKey { kind: item.kind, scope: item.scope, number: item.number, slot: SettingSlot::Default };
             let (size, charter) = value_state(Some(&item.value));
@@ -306,13 +310,12 @@ impl Domain {
         self.held_charters
     }
 
+    /// Every rule a merge into a repository of `project` meets: the deployment's,
+    /// then the project's by number, its rule N the every-project rule N while
+    /// the project has no value of its own set (temper/docs/design/protocol/configuration.md, 13.4).
     #[must_use]
-    pub fn landing_rules(&self, project: u32) -> (&[settings::Held], &[settings::Held]) {
-        let project = match self.held_rules.projects.get(&project) {
-            Some(rules) => rules.as_ref(),
-            None => &[],
-        };
-        (&self.held_rules.deployment, project)
+    pub fn landing_rules(&self, project: u32) -> Box<[settings::Held]> {
+        held_for_project(&self.held_rules, project)
     }
 
     #[must_use]
@@ -320,7 +323,7 @@ impl Domain {
         let key = SettingKey { kind, scope, number, slot: SettingSlot::Change };
         match self.setting_rows.get(&key) {
             Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Remove | Edit::Reset) => None,
+            Some(Edit::Remove | Edit::Reset) => self.every_project_default(kind, scope, number),
             None => self.setting_default(kind, scope, number),
         }
     }
@@ -370,6 +373,17 @@ impl Domain {
     }
 
     fn setting_default(&self, kind: u32, scope: u32, number: u32) -> Option<&settings::SizedValue> {
+        match self.scope_default(kind, scope, number) {
+            Some(value) => Some(value),
+            None => self.every_project_default(kind, scope, number),
+        }
+    }
+
+    fn every_project_default(&self, kind: u32, scope: u32, number: u32) -> Option<&settings::SizedValue> {
+        if kind == 2 && scope != 0 { self.scope_default(2, 0, number) } else { None }
+    }
+
+    fn scope_default(&self, kind: u32, scope: u32, number: u32) -> Option<&settings::SizedValue> {
         match &self.setting_stock {
             Some(stock) => {
                 for item in stock {
@@ -416,6 +430,7 @@ impl Domain {
             }
         }
         let mut deployment = List::uncapped();
+        let mut every_project = List::uncapped();
         let mut projects = Map::<u32, List<settings::Held>>::with_capacity(self.held_rules.projects.capacity());
         for ((kind, scope, number), ()) in &keys {
             let Some(value) = self.setting(*kind, *scope, *number) else { continue };
@@ -423,6 +438,7 @@ impl Domain {
                 let held = settings::Held { scope: *scope, number: *number, rule: rule.clone() };
                 match *kind {
                     1 => deployment.push(held).expect("bounded deployment rules"),
+                    2 if *scope == 0 => every_project.push(held).expect("bounded given rules"),
                     2 => {
                         if !projects.contains_key(scope) {
                             projects.insert(*scope, List::uncapped()).expect("project rules checked by jig fit");
@@ -434,6 +450,7 @@ impl Domain {
             }
         }
         self.held_rules.deployment = deployment.into_boxed();
+        self.held_rules.every_project = every_project.into_boxed();
         self.held_rules.projects = Map::with_capacity(projects.capacity());
         for _ in 0..projects.len() {
             let project = *projects.first().expect("counted project").0;
@@ -449,6 +466,33 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_), .. }) | None => 0,
         }
     }
+}
+
+fn held_for_project(held: &settings::HeldRules, project: u32) -> Box<[settings::Held]> {
+    let mut result = List::uncapped();
+    for rule in &held.deployment {
+        result.push(rule.clone()).expect("bounded deployment rules");
+    }
+    let own_len = match held.projects.get(&project) {
+        Some(rules) => rules.len(),
+        None => 0,
+    };
+    let count = held.every_project.len().checked_add(own_len).expect("bounded held rules");
+    let mut rules = Map::with_capacity(u32::try_from(count).expect("bounded held rules"));
+    if project != 0 {
+        for rule in &held.every_project {
+            rules.insert(rule.number, settings::Held { scope: project, ..rule.clone() }).expect("bounded given rules");
+        }
+        if let Some(own) = held.projects.get(&project) {
+            for rule in own {
+                rules.insert(rule.number, rule.clone()).expect("bounded project rules");
+            }
+        }
+    }
+    for (_, rule) in &rules {
+        result.push(rule.clone()).expect("bounded held rules");
+    }
+    result.into_boxed()
 }
 
 fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
