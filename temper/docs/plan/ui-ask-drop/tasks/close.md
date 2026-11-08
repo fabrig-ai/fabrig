@@ -77,3 +77,20 @@ Deleted by their own tasks, checked here: `protocol/configuration.status.md`'s t
 
 Each entry deleted or left (and why); the lines changed in `STATUS.md` and the
 execution file; the citations check's result.
+
+## Rebase (2026-11-08, step merge, foreman ui-ask-drop/close/foreman-1)
+
+reconcile the six merge conflicts while preserving the configuring-chat removal and main’s landed journey and recorder updates.
+The merge failed on content conflicts, not a test or infrastructure failure.
+In `temper/docs/design/STATUS.md`, retain close’s removal statements and main’s Ask temper placement, sign-in-tab, redaction and recorder-key updates.
+Main’s relevant commits are `16893e054a` (look-round retirement) and `8a91d0b749` (recorder-key retirement).
+In `temper/docs/design/client/journeys.status.md`, preserve main’s placement and sign-in-tab facts and its welcome-playground redaction correction.
+Keep the remaining chat-draft stock-removal gap unless inspection of the resulting recording proves it resolved; offering Ask temper does not prove template 3 and charter 3 are absent.
+Main regenerated chat-draft in `6eafc361d3`; the journeys task’s answer explicitly permits leaving its stock-removal renewal until after landing.
+In `temper/docs/design/client/tui/journeys.status.md`, preserve main’s Alt+m/Alt+s coverage and manual-terminal-check caveat; keep the branch’s deletion of the completed template-3 gap and remove “but the one below.”
+For `temper/docs/design/client/journeys/project-landing/{01.html,recording}` and `temper/docs/design/client/journeys/welcome-playground/recording`, retain coherent recording/print sets from branch commit `6075e6c6e4`.
+Those recordings were generated after stock removal and already show Ask temper; main independently regenerated them in `1f505044d3` and `263e3f1309`.
+Do not splice recording events or mix a recording with another generation’s prints.
+Run the focused `temper-client-journeys` test `tests::the_committed_journeys_are_their_print` through heavy.
+If combined code makes a recording stale, regenerate it with `temper-client-journeys again NAME`, report the generated changes, and rerun focused replay.
+Preserve the auto-merged M1 execution update and run `python3 -I -B tools/citations/citations.py --base origin/main`.
