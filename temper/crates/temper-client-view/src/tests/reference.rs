@@ -78,7 +78,7 @@ fn pane(tree: &Tree) -> &Node {
 }
 
 #[test]
-fn closed_reference_keeps_the_plain_configuring_layout() {
+fn closed_reference_keeps_the_plain_asking_layout() {
     let root = root();
     for view in [view(&root, Shell::Terminal), view(&root, Shell::Browser)] {
         let tree = view.tree();

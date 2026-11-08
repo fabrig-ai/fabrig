@@ -22,15 +22,15 @@ pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
         None => false,
     }
 }
-/// Whether a chat offers "+ Draft": a configuring chat whatever its project's settings
+/// Whether a chat offers "+ Draft": an Ask temper chat whatever its project's settings
 /// say, another while they offer drafts (client/README.md, 3.5).
 #[must_use]
 pub fn chat_offers_draft(root: &crate::Domain, task: &jig_client::contract::Task) -> bool {
-    let configuring = match root.pages.me(&root.client) {
+    let asking = match root.pages.me(&root.client) {
         Some(me) => chats::asking(me, task.project, &task.chip.executor),
         None => false,
     };
-    configuring || drafts_offered(root, task.project)
+    asking || drafts_offered(root, task.project)
 }
 pub mod chats;
 pub mod choice;
@@ -182,11 +182,11 @@ pub enum Act {
         words: Box<[u8]>,
     },
     StartChat,
-    /// A starter of Configure (temper/docs/design/client/README.md, 3.5).
+    /// A starter of Ask temper (temper/docs/design/client/README.md, 3.5).
     Starter {
         words: Box<[u8]>,
     },
-    /// "See how it works": the stock reference beside Configure (client/README.md, 3.5).
+    /// "See how it works": the stock reference beside Ask temper (client/README.md, 3.5).
     ShowReference,
     Suggest {
         cue: u8,
@@ -228,7 +228,7 @@ pub enum Act {
     Stop,
     /// Close the page's task: a chat's close, or a task page's cancel (client/README.md, 5.11).
     Close,
-    /// Close this configuring chat and return to a fresh Configure (client/README.md, 3.5).
+    /// Close this Ask temper chat and return to a fresh Ask temper page (client/README.md, 3.5).
     StartOver,
     DelegateFate {
         task: u64,

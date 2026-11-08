@@ -514,7 +514,7 @@ pub(super) fn root_at_with_values(
     }
     let mut frame = fixture_me(project_name);
     if asking_page.is_some() {
-        frame = configuring_me(frame);
+        frame = asking_me(frame);
     }
     if forge_rows_answered {
         frame.deployment_role = Some(c::HeldRole::Owner);
@@ -1308,7 +1308,7 @@ pub mod chat {
     pub fn proposal_in_layout(
         activity: Option<c::ActivityPage>,
         document: Option<c::ReadValue>,
-        configuring: bool,
+        asking: bool,
         delegate: bool,
     ) -> temper_client_domain::Domain {
         use temper_client_domain::Event;
@@ -1325,9 +1325,9 @@ pub mod chat {
         );
         let mut task = fixtures::task::document();
         task.chip.task = TASK;
-        if configuring {
+        if asking {
             let source = messaging_root();
-            let me = fixtures::configuring_me(source.pages().me(source.client()).expect("me").clone());
+            let me = fixtures::asking_me(source.pages().me(source.client()).expect("me").clone());
             fixtures::deliver_me(&mut root, me_watch, me);
             task.chip.executor = c::ChipExecutor::Agent { charter: 37 };
             task.project = fixtures::PROJECT;
@@ -1580,7 +1580,7 @@ pub fn playground_frame_with_watch(
         None => template.pages().me(template.client()).expect("chat template").clone(),
     };
     if let temper_client_domain::Address::Ask { .. } = address {
-        me = configuring_me(me);
+        me = asking_me(me);
     }
     if me.providers.is_empty() {
         me.providers = List::with_capacity(1);
@@ -2130,7 +2130,7 @@ pub fn deliver_me(root: &mut temper_client_domain::Domain, watch: Token, me: c::
 }
 
 /// Template 5's charter deliberately differs from its number and its name is editable.
-pub fn configuring_me(mut me: c::Me) -> c::Me {
+pub fn asking_me(mut me: c::Me) -> c::Me {
     let project = me.projects.get_mut(0).expect("project");
     let stock = match project.templates.get(0) {
         Some(stock) => stock.clone(),
@@ -2139,17 +2139,17 @@ pub fn configuring_me(mut me: c::Me) -> c::Me {
             source.pages().me(source.client()).unwrap().projects.get(0).unwrap().templates.get(0).unwrap().clone()
         }
     };
-    let mut configuring = stock.clone();
-    configuring.number = 5;
-    configuring.name = c::DocumentText::complete(first_run::text(b"A renamed role"));
-    configuring.executor = c::TemplateExecutor::Charter(37);
-    let mut former = stock.clone();
-    former.number = 3;
-    former.executor = c::TemplateExecutor::Charter(3);
+    let mut asking = stock.clone();
+    asking.number = 5;
+    asking.name = c::DocumentText::complete(first_run::text(b"A renamed role"));
+    asking.executor = c::TemplateExecutor::Charter(37);
+    let mut custom = stock.clone();
+    custom.number = 7;
+    custom.executor = c::TemplateExecutor::Charter(38);
     project.templates = List::with_capacity(3);
     project.templates.push(stock).expect("stock");
-    project.templates.push(former).expect("former configuring template");
-    project.templates.push(configuring).expect("asking");
+    project.templates.push(custom).expect("custom conversation template");
+    project.templates.push(asking).expect("asking");
     me
 }
 

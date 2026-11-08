@@ -1159,7 +1159,7 @@ fn a_known_empty_project_list_is_required_for_no_project() {
 }
 
 #[test]
-fn configuring_rows_name_the_chip_executor_in_the_top_line_in_both_shells() {
+fn asking_rows_name_the_chip_executor_in_the_top_line_in_both_shells() {
     use crate::look;
     let source = fixtures::chat::messaging_root();
     for listed in [false, true] {
@@ -1169,7 +1169,7 @@ fn configuring_rows_name_the_chip_executor_in_the_top_line_in_both_shells() {
         );
         let mut me = source.pages().me(source.client()).expect("me").clone();
         if listed {
-            me = fixtures::configuring_me(me);
+            me = fixtures::asking_me(me);
         }
         fixtures::deliver_me(&mut root, me_watch, me);
         for (executor, tagged) in [
@@ -1244,7 +1244,7 @@ struct DraftsPage {
 }
 impl DraftsPage {
     #[expect(clippy::too_many_lines, reason = "the fixture answers Chats through the public client events")]
-    fn new(offered: bool, configuring: bool, linked: bool) -> Self {
+    fn new(offered: bool, asking: bool, linked: bool) -> Self {
         use jig_client::{Down, Readable, Up, Watchable};
         use temper_client_domain::{Address, Event};
         use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -1252,8 +1252,8 @@ impl DraftsPage {
         let env = Env { now: Time::ZERO, wall: fixtures::NOW, limits };
         let source = fixtures::chat::messaging_root();
         let mut me = source.pages().me(source.client()).unwrap().clone();
-        if configuring {
-            me = fixtures::configuring_me(me);
+        if asking {
+            me = fixtures::asking_me(me);
         }
         let mut page = Self {
             root: temper_client_domain::unlinked(&limits, fixtures::SEED),
@@ -1292,7 +1292,7 @@ impl DraftsPage {
                     let mut rows = List::with_capacity(2);
                     let mut chat = line();
                     chat.last_activity = Wall::from_nanos(1);
-                    if configuring {
+                    if asking {
                         chat.chip.executor = ChipExecutor::Agent { charter: 37 };
                     }
                     rows.push(chat).unwrap();
@@ -1498,7 +1498,7 @@ fn the_lede_grows_with_the_offer() {
     }
 }
 #[test]
-fn a_configuring_chat_keeps_its_tag() {
+fn an_asking_chat_keeps_its_tag() {
     let page = DraftsPage::new(true, true, false);
     for view in [fixtures::page_view(&page.root), fixtures::browser_page_view(&page.root)] {
         let mut found = false;

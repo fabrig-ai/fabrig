@@ -8,8 +8,8 @@ const OUTPUTS: u32 = 16;
 const CURSOR_BYTES: u32 = 8;
 const SERIAL: u64 = 13;
 const PRESSES: u32 = 2;
-const CONFIGURING: u32 = 5;
-// The stock chat, engine configuring chat and Ask have separate templates and charters.
+const ASKING: u32 = 5;
+// The stock chat, custom conversation and Ask temper have separate templates and charters.
 const TEMPLATES: u32 = 3;
 // The model tests offer one selectable alternative to the template's models.
 const MODELS: u32 = 1;
@@ -71,34 +71,34 @@ impl Page {
     }
 }
 
-fn configuring_me() -> Me {
+fn asking_me() -> Me {
     let mut me = fixtures::chats::me();
     let project = me.projects.get_mut(0).expect("project");
     let stock = project.templates.get(0).expect("stock chat").clone();
-    let mut configuring = stock.clone();
-    configuring.number = CONFIGURING;
-    configuring.executor = TemplateExecutor::Charter(CONFIGURING);
+    let mut asking = stock.clone();
+    asking.number = ASKING;
+    asking.executor = TemplateExecutor::Charter(ASKING);
     project.templates = List::with_capacity(TEMPLATES);
-    let mut former = stock.clone();
-    former.number = 3;
-    former.executor = TemplateExecutor::Charter(3);
+    let mut custom = stock.clone();
+    custom.number = 7;
+    custom.executor = TemplateExecutor::Charter(38);
     project.templates.push(stock).unwrap();
-    project.templates.push(former).unwrap();
-    project.templates.push(configuring).unwrap();
+    project.templates.push(custom).unwrap();
+    project.templates.push(asking).unwrap();
     let charters = &mut project.creating.as_mut().expect("creating").within.charters;
     *charters = List::with_capacity(TEMPLATES);
     charters.push(1).unwrap();
-    charters.push(3).unwrap();
-    charters.push(CONFIGURING).unwrap();
+    charters.push(38).unwrap();
+    charters.push(ASKING).unwrap();
     me
 }
 
 #[test]
-fn configure_and_new_chat_start_their_template_and_open_the_chat() {
+fn ask_and_new_chat_start_their_template_and_open_the_chat() {
     use crate::{Address, pages::Act};
     for (me, charter, address) in [
-        (configuring_me(), CONFIGURING, Address::Ask { project: fixtures::PROJECT }),
-        (configuring_me(), 1, Address::NewChat { draft: false }),
+        (asking_me(), ASKING, Address::Ask { project: fixtures::PROJECT }),
+        (asking_me(), 1, Address::NewChat { draft: false }),
     ] {
         let mut page = Page::new(me, address);
         page.words(b"My workflow");
@@ -108,8 +108,8 @@ fn configure_and_new_chat_start_their_template_and_open_the_chat() {
         let task = page.task();
         assert_eq!(task.executor, Executor::Agent { charter });
         assert_eq!(task.spec.words.bytes(), b"My workflow");
-        assert!(task.symbols.is_empty(), "configuring names no repository");
-        let chats = page.pages.chats().expect("configure chats");
+        assert!(task.symbols.is_empty(), "asking names no repository");
+        let chats = page.pages.chats().expect("asking chats");
         assert_eq!(chats.words.as_ref(), b"My workflow");
         let key = chats.start.expect("pending start");
         assert_eq!(key.asker, crate::owner::Owner::Pages.asker());
@@ -164,7 +164,7 @@ fn a_chat_started_by_sending_opens_asking_for_its_composer() {
         (Address::Ask { project: fixtures::PROJECT }, Some(Act::Starter { words: b"Hello".as_slice().into() })),
         (Address::NewChat { draft: false }, None),
     ] {
-        let mut page = Page::new(configuring_me(), address.clone());
+        let mut page = Page::new(asking_me(), address.clone());
         if let Some(act) = act {
             page.words(b"Hello");
             page.act(act);
@@ -180,9 +180,9 @@ fn a_chat_started_by_sending_opens_asking_for_its_composer() {
 fn a_chat_opened_otherwise_asks_for_nothing() {
     use crate::{Address, pages::Act};
     let address = Address::Chat { task: fixtures::acts::TASK };
-    let direct = Page::new(configuring_me(), address.clone());
+    let direct = Page::new(asking_me(), address.clone());
     assert_eq!(direct.pages.chat().expect("chat").composer_focus, 0);
-    let mut page = Page::new(configuring_me(), Address::NewChat { draft: false });
+    let mut page = Page::new(asking_me(), Address::NewChat { draft: false });
     page.words(b"Hello");
     page.act(Act::StartChat);
     answer_start(&mut page);
@@ -194,8 +194,8 @@ fn a_chat_opened_otherwise_asks_for_nothing() {
 #[test]
 fn a_starter_starts_once_with_its_words() {
     use crate::{Address, pages::Act};
-    let me = configuring_me();
-    let charter = CONFIGURING;
+    let me = asking_me();
+    let charter = ASKING;
     let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
     page.words(b"Unsent draft");
     page.act(Act::Starter { words: b"My starter".as_slice().into() });
@@ -209,14 +209,14 @@ fn a_starter_starts_once_with_its_words() {
 }
 
 #[test]
-fn starters_outside_configure_do_nothing() {
+fn starters_outside_ask_do_nothing() {
     use crate::{Address, pages::Act};
     for address in [
         Address::Home { project: fixtures::PROJECT },
         Address::Chats { filter: ChatsFilter::All },
         Address::Settings { project: fixtures::PROJECT },
     ] {
-        let mut page = Page::new(configuring_me(), address);
+        let mut page = Page::new(asking_me(), address);
         page.words(b"Unsent draft");
         page.act(Act::Starter { words: b"My starter".as_slice().into() });
         assert!(page.out.is_empty());
@@ -231,7 +231,7 @@ fn starters_outside_configure_do_nothing() {
 fn a_refused_start_keeps_the_words() {
     use crate::{Address, pages::Act};
     for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
-        let mut me = configuring_me();
+        let mut me = asking_me();
         me.projects.get_mut(0).expect("project").creating = None;
         let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
         page.words(b"My workflow");
@@ -242,7 +242,7 @@ fn a_refused_start_keeps_the_words() {
         assert!(chats.start.is_none());
         assert!(page.out.is_empty());
 
-        let mut page = Page::new(configuring_me(), Address::Ask { project: fixtures::PROJECT });
+        let mut page = Page::new(asking_me(), Address::Ask { project: fixtures::PROJECT });
         page.words(b"My workflow");
         page.act(act);
         let key = page.pages.chats().expect("chats").start.expect("start");
@@ -270,12 +270,12 @@ fn llm(model: &[u8]) -> LlmChoice {
 }
 
 #[test]
-fn a_start_from_configure_keeps_its_templates_models() {
+fn a_start_from_ask_keeps_its_templates_models() {
     use crate::{Address, pages::Act};
-    let mut me = configuring_me();
-    let expected = llm(b"configuring");
+    let mut me = asking_me();
+    let expected = llm(b"asking");
     for row in me.projects.get_mut(0).expect("project").templates.iter_mut() {
-        row.llm = Some(llm(if row.number == CONFIGURING { b"configuring" } else { b"stock" }));
+        row.llm = Some(llm(if row.number == ASKING { b"asking" } else { b"stock" }));
     }
     let mut models = List::with_capacity(MODELS);
     models
@@ -436,13 +436,13 @@ fn starting_a_chat_waits_for_the_first_words() {
 fn a_started_chat_opens_its_conversation_activity() {}
 
 #[test]
-fn suggestions_and_configuring_chats_keep_the_cue_bound_when_receiving_grows() {
+fn suggestions_and_asking_chats_keep_the_cue_bound_when_receiving_grows() {
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
     limits.client.domain.long_text = 2048;
     limits.client.domain.turn_text = 2048;
     let bound = usize::try_from(temper_client_protocol_wire::CUE_BYTES).unwrap();
-    let me = configuring_me();
+    let me = asking_me();
     for suggested in [false, true] {
         for length in [bound, bound + 1] {
             let mut words = skein_lib::bytes::zeroed(length);
@@ -480,7 +480,7 @@ fn suggestions_and_configuring_chats_keep_the_cue_bound_when_receiving_grows() {
                     [if suggested {
                         jig_client::shapes::chat(&me, fixtures::PROJECT, words).unwrap()
                     } else {
-                        jig_client::shapes::chat_from(&me, fixtures::PROJECT, CONFIGURING, words).unwrap()
+                        jig_client::shapes::chat_from(&me, fixtures::PROJECT, ASKING, words).unwrap()
                     }]
                 );
             }
@@ -868,7 +868,7 @@ fn settings_selects_the_newest_open_asking_chat() {
     const OTHER_PROJECT: u32 = 91;
     const NEWER: u64 = 42;
     let mut open = chat_line();
-    open.chip.executor = ChipExecutor::Agent { charter: CONFIGURING };
+    open.chip.executor = ChipExecutor::Agent { charter: ASKING };
     let mut newer = open.clone();
     newer.chip.task = NEWER;
     // Activity ordering is independent of the task number's creation ordering.
@@ -876,8 +876,8 @@ fn settings_selects_the_newest_open_asking_chat() {
     open.last_activity = skein_lib::Wall::from_nanos(1);
     let mut ordinary = open.clone();
     ordinary.chip.executor = ChipExecutor::Agent { charter: 1 };
-    let mut former = open.clone();
-    former.chip.executor = ChipExecutor::Agent { charter: 3 };
+    let mut custom = open.clone();
+    custom.chip.executor = ChipExecutor::Agent { charter: 38 };
     let mut other = newer.clone();
     other.project = OTHER_PROJECT;
     let mut closed = newer.clone();
@@ -895,15 +895,15 @@ fn settings_selects_the_newest_open_asking_chat() {
         mixed.push(row.clone()).expect("ten candidates");
     }
     for (me, lines, expected) in [
-        (configuring_me(), [].as_slice(), None),
-        (configuring_me(), core::slice::from_ref(&ordinary), None),
-        (configuring_me(), core::slice::from_ref(&former), None),
-        (configuring_me(), core::slice::from_ref(&other), None),
-        (configuring_me(), ended_rows.as_slice(), None),
-        (configuring_me(), core::slice::from_ref(&open), Some(open.chip.task)),
-        (configuring_me(), [newer.clone(), open.clone()].as_slice(), Some(NEWER)),
-        (configuring_me(), [open.clone(), newer.clone()].as_slice(), Some(NEWER)),
-        (configuring_me(), mixed.as_slice(), Some(NEWER)),
+        (asking_me(), [].as_slice(), None),
+        (asking_me(), core::slice::from_ref(&ordinary), None),
+        (asking_me(), core::slice::from_ref(&custom), None),
+        (asking_me(), core::slice::from_ref(&other), None),
+        (asking_me(), ended_rows.as_slice(), None),
+        (asking_me(), core::slice::from_ref(&open), Some(open.chip.task)),
+        (asking_me(), [newer.clone(), open.clone()].as_slice(), Some(NEWER)),
+        (asking_me(), [open.clone(), newer.clone()].as_slice(), Some(NEWER)),
+        (asking_me(), mixed.as_slice(), Some(NEWER)),
         (fixtures::chats::me(), core::slice::from_ref(&newer), None),
     ] {
         for (from_watch, rail) in [(true, false), (false, false), (true, true)] {
@@ -1256,7 +1256,7 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary test snapshots page state apart from its render counter")]
-fn reference_opens_only_at_configure_without_a_request() {
+fn reference_opens_only_at_ask_without_a_request() {
     use crate::{
         Address,
         pages::{Act, chat::document::Mode},
@@ -1268,7 +1268,7 @@ fn reference_opens_only_at_configure_without_a_request() {
         Address::Home { project: fixtures::PROJECT },
         Address::Chat { task: fixtures::acts::TASK },
     ] {
-        let mut page = Page::new(configuring_me(), address.clone());
+        let mut page = Page::new(asking_me(), address.clone());
         let reference = match page.pages.chats() {
             Some(chats) => chats.reference,
             None => None,

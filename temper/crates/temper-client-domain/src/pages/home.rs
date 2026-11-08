@@ -728,11 +728,11 @@ impl Facts {
 #[must_use]
 pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
     let home = if root.pages().address() == &(crate::Address::Home { project }) { root.pages().home() } else { None };
-    let (configuring, chat_asked) = match root.pages().chats() {
+    let (asking, chat_asked) = match root.pages().chats() {
         Some(chats) => chats.chat_counts(root.client(), root.pages().me(root.client()), project),
         None => (false, false),
     };
-    let configured = configuring
+    let configured = asking
         || match home {
             Some(home) => home.configured(root.client()),
             None => false,

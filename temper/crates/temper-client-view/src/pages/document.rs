@@ -89,7 +89,7 @@ pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, 
     b.style(look::DOC_INNER);
     b.open(Role::Paragraph);
     b.style(look::DOC_PATH);
-    if super::chat::configuring(root) {
+    if super::chat::asking(root) {
         proposal_line(b, chat, words, times);
     } else {
         b.text(Run::Plain, &words.say(Word::DraftPath, &[Hole::Name(document::slug(&draft.title))]));
@@ -211,7 +211,7 @@ fn opening(b: &mut Builder, bytes: &[u8]) {
 fn proposal_line(b: &mut Builder, chat: &Chat, words: &Words, times: &mut Times) {
     for card in &chat.cards {
         if let Some(c::ReadValue::Proposal(proposal)) = &card.page {
-            // Every named holder means the configuring proposal waits for its owner.
+            // Every named holder means the Ask temper proposal waits for its owner.
             b.text(Run::Plain, &words.say(Word::DraftWaits, &[Hole::Number(proposal.key.number)]));
             return;
         }
