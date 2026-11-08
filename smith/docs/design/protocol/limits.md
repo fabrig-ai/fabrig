@@ -803,6 +803,7 @@ reserve against the budget.
 | a rendered result past its bound | cut at a character's boundary with an explicit marker saying how many bytes were left out; the request goes (llm.md, section 5) |
 | a sub-agent's answer past `answer_bytes` | kept to it, cut at a character's boundary, with words saying how many bytes were left out and that a new sub-agent, asked narrower, reads them: the child has closed, so nothing continues it (domain/run.md, 5.3) |
 | a call that finds the pool's connections or memory at capacity | it waits, in order of arrival, bounded by `conversations`, within its deadline (llm.md, section 6) |
+| a `sub_agent` call while its run holds `conversations` conversations, or while the agent's tables of conversations or calls are full | refused as too many, or answered busy; no child opens and the parent goes on, however many calls its message asked (domain/run.md, 5.3) |
 | a reasoning item past `reasoning_item` | a typed limit failure, unless the model's declaration drops it (2.1) |
 | a tool call cut off by the output limit | marked by skein; the session keeps a note and an error result in its place (llm.md, section 4) |
 | history that reaches the window's threshold | a compaction, not a failure (domain/session.md, section 8) |
@@ -971,6 +972,9 @@ losslessly by count.
 
 ## 13. Open questions
 
+- **A program-backed burst's panic** (6): diagnosis and the choice of a
+  fix are domain/run.md, section 15's question. Default: keep the declared
+  room and the per-call refusal rules; no speculative increase of a bound.
 - **A cut sub-agent answer's rest** (3.10, 6): retaining it for a
   continuation is domain/run.md, section 15's question. Default: keep
   only the capped answer and tell its asker to ask a new child, narrower;

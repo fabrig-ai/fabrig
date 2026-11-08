@@ -91,6 +91,7 @@ pub(super) fn backend_with_line_bytes(line_bytes: u32) -> Backend {
             max_turns: 8,
             grace: Duration::from_secs(1),
             startup: Duration::from_secs(30),
+            parent: None,
         },
         &Secret::new(Box::new([7; 32])),
     )

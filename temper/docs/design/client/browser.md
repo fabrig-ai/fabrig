@@ -680,11 +680,18 @@ replay says the same clocks (`README.md`, 5.12).
   while `me` offers no Ask temper (the look request `ask-temper-place`),
   the page leaving it room; while To begin shows, three equal tabs, on Home
   and on Ask temper's page, whose chat layout draws no tab bar otherwise,
-  its composer standing over them (`README.md`, 3.5 and 5.3). The link's state
+  its composer and model picker standing wholly over them, the page's foot
+  raised by the tabs' 64 px and the safe area (`README.md`, 3.5 and 5.3). The link's state
   shows at the rail's foot, with its dot, while it is not live. The person's
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
   `temper.css` hides over 760 px, stands at that width alone (`README.md`, 3.5
   and 5.3).
+- **A selector a browser accepts:** no rule of the shell's stylesheets
+  nests `:has()` inside another `:has()`, which Chromium refuses, and the
+  whole rule with it, without a word. What a rule asks of a child's own
+  children it says through the relative selector's combinators, `#app:has(>
+  .temper-tabbar):not(:has(> .temper-tabbar > a:nth-child(4)))`, as
+  `:not(:has())` is accepted.
 - **The page covers the display,** `viewport-fit=cover`, as the greenfield
   mock's does, wherever a page's head is printed: the bundler's page
   (skein's `ui-web.md`, 4.3), the playground's, the setup pages', and the
@@ -1435,7 +1442,10 @@ setup across desktop and phone widths. The twelve test functions in
     without posting again until Continue (4.4).
 11. **The box's project across a reload:** the playground's project
     made, the Chats page Live, never Behind, with the story's chat,
-    before and after a reload (`README.md`, 2).
+    before and after a reload (`README.md`, 2). Before that chat, at
+    420 px, Home's To begin and its Start open Ask temper's page, whose
+    composer and model picker end above the three tabs' top (2.5, *The
+    project's frame*).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
 13. **Reading a public project** (8.4), with no sign-in, its board and task
@@ -1884,7 +1894,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-begin-with-needs` | hand-made Home deliveries: To begin showing, with one question and one chat delivered and neither drawn: no Needs you and no Chats under the card |
 | `home-begin-settings-left` | hand-made Home deliveries: a way of working accepted, the repository alone left; its act stays in Settings; its Ask temper chat delivered and not drawn: no Chats under the card |
 | `night-home` | `home-begin-ask-left` with the night switch pressed: the night look, the switch a sun (the look request `night-mode`'s page 01) |
-| `night-ask` | Ask temper as "Start" opens it on the first run's project, template 5 listed, at night (its page 02) |
+| `night-ask` | `ask-first-run` with the night switch pressed: Ask temper as "Start" opens it on the first run's project, template 5 listed, at night (its page 02) |
 | `night-chat-split` | `chat-draft-split` at night: a chat beside its draft (its page 03) |
 | `goals-solo` | hand-made Goals deliveries: a small project's rows, one in each state, the mock's words where the client holds its facts |
 | `goals-reference` | hand-made Goals deliveries: the reference's rows, a goal of a hundred tasks among them, and its ways in the lede |
@@ -1899,12 +1909,12 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `ask` | the solo world's Ask temper page before its first words: its heading, the form "Ask temper" and its empty text area |
-| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed: "Ways to begin", Send disabled while the words are empty |
+| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home and Ask temper alone, the phone's three tabs; "Ways to begin", Send disabled while the words are empty |
 | `ask-reference` | "See how it works" pressed: the stock reference beside the page, in Split, the rail folded, no chat made |
 | `ask-reference-draft` | `ask-reference` in Draft: the reference alone, the composer under it |
-| `ask-typing` | words entered; Send enabled |
-| `ask-sending` | the Ask temper start out; starters and Send disabled, words kept |
-| `ask-refused` | the start refused; jig's words below the composer, the words kept |
+| `ask-typing` | words entered; Send enabled; the rail and tabs as `ask-first-run`'s |
+| `ask-sending` | the Ask temper start out; starters and Send disabled, words kept; the rail and tabs as `ask-first-run`'s |
+| `ask-refused` | the start refused; jig's words below the composer, the words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-chat` | the solo world’s T10 as an Ask temper chat, conversation and proposal in its layout, its path through Ask temper |
 | `ask-chat-proposal` | `ask-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
 | `ask-chat-proposal-deployment` | that proposal of the deployment's settings: "How temper will run your projects" and "Accept" |

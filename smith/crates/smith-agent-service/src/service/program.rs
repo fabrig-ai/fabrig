@@ -43,6 +43,11 @@ pub struct ProgramBackend {
     pub entropy: Secret,
     /// Effective UID read by the shell before any private root is adopted.
     pub effective_user: u32,
+    /// The agent's own process ID, read by the shell, when each program
+    /// process is to start through the agent's `--program-child` mode and
+    /// die with it (protocol/programs.md, 5.1); `None` where the system
+    /// has no parent-death signal, and in simulated worlds.
+    pub parent: Option<u32>,
 }
 
 /// The shell's programs root cannot be adopted by this service.
@@ -165,6 +170,7 @@ fn settings(
     Some(backend::Settings {
         program: Programs { claude: config.program.claude.clone(), directory: config.program.directory.clone() },
         relay: config.relay.clone(),
+        parent: config.parent,
         directory: None,
         workspace: None,
         path_bytes: limits.domain.session.tools.host_path_bytes,

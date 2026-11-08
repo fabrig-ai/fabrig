@@ -10,6 +10,9 @@ publish.workspace = true
 [dependencies]
 skein-fail-stop.workspace = true
 
+[dev-dependencies]
+skein-lib.workspace = true
+
 [[bin]]
 name = "fail_stop_fixture"
 path = "src/bin/fail_stop_fixture.rs"

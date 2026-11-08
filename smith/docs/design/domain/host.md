@@ -237,7 +237,11 @@ policy.
   typed (not started, exited without answering, broke the rules, said too
   much, no progress, wall time), each with bounded detail for operators,
   such as its error output's tail, never shown to an LLM; and its end,
-  with the exit evidence.
+  with the exit evidence. An agent that panics ends its error output
+  with the panic's `panicked at` line and message, after the backtrace
+  (skein's `shell.md`, section 6), so the tail keeps them when that
+  closing text fits its bound, however long the backtrace before them.
+  A closing text larger than the bound is itself kept as a tail.
 
 ## 5. What a host decides
 

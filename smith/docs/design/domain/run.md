@@ -396,6 +396,18 @@ section 6).
   The brief takes the charter's place in the child's window, so a brief
   larger than a window's host part is answered as too large, and no child
   opens (protocol/limits.md, section 3.9).
+- **The room.** A run holds at most `conversations` conversations at
+  once (protocol/limits.md, 2.2), main among them, so at most
+  `conversations` less one children are open at once. A `sub_agent`
+  call asked while they are open is refused as too many
+  (`refused reason=too-many`), and one asked while the agent's own
+  tables of conversations or calls are full answers busy; either way no
+  child opens and its parent goes on, and a later call may open a child
+  once one has answered. A message may ask more calls than the room
+  holds: the run takes them one at a time, in the order it is asked
+  them, opening each that fits and refusing the rest, so a burst of
+  calls is answered whole, call by call, whichever backend asked it. A
+  run's room is as configured; no burst changes it.
 - **No nesting.** A child never opens children, and is never offered
   `sub_agent`. A call that asks for nesting anyway is refused with a
   typed problem saying that a sub-agent does its work itself
@@ -1087,6 +1099,10 @@ timings, budgets and shares within its own (`docs/design/testing.md`).
 
 ## 15. Open questions
 
+- **A program-backed burst's panic** (5.3): identify the panicking
+  bound from the failed agent's retained detail before choosing a fix.
+  Default: keep the configured room and answer each call by the existing
+  admission rules; a burst alone is no reason to raise a bound.
 - **A silent check** (8.1): feedback carries only what its process
   wrote and the machine read. Progress messages belong to the repository's
   check, so a timeout before it writes can still have an empty tail.

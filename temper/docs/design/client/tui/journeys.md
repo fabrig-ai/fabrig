@@ -518,11 +518,17 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 - **A terminal's Meta keys:** the user records by hand on their laptop
   after landing to check marking with Alt+m and saving with Alt+s in
   emacs' vterm. The automated walk keeps the Shift forms (8.1).
-- **The first frames' refinement:** the user takes `sign-in-approved`'s
-  frames and asks for the look on them (sections 9 and 10), before the
-  later surfaces of `../../draft/tui.md`, section 3 are designed. A
-  replay and byte-equal print do not establish the real terminal's look;
-  its approval walk is `../README.md`, section 11's after-landing work.
+- **The frames' refinement:** the user refines `sign-in-approved` and
+  `launchpad-chat` on their frames (sections 9 and 10), with later
+  surfaces refined before they are designed (`../../draft/tui.md`,
+  section 3). The look request `tui-launchpad` has its render check and
+  walk after landing, owned by temper/tui's after-landing check; differences
+  return as repairs carrying its trailer (`../../draft/look-requests.md`,
+  sections 4 and 5). A replay and byte-equal print establish no real
+  terminal's look. A growing answer, calls and a question's choices
+  remain for a journey that catches them; the joint world and goldens
+  cover them without establishing the rendered look
+  (`../README.md`, sections 10 and 11).
 - **Selectors by token:** a page's cells carry their paint, not the
   view's token, so an overlay retunes a palette colour or a paint
   wherever it falls, never one token alone. Default: palette classes; a

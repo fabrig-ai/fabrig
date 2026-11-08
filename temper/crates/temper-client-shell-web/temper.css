@@ -3123,7 +3123,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 @media (max-width: 760px) {
 
   /* Ask's three tabs keep the composer above them; the rail's switch belongs to the chat's bar. */
-  #app:has(> .temper-session):has(> .temper-tabbar:not(:has(> a:nth-child(4)))) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  #app:has(> .temper-session):has(> .temper-tabbar):not(:has(> .temper-tabbar > a:nth-child(4))) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   #app:has(> .temper-session) > .temper-rail,
   #app:has(> .temper-session) > .temper-rail:has(> .temper-rail-unfold[open]) { display: contents; }
   #app:has(> .temper-session) > .temper-rail > :not(.temper-night-switch),

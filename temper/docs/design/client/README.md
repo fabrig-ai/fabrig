@@ -6915,7 +6915,7 @@ it (6.14). `temper open` stays the tests' line client
 
   | Event | Does |
   |---|---|
-  | `Typed { value }` | signing in: the link's field, as before; on the launchpad `Act::ChatWords { words }`, on a chat `Act::MessageWords { words }` |
+  | `Typed { value }` | signing in: the link's field, as before; on the launchpad with a project `Act::ChatWords { words }`, with no project the TUI's command composer, on a chat `Act::MessageWords { words }` |
   | `SignIn` | signing in's Enter, as before |
   | `Send` | the box's Enter (6.14, *The box*): words that begin a command the TUI offers press it, as `Command`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's note; the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
   | `Command { command }` | `Exit` closes (6.16); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
@@ -6957,7 +6957,8 @@ its words and look are refined on the recording (`../draft/tui.md`,
 section 5).
 
 - **The TUI's state,** `temper-client-tui`'s `Tui`, holds what the root
-  does not: the address, the link field's value, the sign-in's progress
+  does not: the address, the link field's value, the no-project command
+  composer's value, the sign-in's progress
   (asked, answered, lost, or the TUI's own refusal of what was pasted),
   whether it signs in from the engine's link and whether that ended,
   whether the link was signed out after a sign-in, and whether the
@@ -6966,7 +6967,7 @@ section 5).
   else" (*The chat's question*); and the TUI's own note of a command it
   does not offer (*The commands*). The root stays the one source of the
   link's state, of `me`, of the pages and their reads, of the box's
-  words and of the terminal's look, lists and notes.
+  words with a project and of the terminal's look, lists and notes.
 - **Its words:** where the TUI says what `temper-client-view` says, it
   says the view's phrases (`temper-client-view`'s `words`): the link's
   states, "Live", "Connecting", "Offline", "Signed out" and "Out of
@@ -7097,7 +7098,7 @@ rest*), with nothing pasted and no key pressed:
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
  Where you left off
-   Away mode · Waiting for you
+   Away mode · waiting on you
 
  Needs you
    ? csv-export: comma or semicolon?
@@ -7176,7 +7177,7 @@ chat, the running line above them.
 
 - **The running line,** the region `tui-working`: on a chat, while the
   browser's terminal draws its running line (3.5, *The running line*;
-  `shared::running`), "✦" and its words, "working", "waiting on 1
+  `shared::running`), "✦" and its words, "Working", "waiting on 1
   delegate", "Waiting for an account" (`tui-running`), with no clock and
   no pulse.
 - **The box,** the region `tui-box`, framed by two rules across the
@@ -7188,13 +7189,19 @@ chat, the running line above them.
   "/ for commands" with no project, "Reply" on a chat, and on a chat
   that has ended "/new starts another chat", as the browser's terminal
   keeps its box for commands there; none while a list stands under it.
-  - *Its words are the root's:* Home's composer's on the launchpad
+  - *With a project its words are the root's:* Home's composer's on the launchpad
     (`Act::ChatWords`) and the chat's on a chat (`Act::MessageWords`),
     so that what the domain reads of them, a command's beginning, a
     send, a list's closing, is the browser terminal's. Its value is
     always those words; its write count moves whenever they change by
     anything but the person's typing (a command cleared them, a chat
     opened).
+    With no project, the TUI owns the box's words separately from the
+    sign-in field; typing, command completion, the footer and submission
+    use that same value. Typing advances the TUI's revision without
+    advancing the box's write count. Executing a command, dismissing its
+    list, navigation and sign-in transitions clear the value and advance
+    the write count; an unchanged link leaves the value alone.
   - *The focus:* the box asks for it as each screen opens and keeps it.
     It is the only node a person acts on outside a list, so Tab, Up and
     Down leave the focus where it is (skein's `ui-screen.md`, 6.2), and
@@ -7329,7 +7336,7 @@ chat, the running line above them.
   csv-export's last task waits on you: whether the file separates its
   values with a comma or a▌
 
-✦ working
+✦ Working
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Reply
 ────────────────────────────────────────────────────────────────────────────────
@@ -7380,8 +7387,8 @@ chat, the running line above them.
     and its state (`shared::delegation_line`); a proposal in the chat's
     subtree (`Chat::cards`) "✦", "Proposal" (`tui-signal`) and its title
     (`shared::proposal_line`). A card carries no act: a proposal is
-    accepted on the web. Placing each at the call that made it is the
-    browser's walk (section 11);
+    accepted on the web. Placing each at the call that made it is later
+    TUI work (section 11);
   - *not drawn,* as in the browser's terminal: the speakers' names, the
     turns' times, a turn's opaque blocks, a run's beginning and end;
     and, the TUI's, a document's write, since drafting is not the
@@ -8495,8 +8502,8 @@ own tests:
   section 10); a card at the call that made it, and its acts, Accept
   among them; a close that asks its delegates' fates; a new line in the
   box, which a terminal's Shift+Enter cannot ask; a paste into the box
-  past the link's 512 bytes; a theme kept across runs. Default: each when the user asks for it on a recorded frame;
-  until then the web does what the TUI leaves out.
+  past the link's 512 bytes; a theme kept across runs. Owner: temper/tui.
+  Default: each when the user asks for it on a recorded frame; until then the web does what the TUI leaves out.
 - **The TUI's command-line flags** (6.11 and 6.12): choosing another
   deployment and overriding local sign-in or the scheme wait for the
   user's command-line design. The environment names the local deployment.
@@ -9096,9 +9103,11 @@ own tests:
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
 - **A delivery beside a long conversation** (5.15;
-  `../draft/chat-reading.md`, 3): retaining parsed closed blocks or a conversation
-  subtree needs invalidation rules and proofs; reducing page bookkeeping and
-  away-reader anchor scans needs the same. Default: rebuild and diff, keeping
+  `../draft/chat-reading.md`, 3): retaining parsed closed blocks for the
+  browser and TUI, or a conversation subtree, needs invalidation rules
+  and proofs; reducing page bookkeeping and
+  away-reader anchor scans needs the same. Owner: temper/ui for the shared
+  reader. Default: rebuild and diff, keeping
   DOM identities. The measured whole-bound delivery cost is in
   `temper/docs/development/browser-budget.md`; the away-reader scan's share
   remains untimed. The browser tier's smaller window leaves a person's cost

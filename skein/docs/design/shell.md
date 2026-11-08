@@ -193,7 +193,12 @@ step 1, `main` installs `skein_fail_stop`'s hook, which aborts on a
 panic in a build that unwinds (programming-model.md, 2). Its report
 carries the panic's backtrace, once, whatever the environment says
 (`RUST_BACKTRACE` set or not): an abort in a deployment is often seen
-once, in a log, and its frames are what says where it was.
+once, in a log, and its frames are what says where it was. The report
+is its thread's `panicked at` line, with the panic's location, then
+its message, then the backtrace, and it closes with that line and
+message again: a supervisor keeps the last bytes of what a process
+wrote, and a backtrace longer than them would otherwise push the
+message out of what it keeps.
 
 ### 6.1 Reading files at startup
 
@@ -1081,6 +1086,10 @@ and changes no code above io:
 
 ## 10. Open questions
 
+- **A child dying with its parent on macOS** (3, 13): whether to provide
+  an alternative to Linux's parent-death signal. Default:
+  `exec_dying_with_parent` returns `Unsupported` there; a supervisor
+  ends the crashed service's whole tree before restarting it.
 - **The remaining identical helpers** (7.5): `linux` and `darwin` each
   keep `count`, `process::fd` and `files::truncate`, whose only differences
   are a panic's words or a path. Moving them to `posix` waits for a round
@@ -1199,10 +1208,14 @@ every service's `main`.
 - **A crash closes nothing.** A process killed, or aborted by a panic
   (section 6), runs none of this end: the children it started stay in
   their own groups (io.md, 6) and outlive it, since io kills a child's
-  group only when it closes the child. A supervisor that restarts a
-  crashed service first ends its whole tree, every descendant at once,
-  as a systemd unit's control group is by default, and starts it again
-  on the same state only once nothing of the old tree runs. A
+  group only when it closes the child. On Linux, a child that execs its
+  program through `exec_dying_with_parent` (section 3) is the exception: the
+  kernel sends it its signal when the thread that started it ends, so a
+  service whose crash must not leave a child running starts it that way.
+  A supervisor that restarts a crashed service first ends its whole tree,
+  every descendant at once, as a systemd unit's control group is by
+  default, and starts it again on the same state only once nothing of
+  the old tree runs. A
   descendant still running at the restart is the supervisor's failure,
   not the service's.
 - **Checked** in every world, by the teardown invariant

@@ -95,12 +95,10 @@ pub fn start_chat(words: &[u8]) -> Vec<Step> {
         see(first_chat(words)),
     ]
 }
-/// Choose the playground at the printed link's welcome before starting a chat.
+/// Choose the playground at the printed link's welcome and await its ready project.
 #[must_use]
-pub fn start_playground_chat(words: &[u8]) -> Vec<Step> {
+pub fn playground_ready() -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
-    let press = |name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, name) });
-    let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     vec![
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Try the playground") }),
@@ -109,6 +107,15 @@ pub fn start_playground_chat(words: &[u8]) -> Vec<Step> {
         see(Find::exactly_named(Role::Status, b"Ready")),
         see(live()),
         connected(),
+    ]
+}
+/// From the ready playground, open Chats and start the first chat with `words`.
+#[must_use]
+pub fn playground_chat(words: &[u8]) -> Vec<Step> {
+    let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
+    let press = |name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, name) });
+    let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
+    vec![
         press(b"Chats"),
         see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
         press(b"+ New chat"),
