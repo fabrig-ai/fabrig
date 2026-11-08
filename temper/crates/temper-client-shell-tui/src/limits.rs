@@ -47,5 +47,11 @@ pub fn valid(limits: &Limits) -> bool {
 
 #[must_use]
 pub fn terminal(limits: &Limits, depth: skein_ui_screen_terminal::Depth) -> skein_ui_screen_terminal::Settings {
-    skein_ui_screen_terminal::Settings { interval: limits.interval, depth, most: limits.most, paste: limits.paste }
+    skein_ui_screen_terminal::Settings {
+        interval: limits.interval,
+        depth,
+        most: limits.most,
+        paste: limits.paste,
+        background: None,
+    }
 }

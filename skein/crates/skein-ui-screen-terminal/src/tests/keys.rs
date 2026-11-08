@@ -1,8 +1,9 @@
 #![expect(clippy::disallowed_methods, reason = "test expectations read literal UTF-8 characters")]
 use crate::{Decoder, Key};
-use skein_lib::{Queue, bytes};
+use skein_lib::{List, Queue, bytes};
+use skein_ui_screen::Rgb;
 
-// Every table sequence emits one key, so two reads need no more than its
+// Each key row emits one key, so two reads need no more than its
 // byte count plus the immediately emitted Escape at the special first split.
 const KEY_ROOM: u32 = 64;
 fn check(keys: &mut Queue<Key>, expected: &[Key], label: &[u8], split: usize) {
@@ -12,6 +13,11 @@ fn check(keys: &mut Queue<Key>, expected: &[Key], label: &[u8], split: usize) {
     assert_eq!(keys.pop(), None, "{label:?}, split {split}: trailing key");
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    clippy::type_complexity,
+    reason = "the decoder's key and answer rows share the whole-and-split table"
+)]
 fn decoding_table_holds_whole_and_at_every_split() {
     let rows: &[(&[u8], Key)] = &[
         (b"a", Key::Char('a')),
@@ -47,6 +53,7 @@ fn decoding_table_holds_whole_and_at_every_split() {
         (b"\x1a", Key::Control(b'z')),
         (b"\x1bx", Key::Alt('x')),
         (b"\x1b7", Key::Alt('7')),
+        (b"\x1b]", Key::Alt(']')),
         ("\x1bé".as_bytes(), Key::Alt('é')),
     ];
     for (bytes, expected) in rows {
@@ -79,6 +86,75 @@ fn decoding_table_holds_whole_and_at_every_split() {
         let mut keys = Queue::with_capacity(KEY_ROOM);
         decoder.read(&[control], &mut keys);
         check(&mut keys, &[expected], &[control], 0);
+    }
+
+    let red = Some(Some(Rgb { red: 255, green: 170, blue: 0 }));
+    let rows: &[(&[u8], Option<Option<Rgb>>, &[Key])] = &[
+        (b"\x1b]11;rgb:f/a/0\x07", red, &[]),
+        (b"\x1b]11;rgb:F/A/0\x1b\\", red, &[]),
+        (b"\x1b]11;rgb:ff/aa/00\x07", red, &[]),
+        (b"\x1b]11;rgb:FF/AA/00\x1b\\", red, &[]),
+        (b"\x1b]11;rgb:fff/aaa/000\x07", red, &[]),
+        (b"\x1b]11;rgb:FFF/AAA/000\x1b\\", red, &[]),
+        (b"\x1b]11;rgb:ffff/aaaa/0000\x07", red, &[]),
+        (b"\x1b]11;rgb:FFFF/AAAA/0000\x1b\\", red, &[]),
+        (b"\x1b]11;rgb:12f/34ab/5\x1b\\", Some(Some(Rgb { red: 0x12, green: 0x34, blue: 0x55 })), &[]),
+        (b"\x1b]11;rgb:fffff/aa/00\x07", Some(None), &[]),
+        (b"\x1b]11;rgb:ff/aaaaa/00\x07", Some(None), &[]),
+        (b"\x1b]11;rgb:ff/aa/00000\x07", Some(None), &[]),
+        (b"\x1b]11;rgb:/aa/00\x07", Some(None), &[]),
+        (b"\x1b]11;rgb:ff//00\x07", Some(None), &[]),
+        (b"\x1b]11;rgb:ff/aa/\x07", Some(None), &[]),
+        (b"\x1b]11;rgba:ff/aa/00/ff\x1b\\", Some(None), &[]),
+        (b"\x1b]11;rgb:gg/aa/00\x07", Some(None), &[]),
+        (b"\x1b]11;rgb:ff/aa/00/11\x07", Some(None), &[]),
+        (b"\x1b]11\x07", Some(None), &[]),
+        (b"\x1b]0;title\x07", None, &[]),
+        (b"\x1b]110;rgb:ff/aa/00\x1b\\", None, &[]),
+        (b"\x1b]0;title\x1b\\\x1b]11;rgb:f/a/0\x07", red, &[]),
+        (b"\x1b]11;rgb:f/a/0\x07\x1b]11;unreadable\x07", red, &[]),
+        (b"\x1b]11;unreadable\x07\x1b]11;rgb:f/a/0\x07", Some(None), &[]),
+        (b"x\x1b]11;rgb:f/a/0\x07q", red, &[Key::Char('x'), Key::Char('q')]),
+    ];
+    let mut failures = List::uncapped();
+    for (source, expected, expected_keys) in rows {
+        for split in 0..=source.len() {
+            let mut decoder = Decoder::new(0);
+            decoder.answers();
+            let mut keys = Queue::with_capacity(KEY_ROOM);
+            decoder.read(source.get(..split).expect("split inside answer"), &mut keys);
+            decoder.read(source.get(split..).expect("split inside answer"), &mut keys);
+            if decoder.background() != *expected || !keys.iter().eq(expected_keys.iter()) {
+                failures.push((source, split, decoder.background(), keys.pop())).expect("test diagnostics fit");
+                break;
+            }
+        }
+    }
+    assert!(failures.is_empty(), "answer rows (source, split, background, first key): {failures:?}");
+    // Count the complete answer, including its introducer and terminator.
+    for terminator in [b"\x07".as_slice(), b"\x1b\\"] {
+        for length in [64_usize, 65] {
+            let padding =
+                length.checked_sub(7).expect("prefix fits").checked_sub(terminator.len()).expect("ending fits");
+            let source =
+                bytes::concat(&[b"\x1b]11;\x1bX", [b'x'; 60].get(..padding).expect("small padding"), terminator, b"q"]);
+            for split in 0..=source.len() {
+                let mut decoder = Decoder::new(0);
+                decoder.answers();
+                let mut keys = Queue::with_capacity(KEY_ROOM);
+                decoder.read(source.get(..split).expect("split inside bounded answer"), &mut keys);
+                decoder.read(source.get(split..).expect("split inside bounded answer"), &mut keys);
+                assert_eq!(
+                    decoder.background(),
+                    if length == 64 { Some(None) } else { None },
+                    "{length}, {split}, {terminator:?}"
+                );
+                check(&mut keys, &[Key::Char('q')], &source, split);
+                decoder.read(b"\x1b]11;rgb:f/a/0\x07", &mut keys);
+                assert_eq!(decoder.background(), if length == 64 { Some(None) } else { red });
+                check(&mut keys, &[], &source, split);
+            }
+        }
     }
 }
 #[test]
