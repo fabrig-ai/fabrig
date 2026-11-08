@@ -257,6 +257,7 @@ fn no_notices(rows: &[Request]) {
                 panic!("unexpected notice: {up:?}")
             }
             host::LinkUp::ListRead { .. }
+            | host::LinkUp::Draining
             | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Turn { .. }

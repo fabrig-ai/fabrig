@@ -1247,6 +1247,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::SignOut { .. }
         | fleet::Event::Relay { .. } => true,
         fleet::Event::ListRead { .. }
+        | fleet::Event::Draining { .. }
         | fleet::Event::Logins { .. }
         | fleet::Event::SignedOut { .. }
         | fleet::Event::StartJob { .. }

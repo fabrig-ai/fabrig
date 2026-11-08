@@ -294,8 +294,7 @@ delegate's phases; the frame's speed changes how long the person waits
   most its figure in `../development/playground-memory.md` and a quarter
   more. This bound catches a regression; it is not section 8's bar, which
   stays the user's. Story A's high water in the one-process world
-  (`tests/one-process`'s `memory`) is bound the same way once the story
-  walks there.
+  (`tests/one-process`'s `memory`) is bound the same way.
 - **The wasm32 builds,** in the gate: `temper-playground`, and the web
   shell with `playground`, with clippy's lints as errors for
   `wasm32-unknown-unknown`.
@@ -369,3 +368,9 @@ running (decided 2026-11-03).
 - **The client's placeholder on its page,** in place of the frame's line
   (section 7; `client/browser.md`, 2.5): story A's to take, once its wait
   asks for more than a line.
+- **What the start's heap grew by before its bound** (9):
+  `../development/playground-memory.md` keeps two measured tables, and
+  the bound holds the later; the service's peaks and the fake disk at
+  start grew past a quarter between them, and nothing has profiled why.
+  Default: the later figures stand as the bound; whether the growth
+  stands is the user's, with the memory bar (11).

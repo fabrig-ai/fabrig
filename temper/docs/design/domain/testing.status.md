@@ -240,12 +240,16 @@ the fake's own process story.
   the twins' documents among `temper-playground`'s stories: B0's and
   B1's are still the real loop's own fixtures
   (`tests/real-loop/tests/fixtures/b0`, `b1`). 2.4: B2's twin
-  (`../../development/acceptance.md`, section 8). 2.6:
-  `a_default_box_with_a_sign_in_registration_starts_without_dns` is ignored:
-  a start without DNS fails while the sign-in's endpoints resolve at start.
-  2.6, 5.3: the cluster's 4.6 process story is ignored: a retry placed on a
-  stopping worker's still-linked channel is journaled as an extra refused
-  attempt, until jig takes a draining worker out of placement. 2.6: the
+  (`../../development/acceptance.md`, section 8).
+  2.6, 5.3: the cluster's 4.6 process story is ignored: its fixture
+  expects `engine.llm.models` in the startup configuration, which holds
+  no model since models became settings (`../protocol/configuration.md`,
+  section 2), so the story has not run since ws says it drains, and jig's
+  hub, translation and fleet tests alone hold the drain (jig's
+  `domain/engine.status.md`, its 8), where the request `ignored-misc` of
+  2026-11-08 asked that it run by name and pass, a test whose design has
+  moved being rewritten to it.
+  2.6: the
   playground's stories, in and out and a reset the box's death cut, and
   GitHub gone on after a restart, as `../protocol/setup.status.md` records
   them.
@@ -353,13 +357,28 @@ the fake's own process story.
   where the draft has an explicit export, because a record back at its
   path owes nothing whichever return brought it.
 
-- **Not yet:** 2.6: B0's two offline proofs have no runtime result in
-  profile `process-temper`, and no CPU figure against the tier's budgets
-  (`tools/tiers/budgets.toml`): the plan `ignored-tiers` compiled and
-  listed them, and the next after-landing run proves them (11).
-- **Not yet:** 2.6: `managed_ready_client`'s fake sitting has no
-  runtime result in profile `process-temper`, and its client role no
-  run under `scripts/proof-live-github-managed.sh fake` since the test
-  took its sitting: the plan `ignored-tiers` compiled and listed it,
-  and the next after-landing run and the owner's next dry run prove
-  them (11).
+- **Not yet:** 2.6, *Two drivers' offline proofs*: no pass in profile
+  `process-temper` is on record for B0's two
+  (`crates/temper/tests/proof_live.rs`) or for `managed_ready_client`'s
+  fake sitting, and no CPU figure against the tier's budgets
+  (`tools/tiers/budgets.toml`). The repair `ignored-tiers/red-83`
+  changed both since the plan compiled and listed them: B0's setup
+  funds its project at the current policy or the rung's figures,
+  whichever is more, and checks it at least the rung's, and its twin
+  chooses the goal's turns from fresh inputs, so that a forge
+  notification before the child's result waits for it
+  (`crates/temper/tests/support/forge_land/rung.rs`); the sitting
+  connects a new forge, makes its project through ctl before Ready
+  adopts and renders no `policies`
+  (`crates/temper/tests/support/managed_sitting.rs`). The next
+  after-landing run proves them (11).
+- **Not yet:** 2.6, 2.7: the managed sitting's driver lags its test.
+  `scripts/proof-live-github-managed.py`'s `configure` still renders
+  `policies` from `projects`, and its `connect_fake` runs
+  `forge connect 1 github` and makes no project, where
+  `managed_sitting.rs` renders none, runs `forge connect github` and
+  makes the project `Sitting`. The test's client
+  role has had no run under the driver since the test took its own
+  sitting, so whether the driver's `fake` run, and its `live` run's
+  engine, still reach the adoption is unknown until the owner's next
+  dry run (11).

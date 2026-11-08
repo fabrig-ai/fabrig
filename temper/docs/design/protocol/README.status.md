@@ -50,8 +50,11 @@ deferred failure accounting.
 
 
 - **Not yet:** 15.6: the retained case 4.6 process story is ignored until
-  jig's fleet removes a draining worker from placement before its runs
-  end. No reference-case story runs in this tier; the task-per-worker,
+  its fixture stops expecting models in the startup configuration
+  (`../domain/testing.status.md`, 2.6); jig's fleet takes a draining
+  worker out of placement before its runs end (jig's
+  `domain/engine.md`, section 8), and the real-loop story supplies no
+  proof of that process boundary. No reference-case story runs in this tier; the task-per-worker,
   lost-worker, hung-worker and late-worker boundary stories remain.
 
 - **Not yet:** 4: `temper versions`, `temper upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper/src/commands.rs`). 6: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 9: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.

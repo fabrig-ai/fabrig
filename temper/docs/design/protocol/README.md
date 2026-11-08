@@ -1608,11 +1608,6 @@ worker added later, 4.6's hung worker.
   try while the engine stays up. Giving that restart the standalone
   stop's no-try interruption (section 8) is left for the cluster
   (jig's `protocol/service.md`, section 9).
-- **The case's restart story** (15.6): jig's fleet must take a draining
-  worker out of placement before its runs end, so a retry cannot be
-  journaled as an extra refused attempt on its still-linked channel.
-  Its runtime proof belongs to the process tier after that repair;
-  the real-loop story supplies no proof of this process boundary.
 - **The engine's refusal text on the worker** (15.3): the text is sent
   over the channel, but jig's worker link retains only the reason code
   for its note. Keeping the words for a worker's stderr needs a change

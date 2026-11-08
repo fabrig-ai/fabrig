@@ -3,7 +3,7 @@ id = "worker-reads"
 part = "worker-reads"
 kind = "feature"
 needs = ["engine-link", "worker-link"]
-files = ["temper/crates/temper-service/src/worker.rs", "temper/crates/temper-service/src/system.rs", "temper/crates/temper-service/src/workers.rs", "temper/crates/temper-service/src/engine.rs", "temper/crates/temper-service/src/lib.rs", "temper/crates/temper-service/src/tests/worker_admission.rs", "temper/crates/temper-service/src/tests/worker.rs", "temper/crates/temper-service/src/tests/workers.rs", "temper/crates/temper-service/src/tests/fixtures/worker_peers.rs", "temper/crates/temper-engine-shell/src/serve/host.rs", "temper/docs/design/domain/worker.status.md", "temper/docs/design/protocol/README.status.md", "jig/docs/design/domain/hosts.status.md"]
+files = ["temper/crates/temper-service/src/worker.rs", "temper/crates/temper-service/src/system.rs", "temper/crates/temper-service/src/workers.rs", "temper/crates/temper-service/src/engine.rs", "temper/crates/temper-service/src/lib.rs", "temper/crates/temper-service/src/tests/worker_admission.rs", "temper/crates/temper-service/src/tests/worker.rs", "temper/crates/temper-service/src/tests/workers.rs", "temper/crates/temper-service/src/tests/fixtures/worker_peers.rs", "temper/crates/temper-engine-shell/src/serve/host.rs", "temper/docs/design/domain/worker.status.md", "temper/docs/design/protocol/README.status.md", "jig/docs/design/domain/hosts.status.md", "temper/tests/one-process/src/review_delivery.rs"]
 effort = "high"
 minutes = 210
 +++
@@ -179,3 +179,26 @@ As the implementer's text has it, and: the story's failure on the trunk;
 the entrance's size from the cap, and the cap's frames; whether
 `link_taken`'s notes half stayed; the rules broken for each bite and the
 failures seen; every reader file edited and how.
+
+## Answers
+
+2026-11-08. *Widen to the one-process recovery failure, or leave it to a
+follow-up?* Widen: it is this branch's (green on the base and on
+`engine-link`, red here, green with the old routing gate back; `notes/common.md`),
+and the task is not done while
+`one_process::a_fresh_goals_unencodable_review_releases_the_host_and_cancels`
+is red. `temper/tests/one-process/src/review_delivery.rs` joins `files`
+for observation only: diagnostics there are throwaway, and a committed
+edit may only sharpen what it reports (its `overdue` message); its
+stages, assertions, `DEADLINE`, `STEPS` and overrides stay as they are.
+The fix goes in this task's product files, pinned first by a failing row
+in `temper-service`'s `worker_orders` or `worker_admission`, committed
+alone before the fix. Look first at the orders `worker.md`, 3.1 keeps:
+reading the link every pass must not let what waits behind a held
+assignment (a cancel or grant naming a run, the link's own state: ready,
+lost, a grace passed) pass it; the recovery run stuck at attempt 6 reads
+like a run started across such an overtaken record or the review's host
+not released in order. If the cause proves to be the fixture relying on
+an order the design does not promise, or a figure, stop with a
+`Question:` and the evidence; never change a figure or what the story
+expects.

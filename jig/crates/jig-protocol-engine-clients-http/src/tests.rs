@@ -921,3 +921,78 @@ fn a_stopped_listener_rejects_the_replacement_after_the_close() {
     };
     assert_eq!(socket, SERVER_NEXT);
 }
+
+#[test]
+fn a_call_ended_before_its_reply_says_its_exchange_gone_once() {
+    let exchange = fixtures::EXCHANGE;
+    let gone = || -> Box<[kit::FromTransport]> { Box::from([kit::FromTransport::ExchangeGone { exchange }]) };
+    for (label, method, path, handed, reply, expected) in [
+        ("unanswered exchange", Method::Post, b"/jig/v1/read".as_slice(), true, None, gone()),
+        (
+            "answered exchange",
+            Method::Post,
+            b"/jig/v1/read",
+            true,
+            Some(kit::ToTransport::Reply { exchange, reply: kit::Reply::Record(Box::new([7])) }),
+            Box::new([]),
+        ),
+        ("unfinished body", Method::Post, b"/jig/v1/read", false, None, Box::new([])),
+        (
+            "stream",
+            Method::Get,
+            b"/jig/v1/stream",
+            true,
+            None,
+            Box::from([kit::FromTransport::StreamGone { stream: exchange }]),
+        ),
+        ("public read", Method::Get, b"/jig/v1/public/0/1/1", true, None, gone()),
+        (
+            "answered public read",
+            Method::Get,
+            b"/jig/v1/public/0/1/1",
+            true,
+            Some(kit::ToTransport::Public { exchange, reply: kit::PublicReply::Unknown }),
+            Box::new([]),
+        ),
+    ] {
+        let mut mount = fixtures::public_mount();
+        // One public call fits the fixture's map, alongside its ordinary room.
+        mount.public_limit = 1;
+        let mut out = Queue::with_capacity(32);
+        mount.down(
+            &fixtures::env(),
+            Event::Call { call: exchange, head: fixtures::head(method, path, &[], http::Body::None) },
+        );
+        fixtures::pump(&mut mount, &mut out);
+        if handed {
+            fixtures::event(&mut mount, &mut out, exchange, http::Event::Body(Up::End));
+        }
+        fixtures::component(&mut out);
+        if let Some(reply) = reply {
+            match reply {
+                kit::ToTransport::Reply { exchange, reply } => fixtures::reply(&mut mount, &mut out, exchange, reply),
+                kit::ToTransport::Public { .. } => {
+                    mount.down(&fixtures::env(), Event::Component(reply));
+                    fixtures::pump(&mut mount, &mut out);
+                }
+                kit::ToTransport::Streamed { .. } | kit::ToTransport::StreamEnded { .. } => unreachable!("reply row"),
+            }
+        }
+        fixtures::event(&mut mount, &mut out, exchange, http::Event::Closed);
+        fixtures::event(&mut mount, &mut out, exchange, http::Event::Closed);
+        let mut messages = List::with_capacity(1);
+        let mut next = 0_u32;
+        while let Some(request) = out.pop() {
+            match request {
+                Request::Component(message) => {
+                    assert_eq!(next, 0, "{label}: gone before Next");
+                    messages.push(message).expect("one gone notification");
+                }
+                Request::Http { request: http::Request::Next, .. } => next = next.saturating_add(1),
+                Request::Http { .. } => {}
+            }
+        }
+        assert_eq!(messages.into_boxed().as_ref(), expected.as_ref(), "{label}");
+        assert_eq!(next, 1, "{label}: ended once");
+    }
+}

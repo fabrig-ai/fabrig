@@ -1,0 +1,52 @@
+draft = "ui-p2-home"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-p2-home/inputs/request.md", "temper/docs/design/draft/surfaces.md", "temper/docs/design/draft/whole-story.execution.md", "temper/docs/design/client/web/whole-story/README.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "across"
+title = "Home on All projects: its address, its reads across every project, the briefs joined"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "needs"
+title = "Needs you across projects as a list, its cards told something else, Decided for you"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "density"
+title = "Section 12's rules on each page's model, held by a fuzz test across random facts and settings moves"
+mode = "direct"
+needs = ["across"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "proof"
+title = "The gallery's states and the joint world's stories across two projects"
+mode = "direct"
+needs = ["across", "needs"]
+design = "temper/docs/design/client/browser.md, 7.2"
+
+[[slice]]
+id = 1
+story = "A person in two projects opens Home on All projects and Needs you: the briefs joined, the needs across projects as cards and a list"
+parts = ["across", "needs"]
+walk = false
+
+[[slice]]
+id = 2
+story = "The pages proved: their gallery states, the joint world across two projects, and section 12's rules fuzzed"
+parts = ["density", "proof"]
+walk = false

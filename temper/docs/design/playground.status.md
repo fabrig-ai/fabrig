@@ -2,6 +2,14 @@
 
 2026-11-08. Where temper's code lags or departs from [playground.md](playground.md).
 
+Section 9's walk of story A in the one-process world, by the terminal
+client, from the welcome to the CSV change landed and the three replies
+seen, runs (`temper/tests/one-process/tests/suite/story_a.rs`): the
+world lays the story's disk and handovers through the playground world's
+`temper_playground::story::prepare` (section 4), and walks it in 44.8
+simulated seconds, its person waiting up to 60 s for each line it
+looks for.
+
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
     box (`domain/forge.md`, 4.1, and its status).
@@ -21,14 +29,12 @@
     high water, which does not say what reserves it. The download:
     6,882,055 B gzipped, within its 8 MB
     (`temper/docs/development/playground-figures.md`).
-  - 9: Story A's walk in the one-process world, by the terminal
-    client, ignored: its `#[ignore]` has it stall at Starting after
-    5 s, forge 1 Kept, the account and the project absent
-    (`temper/tests/one-process/tests/suite/story_a.rs`); whether what
-    lets the web client's walk pass lifts that is unknown.
   - 9: story A's high water in the one-process world:
-    `temper/tests/one-process/tests/memory.rs` is ignored and prints
-    it by hand, the story stalling there (above).
+    `temper/tests/one-process/tests/memory.rs` remains ignored: the
+    story walks, but a service world's observer has no way to keep its
+    storage outside the process's span (`skein/docs/design/testing.md`,
+    5), so process 0's exact release check fails
+    (`temper/docs/development/playground-memory.md`).
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the memory's and the slice's unset
     (section 11); and published.

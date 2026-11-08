@@ -426,7 +426,8 @@ fn defaults_compare_same_changed_added_and_gone_and_save_erases_gone() {
     assert_eq!(
         run(&mut domain, Event::SettingsDefaults),
         Box::from([Request::SettingsDefaults {
-            defaults: Box::from([default(1, 3, false), default(2, 7, true), default(3, 0, true), default(4, 5, true)])
+            dropped: Box::new([(KIND, 0, 3)]),
+            defaults: Box::from([default(1, 3, false), default(2, 7, true), default(4, 5, true)])
         }])
     );
     let saved = run(&mut domain, Event::SaveSettingsDefaults { revision: Some(10) });
@@ -435,6 +436,7 @@ fn defaults_compare_same_changed_added_and_gone_and_save_erases_gone() {
     assert_eq!(
         run(&mut domain, Event::SettingsDefaults),
         Box::from([Request::SettingsDefaults {
+            dropped: Box::new([]),
             defaults: Box::from([default(1, 3, false), default(2, 7, false), default(4, 5, false)])
         }])
     );
@@ -449,6 +451,7 @@ fn defaults_report_charters_without_judging_their_bytes() {
     assert_eq!(
         run(&mut domain, Event::SettingsDefaults),
         Box::from([Request::SettingsDefaults {
+            dropped: Box::new([]),
             defaults: Box::from([SettingDefault {
                 kind: KIND,
                 scope: 0,

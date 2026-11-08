@@ -948,7 +948,7 @@ pub enum Request {
     /// Restored items' sizes and charters, or their refusals, in item order.
     SettingsRestored { token: Token, judged: Box<[crate::SettingJudged]> },
     /// Current defaults, and removed defaults with size zero and no charters.
-    SettingsDefaults { defaults: Box<[crate::SettingDefault]> },
+    SettingsDefaults { defaults: Box<[crate::SettingDefault]>, dropped: Box<[(u32, u32, u32)]> },
     /// The newest setting value, or its absence.
     SettingValue { token: Token, value: Option<Box<[u8]>> },
     /// A default or stored value no longer fits its declared kind.

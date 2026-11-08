@@ -2,7 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while
@@ -38,7 +37,7 @@ dispatch, without establishing a real provider's login or rendered look.
   Distinguishing them remains section 11's work.
 
 Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
-in the rail after Chats and as Ask in the phone tabs, returning to the
+in the rail after Work and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no
 chat starts. Section 5.13 offers no configuring chat, and How work runs
 reaches Ask temper by "Ask temper to change this" alone. The
@@ -98,8 +97,8 @@ foot, holding the caret across and none down the page; the wire's
 `Fact.value` holds 184 bytes, `OpensGate` its reviews' `charter` and
 `View` a `rule`; and every card's link opens its charter's role, its
 gate's reviews' charter's role or its rule's page. `Role { project,
-charter }` and `Rule { project, kind, number }` are pages in Settings'
-frame, How work runs current, drawn from the forge's `View` of
+charter }` and `Rule { project, kind, number }` are pages in How work
+runs' frame, How work runs current, drawn from the forge's `View` of
 `charter N` or `rule K/N` with the card a reply's view draws, in both
 shells; the client world follows "Open the reviewer ›" to the engine's
 charter view and back to "Keep it", and the terminal's tables hold
@@ -108,8 +107,8 @@ state draws the two pages (`browser.status.md`, 7.3). The repairs'
 render check and the pages' walk remain section 11's after-landing
 work.
 
-Sections 3.5, *Settings*, 4.6 and 5.13, *The page*, *Its parts* and *A
-way's acts*, have no known gap in How work runs, by plan `ui-p3a-how`:
+Sections 3.5, *Settings and Deployment*, 4.6 and 5.13, *The page*, *Its
+parts* and *A way's acts*, have no known gap in How work runs, by plan `ui-p3a-how`:
 `pages::how::parts`, of what `pages::how::facts` gathers, decides the
 heading's way, "Ask temper to change this", the path section's state and
 Budgets' row, and `pages::how::lanes` places each stop once in its
@@ -126,6 +125,32 @@ are gone. The domain's and the view's tables, the fuzzy suite's
 to `night-how` hold it, and the text shell's `settings.txt` golden and
 the `chat-draft` journey are reprinted with it. The page's render check
 and walk remain section 11's after-landing work.
+
+Sections 3.5, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
+and 5.3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
+projects*, have no known gap but Team's, below, by plan `ui-p1-rail`:
+`Address::Work`, `Members` and `Limits` and their paths, Work's five
+addresses holding the goals', changes' and chats' reads open together;
+`pages::rail::parts` of what `rail::facts` gathers, which both shells
+draw the rail and the tab bar from: "Work", the hairline, "How work runs",
+the new box's menu of Draft, Change and Ask temper or "+ New change"
+alone, "Deployment" at the foot with the forges' and accounts' dots, and
+the person's menu with the place of "What temper remembers about you";
+the switcher's "All projects", "How work runs for PROJECT" and
+"Deployment", and `rail::across`; `pages::work::place`, `facts`, `shown`
+and `overrides`, Work's head, filters, sections and cards, with Goals'
+and Changes' pages under its head and kind 7's switches hiding their
+filters alone; Deployment's six tabs, Builders shown as Workers, Members
+from each project's `Read::Project` and Limits from the `deployment`
+document. The view's tables (`temper-client-view`'s `tests/rail.rs`,
+`tests/work.rs` and `tests/deployment.rs`), the fuzzy suite's
+`parts_and_live_work_survive_random_settings_moves`, the joint world's
+`work_keeps_one_projects_lists_across_filters_then_switches_projects`
+and the gallery's fifteen new states and `rail-new-menu` redrawn hold
+it (`browser.status.md`, 7.2), and the client world's, the browser tier's, the real loop's and the one
+process's stories walk the new rail. The render check and the walk
+remain section 11's after-landing work (*The rail, Work and Deployment
+after landing*).
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's
@@ -193,8 +218,8 @@ bullet "•"; and a chat's title, cut to 20 characters, its number and the
 place lie in the rule above the box, the top line, `tui-chat-top` and
 `tui-star` gone. View, theme, place, host and golden rows cover each, in
 both schemes and with and without a band. `launchpad-chat` shows the rule
-with its address as the place and lacks its opening question until
-finding-465's repair (`tui/journeys.status.md`, 9). The real-terminal look
+with its address as the place, under the person's opening question
+(`tui/journeys.md`, section 9). The real-terminal look
 of each, "box" among them, is section 11's after-landing check, owned by
 temper/tui.
 
@@ -229,14 +254,51 @@ The focused view test holds a Writing observation before the first answer,
 through provisional words and commitment: the shared running line and the
 browser terminal say "Working", the chat bar says "Writing", and completion
 removes the running line.
-The generated journeys cover the no-project launchpad and Hello through
-a committed fake answer (`tui/journeys.md`, section 9). The newest goal,
-opened call rows, earlier-page loading, Latest, cards at their calls and
-the remaining TUI controls stay in section 11, owned by temper/tui.
+The generated journeys cover the no-project launchpad, Hello through
+a committed fake answer, and the launchpad as drawn with its walk
+(`tui/journeys.md`, section 9). Opened call rows, earlier-page loading,
+Latest, cards at their calls and the remaining TUI controls stay in
+section 11, owned by temper/tui.
 The shared reader still reparses closed blocks; the gap from the user's
 read-once requirement remains section 11's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
+
+Sections 6.13 to 6.15 and 10 have no known implementation gap in the
+launchpad as drawn and views printed (`../draft/surfaces.md`, 11.1,
+11.4 and 11.5, less T2's and T3's parts), by the plan `tui-whole-t1`:
+the TUI's events `Own`, `Open`, `Walk` and `EndWalk`; the header's
+brief sentence, byline and " · /brief", else Home's headline; *Where
+you left off*'s rows, each its project, what it is, when and its state,
+the person's newest goal among them and "/chats N" on a chat's; Needs
+you's rows marked "?", "$", "✓" or "•" by the view's
+`shared::need_prompts`, and "n walks them"; Start's `/change` and
+`/ask`; the box's "Ask for a change, or ask temper.  / for commands"
+and the quiet line's count with "n to walk"; the walk by `n` or
+`/needs`, a question's choices, "Tell it something else" and "Next", a
+sign-off's "Review on FORGE ↗" and another kind's "Open it on the
+web", ending in "Nothing else needs you."; the TUI's own commands in
+the list and in `/help`'s note, `/change WORDS` starting the project's
+chat, `/ask WORDS`, `/brief`'s note, `/chats N`, and `/open` handing
+the opener the page's address alone, else noting it; and a reply's
+`view` blocks printed by `view::printed`, a stop a line after its
+actor's mark, code's stops and a branch's bar four columns in, a way's
+name and line, a proposal's "Before" and "After", a card's terms, a
+`not_drawn`'s words, and asking or failed. The view's `shared` tables,
+the TUI's state, launchpad, foot, commands, printed and limits rows, the
+host's rows, the goldens of the launchpad, the walk and printed views at
+80 by 24, dark and light, and 110 by 32, dark, and the joint world's
+`a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered` and
+`a_change_asked_from_the_launchpad_starts_a_chat` hold them. The walk
+of each screen in a real terminal against its mockup follows landing
+(section 11), owned by temper/tui; where the design departs from the
+mockups is `../draft/surfaces.status.md`.
+
+- **Not yet:** 6.14, *The launchpad*: the blank row between the header
+  and the first section, which its illustration and the mockups draw;
+  the first section stands on the row under the header's frame (the
+  launchpad's goldens and `launchpad-drawn`), as the look request
+  `tui-launchpad`'s build left it (`../draft/tui.status.md`).
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
@@ -375,11 +437,10 @@ later work; the phone keeps its hidden byline.
   latest run's model. Section 11 keeps the remaining work explicit.
 
 Sections 3.5, 5.3 and 5.13 have no known implementation gap in an
-Ask temper chat's draft offer regardless of kind 7, drafts on for a
-fresh project, or Goals in the bar while `Domain::has_goals` holds. The
-draft offer follows the first message and retains its document and end
-conditions. The view tables cover the draft offer and its act in both shells, and Goals in
-the rail and phone tab bar once To begin is gone.
+Ask temper chat's draft offer regardless of kind 7, or drafts on for a
+fresh project. The draft offer follows the first message and retains its
+document and end conditions. The view tables cover the draft offer and
+its act in both shells.
 Stored drafts-off values still govern other chats. The fake-model journey
 is `chat-draft`; the after-landing check is section 11's later work.
 
@@ -400,7 +461,7 @@ work; no new real-model or phone press outcome is supplied.
 
 Sections 3.5, 4.4, 4.6 and 5.2 have no known implementation gap in the
 `connect-flows` shared model and forge panels, completion on Accounts or
-Forges, or Settings' three-source repository sheet. Search and scroll,
+Forges, or the Repositories tab's three-source repository sheet. Search and scroll,
 plural picks, make/copy and failed-row retry and dismissal are present.
 The flow paths name the chosen model way, Forges offers "+ Connect a forge",
 and the sheet draws the query in its empty row, hides the completed empty
@@ -434,7 +495,7 @@ render comparison at 1440, 1280, 1000 and 420 px belongs to temper/ui after
 landing; it and browser and real-provider
 checks remain section 11's deferred work, with no outcome supplied here.
 Section 3.5's provider-list source clauses, Read again, Reading and read
-refusals, and the expiring new labels on Settings and All models have no
+refusals, and the expiring new labels on the Models tab and All models have no
 known implementation gap. View tables and gallery states cover these
 words and expiry; the client world carries reads, failures, retries and
 retained names through the engine. They establish no rendered equality.
@@ -766,23 +827,6 @@ read's head explicit.
   rail a project's members (jig's `Read::Project` is the Members tab's) or a
   standing role (`../draft/standing-roles.md`), and Team has no page
   (`../draft/surfaces.md`, section 6), so `rail::facts` gathers neither.
-- **Not yet:** 3.5, *Work*, *What the reads lack*: no read lists a landed
-  draft ready to start a goal; a chat's card holds its changes, not its other
-  delegates; a change's card names no maker.
-- **Not yet:** 3.5, *Members*: the deployment's own members. jig's `me` gives
-  the person's `deployment_role` alone, and no read lists the deployment's
-  roster (jig's `domain/people.md`, section 3).
-- **Not yet:** 3.5, *Limits*: the configuration's profile and overrides
-  (`../protocol/configuration.md`, section 7) have no read and an owner's
-  change of them no act; the tab draws the `deployment` document's capacities
-  alone.
-- **Not yet:** 5.3, *All projects*: on a page across projects, the rail's
-  "Needs you" counts the open project's needs and "Home" opens the open
-  project's Home, until Needs you and Home read across projects
-  (`../draft/surfaces.md`, sections 3 and 4).
-- **Not yet:** 5.3, the person's menu: "What temper remembers about you" has
-  no page yet (`../draft/whole-story.execution.md`, M4), so its place is
-  empty.
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -1013,11 +1057,11 @@ read's head explicit.
   (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper` first on
   `PATH` each names that one. That plan's cut names the pages' commands alone, and no
   reason is recorded. Seen by reading.
-- **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
+- **Design departs:** 3.5, *The flows' paths* and *Workers*, from the request
   `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
   draws no path, where the request has each flow add one: the same request
   keeps the terminal's prints' meaning, a path would shift every number on the
-  flows, and the terminal's rail holds "Settings". With hosts kept and none
+  flows, and the terminal's rail holds "Deployment". With hosts kept and none
   connected, `.empty` stands above their "Not connected" lines, where the
   request gives none connected `.empty` and no words for that case, so that no
   state is dropped.
@@ -1055,10 +1099,10 @@ read's head explicit.
   (3.5, *With no project yet*; 5.1). Over 760 px the tab's whole row leaves, "Signed in
   as NAME" and the login with "Sign out", where the request moves "Sign out" alone:
   one form holds them, and the sheet hides it, since the view knows no width (section
-  11, *The person's login over 760 px*). The rail's "+ New chat" menu closes on a
+  11, *The person's login over 760 px*). The rail's new box's menu closes on a
   press outside too, which the request doesn't name: skein's page part gives it to
   every menu.
-- **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
+- **Design departs:** 3.5, *Settings and Deployment*, 5.3 and 5.13, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves
   it there: a person with a lost sign-out may be on any page (6.6). Kind 7's
@@ -1129,3 +1173,16 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
+
+- **Not yet:** 3.5, *Home on All projects*: no `AllHome` address, no
+  page reading every project's `status` and `decided`, no briefs joined,
+  no Projects rows and no Ask temper line; `parts` holds no rules.
+- **Not yet:** 3.5, *Home*, *The cards*: a project's Home draws its
+  first need as a card and the others as lines, says "Work carries on…"
+  when none waits, and has no Ask temper line.
+- **Not yet:** 3.5, *Needs you*: one card at a time at every width, no
+  intro, no project chip on the unfiltered from line, "Reply…" and
+  "Later" in place of *Tell it something else*, no Decided for you, and
+  Done's "Home" never `AllHome`.
+- **Not yet:** 3.5, *A page's parts*: no `pages::parts`; Home and Needs
+  you decide their parts page by page.

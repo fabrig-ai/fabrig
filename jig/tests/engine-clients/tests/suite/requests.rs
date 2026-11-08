@@ -328,7 +328,7 @@ fn propose_request(revision: u64, spend: u64) -> Box<[u8]> {
 
 const CREATE_TASK: u8 = 30;
 
-fn carrying_request(value: &[u8]) -> Box<[u8]> {
+pub(super) fn carrying_request(value: &[u8]) -> Box<[u8]> {
     let limits = fixtures::limits().wire;
     let request =
         w::FamilyRequest::new(&limits, w::FamilyRequestParts { scope: w::Scope::Own, record: Box::new([255]) })

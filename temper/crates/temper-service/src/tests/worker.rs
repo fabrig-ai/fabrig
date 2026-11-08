@@ -955,19 +955,15 @@ fn a_worker_alone_has_no_engine_or_store_and_a_second_signal_aborts() {
 fn settle_worker_service(linked: bool) {
     let mut service = alone_service();
     let mut stand = socket_stand();
+    let link_owner = Token::new(
+        worker_settings::prepare(&fixtures::worker_settings(), &fixtures::worker_agent(), &fixtures::worker_limits())
+            .unwrap()
+            .prefix,
+    );
     if linked {
         LinkPeer::new().open(&mut stand.worker);
     } else {
-        let owner = Token::new(
-            worker_settings::prepare(
-                &fixtures::worker_settings(),
-                &fixtures::worker_agent(),
-                &fixtures::worker_limits(),
-            )
-            .unwrap()
-            .prefix,
-        );
-        stand.worker.up(fixtures::NOW, io::Event::Failed { owner, error: io::Error::Unreachable });
+        stand.worker.up(fixtures::NOW, io::Event::Failed { owner: link_owner, error: io::Error::Unreachable });
     }
     service.worker = Some(stand.worker);
     service.shutdown();
@@ -975,28 +971,21 @@ fn settle_worker_service(linked: bool) {
     let now = if linked { fixtures::NOW } else { fixtures::NOW.saturating_add(Duration::from_secs(60)) };
     for _ in 0_u16..1000 {
         stand.worker.iterate(now, Wall::EPOCH);
+        let mut link_right = None;
         // The link's Close is answered by its socket owner, as IO would.
         for _ in 0..stand.worker.io().len() {
             let request = stand.worker.io().pop().unwrap();
             match request {
                 io::Request::Close { .. } | io::Request::Abort { .. } => {
-                    stand.worker.up(
-                        now,
-                        io::Event::Closed {
-                            owner: Token::new(
-                                worker_settings::prepare(
-                                    &fixtures::worker_settings(),
-                                    &fixtures::worker_agent(),
-                                    &fixtures::worker_limits(),
-                                )
-                                .unwrap()
-                                .prefix,
-                            ),
-                        },
-                    );
+                    stand.worker.up(now, io::Event::Closed { owner: link_owner });
                 }
                 io::Request::Connect { owner, .. } => {
                     stand.worker.up(now, io::Event::Failed { owner, error: io::Error::Unreachable });
+                }
+                io::Request::Output { stream, down: skein_lib::stream::OutputDown::Room { right, .. } }
+                    if stream == Token::new(44) =>
+                {
+                    assert!(link_right.replace(right).is_none(), "one link write right at a time");
                 }
                 io::Request::Stream { stream, .. } | io::Request::Output { stream, .. } if stream == Token::new(44) => {
                 }
@@ -1014,6 +1003,18 @@ fn settle_worker_service(linked: bool) {
         }
         stand.drain();
         stand.input();
+        if let Some(right) = link_right {
+            stand.worker.up(
+                now,
+                io::Event::Output {
+                    owner: link_owner,
+                    up: skein_lib::stream::OutputUp::Settled {
+                        right,
+                        outcome: skein_lib::stream::OutputOutcome::Granted,
+                    },
+                },
+            );
+        }
         if stand.worker.is_empty() {
             break;
         }

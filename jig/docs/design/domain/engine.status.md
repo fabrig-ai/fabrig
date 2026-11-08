@@ -70,6 +70,25 @@ Section 11.1's account-driven marks preserve time-expiring offers: a
 not-due account timer skips account work and leaves its alarm scheduled;
 a due expiry marks and delivers the changed offer.
 
+Section 17.5 has no known gap in a default its connector no longer
+gives: `jig-domain-core/src/settings/application.rs`, `prepare_start`,
+erases, with a removal in the release's revision, only a default-following
+state its connector names in `SettingsDefaults`' `dropped`, and a reset
+to a default no connector reports or names keeps its state, size and
+slot (`jig-domain-core/src/tests/settings/application_start.rs`). temper's two restore
+stories that met it run (`temper/docs/design/protocol/configuration.status.md`).
+
+Section 8 has no known gap in a draining worker leaving placement:
+`jig-domain-fleet/src/channel.rs`, `draining`, marks its channel for
+the rest of its life, beside the busy mark a freed slot lifts, so that
+no run or job is chosen there, and an attempt chosen for it is placed
+again unrefused (the fleet's tests
+`a_draining_worker_takes_nothing_even_once_it_frees_a_slot`,
+`a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused` and
+`a_draining_workers_next_channel_is_placed_on`). temper's process story
+of a restarted workstation, which would show it on processes, stays
+ignored for its fixture (`temper/docs/design/domain/testing.status.md`).
+
 Section 17.12's held worker reads, filtered catalogue changes decided by
 the provider's list, atomic account and settings commits, and retention
 of running work have no known implementation gap. The mark table covers
@@ -139,18 +158,6 @@ and catalogue-number reuse remain section 16's open questions.
   `jig-domain-core/src/settings.rs`, `Current::new`, expects the capacity to
   be representable instead of returning a named configuration refusal; the
   bounds check takes limits without declared kinds. No reason is recorded.
-- **Not yet:** 17.5, 17.7, 17.10: a setting reset to a default its
-  connector does not report keeps its slot only until the next start:
-  `jig-domain-core/src/settings/application.rs`, `prepare_start`, erases
-  every default-following state the connectors' defaults leave out, with
-  a removal in the release's revision, where 17.7 makes that revision of
-  defaults that differ alone and 17.5 keeps a reset's slot. The stored
-  state does not tell such a reset from an empty default a release
-  dropped, whose removal must make the release's revision, so telling
-  them apart takes a stored-format or connector-contract change. Two of
-  temper's restore stories stay ignored for it
-  (`temper/docs/design/protocol/configuration.status.md`); no jig test
-  holds it.
 
 - **Not yet:** 5.1, 17.6: the whole project-deletion commit has no
   established admission price against `journal.writes`, because the
@@ -158,17 +165,6 @@ and catalogue-number reuse remain section 16's open questions.
   excluding the remaining state writes, closing the project and cancellation
   operations. No reason is recorded.
 
-- **Departs:** 9.1: a transcript's load refused for want of a load slot
-  counts as transient, though the section pauses a task for room that frees
-  by itself and the request `brief-failure` of 2026-11-05 keeps a true capacity
-  refusal's pause: temper's root answers no slot as `TranscriptLoad::Failed`
-  (`temper-engine-domain/src/restart.rs`, `loads::begin`;
-  `archive.rs`, `transcript_failed`), one word for that and a page it cannot
-  take. So two conversations loading together can spend a transient try, and
-  the next run starts fresh from the tail rather than resuming (7.2). Shipped
-  `root.loads.loads` is 2 (`temper-service/src/limits.rs`); the two stories that
-  met it set 3 in their fixtures (`temper/tests/system/src/composed/agreement.rs`,
-  `temper/tests/real-loop/src/green_light.rs`). No reason is recorded.
 - **Design departs:** 10, from the request `note-parts` of 2026-11-05, decided
   by its plan's cut: a range names the revision it read in `recalled`, the tool's
   member that already says it, where the request has `revision`, so that one fact
