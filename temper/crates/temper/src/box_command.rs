@@ -96,6 +96,7 @@ pub(crate) fn run_configuration(
             word: crate::printed::running_word(&skein_shell::environment()),
             link_form: link_form(&std::io::stdout(), &environment),
             first_link,
+            front: None,
             after_block: opening.after_block,
             log_lines: opening.log_lines,
             parent: cfg!(target_os = "linux").then(super::forge_exec::id),
@@ -162,7 +163,7 @@ pub(super) fn first_link(
     if url.len() > 4096 {
         return Err("serve: sign-in link too long".into());
     }
-    Ok(Some(temper_box::host::FirstLink { url, secret }))
+    Ok(Some(temper_box::host::FirstLink { url, secret, local: None }))
 }
 
 fn open_listeners(

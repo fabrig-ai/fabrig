@@ -74,11 +74,6 @@ its end and serve's drained end. No known implementation gap remains in
 that ordering. Programs surviving a forced agent-group kill remain
 section 15's contained-tree work.
 
-- **Not yet:** 7.6, 7.1, 7.2 and 7.3: temper-box's host running the
-  front, its spawn, descriptors and local link's URL, both secrets on
-  serve's first stdin, no block on the terminal and its words in
-  `box.log`, `tui.log` and its tail, its end as the stop, the stop and the
-  give up with it, and the exit (`box-front`, `tui-box-front`).
 - **Not yet:** 7.6, *The box's lines*, *The terminal is the front's* and
   *The terminal after the front*: the host sending `link`, `log`,
   `restarting`, `running` and `gave-up` lines, the terminal's lines in
