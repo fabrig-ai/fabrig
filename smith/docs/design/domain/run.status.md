@@ -1,6 +1,15 @@
 # run: status
 
-2026-11-07. Where smith's code lags or departs from [run.md](run.md).
+2026-11-08. Where smith's code lags or departs from [run.md](run.md).
+
+Section 5.3 has no known gap in the child's outcome-sized answer cap,
+UTF-8 boundary cut or cut guidance. The domain table checks a 14-byte
+omission and a cap inside a two-byte character. The agent's simulated
+process-world story checks a real child's 3,000-byte answer reaching
+main whole, without a cut marker or omitted tool bytes. The canonical
+feedback table checks every stop, zero and maximum cut counts, and the
+usage suffix. Retaining a cut answer's rest for a continuation remains
+section 15's open question; the run keeps no rest beyond the cap.
 
 Section 5.2 has no known gap in a busy or unanswered host call's retry
 backoff: it doubles from `host_backoff` to 64 times that first wait,

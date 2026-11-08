@@ -1,6 +1,6 @@
 # Status
 
-2026-11-07. Where temper's code lags or departs from its design, and
+2026-11-08. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live first screen, with golden frames,
@@ -18,6 +18,9 @@ prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 11; `client/browser.md`, section 5).
+Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
+reference and 10,662 on the stock, with guidance on cuts; continuation
+remains deferred (`protocol/configuration.md`, 13.8 and 11).
 The reference merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
