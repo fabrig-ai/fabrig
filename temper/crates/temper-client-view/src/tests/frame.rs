@@ -26,21 +26,26 @@ fn the_top_bar_says_the_links_state_and_the_persons_name() {
             fixtures::build(&mut view, &root);
             assert_eq!(fixtures::styles(view.tree(), Role::Banner).as_ref(), [Box::from([crate::look::TOP])]);
             assert!(fixtures::find(view.tree(), Role::Disclosure, b"Menu").is_none());
-            let main = !fixtures::styles(view.tree(), Role::Main).is_empty();
-            if main == reading {
-                wrong_main.push((root.pages().address().clone(), shell, reading)).expect("failed rows fit");
-                continue;
-            }
+            let mut mains = 0_u32;
+            let mut wrong = false;
             for node in view.tree().nodes() {
+                if node.role == Role::Main {
+                    mains = mains.checked_add(1).expect("tree nodes fit");
+                    wrong |= (node.size == 1) != reading
+                        || node.states.as_slice().contains(&skein_ui::State::Busy) != reading;
+                }
                 assert_ne!(node.role, Role::Navigation);
                 assert!(!node.styles.as_slice().contains(&crate::look::PROJECTS));
                 if reading && node.role == Role::Region {
                     assert_eq!(node.region, Some(crate::frame::link_region()));
                 }
             }
+            if mains != 1 || wrong {
+                wrong_main.push((root.pages().address().clone(), shell, reading)).expect("failed rows fit");
+            }
         }
     }
-    assert!(wrong_main.is_empty(), "main must draw exactly when not reading me: {wrong_main:?}");
+    assert!(wrong_main.is_empty(), "one main, empty and busy exactly while reading me: {wrong_main:?}");
     let view = fixtures::page_view(&fixtures::no_project_root());
     assert!(fixtures::find(view.tree(), Role::Status, b"Live").is_some());
     assert!(fixtures::find(view.tree(), Role::Status, b"Pat").is_some());

@@ -46,16 +46,14 @@ impl HeadingFocus {
         } else {
             match pending {
                 Some(Waiting::Main) => self.entry(document, heading),
-                Some(Waiting::Heading(main)) => {
-                    if document.active_element().as_ref() == Some(&main) {
-                        if let Some(heading) = heading {
-                            focus(&heading);
-                        } else {
-                            *self.pending.borrow_mut() = Some(Waiting::Heading(main));
-                        }
+                Some(Waiting::Heading(main)) if document.active_element().as_ref() == Some(&main) => {
+                    if let Some(heading) = heading {
+                        focus(&heading);
+                    } else {
+                        *self.pending.borrow_mut() = Some(Waiting::Heading(main));
                     }
                 }
-                None => {}
+                Some(Waiting::Heading(_)) | None => {}
             }
         }
     }

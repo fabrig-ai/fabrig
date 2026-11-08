@@ -4345,10 +4345,10 @@ client removes no account and closes no chat of its own.
     too (3.5, The welcome);
   - *while `me` is read,* the top bar alone, at every address but the
     sign-in page, the `Authorize` and approval places and the pages not
-    about the work (below), which draw without `me`: no banner, no main
-    and no tab bar, and the browser's terminal look waits too, so that no
-    page's body shows before `me` says which project is open (the look
-    request `outside-pages`);
+    about the work (below), which draw without `me`: no banner, an empty
+    main marked busy and no tab bar, and the browser's terminal look waits
+    too, so that no page's body shows before `me` says which project is open
+    (the look request `outside-pages`);
   - *the accounts' banner,* while no account the person's work may use
     is usable (the `accounts` watch; jig's
     `client/domain/contract.md`, 7.1), but in the playground's project

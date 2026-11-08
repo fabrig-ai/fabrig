@@ -212,6 +212,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         }
         builder.close();
     } else if reading {
+        builder.open(Role::Main);
+        builder.state(skein_ui::State::Busy);
+        builder.close();
     } else if no_project {
         crate::outside::no_project_main(&mut builder, root, &view.forge_words, &mut view.pages);
     } else if let temper_client_domain::Address::Welcome { step } = root.pages().address() {
