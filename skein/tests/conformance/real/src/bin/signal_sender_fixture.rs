@@ -113,8 +113,8 @@ fn main() {
     let mut kernel = Kernel::open_on(Config { operations: io::operations(&limits).expect("operation bound") }, backend)
         .expect("kernel backend");
     let clock = Clock::new();
-    let mut patience = std::env::var_os("NEXTEST")
-        .map(|_| deadlines::Patience::new("the signal sender service settling", Duration::from_secs(3)));
+    let mut patience = skein_world::starved_passes()
+        .then(|| deadlines::Patience::new("the signal sender service settling", Duration::from_secs(3)));
     let deadline = match &patience {
         Some(patience) => patience.until(),
         None => clock.now().now.saturating_add(Duration::from_secs(3)),
@@ -235,7 +235,7 @@ fn main() {
                         );
                         drop(kernel);
                         skein_shell::keeper::close_keeper_fd(root);
-                        starved.pass();
+                        starved.exit();
                     }
                     skein_world::Expired::Failed(figures) => {
                         panic!("signal sender service must settle: child {child:?}, heard {heard}: {figures}");
