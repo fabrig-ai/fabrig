@@ -240,3 +240,7 @@ Run `TEMPER_BUNDLE=none heavy cargo run -p temper-client-journeys` to regenerate
 If replay reports a stale recording, regenerate it with `temper-client-journeys again chat-draft` through heavy; retry “a key mark caught a moving page” at most three times.
 Run the focused journey replay checks, verify the prints retain Night mode and the stock template choice, and commit the regenerated files.
 Keep the task’s status-entry deletion and stock-dependent fixture changes when reviewing the clean automatic merges in `configuration.status.md` and `host_calls.rs`.
+
+## Answers
+
+2026-11-08 (answerer). Four runs without landing: run 4 met the acceptance; only the merge refused, on the regenerated chat-draft prints. One more run, for the rebase above alone: merge `origin/ui-ways-rules/integration` into the branch (no force-push), keep the stock work as run 4 left it, take the combined client code, and re-record chat-draft with `temper-client-journeys again chat-draft` when the replay calls the merged recording stale (it carries both main's Ask temper rerecording and template 4's choice only once re-recorded), then reprint every journey's HTML and run the focused journey replay and the stock-focused tests (`-p temper-service --lib -E 'test(/stock::/)'`) once. Reopen nothing settled above, ask nothing about the stock's figures; a figure the merge moves is measured and named. Run 4's `## Left` (configuration.md 13.4's waiting and largest-part lines, the status file's 354,988 paragraph) stays left for the design's owner.
