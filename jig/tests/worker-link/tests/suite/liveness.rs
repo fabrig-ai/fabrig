@@ -87,6 +87,28 @@ fn a_ping_restarts_the_silence_deadline() {
     assert_eq!(lost(&world), 1);
 }
 #[test]
+fn a_frame_arriving_in_pieces_keeps_the_link_past_the_silence_deadline() {
+    let mut world = world();
+    world.silence_engine();
+    let frame = fixtures::turn_kept();
+    // The channel header is eight bytes; the body arrives ten seconds later.
+    const HEADER: usize = 8;
+    world.advance(Duration::from_secs(10));
+    world.buffer_input(&frame.bytes()[..HEADER]);
+    world.run();
+    world.advance(Duration::from_secs(5));
+    assert_eq!(lost(&world), 0, "the header at 10 s keeps the link at 15 s");
+    world.advance(Duration::from_secs(5));
+    world.buffer_input(&frame.bytes()[HEADER..]);
+    world.run();
+    world.advance(Duration::from_millis(4_999));
+    assert_eq!(lost(&world), 0, "the body at 20 s keeps the link at 24.999 s");
+    world.advance(Duration::from_secs(10));
+    assert_eq!(lost(&world), 0);
+    world.advance(Duration::from_millis(1));
+    assert_eq!(lost(&world), 1, "silence ends the link at 35 s");
+}
+#[test]
 fn a_nonfact_that_fills_the_cap_loses_the_link() {
     let mut world = world();
     world.withhold_write_room();

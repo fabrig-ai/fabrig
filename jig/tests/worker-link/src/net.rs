@@ -93,10 +93,7 @@ impl Net {
                 outcome: stream::OutputOutcome::Granted,
             }));
         }
-        if !self.read_room {
-            return None;
-        }
-        if self.bytes.is_empty()
+        if self.read_room && self.bytes.is_empty()
             && let Some(mut bytes) = self.peer.pop_output()
         {
             if self.other_version && parse_header(&bytes[..8]).expect("frame").kind == 2 {
