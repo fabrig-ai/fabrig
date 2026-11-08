@@ -67,6 +67,7 @@ mod program_login;
 mod restart_fault;
 mod setup;
 mod tui;
+mod tui_front;
 mod worker_alone;
 pub use host::{Host, ending as service_ending};
 use json::CONFIG_BYTES;
@@ -76,12 +77,13 @@ pub enum Command {
     Usage(&'static commands::Row),
     Init { directories: Directories, boxed: bool },
     Serve { directories: Directories, boxed: bool },
-    Box { directories: Directories, echo: temper_box::host::Echo },
-    BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo },
+    Box { directories: Directories, echo: temper_box::host::Echo, no_tui: bool },
+    BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo, no_tui: bool },
     ProgramLogin { directories: Directories, name: OsString },
     Agent { configuration: PathBuf },
     AgentList { configuration: PathBuf },
     Tui { address: Option<Box<[u8]>> },
+    TuiFront { address: Box<[u8]> },
     Open { arguments: Vec<OsString> },
     Ctl { arguments: Vec<OsString> },
     Help { request: help::Request },
@@ -128,6 +130,7 @@ pub fn configure_with(
     }
     configure_row(row, arguments, environment, working).map_err(|why| commands::refused(row, &why))
 }
+#[expect(clippy::too_many_lines, reason = "the command table forms are configured together")]
 fn configure_row(
     row: &commands::Row,
     arguments: &[Box<[u8]>],
@@ -161,6 +164,12 @@ fn configure_row(
                 _ => Err(invalid()),
             };
         }
+        ["internal", "tui"] => {
+            return match arguments {
+                [flag, address] if flag.as_ref() == b"--box" => Ok(Command::TuiFront { address: address.clone() }),
+                _ => Err(invalid()),
+            };
+        }
         ["internal", "forge-child"] => {
             let [flag, parent, signal_flag, signal, separator, program, rest @ ..] = arguments else {
                 return Err(invalid());
@@ -189,6 +198,15 @@ fn configure_row(
         _ => {}
     }
     let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
+    let no_tui = row.words == ["box"] && rest.iter().any(|word| word.as_ref() == b"--no-tui");
+    let rest = if no_tui {
+        if rest.iter().filter(|word| word.as_ref() == b"--no-tui").count() != 1 {
+            return Err(invalid());
+        }
+        rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--no-tui").collect()
+    } else {
+        rest
+    };
     let (echo, rest) = if row.words == ["box"] {
         if rest.iter().any(|word| word.as_ref() == b"--fake-backends") {
             let (echo, _) = box_command::echo(&[], environment)?;
@@ -205,10 +223,10 @@ fn configure_row(
         ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
         ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false }),
         ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
-        ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo }),
+        ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo, no_tui }),
         ["box"] => {
             let bundle = fake_backends::configure(&rest, working)?;
-            Ok(Command::BoxFakeBackends { directories, bundle, echo })
+            Ok(Command::BoxFakeBackends { directories, bundle, echo, no_tui })
         }
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         ["forge", verb] => {
@@ -245,11 +263,12 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Serve { directories, boxed } => {
             serve(&directories, boxed).map_err(|why| prefixed("temper serve", &why))?
         }
-        Command::BoxFakeBackends { directories, bundle, echo } => {
-            fake_backends::run(&directories, bundle.as_deref(), echo).map_err(|why| prefixed("temper box", &why))?
+        Command::BoxFakeBackends { directories, bundle, echo, no_tui } => {
+            fake_backends::run(&directories, bundle.as_deref(), echo, no_tui)
+                .map_err(|why| prefixed("temper box", &why))?
         }
-        Command::Box { directories, echo } => {
-            box_command::run(&directories, echo).map_err(|why| prefixed("temper box", &why))?
+        Command::Box { directories, echo, no_tui } => {
+            box_command::run(&directories, echo, no_tui).map_err(|why| prefixed("temper box", &why))?
         }
         Command::Agent { configuration } => agent::decoded(&configuration)
             .inspect_err(|why| {
@@ -288,6 +307,7 @@ pub fn run(command: Command) -> Result<u8, String> {
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
         Command::Tui { address } => return Ok(tui::run(address, &Clock::new())),
+        Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(match exit {
@@ -442,7 +462,7 @@ fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_with_limits(directories, bytes, owned, false, None, &service::stock::Given::Stock)
+    prepare_with_limits(directories, bytes, owned, false, None, None, &service::stock::Given::Stock)
         .map(|(service, store, _)| (service, store))
 }
 #[expect(clippy::too_many_lines, reason = "startup supplies resolved process facts beside the checked deployment")]
@@ -452,6 +472,7 @@ fn prepare_with_limits(
     owned: &mut Vec<Fd>,
     under_box: bool,
     link_secret: Option<Secret>,
+    local_secret: Option<Secret>,
     given: &service::stock::Given,
 ) -> Result<(service::Service, Box<[u8]>, u32), String> {
     if service::startup::shape_with(bytes, &directories.jig(), given)
@@ -515,7 +536,7 @@ fn prepare_with_limits(
         &directories.jig(),
         &files,
         agent.as_ref(),
-        &Seeds { deployment, installation, seed, crypto, link_secret },
+        &Seeds { deployment, installation, seed, crypto, link_secret, local_secret },
         Some(accounts),
         runtime,
         forges,
@@ -604,7 +625,7 @@ pub fn boxed_operations_in(directories: &Directories, config: &[u8]) -> Result<u
 fn operations_in_mode(directories: &Directories, config: &[u8], boxed: bool) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_with_limits(directories, config, &mut owned, boxed, None, &service::stock::Given::Stock)
+    let result = prepare_with_limits(directories, config, &mut owned, boxed, None, None, &service::stock::Given::Stock)
         .map(|(service, _, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed("temper serve", &why))
@@ -623,7 +644,7 @@ pub fn prepare_in_with(directories: &Directories, given: &service::stock::Given)
     let bytes = directories.read().map_err(|why| prefixed("temper serve", &why))?;
     let mut owned = Vec::new();
     let result =
-        prepare_with_limits(directories, &bytes, &mut owned, false, None, given).map(|(service, _, _)| service);
+        prepare_with_limits(directories, &bytes, &mut owned, false, None, None, given).map(|(service, _, _)| service);
     if result.is_err() {
         close(owned);
     }
@@ -637,7 +658,7 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_with_limits(directories, config, &mut owned, false, None, given)
+    let result = prepare_with_limits(directories, config, &mut owned, false, None, None, given)
         .map(|(service, _, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed("temper serve", &why))
@@ -674,19 +695,23 @@ fn box_refusal(why: service::system::BoxRefusal) -> String {
     };
     format!("--box: {words}")
 }
-/// The first link's secret on a boxed serve's standard input (protocol/setup.md, 7.1).
-fn given_secret(input: &mut impl std::io::Read) -> Result<Option<skein_lib::Secret>, String> {
+/// The first links' secrets on a boxed serve's standard input (protocol/setup.md, 7.1).
+fn given_secret(input: &mut impl std::io::Read) -> Result<(Option<Secret>, Option<Secret>), String> {
     use std::io::Read;
-    let limit = service::clients::LINK_SECRET_BYTES.checked_add(1).expect("small secret bound");
+    let both = service::clients::LINK_SECRET_BYTES.checked_mul(2).expect("two secrets");
+    let limit = both.checked_add(1).expect("small secret bound");
     let mut bytes = Vec::with_capacity(limit);
     input
         .take(u64::try_from(limit).expect("small secret bound"))
         .read_to_end(&mut bytes)
         .map_err(|_| "--box: stdin: expected the first link's secret".to_string())?;
     if bytes.is_empty() {
-        Ok(None)
+        Ok((None, None))
     } else if bytes.len() == service::clients::LINK_SECRET_BYTES {
-        Ok(Some(Secret::new(bytes.into_boxed_slice())))
+        Ok((Some(Secret::new(bytes.into_boxed_slice())), None))
+    } else if bytes.len() == both {
+        let local = bytes.split_off(service::clients::LINK_SECRET_BYTES);
+        Ok((Some(Secret::new(bytes.into_boxed_slice())), Some(Secret::new(local.into_boxed_slice()))))
     } else {
         Err("--box: stdin: expected the first link's secret".into())
     }
@@ -707,11 +732,18 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
             }
         }
     }
-    let link_secret = if boxed { given_secret(&mut std::io::stdin().lock())? } else { None };
+    let (link_secret, local_secret) = if boxed { given_secret(&mut std::io::stdin().lock())? } else { (None, None) };
     let bytes = directories.read()?;
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
-    let prepared =
-        prepare_with_limits(directories, &bytes, &mut owned, boxed, link_secret, &service::stock::Given::Stock);
+    let prepared = prepare_with_limits(
+        directories,
+        &bytes,
+        &mut owned,
+        boxed,
+        link_secret,
+        local_secret,
+        &service::stock::Given::Stock,
+    );
     let (mut service, store, line_bytes) = match prepared {
         Ok(prepared) => prepared,
         Err(why) => {
@@ -786,21 +818,27 @@ mod box_tests {
         use temper_service::clients::LINK_SECRET_BYTES;
 
         let mut empty = Cursor::new([]);
-        assert!(super::given_secret(&mut empty).expect("empty input").is_none());
+        let (printed, local) = super::given_secret(&mut empty).expect("empty input");
+        assert!(printed.is_none() && local.is_none());
         let bytes = [23; LINK_SECRET_BYTES];
         let mut whole = Cursor::new(bytes);
-        let secret = super::given_secret(&mut whole).expect("whole secret").expect("given secret");
-        assert!(secret.expose() == bytes, "the secret is taken whole");
-        for length in [LINK_SECRET_BYTES - 1, LINK_SECRET_BYTES + 1] {
+        let (printed, local) = super::given_secret(&mut whole).expect("whole secret");
+        assert!(printed.expect("given secret").expose() == bytes, "the secret is taken whole");
+        assert!(local.is_none());
+        let mut both = Cursor::new([vec![23; LINK_SECRET_BYTES], vec![37; LINK_SECRET_BYTES]].concat());
+        let (printed, local) = super::given_secret(&mut both).expect("both given secrets");
+        assert!(printed.expect("printed secret").expose() == bytes, "the printed secret comes first");
+        assert!(local.expect("local secret").expose() == [37; LINK_SECRET_BYTES], "the local secret comes second");
+        for length in [LINK_SECRET_BYTES - 1, LINK_SECRET_BYTES + 1, 63, 65] {
             let mut input = Cursor::new(vec![23; length]);
             assert_eq!(
                 super::given_secret(&mut input).expect_err("partial or oversized secret"),
                 "--box: stdin: expected the first link's secret"
             );
         }
-        let mut oversized = Cursor::new(vec![23; LINK_SECRET_BYTES * 2]);
+        let mut oversized = Cursor::new(vec![23; LINK_SECRET_BYTES * 3]);
         assert!(super::given_secret(&mut oversized).is_err(), "oversized input is refused");
-        assert_eq!(oversized.position(), u64::try_from(LINK_SECRET_BYTES + 1).expect("small bound"));
+        assert_eq!(oversized.position(), 65);
     }
 
     #[test]

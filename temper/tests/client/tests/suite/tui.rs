@@ -1,14 +1,14 @@
 //! The shipped TUI host on the engine (temper/docs/design/client/README.md, 10).
 use jig_client::ApprovalCode;
-use jig_client_kit::harness::{ClientId, FrontFault, Settings, World};
-use skein_lib::{Duration, Secret, Token, Wall};
+use jig_client_kit::harness::{App, ClientId, FrontFault, Settings, World};
+use skein_lib::{Duration, Queue, Secret, Token, Wall};
 use skein_ui_screen_terminal::Key;
 use temper_client_domain::{self as client, Action, Place, approve};
-use temper_client_tui::Note;
+use temper_client_tui::{BoxLine, Note};
 use temper_client_world::{
     app::Temper,
     fixtures,
-    front::{self, Joint},
+    front::{self, Joint, account_acts},
     tui::{ADDRESS, File, Tui},
 };
 
@@ -199,9 +199,123 @@ fn file_secret_is_in_no_frame(tui: &Tui, link: &[u8]) {
     let (_, secret) = url.split_once("?secret=").expect("fixture secret field");
     assert!(!tui.frames.is_empty(), "the host drew frames");
     for frame in &tui.frames {
+        let frame: String = frame.lines().map(str::trim).collect();
         assert!(!frame.contains(url), "the file's URL must not be drawn");
         assert!(!frame.contains(secret), "the file's secret must not be drawn");
     }
+}
+
+#[test]
+fn a_tui_in_front_signs_in_by_its_handed_link_and_ticks_the_browsers_sign_in() {
+    let mut world = fixtures::tui_first_run_world(fixtures::SEED);
+    let handed = world.front().local_link().expect("the handed link");
+    let printed = front::printed_link();
+    assert!(handed != printed, "the handed and printed links differ");
+    let mut tui = Tui::front(&mut world, TUI, None);
+    tui.boxed(&mut world, BoxLine::Link { url: Secret::new(printed.clone()) });
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(tui.credential().is_some(), "the handed link keeps a credential");
+    assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
+    assert!(tui.status().ends_with("● Live"));
+    assert_eq!(tui.reads, 1);
+    assert_eq!(tui.sign_in_sends, 1);
+    assert_eq!(tui.approval_asks, 0);
+    assert!(tui.opens.is_empty());
+    let text = tui.text();
+    // The 92-byte link wraps at the host's 80 columns.
+    let unwrapped: String = text.lines().map(str::trim).collect();
+    assert!(
+        unwrapped.contains(std::str::from_utf8(&printed).expect("the printed link is UTF-8")),
+        "the welcome draws the printed link whole"
+    );
+    assert!(text.contains("In the browser"), "the welcome shows the browser's steps");
+    assert!(!text.contains("Signed in as the owner"), "the handed link does not tick the browser's sign-in");
+
+    // A second shipped host pastes the printed link as the browser would.
+    let mut browser = Tui::start(&mut world, ELSEWHERE, None);
+    browser.press(&mut world, vec![Key::Paste(printed), Key::Enter]);
+    browser.run(&mut world, fixtures::WITHIN);
+    assert!(browser.credential().is_some(), "the printed link signed the browser in");
+    tui.run(&mut world, fixtures::WITHIN);
+    let text = tui.text();
+    assert!(text.contains("✓ Signed in as the owner"), "the browser's sign-in reaches the welcome");
+    assert!(text.contains("▸ 1 Welcome"), "Welcome is the current step");
+    assert_eq!(tui.reads, 1, "the handed link signs in without reading again");
+    assert!(tui.opens.is_empty(), "the welcome never opens the printed link");
+    file_secret_is_in_no_frame(&tui, &handed);
+    file_secret_is_in_no_frame(&browser, &handed);
+}
+
+#[test]
+fn a_playground_the_browser_starts_shows_in_the_tuis_header_and_quiet_line() {
+    let (front, mut browser) = account_acts::tui_playground_fixture(fixtures::SEED);
+    let mut world = World::new(Settings { seed: fixtures::SEED, ..Settings::default() }, front);
+    world.randomness(2, 0, 0);
+    let mut tui = Tui::with_file(&mut world, TUI, None, File::Engine, None);
+    tui.run(&mut world, fixtures::WITHIN);
+    let before = tui.text();
+    assert!(before.contains(CONNECTED), "the TUI starts on the playground project's launchpad");
+    assert!(!tui.status().contains("playground"));
+    let (_, mut view) = Temper::new(fixtures::SEED);
+    let mut patches = Queue::with_capacity(Temper::patch_limit(&view));
+    Temper::build(&mut view, &browser, &mut patches);
+    let button = Temper::tree(&view)
+        .nodes()
+        .iter()
+        .find(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Try the playground"))
+        .expect("the browser offers Try the playground")
+        .id;
+    let temper_client_world::app::View::Person(view) = &mut view else { panic!("the browser's view") };
+    let action = temper_client_view::act(view, button, skein_ui::Act::Press).expect("the browser's start action");
+    account_acts::event(world.front(), &mut browser, client::Event::Act { action }.into());
+    tui.run(&mut world, fixtures::WITHIN);
+    assert_eq!(world.front().playground_starts.len(), 1, "the browser starts the playground once");
+    let text = tui.text();
+    let header = text.lines().next().expect("the header");
+    assert!(header.contains("playground · 127.0.0.1:8367"), "the playground precedes the place");
+    let words = text.lines().map(|line| line.trim_matches(['│', ' '])).collect::<Vec<_>>().join(" ");
+    assert!(words.contains("This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it."));
+    assert!(tui.status().contains("/ for commands · playground"));
+    assert!(!text.contains("Nothing needs you."), "the playground leaves out Home's headline");
+}
+
+#[test]
+fn a_tui_in_front_shows_the_boxs_state_and_its_log() {
+    let mut world = fixtures::tui_world(fixtures::SEED);
+    let handed = world.front().local_link().expect("the handed link");
+    let mut tui = Tui::front(&mut world, TUI, None);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(tui.credential().is_some());
+    tui.boxed(&mut world, BoxLine::Restarting { step: b"forgejo-3".as_slice().into() });
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(tui.status().contains("forgejo-3 restarting"));
+    let lines = [
+        "10:41:02 forgejo exited 1: database is locked",
+        "10:41:03 forgejo restarting, 2 of 5 within 10 min",
+        "10:41:05 forgejo listening on 127.0.0.1:8368",
+    ];
+    for line in lines {
+        tui.boxed(&mut world, BoxLine::Log { line: line.as_bytes().into() });
+    }
+    tui.type_words(&mut world, "/log");
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    let text = tui.text();
+    let mut note = text.split_once(" /log\n").expect("the /log note").1;
+    for line in lines {
+        note = note.split_once(line).expect("the log's lines are oldest first").1;
+    }
+    tui.boxed(&mut world, BoxLine::Running { step: b"forgejo-3".as_slice().into() });
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(!tui.status().contains("restarting"));
+    tui.boxed(&mut world, BoxLine::GaveUp { step: b"forgejo-3".as_slice().into() });
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(tui.text().contains("The box gave up: forgejo-3. /log shows why; Ctrl+C closes."));
+    assert!(!tui.closed, "the front stays open after the box gives up");
+    tui.press(&mut world, vec![Key::Control(b'c')]);
+    assert!(tui.closed, "Ctrl+C closes at once after give-up");
+    assert!(!tui.text().contains("Stop the box?"), "nothing asks after give-up");
+    file_secret_is_in_no_frame(&tui, &handed);
 }
 
 #[test]

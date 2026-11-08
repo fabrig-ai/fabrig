@@ -169,7 +169,7 @@ designs them:
 documentation  temper help [NAME | --search WORDS...]
 deployment     temper init [DIRECTORIES] [--box]
                temper serve [DIRECTORIES]
-               temper box [DIRECTORIES] [--echo none|steps] [--fake-backends [--bundle DIR]]
+               temper box [DIRECTORIES] [--echo none|steps] [--fake-backends [--bundle DIR]] [--no-tui]
                temper versions
                temper upgrade --check DIRECTORY | --back
                temper program-login [DIRECTORIES] NAME
@@ -183,6 +183,7 @@ clients        temper [ADDRESS]
 spawned        temper internal agent AGENT.json
                temper internal serve [DIRECTORIES] --box
                temper internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...
+               temper internal tui --box ADDRESS
 test doubles   temper fake llm|forge|oauth|git ...
 ```
 

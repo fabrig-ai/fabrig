@@ -18,6 +18,26 @@ designed. Section 13.4's box stories
 (`crates/temper/tests/suite/box_listeners.rs`) hold the file's link at stdout's address and apart from every printed
 link, and left as it was when the first printed link is spent.
 
+Section 7.6 has no known implementation gap in the TUI in front, by the
+look request `tui-box-front`: the front chosen once at start, serve's 64
+bytes, the front's descriptors and `tui.log`, the terminal's lines to
+`box.log` and the front while it runs, the 256 lines held, its end the
+box's stop, a stop signalling it first, a give up leaving it running,
+and the foreground taken back after it. `temper-box`'s host and line
+tables hold each but the last (`temper-box/src/tests/host.rs`,
+`front.rs`), and the focused binary story
+`a_box_in_a_terminal_runs_its_tui_in_front_and_stops_with_it`
+(`crates/temper/tests/suite/box_front.rs`) a box on a pseudo-terminal
+signing its front in, the front's raw modes, and its stop with no
+secret in a log. The foreground taken back
+(`crates/temper/src/box_command.rs`) is held by skein's world for the
+call alone (`skein/docs/design/shell.status.md`); no temper test reads the
+terminal's foreground group after the front. Every other box story starts
+the box on pipes, so `--no-tui`'s and a non-terminal's box are 7.2's as
+before. No real terminal has run it; that check follows landing
+(`../client/README.md`, section 11), and section 15 keeps a box started
+in the background and a front killed outright.
+
 - **Not yet:** 13.4: the file's secret on no log: the fresh box's story
   reads stdout, stderr and `box.log` for it, not `serve.log`, which
   holds serve's stderr. By reading, serve writes none there: its host
