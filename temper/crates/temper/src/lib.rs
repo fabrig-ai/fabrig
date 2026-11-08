@@ -67,6 +67,7 @@ mod program_login;
 mod restart_fault;
 mod setup;
 mod tui;
+mod tui_front;
 mod worker_alone;
 pub use host::{Host, ending as service_ending};
 use json::CONFIG_BYTES;
@@ -82,6 +83,7 @@ pub enum Command {
     Agent { configuration: PathBuf },
     AgentList { configuration: PathBuf },
     Tui { address: Option<Box<[u8]>> },
+    TuiFront { address: Box<[u8]> },
     Open { arguments: Vec<OsString> },
     Ctl { arguments: Vec<OsString> },
     Help { request: help::Request },
@@ -128,6 +130,7 @@ pub fn configure_with(
     }
     configure_row(row, arguments, environment, working).map_err(|why| commands::refused(row, &why))
 }
+#[expect(clippy::too_many_lines, reason = "the command table forms are configured together")]
 fn configure_row(
     row: &commands::Row,
     arguments: &[Box<[u8]>],
@@ -158,6 +161,12 @@ fn configure_row(
         ["internal", "agent-list"] => {
             return match arguments {
                 [configuration] => Ok(Command::AgentList { configuration: path(configuration).into() }),
+                _ => Err(invalid()),
+            };
+        }
+        ["internal", "tui"] => {
+            return match arguments {
+                [flag, address] if flag.as_ref() == b"--box" => Ok(Command::TuiFront { address: address.clone() }),
                 _ => Err(invalid()),
             };
         }
@@ -288,6 +297,7 @@ pub fn run(command: Command) -> Result<u8, String> {
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
         Command::Tui { address } => return Ok(tui::run(address, &Clock::new())),
+        Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(match exit {

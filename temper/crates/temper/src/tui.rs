@@ -280,7 +280,7 @@ fn local_run(mut settings: Settings, root: Fd, user: u32, seed: u64, signals: Fd
     run.with_local_link(root, &path)
 }
 
-fn keep_address(parent: &std::path::Path, bytes: Box<[u8]>, user: u32, seed: u64, clock: &Clock) {
+pub(crate) fn keep_address(parent: &std::path::Path, bytes: Box<[u8]>, user: u32, seed: u64, clock: &Clock) {
     let Ok(mut kernel) = Kernel::open(Config { operations: skein_shell::STORE_OPERATIONS }) else { return };
     let Ok(root) = skein_shell::open_root(parent) else { return };
     let store = skein_shell::StartupStore {

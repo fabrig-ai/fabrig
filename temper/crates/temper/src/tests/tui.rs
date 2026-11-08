@@ -13,6 +13,24 @@ fn environment(entries: &[(&str, &str)]) -> Vec<crate::EnvironmentEntry> {
 }
 
 #[test]
+fn the_handed_link_is_one_to_4096_bytes() {
+    // client/README.md, 6.17 bounds the handed local link at 4,096 bytes.
+    const MOST: usize = 4096;
+    for (row, bytes, accepted) in [
+        ("empty", Vec::new(), false),
+        ("a link", LINK.as_bytes().to_vec(), true),
+        ("at the bound", vec![b'x'; MOST], true),
+        ("past the bound", vec![b'x'; MOST + 1], false),
+    ] {
+        let link = crate::tui_front::handed(&bytes);
+        assert_eq!(link.is_some(), accepted, "{row}: handed link admission");
+        if let Some(link) = link {
+            assert!(link.expose() == bytes, "{row}: the handed link stays whole");
+        }
+    }
+}
+
+#[test]
 fn an_address_is_an_engine_on_loopback_and_never_a_link() {
     for (argument, expected) in [
         ("http://127.0.0.1:8367", Ok("127.0.0.1:8367".parse().expect("IPv4"))),
