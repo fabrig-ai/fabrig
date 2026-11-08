@@ -115,7 +115,8 @@ fn latest() -> Step<temper_client_domain::Address> {
 #[test]
 fn latest_replaces_the_past_with_the_ends_window() {
     let (mut world, client, _) = long_chat();
-    let end = held(&world, client);
+    let end = vec![TURNS - 2, TURNS - 1];
+    assert!(held(&world, client).ends_with(&end), "opening retains the latest two-row page");
     back(&mut world, client);
     assert!(log(&world, client).states.as_slice().contains(&skein_ui::State::Continues));
     let request = log(&world, client).end_request;

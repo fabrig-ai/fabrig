@@ -4899,6 +4899,7 @@ dependencies = [
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-world",
+ "temper-engine-shell",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
@@ -5336,6 +5337,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-store",
+ "skein-fail-stop",
+ "skein-io",
+ "skein-scratch",
+ "skein-shell",
+ "temper-engine-shell",
+ "temper-protocol-store",
+ "temper-service",
+ "temper-shell",
+ "temper-version",
+]
+
+[[package]]
 name = "temper-engine-domain"
 version = "0.0.0"
 dependencies = [
@@ -5543,6 +5560,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine-shell"
+version = "0.0.0"
+dependencies = [
+ "jig-channel-kit",
+ "jig-domain-core",
+ "jig-domain-host",
+ "jig-domain-tasks",
+ "jig-protocol-config",
+ "jig-protocol-store",
+ "serde_json",
+ "skein-forge",
+ "skein-forge-connection",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-oauth-accounts",
+ "skein-scratch",
+ "skein-shell",
+ "skein-tls",
+ "temper-box",
+ "temper-client-bundle",
+ "temper-client-protocol-wire",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-fake",
+ "temper-forge-setup",
+ "temper-forge-setup-shell",
+ "temper-playground",
+ "temper-service",
+ "temper-shell",
+]
+
+[[package]]
 name = "temper-engine-smith"
 version = "0.0.0"
 dependencies = [
@@ -5576,6 +5626,7 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-ways",
+ "temper-protocol-brief",
  "temper-protocol-reaches",
  "temper-settings-form",
 ]
@@ -5884,6 +5935,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-protocol-brief"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-domain-run",
+]
+
+[[package]]
 name = "temper-protocol-reaches"
 version = "0.0.0"
 dependencies = [
@@ -6065,6 +6124,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
  "temper-box",
  "temper-client-domain",
@@ -6082,6 +6142,7 @@ dependencies = [
  "temper-engine-smith",
  "temper-forge-setup",
  "temper-init",
+ "temper-protocol-brief",
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-store",
@@ -6109,6 +6170,8 @@ dependencies = [
 name = "temper-shell"
 version = "0.0.0"
 dependencies = [
+ "jig-protocol-config",
+ "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
@@ -6195,6 +6258,10 @@ dependencies = [
  "smith-transcript",
  "temper-fake",
 ]
+
+[[package]]
+name = "temper-version"
+version = "0.0.0"
 
 [[package]]
 name = "temper-worker-checkout-world"

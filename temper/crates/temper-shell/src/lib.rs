@@ -12,3 +12,6 @@ pub mod rows;
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
+
+#[cfg(test)]
+mod tests;

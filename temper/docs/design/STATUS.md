@@ -141,7 +141,17 @@ page in Settings, and the terminal prints "Ways of working:" and "The
 way a change goes:" once each. No gallery state draws those two pages,
 and the repairs' render check follows landing (`client/README.status.md`,
 3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
-`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). Ask temper's
+`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). How work
+runs, Settings' first tab, is the whole story's milestone P3a, by plan
+`ui-p3a-how`: the way the project runs, "Ask temper to change this",
+the ways as tabs over the path in lanes, You, Agents and Code, a goal's
+budget and the switches at its foot, its parts and lanes one pure
+function each, with a fuzz test of their rules, the joint world's
+lanes over CI and tiers and over neither, and six gallery states; its
+render check and walk follow landing. The draft draws the path as Ask
+temper's ways do, the agent's star in ink, which the design doesn't yet
+say, and Roles, which it defers (`client/README.md`, 5.13 and 11; `client/browser.md`,
+2.5 and 7.2; `draft/surfaces.status.md`, 7 and 13). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
@@ -296,17 +306,17 @@ repository's gates are still the document's
 (`protocol/configuration.md`, `domain/landing.md`), and the forge's
 world tells none of their stories (`domain/forge.md`,
 `domain/testing.md`). A goal's own branch and its landing are built,
-but for the held landing's story, ignored for a restart fault
-(`domain/forge.md`). A change relays its agents' questions through a
+and its held landing's story runs (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
 asks from a repair or a resolution, or has its words refused, and a
 step short of message room loses a foreman's verdict
 (`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
-built through ctl, but the restore's stories in the domain world and
-the joined client world are ignored (`protocol/configuration.md`,
-`client/tools.md`). Ask temper, charter 11 from template 5, configures
+built through ctl, and the domain world's restore stories run but
+one, which, with the joined client world's, stays ignored: a setting
+reset to a default the forge does not report to jig loses its state at
+restart (`protocol/configuration.md`, `client/tools.md`). Ask temper, charter 11 from template 5, configures
 through `see`, `document` and the asking `propose_settings`; its reference
 pages are built, but no walk on record has run a real model on its words
 as they stand. No address of `see` reads workers' slots, so it sizes by
@@ -715,7 +725,8 @@ into the process tier and compiled; their runtime there and the tier's
 margin after the estimated 15.9 CPU s transfer remain unobserved
 (`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
 The process tier's three tests at a time await a passing whole run after landing,
-and its CPU-budget overages remain. The fake box keeps two walks, `here_key`
+and no run on record reads the tier as it stands against its 540 CPU s.
+The fake box keeps two walks, `here_key`
 and the browser tab; the ten others' behaviour runs in the joint world, the
 real loop, the one-process world and the fake's own stories, and the tier's
 CPU without them is read after landing. The copy stories' world and the

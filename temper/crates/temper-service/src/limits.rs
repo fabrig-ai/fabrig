@@ -8,7 +8,43 @@ pub use reference::{engine_reference, reference};
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-use temper_worker_domain_checkout as checkout;
+/// The checkout's configured bounds (protocol/configuration.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Checkout {
+    /// Workspaces on the worker's disk: the cache's bound, and the most that
+    /// may be held at once. A prepare that finds every one held is refused.
+    pub workspaces: u32,
+    /// Repositories a spec names: at least one.
+    pub repositories: u32,
+    /// The longest workstream key, repository name or remote, or branch.
+    pub name_bytes: u32,
+    /// The longest commit message, its title and body together.
+    pub message_bytes: u32,
+    /// Maximum originally or still conflicted paths per repository. Zero
+    /// disables merge starts; other workspace preparation remains available.
+    pub conflicts: u32,
+    /// Maximum bytes of one full relative conflicted path.
+    pub path_bytes: u32,
+    /// How long an operation that reaches the forge may take: a clone, a
+    /// fetch, a branch's creation, a push.
+    pub remote_timeout: Duration,
+    /// How long one on the worker's disk may take: making a workspace,
+    /// checking out, merging, committing.
+    pub local_timeout: Duration,
+    /// Facts kept until the parent drains them. Beyond them, facts are dropped
+    /// and counted.
+    pub facts: u32,
+}
+/// The git component's configured bounds (protocol/configuration.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct GitComponent {
+    pub operations: u32,
+    pub stdout_bytes: u32,
+    pub stderr_bytes: u32,
+    pub read_bytes: u32,
+    pub sweep_entries: u32,
+    pub sweep_bytes: u32,
+}
 /// Temper's profiles for one person's machine and a project of fabrig's scale.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Profile {
@@ -56,8 +92,8 @@ pub struct Limits {
     pub forge_component: skein_forge_connection::Limits,
     pub root: Root,
     pub forge: forge::Limits,
-    pub checkout: checkout::Limits,
-    pub git_component: temper_worker_protocol_git::Limits,
+    pub checkout: Checkout,
+    pub git_component: GitComponent,
     pub clients: Clients,
     pub sign_in: SignIn,
     pub picker: Picker,
@@ -294,7 +330,7 @@ const STANDARD_FORGE: forge::Limits = forge::Limits {
     },
     ..FORGE
 };
-const CHECKOUT: checkout::Limits = checkout::Limits {
+const CHECKOUT: Checkout = Checkout {
     // Cached or held checkout workspaces, from the checkout world fixture.
     workspaces: 3,
     // Held to the agent's two repository directories.
@@ -509,7 +545,7 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
     }
 }
 
-const GIT: temper_worker_protocol_git::Limits = temper_worker_protocol_git::Limits {
+const GIT: GitComponent = GitComponent {
     // One operation per cached workspace, plus the component's startup and sweep.
     operations: 3,
     // At least every conflict path including its terminating NUL.
@@ -563,18 +599,13 @@ pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
 }
 
 /// Job files and error output (temper/docs/design/protocol/tooling.md, 6).
+#[cfg(feature = "worker")]
 pub(crate) const TOOLING_FILE_BYTES: u32 = 1_048_576;
+#[cfg(feature = "worker")]
 pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
+#[cfg(feature = "worker")]
 pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
-pub(crate) fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
-    temper_worker_domain::tooling::Limits {
-        file_bytes: TOOLING_FILE_BYTES,
-        tail_bytes: TOOLING_LOG_BYTES,
-        path_bytes: TOOLING_PATH_BYTES,
-        jobs: slots,
-        path: b"/usr/bin:/bin".as_slice().into(),
-    }
-}
+pub(crate) const TOOLING_PATH: &[u8] = b"/usr/bin:/bin";
 
 /// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
 pub(crate) const MERGE_KIND: u32 = 3;
