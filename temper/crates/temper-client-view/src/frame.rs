@@ -56,6 +56,7 @@ impl Bindings {
         self.entries.push((token, act)).expect("pages bindings fit");
         Binding { owner: owner(), token }
     }
+    #[expect(clippy::too_many_lines, reason = "one dispatch decodes the page bindings and drawing payloads")]
     pub fn decode(&self, token: Token, act: skein_ui::Act) -> Option<temper_client_domain::Action> {
         for (key, meaning) in &self.entries {
             if *key == token {
@@ -150,6 +151,9 @@ impl Bindings {
                     (PageAct::DefaultName { .. }, skein_ui::Act::Submit) => PageAct::MakeDefault,
                     (PageAct::ChatWords { .. }, skein_ui::Act::Submit) => PageAct::StartChat,
                     (PageAct::MessageWords { .. }, skein_ui::Act::Submit) => PageAct::Send,
+                    (PageAct::WayStop { project, .. }, skein_ui::Act::Drawing { data }) => {
+                        PageAct::WayStop { project: *project, stop: crate::paths::pressed_stop(&data)? }
+                    }
                     (meaning, skein_ui::Act::Press) => meaning.clone(),
                     _ => return None,
                 };
