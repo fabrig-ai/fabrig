@@ -1,0 +1,6 @@
+draft = "inproc-fixes"
+repo = "fabrig"
+sources = ["temper/docs/plan/inproc-fixes/inputs/request.md", "tools/tiers/design.status.md", "tools/tiers/one_process.py", "tools/tiers/one-process", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
