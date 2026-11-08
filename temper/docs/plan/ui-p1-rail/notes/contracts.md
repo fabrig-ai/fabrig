@@ -209,3 +209,30 @@ page reads it from `Pages::builders()`.
 - **`temper.css` markers:** `rail` adds `/* ==== ui: rail ==== */` before the
   switcher's marker, `work-page` adds `/* ==== ui: work ==== */` before Goals',
   and `deployment` writes under `/* ==== ui: settings ==== */`.
+
+## C7. Work's facts and its filters' overrides (`work-page`)
+
+Added with the second batch; C1 to C6 stand. In `pages/work.rs`, beside C4:
+
+```rust
+/// Kind 7's switches as Work's filter overrides (README.md, 3.5, Work, Its filters):
+/// true where the switch, read, says Hidden.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct Overrides { pub goals: bool, pub changes: bool }
+
+/// Which of Work's own filters are drawn; All, and the current one, always are.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "one switch per filter")]
+pub struct Shown { pub drafts: bool, pub goals: bool, pub changes: bool, pub chats: bool }
+
+/// A filter is drawn while it holds something and no override hides it.
+#[must_use]
+pub fn shown(filters: &Filters, overrides: Overrides) -> Shown;
+/// Kind 7's `goals` and `changes` for the project; neither hides until it is read.
+#[must_use]
+pub fn overrides(root: &crate::Domain, project: u32) -> Overrides;
+/// C4's facts from the goals', changes' and chats' pages; None until all three
+/// have answered.
+#[must_use]
+pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts>;
+```
