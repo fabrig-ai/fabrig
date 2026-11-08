@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Needs you</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="whole-story.css">
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">All projects <small>4</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a class="on" href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="work.html">Work</a>
+      <a href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New draft or change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">Owner</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="col">
+      <header class="intro">
+        <p class="kicker">Needs you · all projects</p>
+        <h1 class="headline">Two things need you. Four were decided for you.</h1>
+        <p class="lede">What reaches you: changes to vsr's protocol core, money past a budget, anything that can't be undone, and departures from your rules. Agents decide the rest and list it here for a day, so you can overturn it.</p>
+        <p class="small"><a href="how.html">What reaches you, project by project</a></p>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Needs you · 2</h2><span>oldest first</span></div>
+        <div class="card need">
+          <p class="from"><span class="chip">vsr</span> goal membership-handoff · task "Witness rejoin fix" · asked by the goal after Prover's finding · 1 h ago</p>
+          <p class="q">Count a rejoining witness toward the view-change quorum only once it holds the log suffix?</p>
+          <p>Prover's test replays the fuzz case: a witness that rejoined during view 41 was counted toward the quorum before it held the log's last 64 entries, and the new primary truncated a committed entry. Both fixes pass the test.</p>
+          <ul class="small">
+            <li><b>Only once caught up:</b> no change on the wire; a view change can wait one catch-up round.</li>
+            <li><b>Count it, with a barrier:</b> view changes stay as fast; one new message in docs/protocol.md.</li>
+          </ul>
+          <p class="why">Reached you because include/vsr.h, src/protocol.*, src/transition.* and docs/protocol.md always ask you on vsr. <a href="how.html">Keep asking</a> · <a href="how.html">Stop asking: let goals decide fixes that keep the wire format</a></p>
+          <div class="choices">
+            <a class="choice rec" href="#">Only once caught up <small>recommended</small></a>
+            <a class="choice" href="#">Count it, add a catch-up barrier</a>
+          </div>
+          <label class="field">Or tell it something else<input type="text" value="" placeholder="Your words go to the goal as its next message"></label>
+          <p class="mono">Talk it through: temper talk membership-handoff</p>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">vsr-rs</span> Porter · its weekly budget · 20 min ago</p>
+          <p class="q">Porter has used $49 of its $60 this week, with three ports left. Raise this week to $75?</p>
+          <p class="why">Reached you because money past a budget always waits for you, away or not.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Raise to $75 <small>recommended</small></a>
+            <a class="choice" href="#">Pause it until Monday</a>
+            <a class="choice quiet" href="#">Raise every week</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Only you · 1</h2><span>work goes on around it</span></div>
+        <div class="card">
+          <p class="from"><span class="chip">Deployment</span> an LLM account</p>
+          <p class="q">The Claude login vsr's agents use expires in 2 days. Sign in again?</p>
+          <div class="choices"><a class="choice rec" href="#">Sign in</a><a class="choice quiet" href="#">Remind me tomorrow</a></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Decided for you · 4</h2><span>for 24 hours, then in each goal's history</span></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">vsr · Prover · 02:10</span>
+            <div><p>A fuzz crash came from the test harness, not the library.</p><p class="took">Fixed the harness.</p><p class="small muted">Allowed: test-only changes are decided and listed.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+          <div class="row">
+            <span class="mono">vsr-rs · Porter · 03:40</span>
+            <div><p>vsr's new bounds check uses a compiler builtin.</p><p class="took">Ported it as checked_add.</p><p class="small muted">Allowed: an implementation choice the port's rules leave open.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+          <div class="row">
+            <span class="mono">fabrig · landing · 05:12</span>
+            <div><p>A gate failed on a known flake.</p><p class="took">Reran it once.</p><p class="small muted">Allowed: a flake matching an open finding.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+          <div class="row">
+            <span class="mono">fabrig · UI · 06:30</span>
+            <div><p>A look round's phone frame moved a button by 2 px.</p><p class="took">Accepted it.</p><p class="small muted">Allowed: inside the round's tolerance.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Tell temper</h2><span>feedback becomes a finding, routed to its area's owner</span></div>
+        <div class="card">
+          <label class="field">Something off?<textarea rows="2">vsr's help says reads are linearizable; docs/protocol.md says fresh quorum reads. Which is it?</textarea></label>
+          <p class="small muted">About vsr · docs. Goes to: you, as protocol core's owner. Questions go to Ask temper instead, which answers rather than files.</p>
+          <div class="choices"><a class="choice rec" href="#">File it</a><a class="choice quiet" href="#">Ask temper instead</a></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>
