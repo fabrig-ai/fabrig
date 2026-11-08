@@ -1212,6 +1212,8 @@ impl Chat {
             | Act::SignOut
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::UseWay { .. }
+            | Act::KeepWay { .. }
             | Act::ShowReference
             | Act::Starter { .. }
             | Act::SkipToBegin

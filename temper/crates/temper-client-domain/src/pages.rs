@@ -80,6 +80,7 @@ pub struct Pages {
     pub(crate) inbox: Option<inbox::Inbox>,
     pub home: Option<home::Home>,
     changes: Option<changes::Changes>,
+    stock_ways: Option<crate::forge::stock_ways::StockWays>,
     chats: Option<chats::Chats>,
     rail_handles: RailHandles,
     goals: Option<goals::Goals>,
@@ -188,6 +189,13 @@ pub enum Act {
     },
     /// "See how it works": the stock reference beside Ask temper (client/README.md, 3.5).
     ShowReference,
+    UseWay {
+        project: u32,
+        way: u32,
+    },
+    KeepWay {
+        project: u32,
+    },
     Suggest {
         cue: u8,
     },
@@ -319,6 +327,7 @@ impl Pages {
             inbox: None,
             home: None,
             changes: None,
+            stock_ways: None,
             chats: None,
             rail_handles: RailHandles::None,
             goals: None,
@@ -455,6 +464,10 @@ impl Pages {
         self.home.as_ref()
     }
     #[must_use]
+    pub const fn stock_ways(&self) -> Option<&crate::forge::stock_ways::StockWays> {
+        self.stock_ways.as_ref()
+    }
+    #[must_use]
     pub const fn changes(&self) -> Option<&changes::Changes> {
         self.changes.as_ref()
     }
@@ -538,6 +551,7 @@ pub(crate) fn acted(pages: &mut Pages) {
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch routes page events and refreshes shared facts")]
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
+    configure_stock_ways(pages, client);
     let event = terminal::prepare(pages, env, client, event, out);
     chat_inbox(pages, env, client, out);
     let Some(event) = event else { return };
@@ -641,6 +655,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if let Some(inbox) = pages.inbox.take() {
                 pages.next = pages.next.max(inbox.leave(out));
             }
+            if let Some(page) = pages.stock_ways.take() {
+                page.leave(out);
+            }
             if let Some(changes) = pages.changes.take() {
                 changes.leave(out);
                 pages.next = pages.next.max(changes.next());
@@ -684,6 +701,23 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 if let Some(chats) = &mut pages.chats {
                     chats.ask_chat(env, me, Some(project), words, &pages.choice, &mut pages.serial, out);
                 }
+            }
+        }
+        Event::Act { act: Act::UseWay { project, way } } => {
+            if let Some(page) = &mut pages.stock_ways {
+                page.send_act(
+                    project,
+                    Some(way),
+                    crate::forge::stock_ways::WayAct::Use,
+                    client,
+                    &mut pages.serial,
+                    out,
+                );
+            }
+        }
+        Event::Act { act: Act::KeepWay { project } } => {
+            if let Some(page) = &mut pages.stock_ways {
+                page.send_act(project, None, crate::forge::stock_ways::WayAct::Keep, client, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::ShowReference } => {
@@ -1029,6 +1063,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         goals.configure(me, project, client, &env.limits, out);
     }
     chat_inbox(pages, env, client, out);
+    configure_stock_ways(pages, client);
     choice::refresh(pages, client);
     redirect_chat(pages, client, out);
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
@@ -1055,6 +1090,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if pages.has_goals.told(&told) {
+        return true;
+    }
+    if let Some(page) = &mut pages.stock_ways
+        && page.told(&told, client, env.limits.forge, &mut pages.serial, out)
+    {
         return true;
     }
     if let Some(changes) = &mut pages.changes
@@ -1302,6 +1342,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
     if (!pages.accounts_open
         && !pages.builders_open
         && pages.changes.is_none()
+        && pages.stock_ways.is_none()
         && pages.home.is_none()
         && pages.inbox.is_none()
         && pages.chats.is_none()
@@ -1358,6 +1399,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         } else if let Some(mut page) = pages.connect_model.take() {
             page.leave();
         }
+        if let Some(page) = pages.stock_ways.take() {
+            page.leave(out);
+        }
         pages.welcome = None;
         if let Address::Welcome { .. } = address {
             pages.welcome = Some(welcome::Welcome::new());
@@ -1399,6 +1443,10 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
                 chat.composer_focus = 1;
             }
             pages.chat = Some(chat);
+        }
+        if let Address::Ask { project } = address {
+            pages.stock_ways =
+                Some(crate::forge::stock_ways::StockWays::new(project, &mut pages.next, env.limits.forge, out));
         }
         if let Address::Changes { project } = address {
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
@@ -1872,6 +1920,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::SignOut
         | Act::ChatWords { .. }
         | Act::StartChat
+        | Act::UseWay { .. }
+        | Act::KeepWay { .. }
         | Act::ShowReference
         | Act::Starter { .. }
         | Act::SkipToBegin
@@ -2500,4 +2550,14 @@ pub(crate) fn forge_progress(root: &mut crate::Domain, env: &Env<Limits>, out: &
     crate::route::pages(root, env, Event::Went { address: Address::Forges }, out);
     root.pages.forges_opened = Some(number);
     out.push(crate::Request::Show { address: Address::Forges, replace: true });
+}
+
+fn configure_stock_ways(pages: &mut Pages, client: &Client) {
+    let asking = match (&pages.chats, address_project(&pages.address)) {
+        (Some(chats), Some(project)) => chats.chat_counts(client, pages.me(client), project),
+        (Some(_), None) | (None, Some(_) | None) => false,
+    };
+    if let Some(page) = &mut pages.stock_ways {
+        page.configure(asking || home::configured(client));
+    }
 }
