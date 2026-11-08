@@ -205,7 +205,7 @@ fn the_view_clock_ticks_only_when_its_words_change() {
     for (wall, changes) in
         [(Wall::EPOCH, true), (Wall::from_nanos(1), false), (Wall::from_nanos(60_000_000_000), false)]
     {
-        let mut out = Queue::with_capacity(crate::limits(&f::limits(), 512).unwrap().patches);
+        let mut out = Queue::with_capacity(crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap().patches);
         crate::build(&mut view, &tui, &root, wall, &mut out);
         assert_eq!(!out.is_empty(), changes);
         assert_eq!(view.tick(), None);

@@ -5,7 +5,7 @@
 
 use super::fixtures as f;
 use crate::{Refusal, Scheme, Told, Tui, theme};
-use skein_lib::Wall;
+use skein_lib::{List, Wall};
 use skein_ui_screen::{Focus, Frame, Size, render};
 
 // The two review sizes of the TUI's first screen.
@@ -14,8 +14,6 @@ const SMALL: Size = Size { columns: 40, rows: 12 };
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the golden test embeds its fixed inputs and formats readable mismatches")]
-#[expect(clippy::disallowed_types, reason = "test diagnostics collect every mismatching frame as text")]
-#[expect(clippy::disallowed_methods, reason = "test diagnostics join the mismatching frames into one failure")]
 fn the_tuis_screens_are_their_goldens() {
     let (first, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
     let mut connected = Tui::new(f::ADDRESS);
@@ -103,18 +101,45 @@ fn the_tuis_screens_are_their_goldens() {
             include_bytes!("golden/sign-in-80x24-dark.txt").as_slice(),
         ),
     ];
-    let mut mismatches = Vec::new();
-    for (name, root, tui, scheme, size, expected) in rows {
+    let mut views = List::with_capacity(8);
+    for (_, root, tui, _, _, _) in &rows {
         let mut view = f::view();
         f::build(&mut view, tui, root);
-        let mut focus = Focus::default();
-        let mut frame = Frame::new(size);
-        render(view.tree(), &theme(scheme), size, &mut focus, &mut frame);
+        views.push(view).unwrap();
+    }
+    let mut checks = List::with_capacity(8);
+    for ((name, _, _, scheme, size, want), view) in rows.iter().zip(views.iter()) {
+        checks
+            .push(Golden { name, tree: view.tree(), scheme: *scheme, size: *size, focus: Focus::default(), want })
+            .unwrap();
+    }
+    check(checks.as_slice());
+}
+
+#[derive(Debug)]
+pub(crate) struct Golden<'a> {
+    pub name: &'a str,
+    pub tree: &'a skein_ui::Tree,
+    pub scheme: Scheme,
+    pub size: Size,
+    pub focus: Focus,
+    pub want: &'a [u8],
+}
+
+#[expect(clippy::disallowed_macros, reason = "golden diagnostics format readable mismatches")]
+#[expect(clippy::disallowed_types, reason = "test diagnostics collect every mismatching frame as text")]
+#[expect(clippy::disallowed_methods, reason = "test diagnostics join the mismatching frames into one failure")]
+pub(crate) fn check(rows: &[Golden<'_>]) {
+    let mut mismatches = Vec::new();
+    for Golden { name, tree, scheme, size, focus, want } in rows {
+        let mut focus = *focus;
+        let mut frame = Frame::new(*size);
+        render(tree, &theme(*scheme), *size, &mut focus, &mut frame);
         let printed = frame.print();
-        if printed.as_ref() != expected {
+        if printed.as_ref() != *want {
             mismatches.push(format!(
                 "{name}\nexpected:\n{}\nrendered:\n{}",
-                String::from_utf8_lossy(expected),
+                String::from_utf8_lossy(want),
                 String::from_utf8_lossy(&printed),
             ));
         }

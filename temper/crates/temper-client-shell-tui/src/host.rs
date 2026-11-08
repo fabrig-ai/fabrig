@@ -5,7 +5,7 @@ use skein_lib::{Duration, Env, List, Queue, Secret, Set, Time, Token, Wall};
 use skein_ui::Patch;
 use skein_ui_screen::{Cell, Focus, Frame, Size, Theme};
 use skein_ui_screen_terminal::{Command, Key, command};
-use temper_client_domain::{self as root, Address, Event, address::Filter};
+use temper_client_domain::{self as root, Address, Event, address::Filter, pages::terminal::Command as TuiCommand};
 use temper_client_shell_terminal::route::{self, Down, Duty};
 use temper_client_tui::{self as tui, Local, Note, Refusal, Told};
 
@@ -333,7 +333,26 @@ impl Host {
                     });
                 }
             },
-            tui::Event::Quit => self.close(duties),
+            tui::Event::Command { command: TuiCommand::Exit } => self.close(duties),
+            tui::Event::Command {
+                command:
+                    TuiCommand::Model
+                    | TuiCommand::Effort
+                    | TuiCommand::Draft
+                    | TuiCommand::Pause
+                    | TuiCommand::Close
+                    | TuiCommand::StartOver
+                    | TuiCommand::Goal
+                    | TuiCommand::New
+                    | TuiCommand::Chats
+                    | TuiCommand::Theme
+                    | TuiCommand::Font
+                    | TuiCommand::Help,
+            }
+            | tui::Event::Send
+            | tui::Event::Act { .. }
+            | tui::Event::Aside { .. }
+            | tui::Event::Dismiss => {}
         }
     }
 
