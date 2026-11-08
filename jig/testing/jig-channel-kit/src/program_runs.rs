@@ -33,12 +33,15 @@ fn say(key: [u8; 16], words: &[u8]) -> jig_fake_parties::Act {
 }
 
 fn engine(inherited: &Inherited) -> Proc {
-    engine_configured(inherited, false)
+    engine_configured(inherited, Case::Answer)
 }
 fn engine_open(inherited: &Inherited) -> Proc {
-    engine_configured(inherited, true)
+    engine_configured(inherited, Case::Open)
 }
-fn engine_configured(inherited: &Inherited, open: bool) -> Proc {
+fn engine_delegated(inherited: &Inherited) -> Proc {
+    engine_configured(inherited, Case::Delegated)
+}
+fn engine_configured(inherited: &Inherited, case: Case) -> Proc {
     let document = String::from_utf8(fixtures::engine_document())
         .expect("engine JSON")
         .replace(
@@ -48,7 +51,16 @@ fn engine_configured(inherited: &Inherited, open: bool) -> Proc {
         .replace(r#""dialect": 3,"#, r#""dialect": 3, "program": "claude_code","#)
         .replace(r#""window": 1048576"#, r#""window": 272000"#)
         .replace(r#""inspect": false"#, r#""inspect": true"#);
-    if open {
+    let document = if case == Case::Delegated {
+        document
+            .replace(r#""tools": 0"#, &format!(r#""tools": {}"#, core::ToolFamilies::JIG.delegate.0))
+            .replace(r#""maximum_run_spend": 100"#, r#""maximum_run_spend": 20"#)
+            .replace(r#""tasks.project_tasks":1"#, r#""tasks.project_tasks":2"#)
+            .replace(r#""tasks.tree_tasks":1"#, r#""tasks.tree_tasks":2"#)
+    } else {
+        document
+    };
+    if case == Case::Open {
         let mut document: serde_json::Value = serde_json::from_str(&document).expect("engine JSON");
         document["engine"]["templates"][0]["ended_by"] = "requester".into();
         // Only the listening interval changes; the run and reserve deadlines stay fixed.
@@ -70,8 +82,8 @@ pub(crate) fn limits() -> smith_agent_service::Limits {
             .expect("272k profile");
         limits.llm.accounts = 2;
         limits.domain.configured_endpoint_bytes = 4096;
-        // As smith's program process fixture does, bound the report-only run's receiving room.
-        limits.domain.run.run_bytes = limits.domain.run.run_bytes.min(4096);
+        // Bound the receiving room, including the delegate tool schema.
+        limits.domain.run.run_bytes = limits.domain.run.run_bytes.min(16_384);
         limits.domain.run.outcome_bytes = limits.domain.run.outcome_bytes.min(4096);
         limits.domain.run.answer_bytes = limits.domain.run.answer_bytes.min(4096);
         limits.domain.run.check_tail = limits.domain.run.check_tail.min(256);
@@ -81,6 +93,12 @@ pub(crate) fn limits() -> smith_agent_service::Limits {
             smith_domain::feedback_bound(&limits.domain.run).expect("bounded feedback");
         limits
     })
+}
+pub(crate) fn worker_agent() -> jig_test_service::Agent {
+    let mut agent = fixtures::agent_with_limits(&limits());
+    // The delegated case carries the delegate tool's complete schema in its charter.
+    agent.host_limits.charter_bytes = 16_384;
+    agent
 }
 pub(crate) fn configuration() -> smith_agent_service::Config {
     let mut service = fixtures::agent_configuration();
@@ -200,6 +218,7 @@ fn claude_launch(spawn: &kernel::Spawn) -> kernel::Spawn {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Case {
     Answer,
+    Delegated,
     Limited,
     Unauthorized,
     SignOut,
@@ -227,6 +246,8 @@ pub struct Run {
     pub sent_after_park: Option<u64>,
     pub run_waits: Vec<Option<jig_client::contract::TaskRunWait>>,
     pub task: Option<Box<jig_domain_tasks::TaskRecord>>,
+    pub delegates: Vec<Box<jig_domain_tasks::TaskRecord>>,
+    pub results: Vec<u64>,
 }
 impl Run {
     fn worker(&mut self, wire: &processes::Wire) {
@@ -357,7 +378,9 @@ impl skein_world::Referee<Proc> for Judge {
             }
             Case::SignOut => signed_out && !terminals.is_empty(),
             Case::Open => terminals.iter().filter(|answer| answer.end == jig_domain_tasks::End::Parked).count() == 2,
-            Case::Answer | Case::Limited | Case::Unauthorized | Case::Builtin => !terminals.is_empty(),
+            Case::Answer | Case::Delegated | Case::Limited | Case::Unauthorized | Case::Builtin => {
+                !terminals.is_empty()
+            }
         };
         self.record(procs, turns, terminals, signed_out);
     }
@@ -461,11 +484,39 @@ impl Judge {
         run.signed_out = signed_out;
         run.task = self.store.rows.values().find_map(|row| {
             if let jig_test_domain::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row {
-                Some(task.clone())
+                (Some(task.number) == self.party.last_task).then(|| task.clone())
             } else {
                 None
             }
         });
+        run.delegates = self
+            .store
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let jig_test_domain::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row
+                    && Some(task.requester) == self.party.last_task.map(jig_domain_tasks::Party::Task)
+                {
+                    Some(task.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        run.results = self
+            .store
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let jig_test_domain::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Result(result))) =
+                    row
+                {
+                    Some(result.task)
+                } else {
+                    None
+                }
+            })
+            .collect();
         run.held =
             self.store
                 .rows
@@ -601,7 +652,11 @@ pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
     });
     world.spawn_restartable(
         vec![StartupRoot { name: b"state".as_slice().into(), path: b"state".as_slice().into() }],
-        if case == Case::Open { engine_open } else { engine },
+        match case {
+            Case::Open => engine_open,
+            Case::Delegated => engine_delegated,
+            Case::Answer | Case::Limited | Case::Unauthorized | Case::SignOut | Case::Waiting | Case::Builtin => engine,
+        },
     );
     world.spawn_restartable(
         vec![

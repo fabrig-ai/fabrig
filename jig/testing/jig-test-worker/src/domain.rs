@@ -556,6 +556,10 @@ fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, encoded: Encode
                 Finish::Ended => host::Finish::Ended { outcome: body },
                 Finish::Parked => host::Finish::Parked,
                 Finish::Failed(failure) => host::Finish::Failed { failure },
+                Finish::Busy => {
+                    hub(domain, env, HubEvent::Agent(FromAgent::StartBusy { owner }));
+                    return;
+                }
                 Finish::Refused(cause) => {
                     hub(domain, env, HubEvent::Agent(FromAgent::StartRefused { owner, why: body, cause }));
                     return;
@@ -594,15 +598,16 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
     };
     assert!(started || unstarted, "a process terminal follows Started");
     if let Some(why) = translate::unstarted(end) {
-        let cause = match end {
-            smith::End::Invalid(smith::Invalid::Transcript) => host::StartCause::Transcript,
-            smith::End::Busy
-            | smith::End::Invalid(_)
-            | smith::End::Unspawned
-            | smith::End::Exited { .. }
-            | smith::End::Settled => host::StartCause::Other,
+        let event = match end {
+            smith::End::Busy => FromAgent::StartBusy { owner },
+            smith::End::Invalid(smith::Invalid::Transcript) => {
+                FromAgent::StartRefused { owner, why: Box::from(why), cause: host::StartCause::Transcript }
+            }
+            smith::End::Invalid(_) | smith::End::Unspawned | smith::End::Exited { .. } | smith::End::Settled => {
+                FromAgent::StartRefused { owner, why: Box::from(why), cause: host::StartCause::Other }
+            }
         };
-        hub(domain, env, HubEvent::Agent(FromAgent::StartRefused { owner, why: Box::from(why), cause }));
+        hub(domain, env, HubEvent::Agent(event));
     } else if hand_out_pending(domain, owner) {
         drop(domain.gone.insert(owner, detail).expect("one deferred gone per run"));
     } else {

@@ -232,7 +232,8 @@ impl Judge {
             );
         }
         self.review = Some(review.number);
-        if review.tries.invalid == 0 {
+        assert_eq!(review.tries.invalid, 0, "an assignment refused before its first turn has no result");
+        if review.tries.permanent == 0 {
             return;
         }
         assert!(
