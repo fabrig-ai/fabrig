@@ -25,7 +25,12 @@ No stored format, protocol or public interface changes.
 
 ## Found
 
-Written by `repair` once the story has run.
+The story was early: run 2 failed at step 107 after `/nowhere`, with the top bar's
+mark and an empty main while `me` was read, rather than another page's body.
+`temper/tests/client-browser/tests/browser_all/browser_pages.rs` now waits for the
+rail's "New chat" link before the unchanged main and Needs checks at `/` and `/nowhere`.
+All 10 consecutive runs after the fix passed, by name and alone, with no added load,
+the same conditions that reproduced the failure; no product change was needed.
 
 ## Overlaps with drafts beside this one
 
