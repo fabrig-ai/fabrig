@@ -427,3 +427,7 @@ reads the rules, whose effect is rendered; that comparison is section
   chat terminal's `--accent` take the signal, `#c2410c`, which the
   request does not draw, so that no source of the bundle names the old
   mark's `#b8664e`, as its test asks.
+
+- **Not yet:** 2.3: no `/home`. 7.2: none of the `all-home-*`,
+  `night-all-home`, `home-step-*`, `needs-list*`, `needs-tell`,
+  `needs-approval-first` or `night-needs` states.

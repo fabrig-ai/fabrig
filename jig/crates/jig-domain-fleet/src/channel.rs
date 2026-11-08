@@ -56,9 +56,11 @@ pub(crate) struct Channel {
     pub(crate) token: Token,
     /// How many runs it hosts at once, as its hello said, within the limits.
     pub(crate) slots: u32,
-    /// It refused an assignment as busy, and has freed no slot since:
+    /// The busy mark: it refused an assignment and has freed no slot since:
     /// nothing is placed on it.
     pub(crate) draining: bool,
+    /// The shutdown mark: no slot leaving clears it before the channel is lost.
+    pub(crate) shutting_down: bool,
     /// The attempts it hosts or holds the answers of, each taking a slot.
     pub(crate) hosts: Set<Id<Attempt>>,
     /// The workstreams it holds workspaces for, by when each was last used,
@@ -221,6 +223,7 @@ pub(crate) fn hello(
         token: channel,
         slots: slots.min(limits.slots),
         draining: false,
+        shutting_down: false,
         hosts: Set::with_capacity(limits.slots),
         workstreams: Map::with_capacity(limits.workstreams),
         uses: 0,
@@ -299,7 +302,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     crate::sources::lost(&mut entry.sources, channel, out);
     let worker = entry.worker;
     let slots = entry.slots;
-    let draining = entry.draining;
+    let draining = entry.draining || entry.shutting_down;
     let hosts = mem::replace(&mut entry.hosts, Set::with_capacity(0));
     let until = env.now.saturating_add(env.limits.grace);
     for &attempt in &hosts {
@@ -308,6 +311,23 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     domain.channels.retire(id);
     crate::history::lost(domain, crate::history::LostHost { worker, channel, slots, draining, until });
     domain.facts.push(Fact::Lost { adrift: hosts.len() });
+}
+
+/// A shutdown keeps this channel out of placement (jig/docs/design/domain/engine.md, section 8).
+pub(crate) fn draining(domain: &mut Domain, channel: Token) {
+    let Some(&id) = domain.tokens.get(&channel) else {
+        return;
+    };
+    domain.channels.get_mut(id).expect("named channel").shutting_down = true;
+    for (_, &id) in &domain.waiting {
+        let entry = domain.attempts.get_mut(id).expect("queued attempt");
+        if let Some(placement) = entry.placement
+            && placement.channel == channel
+        {
+            entry.placement = None;
+        }
+    }
+    domain.placing = !domain.waiting.is_empty();
 }
 
 /// The worker of `channel` refused an assignment as busy: nothing more is
@@ -325,6 +345,7 @@ pub(crate) fn choose(domain: &Domain, workstream: u64, kinds: Kinds, version: cr
         let free = channel.slots.saturating_sub(channel.hosts.len());
         if !channel.sources.clear()
             || channel.draining
+            || channel.shutting_down
             || free == 0
             || !kinds.allows(channel.kind)
             || !crate::needs::fits(&domain.needs, version, &channel.evidence, channel.kind)
@@ -360,6 +381,7 @@ pub(crate) fn probe(
         if !channel.sources.ready()
             || free == 0
             || channel.draining
+            || channel.shutting_down
             || !kinds.allows(channel.kind)
             || !crate::needs::fits(&domain.needs, version, &channel.evidence, channel.kind)
             || excluded.contains(&channel.token)
@@ -386,6 +408,7 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
         || channel.kind != placement.kind
         || !kinds.allows(channel.kind)
         || channel.draining
+        || channel.shutting_down
         || channel.slots <= channel.hosts.len()
     {
         return None;
@@ -399,7 +422,7 @@ pub(crate) fn choose_job(domain: &Domain, workstream: u64, job: jig_domain_link:
     for (_, &id) in &domain.tokens {
         let channel = domain.channels.get(id).expect("connected channel");
         let free = channel.slots.saturating_sub(channel.hosts.len());
-        if free == 0 || channel.draining {
+        if free == 0 || channel.draining || channel.shutting_down {
             continue;
         }
         let mut covers = false;

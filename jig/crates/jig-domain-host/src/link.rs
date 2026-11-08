@@ -21,6 +21,8 @@ pub enum LinkDown {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkUp {
+    /// The host has started to shut down (hosts.md, 6.7).
+    Draining,
     ListRead {
         read: u64,
         outcome: jig_domain_link::ListOutcome,
@@ -89,12 +91,13 @@ pub enum LinkUp {
 }
 
 impl LinkUp {
-    /// Calls start new work; other reports settle hosted work (domain/hosts.md, 6).
+    /// Calls start new work; other reports give notices or settle hosted work (domain/hosts.md, 6).
     #[must_use]
     pub const fn new_work(&self) -> bool {
         match self {
             Self::Call { .. } => true,
-            Self::ListRead { .. }
+            Self::Draining
+            | Self::ListRead { .. }
             | Self::JobAnswer { .. }
             | Self::Piece { .. }
             | Self::Logins { .. }
@@ -144,6 +147,7 @@ mod tests {
         }
         let work = Work { left: None, saved: None };
         for record in [
+            LinkUp::Draining,
             LinkUp::JobAnswer {
                 run,
                 attempt,
