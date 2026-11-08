@@ -166,7 +166,7 @@ impl BoxLine {
 }
 
 // state.rs
-pub enum Told { /* ...as on main, then: */ Front, Boxed { line: BoxLine }, Quitting, Stay, Log }
+pub enum Told { /* ...as on main, then: */ Front, BoxLine { line: BoxLine }, Quitting, Stay, Log }
 pub enum BoxState<'a> { Running, Restarting { step: &'a [u8] }, GaveUp { step: &'a [u8] } }
 impl Tui {
     pub const fn front(&self) -> bool;                     // in front of a box
@@ -185,7 +185,9 @@ pub enum Event { /* ...as on main, then: */ Stop, Stay, Log }
 pub fn work_runs(root: &temper_client_domain::Domain, tui: &Tui) -> bool;
 ```
 
-- `Told::Front` marks the TUI in front of a box. `Told::Boxed`: `Link`
+- `Told::BoxLine`, not `Told::Boxed`: `tui-launchpad-2`'s `look` adds a
+  unit `Told::Boxed` (on a box) to the same enum.
+- `Told::Front` marks the TUI in front of a box. `Told::BoxLine`: `Link`
   replaces the printed link; `Log` appends, the oldest dropped past
   `limits::BOX_LOG` (50); `Restarting` sets that step restarting; `Running`
   clears it for that step; `GaveUp` sets the box given up, for good.
@@ -221,14 +223,14 @@ pub struct Front {
   the handed link whatever credential it holds, and signs in by it with
   `held` the credential it holds, so that a held sign-in is kept.
 - Each line the run reads from `lines` is `Report::Front(line)`, told as
-  `Told::Boxed`. The lines' end (the box gone) closes the run, as SIGTERM.
+  `Told::BoxLine`. The lines' end (the box gone) closes the run, as SIGTERM.
 - In front, Ctrl+C and `/exit`: the question standing, close; else, work
   running (`work_runs`), `Told::Quitting`; else close. `Event::Stop` closes;
   `Event::Stay` is `Told::Stay`; `Event::Log` is `Told::Log`.
 - **The recording** (`tui/journeys.md`, 3.2 and 5): the start fact `front`
-  (no field) after `local`; the report record `front` with the line's bytes
-  (`BoxLine::print`), replayed through `BoxLine::read`; a `front` record's
-  `link` URL's secret is a *link* original, as `found`'s is.
+  (no field) after `local`; the report record `box-line` with the line's
+  bytes (`BoxLine::print`), replayed through `BoxLine::read`; a `box-line`
+  record's `link` URL's secret is a *link* original, as `found`'s is.
 
 ## 9. The binary (task `binary-front`)
 
