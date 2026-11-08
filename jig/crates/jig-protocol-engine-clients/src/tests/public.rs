@@ -180,7 +180,7 @@ fn reservations_are_given_back_on_every_end() {
     }
     let exchange = step.send(read(1, &[]));
     let (reply, _) = step.admitted();
-    step.down(Event::Transport(FromTransport::StreamGone { stream: exchange }));
+    step.down(Event::Transport(FromTransport::ExchangeGone { exchange }));
     step.document(reply, projects());
     assert!(step.out.is_empty());
     assert_eq!(step.bytes(), BURST);
