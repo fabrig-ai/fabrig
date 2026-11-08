@@ -290,7 +290,10 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
 /// The signed-in tree from data alone (client/README.md, 6.14).
 pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     view.shown = view.shown.wrapping_add(1);
-    view.tick = None;
+    view.tick = match &signed.body {
+        Body::Launchpad(part) => part.tick,
+        Body::Chat(_) => None,
+    };
     view.binds.events.clear();
     let mut b = view.render.builder();
     b.open(Role::Page);

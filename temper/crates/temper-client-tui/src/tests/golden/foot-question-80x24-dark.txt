@@ -1,7 +1,7 @@
-╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Connected to 127.0.0.1:8367 as Owner                                         │
-│ Projects: Hello · Demo                                                       │
+╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
 ╰──────────────────────────────────────────────────────────────────────────────╯
+
+
 
 
 
@@ -23,9 +23,7 @@ Answer csv-export's question with "Comma"?
   2. Answer Semicolon
   3. Tell it something else
 --
-aaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-a..............................................................................a
-a..............................................................................a
+aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
@@ -40,18 +38,21 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
 ................................................................................
+................................................................................
+................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-ccc.............................................................................
+eee.............................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-dddddddddddddddddddddddddddddddddddddddddd......................................
-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeffffffffffffffffffffffffffffffffffffffffffffffffff
-dddddddddddddddddddddddddddddd..................................................
-dddddddddddddddddddddddddddddd..................................................
+cccccccccccccccccccccccccccccccccccccccccc......................................
+ffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggg
+cccccccccccccccccccccccccccccc..................................................
+cccccccccccccccccccccccccccccc..................................................
 --
 a: fore #6A655C
 b: fore #E08A68 bold
-c: fore #E08A68
-d: bold
-e: fore #E08A68 back #2A2825 bold
-f: back #2A2825 bold
+c: bold
+d: fore #9A9388
+e: fore #E08A68
+f: fore #E08A68 back #2A2825 bold
+g: back #2A2825 bold
 cursor 18 2

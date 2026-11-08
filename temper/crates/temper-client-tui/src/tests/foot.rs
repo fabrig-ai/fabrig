@@ -35,7 +35,7 @@ fn model() -> c::MeModel {
         picker: true,
     }
 }
-fn template(number: u32) -> c::Template {
+pub(super) fn template(number: u32) -> c::Template {
     c::Template {
         number,
         name: c::DocumentText::complete(text(b"Chat")),
@@ -653,17 +653,12 @@ fn note_states() {
 fn the_foots_are_their_goldens() {
     use skein_ui_screen::{Focus, Size};
     let full = Size { columns: 80, rows: 24 };
-    let small = Size { columns: 40, rows: 12 };
     let rows = [
-        ("first-80x24-dark", Scheme::Dark, full, 0_u8, include_bytes!("golden/first-80x24-dark.txt").as_slice()),
-        ("first-80x24-light", Scheme::Light, full, 0, include_bytes!("golden/first-80x24-light.txt").as_slice()),
-        ("first-40x12-dark", Scheme::Dark, small, 0, include_bytes!("golden/first-40x12-dark.txt").as_slice()),
-        ("first-40x12-light", Scheme::Light, small, 0, include_bytes!("golden/first-40x12-light.txt").as_slice()),
         (
             "foot-commands-80x24-dark",
             Scheme::Dark,
             full,
-            1,
+            1_u8,
             include_bytes!("golden/foot-commands-80x24-dark.txt").as_slice(),
         ),
         (
