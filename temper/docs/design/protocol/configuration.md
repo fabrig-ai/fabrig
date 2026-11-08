@@ -2874,6 +2874,12 @@ that changes the stock changes nothing of them.
   `.temper/merge` (`tooling.md`, 4.1), which recounts a counted
   baseline left in conflict (each tree's `scripts/old-forms.txt`, by
   its `scripts/old_forms.py --write`) and leaves every other conflict.
+  The delivery format check batches Cargo's target roots by target edition
+  and nearest rustfmt configuration, retaining rustfmt's module traversal;
+  all five trees' counted baselines run against the private snapshot index,
+  including newly added sources. Only a tree whose checks all succeed may
+  reuse that success for an identical tree. The first uncached delivery
+  must also fit the unchanged 60-second check timeout (section 11).
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before
