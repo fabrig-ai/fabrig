@@ -477,12 +477,25 @@ fn the_chats_are_their_goldens() {
     let full = Size { columns: 80, rows: 24 };
     let narrow = Size { columns: 40, rows: 12 };
     let rows = [
-        ("chat-80x24-dark", full, false, include_bytes!("golden/chat-80x24-dark.txt").as_slice()),
-        ("chat-question-80x24-dark", full, true, include_bytes!("golden/chat-question-80x24-dark.txt").as_slice()),
-        ("chat-40x12-dark", narrow, false, include_bytes!("golden/chat-40x12-dark.txt").as_slice()),
+        ("chat-80x24-dark", full, false, true, include_bytes!("golden/chat-80x24-dark.txt").as_slice()),
+        (
+            "chat-80x24-dark-no-band",
+            full,
+            false,
+            false,
+            include_bytes!("golden/chat-80x24-dark-no-band.txt").as_slice(),
+        ),
+        (
+            "chat-question-80x24-dark",
+            full,
+            true,
+            true,
+            include_bytes!("golden/chat-question-80x24-dark.txt").as_slice(),
+        ),
+        ("chat-40x12-dark", narrow, false, true, include_bytes!("golden/chat-40x12-dark.txt").as_slice()),
     ];
     let mut views = List::uncapped();
-    for (_, size, question, _) in &rows {
+    for (_, size, question, _, _) in &rows {
         let mut entries = List::uncapped();
         entries.push(Entry::Said(REQUEST.into())).unwrap();
         entries
@@ -517,10 +530,10 @@ fn the_chats_are_their_goldens() {
         views.push(draw(data(entries.into_boxed(), size.columns), list)).unwrap();
     }
     let mut checks = List::uncapped();
-    for ((name, size, _, want), view) in rows.iter().zip(&views) {
+    for ((name, size, _, band, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {
-                background: Some(crate::theme::palette(Scheme::Dark)[0].1),
+                background: band.then_some(crate::theme::palette(Scheme::Dark)[0].1),
                 name,
                 tree: view.tree(),
                 scheme: Scheme::Dark,

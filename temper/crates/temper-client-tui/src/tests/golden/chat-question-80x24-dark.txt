@@ -52,8 +52,8 @@ a: fore #E08A68
 b: bold
 c: fore #6A655C
 d: fore #9A9388
-e: fore #9A9388 back #2A2825
-f: back #2A2825
-g: fore #E08A68 back #2A2825 bold
-h: back #2A2825 bold
+e: fore #9A9388 back #2D2C2A
+f: back #2D2C2A
+g: fore #E08A68 back #2D2C2A bold
+h: back #2D2C2A bold
 cursor 18 2
