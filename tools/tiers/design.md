@@ -75,8 +75,9 @@ Variable names are unique within a pair. `process-temper` sets
 After any bundle step, build each listed binary in order with
 `cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
 servers in the table above are native list entries. `process-temper` also
-lists `smith-fake-claude`'s `fake-claude`: temper's
-fake-backend tests execute that adapter as the `temper` binary's sibling.
+lists `smith-fake-claude`'s `fake-claude` and `temper-client`'s `temper-client`:
+temper's fake-backend tests execute that adapter and the deployment's client
+story executes that client as the `temper` binary's siblings.
 A failed binary build returns 2 and starts no later step.
 
 All other configured pairs run nextest alone. Tier tests also use binaries
@@ -383,11 +384,12 @@ with the same three keys and no `auto_reap`. It is no pair: no tier reads
 it, and whatever measures that share reads its verdict there, recording
 a run that goes over rather than refusing it.
 Smith's and Skein's `default` and `fuzzy` entries use `cpu_suite_s` alone,
-at 30 and 120 CPU seconds respectively. Jig's and Temper's `fuzzy` entries
-use `cpu_suite_s` alone at 120 CPU seconds; neither has a `default` entry.
-These figures are the strategy's section 8 figures
-(`skein/docs/foundation/testing-strategy.md`), by the user's word of 11-07,
-recorded beside their entries. Temper's entry follows Jig's, as does its
+Smith's at 30 and 120 CPU seconds and Skein's at 40 and 120. Jig's and
+Temper's `fuzzy` entries use `cpu_suite_s` alone at 120 CPU seconds;
+neither has a `default` entry. These figures are the strategy's section 8
+figures (`skein/docs/foundation/testing-strategy.md`), by the user's word
+of 11-07, but for Skein's `default`, 40 by the user's word of 11-08; each
+is recorded beside its entry. Temper's entry follows Jig's, as does its
 comment, and sets no `wall_hard_s`.
 `--verify-all` validates every budget key, value and configured
 pair before any command. CPU mode validates it too. A test's CPU budget

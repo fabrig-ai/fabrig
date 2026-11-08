@@ -14,8 +14,8 @@ pub const PROJECT: u64 = 1;
 pub const DIRECTOR: u64 = 1;
 pub const A: u64 = 2;
 pub const DESIGN: u64 = 3;
-// The design's current-head CI subscription and news precede this question.
-pub const QUESTION: u64 = 8;
+// The goals' landing subscriptions and the design's result precede this question.
+pub const QUESTION: u64 = 6;
 // After step_4_1's chat and A's delegation create tasks 1..=5,
 // step_4_3's chat creates CHECK; its delegate creates B, which delegates BENCHMARK.
 pub const CHECK: u64 = 6;
@@ -649,11 +649,11 @@ pub const STORY_CODER: u64 = 10;
 pub const STORY_REVIEWER: u64 = 11;
 pub const DIRECTION_REVISION: u64 = 1;
 pub const OVERLAP_HOLD_REVISION: u64 = 1;
-// Current-head CI subscriptions and news also use fresh message identities.
-pub const DEFERRED_NOTE_NUMBER: u64 = 9;
-pub const DIRECTION_PERSON_MESSAGE: u64 = 7;
-pub const DIRECTION_AMENDMENT_MESSAGE: u64 = 8;
-pub const OVERLAP_SUBSCRIPTION: u64 = 5;
+// Landing subscriptions precede the direction, amendment and deferred note.
+pub const DEFERRED_NOTE_NUMBER: u64 = 7;
+pub const DIRECTION_PERSON_MESSAGE: u64 = 5;
+pub const DIRECTION_AMENDMENT_MESSAGE: u64 = 6;
+pub const OVERLAP_SUBSCRIPTION: u64 = 3;
 pub const OVERLAP_RECHECK_ATTEMPT: u64 = 3;
 pub const DIRECTION_PERSON: &str = "@case_direction Delegate A and B as owners on kit and wait for my direction.";
 pub const DIRECTION_MESSAGE: &str = "The end-to-end story first; cut it to one path; placeholders are fine. Stop x3. B's files are A's where the story needs them.";
@@ -822,9 +822,9 @@ pub const RED_FIRST_HEAD: u64 = 2;
 pub const RED_UPDATED_HEAD: u64 = 6;
 pub const RED_A4_PULL: u64 = 1;
 pub const RED_REPAIR_PULL: u64 = 2;
-// a4's current-head CI subscription and news precede the person's direction.
-pub const RED_TIMER: u64 = 8;
-pub const RED_PERSON_MESSAGE: u64 = 7;
+// The person's direction precedes the director's interim timer.
+pub const RED_TIMER: u64 = 6;
+pub const RED_PERSON_MESSAGE: u64 = 5;
 pub const RED_REVISION: u64 = 0;
 pub const RED_TIMER_AT: u64 = 4_102_444_800_000_000_000;
 pub const RED_PERSON: &str = "@case_red_director Delegate A1 to own a4 and report its landing.";

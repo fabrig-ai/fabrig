@@ -1,7 +1,7 @@
 //! Goal topic facts (jig's domain/connectors.md, 5.4; domain/forge.md, 7).
 //! Subtree membership is durable in subscribers. File lists are disposable,
 //! bounded and pinned by fresh pull reads around all pages. Missing facts
-//! make overlap unknown. A head change refreshes the facts and CI topic.
+//! make overlap unknown. A head change refreshes the facts.
 use crate::{
     Class, Limits, News, Request, Subscriber, Topic,
     domain::{self, Domain},
@@ -40,71 +40,6 @@ pub(crate) fn contains(tasks: &[u64], task: u64) -> bool {
         }
     }
     false
-}
-
-pub(crate) fn subscribe(d: &Domain, subscriber: &Subscriber, out: &mut Queue<Request>) {
-    match subscriber.topic {
-        Topic::Landings { .. } => {}
-        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => return,
-    }
-    let Some(tasks) = &subscriber.goal_tasks else { return };
-    let mut heads = List::with_capacity(d.subscriptions.capacity());
-    for task in tasks {
-        let Some(row) = d.changes.get(task) else { continue };
-        let Some(head) = row.change.last_head else { continue };
-        let topic = Topic::Ci { repository: row.repository, head };
-        if !heads.as_slice().contains(&topic)
-            && heads.push(topic.clone()).is_ok()
-            && !d.subscriptions.contains_key(&(subscriber.task, topic.clone()))
-        {
-            domain::emit(out, Request::GoalTopic { goal: subscriber.task, topic });
-        }
-    }
-}
-
-pub(crate) fn head_changed(d: &Domain, task: u64, out: &mut Queue<Request>) {
-    let Some(row) = d.changes.get(&task) else { return };
-    let Some(head) = row.change.last_head else { return };
-    let mut goals = List::with_capacity(d.subscriptions.capacity());
-    for (_, subscriber) in &d.subscriptions {
-        if let Some(tasks) = &subscriber.goal_tasks
-            && contains(tasks, task)
-        {
-            match subscriber.topic {
-                Topic::Landings { .. } if !goals.as_slice().contains(&subscriber.task) => {
-                    goals.push(subscriber.task).expect("bounded subscribers");
-                    let topic = Topic::Ci { repository: row.repository, head };
-                    if !d.subscriptions.contains_key(&(subscriber.task, topic.clone())) {
-                        domain::emit(out, Request::GoalTopic { goal: subscriber.task, topic });
-                    }
-                }
-                Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
-            }
-        }
-    }
-    for (_, subscriber) in &d.subscriptions {
-        if !goals.as_slice().contains(&subscriber.task) {
-            continue;
-        }
-        let Some(tasks) = &subscriber.goal_tasks else { continue };
-        match subscriber.topic {
-            Topic::Ci { repository, head: old_head } if repository == row.repository && old_head != head => {
-                let mut current = false;
-                for number in tasks {
-                    if let Some(change) = d.changes.get(number)
-                        && change.repository == repository
-                        && change.change.last_head == Some(old_head)
-                    {
-                        current = true;
-                    }
-                }
-                if !current {
-                    domain::emit(out, Request::GoalUntopic { goal: subscriber.task, topic: subscriber.topic.clone() });
-                }
-            }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
-        }
-    }
 }
 
 pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {

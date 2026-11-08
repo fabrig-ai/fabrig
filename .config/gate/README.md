@@ -50,11 +50,13 @@ Each list has one entry per line; `#` starts a comment line.
   a test adds its package; adding a line runs that package's tests for every change.
   A line `PACKAGE PATH-PREFIX` runs them only for a change to a path that starts with
   the prefix, as written: for a test whose reads all lie under it.
-- **`.config/gate/read-by-tests.txt`:** checkout-root globs of Markdown compiled
-  into or read by tests (`AGENTS.md`, 2). A matching change changes test inputs and
-  runs their tests as for code; Markdown matching no glob runs none. The branch
-  making a test read Markdown adds its glob; adding a line makes changes to
-  matching files run the tests.
+- **`.config/gate/read-by-tests.txt`:** checkout-root globs of the inputs, under
+  `docs/` (any format) or elsewhere, that tests compile in or read (`AGENTS.md`, 2).
+  A matching change changes test inputs and runs their tests as for code; Markdown,
+  and any file under a `docs/` directory, matching no glob is docs and runs none,
+  so every non-Markdown input under `docs/` is listed. The branch making a test
+  read such a file adds its glob; adding a line makes changes to matching files
+  run the tests.
 - **`.config/gate/wasm32.txt`:** package names for item 3. The branch making a
   package's wasm32 clippy pass with warnings denied adds it; the trees' status
   files name portable packages still left out. Adding a line adds that package to

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home, all projects</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="whole-story.css">
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">All projects <small>4</small></span>
+    <div class="nav">
+      <a class="on" href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="work.html">Work</a>
+      <a href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New draft or change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">Owner</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="col">
+      <header class="intro">
+        <p class="kicker">Sunday 08:04 · you last looked 9 hours ago · away 23:10 to 08:00</p>
+        <h1 class="headline">31 changes landed across four projects. Two things need you.</h1>
+        <p class="lede">vsr's membership-handoff goal is six of nine tasks in. Overnight the fuzz tier found a commit lost when a witness rejoins during a view change; Prover reproduced it in a deterministic test, and its fix waits on your answer below. vsr-rs is two landings behind vsr, with every C test passing on Rust. fabrig's proof-6 landed whole. Four things were decided for you, and all four can be undone.</p>
+        <p class="byline">Written by the status agent at 07:52, from each owner's Now</p>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Needs you · 2</h2><a href="needs.html">All needs</a></div>
+        <div class="card need">
+          <p class="from"><span class="chip">vsr</span> membership-handoff · asked by the goal 1 h ago</p>
+          <p class="q">Count a rejoining witness toward the view-change quorum only once it holds the log suffix?</p>
+          <p class="why">Reached you because it changes vsr's protocol core, which always asks you. <a href="how.html">Stop asking</a></p>
+          <div class="choices">
+            <a class="choice rec" href="#">Only once caught up <small>recommended</small></a>
+            <a class="choice" href="#">Count it, add a catch-up barrier</a>
+            <a class="choice quiet" href="needs.html">Tell it something else</a>
+          </div>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">vsr-rs</span> Porter · its weekly budget</p>
+          <p class="q">Porter has used $49 of its $60 this week, with three ports left. Raise this week to $75?</p>
+          <p class="why">Reached you because money past a budget always waits for you.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Raise to $75 <small>recommended</small></a>
+            <a class="choice" href="#">Pause it until Monday</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Decided for you · 4</h2><a href="how.html">What reaches you</a></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">vsr · Prover · 02:10</span>
+            <div><p>A fuzz crash came from the test harness, not the library.</p><p class="took">Fixed the harness.</p><p class="small muted">Tests are Prover's area, and no library code changed.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+          <div class="row">
+            <span class="mono">vsr-rs · Porter · 03:40</span>
+            <div><p>vsr's new bounds check uses a compiler builtin.</p><p class="took">Ported it as checked_add.</p><p class="small muted">Line by line keeps C's shape; the builtin is C's way of saying checked arithmetic.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+          <div class="row">
+            <span class="mono">fabrig · landing · 05:12</span>
+            <div><p>A gate failed on a known flake.</p><p class="took">Reran it once.</p><p class="small muted">It matches open finding 412, and a flake's rerun is allowed.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+          <div class="row">
+            <span class="mono">fabrig · UI · 06:30</span>
+            <div><p>A look round's phone frame moved a button by 2 px.</p><p class="took">Accepted it.</p><p class="small muted">Inside the round's tolerance.</p></div>
+            <a class="r" href="#">Overturn</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Projects</h2><span>owners' Nows, in a line each</span></div>
+        <div class="scroll">
+          <table class="tbl">
+            <thead><tr><th>Project</th><th>Now</th><th>Health</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">vsr</td><td>membership-handoff 6 of 9; a design session on read barriers with you, Friday</td><td><div class="chips"><span class="chip good">main</span><span class="chip good">fuzz tier</span></div></td></tr>
+              <tr><td class="strong">vsr-rs</td><td>follows vsr, two landings behind; porting the witness catch-up check</td><td><div class="chips"><span class="chip good">all C tests on Rust</span></div></td></tr>
+              <tr><td class="strong">cowsql</td><td>raft to vsr: a draft in a session with you, two sittings so far</td><td><div class="chips"><span class="chip good">main</span></div></td></tr>
+              <tr><td class="strong">fabrig</td><td>9 goals in flight, 3 in the landing queue, 6 roles</td><td><div class="chips"><span class="chip good">main</span><span class="chip sig">1 red, owned</span></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>What follows what</h2><span>across projects</span></div>
+        <div class="grid3">
+          <div class="box"><b>vsr</b><p class="small muted">C, the source of truth</p></div>
+          <div class="box"><span class="who c">follows · port per landing</span><b>vsr-rs</b><p class="small muted">2 behind · checked by vsr's C tests</p></div>
+          <div class="box"><span class="who c">depends on</span><b>fabrig</b><p class="small muted">skein-kv's replication, on vsr-rs</p></div>
+        </div>
+      </section>
+
+      <div class="ask"><span>Ask temper: why is vsr-rs two behind?</span><span class="mono">Enter</span></div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
