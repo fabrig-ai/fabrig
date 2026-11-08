@@ -105,6 +105,8 @@ pub enum Refusal {
     Unknown,
     /// The deployment does not offer this operation.
     NotOffered,
+    /// The program source name remains reserved after its account is forgotten.
+    ProgramNameReserved,
     /// A plan's uses name another person, directly or through a project
     /// (domain/accounts.md, 4.2; domain/providers.md, 2.6 and 3.4).
     Provider,

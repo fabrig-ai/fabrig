@@ -732,3 +732,51 @@ fn program_reports_follow_the_live_source() {
     );
     assert!(world.domain.account_facts(ACCOUNT).is_empty());
 }
+
+fn declaration_change(world: &mut World, key: u64, name: &[u8]) -> Vec<Request> {
+    world.step(Event::Change {
+        request: skein_lib::Token::new(key),
+        holder: HOLDER,
+        change: jig_domain_accounts::Change::DeclareProgram { provider: PROVIDER, join: None, name: name.into() },
+    })
+}
+
+#[test]
+fn a_retired_name_declaration_refuses_another_holder() {
+    let mut world = fresh();
+    declaration_change(&mut world, 100, b"claude-6");
+    world.step(Event::Change {
+        request: skein_lib::Token::new(101),
+        holder: HOLDER,
+        change: jig_domain_accounts::Change::Remove { account: 0 },
+    });
+    targets(&mut world, &[0]);
+    ended(&mut world, 0, jig_domain_accounts::ProgramResult::SignedOut);
+    assert!(world.views().is_empty(), "forgotten account is absent from the list");
+    let refused = world.step(Event::Change {
+        request: skein_lib::Token::new(102),
+        holder: OTHER,
+        change: jig_domain_accounts::Change::DeclareProgram {
+            provider: PROVIDER,
+            join: None,
+            name: b"claude-6".as_slice().into(),
+        },
+    });
+    let [Request::Answer { request, answer: jig_domain_accounts::Answer::Refused { refusal } }] = refused.as_slice()
+    else {
+        panic!("a reserved name must answer without writes: {refused:?}")
+    };
+    assert_eq!(*request, skein_lib::Token::new(102));
+    assert_eq!(*refusal, Refusal::NameTaken);
+    assert_eq!(world.domain.accounts(), 0);
+    assert!(world.views().is_empty());
+    assert_eq!(world.domain.next_number(), 2);
+    let fresh = declaration_change(&mut world, 103, b"claude-7");
+    assert_eq!(
+        fresh.last(),
+        Some(&Request::Answer {
+            request: skein_lib::Token::new(103),
+            answer: jig_domain_accounts::Answer::ProgramDeclared { source: 3, name: b"claude-7".as_slice().into() },
+        })
+    );
+}

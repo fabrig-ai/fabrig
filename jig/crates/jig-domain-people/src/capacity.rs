@@ -187,6 +187,7 @@ fn room(refusal: &Refusal) -> Option<CapacityCause> {
         | Refusal::NameTaken
         | Refusal::Unknown
         | Refusal::Provider
+        | Refusal::ProgramNameReserved
         | Refusal::NotOffered
         | Refusal::NoEscalationHolder
         | Refusal::Llm { .. }
