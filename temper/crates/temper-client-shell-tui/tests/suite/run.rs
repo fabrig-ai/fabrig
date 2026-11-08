@@ -107,6 +107,7 @@ impl World {
         let engine = approval.then(|| Engine::new(&mut sim));
         let settings = Settings {
             record: recording,
+            front: None,
             engine: skein_io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),

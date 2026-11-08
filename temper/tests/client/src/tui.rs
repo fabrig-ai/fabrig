@@ -74,6 +74,7 @@ impl Tui {
         tui.report(
             world,
             Report::Start(Start {
+                front: false,
                 local,
                 note,
                 size: Size { columns: 80, rows: 24 },
