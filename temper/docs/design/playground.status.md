@@ -21,19 +21,12 @@
     high water, which does not say what reserves it. The download:
     6,882,055 B gzipped, within its 8 MB
     (`temper/docs/development/playground-figures.md`).
-  - 9: Story A's walk in the one-process world, by the terminal
-    client, ignored: its `#[ignore]` has it stall at Starting after
-    5 s, forge 1 Kept, the account and the project absent
-    (`temper/tests/one-process/tests/suite/story_a.rs`), where at
-    `2c7e0d079e` it ended sooner: after person step 3, at 0 simulated
-    ns, the referee's `Bounded` promise broke
-    (`temper/docs/development/playground-memory.md`); whether what
-    lets the web client's walk pass lifts that is unknown.
   - 9: story A's high water in the one-process world:
-    `temper/tests/one-process/tests/memory.rs` is ignored and prints
-    it by hand, the story stalling there (above), so of the request
-    `ignored-tiers`'s six tests run by hand that need no person, it
-    alone holds no bound.
+    `temper/tests/one-process/tests/memory.rs` remains ignored: the
+    story walks, but a service world's observer has no way to keep its
+    storage outside the process's span (`skein/docs/design/testing.md`,
+    5), so process 0's exact release check fails
+    (`temper/docs/development/playground-memory.md`).
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the memory's and the slice's unset
     (section 11); and published.
@@ -42,17 +35,6 @@
     no test fails a world in a browser: the tier downloads a whole
     walk's log from the frame, and that log replays natively.
 - **Departs:**
-  - 9: the native heap's bounds are the figures measured on the trunk
-    at `2c7e0d079e`, 2026-11-08, and a quarter more, where the request
-    `ignored-tiers` binds the figures `playground-memory.md` recorded,
-    those of `79d1b7c27b`, 2026-11-03: between the two the service's
-    peak grew 42% at the first step and 50% at start, its held bytes
-    28% at start, and the fake disk's retained bytes at start 185%, so
-    the older figures' bounds would fail. The plan's cut chose to bind
-    the trunk rather than loosen the margin; the growth's cause is
-    unprofiled, and whether it stands is the user's, beside the memory
-    bar (11). The later table also measures the visitor, process 3, and
-    hosted git as the fifth at start.
   - 6, 9: the page's code builds on wasm32 with or without the feature
     `playground`, which chooses the module's entry alone
     (`temper-client-shell-web`'s `src/lib.rs` and

@@ -1141,3 +1141,41 @@ fn a_list_read_without_a_machine_answers_agent_immediately() {
     );
     assert_eq!(h.domain.hosted(), 0);
 }
+
+#[test]
+fn a_shutdown_says_draining_before_any_cancelled_runs_answer() {
+    let mut h = Harness::new();
+    let owners = [h.assign(1).0, h.assign(2).0];
+    let requests = h.step(Event::CancelAll { reason: Reason::Shutdown });
+    assert_eq!(&*requests, [Request::Up(LinkUp::Draining)]);
+    for (number, owner) in owners.into_iter().enumerate() {
+        crate::resume(&mut h.domain, &h.env, &mut h.out);
+        assert_eq!(h.out.pop(), Some(Request::Abort { owner }));
+        assert_eq!(h.out.pop(), None);
+        let requests = h.step(Event::Unprepared { owner, failure: Preparation::Transient, detail: Box::new([]) });
+        let [Request::Up(LinkUp::Answer { run, answer, .. })] = &*requests else {
+            panic!("cancelled run answers after draining: {requests:?}");
+        };
+        assert_eq!(run.raw(), u64::try_from(number).expect("two runs").checked_add(1).expect("two runs"));
+        let crate::Ending::Failed { failure, .. } = answer.ending else {
+            panic!("shutdown failed the run: {answer:?}");
+        };
+        assert_eq!(failure, Failure::Cancelled(Reason::Shutdown));
+    }
+}
+
+#[test]
+fn a_shutting_hub_says_draining_again_after_each_opening() {
+    let mut h = Harness::new();
+    let requests = h.step(jobs::opened());
+    let [Request::Hello { .. }] = &*requests else {
+        panic!("an opening before shutdown says hello: {requests:?}");
+    };
+    h.step(Event::CancelAll { reason: Reason::Shutdown });
+    for _ in 0_u32..2 {
+        let requests = h.step(jobs::opened());
+        let [Request::Hello { .. }, Request::Up(LinkUp::Draining)] = &*requests else {
+            panic!("each opening while shutting down says draining after hello: {requests:?}");
+        };
+    }
+}

@@ -81,15 +81,17 @@ are keyed by the test's process names, including `visitor` and `git`.
 The one-process binary takes the same entry as
 `temper/tests/one-process/tests/suite/story_a.rs`:
 `world::run(fixtures::calm(fixtures::SEED), world::Story::PlaygroundA)`, with
-`Memory::Checked` and trace off. At the 2026-11-08 commit above, both the story
-and its memory measurement complete person step 3 at 0 simulated ns, then fail
-the referee's `Bounded` promise: "world exceeded its finite iteration bound".
-Neither returns an outcome or peaks. Its high water and every knob's effect
-on its high water are **unmeasured: story A does not walk yet**. The memory
-binary remains ignored with the reason "story A does not walk in the
-one-process world (playground.status.md, 9): no high water to bound". Its
-status entries (`temper/docs/design/playground.status.md`, 8 and 9) remain
-open for that reason.
+`Memory::Checked` and trace off. The story walks all three requests in
+44.8 simulated seconds. The memory measurement reaches the same end, then
+fails the exact ownership check at process 0's drop: it frees 1,200,446 bytes
+against 1,828,886 metered bytes. Its observer allocates shared referee store
+records within the service's spans; extracting those records before the
+process drops leaves their heap outside that drop. No outcome or peaks return,
+so the memory test remains ignored and its high water is not yet bound
+(`temper/docs/design/playground.status.md`, 9).
+Measuring that figure needs a skein mechanism for a service world's observer
+to keep its storage outside the process's span first
+(`skein/docs/design/testing.md`, 5).
 
 ## Halving the knobs
 
