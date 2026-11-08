@@ -116,6 +116,7 @@ impl Layer {
                 }
                 io::Request::Close { entity } => self.up(io::Event::Closed { owner: entity }),
                 io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Listen { .. }
                 | io::Request::Connect { .. }
                 | io::Request::Bind { .. }
@@ -197,7 +198,9 @@ impl Layer {
     pub fn answer(&mut self, request: Asked, held: &mut Held, exit: Exit) {
         let Asked::Io(request) = request else { panic!("git fixture has no cache request") };
         match request {
-            io::Request::Spawn { owner, spawn } => self.spawned(owner, spawn.pipes.len() == 3, exit),
+            io::Request::Spawn { owner, spawn } | io::Request::SpawnAlone { owner, spawn } => {
+                self.spawned(owner, spawn.pipes.len() == 3, exit);
+            }
             io::Request::Stream { stream, down } => match down {
                 Down::Demand { read: Read::Nothing, room: 0 } | Down::Send(_) | Down::Finish => {}
                 Down::Demand { read: Read::Nothing, room: _ } => {

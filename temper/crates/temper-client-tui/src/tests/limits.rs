@@ -46,7 +46,7 @@ fn the_trees_fit_their_limits() {
     let bounds = crate::limits(&domain, 512).expect("fixture limits fit");
     assert!(skein_ui::valid(&bounds));
     let name = [b'n'; 32];
-    let address = [b'a'; 64];
+    let address = *b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:65535";
     let mut me = f::me(&[&name, &name]);
     me.party.name = jig_client::contract::DocumentText::complete(
         jig_client::contract::Text::new(Box::from(name), domain.client.domain.text).unwrap(),
@@ -65,21 +65,34 @@ fn the_trees_fit_their_limits() {
     );
     assert_eq!(f::text(view.tree(), projects).len(), 78);
     let full = f::refused(f::full());
-    for refusal in [Some(Refusal::OtherAddress { address: Box::from(address) }), None] {
+    let approval = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
+        code: super::approval::code(),
+        expires: skein_lib::Wall::from_nanos(600_000_000_000),
+    }));
+    for (refusal, browser) in [
+        (Some(Refusal::OtherAddress { address: Box::from(address) }), false),
+        (None, false),
+        (Some(Refusal::OtherAddress { address: Box::from(address) }), true),
+    ] {
         let mut tui = Tui::new(&address);
         tui.step(Told::Link { link: jig_client::Link::Live });
         tui.step(Told::Link { link: jig_client::Link::SignedOut });
-        tui.step(Told::Asked);
+        if browser {
+            tui.step(Told::Browse);
+            tui.step(Told::Opened { opened: false });
+        } else {
+            tui.step(Told::Asked);
+        }
         tui.step(Told::Typed { value: Box::new([b'x'; 512]) });
         match refusal {
             Some(refusal) => tui.step(Told::Refused { refusal }),
             None => tui.step(Told::Answered { lost: false }),
         }
-        f::build(&mut view, &tui, &full);
+        f::build(&mut view, &tui, if browser { &approval } else { &full });
         fits(view.tree(), &bounds);
         let field = f::find(view.tree(), Role::TextField, b"Link");
         assert_eq!(field.value.as_ref().unwrap().text.len(), 512);
-        assert_eq!(view.tree().len(), 18);
+        assert_eq!(view.tree().len(), if browser { 28 } else { 18 });
     }
     assert_eq!(crate::limits(&domain, u32::MAX), None);
     let mut huge = domain;

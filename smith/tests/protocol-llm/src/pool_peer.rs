@@ -262,6 +262,7 @@ impl Peer {
                     | IoRequest::Reject { .. }
                     | IoRequest::Output { .. }
                     | IoRequest::Spawn { .. }
+                    | IoRequest::SpawnAlone { .. }
                     | IoRequest::Signal { .. }
                     | IoRequest::Window { .. }
                     | IoRequest::Usage { .. }) => panic!("unexpected request: {other:?}"),

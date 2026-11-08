@@ -280,6 +280,103 @@ fn a_child_close_kills_its_group_after_an_in_flight_owner_signal_settles() {
 }
 
 #[test]
+fn an_alone_child_close_signals_only_the_running_child_and_waits_for_its_pipe() {
+    use crate::kernel::{Signal, Target};
+    for abort in [false, true] {
+        for exited in [false, true] {
+            for owner_signal in [false, true] {
+                let mut rig = Rig::new(Limits { sockets: 2, ..limits() });
+                let mut spawning = rig
+                    .down(Request::SpawnAlone { owner: owner(1), spawn: command(&[(0, Way::In)]) })
+                    .take(Kind::Spawn);
+                parent_ends(&mut spawning, &[Fd::new(41)]);
+                let mut spawned = rig.complete(
+                    spawning,
+                    Ok(Done::Spawned { pidfd: Fd::new(40), sender: crate::kernel::Sender::new(1) }),
+                );
+                let waiting = spawned.take(Kind::Wait);
+                let [Event::Spawned { child, pipes, .. }] = spawned.events.as_slice() else { panic!("spawned") };
+                let (child, pipe) = (*child, pipes[0]);
+                rig.next().nothing();
+                let waiting = if exited {
+                    let out = rig.complete(waiting, Ok(Done::Exit(Exit::Code(0))));
+                    assert_eq!(out.events, [Event::Exited { owner: owner(1), exit: Exit::Code(0) }]);
+                    assert!(out.subs.is_empty(), "an open pipe delays release");
+                    None
+                } else {
+                    Some(waiting)
+                };
+                let signalling = if owner_signal {
+                    let signal = rig
+                        .down(Request::Signal { child, signal: Signal::Terminate, to: Target::Group })
+                        .take(Kind::Signal);
+                    assert_eq!(
+                        signal.kind,
+                        Op::Signal { pidfd: Fd::new(40), signal: Signal::Terminate, to: Target::Group }
+                    );
+                    Some(signal)
+                } else {
+                    None
+                };
+                let close = if abort { Request::Abort { entity: child } } else { Request::Close { entity: child } };
+                let mut closing = rig.down(close);
+                if let Some(signalling) = signalling {
+                    closing.nothing();
+                    closing = rig.complete(signalling, Ok(Done::Nothing));
+                }
+                if exited {
+                    closing.nothing();
+                } else {
+                    let killing = closing.take(Kind::Signal);
+                    assert!(closing.subs.is_empty(), "only one close signal");
+                    assert_eq!(
+                        killing.kind,
+                        Op::Signal { pidfd: Fd::new(40), signal: Signal::Kill, to: Target::Child }
+                    );
+                    rig.complete(killing, Ok(Done::Nothing)).nothing();
+                }
+                rig.down(Request::Close { entity: child }).nothing();
+                if let Some(waiting) = waiting {
+                    let out = rig.complete(waiting, Ok(Done::Exit(Exit::Code(0))));
+                    assert_eq!(out.events, [Event::Exited { owner: owner(1), exit: Exit::Code(0) }]);
+                    assert!(out.subs.is_empty(), "the pipe settles before reaping");
+                }
+                let closing = rig.down(Request::Close { entity: pipe }).take(Kind::Close);
+                let mut out = rig.complete(closing, Ok(Done::Nothing));
+                assert_eq!(out.events, [Event::Closed { owner: pipe }]);
+                let reaping = out.take(Kind::Wait);
+                assert!(out.subs.is_empty(), "release submits no signal");
+                assert_eq!(reaping.kind, Op::Wait { pidfd: Fd::new(40), reap: true });
+                let mut out = rig.complete(reaping, Ok(Done::Exit(Exit::Code(0))));
+                assert!(out.events.is_empty(), "Exited is told once");
+                let closing = out.take(Kind::Close);
+                assert_eq!(rig.complete(closing, Ok(Done::Nothing)).events, [Event::Closed { owner: owner(1) }]);
+                rig.next().nothing();
+                rig.empty();
+            }
+        }
+    }
+}
+
+#[test]
+fn an_alone_child_exiting_without_close_is_reaped_without_a_signal() {
+    let mut rig = Rig::new(limits());
+    let spawning = rig.down(Request::SpawnAlone { owner: owner(1), spawn: command(&[]) }).take(Kind::Spawn);
+    let mut out =
+        rig.complete(spawning, Ok(Done::Spawned { pidfd: Fd::new(40), sender: crate::kernel::Sender::new(1) }));
+    let waiting = out.take(Kind::Wait);
+    let mut out = rig.complete(waiting, Ok(Done::Exit(Exit::Code(0))));
+    assert_eq!(out.events, [Event::Exited { owner: owner(1), exit: Exit::Code(0) }]);
+    let reaping = out.take(Kind::Wait);
+    assert!(out.subs.is_empty(), "no release signal");
+    assert_eq!(reaping.kind, Op::Wait { pidfd: Fd::new(40), reap: true });
+    let closing = rig.complete(reaping, Ok(Done::Exit(Exit::Code(0)))).take(Kind::Close);
+    assert_eq!(rig.complete(closing, Ok(Done::Nothing)).events, [Event::Closed { owner: owner(1) }]);
+    rig.next().nothing();
+    rig.empty();
+}
+
+#[test]
 fn a_childs_output_is_read_as_it_arrives() {
     let mut rig = Rig::new(Limits { sockets: 3, ..limits() });
     let mut spawn = rig.down(Request::Spawn { owner: owner(1), spawn: command(&[(1, Way::Out)]) }).take(Kind::Spawn);
@@ -335,6 +432,43 @@ fn given_entries_resolve_without_pipe_entities_and_preserve_pipe_order() {
     let Op::Spawn { spawn } = &mut spawning.kind else { panic!("spawn") };
     spawn.pipes[0].parent = Some(Fd::new(51));
     spawn.pipes[2].parent = Some(Fd::new(52));
+    let out = rig.complete(spawning, Ok(Done::Spawned { pidfd: Fd::new(53), sender: crate::kernel::Sender::new(1) }));
+    let [Event::Spawned { pipes, .. }] = out.events.as_slice() else { panic!("spawned") };
+    assert_eq!(pipes.len(), 2);
+    let (input, output) = (pipes[0], pipes[1]);
+    let read = rig.next().take(Kind::PipeRead);
+    let Op::PipeRead { fd, .. } = &read.kind else { panic!("output pipe") };
+    assert_eq!(*fd, Fd::new(52));
+    rig.down(Request::Stream { stream: input, down: Down::Demand { read: Read::Nothing, room: 1 } }).nothing();
+    assert_eq!(rig.next().events, [Event::Stream { owner: input, up: Up::Room }]);
+    let write =
+        rig.down(Request::Stream { stream: input, down: Down::Send(Box::from(&b"x"[..])) }).take(Kind::PipeWrite);
+    let Op::PipeWrite { fd, .. } = &write.kind else { panic!("input pipe") };
+    assert_eq!(*fd, Fd::new(51));
+    rig.complete(write, Ok(Done::Count(1))).nothing();
+    rig.down(Request::Stream { stream: output, down: Down::Demand { read: Read::Fill(1), room: 0 } }).nothing();
+    rig.next().nothing();
+    assert_eq!(rig.complete(read, Ok(Done::Count(0))).events, [Event::Stream { owner: output, up: Up::End }]);
+    assert_eq!(rig.io.tables.held.get(&super::local(8000)).copied(), Some(skein_lib::Id::from_token(held)));
+}
+
+#[test]
+fn null_entries_have_no_tokens_among_given_entries_and_ordered_pipes() {
+    let mut rig = Rig::new(Limits { sockets: 4, ..limits() });
+    let held = rig.io.adopt_listener(Fd::new(50), super::local(8000)).expect("held listener");
+    let mut spawning = rig
+        .down(Request::Spawn {
+            owner: owner(1),
+            spawn: command(&[(0, Way::Null), (7, Way::In), (3, Way::Given(held)), (2, Way::Null), (9, Way::Out)]),
+        })
+        .take(Kind::Spawn);
+    assert_eq!(rig.io.entities.len(), 4, "listener, child and two pipes fill the slab");
+    let Op::Spawn { spawn } = &mut spawning.kind else { panic!("spawn") };
+    assert_eq!(spawn.pipes[2].parent, Some(Fd::new(50)));
+    assert!(spawning.kind.is_valid(), "resolved Given is a valid backend submission");
+    let Op::Spawn { spawn } = &mut spawning.kind else { panic!("spawn") };
+    spawn.pipes[1].parent = Some(Fd::new(51));
+    spawn.pipes[4].parent = Some(Fd::new(52));
     let out = rig.complete(spawning, Ok(Done::Spawned { pidfd: Fd::new(53), sender: crate::kernel::Sender::new(1) }));
     let [Event::Spawned { pipes, .. }] = out.events.as_slice() else { panic!("spawned") };
     assert_eq!(pipes.len(), 2);
@@ -422,6 +556,14 @@ fn duplicate_child_descriptors_are_refused_for_pipes_and_given_entries() {
         [(3, Way::Given(held)), (3, Way::Out)],
         [(3, Way::Given(held)), (3, Way::Given(held))],
     ] {
+        refused_spawn(&mut rig, &specs);
+    }
+}
+
+#[test]
+fn duplicate_child_descriptors_with_null_entries_are_refused() {
+    let mut rig = Rig::new(Limits { sockets: 4, ..limits() });
+    for specs in [[(3, Way::Null), (3, Way::Out)], [(3, Way::In), (3, Way::Null)], [(3, Way::Null), (3, Way::Null)]] {
         refused_spawn(&mut rig, &specs);
     }
 }

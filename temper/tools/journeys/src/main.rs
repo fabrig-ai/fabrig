@@ -8,7 +8,7 @@ use std::{
     process::{self, Command},
 };
 use temper_client_journeys::again::{self, Paths};
-use temper_client_journeys::{JOURNEYS, Refusal, add, named, reprint};
+use temper_client_journeys::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
 use temper_client_shell_web::journey;
 
 fn main() {
@@ -82,28 +82,56 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
         return Err(format!("{}; nothing was written", refusal(Refusal::Name(name.to_owned()))));
     }
     let recording = fs::read(file).map_err(|_| "cannot read FILE; nothing was written".to_owned())?;
-    let added = add(Path::new(JOURNEYS), name, &recording, &given)
+    let added = add_to(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &recording, &given)
         .map_err(|why| format!("{}; nothing was written", refusal(why)))?;
-    println!(
-        "link: {}; stored: {}; typed: {}; given: {}; places replaced: {}",
-        added.link, added.stored, added.typed, added.given, added.places
-    );
+    if recording.split(|byte| *byte == b'\n').any(|line| line.starts_with(b"screen ")) {
+        println!(
+            "link: {}; stored: {}; typed: {}; given: {}; approval: {}; credential: {}; bearer: {}; places replaced: {}",
+            added.link,
+            added.stored,
+            added.typed,
+            added.given,
+            added.approval,
+            added.credential,
+            added.bearer,
+            added.places
+        );
+    } else {
+        println!(
+            "link: {}; stored: {}; typed: {}; given: {}; places replaced: {}",
+            added.link, added.stored, added.typed, added.given, added.places
+        );
+    }
     println!("{CAUTION}");
     Ok(false)
 }
 
 fn record_again(name: &str) -> Result<(), String> {
+    if !named(name) {
+        return Err(refusal(Refusal::Name(name.to_owned())));
+    }
+    let is_tui = Path::new(TUI_JOURNEYS).join(name).join("walk").exists();
     // Unwalkable journeys are refused before starting the builds or either child.
-    let _steps = again::starting(Path::new(JOURNEYS), name).map_err(refusal)?;
-    let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
+    let tui_steps = if is_tui {
+        Some(tui_again::starting(Path::new(TUI_JOURNEYS), name).map_err(refusal)?)
+    } else {
+        let _steps = again::starting(Path::new(JOURNEYS), name).map_err(refusal)?;
+        let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
+        None
+    };
     let chromium = env::var_os("SKEIN_TEST_CHROMIUM")
         .ok_or_else(|| format!("{name}: set SKEIN_TEST_CHROMIUM to the Chromium binary"))?;
     let chromium = fs::canonicalize(&chromium)
         .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let scratch = scratch().map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
-    let result = build(&root, &scratch, chromium)
-        .and_then(|paths| again::again(Path::new(JOURNEYS), name, &paths).map_err(refusal));
+    let result = build(&root, &scratch, chromium, is_tui).and_then(|paths| {
+        if let Some(steps) = tui_steps {
+            tui_again::again(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &steps, &paths).map_err(refusal)
+        } else {
+            again::again(Path::new(JOURNEYS), name, &paths).map_err(refusal)
+        }
+    });
     match result {
         Ok(()) => fs::remove_dir_all(&scratch)
             .map_err(|error| format!("{name}: cannot remove scratch directory {}: {error}", scratch.display())),
@@ -124,24 +152,23 @@ fn scratch() -> io::Result<PathBuf> {
     Err(io::Error::new(io::ErrorKind::AlreadyExists, "no fresh journey directory name"))
 }
 
-fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String> {
-    let status = Command::new("cargo")
-        .current_dir(root)
-        .env("TEMPER_BUNDLE", "none")
-        .args(["build", "-p", "temper", "-p", "smith-fake-claude"])
-        .status()
-        .map_err(|error| format!("cannot start cargo build: {error}"))?;
+fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result<Paths, String> {
+    let mut cargo = Command::new("cargo");
+    cargo.current_dir(root).env("TEMPER_BUNDLE", "none").args(["build", "-p", "temper", "-p", "smith-fake-claude"]);
+    if is_tui {
+        cargo.args(["--features", "temper/record"]);
+    }
+    let status = cargo.status().map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {
         return Err(format!("cargo build failed: {status}"));
     }
     let bundle = scratch.join("bundle");
-    let status = Command::new(root.join("scripts/bundle.sh"))
-        .current_dir(root)
-        .env("TEMPER_BUNDLE", "none")
-        .args(["--loopback", "--record"])
-        .arg(&bundle)
-        .status()
-        .map_err(|error| format!("cannot start scripts/bundle.sh: {error}"))?;
+    let mut bundler = Command::new(root.join("scripts/bundle.sh"));
+    bundler.current_dir(root).env("TEMPER_BUNDLE", "none").arg("--loopback");
+    if !is_tui {
+        bundler.arg("--record");
+    }
+    let status = bundler.arg(&bundle).status().map_err(|error| format!("cannot start scripts/bundle.sh: {error}"))?;
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
@@ -155,14 +182,17 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String
 
 fn reprint_all() -> Result<bool, String> {
     let stale = reprint(Path::new(JOURNEYS), Path::new(JOURNEYS)).map_err(refusal)?;
+    let tui_stale = tui::reprint(Path::new(TUI_JOURNEYS), Path::new(TUI_JOURNEYS)).map_err(refusal)?;
     let mut names = Vec::new();
-    for entry in fs::read_dir(JOURNEYS).map_err(|_| format!("cannot read {JOURNEYS}"))? {
-        let entry = entry.map_err(|_| format!("cannot read {JOURNEYS}"))?;
-        let path = entry.path();
-        if entry.file_type().map_err(|_| format!("cannot read {}", path.display()))?.is_dir()
-            && path.join("recording").is_file()
-        {
-            names.push(entry.file_name());
+    for journeys in [JOURNEYS, TUI_JOURNEYS] {
+        for entry in fs::read_dir(journeys).map_err(|_| format!("cannot read {journeys}"))? {
+            let entry = entry.map_err(|_| format!("cannot read {journeys}"))?;
+            let path = entry.path();
+            if entry.file_type().map_err(|_| format!("cannot read {}", path.display()))?.is_dir()
+                && path.join("recording").is_file()
+            {
+                names.push(entry.file_name());
+            }
         }
     }
     names.sort();
@@ -172,11 +202,47 @@ fn reprint_all() -> Result<bool, String> {
     for (name, stopped) in &stale {
         eprintln!("temper-client-journeys: {}", stale_message(name, stopped));
     }
-    Ok(!stale.is_empty())
+    for (name, stopped) in &tui_stale {
+        eprintln!(
+            "temper-client-journeys: {name} is stale at turn {}, line {}; record it again (client/tui/journeys.md, 8)",
+            stopped.turn, stopped.line
+        );
+    }
+    Ok(!stale.is_empty() || !tui_stale.is_empty())
 }
 
 fn refusal(why: Refusal) -> String {
     match why {
+        Refusal::TuiWalk { name, unreadable } => {
+            format!("{name}/walk is unreadable at line {}: {}", unreadable.line, unreadable.why)
+        }
+        Refusal::TuiAgain { name, step, report } => format!("{name} at step {step}: {report}"),
+        Refusal::OtherClient { name } => format!("{name} belongs to the other client's journey directory"),
+        Refusal::TuiProof { name, refusal } => match refusal {
+            temper_client_shell_tui::journey::Refusal::Unreadable(why) => {
+                format!("{name} is unreadable at line {}: {}", why.line, why.why)
+            }
+            temper_client_shell_tui::journey::Refusal::Stale(why) => format!(
+                "{name} is stale at turn {}, line {}: recorded {}, asked {}; record it again (client/tui/journeys.md, 8)",
+                why.turn,
+                why.line,
+                String::from_utf8_lossy(&why.recorded),
+                String::from_utf8_lossy(&why.asked)
+            ),
+            temper_client_shell_tui::journey::Refusal::Differs { mark, line } => {
+                format!("{name} differs at mark {mark}, frame line {line}")
+            }
+        },
+        Refusal::TuiFound { name, found, file } => {
+            let place = match found.place {
+                temper_client_shell_tui::journey::Place::Field => "field".into(),
+                temper_client_shell_tui::journey::Place::Frame { turn } => format!("frame at turn {turn}"),
+                temper_client_shell_tui::journey::Place::Printed => {
+                    format!("printed file {}", file.unwrap_or_default())
+                }
+            };
+            format!("{name} at line {}, {}, {place}: found {}", found.line, found.record, what_message(found.what))
+        }
         Refusal::SetupUnreadable { name, unreadable } => unreadable_message(&format!("{name}/setup"), &unreadable),
         Refusal::SetupAfter { name, after, why } => format!("{name}/setup: after {after:?}: {why}"),
         Refusal::SetupTimeout { name, setup, line, sought } => {

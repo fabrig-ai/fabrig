@@ -127,6 +127,7 @@ impl LinkPeer {
                 | io::Request::Stream { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }
@@ -438,6 +439,7 @@ impl AgentPeer {
             | io::Request::Stream { .. }
             | io::Request::Output { .. }
             | io::Request::Spawn { .. }
+            | io::Request::SpawnAlone { .. }
             | io::Request::Signal { .. }
             | io::Request::Usage { .. }
             | io::Request::Window { .. }

@@ -506,6 +506,7 @@ mod tests {
                         | IoRequest::Reject { .. }
                         | IoRequest::Output { .. }
                         | IoRequest::Spawn { .. }
+                        | IoRequest::SpawnAlone { .. }
                         | IoRequest::Signal { .. }
                         | IoRequest::Usage { .. }
                         | IoRequest::Window { .. }

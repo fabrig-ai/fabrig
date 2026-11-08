@@ -127,7 +127,7 @@ impl Below {
     ) -> (skein_lib::Token, Box<[skein_lib::Token]>) {
         let request = self.out.io.pop().expect("spawn requested");
         let (owner, count) = match request {
-            skein_io::Request::Spawn { owner, spawn } => {
+            skein_io::Request::Spawn { owner, spawn } | skein_io::Request::SpawnAlone { owner, spawn } => {
                 assert_eq!(&*spawn.program, program);
                 (owner, spawn.pipes.len())
             }

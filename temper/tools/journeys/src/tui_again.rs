@@ -1,0 +1,430 @@
+//! Recording a TUI walk over skein's browser harness and terminal startup
+//! (temper/docs/design/client/tui/journeys.md, 8.1–8.2).
+use crate::{Refusal, again::Paths};
+use skein_fake_person::{Doing, Face, Find, Found, Next};
+use skein_fake_person_browser::{
+    BrowserFace,
+    harness::{Harness, Names, Outcome, Output, Play, Printed, Sent, Setup},
+};
+use skein_lib::{Duration, Time};
+use skein_ui::{Act, Role};
+use skein_ui_screen_terminal::Key;
+use std::{
+    ffi::OsString,
+    fs::{self, File},
+    io::{self, Read},
+    os::unix::{
+        ffi::OsStrExt,
+        fs::{DirBuilderExt, MetadataExt},
+    },
+    path::Path,
+};
+use temper_client_shell_tui::journey::{self, WalkStep};
+
+mod terminal;
+use terminal::Terminal;
+#[cfg(test)]
+mod tests;
+
+const HORIZON: Duration = Duration::from_secs(600);
+const BOUND: Duration = Duration::from_secs(30);
+const POLL: Duration = Duration::from_millis(50);
+
+/// Read the complete walk before a build, terminal, browser or box starts.
+pub fn starting(journeys: &Path, name: &str) -> Result<Vec<WalkStep>, Refusal> {
+    if !crate::named(name) {
+        return Err(Refusal::Name(name.to_owned()));
+    }
+    let path = journeys.join(name).join("walk");
+    let bytes = fs::read(&path).map_err(|_| crate::io_refusal(&path))?;
+    journey::walk(&bytes).map_err(|unreadable| Refusal::TuiWalk { name: name.to_owned(), unreadable })
+}
+
+/// Follow an already validated walk, check its recording and add it.
+pub fn again(
+    journeys: &Path,
+    tui_journeys: &Path,
+    name: &str,
+    steps: &[WalkStep],
+    paths: &Paths,
+) -> Result<(), Refusal> {
+    for attempt in 1..=3 {
+        let scratch = paths.scratch.join(format!("attempt-{attempt}"));
+        fs::DirBuilder::new().mode(0o700).create(&scratch).map_err(|_| crate::io_refusal(&scratch))?;
+        let attempt_paths = Paths {
+            temper: paths.temper.clone(),
+            bundle: paths.bundle.clone(),
+            chromium: paths.chromium.clone(),
+            scratch,
+        };
+        match record(journeys, tui_journeys, name, steps.to_vec(), &attempt_paths) {
+            Err(Refusal::TuiProof { refusal: journey::Refusal::Differs { .. }, .. }) if attempt < 3 => {}
+            result => return result,
+        }
+    }
+    unreachable!("the third attempt returns its result")
+}
+
+fn record(
+    journeys: &Path,
+    tui_journeys: &Path,
+    name: &str,
+    steps: Vec<WalkStep>,
+    paths: &Paths,
+) -> Result<(), Refusal> {
+    let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
+    let environment = environment(&std::env::vars_os().collect::<Vec<_>>(), &paths.scratch)
+        .map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
+    for directory in ["home", "state", "bin", "tmp", "config", "data", "cache", "runtime"] {
+        let path = paths.scratch.join(directory);
+        fs::DirBuilder::new().mode(0o700).create(&path).map_err(|_| crate::io_refusal(&path))?;
+    }
+    let true_program = program("true").ok_or_else(|| fail("cannot find true on PATH".into()))?;
+    for opener in ["xdg-open", "open"] {
+        let path = paths.scratch.join("bin").join(opener);
+        std::os::unix::fs::symlink(&true_program, &path).map_err(|_| crate::io_refusal(&path))?;
+    }
+    // Like browser again, env gives the harness's empty server environment
+    // a PATH. HOME and temporary files also stay within this fresh run.
+    let launcher = program("env").ok_or_else(|| fail("cannot find env on PATH".into()))?;
+    let mut args: Vec<OsString> = environment
+        .iter()
+        .filter(|(name, _)| {
+            [
+                "PATH",
+                "HOME",
+                "TMPDIR",
+                "XDG_STATE_HOME",
+                "XDG_CONFIG_HOME",
+                "XDG_DATA_HOME",
+                "XDG_CACHE_HOME",
+                "XDG_RUNTIME_DIR",
+            ]
+            .iter()
+            .any(|forward| name == forward)
+        })
+        .map(|(name, value)| {
+            let mut entry = name.clone();
+            entry.push("=");
+            entry.push(value);
+            entry
+        })
+        .collect();
+    args.extend([
+        paths.temper.clone().into_os_string(),
+        "box".into(),
+        "--fake-backends".into(),
+        "--bundle".into(),
+        paths.bundle.clone().into_os_string(),
+    ]);
+    for (flag, directory) in [("--config", "config"), ("--data", "data"), ("--cache", "cache")] {
+        args.push(flag.into());
+        args.push(paths.scratch.join(directory).into_os_string());
+    }
+    let mut harness = Harness::new(Setup {
+        server: launcher,
+        restart: args.clone(),
+        args,
+        printed: Printed { sent: Sent::Page, prefix: b"http://127.0.0.1:", on: Output::Stdout, names: Names::Url },
+        chromium: paths.chromium.clone(),
+        downloads: None,
+        expected: vec![],
+        origins: vec![],
+    })
+    .horizon(HORIZON);
+    let mut walker = Walker {
+        name: name.to_owned(),
+        paths,
+        environment,
+        steps,
+        at: 0,
+        phase: Phase::Opening,
+        since: None,
+        terminal: None,
+        refusal: None,
+        recording: None,
+    };
+    let outcome = harness.run(&mut [&mut walker]);
+    // Stop and reap the TUI even when the browser or box failed before next().
+    drop(walker.terminal.take());
+    if let Some(refusal) = walker.refusal {
+        return Err(refusal);
+    }
+    if let Outcome::Failed { .. } = outcome {
+        // A browser failure's snapshot or URL can contain an approval or link.
+        return Err(walker.fail("browser or box failed; scratch kept for inspection"));
+    }
+    let recording = walker.recording.take().ok_or_else(|| walker.fail("the walk ended without a save"))?;
+    let lines = journey::lines(&recording).map_err(|why| walker.save_refusal(journey::Refusal::Unreadable(why)))?;
+    if let Some(step) = journey::follows(&walker.steps, &lines) {
+        return Err(Refusal::WalkDiffers { name: name.to_owned(), step });
+    }
+    crate::add_to(journeys, tui_journeys, name, &recording, &[]).map(|_| ())
+}
+
+fn program(name: &str) -> Option<std::path::PathBuf> {
+    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+        .filter(|path| path.is_absolute())
+        .map(|path| path.join(name))
+        .find(|path| path.is_file())
+}
+
+fn environment(
+    given: &[(OsString, OsString)],
+    scratch: &Path,
+) -> Result<Vec<(OsString, OsString)>, std::env::JoinPathsError> {
+    let mut environment: Vec<_> =
+        given.iter().filter(|(name, _)| !name.as_bytes().starts_with(b"SSH_")).cloned().collect();
+    let path = given.iter().find(|(name, _)| name == "PATH").map(|(_, value)| value.clone()).unwrap_or_default();
+    let paths = std::iter::once(scratch.join("bin")).chain(std::env::split_paths(&path));
+    let mut replacements = vec![("PATH", std::env::join_paths(paths)?), ("TERM", "xterm-256color".into())];
+    for (name, directory) in [
+        ("HOME", "home"),
+        ("XDG_STATE_HOME", "state"),
+        ("XDG_CONFIG_HOME", "config"),
+        ("XDG_DATA_HOME", "data"),
+        ("XDG_CACHE_HOME", "cache"),
+        ("XDG_RUNTIME_DIR", "runtime"),
+        ("TMPDIR", "tmp"),
+    ] {
+        replacements.push((name, scratch.join(directory).into_os_string()));
+    }
+    if !given.iter().any(|(name, _)| name == "DISPLAY") {
+        replacements.push(("DISPLAY", ":0".into()));
+    }
+    for (name, value) in replacements {
+        environment.retain(|(key, _)| key != name);
+        environment.push((name.into(), value));
+    }
+    Ok(environment)
+}
+
+fn key_bytes(key: &Key) -> Vec<u8> {
+    match key {
+        Key::Enter => b"\r".to_vec(),
+        Key::Tab => b"\t".to_vec(),
+        Key::BackTab => b"\x1b[Z".to_vec(),
+        Key::Backspace => b"\x7f".to_vec(),
+        Key::Delete => b"\x1b[3~".to_vec(),
+        Key::Up => b"\x1b[A".to_vec(),
+        Key::Down => b"\x1b[B".to_vec(),
+        Key::Right => b"\x1b[C".to_vec(),
+        Key::Left => b"\x1b[D".to_vec(),
+        Key::Home => b"\x1b[H".to_vec(),
+        Key::End => b"\x1b[F".to_vec(),
+        Key::PageUp => b"\x1b[5~".to_vec(),
+        Key::PageDown => b"\x1b[6~".to_vec(),
+        Key::Escape => b"\x1b".to_vec(),
+        Key::Control(letter) => vec![letter.to_ascii_lowercase().saturating_sub(b'a').saturating_add(1)],
+        Key::Char(character) => character.to_string().into_bytes(),
+        Key::Alt(character) => {
+            let mut bytes = vec![0x1b];
+            bytes.extend_from_slice(character.to_string().as_bytes());
+            bytes
+        }
+        Key::Paste(text) => {
+            let mut bytes = b"\x1b[200~".to_vec();
+            bytes.extend_from_slice(text);
+            bytes.extend_from_slice(b"\x1b[201~");
+            bytes
+        }
+    }
+}
+
+enum Phase {
+    Opening,
+    Address,
+    Ready,
+    Step,
+    Save { earlier: Option<File> },
+    Approve,
+    Pressed,
+    Finished,
+}
+struct Walker<'a> {
+    name: String,
+    paths: &'a Paths,
+    environment: Vec<(OsString, OsString)>,
+    steps: Vec<WalkStep>,
+    at: usize,
+    phase: Phase,
+    since: Option<Time>,
+    terminal: Option<Terminal>,
+    refusal: Option<Refusal>,
+    recording: Option<Vec<u8>>,
+}
+impl Walker<'_> {
+    fn step(&self) -> u32 {
+        u32::try_from(self.at + 1).expect("walk length fits u32")
+    }
+    fn fail(&self, report: &str) -> Refusal {
+        Refusal::TuiAgain { name: self.name.clone(), step: self.step(), report: report.into() }
+    }
+    fn save_refusal(&self, refusal: journey::Refusal) -> Refusal {
+        crate::tui::proof_refusal(&format!("{} at step {}", self.name, self.step()), refusal)
+    }
+    fn advance(&mut self) {
+        self.at += 1;
+        self.since = None;
+        self.phase = Phase::Step;
+    }
+    fn terminal(&mut self) -> &mut Terminal {
+        self.terminal.as_mut().expect("TUI started before walking")
+    }
+    fn save(&mut self) -> Result<(), Refusal> {
+        let path = self.paths.scratch.join("state/temper/tui/recording");
+        let earlier = optional_file(&path).map_err(|_| self.fail("cannot observe recording before save"))?;
+        self.terminal().write(key_bytes(&Key::Alt('S')));
+        self.phase = Phase::Save { earlier };
+        Ok(())
+    }
+    fn deadline(&self, now: Time) -> Result<(), Refusal> {
+        if self.since.is_some_and(|since| now >= since.saturating_add(BOUND)) {
+            return Err(self.fail("step not completed within 30 s"));
+        }
+        Ok(())
+    }
+    fn progress(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Result<Next<Box<[u8]>>, Refusal> {
+        self.deadline(now)?;
+        self.since.get_or_insert(now);
+        match std::mem::replace(&mut self.phase, Phase::Finished) {
+            Phase::Opening => {
+                // The load precedes the client's asynchronous sign-in. Its main
+                // region is the same readiness seam browser again waits for.
+                if let Found::Node(_) = face.find(&Find::named(Role::Main, b"")) {
+                    face.address();
+                    self.phase = Phase::Address;
+                } else {
+                    self.phase = Phase::Opening;
+                }
+            }
+            Phase::Address => {
+                let address = face.take_address().ok_or_else(|| self.fail("browser supplied no box address"))?;
+                let address = origin(&address).ok_or_else(|| self.fail("browser supplied no loopback box address"))?;
+                self.terminal =
+                    Some(Terminal::start(self.paths, &address, &self.environment).map_err(|why| self.fail(why))?);
+                self.phase = Phase::Ready;
+            }
+            Phase::Ready => {
+                if self.terminal().ready() {
+                    self.phase = Phase::Step;
+                    self.since = None;
+                } else {
+                    self.phase = Phase::Ready;
+                }
+            }
+            Phase::Step => match self.steps.get(self.at).expect("validated walk ends once") {
+                WalkStep::Key(key) => {
+                    let bytes = key_bytes(key);
+                    self.terminal().write(bytes);
+                    self.advance();
+                }
+                WalkStep::Mark => {
+                    self.terminal().write(key_bytes(&Key::Alt('M')));
+                    self.advance();
+                }
+                WalkStep::See(_) | WalkStep::Approve | WalkStep::End => self.save()?,
+            },
+            Phase::Save { earlier } => {
+                let path = self.paths.scratch.join("state/temper/tui/recording");
+                if let Some(save) =
+                    replaced(&path, earlier.as_ref()).map_err(|_| self.fail("cannot read replaced recording"))?
+                {
+                    match self.steps.get(self.at).expect("saving a walk step") {
+                        WalkStep::See(text) => {
+                            if journey::shows(&save, text).map_err(|why| self.save_refusal(why))? {
+                                self.advance();
+                            } else {
+                                self.save()?;
+                            }
+                        }
+                        WalkStep::Approve => {
+                            let address = journey::browsed(&save)
+                                .map_err(|why| self.save_refusal(journey::Refusal::Unreadable(why)))?;
+                            if let Some(address) = address {
+                                face.go_to(address);
+                                self.phase = Phase::Approve;
+                            } else {
+                                self.save()?;
+                            }
+                        }
+                        WalkStep::End => {
+                            self.recording = Some(save);
+                            return Ok(Next::Done);
+                        }
+                        WalkStep::Key(_) | WalkStep::Mark => unreachable!("keys do not request saves"),
+                    }
+                } else {
+                    self.phase = Phase::Save { earlier };
+                }
+            }
+            Phase::Approve => {
+                let find = Find::exactly_named(Role::Button, b"Approve");
+                match face.find(&find) {
+                    Found::Node(node) if face.allows(node, &Act::Press) => {
+                        self.phase = Phase::Pressed;
+                        return Ok(Next::Do(Doing::Act { node, act: Act::Press }));
+                    }
+                    Found::Node(_) | Found::Absent | Found::Pending => self.phase = Phase::Approve,
+                }
+            }
+            Phase::Pressed => self.advance(),
+            Phase::Finished => return Ok(Next::Done),
+        }
+        Ok(Next::Wait { until: Some(now.saturating_add(POLL)) })
+    }
+}
+impl Play for Walker<'_> {
+    fn at(&self) -> u32 {
+        u32::try_from(self.at).expect("walk length fits u32")
+    }
+    fn check_deadline(&mut self, _face: &mut BrowserFace<'_>, now: Time) {
+        // The harness calls this even while a page's navigation is pending.
+        let progress = self.terminal.as_mut().map_or(Ok(()), Terminal::tick);
+        if self.refusal.is_none() {
+            self.refusal = progress.map_err(|why| self.fail(why)).and_then(|()| self.deadline(now)).err();
+        }
+    }
+    fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
+        if self.refusal.is_some() {
+            return Next::Done;
+        }
+        match self.progress(face, now) {
+            Ok(next) => next,
+            Err(why) => {
+                self.refusal = Some(why);
+                Next::Done
+            }
+        }
+    }
+}
+
+fn origin(url: &[u8]) -> Option<Vec<u8>> {
+    let address = url.strip_prefix(b"http://127.0.0.1:")?;
+    let port = address.split(|byte| *byte == b'/' || *byte == b'?' || *byte == b'#').next()?;
+    std::str::from_utf8(port).ok()?.parse::<u16>().ok()?;
+    let mut origin = b"http://127.0.0.1:".to_vec();
+    origin.extend_from_slice(port);
+    Some(origin)
+}
+
+fn optional_file(path: &Path) -> io::Result<Option<File>> {
+    match File::open(path) {
+        Ok(file) => Ok(Some(file)),
+        Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(None),
+        Err(why) => Err(why),
+    }
+}
+fn replaced(path: &Path, earlier: Option<&File>) -> io::Result<Option<Vec<u8>>> {
+    let Some(mut file) = optional_file(path)? else { return Ok(None) };
+    let current = file.metadata()?;
+    if let Some(earlier) = earlier {
+        let earlier = earlier.metadata()?;
+        if current.dev() == earlier.dev() && current.ino() == earlier.ino() {
+            return Ok(None);
+        }
+    }
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)?;
+    Ok(Some(bytes))
+}

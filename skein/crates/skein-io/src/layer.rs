@@ -587,7 +587,8 @@ pub fn down(io: &mut Io, env: &Env<Limits>, request: Request, subs: &mut Queue<S
         Request::Reject { socket } => answer(io, env, socket, None, subs),
         Request::Stream { stream, down } => stream_request(io, env, stream, down, subs),
         Request::Output { stream, down } => output_request(io, env, stream, down, subs),
-        Request::Spawn { owner, spawn } => process::spawn(io, owner, spawn, subs),
+        Request::Spawn { owner, spawn } => process::spawn(io, owner, spawn, false, subs),
+        Request::SpawnAlone { owner, spawn } => process::spawn(io, owner, spawn, true, subs),
         Request::Signal { child, signal, to } => process::signal(io, child, signal, to, subs),
         Request::Window { owner, stream } => {
             assert!(io.tables.window.is_none() && io.tables.gone.is_none(), "one Window request in flight");

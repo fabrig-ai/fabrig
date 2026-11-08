@@ -5,16 +5,20 @@ its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live first screen, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
-post-landing terminal walk, TUI approval flow, recording and later
-surfaces remain deferred; the sign-in field takes `q` as text and
-Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
+post-landing terminal walks and later surfaces remain deferred; the
+sign-in field takes `q` as text and Ctrl+C closes there
+(`client/README.md`, sections 6.11 to 6.16 and 11;
 `draft/tui.status.md`). Browser-approved sign-in's engine configuration,
 native client-root half and web page at `/terminal` are built, with eleven
-gallery states and joint-client stories. The TUI's opener, lines and
-retry flow remain unbuilt (`client/README.md`, 7.1 and 11); the web's
-rendered check follows landing (`client/browser.md`, section 5). The
-reference
-merges a 65,536-byte journal run bound from `room.json`. A pull's files
+gallery states and joint-client stories. The TUI's approval ask, locally
+constructed address, opener, fallback lines and Enter retry are built,
+with joint-world approval and refusal stories (`client/README.md`, 7.1).
+Its recording build, replay, shared redaction and scan, themed frame
+prints and pseudo-terminal/headless-browser generation are built, with
+`sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
+The user's look at those frames and the terminal and web checks follow
+landing (`client/README.md`, section 11; `client/browser.md`, section 5).
+The reference merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
 decision. Settings-position wording and progress from the repository's
@@ -657,6 +661,7 @@ Design documents:
 - [`client/forge.md`](client/forge.status.md)
 - [`client/browser.md`](client/browser.status.md)
 - [`client/journeys.md`](client/journeys.status.md)
+- [`client/tui/journeys.md`](client/tui/journeys.status.md)
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:

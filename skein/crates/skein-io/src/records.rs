@@ -41,6 +41,8 @@ pub enum Request {
     },
     /// Start a child, returning its pidfd-backed token and pipe tokens.
     Spawn { owner: Token, spawn: Spawn },
+    /// Start a child whose close signals only it, leaving its descendants alive (io.md, 6).
+    SpawnAlone { owner: Token, spawn: Spawn },
     /// An owner signals its child or group, before closing the child.
     Signal { child: Token, signal: Signal, to: Target },
     /// Reads this process and its reaped children at submit: exactly one `Usage` terminal.
@@ -72,6 +74,7 @@ impl Request {
             | Self::Connect { owner, .. }
             | Self::Bind { owner, .. }
             | Self::Spawn { owner, .. }
+            | Self::SpawnAlone { owner, .. }
             | Self::Usage { owner }
             | Self::Window { owner, .. } => Some(*owner),
             Self::Reject { .. }
@@ -91,6 +94,7 @@ impl Request {
             | Self::Connect { owner: destination, .. }
             | Self::Bind { owner: destination, .. }
             | Self::Spawn { owner: destination, .. }
+            | Self::SpawnAlone { owner: destination, .. }
             | Self::Usage { owner: destination }
             | Self::Window { owner: destination, .. } => *destination = owner,
             Self::Reject { .. }

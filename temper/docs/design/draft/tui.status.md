@@ -2,8 +2,14 @@
 
 2026-11-07. Where the design lags or departs from [tui.md](tui.md).
 
-- **Design lags:**
-  - 5: `../client/journeys.md` records the browser's client alone.
+- **Design lags:** 3 and 7: the later surfaces, approval between hosts
+  and managing sign-ins await the user's refinement after the first
+  pass; `../client/README.md`, section 11 defers them. Sections 4 and 5
+  have no lag: 4.2's TUI side is `../client/README.md`, 6.13 and 7.1,
+  and 5 is `../client/tui/journeys.md`. Section 8's journey-format
+  default is settled by that design: the browser's versioned syntax and
+  common records, with the TUI's own records and codec, sharing the
+  browser's redaction and last scan (its sections 3 and 5).
 - **Design departs:**
   - 4.1: on the sign-in screen `q` is a character of the pasted link's field, which has the focus there, so Ctrl+C closes it and `q` closes the first screen (`../client/README.md`, 6.14): decided by the cut of `tui-connected`, 2026-11-07.
 - **Open:**

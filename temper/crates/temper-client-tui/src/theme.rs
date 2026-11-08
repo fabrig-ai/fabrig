@@ -16,28 +16,34 @@ const fn fore(colour: Rgb) -> Paint {
     Paint { fore: Some(colour), ..Paint::NONE }
 }
 
+/// The named palette shared by the terminal and its journey pages (temper/docs/design/client/tui/journeys.md, 6.4).
 #[must_use]
-pub fn theme(scheme: Scheme) -> Theme {
-    let [bg, ink, dim, faint, sel, accent, good] = match scheme {
+pub const fn palette(scheme: Scheme) -> [(&'static str, Rgb); 7] {
+    match scheme {
         Scheme::Dark => [
-            rgb(0x19, 0x18, 0x16),
-            rgb(0xe8, 0xe3, 0xda),
-            rgb(0x9a, 0x93, 0x88),
-            rgb(0x6a, 0x65, 0x5c),
-            rgb(0x2a, 0x28, 0x25),
-            rgb(0xe0, 0x8a, 0x68),
-            rgb(0x8f, 0xc2, 0x8f),
+            ("bg", rgb(0x19, 0x18, 0x16)),
+            ("ink", rgb(0xe8, 0xe3, 0xda)),
+            ("dim", rgb(0x9a, 0x93, 0x88)),
+            ("faint", rgb(0x6a, 0x65, 0x5c)),
+            ("sel", rgb(0x2a, 0x28, 0x25)),
+            ("accent", rgb(0xe0, 0x8a, 0x68)),
+            ("good", rgb(0x8f, 0xc2, 0x8f)),
         ],
         Scheme::Light => [
-            rgb(0xff, 0xfe, 0xfd),
-            rgb(0x34, 0x31, 0x2c),
-            rgb(0x7a, 0x73, 0x6a),
-            rgb(0xb5, 0xae, 0xa3),
-            rgb(0xf4, 0xf0, 0xe9),
-            rgb(0xb8, 0x66, 0x4e),
-            rgb(0x3f, 0x7d, 0x4e),
+            ("bg", rgb(0xff, 0xfe, 0xfd)),
+            ("ink", rgb(0x34, 0x31, 0x2c)),
+            ("dim", rgb(0x7a, 0x73, 0x6a)),
+            ("faint", rgb(0xb5, 0xae, 0xa3)),
+            ("sel", rgb(0xf4, 0xf0, 0xe9)),
+            ("accent", rgb(0xb8, 0x66, 0x4e)),
+            ("good", rgb(0x3f, 0x7d, 0x4e)),
         ],
-    };
+    }
+}
+
+#[must_use]
+pub fn theme(scheme: Scheme) -> Theme {
+    let [(_, bg), (_, ink), (_, dim), (_, faint), (_, sel), (_, accent), (_, good)] = palette(scheme);
     Theme {
         base: Paint { fore: Some(ink), back: Some(bg), ..Paint::NONE },
         focus: Paint { back: Some(sel), ..Paint::NONE },

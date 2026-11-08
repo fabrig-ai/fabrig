@@ -55,8 +55,9 @@ fn invoke(name: &str, recording: &[u8], options: &[OsString], private: &[&[u8]],
     fs::write(&file, recording).expect("scratch recording");
     let journeys = paths::tree().join("docs/design/client/journeys");
     let tool = paths::tree().join("tools/journeys");
-    let before = (listing(&journeys), listing(&tool));
-    assert!(!journeys.join(name).exists(), "unused refusal name");
+    let tui = paths::tree().join("docs/design/client/tui/journeys");
+    let before = (listing(&journeys), listing(&tool), listing(&tui));
+    assert!(!journeys.join(name).exists() && !tui.join(name).exists(), "unused refusal name");
     let output = Command::new(paths::binary("temper-client-journeys"))
         .arg("add")
         .args(options)
@@ -71,8 +72,8 @@ fn invoke(name: &str, recording: &[u8], options: &[OsString], private: &[&[u8]],
     }
     assert_eq!(output.status.code(), Some(code));
     assert!(output.stdout.is_empty(), "refusal has no stdout");
-    assert!(!journeys.join(name).exists(), "no refused journey");
-    assert!(before == (listing(&journeys), listing(&tool)), "no temporary or journey paths");
+    assert!(!journeys.join(name).exists() && !tui.join(name).exists(), "no refused journey");
+    assert!(before == (listing(&journeys), listing(&tool), listing(&tui)), "no temporary or journey paths");
     output
 }
 fn messages(output: &Output, facts: &[&str]) {
@@ -241,4 +242,90 @@ fn make_stale(lines: &mut [Line]) {
         }
     }
     assert_eq!(count, 1, "edited deadline makes the process fixture refuse even without a scan");
+}
+
+fn tui_fixture(frame: bool) -> Vec<u8> {
+    use skein_ui_screen::Size;
+    use temper_client_shell_tui::{host::Report, journey as tj};
+    let address = if frame { "pri\u{200b}vate-frame-marker&".as_bytes() } else { b"127.0.0.1:8367" };
+    let facts = tj::Facts {
+        seed: 7,
+        now: Time::ZERO,
+        wall: Wall::EPOCH,
+        size: Size { rows: 16, columns: 100 },
+        scheme: temper_client_tui::Scheme::Dark,
+        address: address.into(),
+        kept: Vec::new(),
+        credential: None,
+    };
+    let (mut host, start) = facts.start();
+    let mut recorder = tj::Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    let duties = recorder.report(&mut host, start);
+    recorder.deadline(host.deadline());
+    if frame {
+        let exchange =
+            duties
+                .asked
+                .iter()
+                .find_map(|request| {
+                    if let jig_client::Request::Exchange { exchange, .. } = request { Some(*exchange) } else { None }
+                })
+                .expect("approval ask");
+        let mut reply = vec![0];
+        reply.extend_from_slice(&32_u32.to_be_bytes());
+        reply.extend_from_slice(&[7; 32]);
+        reply.extend_from_slice(b"WDJBMJHT");
+        reply.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
+        for (index, report) in [
+            Report::Heard(jig_client::Event::Reply { exchange, message: reply.into() }),
+            Report::Opened { opened: true },
+            Report::Resize(Size { rows: 0, columns: 0 }),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let now = u64::try_from(index + 1).expect("turn time");
+            let now_time = Time::from_nanos(now);
+            let wall = Wall::from_nanos(now);
+            host.clocks(now_time, wall);
+            recorder.turn(now_time, wall);
+            recorder.report(&mut host, report);
+            host.frame();
+            recorder.deadline(host.deadline());
+        }
+    }
+    let mut lines = tj::lines(&recorder.save(&mut host)).expect("TUI recording");
+    if !frame {
+        let mut changed = 0;
+        for line in &mut lines {
+            if let tj::Line::End(print) = line {
+                *print = Some(b"private-proof-marker".as_slice().into());
+                changed += 1;
+            }
+        }
+        assert_eq!(changed, 1, "one end proof changed");
+    }
+    let mut bytes = Vec::new();
+    for line in lines {
+        line.write(&mut bytes);
+    }
+    bytes
+}
+
+#[test]
+fn a_tui_refusal_prints_positions_and_no_original_bytes() {
+    for (frame, options, private, expected) in [
+        (
+            true,
+            vec!["--redact".into(), "private-frame-marker".into()],
+            b"private-frame-marker".as_slice(),
+            vec!["deadline", "frame at turn", "found an original"],
+        ),
+        (false, vec![], b"private-proof-marker".as_slice(), vec!["mark 1", "frame line"]),
+    ] {
+        let output = invoke("guard-tui-refusal", &tui_fixture(frame), &options, &[private], 1);
+        messages(&output, &expected);
+        messages(&output, &["line", "nothing was written"]);
+    }
 }
