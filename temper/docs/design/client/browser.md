@@ -253,6 +253,8 @@ replay says the same clocks (`README.md`, 5.12).
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Repositories { project }` | `/projects/<project>/settings/repositories` |
   | `Builders { project }` | `/projects/<project>/settings/builders` |
+  | `Role { project, charter }` | `/projects/<project>/settings/roles/<charter>` |
+  | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
   | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter }` | `/chats`, and its filter's query |
@@ -384,11 +386,14 @@ replay says the same clocks (`README.md`, 5.12).
   isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
   main (skein's `ui-web.md`, 7). When the heading is drawn, the shell moves the focus from the
   main to it, unless the focus has moved meanwhile: a focus placed since keeps its
-  place, even back on the main, and a focus request ends the wait. A new
-  entry with no main yet, as while `me` is read (`README.md`, 5.1), waits
-  for its main alike: when the main is drawn, its heading takes the focus,
-  or the main until the heading comes, unless the focus has moved or a
-  focus request came meanwhile.
+  place, even back on the main, and a focus request ends the wait. While
+  `me` is read the main is empty and marked busy (`README.md`, 5.1), so a
+  new entry then has the focus on it, and the page's heading drawn once
+  `me` is read takes it alike, the page's main being that node (skein's
+  `ui.md`, 7). A new entry with no main yet waits for its
+  main alike: when the main is drawn, its heading takes the focus, or the
+  main until the heading comes, unless the focus has moved or a focus
+  request came meanwhile.
 
 ### 2.4 Signing in
 
@@ -807,6 +812,13 @@ replay says the same clocks (`README.md`, 5.12).
   tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
   SVG laid out by width where the page has two), the selector names what is drawn and
   keeps the request's declarations.
+  A path's marks take no stroke but their own rules', as the request's
+  page has none: skein's default stroke for a scene's marks (skein's
+  `ui-web.md`, 12) gives way under `.temper-ways-path` by one rule of the
+  path's, scoped to its drawn figure, `stroke: none` on the marks skein's
+  rule names, outweighing skein's rule and outweighed by every mark's own
+  (the line's, the boundary's, a person's ring, the halo, the caret, a
+  focused stop's area); skein's rule stays as it is.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
@@ -1591,8 +1603,16 @@ Not in the tier, each in the lowest world that shows it:
   public pages' "Sign in"; every approval state, deciding and signed out
   with and without Google; each `Authorize` state; out of date; no
   project yet with and without the welcome; the GitHub App's setup pages;
-  and night. Default: the stylesheets, the two focused tests and the
-  gallery's prints establish no rendered equality.
+  and night. It takes in the six repairs of `look-round-22`: the
+  welcome's top bar, signed in, ending with the person's name and "Sign
+  out" after its steps at each width; the top bar over an empty main
+  while `me` is read at `/chats` and `/chats/new`, until "No project yet"
+  settles, with the heading's focus once the page comes (2.3); "Code" and
+  "Project name" at 14 px on a 22.4 px line, the field and its act
+  1.59 px lower; the night welcome at 420 by 900 with no day paper under
+  its ground; "Sign in" on the public pages without Google; and the
+  Google endings' typographic apostrophe. Default: the stylesheets, the
+  focused tests and the gallery's prints establish no rendered equality.
 
 - **The chat terminal's comparison and keys** (2.5, 7.2; `README.md`,
   3.5): temper/ui compares the four `chat-terminal` requests' pages,
@@ -1848,6 +1868,14 @@ from the engine's own answers, is where the look is tuned.
 - **Static:** no script runs. The opening focus is an `autofocus`
   attribute, and a named sample may hold one disclosure open; caret,
   scroll-following and live updates are not replayed.
+- **A path printed for both widths:** a static page measures no box, so
+  each path's drawing (`README.md`, 5.16) is printed twice in its figure:
+  across, drawn in a box 720 wide, and down the page, drawn in a box 388
+  wide, the box at 420 pixels with a phone's 16 pixels each side
+  (`README.md`, 3.5). The page's own style, in its head, shows the second
+  at 760 pixels and under, the shell's phone width, and the first above
+  it, so that the print at 420 runs the path down the page as the shell
+  does.
 
 ### 7.2 Its states
 
@@ -2400,8 +2428,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   separate, titles remain readable, navigation stays inset and content stays
   within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (4.6). Its landings page reads "temper" and
-  "Landings", optionally "Queue" and its one member, then "No landings to show yet."
+  hold nothing a browser alone shows (4.6). Every page includes the "temper" and
+  "Sign in" top bar (8.2), including unknown and empty pages. Its landings page
+  then reads "Landings", optionally "Queue" and its one member, then "No landings to show yet."
   or the stock queue's merge. The member reads "task " and eight lowercase hexadecimal
   digits, " · Goal " and eight such digits, then " · Ready " and "just now",
   "a minute ago" or decimal digits and " minutes ago". The merge reads

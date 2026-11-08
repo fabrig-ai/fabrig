@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pair, Work</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+<script src="../whole-story.js"></script>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">pocket <small>GitHub</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">3</span></a>
+      <a class="on" href="work.html">Work</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <a href="#">Deployment</a>
+      <a href="#">Owner</a>
+    </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
+  </nav>
+
+  <main class="main">
+    <div class="col">
+      <header class="intro">
+        <p class="kicker">Work · pocket</p>
+        <h1 class="headline">Your chats and the changes they made</h1>
+        <p class="lede">On pocket, work starts in a chat: you ask, the chat's agent makes a change, and the change waits for you. Each row is a chat with what it made.</p>
+        <div class="choices"><a class="btn dark" href="#">+ New change</a></div>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Waiting on you · 3</h2></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">today 18:40</span>
+            <div><p class="took">Monthly totals by category</p><p class="small muted">A chat · 1 change, pull request 43: checked, waits for your approval.</p></div>
+            <span class="chip sig">approve</span>
+          </div>
+          <div class="row">
+            <span class="mono">today 17:05</span>
+            <div><p class="took">Budget alerts</p><p class="small muted">A chat · 1 change, producing: asked whether alerts go by email.</p></div>
+            <span class="chip sig">answer</span>
+          </div>
+          <div class="row">
+            <span class="mono">Mon 17:10</span>
+            <div><p class="took">Dark mode for the dashboard</p><p class="small muted">A chat · 1 change, pull request 41: checked, repaired once, waits for your approval.</p></div>
+            <span class="chip sig">approve</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Running · 1</h2></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">today 19:01</span>
+            <div><p class="took">Export a year as CSV</p><p class="small muted">A chat · 1 change, in CI after its first push, 4 min.</p></div>
+            <span class="r">checking</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Landed · this week</h2><span>older in the chats' history</span></div>
+        <div class="rows">
+          <div class="row">
+            <span class="mono">today 16:20</span>
+            <div><p class="took">CSV import keeps the last row</p><p class="small muted">A chat · 1 change, pull request 40, merged at the head CI checked.</p></div>
+            <a class="r" href="#">On GitHub</a>
+          </div>
+          <div class="row">
+            <span class="mono">Mon 11:02</span>
+            <div><p class="took">Accounts page loads in one request</p><p class="small muted">A chat · 1 change, pull request 39, repaired once after a red check.</p></div>
+            <a class="r" href="#">On GitHub</a>
+          </div>
+          <div class="row">
+            <span class="mono">Mon 09:30</span>
+            <div><p class="took">Why is the sync slow?</p><p class="small muted">A chat · answered, no change made.</p></div>
+            <span class="r">answered</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

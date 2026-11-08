@@ -6,7 +6,7 @@ fn forbidden(source: &str) -> bool {
         || ["CommandExt", "try_lock", "lock_shared", ".lock()"].iter().any(|name| compact.contains(name))
 }
 fn forbidden_at(path: &Path, source: &str) -> bool {
-    let source = if path.ends_with("temper/src/main.rs") {
+    let source = if path.ends_with("temper/src/main.rs") || path.ends_with("temper-client/src/main.rs") {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
     } else if path.ends_with("temper/src/lib.rs") {
         // Serve reads the first link's secret from stdin (protocol/setup.md, 7.1).
@@ -61,6 +61,24 @@ fn process_and_file_locks_stay_in_their_declared_modules() {
         let source = entry.expect("crate").path().join("src");
         if source.is_dir() {
             scan(&source);
+        }
+    }
+}
+#[test]
+fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
+    for path in ["temper/src/main.rs", "temper-client/src/main.rs"] {
+        for (source, expected) in [
+            ("use std::process::ExitCode;", false),
+            ("use std::{process::ExitCode};", false),
+            ("std::process::Command", true),
+            ("std::process::Child", true),
+            ("std::process::exit(1)", true),
+            ("try_lock", true),
+            ("file.lock()", true),
+            ("use std::process::ExitCode; std::process::Command", true),
+            ("use std::process::ExitCode; file.lock()", true),
+        ] {
+            assert_eq!(forbidden_at(Path::new(path), source), expected, "{path}: {source}");
         }
     }
 }

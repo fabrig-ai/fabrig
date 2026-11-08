@@ -98,6 +98,7 @@ fn a_goals_landing_lands_its_branch_into_main_whole_leaving_it_held_by_the_goal(
     assert_eq!(pull.head, branch);
     assert_eq!(pull.base.as_ref(), b"main");
     assert_eq!(pull.commit, head);
+    let before = news_count(&world, goal.task);
     world.external(
         1,
         raw::Op::Write(raw::Write::Status {
@@ -131,6 +132,14 @@ fn a_goals_landing_lands_its_branch_into_main_whole_leaving_it_held_by_the_goal(
         )
     );
     assert_eq!(branch_tip(&mut world, &branch), head);
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+            key: None,
+        },
+    })));
+    await_new_forge_news(&mut world, goal.task, before);
     world.close();
 }
 

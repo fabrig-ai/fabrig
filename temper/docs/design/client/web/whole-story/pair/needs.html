@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pair, Needs you</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+<script src="../whole-story.js"></script>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">pocket <small>GitHub</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a class="on" href="needs.html">Needs you <span class="count">3</span></a>
+      <a href="work.html">Work</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <a href="#">Deployment</a>
+      <a href="#">Owner</a>
+    </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
+  </nav>
+
+  <main class="main">
+    <div class="col">
+      <header class="intro">
+        <p class="kicker">Needs you · pocket</p>
+        <h1 class="headline">Two approvals and one question.</h1>
+        <p class="lede">On pocket every change waits for you before it reaches main. An agent makes it, CI checks it, and the agent repairs what CI finds; you approve, and temper merges the exact head that was checked.</p>
+        <p class="small"><a href="how.html">How work runs on pocket</a></p>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Approvals · 2</h2><span>oldest first</span></div>
+        <div class="card need">
+          <p class="from"><span class="chip">approval</span> Dark mode for the dashboard · pull request 41 · waiting since Monday 17:30</p>
+          <p class="q">Approve "Dark mode for the dashboard" on GitHub?</p>
+          <p>Adds a dark theme behind the dashboard's settings toggle, keeps your choice in local storage, and moves the chart colours into one palette file so both themes share it.</p>
+          <div class="scroll">
+            <table class="tbl">
+              <thead><tr><th>File</th><th>Change</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">src/theme/palette.ts</td><td>+48 -0, new</td></tr>
+                <tr><td class="mono">src/dashboard/Charts.tsx</td><td>+22 -19</td></tr>
+                <tr><td class="mono">src/settings/Appearance.tsx</td><td>+17 -4</td></tr>
+                <tr><td class="mono">3 more files</td><td>+9 -8</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="chips"><span class="chip good">CI green at 5e2a91c</span><span class="chip">repaired once</span></div>
+          <p class="small muted">CI's contrast check failed on the chart colours in the dark theme; the agent repaired it in one push, and CI passed at the head you'd merge.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Review on GitHub ↗</a>
+            <a class="choice" href="#">Ask for changes</a>
+            <a class="choice quiet" href="#">Open on GitHub</a>
+          </div>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">approval</span> Monthly totals by category · pull request 43 · waiting since 18:58</p>
+          <p class="q">Approve "Monthly totals by category" on GitHub?</p>
+          <p>A totals table under the month's chart, one row per category, with last month's figure beside it. The query groups in the database rather than in the page.</p>
+          <div class="chips"><span class="chip good">CI green at 9c04d7e</span><span class="chip">+142 -18 in 4 files</span></div>
+          <div class="choices">
+            <a class="choice rec" href="#">Review on GitHub ↗</a>
+            <a class="choice" href="#">Ask for changes</a>
+            <a class="choice quiet" href="#">Open on GitHub</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Questions · 1</h2><span>the change waits for your answer</span></div>
+        <div class="card need">
+          <p class="from"><span class="chip">question</span> Budget alerts · asked by the change 20 min ago</p>
+          <p class="q">Send budget alerts by email, or only show them in the app?</p>
+          <p class="small">pocket has no mail set up. Email would add a sender setting and a dependency; in the app, an alert shows on the dashboard until you dismiss it.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Only in the app <small>recommended</small></a>
+            <a class="choice" href="#">By email too</a>
+          </div>
+          <label class="field">Or tell it something else<input type="text" value="" placeholder="Your words go to the change as its next message"></label>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

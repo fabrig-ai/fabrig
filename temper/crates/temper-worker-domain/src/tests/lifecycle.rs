@@ -344,14 +344,30 @@ fn model_failure_detail_survives_answer_and_empty_reap() {
 #[test]
 fn refused_start_retains_cleanup_diagnostic() {
     for delayed in [false, true] {
-        for (bound, expected) in
-            [(64, &b"invalid start\nsetup diagnostic tail"[..]), (32, &b"invalid start\nup diagnostic tail"[..])]
-        {
+        for (refusal, bound, expected) in [
+            (
+                agent::Refusal::Invalid(agent::RunInvalid::Llm),
+                64,
+                host::Refusal::Invalid(host::Invalid::Start {
+                    cause: host::StartCause::Other,
+                    why: b"invalid start\nsetup diagnostic tail".as_slice().into(),
+                }),
+            ),
+            (
+                agent::Refusal::Invalid(agent::RunInvalid::Llm),
+                32,
+                host::Refusal::Invalid(host::Invalid::Start {
+                    cause: host::StartCause::Other,
+                    why: b"invalid start\nup diagnostic tail".as_slice().into(),
+                }),
+            ),
+            (agent::Refusal::Busy, 32, host::Refusal::Busy),
+        ] {
             let mut h = Harness::new();
             h.env.limits.host.detail_bytes = bound;
             h.run(Event::Link(host::LinkDown::Assign { assignment: assignment(false, Box::new([])) }));
             h.hold = delayed;
-            let before = h.say(refused_answer());
+            let before = h.say(start_refused(refusal));
             let reaped = h.gone_with_detail(b"setup diagnostic tail");
             let released = h.release();
             let mut answers = 0_u32;
@@ -361,10 +377,7 @@ fn refused_start_retains_cleanup_diagnostic() {
                     assert_eq!((answer.turns, answer.spent, answer.read), (0, 0, None));
                     assert_eq!(
                         answer.ending,
-                        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
-                            cause: host::StartCause::Other,
-                            why: expected.into(),
-                        })),
+                        host::Ending::Refused(expected.clone()),
                         "delayed={delayed}, bound={bound}"
                     );
                 }
@@ -377,15 +390,35 @@ fn refused_start_retains_cleanup_diagnostic() {
     }
 }
 
+#[test]
+fn an_agent_smith_has_no_room_for_refuses_the_start_as_busy() {
+    let mut h = Harness::new();
+    let (owner, _) = h.decode(Box::new([]));
+    // Smith refuses before Started, so this end has no bound agent or process to clean up.
+    h.domain.agent_out.push(agent::Output::Parent(agent::parent::Request::Gone {
+        client: owner,
+        end: agent::End::Busy,
+        detail: Box::new([]),
+    }));
+    let rows = h.run(Event::Ready);
+    assert_eq!(terminal_answers(&rows), 1, "one terminal answer");
+    for row in &rows {
+        if let Request::Answer { answer, .. } = row {
+            assert_eq!((answer.turns, answer.spent, answer.read), (0, 0, None));
+            assert_eq!(answer.ending, host::Ending::Refused(host::Refusal::Busy));
+        }
+    }
+    assert!(h.domain.agents.is_empty());
+}
+
 /// A setup refusal before admission, with no model use.
 fn refused_answer() -> agent::Up {
+    start_refused(agent::Refusal::Invalid(agent::RunInvalid::Llm))
+}
+
+fn start_refused(refusal: agent::Refusal) -> agent::Up {
     agent::Up::Answer {
-        answer: agent::Answer {
-            read: None,
-            turns: 0,
-            spent: 0,
-            result: agent::RunResult::Refused { refusal: agent::Refusal::Invalid(agent::RunInvalid::Llm) },
-        },
+        answer: agent::Answer { read: None, turns: 0, spent: 0, result: agent::RunResult::Refused { refusal } },
     }
 }
 

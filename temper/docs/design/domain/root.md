@@ -450,6 +450,13 @@ to the forge; a timer to the child that armed it. What temper adds:
   10,662 bytes of words, 4,576 of metadata (16 dependencies at 8 bytes, 82 question
   credits at 48, a hold's account of 512) and a carrier of about 200: about 15.4 KB,
   and about 4 MB at `fleet.calls`' 256, which a box's runs share.
+  A process with no local agent, an engine alone among them
+  (`../protocol/README.md`, 15.1), reads in pieces of the deployment's
+  `documents.text_bytes`: 512 at `temper init`'s figures since 2026-11-05, and
+  128 in a document made before, at which a goal read a 30.5 KB report 128
+  bytes a call, about 240 calls (the request `goal-call-faults` of 2026-11-08,
+  item 3). Its page grows only with that figure until the engine knows its
+  workers' reply bound (`agent.md`, section 10).
 - **Rendered by hand-out.** A decided call's answer goes out to be
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked

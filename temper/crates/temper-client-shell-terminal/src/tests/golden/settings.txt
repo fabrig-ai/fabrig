@@ -1,12 +1,11 @@
 == How work runs in demo. == Live
 demo:
   [1] temper
-  demo:
-    [2] demo · playground/widget (pressed)
-    New project:
-      [3] New project: (empty) (enter sends)
-      [4] Create
-    [5] Settings for demo
+  [2] demo · playground/widget (pressed)
+  New project:
+    [3] New project: (empty) (enter sends)
+    [4] Create
+  [5] Settings for demo
   [6] Home
   [7] Needs you
   [8] Chats
