@@ -125,7 +125,10 @@ pub fn feedback_bound(limits: &run::Limits) -> Option<u64> {
         true,
     );
     let suffix = u64::try_from(usage.len?).ok()?;
-    let child = u64::from(limits.answer_bytes).checked_add(128)?.checked_add(suffix)?;
+    let mut marker = Text { len: Some(0), writer: None };
+    render_child_marker(&mut marker, u64::MAX, Stop::MaxTokens);
+    let marker = u64::try_from(marker.len?).ok()?;
+    let child = u64::from(limits.answer_bytes).checked_add(marker)?.checked_add(suffix)?;
     Some(problems.max(checks).max(receipts).max(refusal).max(child).max(u64::from(limits.host_reply_bytes)).max(4096))
 }
 
@@ -266,6 +269,10 @@ fn render_checks(text: &mut Text, repository: &[u8], check: &[u8], given: skein_
 
 fn render_child(text: &mut Text, answer: &[u8], cut: u64, stop: Stop) {
     text.put(answer);
+    render_child_marker(text, cut, stop);
+}
+
+fn render_child_marker(text: &mut Text, cut: u64, stop: Stop) {
     if cut == 0 && stop == Stop::EndTurn {
         return;
     }
@@ -280,6 +287,11 @@ fn render_child(text: &mut Text, answer: &[u8], cut: u64, stop: Stop) {
         Stop::NoCalls => b"no-calls",
     });
     text.put(b"]");
+    if cut > 0 {
+        text.put(b"\nThe answer above is cut: its last ");
+        text.number(cut);
+        text.put(b" bytes were left out. The sub-agent has closed; to read the rest, ask a new one for it with a narrower brief.");
+    }
 }
 
 fn render_usage(text: &mut Text, used: run::facts::Used, left: run::Budget, budget: bool) {
