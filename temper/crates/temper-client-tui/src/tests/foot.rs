@@ -275,6 +275,63 @@ fn draw(part: foot::Foot) -> crate::View {
     view::signed(&mut view, &view::Signed { body, foot: part }, &mut Queue::uncapped());
     view
 }
+
+#[test]
+fn active_command_name_is_plain_weight() {
+    use skein_ui_screen::{Focus, Frame, Size, render};
+    let mut root = root(true, true, false, false, false);
+    act(&mut root, d::pages::Act::ChatWords { words: Box::from(*b"/") });
+    let mut view = f::view();
+    f::build(&mut view, &Tui::new(f::ADDRESS), &root);
+    let size = Size { columns: 80, rows: 24 };
+    for scheme in [Scheme::Dark, Scheme::Light] {
+        let theme = crate::theme(scheme);
+        let mut focus = Focus::default();
+        let mut frame = Frame::new(size);
+        for active in [b"/model".as_slice(), b"/new"] {
+            if active == b"/new" {
+                focus.active = Some(f::find(view.tree(), Role::MenuItem, active).id);
+            }
+            render(view.tree(), &theme, size, &mut focus, &mut frame);
+            assert_eq!(focus.active, Some(f::find(view.tree(), Role::MenuItem, active).id));
+            command_paints(&frame, active, &theme);
+        }
+    }
+}
+
+fn command_paints(frame: &skein_ui_screen::Frame, active: &[u8], theme: &skein_ui_screen::Theme) {
+    let mut commands = 0_usize;
+    for row in 0..frame.size().rows {
+        let cells = frame.row(row).unwrap();
+        if cells[2].glyph != '/' || cells[3].glyph == ' ' {
+            continue;
+        }
+        commands = commands.checked_add(1).unwrap();
+        let selected = cells[0].glyph == theme.glyphs.focus;
+        let node_name = if selected { active } else { b"" };
+        for (column, cell) in cells.iter().enumerate().skip(2) {
+            if cell.glyph == ' ' {
+                break;
+            }
+            assert_eq!(cell.paint.bold, !selected, "name at {row}:{column}");
+            if selected {
+                assert_eq!(cell.glyph, char::from(node_name[column.checked_sub(2).unwrap()]));
+                assert_eq!(cell.paint.fore, theme.focus.fore);
+            }
+        }
+        for cell in cells.iter().skip(11) {
+            if cell.glyph != ' ' {
+                assert!(!cell.paint.bold, "description on row {row}");
+            }
+        }
+        if selected {
+            for cell in cells {
+                assert_eq!(cell.paint.back, theme.active.back);
+            }
+        }
+    }
+    assert_eq!(commands, 6);
+}
 #[expect(clippy::disallowed_methods, reason = "test assertions search the rendered tree")]
 fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
     tree.nodes().iter().any(|node| node.styles.as_slice().contains(&style) && f::text(tree, node).as_ref() == words)
@@ -358,7 +415,7 @@ fn the_foot_says_each_state() {
             good &= items.len() == commands.len();
             for (item, command) in items.iter().zip(commands) {
                 good &= item.name.as_deref() == Some(command.name())
-                    && item.styles.as_slice() == [look::OPTION]
+                    && item.styles.as_slice() == [look::COMMAND]
                     && item.description.as_deref()
                         == Some(if *command == Command::Exit {
                             b"Close temper"

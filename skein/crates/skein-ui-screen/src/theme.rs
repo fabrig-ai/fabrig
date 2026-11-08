@@ -97,6 +97,9 @@ pub struct StyleLook {
     pub label: bool,
     pub mark: Option<Mark>,
     pub described: Option<Paint>,
+    /// Replaces an active options item's name paint over its region, beneath active and focus paint.
+    /// None keeps the item's composed paint; descriptions, marks and bands are unchanged.
+    pub active_name: Option<Paint>,
     pub spaced: bool,
 }
 

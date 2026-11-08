@@ -109,6 +109,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: Some(Mark { glyph: '✦', paint: ACCENT }),
                 described: None,
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -119,6 +120,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: Some(Mark { glyph: '❯', paint: DIM }),
                 described: None,
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -129,6 +131,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: Some(Mark { glyph: '▸', paint: DIM }),
                 described: None,
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -139,6 +142,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: None,
                 described: Some(DIM),
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -149,6 +153,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: None,
                 described: None,
+                active_name: None,
                 spaced: true,
             },
             StyleLook {
@@ -159,6 +164,7 @@ pub fn theme() -> Theme {
                 label: false,
                 mark: None,
                 described: None,
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -169,6 +175,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: None,
                 described: None,
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -179,6 +186,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: None,
                 described: None,
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -189,6 +197,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: None,
                 described: None,
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -199,6 +208,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: None,
                 described: None,
+                active_name: None,
                 spaced: false,
             },
             StyleLook {
@@ -209,6 +219,7 @@ pub fn theme() -> Theme {
                 label: true,
                 mark: None,
                 described: None,
+                active_name: None,
                 spaced: false,
             },
         ]),

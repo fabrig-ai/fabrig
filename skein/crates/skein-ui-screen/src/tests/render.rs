@@ -970,6 +970,50 @@ fn options_keep_an_enabled_active_item_only_while_field_focused() {
     assert!(failures.is_empty(), "{failures}");
 }
 
+#[test]
+fn active_name_paint_replaces_tokens_only_for_the_active_name() {
+    let tree = fixtures::options(false, false, true);
+    let region = Paint { underline: true, ..Paint::NONE };
+    for replacement in [None, Some(Paint::NONE), Some(Paint { italic: true, ..fixtures::DIM })] {
+        let mut theme = fixtures::theme();
+        theme.focus = fixtures::ACCENT;
+        for look in &mut theme.regions {
+            if look.region == fixtures::RULES {
+                look.paint = region;
+            }
+        }
+        for look in &mut theme.styles {
+            if look.style == fixtures::RED {
+                look.active_name = replacement;
+            }
+        }
+        let composed = fixtures::RED_PAINT.over(region);
+        let name = replacement.unwrap_or(fixtures::RED_PAINT).over(region);
+        let active = theme.focus.over(theme.active.over(composed));
+        let expected = theme.focus.over(theme.active.over(name));
+        let mut focus = Focus { node: Some(fixtures::id(&tree, b"Command")), ..Focus::default() };
+        let mut frame = Frame::new(OPTIONS);
+        render(&tree, &theme, OPTIONS, &mut focus, &mut frame);
+        let mut found = 0_usize;
+        for row in 0..OPTIONS.rows {
+            let cells = frame.row(row).unwrap();
+            if cells[2].glyph != '/' || cells[3].glyph == ' ' {
+                continue;
+            }
+            found += 1;
+            if cells[0].glyph == theme.glyphs.focus {
+                assert_eq!(cells[2].paint, expected, "active name");
+                assert_eq!(cells[0].paint, active, "focus mark");
+                assert_eq!(cells[11].paint, active, "description");
+                assert_eq!(cells[59].paint, theme.active.over(composed), "band");
+            } else {
+                assert_eq!(cells[2].paint, composed, "inactive name");
+            }
+        }
+        assert_eq!(found, 5);
+    }
+}
+
 fn first_line(text: &[u8]) -> &[u8] {
     let end = skein_lib::bytes::find(text, b"\n").expect("a frame ends every row");
     text.get(..end).expect("the first line ends in the frame")
