@@ -130,3 +130,15 @@ Acceptance:
 
 As the implementer's text says, with the helpers copied or moved and the
 lines that now take the binary's name.
+
+## Answers
+
+### 2026-11-08: Resume engine-forge after shell-crate publishes its contracted shared directories and command types (recommended), or authorize taking over that dependency's unfinished implementation? (ui-engine-split/engine-forge-1, foreman ui-engine-split/engine-forge/foreman-1)
+
+Resume engine-forge after shell-crate publishes its contracted shared directories and command types.
+The task explicitly declares `needs = ["shell-crate"]`.
+`notes/contracts.md` says: “A task builds its half to this note and never waits on another's half but where its spec's `needs` says so.”
+Section 4 assigns shared `Directories`, `Row`, `Argument`, `DIRECTORIES` and command rendering to `shell-crate`.
+Those files are outside engine-forge's authorized scope; taking over their implementation is not pre-approved.
+The next run resumes against the completed shell-crate dependency and implements engine-forge using those shared types.
+Acceptance remains unobserved; this does not accept engine-forge as done.
