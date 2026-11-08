@@ -21,7 +21,7 @@ fn text(bytes: &[u8]) -> c::Text {
 fn document(bytes: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(text(bytes))
 }
-fn change() -> c::Task {
+pub(super) fn change() -> c::Task {
     let mut task = fixtures::task::document();
     task.chip.task = CHANGE;
     task.chip.title = document(TITLE);

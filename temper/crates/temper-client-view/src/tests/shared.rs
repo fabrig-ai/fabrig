@@ -1,5 +1,9 @@
 //! Shared words match the browser's trees (temper/docs/design/client/README.md, 6.14).
-#![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic trees")]
+#![expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "ordinary tests inspect semantic trees and bindings"
+)]
 use super::fixtures as f;
 use crate::{look, shared, words::Words};
 use jig_client::contract as c;
@@ -37,6 +41,10 @@ enum Value {
     Flag(bool),
     Kind(shared::NeedKind),
     Count(u64),
+    Choices(Box<[shared::Choice]>),
+    Confirmation(Option<shared::Confirmation>),
+    Question(Option<shared::Question>),
+    Delegation(shared::DelegationLine),
 }
 #[derive(Debug, PartialEq, Eq)]
 struct Row {
@@ -264,6 +272,12 @@ fn shared_words_are_the_browsers() {
     {
         rows.push(row).unwrap();
     }
+    lists(&mut rows, &w);
+    confirmations(&mut rows);
+    questions(&mut rows, &w);
+    card_lines(&mut rows, &w);
+    refusals(&mut rows, &w);
+    failure_words(&mut rows, &w);
     commands(&mut rows, false);
     commands(&mut rows, true);
     let mut failed = List::uncapped();
@@ -274,4 +288,362 @@ fn shared_words_are_the_browsers() {
     }
     let no_failures: &[&Row] = &[];
     assert_eq!(failed.as_slice(), no_failures, "every shared row");
+}
+
+fn browser_choices(view: &mut crate::View) -> Box<[shared::Choice]> {
+    let mut choices = List::uncapped();
+    let nodes = view.tree().nodes().to_vec();
+    for node in &nodes {
+        if node.role != Role::MenuItem {
+            continue;
+        }
+        let Some(d::Action::Pages(act)) = crate::act(view, node.id, skein_ui::Act::Press) else { continue };
+        if let Act::Go { address: Address::ConnectModel { .. } | Address::Accounts } = act {
+            continue;
+        }
+        choices
+            .push(shared::Choice {
+                name: node.name.clone().unwrap(),
+                words: node.description.clone().unwrap_or_default(),
+                selected: node.states.as_slice().contains(&skein_ui::State::Selected),
+                act,
+            })
+            .unwrap();
+    }
+    choices.into_boxed()
+}
+fn list_row(rows: &mut List<Row>, root: &d::Domain, choices: Box<[shared::Choice]>, listing: terminal::Listing) {
+    let mut view = super::terminal::view(root, crate::words::Shell::Browser);
+    let head = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.styles.as_slice().contains(&look::TERMINAL_HEAD))
+        .and_then(|n| n.name.clone());
+    rows.push(words("list head", shared::list_head(listing).into(), head)).unwrap();
+    rows.push(Row {
+        name: "list options, descriptions, selection and acts",
+        shared: Value::Choices(choices),
+        browser: Value::Choices(browser_choices(&mut view)),
+    })
+    .unwrap();
+}
+fn lists(rows: &mut List<Row>, w: &Words) {
+    for two in [false, true] {
+        let (mut root, _, _) = super::choice::picker_fixture(two, false, true);
+        act(&mut root, Act::Terminal(terminal::Act::Enter));
+        act(&mut root, Act::Terminal(terminal::Act::Run { command: Command::Model }));
+        let choices = shared::models(&root, None, w);
+        rows.push(Row {
+            name: "models leave out hidden models and provider links",
+            shared: Value::Count(u64::try_from(choices.len()).unwrap()),
+            browser: Value::Count(if two { 2 } else { 1 }),
+        })
+        .unwrap();
+        let view = super::terminal::view(&root, crate::words::Shell::Browser);
+        rows.push(Row {
+            name: "browser keeps provider connection row",
+            shared: Value::Flag(f::find(view.tree(), Role::MenuItem, b"OpenAI").is_some()),
+            browser: Value::Flag(true),
+        })
+        .unwrap();
+        list_row(rows, &root, choices, terminal::Listing::Model);
+    }
+    let mut root = super::terminal::command_root(0);
+    act(&mut root, Act::Terminal(terminal::Act::Enter));
+    act(&mut root, Act::Terminal(terminal::Act::Run { command: Command::Effort }));
+    let task = root.pages().chat().unwrap().task(root.client());
+    list_row(rows, &root, shared::efforts(&root, task, w), terminal::Listing::Effort);
+    let (mut root, watch) = super::terminal::command_root_with_watch(0);
+    act(&mut root, Act::Terminal(terminal::Act::Enter));
+    act(&mut root, Act::Terminal(terminal::Act::Run { command: Command::Chats }));
+    let mut chats = List::with_capacity(4);
+    for (task, activity) in [(3, 1), (f::chat::TASK, 9), (2, 5), (4, 2)] {
+        let mut line = super::chats::line();
+        line.chip.task = task;
+        line.last_activity = Wall::from_nanos(activity);
+        chats.push(line).unwrap();
+    }
+    f::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        rows: chats,
+                        more: false,
+                    }))),
+                },
+            },
+        },
+    );
+    let choices = shared::chats(&root, w);
+    let names = crate::accounts::words::join(&choices.iter().map(|c| c.name.as_ref()).collect::<Vec<_>>());
+    rows.push(words("chats newest first without the open chat", names, Some(b"T2T4T3".as_slice().into()))).unwrap();
+    list_row(rows, &root, choices, terminal::Listing::Chats);
+}
+fn confirmations(rows: &mut List<Row>) {
+    for restarting in [false, true] {
+        let mut root = if restarting {
+            super::document::document_root(
+                Some(b"# Draft\nBody"),
+                d::pages::chat::document::Mode::Chat,
+                &[],
+                super::document::ProposalState::NotProposed,
+            )
+        } else {
+            super::terminal::command_root(0)
+        };
+        act(&mut root, Act::Terminal(terminal::Act::Enter));
+        act(
+            &mut root,
+            Act::Terminal(terminal::Act::Run { command: if restarting { Command::StartOver } else { Command::Close } }),
+        );
+        let mut view = super::terminal::view(&root, crate::words::Shell::Browser);
+        let (head, take, keep): (&'static [u8], &'static [u8], &'static [u8]) = if restarting {
+            (b"Start over? A new Ask temper chat starts. This one stays in Chats.", b"Start over", b"Keep this one")
+        } else {
+            (b"Close this chat? It stays in Chats.", b"Close", b"Keep it open")
+        };
+        let browser = if f::find(view.tree(), Role::Menu, head).is_some() {
+            Some(shared::Confirmation { head, take, keep })
+        } else {
+            None
+        };
+        rows.push(Row {
+            name: "confirmation head and words",
+            shared: Value::Confirmation(shared::confirmation(&root)),
+            browser: Value::Confirmation(browser),
+        })
+        .unwrap();
+        let choices: Box<[shared::Choice]> = match shared::confirmation(&root) {
+            Some(c) => Box::new([
+                shared::Choice { name: c.take.into(), words: Box::default(), selected: false, act: Act::Confirm },
+                shared::Choice { name: c.keep.into(), words: Box::default(), selected: false, act: Act::Cancel },
+            ]),
+            None => Box::default(),
+        };
+        rows.push(Row {
+            name: "confirmation acts",
+            shared: Value::Choices(choices),
+            browser: Value::Choices(browser_choices(&mut view)),
+        })
+        .unwrap();
+        act(&mut root, Act::Confirm);
+        rows.push(Row {
+            name: "sent confirmation disappears",
+            shared: Value::Confirmation(shared::confirmation(&root)),
+            browser: Value::Confirmation(None),
+        })
+        .unwrap();
+    }
+}
+fn questions(rows: &mut List<Row>, w: &Words) {
+    for choices in [false, true] {
+        let mut root = super::terminal::terminal_question_root(choices);
+        let view = super::terminal::view(&root, crate::words::Shell::Browser);
+        let head = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.styles.as_slice().contains(&look::TERMINAL_HEAD))
+            .unwrap()
+            .name
+            .clone()
+            .unwrap();
+        let mut parsed = List::uncapped();
+        let mut primary = None;
+        for node in
+            view.tree().nodes().iter().filter(|n| n.role == Role::MenuItem && n.name.as_deref() != Some(b"Later"))
+        {
+            if node.states.as_slice().contains(&skein_ui::State::Selected) {
+                primary = Some(usize::try_from(parsed.len()).unwrap());
+            }
+            parsed
+                .push(shared::QuestionChoice {
+                    words: node.name.clone().unwrap(),
+                    recommended: node.description.is_some(),
+                })
+                .unwrap();
+        }
+        let object = root.pages().inbox().unwrap().cards.as_slice().first().unwrap().object;
+        rows.push(Row {
+            name: "question head, choices, recommendation and primary",
+            shared: Value::Question(shared::question(&root, w)),
+            browser: Value::Question(Some(shared::Question { object, head, choices: parsed.into_boxed(), primary })),
+        })
+        .unwrap();
+        // The data reads the card whatever look its consumer uses.
+        let mut look = root.pages().look();
+        look.terminal = false;
+        f::root_event(&mut root, Event::LookKept { look });
+        rows.push(Row {
+            name: "question does not depend on look",
+            shared: Value::Flag(shared::question(&root, w).is_some()),
+            browser: Value::Flag(true),
+        })
+        .unwrap();
+    }
+    let root = super::terminal::command_root(0);
+    rows.push(Row {
+        name: "no open question",
+        shared: Value::Question(shared::question(&root, w)),
+        browser: Value::Question(None),
+    })
+    .unwrap();
+}
+fn card_lines(rows: &mut List<Row>, w: &Words) {
+    let task = super::delegation::change();
+    let mut b = Builder::new(&f::tree_limits());
+    let mut bindings = crate::frame::Bindings::new(32);
+    crate::cards::delegation::terminal_card(&mut b, &task, w, &mut bindings);
+    let tree = b.finish();
+    let name = |role| tree.nodes().iter().find(|n| n.role == role).unwrap().name.clone().unwrap();
+    rows.push(Row {
+        name: "delegation kind, title and state",
+        shared: Value::Delegation(shared::delegation_line(&task, w)),
+        browser: Value::Delegation(shared::DelegationLine {
+            kind: name(Role::Paragraph),
+            title: name(Role::Heading { level: 3 }),
+            state: name(Role::Status),
+        }),
+    })
+    .unwrap();
+    let mut root = f::chat::proposal_in_layout(None, Some(super::cards::batch_proposal()), false, false);
+    act(&mut root, Act::Terminal(terminal::Act::Enter));
+    let view = super::terminal::view(&root, crate::words::Shell::Browser);
+    let card = root.pages().cards().unwrap().as_slice().first().unwrap();
+    let title = view.tree().nodes().iter().find(|n| n.role == Role::Heading { level: 3 }).and_then(|n| n.name.clone());
+    rows.push(Row {
+        name: "proposal title",
+        shared: Value::Words(shared::proposal_line(card, w)),
+        browser: Value::Words(title),
+    })
+    .unwrap();
+    let root = super::terminal::terminal_question_root(true);
+    let card = root.pages().inbox().unwrap().cards.as_slice().first().unwrap();
+    rows.push(Row {
+        name: "question has no proposal line",
+        shared: Value::Words(shared::proposal_line(card, w)),
+        browser: Value::Words(None),
+    })
+    .unwrap();
+}
+fn answer_send(root: &mut d::Domain, send: Act, answer: c::Answer) {
+    let mut out = Queue::uncapped();
+    for event in [Event::Act { action: d::Action::Pages(send) }, Event::Client { event: jig_client::Event::Stored }] {
+        d::step(
+            root,
+            &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+            event,
+            &mut out,
+        );
+    }
+    let env = skein_lib::Env {
+        now: skein_lib::Time::ZERO.saturating_add(d::pages::needs::HOLD),
+        wall: f::NOW,
+        limits: f::domain_limits(),
+    };
+    d::fire(root, &env, &mut out);
+    d::step(root, &env, Event::Client { event: jig_client::Event::Stored }, &mut out);
+    let attempt = out
+        .iter()
+        .find_map(|r| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } = r
+            {
+                Some(*attempt)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    f::root_event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    why: None,
+                    answer: Some(jig_client::Answered::Jig(answer)),
+                },
+            },
+        },
+    );
+}
+fn refusal_row(rows: &mut List<Row>, root: &d::Domain, w: &Words, name: &'static str) {
+    let view = f::browser_page_view(root);
+    rows.push(Row {
+        name,
+        shared: Value::Words(shared::refusal(root, w)),
+        browser: Value::Words(named(view.tree(), Role::Status, b"This act is not offered")),
+    })
+    .unwrap();
+}
+fn refusals(rows: &mut List<Row>, w: &Words) {
+    let refused = c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None };
+    let mut root = f::playground_root(Address::Ask { project: f::PROJECT }, f::PROJECT, true);
+    act(&mut root, Act::ChatWords { words: b"My way of working".as_slice().into() });
+    answer_send(&mut root, Act::StartChat, refused.clone());
+    refusal_row(rows, &root, w, "refused start on Ask");
+    let root = super::chat::answered_message(refused.clone());
+    refusal_row(rows, &root, w, "refused message");
+    let root = super::chat::answered_message(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said {
+        task: f::chat::TASK,
+        message: 1,
+    })));
+    refusal_row(rows, &root, w, "accepted message has no refusal");
+    let mut root = super::terminal::terminal_question_root(true);
+    let object = root.pages().inbox().unwrap().cards.as_slice().first().unwrap().object;
+    answer_send(
+        &mut root,
+        Act::Needs(d::pages::needs::Act::Choose { object, words: b"Replace it".as_slice().into() }),
+        refused,
+    );
+    refusal_row(rows, &root, w, "refused waiting answer");
+}
+
+fn feedback_words(line: &shared::Feedback) -> Box<[u8]> {
+    match &line.after {
+        Some(after) => crate::accounts::words::join(&[&line.head, b" ", after]),
+        None => line.head.clone(),
+    }
+}
+fn failure_words(rows: &mut List<Row>, w: &Words) {
+    use jig_client::{Answered, Outcome};
+    for outcome in [
+        Outcome::Unknown,
+        Outcome::Answered(Answered::Jig(c::Answer::Refused { refusal: c::Refusal::Role { held: None }, at: None })),
+        Outcome::Answered(Answered::Jig(c::Answer::Refused {
+            refusal: c::Refusal::Moved { now: c::Revision { value: 1 }, what: c::Moved::Waiting },
+            at: None,
+        })),
+    ] {
+        let mut b = Builder::new(&f::tree_limits());
+        crate::pages::chats::outcome_text(&mut b, w, &outcome, 0);
+        let tree = b.finish();
+        let parts = tree
+            .nodes()
+            .iter()
+            .filter(|n| n.role == Role::Status || n.role == Role::Paragraph)
+            .map(|n| n.name.as_deref().unwrap())
+            .collect::<Vec<_>>();
+        let browser = parts.join(b" ".as_slice());
+        let line = shared::outcome_feedback(&outcome, w, false).unwrap();
+        rows.push(words("send failure and explanation", feedback_words(&line), Some(browser.into_boxed_slice())))
+            .unwrap();
+        if let Outcome::Answered(Answered::Jig(c::Answer::Refused { refusal: c::Refusal::Moved { .. }, .. })) = outcome
+        {
+            let answer = shared::outcome_feedback(&outcome, w, true).unwrap();
+            rows.push(words(
+                "moved answer asks to look again",
+                feedback_words(&answer),
+                Some(crate::accounts::words::join(&[&line.head, b" ", &w.say_card(crate::cards::P::LookAgain, &[])])),
+            ))
+            .unwrap();
+        }
+    }
 }

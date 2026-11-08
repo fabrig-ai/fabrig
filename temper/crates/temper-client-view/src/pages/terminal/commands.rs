@@ -192,25 +192,13 @@ pub(super) fn under(
 ) -> bool {
     let listing = root.pages().listing();
     if confirms(root) {
-        if root.pages().confirmation().expect("confirming chat").sent.is_some() {
-            return false;
-        }
-        let restarting = root.pages().chat().expect("confirming chat").restarting;
-        let head: &[u8] = if restarting {
-            b"Start over? A new Ask temper chat starts. This one stays in Chats."
-        } else {
-            b"Close this chat? It stays in Chats."
-        };
-        menu(b, head, Some(head), true);
-        option(b, bindings, if restarting { b"Start over" } else { b"Close" }, Act::Confirm);
-        option(b, bindings, if restarting { b"Keep this one" } else { b"Keep it open" }, Act::Cancel);
+        let Some(confirmation) = crate::shared::confirmation(root) else { return false };
+        menu(b, confirmation.head, Some(confirmation.head), true);
+        option(b, bindings, confirmation.take, Act::Confirm);
+        option(b, bindings, confirmation.keep, Act::Cancel);
         b.close();
     } else if let Some(listing) = listing {
-        let head: &[u8] = match listing {
-            Listing::Model => b"Model. A change applies from the next turn.",
-            Listing::Effort => b"Effort. A change applies from the next turn.",
-            Listing::Chats => b"Chats",
-        };
+        let head = crate::shared::list_head(listing);
         menu(b, head, Some(head), listing != Listing::Chats);
         match listing {
             Listing::Model => crate::choice::picker::terminal_models(b, root, w, bindings),
@@ -253,42 +241,15 @@ pub(super) fn under(
     true
 }
 fn chat_options(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
-    let Some(chats) = root.pages().chats() else { return };
-    let Some(live) = chats.live(root.client()) else { return };
-    let current = match root.pages().chat() {
-        Some(chat) => Some(chat.task),
-        None => None,
-    };
-    let mut previous = None;
-    for _ in &live.rows {
-        let mut next: Option<&c::TaskLine> = None;
-        for row in &live.rows {
-            let key = (row.last_activity, row.chip.task);
-            if Some(row.chip.task) == current || chats::ended(&row.chip) {
-                continue;
-            }
-            if let Some(previous) = previous
-                && key >= previous
-            {
-                continue;
-            }
-            if let Some(chosen) = next
-                && key <= (chosen.last_activity, chosen.chip.task)
-            {
-                continue;
-            }
-            next = Some(row);
-        }
-        let Some(row) = next else { break };
-        let number = w.say(crate::words::Word::Chat, &[skein_ui::phrases::Hole::Number(row.chip.task)]);
+    for choice in &crate::shared::chats(root, w) {
         b.open(Role::MenuItem);
-        b.name(&number);
-        b.description(row.chip.title.bytes());
-        b.bind(bindings.insert(Act::Go { address: Address::Chat { task: row.chip.task } }));
+        b.name(&choice.name);
+        b.description(&choice.words);
+        b.bind(bindings.insert(choice.act.clone()));
         b.close();
-        previous = Some((row.last_activity, row.chip.task));
     }
 }
+
 fn help() -> Box<[u8]> {
     let mut width = 0;
     for command in Command::ALL {

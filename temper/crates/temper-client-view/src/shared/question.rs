@@ -1,0 +1,50 @@
+//! The chat's waiting question (temper/docs/design/client/README.md, 6.14, The chat's question).
+use crate::words::Words;
+use alloc::boxed::Box;
+use jig_client::contract as c;
+use temper_client_domain::Domain;
+/// A parsed choice (temper/docs/design/client/README.md, 3.5, A goal's question).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct QuestionChoice {
+    pub words: Box<[u8]>,
+    pub recommended: bool,
+}
+/// The first answerable question (temper/docs/design/client/README.md, 6.14, The chat's question).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Question {
+    pub object: c::ObjectKey,
+    pub head: Box<[u8]>,
+    pub choices: Box<[QuestionChoice]>,
+    pub primary: Option<usize>,
+}
+/// The browser terminal's question, whatever the look (temper/docs/design/client/README.md, 6.14, The chat's question).
+#[must_use]
+pub fn question(root: &Domain, w: &Words) -> Option<Question> {
+    if root.pages().confirmation().is_some() {
+        return None;
+    }
+    let inbox = root.pages().inbox()?;
+    for card in &root.pages().needs().open(inbox) {
+        if card.group != c::InboxGroup::Questions || card.key.is_some() || card.project.is_none() {
+            continue;
+        }
+        let Some(page) = &card.page else { continue };
+        let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) =
+            jig_client::facts::offer(temper_client_domain::acts::offers(page), c::ActKind::Answer)
+        else {
+            continue;
+        };
+        let asked = crate::pages::ask::read(card, w);
+        let Some(parsed) = asked.parsed else { continue };
+        let primary = parsed.primary();
+        let mut choices =
+            skein_lib::List::with_capacity(u32::try_from(parsed.choices.len()).expect("parsed choices fit"));
+        for choice in &parsed.choices {
+            choices
+                .push(QuestionChoice { words: choice.words.clone(), recommended: choice.recommended })
+                .expect("parsed choices fit");
+        }
+        return Some(Question { object: card.object, head: parsed.question, choices: choices.into_boxed(), primary });
+    }
+    None
+}
