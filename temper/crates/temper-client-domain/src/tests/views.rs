@@ -14,7 +14,11 @@ fn only_top_level_one_line_view_fences_split_text() {
     let rows: &[(&str, &str, &[Part<'_>])] = &[
         ("one", "```view\nway Free\n```", &[Part::View(b"way Free")]),
         ("two", "```view\na\n```\n~~~view\nb\n~~~", &[Part::View(b"a"), Part::View(b"b")]),
-        ("paragraphs", "Before\n\n```view\n a \n```\n\nAfter", &[Part::Text("Before\n\n"), Part::View(b"a"), Part::Text("\nAfter")]),
+        (
+            "paragraphs",
+            "Before\n\n```view\n a \n```\n\nAfter",
+            &[Part::Text("Before\n\n"), Part::View(b"a"), Part::Text("\nAfter")],
+        ),
         ("two lines", "```view\na\nb\n```", &[Part::Text("```view\na\nb\n```")]),
         ("indented", " ```view\na\n```", &[Part::Text(" ```view\na\n```")]),
         ("list", "- ```view\n  a\n  ```", &[Part::Text("- ```view\n  a\n  ```")]),
@@ -24,7 +28,11 @@ fn only_top_level_one_line_view_fences_split_text() {
         ("mermaid", "```mermaid\na\n```", &[Part::Text("```mermaid\na\n```")]),
         ("address at bound", at_address_bound, &[Part::View(&at_address_bound.as_bytes()[8..520])]),
         ("indented close", "```view\na\n ```", &[Part::Text("```view\na\n ```")]),
-        ("quoted before view", "> ```view\n> a\n> ```\n```view\nb\n```", &[Part::Text("> ```view\n> a\n> ```\n"), Part::View(b"b")]),
+        (
+            "quoted before view",
+            "> ```view\n> a\n> ```\n```view\nb\n```",
+            &[Part::Text("> ```view\n> a\n> ```\n"), Part::View(b"b")],
+        ),
         ("long address", long, &[Part::Text(long)]),
         ("at bound", &at_limit, &[Part::View(b"a"); 16]),
         ("past bound", &limit, &bounded),
@@ -45,7 +53,9 @@ fn only_top_level_one_line_view_fences_split_text() {
 fn address_text(bytes: usize) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(bytes.checked_add(b"```view\n\n```".len()).unwrap());
     writer.put(b"```view\n").unwrap();
-    for _ in 0..bytes { writer.put(b"a").unwrap(); }
+    for _ in 0..bytes {
+        writer.put(b"a").unwrap();
+    }
     writer.put(b"\n```").unwrap();
     writer.finish()
 }

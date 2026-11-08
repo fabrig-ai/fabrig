@@ -32,7 +32,9 @@ pub fn parts(text: &str) -> List<Part<'_>> {
         let line = raw.trim_end_matches(['\r', '\n']);
         if let Some(open) = &fence {
             if let Some((byte, length, tail)) = delimiter(if open.top { line } else { container_line(line) })
-                && byte == open.byte && length >= open.length && tail.trim().is_empty()
+                && byte == open.byte
+                && length >= open.length
+                && tail.trim().is_empty()
             {
                 let body = text.get(open.body..start).expect("fence body in text");
                 let body = body.strip_suffix('\n').unwrap_or(body);
@@ -45,7 +47,8 @@ pub fn parts(text: &str) -> List<Part<'_>> {
                         break;
                     }
                     if retained < open.start {
-                        parts.push(Part::Text(text.get(retained..open.start).expect("text before fence")))
+                        parts
+                            .push(Part::Text(text.get(retained..open.start).expect("text before fence")))
                             .expect("room for text");
                     }
                     parts.push(Part::View(address.as_bytes())).expect("room for view");
@@ -57,7 +60,14 @@ pub fn parts(text: &str) -> List<Part<'_>> {
         }
         let nested = container_line(line);
         if let Some((byte, length, info)) = delimiter(nested) {
-            fence = Some(Fence { byte, length, start, body: offset, view: nested.len() == line.len() && info.trim() == "view", top: nested.len() == line.len() });
+            fence = Some(Fence {
+                byte,
+                length,
+                start,
+                body: offset,
+                view: nested.len() == line.len() && info.trim() == "view",
+                top: nested.len() == line.len(),
+            });
         }
     }
     if retained < text.len() {
@@ -73,10 +83,14 @@ fn delimiter(line: &str) -> Option<(u8, usize, &str)> {
     }
     let mut length: usize = 0;
     for current in line.bytes() {
-        if current != byte { break; }
+        if current != byte {
+            break;
+        }
         length = length.checked_add(1).expect("delimiter in line");
     }
-    if length < 3 { return None; }
+    if length < 3 {
+        return None;
+    }
     Some((byte, length, line.get(length..).expect("ASCII delimiter")))
 }
 
@@ -102,9 +116,13 @@ fn list_line(line: &str) -> Option<&str> {
     }
     let mut digits: usize = 0;
     for byte in line.bytes() {
-        if !byte.is_ascii_digit() { break; }
+        if !byte.is_ascii_digit() {
+            break;
+        }
         digits = digits.checked_add(1).expect("digits in line");
     }
-    if digits == 0 { return None; }
+    if digits == 0 {
+        return None;
+    }
     line.get(digits..)?.strip_prefix(". ")
 }
