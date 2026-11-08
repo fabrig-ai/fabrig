@@ -267,6 +267,7 @@ members = [
     "temper/testing/temper-github-app",
     "temper/testing/temper-fixtures",
     "temper/crates/temper",
+    "temper/crates/temper-client",
     "temper/crates/temper-client-bundle",
     "temper/tests/engine/protocol-forge",
     "temper/crates/temper-client-shell-terminal",
