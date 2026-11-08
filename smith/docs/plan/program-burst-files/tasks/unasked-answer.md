@@ -7,6 +7,7 @@ files = [
   "smith/crates/smith-protocol-program/src/backend/files.rs",
   "smith/crates/smith-protocol-program/src/backend/native.rs",
   "smith/crates/smith-protocol-program/src/backend/files/tests.rs",
+  "smith/crates/smith-protocol-program/src/backend/builtin_tests.rs",
   "smith/docs/design/protocol/programs.status.md",
 ]
 effort = "high"
@@ -111,3 +112,7 @@ Integration commit `00bb0beb809ac09bc1a817f80bf2a96211abe46e` added the adjacent
 Task commit `55ab3b6aee1d4d8179d6cd15c2c2a1efb4c3e328` deletes the preceding entry beginning “5.1: an answer not asked for aborts the agent”.
 Rebase onto the landing's current integration tip. Resolve the conflict by preserving the routing entry in full and removing only the seven-line unasked-answer abort entry, as acceptance 4 requires.
 Preserve all other status text and the task's code changes.
+
+## Answers
+
+2026-11-08. *May the task repair `builtin_tests::several_native_reads_in_one_turn_allow_read_only_reviewer_mounts`, which delivers `Loaded` to a snapshot held but not submitted?* Yes: the guard's held-but-not-submitted rule is this task's, so the fixture that broke under it is too, and the package check is its acceptance. In that test, insert `backend.load_native(&mut below);` immediately before `backend.native_event(...)`, so the snapshot is submitted as production submits it. Do not call the `native_load` helper: it asserts the single load's path is `a`, and this test reads `ci.yml`, `CONTRIBUTING.md` and `changes/*`. The `Below::File { Load }` the call pushes stays in `below`; `fixtures::server_reply` (in `allow_native`) skips file effects, so nothing else changes. No other line of `builtin_tests.rs` beyond this and the existing `env` wiring; no production change. Then finish step 4's three package runs and report their counts.
