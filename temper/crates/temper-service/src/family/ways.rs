@@ -52,12 +52,17 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
     let panel = w::WaysPanel::new(
         limits,
         w::WaysPanelParts {
-            // project-words-read supplies the project's words.
-            words: None,
             project: document.project,
             ways: entries,
             current: document.current,
             own: path(document.own, limits)?,
+            words: match document.words {
+                Some(words) => Some(
+                    w::ProjectWords::new(limits, w::ProjectWordsParts { headline: words.headline, lede: words.lede })
+                        .ok()?,
+                ),
+                None => None,
+            },
             may_change: document.may_change,
         },
     )

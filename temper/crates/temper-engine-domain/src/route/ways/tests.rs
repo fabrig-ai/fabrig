@@ -211,6 +211,7 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
     use jig_domain_core::settings::application;
     const RULE_BYTES: u32 = 32;
     let (mut domain, env) = fixture();
+    assert!(document(&domain, PROJECT, READER).words.is_none());
     let rule = settings::LandingRule {
         pattern: forge::GatePattern {
             segments: Box::new([b"branch".as_slice().into()]),
@@ -263,6 +264,27 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
     let item = ways::Item { kind: 2, scope: PROJECT, number: 1, edit: ways::Edit::Remove };
     let got = inputs(&domain, PROJECT, READER, &[item], None, None);
     assert_eq!(got.rules.as_ref(), [settings::Held { scope: PROJECT, number: 1, rule: stock }]);
+    let words = settings::ProjectWords {
+        headline: b"An owner approves every change".as_slice().into(),
+        lede: b"Agents make changes, then wait for an owner to approve them.".as_slice().into(),
+    };
+    domain.forge.keep_settings(
+        &env.with(env.limits.forge),
+        3,
+        None,
+        &[settings::Asked {
+            kind: 10,
+            scope: PROJECT,
+            number: 1,
+            edit: settings::Edit::Set(settings::SizedValue {
+                size: 120,
+                value: settings::Value::ProjectWords(words.clone()),
+            }),
+        }],
+        &mut Queue::uncapped(),
+    );
+    assert_eq!(document(&domain, PROJECT, READER).words, Some(words));
+    assert!(document(&domain, PROJECT.checked_add(1).unwrap(), READER).words.is_none());
 }
 
 #[test]

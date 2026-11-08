@@ -217,6 +217,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         ways: entries.into_boxed(),
         current: ways::current(&paths.into_boxed(), &own),
         own,
+        words: domain.forge.project_words(project).cloned(),
         may_change: domain.core.people.role(party, project) == Some(jig_domain_people::Role::Owner),
     }
 }

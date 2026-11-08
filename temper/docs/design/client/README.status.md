@@ -302,9 +302,6 @@ its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
 
-- **Not yet:** 4.6: `StockWay`'s `headline` and `WaysPanel`'s `words`
-  (`ui-p3e-words`: `words-wire` puts them on the wire, `way-headlines`
-  fills the one and `project-words-read` the other, and deletes this).
 
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
