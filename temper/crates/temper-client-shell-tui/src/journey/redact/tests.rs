@@ -254,6 +254,8 @@ impl World {
             size: Size { rows: 16, columns: 100 },
             scheme: Scheme::Dark,
             address: address.into(),
+            local: false,
+            note: None,
             kept: Vec::new(),
             credential: None,
         };
@@ -336,4 +338,34 @@ fn redacted_approval_proves_and_replays_to_its_end() {
         marks += 1;
     }
     assert!(marks > 0, "replayed to end");
+}
+
+#[test]
+fn found_links_are_redacted_even_when_never_sent() {
+    let encoded = "A".repeat(43);
+    let url = format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={encoded}").into_bytes().into_boxed_slice();
+    let mut failures = Vec::new();
+    for sent in [false, true] {
+        let mut records = vec![Line::Found(Some(url.clone()))];
+        if sent {
+            records.push(send(Sent::SignInLink(body(&[0; 32])), None));
+        }
+        let redacted = redact(&written(&records), &[]).expect("found lines");
+        if redacted.originals.count(Kind::Link) != 1 {
+            failures.push(format!("sent={sent}: link original absent"));
+        }
+        let after = lines(&redacted.recording).expect("redacted found");
+        if after.first() == records.first() {
+            failures.push(format!("sent={sent}: found secret unchanged"));
+        }
+        if scan_bytes(&url, &[], &redacted.originals) != Some(crate::journey::What::Original) {
+            failures.push(format!("sent={sent}: found URL-base64 not scanned"));
+        }
+        if let Some(Line::Found(Some(bytes))) = after.first()
+            && scan_bytes(bytes, &[], &redacted.originals).is_some()
+        {
+            failures.push(format!("sent={sent}: redacted found refused"));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

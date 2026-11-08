@@ -52,7 +52,7 @@ impl Limits {
         let turn_read = jig_protocol_transcript::Limits::new(
             bytes,
             jig_client_domain::contract::TurnLimits {
-                messages: archived_turn.smith.turn_messages,
+                messages: archived_turn.smith.turn_messages.checked_add(1).ok_or(Unusable::Limits)?,
                 blocks: archived_turn.smith.message_blocks,
                 text: bytes.checked_mul(2).ok_or(Unusable::Limits)?,
                 outcome: client.text,

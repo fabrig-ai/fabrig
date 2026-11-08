@@ -2,6 +2,22 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+Section 8.2's wait and recovery notes, ordered gate reasons, one-second
+threshold and suppression of repeats are present. Service tests step
+supplied times through refused startup inputs and a held watermark
+input; the journal-stop test checks the engine's end and reason. The
+binary's line tables cover the notes and journal exits. These checks
+establish the diagnostics below the real loop, not the cause of the
+incident's unexplained 503 (`../domain/root.md`, section 13).
+
+- **Not yet:** 8.2: the accepted `core-after-project` decision calls for
+  a distinct `WatchRefusal::NotReady`, in place on jig's client wire 19,
+  and a not-ready ctl deadline line pointing to serve's log. The core's
+  refusal vocabulary has no such variant, and
+  `temper-service/src/clients/translation.rs`, `not_ready`, still refuses
+  watches as `Busy`. The sign-in line is present, but other calls can
+  still claim all watches are in use while the gate is shut.
+
 Section 4's `temper [ADDRESS]` command is present, including bare
 `temper` choosing the TUI only when stdin and stdout are terminals.
 The TUI's later passes and post-landing walk are the client's section

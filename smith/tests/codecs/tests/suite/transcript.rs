@@ -4,11 +4,11 @@ use crate::support::goldens::assert_measured;
 
 use skein_codec::Reason;
 use skein_lib::Reader;
-use smith_transcript::v6::{CEILINGS, Path, Turn};
+use smith_transcript::v7::{CEILINGS, Path, Turn};
 
 #[test]
 fn turn_goldens_decode_at_their_measured_length() {
-    assert_measured("transcript", 6, "turn", |bytes| {
+    assert_measured("transcript", 7, "turn", |bytes| {
         Turn::decode(&CEILINGS, &mut Reader::new(bytes)).expect("turn decodes").measure()
     });
 }
@@ -21,10 +21,10 @@ fn turn_rejects_an_unsupported_version_before_fields() {
 
 #[test]
 fn nesting_problem_goldens_have_their_own_wire_tag() {
-    use smith_transcript::v6::CallProblem;
+    use smith_transcript::v7::CallProblem;
     for bytes in [
-        include_bytes!("../../../../crates/smith-transcript/golden/v6/enum_call_problem_nesting_full.bin").as_slice(),
-        include_bytes!("../../../../crates/smith-transcript/golden/v6/enum_call_problem_nesting_smallest.bin")
+        include_bytes!("../../../../crates/smith-transcript/golden/v7/enum_call_problem_nesting_full.bin").as_slice(),
+        include_bytes!("../../../../crates/smith-transcript/golden/v7/enum_call_problem_nesting_smallest.bin")
             .as_slice(),
     ] {
         let mut reader = Reader::new(bytes);
@@ -45,7 +45,7 @@ fn failure_goldens_keep_their_tags_and_now_require_a_resolved_path_payload() {
         },
     )
     .expect("bounded failure");
-    let root = skein_scratch::paths::tree().join("crates/smith-transcript/golden/v6");
+    let root = skein_scratch::paths::tree().join("crates/smith-transcript/golden/v7");
     for (name, tag, expected) in [
         ("outside", 7, Outcome::Outside(failure.clone())),
         ("read_only", 8, Outcome::ReadOnly(failure.clone())),
@@ -92,7 +92,7 @@ fn indexed_edit_failure_goldens_keep_the_first_failure_and_matching_reason() {
 #[test]
 fn a_turn_round_trips_its_highest_job_number() {
     use skein_lib::Writer;
-    let smallest = include_bytes!("../../../../crates/smith-transcript/golden/v6/record_turn_smallest.bin");
+    let smallest = include_bytes!("../../../../crates/smith-transcript/golden/v7/record_turn_smallest.bin");
     let mut parts = Turn::decode(&CEILINGS, &mut Reader::new(smallest)).expect("smallest turn").into_parts();
     parts.jobs = 37;
     let turn = Turn::new(&CEILINGS, parts).expect("turn with jobs");
@@ -207,7 +207,7 @@ fn a_version_five_transcript_is_refused() {
 
 #[test]
 fn a_turn_carries_its_dialects_number() {
-    let smallest = include_bytes!("../../../../crates/smith-transcript/golden/v6/record_turn_smallest.bin");
+    let smallest = include_bytes!("../../../../crates/smith-transcript/golden/v7/record_turn_smallest.bin");
     for (name, dialect) in [("openai", 3), ("anthropic", 2)] {
         let mut parts = Turn::decode(&CEILINGS, &mut Reader::new(smallest)).expect("turn").into_parts();
         parts.dialect = dialect;

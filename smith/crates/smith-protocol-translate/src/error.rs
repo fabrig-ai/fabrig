@@ -21,7 +21,7 @@ pub enum Error {
     /// A concrete turn cannot be written to the durable transcript format.
     Transcript(smith_domain_session::record::Refusal),
     /// A concrete turn exceeds the transcript codec bounds.
-    TranscriptBody(smith_transcript::v6::Problem),
+    TranscriptBody(smith_transcript::v7::Problem),
     /// The service sent admission or an answer out of order.
     Order,
     /// A live host operation name is repeated, unknown, or beyond capacity.

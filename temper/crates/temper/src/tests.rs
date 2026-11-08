@@ -4,6 +4,7 @@ mod commands;
 mod help;
 mod init_clients;
 mod limits;
+mod link_file;
 mod program_environment;
 mod reference_settings;
 mod settings_fields;

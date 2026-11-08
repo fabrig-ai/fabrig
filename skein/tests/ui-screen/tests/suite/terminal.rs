@@ -2,7 +2,9 @@ use skein_io::kernel::{Complete, Done, Fd, Op, Signalled, Submit};
 use skein_lib::{Duration, List, Queue, Time, Token};
 use skein_sim::{Config, Pid, Sim};
 use skein_ui_screen::{Cell, Focus, Frame, Paint, Position, Rgb, Size};
-use skein_ui_screen_terminal::{Command, Depth, ENTER, Key, LEAVE, Settings, Terminal, command, draw, draw_bound};
+use skein_ui_screen_terminal::{
+    ASK_BACKGROUND, Background, Command, Depth, ENTER, Key, LEAVE, Settings, Terminal, command, draw, draw_bound,
+};
 
 const SIZE: Size = Size { rows: 1, columns: 1 };
 const INTERVAL: Duration = Duration::from_secs(1);
@@ -30,12 +32,15 @@ struct Pipes {
     writes: Vec<usize>,
 }
 fn settings(most: Size) -> Settings {
-    Settings { interval: INTERVAL, depth: Depth::True, most, paste: READ }
+    Settings { interval: INTERVAL, depth: Depth::True, most, paste: READ, background: None }
 }
 fn start(buffer: u32, most: Size) -> Pipes {
     start_with_window(buffer, most, true)
 }
 fn start_with_window(buffer: u32, most: Size, window: bool) -> Pipes {
+    start_settings(buffer, settings(most), window, Time::ZERO)
+}
+fn start_settings(buffer: u32, settings: Settings, window: bool, first: Time) -> Pipes {
     let mut config = Config::calm();
     config.buffer = buffer;
     let mut sim = Sim::new(3, config);
@@ -46,10 +51,10 @@ fn start_with_window(buffer: u32, most: Size, window: bool) -> Pipes {
     if window {
         sim.set_window(pid, input, skein_io::kernel::Size { rows: SIZE.rows, columns: SIZE.columns });
     }
-    let mut terminal = Terminal::new(settings(most), SIZE).expect("settings fit");
+    let mut terminal = Terminal::new(settings, SIZE).expect("settings fit");
     terminal.adopt(input, output).expect("terminal adopts once");
     let mut p = Pipes { sim, pid, input, output, signal, terminal, now: Time::ZERO, windows: 0, writes: Vec::new() };
-    p.drive(Time::ZERO);
+    p.drive(first);
     p
 }
 impl Pipes {
@@ -143,6 +148,75 @@ fn enter_is_written_before_the_first_frame() {
     p.drive(Time::ZERO);
     assert_eq!(p.drain(), [ENTER, WHOLE_A].concat());
     assert!(!Terminal::owns(SIGNAL));
+    p.finish();
+}
+
+#[test]
+fn background_is_asked_only_with_a_wait_and_before_the_first_frame() {
+    assert_eq!(ASK_BACKGROUND, b"\x1b]11;?\x1b\\");
+    for wait in [None, Some(INTERVAL), Some(Duration::from_nanos(0))] {
+        let settings = Settings { background: wait, ..settings(SIZE) };
+        if wait.is_none() {
+            assert_eq!(Terminal::new(settings, SIZE).expect("valid").background(), Background::Unanswered);
+        }
+        let mut p = start_settings(OUTPUT, settings, true, SECOND);
+        let state = if wait == Some(INTERVAL) { Background::Waiting } else { Background::Unanswered };
+        assert_eq!(p.terminal.background(), state, "{wait:?}");
+        p.terminal.draw(&frame(SIZE, SIZE, 'A'));
+        p.drive(SECOND);
+        let query = if wait.is_some() { ASK_BACKGROUND } else { b"" };
+        assert_eq!(p.drain(), [ENTER, query, WHOLE_A].concat(), "{wait:?}");
+        p.finish();
+    }
+}
+
+#[test]
+fn background_answer_and_keys_are_read_together() {
+    for (answer, expected) in [
+        (b"\x1b]11;rgb:12/34/56\x07".as_slice(), Background::Answered(Rgb { red: 0x12, green: 0x34, blue: 0x56 })),
+        (b"\x1b]11;unreadable\x1b\\", Background::Unanswered),
+    ] {
+        let mut p = start_settings(OUTPUT, Settings { background: Some(INTERVAL), ..settings(SIZE) }, true, SECOND);
+        assert_eq!(p.terminal.background(), Background::Waiting);
+        // Input already completed at the deadline wins over expiry.
+        assert_eq!(p.sim.peer_feed(p.pid, p.input, &[b"a", answer, b"z"].concat()), answer.len() + 2);
+        p.drive(THIRD);
+        assert_eq!(p.terminal.background(), expected);
+        assert_eq!(p.terminal.next_deadline(), None);
+        assert_eq!(p.terminal.keys().pop(), Some(Key::Char('a')));
+        assert_eq!(p.terminal.keys().pop(), Some(Key::Char('z')));
+        assert_eq!(p.terminal.keys().pop(), None, "answers never reach keys");
+        p.finish();
+    }
+}
+
+#[test]
+fn background_wait_starts_at_first_iteration_and_wakes_when_due() {
+    let mut p = start_settings(OUTPUT, Settings { background: Some(INTERVAL), ..settings(SIZE) }, true, SECOND);
+    assert_eq!(p.terminal.background(), Background::Waiting);
+    assert_eq!(p.terminal.next_deadline(), Some(THIRD));
+    assert!(!p.terminal.work_pending(SECOND));
+    assert!(p.terminal.work_pending(THIRD));
+    p.drive(THIRD);
+    assert_eq!(p.terminal.background(), Background::Unanswered);
+    assert_eq!(p.terminal.next_deadline(), None);
+    assert!(!p.terminal.work_pending(THIRD));
+    p.feed(b"\x1b]11;rgb:ff/aa/00\x1b\\q");
+    assert_eq!(p.terminal.background(), Background::Unanswered, "a late answer stays unanswered");
+    assert_eq!(p.terminal.keys().pop(), Some(Key::Char('q')));
+    assert_eq!(p.terminal.keys().pop(), None, "a late answer is never a key");
+    p.finish();
+}
+
+#[test]
+fn input_end_while_waiting_leaves_background_unanswered() {
+    let mut p = start_settings(OUTPUT, Settings { background: Some(INTERVAL), ..settings(SIZE) }, true, SECOND);
+    assert_eq!(p.terminal.background(), Background::Waiting);
+    p.sim.peer_close(p.pid, p.input);
+    p.drive(SECOND);
+    assert!(p.terminal.ended());
+    assert_eq!(p.terminal.background(), Background::Unanswered);
+    assert_eq!(p.terminal.next_deadline(), None);
     p.finish();
 }
 
@@ -336,6 +410,7 @@ fn operations_and_construction_refuse_invalid_settings() {
     let overflow = Size { rows: u16::MAX, columns: u16::MAX };
     for (settings, size, count, accepted) in [
         (valid, SIZE, Some(10), true),
+        (Settings { background: Some(Duration::from_nanos(0)), ..valid }, SIZE, Some(10), true),
         (Settings { most: overflow, ..valid }, SIZE, None, false),
         (Settings { paste: 0, ..valid }, SIZE, None, false),
         (Settings { interval: Duration::from_nanos(0), ..valid }, SIZE, None, false),

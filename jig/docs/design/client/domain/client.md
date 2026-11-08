@@ -637,7 +637,14 @@ handles, as every presentation does (sections 7 and 8).
 
   Beside its state, the link names the party confirmed, each declared
   owner whose version the last hello does not serve (below), and a
-  sign-out that did not reach the engine (section 12). A stream refused
+  sign-out that did not reach the engine (section 12). It names too the
+  expiry of the sign-in it holds, `expires`, a wall time, as the last
+  sign-in's answer said it (`../../protocol/client.md`, section 8): a
+  sign-in made or kept by a link, a service's credential or an
+  approval's take. It is none for a credential given `Held` until a
+  sign-in's answer names one, and none once signed out, the credential
+  dropped with it; so an application that keeps a sign-in across its own
+  restart keeps its expiry beside its credential, as it likes. A stream refused
   full adds `streams_full { bound, size }`, naming the component or
   transport bound (`../../protocol/client.md`, 4 and 17.2). `Link(state)`
   tells the caller when this fact arrives even if the state is unchanged;
@@ -782,6 +789,14 @@ for any presentation of a chat or of any agent task's activity.
   archive's byte bound admits is cut, a call's input included, and a
   reader paging it reads every byte; one past that bound is too large,
   as now (section 14).
+  A turn read alone includes an opening's retained system text as a leading
+  system message, including the supplied instructions and fitted brief.
+  Activity pages keep conversation blocks alone, so inspection metadata
+  consumes no conversation window or words budget. Brief-tail rendering
+  excludes archived system context: a fresh run composes its own prefix.
+  The archived message bound reserves one more than smith's message
+  ceiling for that system message. Version-6 turns remain readable with
+  their system context unavailable, never rebuilt from task settings.
   Neither the application nor the helpers link smith.
 - **What the conversation last ran on.** `Thread.latest_llm` is the `llm`
   of the newest decoded turn that names a model, taken when the window
@@ -1127,7 +1142,7 @@ Each is configured and bounds what enters or is retained:
 `DomainLimits.turn_text` is one committed turn's shared text budget in the
 transcript, priced in this order: its calls' names; its texts, an opaque block's
 dialect with them; its calls' outcomes, a line each within `text`; its calls'
-inputs; and its results' summaries. An outcome comes before the inputs because a
+inputs; its results' summaries; then its retained system context. An outcome comes before the inputs because a
 call's input can fill the budget, a note's whole body, and what reads a call's
 outcome needs its line. It is at least the receiving field bound `text` and at
 most `turn_bytes`; limits outside those bounds are refused. It bounds the

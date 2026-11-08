@@ -15,6 +15,8 @@ fn facts() -> Facts {
         size: Size { rows: 12, columns: 48 },
         scheme: Scheme::Dark,
         address: b"127.0.0.1:8367".as_slice().into(),
+        local: false,
+        note: None,
         kept: Vec::new(),
         credential: None,
     }
@@ -28,9 +30,11 @@ struct Walk {
 }
 impl Walk {
     fn new() -> Self {
-        let facts = facts();
+        Self::with(&facts())
+    }
+    fn with(facts: &Facts) -> Self {
         let (host, start) = facts.start();
-        let mut walk = Self { host, recorder: Recorder::new(&facts), now: 1, marks: Vec::new() };
+        let mut walk = Self { host, recorder: Recorder::new(facts), now: 1, marks: Vec::new() };
         walk.reports(vec![start]);
         walk
     }
@@ -482,6 +486,8 @@ fn duties_keep_the_seams_order_and_fields() {
     let mut erased = skein_lib::List::with_capacity(RECORDS);
     erased.push(b"old".as_slice().into()).expect("one erased record");
     let duties = Duties {
+        local: true,
+        note: Some(temper_client_tui::Note::SignedOut),
         asked: vec![
             Request::Exchange {
                 exchange: Token::new(11),
@@ -509,9 +515,119 @@ fn duties_keep_the_seams_order_and_fields() {
         Line::Stream(None),
         Line::Unstream,
         Line::Keep(Some(credential().into_exposed())),
+        Line::Note(temper_client_tui::Note::SignedOut),
         Line::Signed(b"signed".as_slice().into()),
+        Line::Read,
         Line::Browse(b"browse".as_slice().into()),
         Line::Quit,
     ];
     assert!(record::asked(&duties) == expected, "requests, keep, signed, browse, quit retain their fields and order");
+}
+
+fn local_walk() -> Walk {
+    let mut facts = facts();
+    facts.local = true;
+    facts.note = Some(temper_client_tui::Note::Until(Wall::from_nanos(1)));
+    let mut walk = Walk::with(&facts);
+    let link = format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43));
+    let duties = walk.reports(vec![Report::Local { link: Some(Secret::new(link.into_bytes().into())) }]);
+    let exchange = duties
+        .iter()
+        .flat_map(|duty| &duty.asked)
+        .find_map(|request| {
+            if let Request::Exchange { exchange, message: Message::SignInLink(_), .. } = request {
+                Some(*exchange)
+            } else {
+                None
+            }
+        })
+        .expect("engine link exchange");
+    walk.reports(vec![Report::Heard(jig_client::Event::Reply { exchange, message: signed_in() })]);
+    let duties = walk.reports(vec![Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(crate::host::tests::hello_bytes()),
+    })]);
+    let duties = duties.into_iter().next().expect("hello's duties");
+    walk.reports(vec![Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(crate::host::tests::me_bytes(&duties)),
+    })]);
+    walk.mark();
+    walk
+}
+
+#[test]
+fn local_reports_replay_and_compare_the_new_duties() {
+    let mut walk = local_walk();
+    let original = lines(&walk.save()).expect("local records");
+    for kind in ["local", "noted", "found", "read", "note"] {
+        assert!(original.iter().any(|line| line.kind() == kind), "missing {kind}");
+    }
+    for (kind, replacement) in
+        [("read", Line::Browse(b"changed".as_slice().into())), ("note", Line::Note(temper_client_tui::Note::SignedOut))]
+    {
+        let mut records = original.clone();
+        let at = records.iter().position(|line| line.kind() == kind).expect("local duty");
+        records[at] = replacement;
+        assert_eq!(records.iter().zip(&original).filter(|(a, b)| a != b).count(), 1);
+        let stale = replay_stale(&written(&records));
+        assert_eq!(stale.line, u32::try_from(at + 1).expect("line"), "changed {kind}");
+        let mut expected = Vec::new();
+        original[at].write(&mut expected);
+        expected.pop();
+        assert_eq!(stale.asked.as_ref(), expected);
+    }
+    same_frames(walk);
+}
+
+#[test]
+fn local_records_are_refused_outside_their_places() {
+    use temper_client_tui::Note;
+    let head = vec![
+        Line::Journey { version: 2 },
+        Line::Seed(7),
+        Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
+        Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Scheme::Dark },
+        Line::Address(b"127.0.0.1:8367".as_slice().into()),
+    ];
+    let tail = vec![
+        Line::Turn { now: Time::ZERO, wall: Wall::EPOCH },
+        Line::Start,
+        Line::Keep(None),
+        Line::Note(Note::SignedOut),
+        Line::Signed(b"address".as_slice().into()),
+        Line::Read,
+        Line::Browse(b"address".as_slice().into()),
+        Line::Deadline(None),
+        Line::End(None),
+    ];
+    let canonical =
+        [head, vec![Line::Local, Line::Credential(Box::new([])), Line::Noted(Note::SignedOut)], tail].concat();
+    assert!(Replay::new(&written(&canonical)).is_ok(), "ordered optional facts and duties");
+    let rows = [
+        ("local before address", 4, Line::Local),
+        ("local after credential", 7, Line::Local),
+        ("noted before credential", 6, Line::Noted(Note::SignedOut)),
+        ("local among reports", 10, Line::Local),
+        ("noted among duties", 12, Line::Noted(Note::SignedOut)),
+        ("found among facts", 5, Line::Found(None)),
+        ("found outside turn", canonical.len() - 1, Line::Found(None)),
+        ("note before keep", 10, Line::Note(Note::SignedOut)),
+        ("note after signed", 13, Line::Note(Note::SignedOut)),
+        ("read before signed", 12, Line::Read),
+        ("read after browse", 14, Line::Read),
+        ("note outside turn", canonical.len() - 1, Line::Note(Note::SignedOut)),
+        ("read outside turn", canonical.len() - 1, Line::Read),
+    ];
+    let mut failures = Vec::new();
+    for (name, at, line) in rows {
+        let mut records = canonical.clone();
+        if matches!(line, Line::Note(_) | Line::Read) {
+            let original = records.iter().position(|record| record.kind() == line.kind()).expect("duty to move");
+            records.remove(original);
+        }
+        records.insert(at.min(records.len() - 1), line);
+        if Replay::new(&written(&records)).is_ok() {
+            failures.push(name);
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

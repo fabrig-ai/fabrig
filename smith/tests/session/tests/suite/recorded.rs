@@ -1241,7 +1241,12 @@ fn opening_affinity_is_fixed_and_the_recorded_window_overrides_a_fresh_spec() {
     first.complete(said(b"answer"), llm::Stop::EndTurn, llm::Usage::ZERO);
     assert_eq!(
         first.turns[0].kind,
-        record::Kind::First(Box::new(record::Opener { affinity, account: Some(0), backend: record::Backend::Direct }))
+        record::Kind::First(Box::new(record::Opener {
+            system: Some(bytes(b"instructions")),
+            affinity,
+            account: Some(0),
+            backend: record::Backend::Direct
+        }))
     );
     assert!(first.turns[0].kind.opens_window());
     first.close();
@@ -1274,6 +1279,7 @@ fn a_saved_window_starts_at_its_recorded_place_and_keeps_its_affinity() {
         ..smith_domain::session::fixture::turn(
             bytes(b"model"),
             record::Kind::Window(Box::new(record::Opener {
+                system: None,
                 affinity,
                 account: Some(0),
                 backend: record::Backend::Direct,

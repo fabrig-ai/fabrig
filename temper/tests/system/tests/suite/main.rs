@@ -10,3 +10,5 @@ mod fuzzy {
 mod running_revision;
 
 mod next_turn;
+
+mod supplied_instructions;

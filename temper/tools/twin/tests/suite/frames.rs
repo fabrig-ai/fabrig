@@ -3,7 +3,7 @@ mod round_trip;
 
 use jig_protocol_store::{self as store, codec, transcripts::frame};
 use serde_json::{Value, json};
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Writer};
 use skein_scratch::Scratch;
 use smith_transcript::{self as smith, Block, Message, MessageParts, Role, Turn, TurnParts};
 use std::path::{Path, PathBuf};
@@ -79,7 +79,7 @@ fn save(input: &Input, task: u64, records: &[jig_domain_core::TurnRecord]) {
 }
 fn first(input: &Input) -> TurnParts {
     let records = records(input, CHAT);
-    Turn::decode(&smith::CEILINGS, &mut Reader::new(&records[0].transcript)).expect("Smith turn").into_parts()
+    smith::decode_archived(&smith::CEILINGS, &records[0].transcript).expect("Smith turn").into_parts()
 }
 fn save_first(input: &Input, parts: TurnParts) {
     let turn = Turn::new(&smith::CEILINGS, parts).expect("edited Smith turn");
@@ -449,7 +449,7 @@ fn an_open_chats_user_cue_replays_its_converted_turns() {
         let Some(fake::Request::Reply { result, .. }) = out.pop() else { panic!("script reply") };
         let answer = result.expect("accepted replay");
         let (blocks, usage) = round_trip::decoded(&answer);
-        let recorded = Turn::decode(&smith::CEILINGS, &mut Reader::new(&record.transcript)).expect("recorded turn");
+        let recorded = smith::decode_archived(&smith::CEILINGS, &record.transcript).expect("recorded turn");
         let expected =
             recorded.messages().iter().find(|message| *message.role() == Role::Assistant).expect("completion");
         // The provider regenerates call ids and compacts argument JSON.

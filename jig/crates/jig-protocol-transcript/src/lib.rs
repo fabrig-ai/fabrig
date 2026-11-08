@@ -4,7 +4,8 @@
 //! turn, marked by `Turn::cut`. See client/domain/client.md, 10, and contract.md, 10.
 //!
 //! `brief_text` renders the decoded client blocks as plain UTF-8 lines for a fresh
-//! run's brief, within `Limits::bytes`; opaque blocks show only dialect and size.
+//! run's brief, within `Limits::bytes`; archived system context is excluded,
+//! and opaque blocks show only dialect and size.
 //! It admits exactly the records `decode` admits.
 //!
 //! Calls are numbered by their first call/result block's position within the turn.
@@ -19,7 +20,7 @@ use alloc::boxed::Box;
 pub use jig_client_domain::contract::TurnLimits;
 use jig_client_domain::contract::{Block, Call, Message, ModelEffort, Speaker, Text, Turn, Usage};
 use skein_lib::{Decimal, List, Reader, length::len_u64};
-use smith_transcript::v6 as smith;
+use smith_transcript::v7 as smith;
 
 mod brief;
 mod summary;
@@ -56,19 +57,28 @@ pub enum Undecodable {
 
 /// Decodes a whole record; receiving bounds truncate without losing usage/spend.
 pub fn decode(limits: &Limits, bytes: &[u8]) -> Result<Turn, Undecodable> {
+    Ok(translate(limits.turn, &decode_source(limits, bytes)?, true))
+}
+
+/// Decode conversation blocks for an activity page, leaving system inspection to a whole-turn read.
+pub fn conversation(limits: &Limits, bytes: &[u8]) -> Result<Turn, Undecodable> {
+    Ok(translate(limits.turn, &decode_source(limits, bytes)?, false))
+}
+
+fn decode_source(limits: &Limits, bytes: &[u8]) -> Result<smith::Turn, Undecodable> {
     if bytes.len() > skein_lib::length::usize_of(limits.bytes) {
         return Err(Undecodable::TooLarge);
     }
     let version = Reader::new(bytes).u16().ok_or(Undecodable::Malformed)?;
-    if u64::from(version) != smith::Turn::FORMAT_VERSION {
+    if version != 6 && u64::from(version) != smith::Turn::FORMAT_VERSION {
         return Err(Undecodable::Version { found: version });
     }
-    let source = match smith::Turn::decode(&limits.smith, &mut Reader::new(bytes)) {
+    let source = match smith_transcript::decode_archived(&limits.smith, bytes) {
         Ok(turn) => turn,
         Err(problem) => return Err(classify(problem)),
     };
     summary::validate(&limits.smith, &source)?;
-    Ok(translate(limits.turn, &source))
+    Ok(source)
 }
 
 /// Render one decoded turn as bounded UTF-8 lines for an agent's brief.
@@ -93,37 +103,28 @@ fn classify(problem: smith::Problem) -> Undecodable {
     }
 }
 
-fn translate(limits: TurnLimits, source: &smith::Turn) -> Turn {
+fn translate(limits: TurnLimits, source: &smith::Turn, inspect_system: bool) -> Turn {
     let mut budget = Budget { left: limits.text, cut: false };
-    let mut messages = List::with_capacity(limits.messages.min(source.messages().len()));
-    for message in source.messages() {
-        if messages.len() == messages.capacity() {
-            budget.cut = true;
-            break;
-        }
-        let speaker = match message.role() {
-            smith::Role::User => Speaker::Person,
-            smith::Role::Assistant => Speaker::Assistant,
-        };
-        let mut blocks = List::with_capacity(limits.blocks.min(message.blocks().len()));
-        for block in message.blocks() {
-            if blocks.len() == blocks.capacity() {
-                budget.cut = true;
-                break;
-            }
-            let block = translate_block(source, block, &mut budget);
-            blocks.push(block).expect("receiving block capacity checked");
-        }
-        messages.push(Message { speaker, blocks }).expect("receiving message capacity checked");
+    let supplied = inspect_system && source.system().is_some();
+    let system_fits = supplied && source.messages().len() < limits.messages;
+    let mut messages =
+        List::with_capacity(limits.messages.min(source.messages().len().saturating_add(u32::from(system_fits))));
+    if system_fits {
+        supplied_message(limits, &mut messages, &mut budget);
+    } else if supplied {
+        budget.cut = true;
     }
+    let offset = usize::from(!messages.is_empty());
+    append_messages(limits, source, &mut messages, &mut budget);
     // Names are already priced. Each later pass walks only the retained window.
     for price in [Price::Texts, Price::Outcomes, Price::Inputs, Price::Summaries] {
-        for (original, message) in source.messages().iter().zip(messages.iter_mut()) {
+        for (original, message) in source.messages().iter().zip(messages.iter_mut().skip(offset)) {
             for (original, block) in original.blocks().iter().zip(message.blocks.iter_mut()) {
                 fill_block(source, original, block, price, limits.outcome, &mut budget);
             }
         }
     }
+    fill_supplied(source, &mut messages, &mut budget);
     let usage = source.usage();
     Turn {
         messages,
@@ -377,5 +378,47 @@ fn first_line(bytes: &[u8]) -> &[u8] {
         line.strip_suffix(b"\r").unwrap_or(line)
     } else {
         b""
+    }
+}
+
+fn supplied_message(limits: TurnLimits, messages: &mut List<Message>, budget: &mut Budget) {
+    if messages.len() == limits.messages || limits.blocks == 0 {
+        budget.cut = true;
+        return;
+    }
+    let mut blocks = List::with_capacity(1);
+    blocks.push(Block::Text(empty_text())).expect("one system block");
+    messages.push(Message { speaker: Speaker::System, blocks }).expect("system slot reserved");
+}
+
+fn append_messages(limits: TurnLimits, source: &smith::Turn, messages: &mut List<Message>, budget: &mut Budget) {
+    for message in source.messages() {
+        if messages.len() == messages.capacity() {
+            budget.cut = true;
+            break;
+        }
+        let speaker = match message.role() {
+            smith::Role::User => Speaker::Person,
+            smith::Role::Assistant => Speaker::Assistant,
+        };
+        let mut blocks = List::with_capacity(limits.blocks.min(message.blocks().len()));
+        for block in message.blocks() {
+            if blocks.len() == blocks.capacity() {
+                budget.cut = true;
+                break;
+            }
+            let block = translate_block(source, block, budget);
+            blocks.push(block).expect("receiving block capacity checked");
+        }
+        messages.push(Message { speaker, blocks }).expect("receiving message capacity checked");
+    }
+}
+
+fn fill_supplied(source: &smith::Turn, messages: &mut List<Message>, budget: &mut Budget) {
+    if let Some(system) = source.system()
+        && let Some(message) = messages.get_mut(0)
+        && message.speaker == Speaker::System
+    {
+        *message.blocks.get_mut(0).expect("system block retained") = Block::Text(budget.text(system));
     }
 }

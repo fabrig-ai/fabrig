@@ -75,7 +75,7 @@ fn record(
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
     let environment = environment(&std::env::vars_os().collect::<Vec<_>>(), &paths.scratch)
         .map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
-    for directory in ["home", "state", "bin", "tmp", "config", "data", "cache", "runtime"] {
+    for directory in ["home", "state", "bin", "tmp", "config", "data", "cache", "runtime", "tui-runtime"] {
         let path = paths.scratch.join(directory);
         fs::DirBuilder::new().mode(0o700).create(&path).map_err(|_| crate::io_refusal(&path))?;
     }
@@ -106,7 +106,11 @@ fn record(
         .map(|(name, value)| {
             let mut entry = name.clone();
             entry.push("=");
-            entry.push(value);
+            if name == "XDG_RUNTIME_DIR" {
+                entry.push(paths.scratch.join("runtime"));
+            } else {
+                entry.push(value);
+            }
             entry
         })
         .collect();
@@ -173,8 +177,11 @@ fn environment(
     given: &[(OsString, OsString)],
     scratch: &Path,
 ) -> Result<Vec<(OsString, OsString)>, std::env::JoinPathsError> {
-    let mut environment: Vec<_> =
-        given.iter().filter(|(name, _)| !name.as_bytes().starts_with(b"SSH_")).cloned().collect();
+    let mut environment: Vec<_> = given
+        .iter()
+        .filter(|(name, _)| !name.as_bytes().starts_with(b"SSH_") && name != "COLORFGBG")
+        .cloned()
+        .collect();
     let path = given.iter().find(|(name, _)| name == "PATH").map(|(_, value)| value.clone()).unwrap_or_default();
     let paths = std::iter::once(scratch.join("bin")).chain(std::env::split_paths(&path));
     let mut replacements = vec![("PATH", std::env::join_paths(paths)?), ("TERM", "xterm-256color".into())];
@@ -184,7 +191,7 @@ fn environment(
         ("XDG_CONFIG_HOME", "config"),
         ("XDG_DATA_HOME", "data"),
         ("XDG_CACHE_HOME", "cache"),
-        ("XDG_RUNTIME_DIR", "runtime"),
+        ("XDG_RUNTIME_DIR", "tui-runtime"),
         ("TMPDIR", "tmp"),
     ] {
         replacements.push((name, scratch.join(directory).into_os_string()));

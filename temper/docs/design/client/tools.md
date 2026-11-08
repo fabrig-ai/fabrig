@@ -1571,7 +1571,11 @@ may change with them.
   deadline (section 12) exits 1 with one stderr line, at most 240 bytes,
   which names what was outstanding and holds no request's words and no
   secret. *Busy*, *streams full* (8.2) and all watches in use keep their
-  own lines, ahead of these. A sign-in's or a sign-out's call says
+  own lines, ahead of these. A watch refused not ready also takes
+  precedence: its line says the engine is not ready and points to
+  `temper serve`'s log for why (`../protocol/README.md`, 8.2), rather
+  than claiming all watches are in use. A sign-in's or a sign-out's call
+  says
   `temper ctl: the engine at ADDRESS did not answer within 30 s`. Any
   other says, from the link's
   state (jig's `client/domain/client.md`, 8.2):
@@ -2413,6 +2417,16 @@ contract's reads, watches and requests, they take:
   `client/domain/client.md`, section 20).
 
 ## 14. Later
+
+- **The core's reason at the client's deadline** (6.3, 8.1): a not-ready
+  refusal distinguishes readiness from capacity, but names no start step
+  or other gate reason. Carrying that reason through jig's wire and link
+  is deferred (`../protocol/README.md`, section 14). Default: say not
+  ready and direct the caller to serve's log, with the same 30 s bound.
+- **The browser's membership boundary** (section 12): check a third
+  membership and the nine-membership bound through the browser after
+  landing. The native decoder's table and one-process restart stories
+  cover the bound below that tier; the web preset uses the same nine.
 
 - **The settings reference's help pointer** (5.3): `settings-fields`'s
   `reserve_time` description says "See settings help". The field table

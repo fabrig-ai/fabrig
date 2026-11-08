@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:39481                                     │
+│ Sign in this terminal to 127.0.0.1:44485                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ WJNG-XDFP, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:39481/terminal?code=WJNG-XDFP                  │
+│ XQDH-NDZJ, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:44485/terminal?code=XQDH-NDZJ                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:39481/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:44485/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 
