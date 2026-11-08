@@ -1,0 +1,6 @@
+draft = "red-81-drain"
+repo = "fabrig"
+sources = ["temper/docs/plan/red-81-drain/inputs/request.md", "temper/crates/temper-service/src/stop.rs", "temper/crates/temper-service/src/clients.rs", "jig/crates/jig-protocol-engine-clients/src/closing.rs", "temper/crates/temper/tests/support/terminal.rs", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
