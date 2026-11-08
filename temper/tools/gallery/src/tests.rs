@@ -1480,7 +1480,7 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Absent { role: Role::Region, name: "Chats" },
             Part::Named { role: Role::Link, name: "Needs you 1" },
-            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Named { role: Role::Button, name: "Tell it something else" },
             Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
         ],
     },
@@ -1488,10 +1488,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-at-work",
         heading: "One thing needs you.",
         parts: &[
+            Part::Named { role: Role::TextField, name: "Ask temper" },
             Part::Named { role: Role::Link, name: "Needs you 1" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
             Part::Named { role: Role::Paragraph, name: "The repository has no license. Name one in the README?" },
-            Part::Named { role: Role::Button, name: "Reply" },
+            Part::Named { role: Role::Button, name: "Tell it something else" },
             Part::Named { role: Role::Link, name: "All 3 chats" },
             Part::Named { role: Role::Link, name: "Add a README, waiting on you, 4 min" },
             Part::Named { role: Role::Link, name: "Hello in Rust, closed, 1 h" },
@@ -1503,17 +1504,11 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-needs-several",
         heading: "Three things need you.",
         parts: &[
+            Part::Named { role: Role::TextField, name: "Ask temper" },
             Part::Named { role: Role::Link, name: "Needs you 3" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
-            Part::Named { role: Role::Link, name: "Answer in a row" },
-            Part::Named {
-                role: Role::Link,
-                name: "The repository has no license. Name one in the README? · a question · 4 min",
-            },
-            Part::Named {
-                role: Role::Link,
-                name: "The repository has no license. Name one in the README? · a question · 4 min",
-            },
+            Part::Absent { role: Role::Link, name: "Answer in a row" },
+            Part::Named { role: Role::Paragraph, name: "The repository has no license. Name one in the README?" },
             Part::Named { role: Role::Link, name: "All 3 chats" },
         ],
     },
@@ -1521,8 +1516,9 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-nothing-needs",
         heading: "Nothing needs you.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
-            Part::Named {
+            Part::Named { role: Role::TextField, name: "Ask temper" },
+            Part::Absent { role: Role::Region, name: "Needs you" },
+            Part::Absent {
                 role: Role::Paragraph,
                 name: "Work carries on, and this page tells you what changed when you come back.",
             },
@@ -1644,7 +1640,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Nothing needs you.",
         parts: &[
             Part::Absent { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you" },
+            Part::Absent { role: Role::Region, name: "Needs you" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Chats" },
             Part::Named { role: Role::Paragraph, name: "No chats yet." },
         ],
@@ -1790,14 +1786,15 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-morning-card",
         heading: "Three things need you.",
         parts: &[
+            Part::Named { role: Role::TextField, name: "Ask temper" },
             Part::Named {
                 role: Role::Paragraph,
                 name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
             },
             Part::Named { role: Role::Button, name: "In jig’s store" },
-            Part::Named { role: Role::Disclosure, name: "What the agent saw" },
-            Part::Named { role: Role::Button, name: "Reply" },
-            Part::Named { role: Role::Button, name: "Later" },
+            Part::Absent { role: Role::Disclosure, name: "What the agent saw" },
+            Part::Named { role: Role::Button, name: "Tell it something else" },
+            Part::Absent { role: Role::Button, name: "Later" },
         ],
     },
     Holds {
@@ -1817,12 +1814,10 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-one-need",
         heading: "One thing needs you.",
         parts: &[
+            Part::Named { role: Role::TextField, name: "Ask temper" },
             Part::Named { role: Role::Button, name: "MIT" },
-            Part::Named { role: Role::Button, name: "Later" },
-            Part::Named {
-                role: Role::Link,
-                name: "Add a README: The repository has no license. Name one in the README? Answer",
-            },
+            Part::Absent { role: Role::Button, name: "Later" },
+            Part::Named { role: Role::Button, name: "More" },
             Part::Absent { role: Role::Link, name: "Answer in a row" },
         ],
     },

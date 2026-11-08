@@ -5,7 +5,7 @@ use crate::{
     look,
     words::{Shell, Times, Word, Words},
 };
-use skein_ui::{Builder, Role, Run, phrases::Hole};
+use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     address::Filter,
@@ -42,6 +42,9 @@ pub(crate) fn cards(
                 {
                     parsed.choices.get_mut(..=primary).expect("primary is a choice").rotate_right(1);
                 }
+                if let Some(outcome) = root.pages().needs().refused(card.object) {
+                    crate::confirm::outcome_words(b, w, outcome);
+                }
                 if card.key.is_some() || card.outcome.is_some() {
                     crate::confirm::card_controls(b, root, card, w, bindings);
                 } else {
@@ -51,8 +54,9 @@ pub(crate) fn cards(
                             crate::confirm::needs_controls(b, root, card, w, bindings);
                         }
                     }
-                    if let ask::Kind::Question = asked.kind {
-                        tell(
+                    match asked.kind {
+                        ask::Kind::PersonTask => person_task(b, asked.source, w, bindings),
+                        ask::Kind::Question => tell(
                             b,
                             need,
                             w,
@@ -61,7 +65,8 @@ pub(crate) fn cards(
                                 Some(parsed) => parsed.choices.is_empty(),
                                 None => true,
                             },
-                        );
+                        ),
+                        ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } => {}
                     }
                 }
             }
@@ -110,6 +115,17 @@ pub(crate) fn cards(
         ask::link(b, bindings, &label, Address::Inbox { filter: Filter { project, ..Filter::ALL } });
     }
 }
+fn person_task(b: &mut Builder, source: Option<u64>, w: &Words, bindings: &mut Bindings) {
+    if let Some(task) = source {
+        ask::button(
+            b,
+            bindings,
+            &w.say(Word::HomeOpen, &[]),
+            Act::Go { address: Address::Task { task } },
+            look::RECOMMENDED,
+        );
+    }
+}
 fn tell(b: &mut Builder, need: &needs::Need<'_>, w: &Words, bindings: &mut Bindings, primary: bool) {
     ask::button(
         b,
@@ -156,5 +172,29 @@ fn from(
     if root.pages().needs().later(need.object()) {
         b.text(Run::Plain, &w.say(Word::NeedsLaterMeta, &[]));
     }
+    b.close();
+}
+
+/// Both wide Homes close with the same question field (client/README.md, 3.5).
+pub(crate) fn ask_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+    if w.shell == Shell::Terminal {
+        return;
+    }
+    b.open(Role::Slot);
+    b.style(look::ASK_LINE);
+    b.open(Role::TextField);
+    b.name(&w.say(Word::AskTitle, &[]));
+    b.placeholder(&w.say(Word::HomeAskPlaceholder, &[]));
+    b.value(root.pages().ask_line(), temper_client_domain::pages::shown(root.pages()));
+    b.state(State::SubmitsOnEnter);
+    b.bind(bindings.insert(Act::AskLine { words: root.pages().ask_line().into() }));
+    b.close();
+    ask::button(
+        b,
+        bindings,
+        &w.say(Word::HomeAsk, &[]),
+        Act::AskWith { words: root.pages().ask_line().into() },
+        look::ASK_QUIET,
+    );
     b.close();
 }

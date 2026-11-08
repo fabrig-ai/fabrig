@@ -21,6 +21,7 @@ use temper_client_domain::{
             Repository, Status,
         },
         needs::{self, ANSWERED_ON_HOME},
+        parts,
     },
 };
 
@@ -38,7 +39,7 @@ pub(crate) fn main(
     project: u32,
     times: &mut Times,
     rows: u32,
-    sign_in: &crate::forge_sign_in::Forges,
+    _sign_in: &crate::forge_sign_in::Forges,
 ) {
     let me = root.pages().me(root.client());
     let name = crate::pages::project_name(me, project);
@@ -48,17 +49,8 @@ pub(crate) fn main(
     }
     let fallback = w.say(Word::Project, &[Hole::Number(u64::from(project))]);
     let name = name.as_deref().unwrap_or(&fallback);
-    let mut facts = temper_client_domain::pages::home::facts(root, project, times.now);
-    if w.shell == Shell::Terminal
-        && let Some(inbox) = root.pages().inbox()
-        && inbox.known()
-        && inbox.filter.project == Some(project)
-    {
-        facts.needs = Needs::Count {
-            count: u32::try_from(root.pages().needs().open(inbox).len()).expect("bounded inbox"),
-            cut: *inbox.cut.first().expect("needs cut"),
-        };
-    }
+    let facts = temper_client_domain::pages::home::facts(root, project, times.now);
+    let parts = parts::home(&facts.parts_facts());
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::HOME);
@@ -66,11 +58,15 @@ pub(crate) fn main(
     if facts.to_begin() {
         to_begin(b, root, w, bindings, project, name, &facts);
     }
-    if let Some(away) = &facts.away {
+    if parts.decided
+        && let Some(away) = &facts.away
+    {
         decided(b, w, bindings, project, away, root.pages().overturn_busy(), times);
     }
     if !facts.to_begin() {
-        needs(b, root, w, bindings, project, &facts, times, rows, sign_in);
+        if parts.needs {
+            needs(b, root, w, bindings, project, &facts, times);
+        }
         if root.has_goals(project) {
             goals(b, root, w, bindings, project, times);
         } else {
@@ -78,6 +74,9 @@ pub(crate) fn main(
         }
     }
     foot(b, w, bindings, project, &facts, times);
+    if parts.ask {
+        super::home_cards::ask_line(b, root, w, bindings);
+    }
     crate::confirm::main(b, root, w, bindings, rows);
     add_sheet(b, root, w, bindings, name);
     b.close();
@@ -429,7 +428,6 @@ pub(crate) fn decision(
 fn inbox_address(project: u32) -> Address {
     Address::Inbox { filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None } }
 }
-#[expect(clippy::too_many_arguments, reason = "Home passes its project, facts, time and row bound to its section")]
 fn needs(
     b: &mut Builder,
     root: &Domain,
@@ -438,42 +436,26 @@ fn needs(
     project: u32,
     facts: &Facts,
     times: &mut Times,
-    rows: u32,
-    sign_in: &crate::forge_sign_in::Forges,
 ) {
-    let inbox = root.pages().inbox();
+    let Some(inbox) = root.pages().inbox() else { return };
     let session = root.pages().needs();
-    let open = match inbox {
-        Some(inbox) => match w.shell {
-            Shell::Browser => session.needs(inbox, root.forge().approvals()),
-            Shell::Terminal => {
-                let mut needs = skein_lib::List::uncapped();
-                for card in &session.open(inbox) {
-                    needs.push(needs::Need::Card(card)).expect("inbox fits");
-                }
-                needs.into_boxed()
-            }
-        },
-        None => Box::default(),
+    let open = session.needs(inbox, root.forge().approvals());
+    let (count, cut) = match facts.needs {
+        Needs::Count { count, cut } => (count, cut),
+        Needs::Unknown => (0, false),
     };
-    let count = open.len();
     b.open(Role::Region);
     b.style(look::HOME_NEEDS);
-    b.name(&w.say(if facts.away.is_some() { Word::HomeStillNeeds } else { Word::NeedsYou }, &[]));
+    b.name(&w.say(Word::NeedsYou, &[]));
     b.open(Role::Slot);
     b.style(look::HOME_HEAD);
-    let heading = if count > 0 {
-        w.say(
-            if facts.away.is_some() { Word::HomeStillNeedsCount } else { Word::HomeNeedsCount },
-            &[Hole::Number(u64::try_from(count).expect("needs count fits"))],
-        )
-    } else {
-        w.say(if facts.away.is_some() { Word::HomeStillNeeds } else { Word::NeedsYou }, &[])
-    };
-    text(b, Role::Heading { level: 2 }, &heading, if count > 0 { Some(look::HOME_SIGNAL) } else { None });
-    if count > 1 && w.shell == Shell::Browser {
-        go(b, bindings, &w.say(Word::HomeInARow, &[]), inbox_address(project), Some(look::HOME_IN_A_ROW));
-    }
+    text(
+        b,
+        Role::Heading { level: 2 },
+        &w.say(if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount }, &[Hole::Number(u64::from(count))]),
+        Some(look::HOME_SIGNAL),
+    );
+    go(b, bindings, &w.say(Word::AllHomeAllNeeds, &[]), inbox_address(project), None);
     b.close();
     let lines = session.answered(times.now, ANSWERED_ON_HOME, Some(project));
     if let Some(line) = lines.first() {
@@ -486,92 +468,7 @@ fn needs(
         .min();
     }
     super::ask::answered_lines(b, root, &lines, w, bindings);
-    if let Some(first) = open.first() {
-        match first {
-            needs::Need::Card(card) => ask(b, root, card, w, bindings, times, rows),
-            needs::Need::Approval(row) => super::approval::card(b, root, row, w, bindings, times, sign_in, false),
-        }
-        let mut others = open.iter().skip(1).take(ROWS).peekable();
-        if others.peek().is_some() {
-            b.open(Role::List);
-            b.style(look::HOME_ROWS);
-            for card in others {
-                b.open(Role::Item);
-                let (title, when) = match card {
-                    needs::Need::Card(card) => {
-                        let asked = super::ask::read(card, w);
-                        let title = if card.page.is_none() {
-                            super::ask::need_title(card, w)
-                        } else {
-                            match asked.kind {
-                                super::ask::Kind::Funds { .. } => {
-                                    w.say(Word::HomeAskLine, &[Hole::Name(asked.title), Hole::Name(asked.short)])
-                                }
-                                super::ask::Kind::Question
-                                | super::ask::Kind::Proposal
-                                | super::ask::Kind::Held
-                                | super::ask::Kind::PersonTask => asked.short,
-                            }
-                        };
-                        (title, super::ask::need_when(card, w, times))
-                    }
-                    needs::Need::Approval(row) => {
-                        (super::approval::question(row, w), super::approval::when(row, w, times))
-                    }
-                };
-                let label = crate::accounts::words::join(&[&title, &w.say(Word::ToolSeparator, &[]), &when]);
-                crate::link(b, &label, bindings.insert(Act::Needs(needs::Act::Open { object: card.object() })));
-                row_words(b, w, &title, &when);
-                b.close();
-                b.close();
-            }
-            b.close();
-        }
-        if w.shell == Shell::Browser {
-            match first {
-                needs::Need::Card(card) if card.page.is_none() => {}
-                needs::Need::Card(_) | needs::Need::Approval(_) => {
-                    phone_need(b, first, count, w, bindings, project);
-                }
-            }
-        }
-    } else if let Needs::Count { .. } = facts.needs {
-        text(b, Role::Paragraph, &w.say(Word::HomeNeedsEmpty, &[]), Some(look::HOME_EMPTY));
-    }
-    b.close();
-}
-fn ask(
-    b: &mut Builder,
-    root: &Domain,
-    card: &temper_client_domain::pages::inbox::Card,
-    w: &Words,
-    bindings: &mut Bindings,
-    times: &mut Times,
-    rows: u32,
-) {
-    let mut asked = super::ask::read(card, w);
-    if card.page.is_none() {
-        asked.title = super::ask::need_title(card, w);
-    }
-    b.open(Role::Slot);
-    b.style(look::ASK);
-    super::ask::meta(b, &asked, None, root.pages().needs().later(card.object), w, bindings, times);
-    if card.page.is_some() {
-        super::ask::home_body(b, root, &asked, w, bindings, rows);
-    }
-    b.close();
-}
-fn phone_need(b: &mut Builder, need: &needs::Need<'_>, count: usize, w: &Words, bindings: &mut Bindings, project: u32) {
-    let line = crate::shared::need_line(need, w).words;
-    let go = w.say(if count == 1 { Word::HomeAnswer } else { Word::HomeAnswerMany }, &[]);
-    let name = w.say(Word::HomeAnswerName, &[Hole::Name(line.clone()), Hole::Name(go.clone())]);
-    crate::link(b, &name, bindings.insert(Act::Go { address: inbox_address(project) }));
-    b.style(look::HOME_CTA);
-    b.text(Run::Plain, &line);
-    b.open(Role::Text);
-    b.style(look::HOME_CTA_GO);
-    b.run(Run::Plain, &go);
-    b.close();
+    super::home_cards::cards(b, root, &open, false, w, bindings, times);
     b.close();
 }
 fn row_words(b: &mut Builder, w: &Words, title: &[u8], when: &[u8]) {

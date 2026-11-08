@@ -200,15 +200,17 @@ fn need(w: &Words) -> [Row; 2] {
     let card = root.pages().inbox().unwrap().cards.iter().find(|card| card.page.is_some()).unwrap();
     let line = shared::need_line(&d::pages::needs::Need::Card(card), w);
     let view = f::browser_page_view(&root);
-    let browser = view
-        .tree()
-        .nodes()
+    let nodes = view.tree().nodes();
+    let from = nodes.iter().position(|node| node.styles.as_slice().contains(&look::NEED_FROM)).unwrap();
+    let end = from.checked_add(usize::try_from(nodes[from].size).unwrap()).unwrap();
+    let title = nodes[from..end].iter().find(|node| node.role == Role::Link).and_then(|node| node.name.as_deref());
+    let question = nodes
         .iter()
-        .flat_map(|node| node.text.iter())
-        .find(|run| run.text == line.words)
-        .map(|run| run.text.clone());
+        .find(|node| node.styles.as_slice().contains(&look::ASK_QUESTION))
+        .and_then(|node| node.name.as_deref());
+    let browser = title.zip(question).map(|(title, question)| skein_lib::bytes::concat(&[title, b": ", question]));
     [
-        words("home need line", line.words, browser),
+        words("home need parts", line.words, browser),
         Row { name: "need kind", shared: Value::Kind(line.kind), browser: Value::Kind(shared::NeedKind::Question) },
     ]
 }
