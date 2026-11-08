@@ -975,8 +975,9 @@ keeps (`../protocol/configuration.md`, section 2).
     the browser draws working dots for (*While it works,* below), whether or not
     the dots stand: the words being written and a call under way keep it. Or
     while the chat waits on its delegates or on an account: "✦",
-    pulsing, then the bar's status words ("working", "waiting on 1 delegate",
-    "Waiting for an account"). It draws no clock.
+    pulsing, then the bar's status words, with "Writing" presented as
+    "Working" (6.14, *The foot*); "waiting on 1 delegate" and "Waiting for
+    an account" keep their words. It draws no clock.
   - *The box:* the composer, "❯" before its text area, its name, placeholder,
     hint's keys and bounds as a chat's (*Where the focus stands*, above), with no
     "Send". On a chat that has ended, which a browser draws with no composer, the

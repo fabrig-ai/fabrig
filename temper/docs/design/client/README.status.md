@@ -71,6 +71,10 @@ Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
 implementation gap. Section 10's joined story covers the running line
 before and during provisional text, commitment, navigation and closing.
+The focused view test holds a Writing observation before the first answer,
+through provisional words and commitment: the shared running line and the
+browser terminal say "Working", the chat bar says "Writing", and completion
+removes the running line.
 The generated journeys cover the no-project launchpad and Hello through
 a committed fake answer (`tui/journeys.md`, section 9). The newest goal,
 opened call rows, earlier-page loading, Latest, cards at their calls and
