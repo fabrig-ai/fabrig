@@ -35,6 +35,7 @@ pub(crate) fn person() -> (Vec<Step<Address>>, Vec<u32>) {
         Step::Go { address: Address::NewChat { draft: false } },
         see(Find::named(Role::Button, b"Add CSV export to widget")),
         see(Find::text(REPOSITORY)),
+        see(Find::exactly_named(Role::Status, b"Ready")),
     ];
     for (index, script) in scripts["asked"].as_array().expect("three suggested requests").iter().enumerate() {
         if index > 0 {

@@ -864,7 +864,8 @@ fn person_failed(step: u32, why: &skein_fake_person::Why, wire: &referee::client
         .iter()
         .filter_map(|event| match event {
             referee::client::Received::ApplicationSent { key } => Some(*key),
-            referee::client::Received::SignedIn(_)
+            referee::client::Received::PlaygroundStarted { .. }
+            | referee::client::Received::SignedIn(_)
             | referee::client::Received::Answer { .. }
             | referee::client::Received::Application { .. }
             | referee::client::Received::Delivery(_)
@@ -876,7 +877,8 @@ fn person_failed(step: u32, why: &skein_fake_person::Why, wire: &referee::client
         .iter()
         .filter_map(|event| match event {
             referee::client::Received::Application { key, .. } => Some(*key),
-            referee::client::Received::SignedIn(_)
+            referee::client::Received::PlaygroundStarted { .. }
+            | referee::client::Received::SignedIn(_)
             | referee::client::Received::Answer { .. }
             | referee::client::Received::ApplicationSent { .. }
             | referee::client::Received::Delivery(_)
@@ -1141,7 +1143,7 @@ fn run_phase(
     let start = matches!(scenario, Story::PlaygroundA).then(|| {
         let mut start = temper_playground::stories::A.start(fixtures::SEED, settings.config.wall);
         start.links = Links::Keep;
-        machine::setup(&mut disk);
+        temper_playground::story::prepare(&mut disk, &start.deployment, start.seed);
         start
     });
     let transport =

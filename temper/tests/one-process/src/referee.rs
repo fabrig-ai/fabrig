@@ -121,7 +121,7 @@ impl Referee {
             }
             implications.extend([(1, 3, 1), (1, 3, 2)]);
         }
-        let policy = rules::Policy {
+        let mut policy = rules::Policy {
             deployment: scope.clone(),
             projects: BTreeMap::from([(1, scope.clone())]),
             people: BTreeMap::from([((1, 1), scope)]),
@@ -137,6 +137,18 @@ impl Referee {
             uncertainty_bound: 10_000_000_000,
             story_steps: 100_000,
         };
+        if matches!(scenario, crate::world::Story::PlaygroundA) {
+            let document =
+                serde_json::from_slice(temper_playground::stories::A.deployment).expect("story A's deployment");
+            let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
+                panic!("the composition supplies story A's defaults")
+            };
+            let project = &jig.policies.get(&1).expect("stock playground policy").policy;
+            let owner = project.roles.iter().find(|role| role.number == 0).expect("project owner role");
+            policy.deployment = jig_conformance::core::scope(&jig.rules.ceiling);
+            policy.projects = BTreeMap::from([(1, jig_conformance::core::scope(&project.ceiling))]);
+            policy.people = BTreeMap::from([((1, 1), jig_conformance::core::scope(&owner.authority))]);
+        }
         let rules = run.borrow().rules.clone().unwrap_or_else(|| Rc::new(RefCell::new(rules::Referee::new(policy))));
         let applied = run.borrow().applied;
         let adopted = crate::stories::adopted(&store.borrow().rows);
@@ -453,6 +465,7 @@ impl skein_world::Referee<Proc> for Referee {
         }
         self.stop_peers(other);
     }
+    #[expect(clippy::too_many_lines, reason = "durable commits and their outside receipts are observed in order")]
     fn observe(&mut self, now: Time, procs: &[Proc]) {
         self.forge.borrow_mut().observe(procs);
         let Proc::Service(service) = &procs[0] else { panic!("service first") };
@@ -472,6 +485,28 @@ impl skein_world::Referee<Proc> for Referee {
                     rules::Observed::Durable { number: commit.number, snapshot: snapshot(&self.committed) },
                 )
                 .expect("durable conformance");
+            // A result in its requester's durable inbox has reached that task
+            // (temper/docs/design/domain/testing.md, 2.5).
+            for row in self.committed.rows.values() {
+                if let root::Record::Core(core::Record::Tasks(
+                    jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
+                )) = row
+                {
+                    for word in &task.inbox {
+                        if matches!(word.kind, jig_domain_tasks::MessageKind::Result(_))
+                            && let jig_domain_tasks::Party::Task(child) = word.from
+                        {
+                            self.rules
+                                .borrow_mut()
+                                .observe(
+                                    now.as_nanos(),
+                                    rules::Observed::Result { task: child, to: rules::Source::Task(task.number) },
+                                )
+                                .expect("durable result reached its requester");
+                        }
+                    }
+                }
+            }
             self.applied = commit.number;
             self.run.borrow_mut().applied = self.applied;
             self.run.borrow_mut().rows.clone_from(&self.committed.rows);
@@ -522,7 +557,8 @@ impl skein_world::Referee<Proc> for Referee {
                                 assert_eq!(&old, answer, "one outcome per adoption key");
                             }
                         }
-                        client::Received::SignedIn(_)
+                        client::Received::PlaygroundStarted { .. }
+                        | client::Received::SignedIn(_)
                         | client::Received::Answer { .. }
                         | client::Received::Delivery(_)
                         | client::Received::Read(_) => {}
@@ -672,10 +708,12 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
             let c::EndedValue::Task { document, result } = &value.value else { return Vec::new() };
             let details = &document.chip.details.details;
             assert_eq!(result.task.task, document.chip.task, "result belongs to its task");
-            vec![
-                rules::Receipt::Ended(document.chip.task),
-                rules::Receipt::Terminal(document.chip.task, details.attempt.expect("finished attempt")),
-            ]
+            let mut receipts = vec![rules::Receipt::Ended(document.chip.task)];
+            // Procedures finish in task history; only agents have a run terminal.
+            if matches!(document.chip.executor, c::ChipExecutor::Agent { .. }) {
+                receipts.push(rules::Receipt::Terminal(document.chip.task, details.attempt.expect("finished attempt")));
+            }
+            receipts
         }
         client::Received::Read(c::ReadValue::Activity(page)) => page
             .rows
@@ -684,8 +722,8 @@ fn client_receipts(event: &client::Received, store: &Store, party: Option<u64>) 
                 row.committed_turn().map(|turn| rules::Receipt::Turn(row.source.task, turn.attempt, turn.number))
             })
             .collect(),
-        client::Received::Application { key, .. } => {
-            vec![rules::Receipt::Party(party.expect("signed-in adoption"), *key)]
+        client::Received::Application { key, .. } | client::Received::PlaygroundStarted { key } => {
+            vec![rules::Receipt::Party(party.expect("signed-in forge request"), *key)]
         }
         client::Received::ApplicationSent { .. } | client::Received::Delivery(_) | client::Received::Read(_) => {
             Vec::new()

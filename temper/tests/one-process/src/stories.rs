@@ -41,6 +41,10 @@ pub(crate) fn set(story: Story) {
 }
 
 pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
+    if playground() {
+        // The whole story reads replies beyond the small chat fixture's text window.
+        return temper_client_shell_terminal::limits::native();
+    }
     let mut limits = fixtures::client_limits();
     if STORY.with(|slot| matches!(slot.get(), Story::Adopt | Story::CodingAtStop)) {
         // Batch this whole-exchange story without changing the other stories' schedule.
