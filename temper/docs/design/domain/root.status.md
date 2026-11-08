@@ -69,12 +69,6 @@ kind remains shape.
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
   `BriefSource`), and a merge-queue ejection's reason. 9.1: the
   rehearsing root, `temper upgrade --check`.
-- **Not yet:** 8: a transcript load that finds every load slot taken
-  answers the core `TranscriptLoad::Failed` (`temper-engine-domain/src/restart.rs`,
-  `loads::begin`; `archive.rs`, `transcript_failed`), where the section
-  answers its activation busy and keeps the task due: after a restart,
-  tasks due together spend transient tries on room, and are held past
-  their allowance (jig's `domain/engine.status.md`, 9.1).
 - **Not yet:** 10: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while

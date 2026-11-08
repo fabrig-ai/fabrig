@@ -158,17 +158,6 @@ and catalogue-number reuse remain section 16's open questions.
   excluding the remaining state writes, closing the project and cancellation
   operations. No reason is recorded.
 
-- **Departs:** 9.1: a transcript's load refused for want of a load slot
-  counts as transient, though the section pauses a task for room that frees
-  by itself and the request `brief-failure` of 2026-11-05 keeps a true capacity
-  refusal's pause: temper's root answers no slot as `TranscriptLoad::Failed`
-  (`temper-engine-domain/src/restart.rs`, `loads::begin`;
-  `archive.rs`, `transcript_failed`), one word for that and a page it cannot
-  take. So two conversations loading together can spend a transient try, and
-  the next run starts fresh from the tail rather than resuming (7.2). Shipped
-  `root.loads.loads` is 2 (`temper-service/src/limits.rs`); the two stories that
-  met it set 3 in their fixtures (`temper/tests/system/src/composed/agreement.rs`,
-  `temper/tests/real-loop/src/green_light.rs`). No reason is recorded.
 - **Design departs:** 10, from the request `note-parts` of 2026-11-05, decided
   by its plan's cut: a range names the revision it read in `recalled`, the tool's
   member that already says it, where the request has `revision`, so that one fact

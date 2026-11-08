@@ -17,28 +17,74 @@ const CHAT_KEYS: [u8; 3] = [31, 32, 33]; // Three parked chats exceed the two sh
 const CHAT_SPEND: u64 = 100; // The walking policy's maximum run spend; three shares fit its period.
 
 fn restart_runtime(driver: &Driver) -> bool {
-    driver.root.ready() || matches!(driver.root.start_phase(), Some(
-        jig_domain_core::start::Phase::AdoptRuns
-        | jig_domain_core::start::Phase::ReadAfresh { .. }
-        | jig_domain_core::start::Phase::SettleOutbox { .. }
-        | jig_domain_core::start::Phase::Open))
+    driver.root.ready()
+        || matches!(
+            driver.root.start_phase(),
+            Some(
+                jig_domain_core::start::Phase::AdoptRuns
+                    | jig_domain_core::start::Phase::ReadAfresh { .. }
+                    | jig_domain_core::start::Phase::SettleOutbox { .. }
+                    | jig_domain_core::start::Phase::Open
+            )
+        )
+}
+
+fn release_preparations(driver: &mut Driver) {
+    const RELEASE_CYCLES: u32 = 22; // temper-service's engine::release bound.
+    let mut empty = 0;
+    for _ in 0..RELEASE_CYCLES {
+        temper_engine_domain_world::poll(&mut driver.root, &driver.env, &mut driver.out);
+        empty = if driver.out.is_empty() { empty + 1 } else { 0 };
+        driver.collect();
+        for _ in 0..driver.events.len() {
+            let runtime = restart_runtime(driver);
+            let Some(index) = driver.events.iter().position(|event| {
+                !matches!(event, engine::Event::Store(_) | engine::Event::Restart { .. })
+                    && (runtime
+                        || !matches!(
+                            event,
+                            engine::Event::Credential { .. } | engine::Event::Worker(engine::WorkerInput::Link { .. })
+                        ))
+            }) else {
+                break;
+            };
+            let event = driver.events.remove(index).expect("released child input");
+            engine::try_step(&mut driver.root, &driver.env, event).expect("released child input admitted");
+        }
+        if empty == 2 {
+            break;
+        }
+    }
 }
 
 /// Keep the final two restore loads retired through the opening pass. A load
 /// slot is occupied until reclaim even when its archive waiter has ended.
 fn restart_preparations(driver: &mut Driver) {
     const STEPS: u32 = 200; // The direct fixture's settlement horizon.
-    const RELEASE_CYCLES: u32 = 22; // temper-service's engine::release bound.
     let mut opening = false;
     for _ in 0..STEPS {
         let runtime = restart_runtime(driver);
-        if let Some(index) = driver.events.iter().position(|event| runtime || !matches!(event,
-            engine::Event::Credential { .. } | engine::Event::Worker(engine::WorkerInput::Link { .. }))) {
+        if let Some(index) = driver.events.iter().position(|event| {
+            runtime
+                || !matches!(
+                    event,
+                    engine::Event::Credential { .. } | engine::Event::Worker(engine::WorkerInput::Link { .. })
+                )
+        }) {
             let event = driver.events.remove(index).expect("eligible restart input");
             if let engine::Event::Store(engine::StoreInput::Loaded { owner, next, .. }) = &event
-                && driver.loads.iter().any(|(issued, range)| *issued == *owner && *range == Range::Core(CoreRange::Sweep)) {
+                && driver
+                    .loads
+                    .iter()
+                    .any(|(issued, range)| *issued == *owner && *range == Range::Core(CoreRange::Sweep))
+            {
                 // Look ahead in the fake store to identify the final pair of pages.
-                opening = next.is_none() || driver.store.page(&Range::Core(CoreRange::Sweep), next.as_ref(), driver.env.limits.loads.rows).1.is_none();
+                opening = next.is_none()
+                    || driver
+                        .store
+                        .page(&Range::Core(CoreRange::Sweep), next.as_ref(), driver.env.limits.loads.rows)
+                        .1
+                        .is_none();
             }
             if let Err(event) = engine::try_step(&mut driver.root, &driver.env, event) {
                 driver.events.push_front(event);
@@ -46,26 +92,14 @@ fn restart_preparations(driver: &mut Driver) {
         }
         if !driver.store.pending.is_empty() {
             let number = driver.store.apply();
-            engine::try_step(&mut driver.root, &driver.env, engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 })).expect("store terminal admitted");
+            engine::try_step(
+                &mut driver.root,
+                &driver.env,
+                engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }),
+            )
+            .expect("store terminal admitted");
         }
-        let mut empty = 0;
-        for _ in 0..RELEASE_CYCLES {
-            temper_engine_domain_world::poll(&mut driver.root, &driver.env, &mut driver.out);
-            empty = if driver.out.is_empty() { empty + 1 } else { 0 };
-            driver.collect();
-            for _ in 0..driver.events.len() {
-                let runtime = restart_runtime(driver);
-                let Some(index) = driver.events.iter().position(|event| !matches!(event, engine::Event::Store(_) | engine::Event::Restart { .. })
-                    && (runtime || !matches!(event, engine::Event::Credential { .. } | engine::Event::Worker(engine::WorkerInput::Link { .. })))) else {
-                    break;
-                };
-                let event = driver.events.remove(index).expect("released child input");
-                engine::try_step(&mut driver.root, &driver.env, event).expect("released child input admitted");
-            }
-            if empty == 2 {
-                break;
-            }
-        }
+        release_preparations(driver);
         if !opening || (driver.root.ready() && driver.store.pending.is_empty()) {
             driver.root.reclaim();
             opening = false;
@@ -77,8 +111,12 @@ fn restart_preparations(driver: &mut Driver) {
 fn no_transcript_failure(driver: &mut Driver) {
     while let Some(fact) = driver.root.pop_fact() {
         if let engine::Fact::BriefFailed { task, counts, reason } = fact {
-            assert_ne!(reason.as_ref(), b"transcript: its window could not be loaded",
-                "task {task}: {counts}: {}", String::from_utf8_lossy(&reason));
+            assert_ne!(
+                reason.as_ref(),
+                b"transcript: its window could not be loaded",
+                "task {task}: {counts}: {}",
+                String::from_utf8_lossy(&reason)
+            );
         }
     }
 }
@@ -156,10 +194,16 @@ fn tasks_due_together_past_the_load_slots_each_load_their_window() {
     let mut resumed = Vec::new();
     for _ in &parked {
         no_transcript_failure(&mut driver);
-        let next = driver.delivered.iter().find_map(|delivery| match delivery {
-            engine::Delivery::Assigned { assignment, .. } if !resumed.contains(&assignment.task) => Some(assignment.clone()),
-            _ => None,
-        }).expect("every parked chat is assigned again");
+        let next = driver
+            .delivered
+            .iter()
+            .find_map(|delivery| match delivery {
+                engine::Delivery::Assigned { assignment, .. } if !resumed.contains(&assignment.task) => {
+                    Some(assignment.clone())
+                }
+                _ => None,
+            })
+            .expect("every parked chat is assigned again");
         let (previous, key) = parked.iter().find(|(run, _)| run.task == next.task).expect("a parked chat resumed");
         assert!(next.attempt > previous.attempt);
         assert_eq!(next.transcript.as_ref(), &[Box::<[u8]>::from([*key])]);

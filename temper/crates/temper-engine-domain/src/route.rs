@@ -495,7 +495,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
     }
 }
 
-/// One activation's step: `busy` is read here, so the load it allows finds its read slot.
+/// One activation's step: the load it allows finds both its read slot and its load slot.
 fn activate(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -503,7 +503,7 @@ fn activate(
     context: Box<tasks::RunContext>,
     ready: bool,
 ) {
-    let busy = domain.archive_reads.is_full();
+    let busy = domain.archive_reads.is_full() || !domain.loads.has_room();
     let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Activate { context, ready, busy });
     route_core_requests(domain, env, decision, routed);
 }
