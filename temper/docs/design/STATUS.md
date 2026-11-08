@@ -51,6 +51,17 @@ after an accent "❯"; up to three left-off chats reached by Up and Down;
 `/effort` on the launchpad; a Markdown bullet's "•"; and a chat's title,
 number and place ("box" from the engine's link file) in the rule above
 the box (`client/README.md`, 6.12 to 6.15; `draft/tui.status.md`).
+`temper box` in a terminal runs the TUI in front, by the look request
+`tui-box-front`: signed in by a link the box hands it, the welcome
+following the browser's steps, "Signed in as the owner" from the forges
+document's `linked`, the playground's header and quiet line, a quit that
+asks while work runs and stops the box, and the box's state and `/log`,
+with goldens, joint-world stories and a focused box story on a
+pseudo-terminal; `--no-tui` and a box off a terminal run as before
+(`client/README.md`, 6.17; `protocol/setup.md`, 7.6). Its journey waits
+for `again` to start the box in the pseudo-terminal
+(`client/tui/journeys.status.md`, 8.3), and its real-terminal check
+follows landing (`client/README.md`, section 11).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames and `launchpad-chat`'s four frames
