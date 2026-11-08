@@ -118,6 +118,8 @@ struct Holds {
     parts: &'static [Part],
 }
 enum Part {
+    Links { style: skein_ui::Style, names: &'static [&'static str] },
+    NoStyle { style: skein_ui::Style },
     Pressed { name: &'static str },
     Text { text: &'static str },
     Named { role: Role, name: &'static str },
@@ -1102,17 +1104,26 @@ const HOLDS: [Holds; samples::N] = [
         }],
     },
     Holds {
-        name: "home-three-left",
+        name: "home-begin-both-left",
         heading: "Hello is ready.",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Two steps left. Skip them if you like; they stay in Settings and Ask temper.",
+            },
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
         ],
     },
     Holds {
-        name: "home-two-left",
+        name: "home-begin-ask-left",
         heading: "Hello is ready.",
         parts: &[
+            Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
+            Part::Text { text: "temper can change its code now." },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
             Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
@@ -1148,14 +1159,6 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Your agents run on an API key, and Forgejo on this machine." },
             Part::Named { role: Role::Link, name: "Add another account" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-        ],
-    },
-    Holds {
-        name: "home-one-left",
-        heading: "Hello is ready.",
-        parts: &[
-            Part::Text { text: "work/hello is in Hello" },
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
         ],
     },
@@ -1265,7 +1268,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "acme/widget, acme/other are in Widget" },
             Part::Text {
-                text: "Chats can change their code now, on your Forgejo; nothing goes back where they were copied from.",
+                text: "temper can change their code now, on your Forgejo; nothing goes back where they were copied from.",
             },
             Part::Absent { role: Role::Button, name: "Copy" },
         ],
@@ -1276,7 +1279,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "acme/widget is in Widget" },
             Part::Text {
-                text: "Chats can change its code now, on your Forgejo; nothing goes back where it was copied from.",
+                text: "temper can change its code now, on your Forgejo; nothing goes back where it was copied from.",
             },
         ],
     },
@@ -1370,23 +1373,10 @@ const HOLDS: [Holds; samples::N] = [
         name: "home-begin-settings-left",
         heading: "Hello is ready.",
         parts: &[
-            Part::Named {
-                role: Role::Paragraph,
-                name: "Two steps left. Skip them if you like; they stay in Ask temper and Settings.",
-            },
-            Part::Named { role: Role::Button, name: "Start" },
+            Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Settings." },
+            Part::Absent { role: Role::Button, name: "Start" },
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Absent { role: Role::Link, name: "New chat" },
-        ],
-    },
-    Holds {
-        name: "home-begin-one-chats",
-        heading: "Hello is ready.",
-        parts: &[
-            Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Chats." },
-            Part::Named { role: Role::Link, name: "New chat" },
-            Part::Absent { role: Role::Button, name: "Start" },
-            Part::Absent { role: Role::Button, name: "Adopt" },
         ],
     },
     Holds {
@@ -3202,6 +3192,23 @@ fn each_state_holds_what_its_name_says() {
         let mut described = tree.nodes().iter();
         for part in row.parts {
             match part {
+                Part::Links { style, names } => {
+                    let nodes = tree.nodes();
+                    let start =
+                        nodes.iter().position(|node| node.styles.as_slice().contains(style)).expect("navigation style");
+                    let end = start + usize::try_from(nodes[start].size).expect("navigation size");
+                    let links: Vec<_> = nodes[start..end]
+                        .iter()
+                        .filter(|node| node.role == Role::Link)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("link name")).expect("English"))
+                        .collect();
+                    assert_eq!(links, *names, "{}: navigation", sample.name);
+                }
+                Part::NoStyle { style } => assert!(
+                    !tree.nodes().iter().any(|node| node.styles.as_slice().contains(style)),
+                    "{}: absent style",
+                    sample.name
+                ),
                 Part::Pressed { name } => {
                     let id = find(tree, Role::Button, name, sample.name);
                     assert!(

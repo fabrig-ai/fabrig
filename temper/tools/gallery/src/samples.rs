@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 332;
+pub const N: usize = 330;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -318,13 +318,13 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample {
-            name: "home-three-left",
+            name: "home-begin-both-left",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
         },
         Sample {
-            name: "home-two-left",
+            name: "home-begin-ask-left",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -343,12 +343,6 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-accounts-key",
-            world: FirstRun { step: 7 },
-            address: Address::Home { project: 1 },
-            then: Shown,
-        },
-        Sample {
-            name: "home-one-left",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -460,12 +454,6 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-begin-settings-left",
-            world: FirstRun { step: 7 },
-            address: Address::Home { project: 1 },
-            then: Shown,
-        },
-        Sample {
-            name: "home-begin-one-chats",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -2316,16 +2304,14 @@ fn home_domain(name: &str) -> Domain {
     let in_project = everyday
         || matches!(
             name,
-            "home-two-left"
+            "home-begin-ask-left"
                 | "home-accounts-claude"
                 | "home-accounts-both"
                 | "home-accounts-key"
-                | "home-one-left"
                 | "home-ready"
                 | "home-after-skip"
                 | "home-skip-refused"
                 | "home-needs-under-begin"
-                | "home-begin-one-chats"
         );
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
@@ -2341,9 +2327,7 @@ fn home_domain(name: &str) -> Domain {
                             .push(c::SettingLine {
                                 setting: c::Setting::Rules,
                                 name: None,
-                                follows: if everyday
-                                    || matches!(name, "home-one-left" | "home-ready" | "home-begin-one-chats")
-                                {
+                                follows: if everyday || matches!(name, "home-ready" | "home-begin-settings-left") {
                                     c::SettingFollows::Change
                                 } else {
                                     c::SettingFollows::Default

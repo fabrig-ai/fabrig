@@ -81,13 +81,6 @@ its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
 
-- **Not yet:** 3.5, *To begin*, and 5.3, *While To begin shows*: To begin
-  has three steps, "Tell temper how you work" first and "Start a chat"
-  third, its notes and the repository's lines name Chats, and the rail and
-  tab bar keep every row while it shows (`temper-client-domain`'s
-  `pages/home.rs`, `Facts::left`; `temper-client-view`'s `pages/home.rs`,
-  `to_begin`, and `frame.rs`, `rail` and `tabbar`). The plan `look-round-19`'s
-  task `two-steps` builds them.
 - **Not yet:** 5.3: the rail draws no night switch. The plan
   `look-round-19`'s task `night-switch` builds it.
 
