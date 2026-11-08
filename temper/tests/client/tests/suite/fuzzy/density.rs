@@ -691,7 +691,7 @@ fn generate(seed: u64) -> World {
     world.family(
         forge::forges::watch(&limits.forge),
         wire::forges(
-            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0) })
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0), linked: false })
                 .expect("bounded density fixture"),
         ),
     );

@@ -325,7 +325,10 @@ impl Across {
         let forges = self.watch(forge::forges::watch(&self.limits.forge).unwrap());
         self.family(
             forges,
-            wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0) }).unwrap()),
+            wire::forges(
+                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0), linked: false })
+                    .unwrap(),
+            ),
         );
         let settings = self.watch(Watchable::Jig(c::Subject::Settings));
         self.up(Up::Watched {
