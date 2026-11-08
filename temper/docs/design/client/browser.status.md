@@ -2,11 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.5, *The project's frame* and *A selector a browser accepts*:
-  on a phone, Ask temper's page while To begin shows leaves its three tabs no
-  room: the rule that keeps it nests `:has()` inside `:has()`, which Chromium
-  refuses, so the composer's foot and the model picker lie under the tabs;
-  4.6, 11's phone row is not written (`look-round-21`, task `tab-room`).
 - **Not yet:** 7.2: `ask-first-run`, `ask-typing`, `ask-sending`,
   `ask-refused` and `night-ask` draw the first run's whole rail, Needs you,
   Chats, "+ New chat" and More ways to start work, and no tabs at 420: their
