@@ -2,6 +2,17 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 2.5, *The project's frame* and *A selector a browser accepts*:
+  on a phone, Ask temper's page while To begin shows leaves its three tabs no
+  room: the rule that keeps it nests `:has()` inside `:has()`, which Chromium
+  refuses, so the composer's foot and the model picker lie under the tabs;
+  4.6, 11's phone row is not written (`look-round-21`, task `tab-room`).
+- **Not yet:** 7.2: `ask-first-run`, `ask-typing`, `ask-sending`,
+  `ask-refused` and `night-ask` draw the first run's whole rail, Needs you,
+  Chats, "+ New chat" and More ways to start work, and no tabs at 420: their
+  world delivers no unfinished To begin (`look-round-21`, task
+  `ask-begin-states`).
+
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day
@@ -10,7 +21,7 @@ root overrides them. Embedded images and the independent terminal
 palettes retain the literals permitted by the token task. No known
 implementation gap remains in these rules. Shadows keep their day
 colour tokens at night; the night ring tokens retain their own values.
-Ask temper keeps its three equal phone tabs with the composer above,
+Ask temper keeps its three equal phone tabs,
 and the switch stays at the folded rail's foot or a phone chat bar's
 right, with the folded rail open or closed. The `home-begin-*` states
 cover two steps and the cut navigation; `home-begin-with-needs` and
