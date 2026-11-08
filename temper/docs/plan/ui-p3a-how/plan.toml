@@ -49,3 +49,16 @@ id = 3
 story = "How work runs names the way the project runs, offers Ask temper, and draws each way's path in lanes, You, Agents and Code, its stops opening their cards"
 parts = ["page"]
 walk = false
+
+[[part]]
+id = "checks"
+title = "How work runs checked: section 12's rules fuzzed, the joint world's path over CI and tiers and over neither, the gallery's six states"
+mode = "direct"
+needs = ["parts", "page"]
+design = "temper/docs/design/client/browser.md, 7.2"
+
+[[slice]]
+id = 4
+story = "The fuzz test holds How work runs' parts and lanes to section 12's rules over random settings and their moves; the joint world reads each way's lanes over a project with CI and tiers and over one with neither; the gallery prints how to night-how"
+parts = ["checks"]
+walk = false
