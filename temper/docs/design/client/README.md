@@ -4020,7 +4020,13 @@ the person to check existence and grant the repository to the App.
   forge's words (at most 256 bytes); and its
   offer, the forge domain's (`../domain/forge.md`, 4.1): offered, not
   under the box, or not offered, which is what "Set up a Forgejo here", "Set up again"
-  and the words without the box follow (`forge.md`, 5.4). The read of the forges, the
+  and the words without the box follow (`forge.md`, 5.4). Beside the rows,
+  `linked`, whether the printed link has signed a person in since the
+  engine started (jig's `protocol/client.md`, section 8, `LinkSignedIn`):
+  the clients' component's memory alone, as `app` is the forge domain's, so
+  false after a restart; the engine delivers the document again when it
+  turns true. A TUI in front of a box reads it for its welcome's "Signed in
+  as the owner" (6.17). The read of the forges, the
   tools' `forge list` (`tools.md`, 5.5, area 6), is the watch's first
   document. Text prints `host: HOST`, and JSON carries `host` unchanged
   for a charter document's `forge` (`../protocol/configuration.md`, 13.7).

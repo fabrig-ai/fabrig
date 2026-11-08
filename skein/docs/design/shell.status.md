@@ -14,6 +14,8 @@ hangup ignored at startup, or `Kept::on_abort` restoring the terminal
 before a panic's report. The macOS build and runtime gaps in section 9
 below remain; the Linux tests do not prove the Darwin arms.
 
+- **Not yet:** 6.3: *The terminal's foreground*, `open_terminal` and
+  `take_foreground` (`skein-foreground`, `tui-box-front`).
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
   startup. 6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
