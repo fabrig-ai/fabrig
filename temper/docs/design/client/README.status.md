@@ -56,7 +56,8 @@ host seam, pasted-link sign-in, launchpad, commands, chats, themes,
 closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
 renewal and suppression after a noted sign-out. The expiry is noted once
 the link is live with a party. The base uses the terminal's default colours,
-focus uses the accent, and the run chooses its scheme from COLORFGBG,
+focus uses the accent, active command names are plain while inactive names
+and question choices stay bold, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
 present. The simulated run checks a runtime link outside fresh TUI state

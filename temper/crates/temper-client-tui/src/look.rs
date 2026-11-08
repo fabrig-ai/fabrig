@@ -35,6 +35,8 @@ pub const LIST_HEAD: Style = Style { owner: OWNER, token: 21 };
 pub const OPTION: Style = Style { owner: OWNER, token: 22 };
 pub const NOTE: Style = Style { owner: OWNER, token: 23 };
 pub const SPACED: Style = Style { owner: OWNER, token: 24 };
+/// Command names use plain weight while active, with descriptions kept in their own paint.
+pub const COMMAND: Style = Style { owner: OWNER, token: 25 };
 pub const NAMES: Names<'static> = Names {
     owner: OWNER,
     prefix: b"tui",
@@ -64,6 +66,7 @@ pub const NAMES: Names<'static> = Names {
         b"tui-option",
         b"tui-note",
         b"tui-spaced",
+        b"tui-command",
     ],
     regions: &[b"tui-top", b"tui-bottom", b"tui-chat-top", b"tui-sections", b"tui-working", b"tui-box", b"tui-list"],
 };
