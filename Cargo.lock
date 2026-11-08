@@ -4933,6 +4933,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-shell",
+]
+
+[[package]]
 name = "temper-client-browser-world"
 version = "0.0.0"
 dependencies = [
