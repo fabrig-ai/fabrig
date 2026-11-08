@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-07. Remaining gaps between temper's code and [tools.md](tools.md).
+2026-11-08. Remaining gaps between temper's code and [tools.md](tools.md).
 
 Section 5.3 has no known implementation gap in settings files, the form,
 apply and show carrying ordered charter parts and a template's later
@@ -132,3 +132,7 @@ unknown-proposal explanation; the generated help states the same limit.
   `person_call` (`render/document.rs`) gives an answer alone its arguments. 12: an
   authority's entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
   not in the table.
+- **Not yet:** 5.5: *A refused account act says why and what next*: a
+  declaration refused *name taken* or *not offered*, and a retry refused
+  *not offered*, print the refusal's word alone (the request
+  `ui-account-again` of 2026-11-08).
