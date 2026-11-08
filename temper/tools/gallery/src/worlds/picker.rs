@@ -9,12 +9,12 @@ use temper_client_domain::{
 };
 
 pub(super) fn is_state(name: &str) -> bool {
-    name.starts_with("chat-model-") || name.starts_with("chat-started-model-") || name == "configure-model-open"
+    name.starts_with("chat-model-") || name.starts_with("chat-started-model-") || name == "ask-model-open"
 }
 pub(super) fn world(name: &str) -> Domain {
     let address = if name.starts_with("chat-started-") || name == "chat-model-fixed" {
         Address::Chat { task: 1 }
-    } else if name == "configure-model-open" {
+    } else if name == "ask-model-open" {
         Address::Ask { project: PROJECT }
     } else {
         Address::NewChat { draft: false }

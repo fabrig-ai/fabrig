@@ -438,7 +438,7 @@ Read temper by address, in your project: settings, revisions, proposals, temper'
 
 A read.
 
-- `address`: text; required. One line, as your instructions list addresses: settings charter 3, help, more TOKEN.
+- `address`: text; required. One line, as your instructions list addresses: settings charter 1, help, more TOKEN.
 
 ## document
 

@@ -24,13 +24,13 @@ struct Case {
     body: Option<&'static [u8]>,
     offered: bool,
     repository: bool,
-    configuring: bool,
+    asking: bool,
     linked: Option<u64>,
     chip: bool,
 }
 impl Case {
     const READY: Self =
-        Self { body: Some(BODY), offered: true, repository: true, configuring: false, linked: None, chip: true };
+        Self { body: Some(BODY), offered: true, repository: true, asking: false, linked: None, chip: true };
     #[expect(clippy::too_many_lines, reason = "the fixture answers the chat's watches and reads through public events")]
     fn root(&self) -> Domain {
         let mut limits = f::domain_limits();
@@ -52,13 +52,13 @@ impl Case {
             templates.push(goal).unwrap();
         }
         member.templates = templates;
-        if self.configuring {
+        if self.asking {
             let mut template = super::goals::template(5, b"Ask temper", false);
             template.executor = c::TemplateExecutor::Charter(1);
             member.templates.push(template).unwrap();
         }
         let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
-        if self.configuring {
+        if self.asking {
             task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
         }
         task.activity = 3;
@@ -301,10 +301,10 @@ fn start_goal_shows_when_it_may() {
     }
 }
 #[test]
-fn none_on_a_configuring_chat() {
+fn none_on_an_asking_chat() {
     for linked in [None, Some(MIDDLE)] {
-        let root = Case { configuring: true, linked, ..Case::READY }.root();
-        assert!(crate::pages::chat::configuring(&root));
+        let root = Case { asking: true, linked, ..Case::READY }.root();
+        assert!(crate::pages::chat::asking(&root));
         let view = f::browser_page_view(&root);
         assert!(find(view.tree(), Role::Button, START).is_none());
         assert!(find(view.tree(), Role::Link, LINK).is_none());

@@ -72,8 +72,8 @@ help. People read the site, which is outside temper's design.
 | `reference` | 32,768 bytes | a heading per row, its usage's words | generated (8.1 of the draft) |
 
 - **A way** is read by a person as well as an agent: the client draws
-  `how-temper-builds-temper` beside "Configure temper"
-  (`../client/README.md`, 3.5), and the configuring agent reads it
+  `how-temper-builds-temper` beside Ask temper's page
+  (`../client/README.md`, 3.5), and Ask temper reads it with `see help`
   (`../domain/agent.md`, 8.1). Its summary is the line under its title,
   of up to two sentences.
 - **A walk's step** holds its commands, then a paragraph that starts
@@ -194,7 +194,7 @@ to a suite's time beyond milliseconds.
 
 - **Translations.** Default: English only.
 - **The site.** The user's: whatever it renders of `docs/help/`.
-- **A page of a release's changes,** read by the configuring agent when
+- **A page of a release's changes,** read by Ask temper when
   a release's revision changed a default (`../draft/configuring.md`,
   3.2). Default: a page `releases`, newest first, joining the map with
   the first release.

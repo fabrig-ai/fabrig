@@ -1,5 +1,5 @@
-//! Scripted stock configuring chats through the root and jig's store
-//! (temper/docs/design/domain/testing.md, 6.4; temper/docs/design/domain/agent.md, 8.1).
+//! Scripted Ask temper and settings-family chats through the root and jig's store
+//! (temper/docs/design/domain/testing.md, 6.4; temper/docs/design/domain/agent.md, 8.4).
 mod asking_forge;
 mod asking_proposal;
 mod fixture;
@@ -130,7 +130,7 @@ fn approval_items(
 ) -> serde_json::Value {
     use serde_json::json;
     let setting = json!({"kind":"landing-rule","number":1});
-    let (text, _) = read_whole(&mut world.driver, run, completion, json!({"setting":setting}));
+    let (text, _) = see_whole(&mut world.driver, run, completion, "settings landing-rule 1");
     let (_, text) = text.split_once('\n').expect("landing rule heading");
     let mut landing = serde_json::Deserializer::from_str(text)
         .into_iter::<serde_json::Value>()
@@ -141,33 +141,27 @@ fn approval_items(
     json!([{"setting":setting,"set":landing}])
 }
 
-fn refuse_owner_approval(world: &mut World, run: &engine::Assignment, proposal: u64, key: u8, counts: (u32, u32)) {
-    let before = world.head().number;
-    world.ask(
-        world.owner,
-        key,
-        people::Ask::DecideProposal {
-            project: people::DEPLOYMENT,
-            proposer: people::Proposer::Task(run.task),
-            proposal,
-            decision: people::ProposalDecision::Accept,
-            running: Some(people::Running::Stays),
-        },
-    );
-    let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(key) else {
-        panic!("unsatisfiable approval refused: {:?}", world.reply(key))
-    };
-    let why = std::str::from_utf8(why).expect("refusal UTF-8");
+fn refuse_owner_approval(
+    world: &mut World,
+    run: &engine::Assignment,
+    completion: u32,
+    against: u32,
+    items: &serde_json::Value,
+    counts: (u32, u32),
+) {
+    let before = world.settings_rows();
+    let (text, error) = parts_call(world, run, completion, against, items, false);
+    assert!(error, "{text}");
     let (required, eligible) = counts;
-    assert!(why.contains(&format!(
+    assert!(text.starts_with("propose_settings: not proposed, as acceptance would refuse it: "), "{text}");
+    assert!(text.contains(&format!(
         "project 1 role 0 on forge forge.example:3847 requires {required} distinct known forge people; currently {eligible} eligible"
-    )), "{why}");
-    assert_eq!(world.head().number, before, "refused acceptance changes nothing");
+    )), "{text}");
+    assert_eq!(world.settings_rows(), before, "a refused proposal changes no settings");
 }
 
 fn approval_context(world: &mut World, run: &engine::Assignment, requester: &str) {
-    use serde_json::json;
-    let (inventory, _) = read_whole(&mut world.driver, run, 1, json!({}));
+    let (inventory, _) = see_whole(&mut world.driver, run, 1, "settings");
     assert_eq!(inventory.lines().find(|line| line.starts_with("  person 1 person:")), Some(requester), "{inventory}");
     assert!(
         inventory.contains(
@@ -175,53 +169,25 @@ fn approval_context(world: &mut World, run: &engine::Assignment, requester: &str
         ),
         "{inventory}"
     );
-    let policy = read_value(&mut world.driver, run, 10, json!({"setting":{"kind":"project-policy","project":PROJECT}}));
-    assert!(
-        policy["permissions"]
-            .as_array()
-            .expect("permission mapping")
-            .iter()
-            .any(|row| row == &json!({"connector":1,"permission":3,"role":1})),
-        "{policy}"
-    );
     approval_documentation(world, run);
     let words = std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions");
     for rule in [
-        "requester is the project party",
-        "configured owned-forge account is separate",
-        "Inventory account on repository's forge (as on a box)? Nothing to add",
-        "propose own role, owner (0)",
-        "existing verified project role",
-        "read the current project-policy permission mapping",
-        "admin seeds maintainer (1), never owner (0)",
-        "Never promise admin fixes a role-0 proposal",
-        "adopt again, reread inventory and propose afresh",
+        "propose their own role: owner (0)",
+        "Read the inventory first",
+        "needs nothing added",
+        "is not a person",
+        "the project, not the person, asks for the approval",
+        "current permission mapping",
+        "maintainer (1), never owner (0)",
+        "never promise that an admin",
+        "read the inventory again and propose afresh",
     ] {
         assert!(words.contains(rule), "missing stock rule: {rule}");
     }
 }
 
 fn approval_documentation(world: &mut World, run: &engine::Assignment) {
-    use serde_json::json;
-    let mut from = 0;
-    let mut documentation = String::new();
-    for completion in 20..30 {
-        let (body, error) = host_tool(
-            &mut world.driver,
-            run,
-            completion,
-            b"read_docs",
-            json!({"topic":"landing-rule","from":from}).to_string().as_bytes(),
-        );
-        assert!(!error);
-        let page = std::str::from_utf8(&body).expect("documentation UTF-8");
-        documentation.push_str(page);
-        if let Some((_, next)) = page.rsplit_once("next: ") {
-            from = next.trim().parse::<u32>().expect("documentation offset");
-        } else {
-            break;
-        }
-    }
+    let (documentation, _) = see_whole(&mut world.driver, run, 20, "help landing-rule");
     assert!(documentation.contains("Stock maps admin to maintainer (1)"), "{documentation}");
 }
 
@@ -249,7 +215,7 @@ fn a_box_person_known_by_the_forges_link_approves_with_nothing_added() {
             restart_box_with_second_owner(&mut world);
         }
         let run =
-            world.chat_words(CONFIGURING, world.owner, 20, b"Keep CI and agent review. Ask who else should approve.");
+            world.chat_words(ASK_TEMPLATE, world.owner, 20, b"Keep CI and agent review. Ask who else should approve.");
         world.ask(
             world.owner,
             21,
@@ -263,26 +229,25 @@ fn a_box_person_known_by_the_forges_link_approves_with_nothing_added() {
         heard_approval_turn(&mut world, &run, b"A person too, please: me for now.");
         approval_context(&mut world, &run, requester);
         let items = approval_items(&mut world, &run, 40, 0, 1);
-        let proposal = propose(&mut world.driver, &run, 41, 1, &items);
         if eligible == 1 {
+            let proposal = propose(&mut world.driver, &run, 41, 1, &items);
             world.decide(&run, proposal, 22, people::ProposalDecision::Accept, people::Running::Stays);
             assert_eq!(world.head().number, 2, "a linked owner needs nothing added on the forge");
             let items = approval_items(&mut world, &run, 50, 0, 2);
-            let proposal = propose(&mut world.driver, &run, 51, 2, &items);
-            refuse_owner_approval(&mut world, &run, proposal, 23, (2, 1));
+            refuse_owner_approval(&mut world, &run, 51, 2, &items, (2, 1));
         } else {
-            refuse_owner_approval(&mut world, &run, proposal, 22, (1, 0));
+            refuse_owner_approval(&mut world, &run, 41, 1, &items, (1, 0));
             world.ask(
                 world.owner,
                 23,
                 people::Ask::Say {
                     project: PROJECT,
                     task: run.task,
-                    words: b"Acceptance was refused: role 0 has 0 eligible people.".as_slice().into(),
+                    words: b"The proposal was refused: role 0 has 0 eligible people.".as_slice().into(),
                 },
             );
             if !second_owner {
-                adopted_approval(&mut world, &run, proposal);
+                adopted_approval(&mut world, &run);
             }
         }
     }
@@ -304,8 +269,7 @@ fn heard_approval_turn(world: &mut World, run: &engine::Assignment, expected: &[
     world.driver.settle();
 }
 
-fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) {
-    use serde_json::json;
+fn adopted_approval(world: &mut World, run: &engine::Assignment) {
     world.driver.forge.as_mut().expect("fake forge").grant(
         b"org/repo",
         2,
@@ -327,17 +291,11 @@ fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) 
         &run,
         b"Done: I am a collaborator on the forge with admin permission and adopted again.",
     );
-    let (inventory, _) = read_whole(&mut world.driver, &run, 50, json!({}));
+    let (inventory, _) = see_whole(&mut world.driver, &run, 50, "settings");
     assert!(inventory.contains("person 1 person: role 0, requester, forge identity unknown"), "{inventory}");
     assert!(inventory.contains("person 3: role 1, forge forge.example:3847 user 2"), "{inventory}");
-    refuse_owner_approval(world, &run, proposal, 25, (1, 0));
-    world.decide(
-        &run,
-        proposal,
-        26,
-        people::ProposalDecision::Reject { reason: b"Use the verified maintainer role.".as_slice().into() },
-        people::Running::Stays,
-    );
+    let items = approval_items(world, &run, 51, 0, 1);
+    refuse_owner_approval(world, &run, 52, 1, &items, (1, 0));
     let items = approval_items(world, &run, 60, 1, 1);
     let proposal = propose(&mut world.driver, &run, 61, 1, &items);
     world.decide(&run, proposal, 27, people::ProposalDecision::Accept, people::Running::Stays);
@@ -346,10 +304,9 @@ fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) 
 
 #[test]
 fn an_inventory_names_its_own_projects_people() {
-    use serde_json::json;
     let (mut world, _) = project_people_world(temper_engine_domain_forge::Mode::Owned, b"box-person");
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let (inventory, _) = see_whole(&mut world.driver, &run, 1, "settings");
     assert!(
         !inventory.contains(&format!("person {OTHER_PERSON}")),
         "another project's person stays private: {inventory}"
@@ -366,16 +323,11 @@ fn an_inventory_names_its_own_projects_people() {
     }
     let repository_end = inventory.find("project people:").expect("people heading");
     assert!(inventory[..repository_end].contains("project repositories:\n"));
-    for (completion, input) in [
-        (10, json!({"setting":{"kind":"charter","number":CHAT}})),
-        (11, json!({"revision":1})),
-        (12, json!({"history":{}})),
-    ] {
-        let (text, _) = read_whole(&mut world.driver, &run, completion, input);
+    for (completion, input) in [(10, "settings charter 1"), (11, "revision 1"), (12, "revisions")] {
+        let (text, _) = see_whole(&mut world.driver, &run, completion, input);
         assert!(!text.contains("project people:") && !text.contains("forge people:"), "{text}");
     }
-    let (body, error) =
-        host_tool(&mut world.driver, &run, 13, b"settings", br#"{"setting":{"kind":"charter","number":999}}"#);
+    let (body, error) = host_tool(&mut world.driver, &run, 13, b"see", br#"{"address":"settings charter 999"}"#);
     assert!(error);
     let text = std::str::from_utf8(&body).expect("not-read text");
     assert!(!text.contains("project people:") && !text.contains("forge people:"), "{text}");
@@ -564,11 +516,10 @@ fn claude_offer_world() -> World {
 
 #[test]
 fn an_inventory_names_the_payers_usable_claude_offer() {
-    use serde_json::json;
     let mut world = claude_offer_world();
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     remove_scripted_account(&mut world);
-    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    let (inventory, _) = see_whole(&mut world.driver, &run, 1, "settings");
     let (_, offer) = inventory.split_once("models you can offer:\n").expect("offer heading");
     assert_eq!(
         offer,
@@ -580,26 +531,20 @@ fn an_inventory_names_the_payers_usable_claude_offer() {
 
 #[test]
 fn an_inventory_says_when_no_account_can_run_a_model() {
-    use serde_json::json;
     let mut world = box_approval_world(false);
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     remove_scripted_account(&mut world);
-    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    let (inventory, _) = see_whole(&mut world.driver, &run, 1, "settings");
     assert!(inventory.ends_with("models you can offer: none; no account can run a model yet\n"), "{inventory}");
 }
 
 #[test]
 fn settings_and_revision_reads_carry_no_model_offer() {
-    use serde_json::json;
     let mut world = claude_offer_world();
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     remove_scripted_account(&mut world);
-    for (completion, input) in [
-        (1, json!({"setting":{"kind":"charter","number":CONFIGURING}})),
-        (100, json!({"revision":1})),
-        (110, json!({"history":{}})),
-    ] {
-        let (text, _) = read_whole(&mut world.driver, &run, completion, input);
+    for (completion, input) in [(1, "settings charter 11"), (100, "revision 1"), (110, "revisions")] {
+        let (text, _) = see_whole(&mut world.driver, &run, completion, input);
         assert!(
             !text.lines().any(|line| line.starts_with("models you can offer:")) && !text.contains("project people:"),
             "{text}"
@@ -611,22 +556,13 @@ fn settings_and_revision_reads_carry_no_model_offer() {
 }
 
 #[test]
-fn the_configuring_agent_speaks_from_the_inventory_offer() {
-    let mut world = box_approval_world(false);
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let instructions = std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions");
-    assert!(instructions.contains("Inventory: models you can offer: all that accounts can run now. Propose and mention only those, even where a charter names others; none, or asked for a model no account runs: say so; connect one in browser Settings, Accounts, one line."), "{instructions}");
-}
-
-#[test]
 fn a_members_chat_reads_the_same_people() {
-    use serde_json::json;
     let (mut world, _) = project_people_world(temper_engine_domain_forge::Mode::Owned, b"box-person");
-    let owner_run = world.chat(CONFIGURING, world.owner, 20);
-    let (owner, _) = read_whole(&mut world.driver, &owner_run, 1, json!({}));
+    let owner_run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let (owner, _) = see_whole(&mut world.driver, &owner_run, 1, "settings");
     let (mut world, member) = project_people_world(temper_engine_domain_forge::Mode::Owned, b"box-person");
-    let member_run = world.chat(CONFIGURING, member, 20);
-    let (member, _) = read_whole(&mut world.driver, &member_run, 1, json!({}));
+    let member_run = world.chat(ASK_TEMPLATE, member, 20);
+    let (member, _) = see_whole(&mut world.driver, &member_run, 1, "settings");
     let (_, owner) = owner.split_once("project people:\n").expect("owner's people block");
     let (_, member) = member.split_once("project people:\n").expect("member's people block");
     assert!(owner.contains("person 1 person: role 0, requester, forge forge.example:3847 user 7"), "{owner}");
@@ -644,20 +580,20 @@ fn a_forge_person_requires_owned_mode_and_a_login() {
         (Mode::Owned, b""),
     ] {
         let (mut world, _) = project_people_world(mode, login);
-        let run = world.chat(CONFIGURING, world.owner, 20);
-        let (inventory, _) = read_whole(&mut world.driver, &run, 1, serde_json::json!({}));
+        let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+        let (inventory, _) = see_whole(&mut world.driver, &run, 1, "settings");
         assert!(!inventory.contains("forge people:"), "{mode:?}: {inventory}");
     }
 }
 
 #[test]
-fn a_configuring_chat_discovers_the_forge_host_for_charter_documents() {
+fn an_asking_chat_discovers_the_forge_host_for_charter_documents() {
     use serde_json::json;
     let mut world = repository_projects();
     configuring_repository_text(&mut world, &["rules\n".into(), "words\n".into()]);
     adopt_repository(&mut world, 2, b"other", 28);
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let (inventory, _) = see_whole(&mut world.driver, &run, 1, "settings");
     let row = inventory
         .lines()
         .find_map(|line| line.strip_prefix("  forge "))
@@ -666,7 +602,7 @@ fn a_configuring_chat_discovers_the_forge_host_for_charter_documents() {
     assert_eq!(host, "forge.example:3847", "the canonical host keeps its port");
     assert_eq!(repository, "org/repo");
     assert!(!inventory.contains("org/other"), "another project's repository stays private");
-    let mut value = read_charter(&mut world.driver, &run, 10, CHAT);
+    let mut value = see_charter(&mut world.driver, &run, 10, CHAT);
     value["documents"] = json!([{
         "forge":host,"repository":repository,"branch":"main","path":"docs/direction.md"
     }]);
@@ -691,22 +627,22 @@ fn a_configuring_chat_discovers_the_forge_host_for_charter_documents() {
 }
 
 #[test]
-fn an_owners_configuring_chat_proposes_and_hears_it_accepted() {
+fn an_owners_asking_chat_proposes_and_hears_it_accepted() {
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    assert_eq!(run.charter, CONFIGURING);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    assert_eq!(run.charter, ASK_CHARTER);
     assert_eq!(
         run.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../crates/temper-service/src/stock/configuring.txt")
+        include_bytes!("../../../../../crates/temper-service/src/stock/ask.txt")
     );
     let offered = temper_engine_smith::charter(&run);
-    for name in [b"settings".as_slice(), b"propose_settings"] {
+    for name in [b"see".as_slice(), b"document", b"propose_settings"] {
         assert!(offered.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name));
     }
-    let (inventory, error) = host_tool(&mut world.driver, &run, 1, b"settings", br"{}");
+    let (inventory, error) = host_tool(&mut world.driver, &run, 1, b"see", br#"{"address":"settings"}"#);
     assert!(!error);
     assert!(inventory.starts_with(b"newest revision 1\n"));
-    let value = read_charter(&mut world.driver, &run, 2, CHAT);
+    let value = see_charter(&mut world.driver, &run, 2, CHAT);
     let items = charter_item(value, b"Push early and report the result.");
     let proposal = propose(&mut world.driver, &run, 3, 1, &items);
     let review = world.review(&run, proposal);
@@ -733,8 +669,8 @@ fn a_proposal_selects_the_template_it_installs() {
     use serde_json::json;
     for reverse in [false, true] {
         let mut world = World::stock();
-        let run = world.chat(CONFIGURING, world.owner, 20);
-        let mut value = read_value(&mut world.driver, &run, 1, json!({"setting":{"kind":"template","number":3}}));
+        let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+        let mut value = see_value(&mut world.driver, &run, 1, "settings template 5");
         value["number"] = json!(4);
         value["tracked"] = json!(1);
         let ways = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":4});
@@ -752,18 +688,15 @@ fn a_proposal_selects_the_template_it_installs() {
         };
         assert_eq!(settings.items.len(), 2);
         assert_eq!(world.head().number, 1, "proposing publishes neither item");
-        let (_, error) =
-            host_tool(&mut world.driver, &run, 12, b"settings", br#"{"setting":{"kind":"template","number":4}}"#);
+        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 4"}"#);
         assert!(error, "the proposed template is not published");
-        let (text, _) =
-            read_whole(&mut world.driver, &run, 13, json!({"setting":{"kind":"project-ways","project":PROJECT}}));
+        let (text, _) = see_whole(&mut world.driver, &run, 13, "settings project-ways");
         assert!(text.contains("\"way\":0"), "proposing keeps the stock way: {text}");
         world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
         assert_eq!(world.head().number, 2, "one acceptance makes one revision");
-        let installed = read_value(&mut world.driver, &run, 30, json!({"setting":{"kind":"template","number":4}}));
+        let installed = see_value(&mut world.driver, &run, 30, "settings template 4");
         assert_eq!(installed, value);
-        let (text, _) =
-            read_whole(&mut world.driver, &run, 40, json!({"setting":{"kind":"project-ways","project":PROJECT}}));
+        let (text, _) = see_whole(&mut world.driver, &run, 40, "settings project-ways");
         let body = text.lines().nth(1).expect("ways value");
         assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("ways JSON"), ways);
         assert!(!world.settings_rows().iter().any(|row| matches!(row, s::Record::Proposal { .. })), "proposal ends");
@@ -782,24 +715,38 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         .templates
         .into_vec()
         .into_iter()
-        .find(|value| value.number == 3)
-        .expect("configuring template");
+        .find(|value| value.number == ASK_TEMPLATE)
+        .expect("asking template");
     let added = s::Item {
         setting: s::Setting::Template(4),
         edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 4, ..template }))),
     };
     for (name, item, way, accepted) in [
         ("zero", added.clone(), 0, true),
-        ("current", added.clone(), 3, true),
+        ("current", added.clone(), ASK_TEMPLATE, true),
         ("installed", added.clone(), 4, true),
         ("absent", added, 6, false),
-        ("removed", s::Item { setting: s::Setting::Template(3), edit: s::Edit::Removed }, 3, false),
+        (
+            "removed",
+            s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Removed },
+            ASK_TEMPLATE,
+            false,
+        ),
         ("reset addition", s::Item { setting: s::Setting::Template(4), edit: s::Edit::Reset }, 4, false),
-        ("reset default", s::Item { setting: s::Setting::Template(3), edit: s::Edit::Reset }, 3, true),
+        (
+            "reset default",
+            s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Reset },
+            ASK_TEMPLATE,
+            true,
+        ),
     ] {
         let mut world = World::stock();
         if name == "reset default" {
-            world.change(1, 21, Box::new([s::Item { setting: s::Setting::Template(3), edit: s::Edit::Removed }]));
+            world.change(
+                1,
+                21,
+                Box::new([s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Removed }]),
+            );
         }
         let before = world.settings_rows();
         let against = world.head().number;
@@ -832,24 +779,14 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
 
 #[test]
 fn a_project_with_no_ways_reads_at_their_stock() {
-    use serde_json::json;
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     for (completion, kind, value) in [
         (1, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
         (2, "project-questions", r#""none""#),
     ] {
-        let input = json!({"setting":{"kind":kind,"project":PROJECT}});
-        let (body, error) = host_tool(&mut world.driver, &run, completion, b"settings", input.to_string().as_bytes());
-        let text = std::str::from_utf8(&body).expect("settings UTF-8");
-        assert!(!error, "{text}");
-        let expected = format!("{kind} {PROJECT}, revision 1\n{value}\nthe stock\nend\n");
-        assert_eq!(text, expected);
-        let input = json!({"setting":{"kind":kind,"project":PROJECT},"revision":1});
-        let (body, error) =
-            host_tool(&mut world.driver, &run, completion + 2, b"settings", input.to_string().as_bytes());
-        assert!(!error);
-        assert_eq!(body.as_ref(), expected.as_bytes(), "the named newest revision also takes the stock");
+        let (text, _) = see_whole(&mut world.driver, &run, completion, &format!("settings {kind}"));
+        assert_eq!(text, format!("{kind} {PROJECT}, revision 1\n{value}\nthe stock\n"));
     }
 }
 
@@ -857,14 +794,14 @@ fn a_project_with_no_ways_reads_at_their_stock() {
 fn a_projects_stored_ways_read_as_stored() {
     use serde_json::json;
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     let setting = json!({"kind":"project-ways","project":PROJECT});
     let value = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":1});
     let items = json!([{"setting":setting,"set":value}]);
     let proposal = propose(&mut world.driver, &run, 1, 1, &items);
     world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
     assert_eq!(world.head().number, 2);
-    let (text, _) = read_whole(&mut world.driver, &run, 2, json!({"setting":setting}));
+    let (text, _) = see_whole(&mut world.driver, &run, 2, "settings project-ways");
     let body = text.strip_prefix("project-ways 1, revision 2\n").expect("newest setting heading");
     let (body, state) = body.split_once('\n').expect("value and application state");
     assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("ways JSON"), value);
@@ -875,23 +812,38 @@ fn a_projects_stored_ways_read_as_stored() {
 #[test]
 fn a_read_that_finds_nothing_says_it_was_not_read() {
     use serde_json::json;
-    let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let mut world = World::new(settings_config());
+    let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
+    let asking = world.chat(ASK_TEMPLATE, world.owner, 22);
     world.change(1, 21, Box::new([owner_charter(b"Keep commits small.")]));
-    for (completion, input) in [
-        (1, json!({"setting":{"kind":"project-ways","project":999}})),
-        (2, json!({"setting":{"kind":"project-questions","project":999}})),
-        (3, json!({"setting":{"kind":"charter","number":REMOVED}})),
-        (4, json!({"setting":{"kind":"project-ways","project":PROJECT},"revision":1})),
-        (5, json!({"setting":{"kind":"project-questions","project":PROJECT},"revision":1})),
+    let settings_refusal = "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n";
+    let see_refusal = "see settings charter 999: not read: no such setting. This says nothing about the settings: see settings lists them.";
+    for (run, completion, tool, input, expected) in [
+        (&run, 1, b"settings".as_slice(), json!({"setting":{"kind":"project-ways","project":999}}), settings_refusal),
+        (&run, 2, b"settings", json!({"setting":{"kind":"project-questions","project":999}}), settings_refusal),
+        (&run, 3, b"settings", json!({"setting":{"kind":"charter","number":REMOVED}}), settings_refusal),
+        (
+            &run,
+            4,
+            b"settings",
+            json!({"setting":{"kind":"project-ways","project":PROJECT},"revision":1}),
+            settings_refusal,
+        ),
+        (
+            &run,
+            5,
+            b"settings",
+            json!({"setting":{"kind":"project-questions","project":PROJECT},"revision":1}),
+            settings_refusal,
+        ),
+        (&asking, 1, b"see", json!({"address":"settings charter 999"}), see_refusal),
     ] {
-        let (body, error) = host_tool(&mut world.driver, &run, completion, b"settings", input.to_string().as_bytes());
-        let text = std::str::from_utf8(&body).expect("settings UTF-8");
+        let before = world.driver.store.applied;
+        let (body, error) = host_tool(&mut world.driver, run, completion, tool, input.to_string().as_bytes());
+        let text = std::str::from_utf8(&body).expect("read refusal UTF-8");
         assert!(error, "{input}: {text}");
-        assert_eq!(
-            text,
-            "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n"
-        );
+        assert_eq!(text, expected);
+        assert_eq!(world.driver.store.applied, before, "a not-read answer commits nothing");
     }
 }
 
@@ -899,8 +851,8 @@ fn a_read_that_finds_nothing_says_it_was_not_read() {
 fn a_members_proposal_waits_for_an_owner() {
     let mut world = World::new(member_config());
     let member = world.member();
-    let run = world.chat(CONFIGURING, member, 20);
-    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(ASK_TEMPLATE, member, 20);
+    let value = see_charter(&mut world.driver, &run, 1, CHAT);
     let items = charter_item(value, b"Push early and report the result.");
     let proposal = propose(&mut world.driver, &run, 2, 1, &items);
     assert_eq!(world.head().number, 1);
@@ -959,17 +911,17 @@ fn a_members_proposal_waits_for_an_owner() {
 #[test]
 fn a_stale_proposal_is_withdrawn_read_again_and_proposed_afresh() {
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let value = see_charter(&mut world.driver, &run, 1, CHAT);
     let items = charter_item(value, b"Push early.");
     let stale = propose(&mut world.driver, &run, 2, 1, &items);
     world.change(1, 21, Box::new([owner_charter(b"Keep commits small.")]));
     let next = world.next(&run);
     assert_heard(&next, b"withdrawn as stale: the newest is 2");
-    let (inventory, error) = host_tool(&mut world.driver, &next, 1, b"settings", br"{}");
+    let (inventory, error) = host_tool(&mut world.driver, &next, 1, b"see", br#"{"address":"settings"}"#);
     assert!(!error);
     assert!(inventory.starts_with(b"newest revision 2\n"));
-    let value = read_charter(&mut world.driver, &next, 2, CHAT);
+    let value = see_charter(&mut world.driver, &next, 2, CHAT);
     assert_eq!(value["instructions"], "Keep commits small.");
     let items = charter_item(value, b"Keep commits small. Push early.");
     let fresh = propose(&mut world.driver, &next, 3, 2, &items);
@@ -982,8 +934,8 @@ fn a_stale_proposal_is_withdrawn_read_again_and_proposed_afresh() {
 #[test]
 fn a_rejected_proposal_is_revised() {
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let value = see_charter(&mut world.driver, &run, 1, CHAT);
     let items = charter_item(value, b"Push every edit.");
     let first = propose(&mut world.driver, &run, 2, 1, &items);
     world.decide(
@@ -996,7 +948,7 @@ fn a_rejected_proposal_is_revised() {
     assert_eq!(world.head().number, 1, "rejecting changes no settings");
     let next = world.next(&run);
     assert_heard(&next, b"rejected: Push each complete change instead.");
-    let value = read_charter(&mut world.driver, &next, 1, CHAT);
+    let value = see_charter(&mut world.driver, &next, 1, CHAT);
     let items = charter_item(value, b"Push each complete change.");
     let revised = propose(&mut world.driver, &next, 2, 1, &items);
     assert_ne!(first, revised);
@@ -1019,13 +971,12 @@ fn an_accepted_proposal_moves_running_work() {
     let removed = world.chat(REMOVED, world.owner, 21);
     world.park(&chat);
     world.park(&removed);
-    let run = world.chat(CONFIGURING, world.owner, 22);
-    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 22);
+    let value = see_charter(&mut world.driver, &run, 1, CHAT);
     let mut items = charter_item(value, b"Push each complete change.");
-    let mut rules = read_value(&mut world.driver, &run, 10, serde_json::json!({"setting":{"kind":"rules"}}));
+    let mut rules = see_value(&mut world.driver, &run, 10, "settings rules");
     omit_removable(&mut rules["ceiling"]);
-    let mut policy =
-        read_value(&mut world.driver, &run, 30, serde_json::json!({"setting":{"kind":"policy","number":1}}));
+    let mut policy = see_value(&mut world.driver, &run, 30, "settings policy 1");
     omit_removable(&mut policy["ceiling"]);
     for role in policy["roles"].as_array_mut().expect("policy roles") {
         omit_removable(&mut role["authority"]);
@@ -1064,48 +1015,30 @@ fn an_accepted_proposal_moves_running_work() {
 }
 
 #[test]
-fn the_configuring_agent_reads_each_kind() {
-    use serde_json::json;
+fn the_asking_chat_reads_each_kind() {
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let held = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
     let before = world.driver.store.rows.clone();
     let mut completion = 10;
     for (input, heading, content) in [
-        (json!({}), "newest revision 2\n", "held revisions:\n  revision 1,"),
-        (
-            json!({"setting":{"kind":"charter","number":CHAT}}),
-            "charter 1, revision 2\n",
-            "The newest chat instructions.",
-        ),
-        (json!({"setting":{"kind":"template","number":1}}), "template 1, revision 2\n", "\"bytes\":\"chat\""),
-        (json!({"setting":{"kind":"policy","number":1}}), "policy 1, revision 2\n", "\"roles\":"),
-        (json!({"setting":{"kind":"rules"}}), "rules, revision 2\n", "\"ceiling\":"),
-        (json!({"setting":{"kind":"landing-rule","number":1}}), "landing-rule 1, revision 2\n", "\"enforce\":true"),
-        (json!({"setting":{"kind":"forge-charter","number":1}}), "forge-charter 1, revision 2\n", "default, "),
-        (json!({"revision":2}), "revision 2, against revision 1,", "The newest chat instructions."),
-        (json!({"history":{}}), "revision 2, against revision 1,", "revision 1, against revision 0,"),
+        ("settings", "newest revision 2\n", "held revisions:\n  revision 1,"),
+        ("settings charter 1", "charter 1, revision 2\n", "The newest chat instructions."),
+        ("settings template 1", "template 1, revision 2\n", "\"bytes\":\"chat\""),
+        ("settings policy 1", "policy 1, revision 2\n", "\"roles\":"),
+        ("settings rules", "rules, revision 2\n", "\"ceiling\":"),
+        ("settings landing-rule 1", "landing-rule 1, revision 2\n", "\"enforce\":true"),
+        ("settings forge-charter 1", "forge-charter 1, revision 2\n", "default, "),
+        ("revision 2", "revision 2, against revision 1,", "The newest chat instructions."),
+        ("revisions", "revision 2, against revision 1,", "revision 1, against revision 0,"),
     ] {
-        let (text, pages) = read_whole(&mut world.driver, &run, completion, input);
+        let (text, pages) = see_whole(&mut world.driver, &run, completion, input);
         assert!(text.starts_with(heading), "{text}");
         assert!(text.contains(content), "{text}");
         completion += pages;
     }
-    let older = read_value(
-        &mut world.driver,
-        &run,
-        completion,
-        json!({"setting":{"kind":"charter","number":CHAT},"revision":1}),
-    );
-    assert_eq!(older, held, "a live run holds its older charter revision");
-    let (text, pages) = read_whole(
-        &mut world.driver,
-        &run,
-        completion + 10,
-        json!({"setting":{"kind":"charter","number":CONFIGURING}}),
-    );
-    assert_eq!(pages, 1, "the host allowance holds the stock configuring instructions");
+    let (text, pages) = see_whole(&mut world.driver, &run, completion + 10, "settings charter 11");
+    assert!(pages > 1, "Ask temper instructions are reassembled within see's part bound");
     let (_, value) = text.split_once('\n').expect("charter heading");
     let value: serde_json::Value = serde_json::from_str(value).expect("reassembled charter JSON");
     assert_eq!(value["instructions"], std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions"));
@@ -1119,10 +1052,10 @@ fn the_configuring_agent_reads_each_kind() {
 )]
 fn an_asking_chat_reads_each_address() {
     use serde_json::json;
-    let mut world = World::stock();
+    let mut world = World::new(settings_config());
     world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
-    let run = world.chat(5, world.owner, 20);
-    assert_eq!(run.charter, 11);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    assert_eq!(run.charter, ASK_CHARTER);
     assert!(std::str::from_utf8(&run.run.policy.instructions).unwrap().contains(temper_engine_smith::ADDRESSES));
     let before = world.driver.store.rows.clone();
     let mut completion = 1;
@@ -1210,8 +1143,8 @@ fn an_asking_chat_reads_each_address() {
     assert!(whole.len() > 7000);
     let (_, value) = whole.split_once('\n').unwrap();
     let actual: serde_json::Value = serde_json::from_str(value.trim()).unwrap();
-    let configuring = world.chat(CONFIGURING, world.owner, 22);
-    let expected = read_value(&mut world.driver, &configuring, 1, json!({"setting":{"kind":"policy","number":1}}));
+    let settings = world.chat(SETTINGS_TEMPLATE, world.owner, 22);
+    let expected = settings_value(&mut world.driver, &settings, 1, json!({"setting":{"kind":"policy","number":1}}));
     assert_eq!(actual, expected);
     let mut ask = world.driver.chat_ask(PROJECT, b"Read without settings authority");
     let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat") };
@@ -1220,7 +1153,7 @@ fn an_asking_chat_reads_each_address() {
     batch[0].budget = people::Budget::AsAllowed { cap: Some(128) };
     world.ask(world.owner, 23, ask);
     let run = world.driver.last_assignment();
-    assert_eq!(run.charter, 11);
+    assert_eq!(run.charter, ASK_CHARTER);
     let (body, error) = host_tool(&mut world.driver, &run, 1, b"see", br#"{"address":"settings"}"#);
     assert!(error);
     assert!(body.starts_with(b"see settings: "), "{}", String::from_utf8_lossy(&body));
@@ -1231,8 +1164,8 @@ fn an_asking_chat_reads_each_address() {
 fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
     use serde_json::json;
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let charter = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let charter = see_charter(&mut world.driver, &run, 1, CHAT);
     world.change(1, 21, Box::new([owner_charter(b"The owner's instructions.")]));
     let before = world.settings_rows();
     let valid = charter_item(charter.clone(), b"A proposed change.");
@@ -1299,15 +1232,46 @@ fn a_chat_is_offered_no_settings_tools() {
 #[test]
 fn settings_and_named_documents_use_the_host_answer_allowance() {
     use serde_json::json;
-    let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let mut world = World::new(settings_config());
+    let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
     let (inventory, error) = host_tool(&mut world.driver, &run, 1, b"settings", br"{}");
     assert!(!error);
     assert!(inventory.starts_with(b"newest revision 1\n"));
+    let policy =
+        settings_value(&mut world.driver, &run, 100, json!({"setting":{"kind":"project-policy","project":PROJECT}}));
+    assert!(
+        policy["permissions"]
+            .as_array()
+            .expect("permission mapping")
+            .iter()
+            .any(|row| row == &json!({"connector":1,"permission":3,"role":1})),
+        "{policy}"
+    );
+    for (completion, kind, value) in [
+        (101, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (102, "project-questions", r#""none""#),
+    ] {
+        let (text, _) = settings_whole(
+            &mut world.driver,
+            &run,
+            completion,
+            json!({"setting":{"kind":kind,"project":PROJECT},"revision":1}),
+        );
+        assert_eq!(
+            text,
+            format!("{kind} {PROJECT}, revision 1\n{value}\nthe stock\n"),
+            "the named newest revision also takes the stock"
+        );
+    }
     let input = json!({"setting":{"kind":"policy","number":1}});
-    let (whole, pages) = read_whole(&mut world.driver, &run, 2, input.clone());
+    let (whole, pages) = settings_whole(&mut world.driver, &run, 2, input.clone());
     assert!(whole.len() > 7000, "stock policy exercises a long JSON value");
     assert_eq!(pages, 1, "the configured host allowance holds the whole stock policy");
+    let held = settings_charter(&mut world.driver, &run, 110, CHAT);
+    world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
+    let older =
+        settings_value(&mut world.driver, &run, 120, json!({"setting":{"kind":"charter","number":CHAT},"revision":1}));
+    assert_eq!(older, held, "a live run holds its older charter revision");
     let mut small = limits();
     small.call_answer_bytes = 2048;
     small.authority.segments = 8;
@@ -1315,13 +1279,13 @@ fn settings_and_named_documents_use_the_host_answer_allowance() {
     small.people.holdings = 4;
     small.forge.client.answer_bytes = 65_536;
     small.journal.transcript_bytes = 65_536;
-    let mut world = World::with_limits(config(), &small);
+    let mut world = World::with_limits(settings_config(), &small);
     configuring_repository(&mut world);
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
     let (first, error) = host_tool(&mut world.driver, &run, 9, b"settings", input.to_string().as_bytes());
     assert!(!error);
     assert!(first.len() > 1000, "a long value fills the page after its heading");
-    let (continued, pages) = read_whole(&mut world.driver, &run, 10, input);
+    let (continued, pages) = settings_whole(&mut world.driver, &run, 10, input);
     assert!(pages > 1);
     assert_eq!(continued, whole, "continuations reconstruct every original byte");
     configuring_documents(&mut world, &run);
@@ -1447,10 +1411,10 @@ fn adopt_repository(world: &mut World, project: u32, name: &[u8], key: u8) {
 }
 
 #[test]
-fn a_configuring_chat_proposes_large_settings_from_a_note() {
+fn a_settings_charter_proposes_large_settings_from_a_note() {
     use serde_json::json;
     let mut world = note_world();
-    let run = world.chat(CONFIGURING, world.owner, 20);
+    let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
     let settings = reference_settings(&mut world, &run);
     let body = settings.to_string();
     assert!(body.len() > 23_000, "reference-sized settings: {}", body.len());
@@ -1484,7 +1448,7 @@ fn a_configuring_chat_proposes_large_settings_from_a_note() {
 
 fn assert_submitted_settings(world: &mut World, run: &engine::Assignment, settings: &serde_json::Value) {
     use serde_json::json;
-    let (record, _) = read_whole(&mut world.driver, run, 200, json!({"revision":2}));
+    let (record, _) = settings_whole(&mut world.driver, run, 200, json!({"revision":2}));
     assert!(record.contains("charter"));
     let accepted = world
         .settings_rows()
@@ -1499,7 +1463,7 @@ fn assert_submitted_settings(world: &mut World, run: &engine::Assignment, settin
         .expect("accepted revision");
     assert_eq!(accepted.items.len() + accepted.applications.len(), settings["items"].as_array().expect("items").len());
     for (at, item) in settings["items"].as_array().expect("items").iter().enumerate() {
-        let (text, _) = read_whole(
+        let (text, _) = settings_whole(
             &mut world.driver,
             run,
             30_000 + u32::try_from(at).expect("item") * 100,
@@ -1524,7 +1488,7 @@ fn reference_settings(world: &mut World, run: &engine::Assignment) -> serde_json
     for (at, item) in reference["items"].as_array().expect("reference items").iter().enumerate() {
         if item["setting"]["kind"] == "charter" {
             let number = item["setting"]["number"].as_u64().expect("charter number");
-            let mut value = read_charter(&mut world.driver, run, 1 + u32::try_from(at).expect("item") * 3, 2);
+            let mut value = settings_charter(&mut world.driver, run, 1 + u32::try_from(at).expect("item") * 3, 2);
             value["number"] = json!(number);
             let mut instructions = vec![item["set"]["instructions"].as_str().expect("shared instructions")];
             if let Some(parts) = item["set"].get("parts") {
@@ -1543,7 +1507,7 @@ fn reference_settings(world: &mut World, run: &engine::Assignment) -> serde_json
             .into_iter()
             .enumerate()
     {
-        let mut value = read_value(
+        let mut value = settings_value(
             &mut world.driver,
             run,
             5000 + u32::try_from(at).expect("item") * 100,
@@ -1629,11 +1593,11 @@ fn note_world() -> World {
     bounds.loads.bytes = 131_072;
     bounds.loads.reply_bytes = 131_072;
     bounds.loads.transcript_bytes = 131_072;
-    bounds.tasks.charters = 11;
+    bounds.tasks.charters = 12; // The reference settings and the world's settings charter.
     bounds.authority.segments = 8;
     bounds.call_records = 64;
     bounds.forge.named_calls = 64;
-    World::with_limits(config(), &bounds)
+    World::with_limits(settings_config(), &bounds)
 }
 
 #[test]
@@ -1643,8 +1607,8 @@ fn settings_note_sources_refuse_moved_missing_private_and_malformed_values() {
         [("moved", "revision moved"), ("missing", "missing"), ("private", "inaccessible"), ("json", "invalid JSON")]
     {
         let mut world = note_world();
-        let run = world.chat(CONFIGURING, world.owner, 20);
-        let writer = if case == "private" { world.chat(CONFIGURING, world.owner, 21) } else { run.clone() };
+        let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
+        let writer = if case == "private" { world.chat(SETTINGS_TEMPLATE, world.owner, 21) } else { run.clone() };
         let (note, revision) = settings_note(&mut world, &writer, "{");
         let input = json!({"against":1,"reason":REASON,"note":{
             "name":if case == "missing" {note + 1} else {note},
@@ -1665,8 +1629,8 @@ fn settings_note_sources_refuse_moved_missing_private_and_malformed_values() {
 fn a_decided_note_proposal_replays_after_its_note_moves() {
     use serde_json::json;
     let mut world = note_world();
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
+    let value = settings_charter(&mut world.driver, &run, 1, CHAT);
     let settings = json!({"items":charter_item(value, b"Keep commits small.")}).to_string();
     let (note, revision) = settings_note(&mut world, &run, &settings);
     let input = json!({"against":1,"reason":REASON,"note":{"name":note,"revision":revision}});
@@ -1705,8 +1669,8 @@ fn a_chats_fresh_proposal_replaces_its_own_that_waits() {
     let mut bounds = limits();
     bounds.call_records = 4; // Read, two proposals and the refused withdrawal.
     let mut world = World::with_limits(config(), &bounds);
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let value = see_charter(&mut world.driver, &run, 1, CHAT);
     let items = charter_item(value.clone(), b"Push each complete change.");
     let first = propose(&mut world.driver, &run, 2, 1, &items);
     let head = world.head().clone();
@@ -1772,8 +1736,8 @@ fn a_chats_fresh_proposal_replaces_its_own_that_waits() {
 fn a_chats_refused_fresh_proposal_leaves_its_own_waiting() {
     use serde_json::json;
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let value = see_charter(&mut world.driver, &run, 1, CHAT);
     let items = charter_item(value, b"Push each complete change.");
     let first = propose(&mut world.driver, &run, 2, 1, &items);
     let review = world.review(&run, first);
@@ -1797,17 +1761,16 @@ fn says_no_empty_change(answer: &[u8]) {
 }
 
 #[test]
-fn no_answer_a_configuring_run_hears_says_nothing_changed() {
+fn no_answer_an_asking_run_hears_says_nothing_changed() {
     use serde_json::json;
     let mut world = World::stock();
-    let run = world.chat(CONFIGURING, world.owner, 20);
-    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let (inventory, _) = see_whole(&mut world.driver, &run, 1, "settings");
     says_no_empty_change(inventory.as_bytes());
-    let (charter, _) = read_whole(&mut world.driver, &run, 10, json!({"setting":{"kind":"charter","number":2}}));
+    let (charter, _) = see_whole(&mut world.driver, &run, 10, "settings charter 2");
     says_no_empty_change(charter.as_bytes());
-    let input = json!({"scope":{"kind":"goal","project":PROJECT,"goal":run.task},
-        "description":"How this project works","body":"Push each complete change."});
-    let (answer, error) = host_tool(&mut world.driver, &run, 20, b"note", input.to_string().as_bytes());
+    let input = json!({"action":"write","body":"# How this project works\n\nPush each complete change."});
+    let (answer, error) = host_tool(&mut world.driver, &run, 20, b"document", input.to_string().as_bytes());
     assert!(!error, "{}", String::from_utf8_lossy(&answer));
     says_no_empty_change(&answer);
     let (_, value) = charter.split_once('\n').expect("charter heading");
@@ -1852,10 +1815,12 @@ fn no_answer_a_configuring_run_hears_says_nothing_changed() {
 fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
     use serde_json::json;
     for from_note in [false, true] {
-        let mut configuration = config();
+        let mut configuration = if from_note { settings_config() } else { config() };
         configuration.core.defaults.models[0].number = 4;
         configuration.core.defaults.models[0].shown = Some(b"Scripted model".as_slice().into());
         let mut bounds = limits();
+        // A model edit retains one old version per charter, including the settings charter.
+        bounds.settings.versions += u32::from(from_note);
         bounds.notes.body_bytes = 65_536;
         bounds.journal.transcript_bytes = 131_072;
         bounds.loads.bytes = 131_072;
@@ -1867,7 +1832,7 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         bounds.forge.named_calls = 64;
         let mut world = World::with_limits(configuration, &bounds);
         let member = world.member();
-        let run = world.chat(CONFIGURING, member, 20);
+        let run = world.chat(if from_note { SETTINGS_TEMPLATE } else { ASK_TEMPLATE }, member, 20);
         let charter = temper_engine_smith::charter(&run);
         let tool = charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"propose_settings").unwrap();
         let schema: serde_json::Value = serde_json::from_slice(&tool.schema).unwrap();
@@ -1878,7 +1843,7 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
                 .contains(&json!("model"))
         );
         let selector = json!({"kind":"model","number":4});
-        let (text, _) = read_whole(&mut world.driver, &run, 1, json!({"setting":selector}));
+        let (text, _) = model_read(&mut world, &run, 1, None);
         assert!(text.starts_with("model 4, revision 1\n"), "{text}");
         let (_, body) = text.split_once('\n').unwrap();
         let before: serde_json::Value = serde_json::from_str(body.trim()).unwrap();
@@ -1907,17 +1872,17 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         assert_eq!(world.head().number, 1, "a proposal waits for acceptance");
         world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
         assert_eq!(world.head().number, 2, "one acceptance makes one revision");
-        let (text, _) = read_whole(&mut world.driver, &run, 200, json!({"setting":selector}));
+        let (text, _) = model_read(&mut world, &run, 200, None);
         let (_, body) = text.split_once('\n').unwrap();
         assert_eq!(serde_json::from_str::<serde_json::Value>(body.trim()).unwrap(), after);
-        let (history, _) = read_whole(&mut world.driver, &run, 300, json!({"revision":2}));
+        let (history, _) = model_read(&mut world, &run, 300, Some(2));
         assert!(history.contains("Careful model") && history.contains("was: default"), "{history}");
         let mut next = after.clone();
         next["shown"] = json!("Model for careful work");
         let proposal = propose(&mut world.driver, &run, 400, 2, &json!([{"setting":selector,"set":next}]));
         world.decide(&run, proposal, 22, people::ProposalDecision::Accept, people::Running::Stays);
         assert_eq!(world.head().number, 3);
-        let (history, _) = read_whole(&mut world.driver, &run, 500, json!({"revision":3}));
+        let (history, _) = model_read(&mut world, &run, 500, Some(3));
         assert!(history.contains("Careful model") && history.contains("Model for careful work"), "{history}");
         let revision = world
             .settings_rows()
@@ -1934,19 +1899,32 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
     }
 }
 
+fn model_read(world: &mut World, run: &engine::Assignment, completion: u32, revision: Option<u32>) -> (String, u32) {
+    if run.charter == SETTINGS_CHARTER {
+        let input = revision.map_or_else(
+            || serde_json::json!({"setting":{"kind":"model","number":4}}),
+            |number| serde_json::json!({"revision":number}),
+        );
+        settings_whole(&mut world.driver, run, completion, input)
+    } else {
+        let address = revision.map_or_else(|| "settings model 4".into(), |number| format!("revision {number}"));
+        see_whole(&mut world.driver, run, completion, &address)
+    }
+}
+
 #[test]
 fn an_asking_chat_names_a_repository_as_the_inventory_does() {
     use serde_json::json;
     let mut world = repository_projects();
     configuring_repository_text(&mut world, &["rules\n".into(), "words\n".into()]);
     adopt_repository(&mut world, 2, b"other", 28);
-    let run = world.chat(5, world.owner, 20);
-    let mut value = read_charter(&mut world.driver, &run, 10, CHAT);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let mut value = see_charter(&mut world.driver, &run, 10, CHAT);
     value["documents"] = json!([{"repository":"org/repo","branch":"main","path":"docs/direction.md"}]);
     let items = json!([{"setting":{"kind":"charter","number":CHAT},"set":value}]);
     let proposal = propose(&mut world.driver, &run, 20, 1, &items);
     world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
-    let value = read_charter(&mut world.driver, &run, 30, CHAT);
+    let value = see_charter(&mut world.driver, &run, 30, CHAT);
     assert_eq!(value["documents"][0]["forge"], "forge.example:3847");
     let mut value = value;
     value["documents"][0].as_object_mut().unwrap().remove("forge");
@@ -1968,11 +1946,12 @@ fn an_asking_chat_proposes_a_large_set_in_parts() {
     use serde_json::json;
     let mut bounds = limits();
     bounds.call_records = 8; // Eight proposing calls across two runs, including jig's refusal.
-    let mut world = World::with_limits(config(), &bounds);
-    let run = world.chat(5, world.owner, 20);
-    let changes: Vec<_> = (1..=3)
+    let mut world = World::with_limits(settings_config(), &bounds);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let changes: Vec<_> = [1, 2, 4]
+        .into_iter()
         .map(|number| {
-            let mut value = read_charter(&mut world.driver, &run, 100 * number, number);
+            let mut value = see_charter(&mut world.driver, &run, 100 * number, number);
             value["instructions"] = json!(format!("Changed charter {number}."));
             json!({"setting":{"kind":"charter","number":number},"set":value})
         })
@@ -2016,7 +1995,7 @@ fn an_asking_chat_proposes_a_large_set_in_parts() {
     let core::documents::ProposalAction::Settings { items, .. } = review.action else { panic!("settings review") };
     assert_eq!(
         items.iter().map(|item| item.setting).collect::<Vec<_>>(),
-        [s::Setting::Charter(1), s::Setting::Charter(2), s::Setting::Charter(3)]
+        [s::Setting::Charter(1), s::Setting::Charter(2), s::Setting::Charter(4)]
     );
     let proposal = propose(&mut world.driver, &run, 5, 1, &own);
     let core::documents::ProposalAction::Settings { items, .. } = world.review(&run, proposal).action else {
@@ -2037,16 +2016,16 @@ fn an_asking_chat_proposes_a_large_set_in_parts() {
     assert_eq!(parts_call(&mut world, &run, 21, 2, &second, true), ("propose_settings: holding 1 item for revision 2, 1 in all; the 1 held for revision 1 were dropped. Nothing is proposed until a call without more.".into(), false));
     assert_eq!(parts_call(&mut world, &run, 22, 1, &own, false), ("propose_settings: the 1 item held are for revision 2, and this call names 1; nothing was proposed, and they were dropped. Give the whole set again against 1.".into(), true));
     let proposal = propose(&mut world.driver, &run, 23, 2, &own);
-    assert_review_settings(&mut world, &run, proposal, &[s::Setting::Charter(3)]);
+    assert_review_settings(&mut world, &run, proposal, &[s::Setting::Charter(4)]);
     assert!(!parts_call(&mut world, &run, 24, 2, &first, true).1);
     let next = world.next(&run);
     let proposal = propose(&mut world.driver, &next, 1, 2, &own);
-    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(3)]);
+    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(4)]);
     assert!(!parts_call(&mut world, &next, 2, 2, &first, true).1);
     restart_settings_world(&mut world, &next);
     assert_eq!(parts_call(&mut world, &next, 3, 2, &own, false), ("propose_settings: temper restarted during this run, so parts it gave may be lost; nothing was proposed. Give the whole set again, in parts if it is large.".into(), true));
     let proposal = propose(&mut world.driver, &next, 4, 2, &own);
-    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(3)]);
+    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(4)]);
     restart_settings_world(&mut world, &next);
     assert_eq!(
         parts_call(&mut world, &next, 5, 2, &first, true),
@@ -2058,7 +2037,7 @@ fn an_asking_chat_proposes_a_large_set_in_parts() {
     );
     let proposal = propose(&mut world.driver, &next, 6, 2, &second);
     assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(1), s::Setting::Charter(2)]);
-    let other = world.chat(CONFIGURING, world.owner, 22);
+    let other = world.chat(SETTINGS_TEMPLATE, world.owner, 22);
     assert_eq!(
         parts_call(&mut world, &other, 1, 2, &first, true),
         (
@@ -2098,7 +2077,7 @@ fn an_asking_chat_proposes_a_large_set_in_parts() {
     let (_, error) = parts_call(&mut world, &next, 42, 2, &json!([]), false);
     assert!(error, "jig refuses this set and consumes the parts");
     let proposal = propose(&mut world.driver, &next, 43, 2, &own);
-    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(3)]);
+    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(4)]);
 }
 
 #[test]
@@ -2107,7 +2086,7 @@ fn an_asking_chat_is_refused_an_unsatisfiable_approval_at_the_call() {
     let mut world = box_approval_world(false);
     world.driver.send(Event::Forge(Box::new(forge::Event::PersonOf { forge: 1, answer: forge::PersonAnswer::Is(7) })));
     world.driver.settle();
-    let run = world.chat(5, world.owner, 20);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     let items = approval_items(&mut world, &run, 40, 0, 2);
     let input = serde_json::json!({"against":1,"reason":REASON,"items":items});
     let before = world.driver.store.rows.clone();
@@ -2128,7 +2107,7 @@ fn an_asking_chat_is_refused_an_unsatisfiable_approval_at_the_call() {
             false
         )
     );
-    let value = read_charter(&mut world.driver, &run, 100, CHAT);
+    let value = see_charter(&mut world.driver, &run, 100, CHAT);
     let own = charter_item(value, b"A call's own charter item.");
     assert_eq!(parts_call(&mut world, &run, 43, 1, &own, false), (refused, true), "held landing rules are judged too");
     assert_eq!(world.driver.store.rows, before);
@@ -2149,7 +2128,7 @@ fn an_asking_chat_is_refused_an_unsatisfiable_approval_at_the_call() {
         },
     );
     assert_eq!(world.reply(22), &people::Reply::Outcome(people::Outcome::RolesSet { project: 2 }));
-    let run = world.chat(5, world.owner, 20);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     let items = approval_items(&mut world, &run, 40, 2, 1);
     let proposal = propose(&mut world.driver, &run, 41, 1, &items);
     world.ask(
@@ -2175,7 +2154,7 @@ fn an_asking_chat_is_refused_an_unsatisfiable_approval_at_the_call() {
     );
 
     let (mut world, _) = project_people_world(forge::Mode::Fake, b"");
-    let run = world.chat(5, world.owner, 20);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     let items = approval_items(&mut world, &run, 40, 0, 1);
     assert_eq!(parts_call(&mut world, &run, 41, 1, &items, false), ("propose_settings: not proposed, as acceptance would refuse it: project 1: the playground's forge has no accounts, so no one can approve there. Name a branch pattern or a project that leaves its repository out, or remove the approval requirement.".into(), true));
 }

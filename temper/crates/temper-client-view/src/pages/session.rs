@@ -39,7 +39,7 @@ pub(crate) fn top(
     b.open(Role::Slot);
     b.style(look::SESSION_TOP);
     b.open(Role::Navigation);
-    b.name(&w.say(Word::ConfigureWhere, &[]));
+    b.name(&w.say(Word::AskWhere, &[]));
     b.style(look::CRUMBS);
     let address = match path {
         Path::Chats => Address::Chats { filter: temper_client_domain::ChatsFilter::All },
@@ -49,7 +49,7 @@ pub(crate) fn top(
     let label = w.say(
         match path {
             Path::Chats => Word::Chats,
-            Path::Ask => Word::ConfigureTitle,
+            Path::Ask => Word::AskTitle,
             Path::Home => Word::RailHome,
         },
         &[],

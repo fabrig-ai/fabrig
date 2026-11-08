@@ -3,8 +3,8 @@ mod specification;
 use super::{Request, delegation, goals, report, task};
 use crate::owner::Owner;
 use alloc::boxed::Box;
-use jig_client::{Handle, Readable, Readout, Told, contract as c};
-use skein_lib::{Queue, Wall, bytes};
+use jig_client::{Client, Handle, Readable, Readout, Told, contract as c};
+use skein_lib::{Queue, Time, Wall, bytes};
 
 /// A goal's direct delegates, cancelled ones left out.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -84,6 +84,17 @@ impl Goal {
         self.query = own_line_query(task);
         self.reconcile(out);
     }
+    pub(super) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
+        if let Some(specification) = &mut self.specification {
+            specification.fire(now, out);
+        }
+    }
+    pub(super) const fn next_deadline(&self) -> Option<Time> {
+        match &self.specification {
+            Some(specification) => specification.next_deadline(),
+            None => None,
+        }
+    }
     fn reconcile(&mut self, out: &mut Queue<Request>) {
         if self.reporting.is_none() && self.report_at != Some(self.activity) {
             self.reporting = Some(self.activity);
@@ -101,9 +112,9 @@ impl Goal {
         self.pages = self.pages.checked_add(1).expect("at most eight goal pages");
         read(self.line_handle, c::Read::Tasks { query: self.query, live, ended }, out);
     }
-    pub(super) fn told(&mut self, told: &Told, out: &mut Queue<Request>) -> bool {
+    pub(super) fn told(&mut self, now: Time, client: &Client, told: &Told, out: &mut Queue<Request>) -> bool {
         if let Some(specification) = &mut self.specification
-            && specification.told(told, self.number, &mut self.draft, out)
+            && specification.told(now, client, told, &mut self.draft, out)
         {
             return true;
         }

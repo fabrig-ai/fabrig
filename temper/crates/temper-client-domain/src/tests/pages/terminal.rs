@@ -104,7 +104,7 @@ fn the_look_moves_by_its_acts() {
         assert_eq!(root.pages().look(), look);
         assert!(out.is_empty(), "a restored look asks for nothing");
     }
-    for (command, words, configuring) in [
+    for (command, words, asking) in [
         (None, b"hello".as_slice(), false),
         (None, b"/m".as_slice(), false),
         (Some(Command::Model), b"".as_slice(), false),
@@ -112,7 +112,7 @@ fn the_look_moves_by_its_acts() {
         (Some(Command::Close), b"".as_slice(), false),
         (Some(Command::StartOver), b"".as_slice(), true),
     ] {
-        let (mut pages, fixture) = loaded_pages(false, configuring);
+        let (mut pages, fixture) = loaded_pages(false, asking);
         let env = fixtures::env(&limits);
         let mut out = Queue::uncapped();
         pages::step(
@@ -138,7 +138,7 @@ fn the_look_moves_by_its_acts() {
         let shown = crate::shown(&domain);
         crate::step(&mut domain, &env, crate::Event::ScreenLeft, &mut out);
         if crate::shown(&domain) <= shown {
-            stale_departures.push((command, words, configuring));
+            stale_departures.push((command, words, asking));
         }
         assert_eq!(domain.pages().look(), Look { terminal: true, ..dark });
         assert_eq!(domain.pages().listing(), None);
@@ -360,7 +360,7 @@ fn a_command_runs_the_pages_own_act() {
         assert_eq!(pages.listing(), None);
         assert_eq!(pages.chat().unwrap().words.as_ref(), expected);
     }
-    for (command, own, configuring) in [
+    for (command, own, asking) in [
         (Command::Draft, Act::Mode { mode: Mode::Split }, false),
         (Command::Pause, Act::Stop, false),
         (Command::Close, Act::Close, false),
@@ -374,8 +374,8 @@ fn a_command_runs_the_pages_own_act() {
             false,
         ),
     ] {
-        let (mut commanded, f) = loaded_pages(false, configuring);
-        let (mut direct, _) = loaded_pages(false, configuring);
+        let (mut commanded, f) = loaded_pages(false, asking);
+        let (mut direct, _) = loaded_pages(false, asking);
         let mut actual = Queue::uncapped();
         let mut expected = Queue::uncapped();
         for (p, out) in [(&mut commanded, &mut actual), (&mut direct, &mut expected)] {
@@ -510,7 +510,7 @@ fn a_command_runs_the_pages_own_act() {
     assert!(pages.notes().is_empty());
 }
 
-fn loaded_pages(ended: bool, configuring: bool) -> (Pages, fixtures::chat::Fixture) {
+fn loaded_pages(ended: bool, asking: bool) -> (Pages, fixtures::chat::Fixture) {
     use jig_client::contract as c;
     let mut fixture = fixtures::chat::opened();
     let mut task = fixtures::chat::task();
@@ -525,7 +525,7 @@ fn loaded_pages(ended: bool, configuring: bool) -> (Pages, fixtures::chat::Fixtu
     }
     fixtures::chat::deliver(&mut fixture.client, fixture.watch, task);
     let mut me = fixtures::chats::me();
-    if configuring {
+    if asking {
         me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap().number = 5;
     }
     for event in [

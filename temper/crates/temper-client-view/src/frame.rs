@@ -631,7 +631,7 @@ pub(crate) fn rail(
     if w.shell == Shell::Browser
         && (root.pages().chat().is_some()
             || root.pages().address() == &(Address::NewChat { draft: true })
-            || crate::pages::configure::reference(root).is_some())
+            || crate::pages::ask_page::reference(root).is_some())
     {
         b.open(Role::Disclosure);
         b.name(&w.say(Word::RailUnfold, &[]));
@@ -857,7 +857,7 @@ fn shown(root: &Domain, project: u32) -> Shown {
         Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
         Address::Chats { .. } | Address::NewChat { .. } => (false, false, true),
-        Address::Chat { .. } => (false, false, !crate::pages::chat::configuring(root)),
+        Address::Chat { .. } => (false, false, !crate::pages::chat::asking(root)),
         Address::Task { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
@@ -957,10 +957,10 @@ fn entries(
     if let Some(me) = root.pages().me(root.client())
         && jig_client::shapes::template(me, project, temper_client_domain::pages::chats::ASKING_TEMPLATE).is_some()
     {
-        let name = w.say(Word::ConfigureTitle, &[]);
+        let name = w.say(Word::AskTitle, &[]);
         crate::link(b, &name, bindings.insert(PageAct::Go { address: ask_address(root, project) }));
-        b.text(Run::Plain, &w.say(if tab { Word::AskTab } else { Word::ConfigureTitle }, &[]));
-        if root.pages().address() == &(Address::Ask { project }) || crate::pages::chat::configuring(root) {
+        b.text(Run::Plain, &w.say(if tab { Word::AskTab } else { Word::AskTitle }, &[]));
+        if root.pages().address() == &(Address::Ask { project }) || crate::pages::chat::asking(root) {
             b.state(skein_ui::State::Current);
         }
         b.close();

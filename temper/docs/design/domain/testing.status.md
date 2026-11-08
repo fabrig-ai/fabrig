@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-08. Where temper's code lags or departs from [testing.md](testing.md).
 
 Section 6.3's TUI host runs in the joint world: pasted-link sign-in
 drawing `me`, a restart showing Offline then Live with `me` retained,
@@ -269,13 +269,9 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   the fuzzy sweep's changes of landing rules
   (`tests/engine/forge`'s `suite::fuzzy::simulation` makes none); and
   the real loop's smoke of a gate added to a project's rule from the
-  client. 6.4: the client's How work runs, with its "Configure
-  temper", a proposal's card and its review, in their step and view
-  tests and joined with the engine, since the pages are not built
-  (`../client/README.status.md`); the joined world's configuring chat
-  starts from `Configure` and `Settings`' "Configure temper" finds it,
-  but it proposes, is accepted, waits for an owner and goes stale
-  through ctl alone (`tests/client`'s `configuring_chat.rs`).
+  client. 6.4: the client's How work runs, a proposal's card and its
+  review, in their step and view tests and joined with the engine,
+  since the pages are not built (`../client/README.status.md`).
 - **Departs:** 5.3: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and
   its code awaits removal with its design.

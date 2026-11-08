@@ -5,7 +5,7 @@ use crate::{startup, stock};
 use alloc::boxed::Box;
 use jig_protocol_config as config;
 
-const CHARTER: u32 = 3;
+const CHARTER: u32 = 11;
 const SHORT: u64 = 2_047;
 const ENOUGH: u64 = 2_048;
 
@@ -71,7 +71,7 @@ fn defaults_leaving_2047_bytes_refuse_the_start() {
     let Err(found) = start(SHORT) else { panic!("a short charter refuses the start") };
     assert_eq!(
         startup::lines(&found).as_ref(),
-        b"charter 3: charter 3 leaves its brief 2,047 bytes of its host part's 65,536; it needs at least 2,048\n",
+        b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 65,536; it needs at least 2,048\n",
     );
 }
 

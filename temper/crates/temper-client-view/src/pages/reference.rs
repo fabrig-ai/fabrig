@@ -1,4 +1,4 @@
-//! The stock reference beside Configure (temper/docs/design/client/README.md, 3.5).
+//! The stock reference beside Ask temper (temper/docs/design/client/README.md, 3.5).
 use crate::{
     look,
     words::{Shell, Word, Words},

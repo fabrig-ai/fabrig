@@ -216,7 +216,7 @@ fn errors_and_pages_use_the_address_form() {
             let (text, error) = rendered(line, from, SeeAnswer::Page { name: name.as_bytes().into() }, 1000);
             assert!(!error, "{text}");
             assert!(text.ends_with(&format!("see: {next}\n")));
-            let end = text.find("more: ").or_else(|| text.find("see: ")).unwrap();
+            let end = text.find("\nmore: ").or_else(|| text.find("\nsee: ")).unwrap() + 1;
             whole.push_str(&text[..end]);
             if let Some(token) = text.lines().find_map(|line| line.strip_prefix("more: ")) {
                 from = token.rsplit_once('@').unwrap().1.parse().unwrap();

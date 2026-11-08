@@ -37,7 +37,7 @@ pub struct Chats {
     pub words: Box<[u8]>,
     pub beyond: u64,
     pub start: Option<Key>,
-    /// The reference's mode beside Configure, once opened; the page's alone (client/README.md, 3.5).
+    /// The reference's mode beside Ask temper, once opened; the page's alone (client/README.md, 3.5).
     pub reference: Option<Mode>,
     pub page: Option<TaskPage>,
     pub refusal: Option<jig_client::shapes::NotOffered>,
@@ -543,23 +543,23 @@ impl Chats {
         if query.project != Some(project) {
             return false;
         }
-        let mut configuring = false;
+        let mut asking = false;
         if let Some(document) = client.document(self.live)
             && document.state != jig_client::State::Ended
             && let Some(Latest::Jig(Delivery::Tasks(live))) = document.latest
         {
-            count_rows(&live.rows, me, project, &mut configuring);
+            count_rows(&live.rows, me, project, &mut asking);
         }
         if let Some(page) = &self.page {
-            count_rows(&page.live, me, project, &mut configuring);
+            count_rows(&page.live, me, project, &mut asking);
             match &page.ended {
                 EndedGroup::Rows { rows, .. } => {
-                    count_rows(rows, me, project, &mut configuring);
+                    count_rows(rows, me, project, &mut asking);
                 }
                 EndedGroup::None => {}
             }
         }
-        configuring
+        asking
     }
     /// The person's newest Ask temper chat in the project, not closed
     /// (temper/docs/design/client/README.md, 3.5, Settings).
@@ -609,11 +609,11 @@ pub fn asking(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
 fn count_rows(rows: &List<c::TaskLine>, me: Option<&Me>, project: u32, found: &mut bool) {
     for row in rows {
         if row.project == project {
-            let configuring = match me {
+            let asking = match me {
                 Some(me) => asking(me, project, &row.chip.executor),
                 None => false,
             };
-            *found |= configuring;
+            *found |= asking;
         }
     }
 }
