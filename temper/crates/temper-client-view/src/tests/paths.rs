@@ -111,17 +111,29 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
             let mut print = skein_ui_text::Print::new(&bounds()).unwrap();
             skein_ui_text::render(&tree, b"", None, &mut print);
             let printed = String::from_utf8_lossy(print.text.as_slice());
-            for width in [720, 658, 388] {
+            for width in [720_u16, 658, 388, 358] {
                 let across = width >= 560;
+                let offset = usize::from(width.saturating_sub(360) / 2);
+                let boundary = u16::try_from(178 + offset).unwrap();
                 let mut scene = Scene::new(&bounds());
                 assert!(paths::draw(paths::KIND, data, width, 0, &mut scene));
                 let down_end = 54 + 40 * (rows.len() - 2);
+                let room = if width < 360 { (14 * 360 + usize::from(width) / 2) / usize::from(width) } else { 14 };
                 let height = if across {
                     if pressed.is_some() { if width == 658 { 155 } else { 154 } } else { 140 }
                 } else {
-                    down_end + 14 + if pressed.is_some() { 14 } else { 0 }
+                    down_end + 14 + if pressed.is_some() { room } else { 0 }
                 };
-                assert_eq!(scene.width(), if width == 658 { Some(720) } else { None });
+                assert_eq!(
+                    scene.width(),
+                    if width == 658 {
+                        Some(720)
+                    } else if width == 358 {
+                        Some(360)
+                    } else {
+                        None
+                    }
+                );
                 assert_eq!(scene.height(), Some(u16::try_from(height).unwrap()));
                 assert_eq!(
                     scene.marks()[0],
@@ -129,8 +141,8 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                         SceneMark::Line { from: Point { x: 0, y: 72 }, to: Point { x: 720, y: 72 } }
                     } else {
                         SceneMark::Line {
-                            from: Point { x: 192, y: 0 },
-                            to: Point { x: 192, y: u16::try_from(down_end).unwrap() },
+                            from: Point { x: boundary, y: 0 },
+                            to: Point { x: boundary, y: u16::try_from(down_end).unwrap() },
                         }
                     }
                 );
@@ -152,7 +164,7 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                             if across {
                                 assert!(if above { p.y <= 72 } else { p.y >= 72 });
                             } else {
-                                assert!(if above { p.x >= 192 } else { p.x <= 192 });
+                                assert!(if above { p.x >= boundary } else { p.x <= boundary });
                             }
                         }
                     }
@@ -162,7 +174,7 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                         let foot = if across {
                             Point { x: u16::try_from((1200 + step * 42 / 100) / 100).unwrap(), y: 106 }
                         } else {
-                            Point { x: 164, y: 32 }
+                            Point { x: u16::try_from(150 + offset).unwrap(), y: 32 }
                         };
                         assert!(commands.iter().any(|command| match command {
                             skein_ui::scene::Command::Cubic(_, _, end) => *end == foot,
@@ -187,7 +199,7 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                     let (x, y) = if across {
                         (along, if upper { 4000 } else { 10600 })
                     } else {
-                        (if upper { 22000 } else { 16400 }, along)
+                        ((offset + if upper { 206 } else { 150 }) * 100, along)
                     };
                     let style = match mark {
                         Mark::Person => look::WAYS_PERSON,
@@ -282,13 +294,17 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                     } else {
                         (
                             Point {
-                                x: if upper {
-                                    237
-                                } else if end {
-                                    146
-                                } else {
-                                    147
-                                },
+                                x: u16::try_from(
+                                    offset
+                                        + if upper {
+                                            223
+                                        } else if end {
+                                            132
+                                        } else {
+                                            133
+                                        },
+                                )
+                                .unwrap(),
                                 y: u16::try_from((y + 400) / 100).unwrap(),
                             },
                             if upper { Anchor::Start } else { Anchor::End },
@@ -344,7 +360,7 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                                 corner: if across {
                                     Point { x: open_x - 30, y: if upper { 6 } else { 94 } }
                                 } else {
-                                    Point { x: if upper { 208 } else { 24 }, y: 122 }
+                                    Point { x: u16::try_from(offset + if upper { 194 } else { 10 }).unwrap(), y: 122 }
                                 },
                                 size: if across {
                                     Point { x: 60, y: if upper { 52 } else { 44 } }
@@ -365,7 +381,10 @@ fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
                             centre: if across {
                                 Point { x: open_x, y: if rows == DRAFT { 106 } else { 40 } }
                             } else {
-                                Point { x: if rows == DRAFT { 164 } else { 220 }, y: 136 }
+                                Point {
+                                    x: u16::try_from(offset + if rows == DRAFT { 150 } else { 206 }).unwrap(),
+                                    y: 136,
+                                }
                             },
                             radius: 15
                         }
@@ -449,6 +468,7 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
         assert_eq!(paths::pressed_stop(bytes), expected);
     }
     for (width, rows, height, drawn) in [
+        (358, APPROVE, 388, Some(360)),
         (559, APPROVE, 388, None),
         (560, APPROVE, 140, Some(720)),
         (607, DRAFT, 508, None),

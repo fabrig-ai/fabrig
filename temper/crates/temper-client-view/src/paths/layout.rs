@@ -46,7 +46,7 @@ impl Layout {
         let width = u32::from(width);
         let span = width.saturating_sub(80);
         let across = width >= 560 && span >= gaps.checked_mul(48)?;
-        let drawn = if across { width.max(720) } else { width };
+        let drawn = if across { width.max(720) } else { width.max(360) };
         let span = drawn.saturating_sub(80);
         let end = if across {
             drawn.checked_sub(8)?.checked_mul(100)?
@@ -59,7 +59,7 @@ impl Layout {
                 .checked_mul(100)?
         };
         let closed = if across { 140 } else { end.checked_div(100)?.checked_add(if bar { 14 } else { 24 })? };
-        let room = if data.open.is_some() { if across { scaled(14, drawn, width)? } else { 14 } } else { 0 };
+        let room = if data.open.is_some() { if drawn == width { 14 } else { scaled(14, drawn, width)? } } else { 0 };
         let height = u16::try_from(closed.checked_add(room)?).ok()?;
         Some(Layout {
             across,
@@ -161,7 +161,7 @@ fn paint(data: &Decoded<'_>, width: u16, scene: &mut Scene) -> Option<()> {
         }
     }
     scene.set_height(layout.height);
-    if layout.across && layout.width < 720 {
+    if layout.drawn != layout.width {
         scene.set_width(u16::try_from(layout.drawn).ok()?);
     }
     Some(())
