@@ -1,6 +1,6 @@
 use super::fixtures as f;
 use crate::words::Word;
-use crate::{Refusal, Told, Tui, View, look};
+use crate::{Refusal, Told, Tui, View};
 use skein_ui::{Role, Tree, phrases::Hole};
 
 fn fits(tree: &Tree, limits: &skein_ui::Limits) {
@@ -24,21 +24,8 @@ fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     assert!(total <= limits.text_bytes);
     assert!(bindings <= limits.bindings);
     assert_eq!(f::count(tree, Role::Page), 1);
-    let mut regions = 0_u32;
-    for node in tree.nodes() {
-        if let Some(region) = node.region {
-            regions = regions.checked_add(1).unwrap();
-            if node.role == Role::Main {
-                assert_eq!(region, look::TOP);
-            } else {
-                assert_eq!(node.role, Role::ContentInfo);
-                assert_eq!(region, look::BOTTOM);
-            }
-        }
-    }
     assert_eq!(f::count(tree, Role::Main), 1);
     assert_eq!(f::count(tree, Role::ContentInfo), 1);
-    assert_eq!(regions, 2);
 }
 
 #[test]

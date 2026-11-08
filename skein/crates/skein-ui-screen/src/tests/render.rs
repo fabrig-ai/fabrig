@@ -592,7 +592,7 @@ fn field_labels_follow_the_nearest_token() {
             Position { row: 0, column: 9 },
         ),
     ] {
-        let tree = fixtures::field_look(role, value, entry, nearer_label);
+        let tree = fixtures::field_look(role, value, entry, nearer_label, &[]);
         let field = fixtures::id(&tree, b"F");
         let mut focus = Focus { node: Some(field), caret, ..Focus::default() };
         let mut frame = Frame::new(FIELD_EDGE);
@@ -614,6 +614,84 @@ fn field_labels_follow_the_nearest_token() {
                         .expect("writing to a string succeeds");
                 }
             }
+        }
+    }
+    assert!(failures.is_empty(), "{failures}");
+}
+
+#[test]
+#[expect(clippy::disallowed_types, reason = "a string collects every field row's mismatch before failing")]
+#[expect(clippy::use_debug, reason = "failed rows report the field bytes")]
+fn unlabelled_fields_lay_their_value_alone() {
+    use core::fmt::Write;
+    let theme = fixtures::theme();
+    // One field row and Tail; the width leaves room for any unwanted annotation.
+    let size = Size { columns: 80, rows: 2 };
+    let mut failures = String::new();
+    for (name, role, value, entry, states, labelled, expected) in [
+        (
+            "submitting placeholder",
+            Role::TextArea,
+            b"".as_slice(),
+            EntryKind::Text,
+            &[State::SubmitsOnEnter][..],
+            false,
+            "> Ask temper\nTail\n",
+        ),
+        (
+            "submitting value",
+            Role::TextArea,
+            b"Hello".as_slice(),
+            EntryKind::Text,
+            &[State::SubmitsOnEnter][..],
+            false,
+            "> Hello\nTail\n",
+        ),
+        (
+            "entry and states",
+            Role::TextField,
+            b"Hello".as_slice(),
+            EntryKind::Email,
+            &[State::Required, State::Invalid][..],
+            false,
+            "> Hello\nTail\n",
+        ),
+        (
+            "disabled field",
+            Role::TextArea,
+            b"Hello".as_slice(),
+            EntryKind::Text,
+            &[State::Disabled][..],
+            false,
+            "  Hello\nTail\n",
+        ),
+        (
+            "labelled submitting value",
+            Role::TextArea,
+            b"Hello".as_slice(),
+            EntryKind::Text,
+            &[State::SubmitsOnEnter][..],
+            true,
+            "> F: Hello (enter sends)\nTail\n",
+        ),
+        (
+            "labelled entry and states",
+            Role::TextField,
+            b"Hello".as_slice(),
+            EntryKind::Email,
+            &[State::Required, State::Invalid][..],
+            true,
+            "> F: Hello (email) (invalid) (required)\nTail\n",
+        ),
+    ] {
+        let tree = fixtures::field_look(role, value, entry, labelled, states);
+        let mut focus = Focus { node: Some(fixtures::id(&tree, b"F")), ..Focus::default() };
+        let mut frame = Frame::new(size);
+        render(&tree, &theme, size, &mut focus, &mut frame);
+        let text = frame.text();
+        if text.as_ref() != expected.as_bytes() {
+            writeln!(&mut failures, "{name}: text {text:?}; expected {expected:?}")
+                .expect("writing to a string succeeds");
         }
     }
     assert!(failures.is_empty(), "{failures}");

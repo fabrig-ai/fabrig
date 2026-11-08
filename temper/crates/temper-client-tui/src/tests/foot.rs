@@ -275,12 +275,15 @@ fn draw(part: foot::Foot) -> crate::View {
     view::signed(&mut view, &view::Signed { body, foot: part }, &mut Queue::uncapped());
     view
 }
+#[expect(clippy::disallowed_methods, reason = "test assertions search the rendered tree")]
 fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
     tree.nodes().iter().any(|node| node.styles.as_slice().contains(&style) && f::text(tree, node).as_ref() == words)
 }
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks the foot's read states and their bindings")]
+#[expect(clippy::disallowed_methods, reason = "test assertions find and collect the rendered fields and options")]
+#[expect(clippy::disallowed_types, reason = "test assertions collect the rendered options")]
 fn the_foot_says_each_state() {
     let mut failures = List::with_capacity(32);
     for (name, project, chat, typed, listing, placeholder, commands) in [
@@ -340,7 +343,7 @@ fn the_foot_says_each_state() {
                 && field.value.as_ref().unwrap().text.as_ref() == typed.as_bytes()
                 && field.value.as_ref().unwrap().written == tui.box_written()
                 && field.focus == Some(tui.focus())
-                && field.styles.as_slice() == &[look::FIELD]
+                && field.styles.as_slice() == [look::FIELD]
                 && field.states.as_slice().contains(&State::SubmitsOnEnter)
                 && crate::event(&view, field.id, Act::Submit) == Some(TuiEvent::Send)
                 && crate::event(&view, field.id, Act::Input { value: b"q".as_slice().into() })
@@ -355,7 +358,7 @@ fn the_foot_says_each_state() {
             good &= items.len() == commands.len();
             for (item, command) in items.iter().zip(commands) {
                 good &= item.name.as_deref() == Some(command.name())
-                    && item.styles.as_slice() == &[look::OPTION]
+                    && item.styles.as_slice() == [look::OPTION]
                     && item.description.as_deref()
                         == Some(if *command == Command::Exit {
                             b"Close temper"
@@ -368,7 +371,7 @@ fn the_foot_says_each_state() {
             good &= menu.is_some_and(|node| node.states.as_slice().contains(&State::Options));
             good &= tree.nodes().iter().any(|node| {
                 node.role == Role::Text
-                    && node.styles.as_slice() == &[look::LIST_HEAD]
+                    && node.styles.as_slice() == [look::LIST_HEAD]
                     && f::text(tree, node).as_ref() == shared::list_head(listing)
             });
             let choices = match listing {
@@ -400,6 +403,8 @@ fn the_foot_says_each_state() {
     note_states();
 }
 
+#[expect(clippy::disallowed_methods, reason = "test assertions search and collect the rendered states and options")]
+#[expect(clippy::disallowed_types, reason = "test assertions collect the confirmation options")]
 fn read_states() {
     let words = f::words();
     let tui = Tui::new(f::ADDRESS);
@@ -466,42 +471,75 @@ fn read_states() {
         }
         assert_eq!(crate::escape(&view), Some(TuiEvent::Act { act: d::pages::Act::Cancel }));
     }
+    // The first connection's composer must not consume the sign-in field's focus request.
+    for (name, initial, link, local, next) in [
+        (
+            "sign-in after starting",
+            Box::new(f::starting().0),
+            jig_client::Link::Starting,
+            crate::Local::Idle,
+            crate::Local::Idle,
+        ),
+        (
+            "sign-in after engine-link fallback",
+            Box::new(f::signed_out()),
+            jig_client::Link::SignedOut,
+            crate::Local::Signing,
+            crate::Local::Ended,
+        ),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Link { link });
+        tui.step(Told::Local { local });
+        let mut view = f::view();
+        let size = skein_ui_screen::Size { columns: 80, rows: 24 };
+        let mut focus = skein_ui_screen::Focus::default();
+        let mut frame = skein_ui_screen::Frame::new(size);
+        f::build(&mut view, &tui, &initial);
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark), size, &mut focus, &mut frame);
+        tui.step(Told::Link { link: jig_client::Link::SignedOut });
+        tui.step(Told::Local { local: next });
+        f::build(&mut view, &tui, &f::signed_out());
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark), size, &mut focus, &mut frame);
+        assert_eq!(focus.node, Some(f::find(view.tree(), Role::TextField, b"Link").id), "{name}");
+    }
 }
+#[expect(clippy::disallowed_methods, reason = "test assertions search and collect the quiet line's nodes")]
+#[expect(clippy::disallowed_types, reason = "test assertions collect the signal nodes")]
 fn quiet_states() {
     let root = root(true, true, false, false, false);
     let words = f::words();
     let tui = Tui::new(f::ADDRESS);
-    for (name, count, cut, columns, closed, expected) in [
-        ("zero", 0, false, 0, "Claude Opus 5.5 · high", ""),
-        ("one", 1, false, 0, "Claude Opus 5.5 · high", "1 needs you"),
-        ("three", 3, false, 0, "Claude Opus 5.5 · high", "3 need you"),
-        ("cut", 3, true, 0, "Claude Opus 5.5 · high", "3+ need you"),
-        ("narrow", 1, false, 40, "", "1 needs you"),
-        ("fits exactly", 0, false, 49, "Claude Opus 5.5 · high", ""),
-        ("one column short", 0, false, 48, "", ""),
-        ("wide glyph fits", 0, false, 29, "界", ""),
-        ("wide glyph short", 0, false, 28, "", ""),
+    for (name, count, cut, columns, line, closed, expected) in [
+        ("zero", 0, false, 0, "Claude Opus 5.5 · high", true, ""),
+        ("one", 1, false, 0, "Claude Opus 5.5 · high", true, "1 needs you"),
+        ("three", 3, false, 0, "Claude Opus 5.5 · high", true, "3 need you"),
+        ("cut", 3, true, 0, "Claude Opus 5.5 · high", true, "3+ need you"),
+        ("narrow", 1, false, 40, "Claude Opus 5.5 · high", false, "1 needs you"),
+        ("fits exactly", 0, false, 49, "Claude Opus 5.5 · high", true, ""),
+        ("one column short", 0, false, 48, "Claude Opus 5.5 · high", false, ""),
+        ("wide glyph fits", 0, false, 29, "界", true, ""),
+        ("wide glyph short", 0, false, 28, "界", false, ""),
     ] {
         let mut part = foot::read(&root, &tui, &words, f::NOW);
         part.needs = d::pages::needs::Count { count, cut };
         part.columns = columns;
-        let line = if name.starts_with("wide glyph") { "界" } else { "Claude Opus 5.5 · high" };
         part.closed = Some(line.as_bytes().into());
         let view = draw(part);
         let signals: Vec<_> =
-            view.tree().nodes().iter().filter(|node| node.styles.as_slice() == &[look::SIGNAL]).collect();
+            view.tree().nodes().iter().filter(|node| node.styles.as_slice() == [look::SIGNAL]).collect();
         assert_eq!(signals.len(), usize::from(!expected.is_empty()), "{name}");
         if let Some(signal) = signals.first() {
             assert_eq!(f::text(view.tree(), signal).as_ref(), expected.as_bytes(), "{name}");
         }
-        assert_eq!(has(view.tree(), look::HINT, line.as_bytes()), !closed.is_empty(), "{name}");
+        assert_eq!(has(view.tree(), look::HINT, line.as_bytes()), closed, "{name}");
         let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
         let start = f::index(view.tree(), bottom.id);
         let mut next = start.checked_add(1).unwrap();
-        let mut children = 0;
+        let mut children = 0_usize;
         for index in start.checked_add(1).unwrap()..start.checked_add(usize::try_from(bottom.size).unwrap()).unwrap() {
             if index == next {
-                children += 1;
+                children = children.checked_add(1).unwrap();
                 next = index.checked_add(usize::try_from(view.tree().nodes()[index].size).unwrap()).unwrap();
             }
         }
@@ -531,6 +569,8 @@ fn question(primary: Option<usize>, empty: bool) -> shared::Question {
         primary,
     }
 }
+#[expect(clippy::disallowed_methods, reason = "test assertions collect the question's rendered options")]
+#[expect(clippy::disallowed_types, reason = "test assertions collect the question's rendered options")]
 fn question_states() {
     let root = root(true, true, true, false, false);
     let words = f::words();
@@ -567,6 +607,7 @@ fn question_states() {
     assert!(foot::lists::question_list(question(Some(1), false), Some(c::ObjectKey::Task(9)), &words).is_none());
     assert!(foot::lists::question_list(question(Some(1), false), Some(c::ObjectKey::Task(10)), &words).is_some());
 }
+#[expect(clippy::disallowed_methods, reason = "test assertions filter the rendered note paragraphs")]
 fn note_states() {
     let mut root = root(true, true, false, false, false);
     let words = f::words();
@@ -608,12 +649,13 @@ fn note_states() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the golden table embeds its hand-written frame oracles")]
 fn the_foots_are_their_goldens() {
     use skein_ui_screen::{Focus, Size};
     let full = Size { columns: 80, rows: 24 };
     let small = Size { columns: 40, rows: 12 };
     let rows = [
-        ("first-80x24-dark", Scheme::Dark, full, 0, include_bytes!("golden/first-80x24-dark.txt").as_slice()),
+        ("first-80x24-dark", Scheme::Dark, full, 0_u8, include_bytes!("golden/first-80x24-dark.txt").as_slice()),
         ("first-80x24-light", Scheme::Light, full, 0, include_bytes!("golden/first-80x24-light.txt").as_slice()),
         ("first-40x12-dark", Scheme::Dark, small, 0, include_bytes!("golden/first-40x12-dark.txt").as_slice()),
         ("first-40x12-light", Scheme::Light, small, 0, include_bytes!("golden/first-40x12-light.txt").as_slice()),

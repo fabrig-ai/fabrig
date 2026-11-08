@@ -115,10 +115,6 @@ its 320 px, as the user accepted in `look-round-17`.
 
 
 
-- **Not yet:** 6.14, *The foot* and *The commands*: no box, running line,
-  quiet line, list or note is drawn; the first screen's bottom row says
-  "q to quit".
-
 - **Not yet:** 6.13, *Its pages*, *The look* and *The TUI's events*, and
   6.16, *Closing*: the root stays at the inbox, a `Show` is dropped, the
   root's look is the browser's default, and `/exit` closes nothing.
