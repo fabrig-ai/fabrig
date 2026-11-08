@@ -1,9 +1,11 @@
 mod approval;
+mod box_line;
 mod chat;
 mod commands;
 mod event;
 mod fixtures;
 mod foot;
+mod front;
 mod goldens;
 mod launchpad;
 mod limits;
@@ -11,3 +13,5 @@ mod note;
 mod screens;
 mod state;
 mod theme;
+mod welcome;
+mod work;

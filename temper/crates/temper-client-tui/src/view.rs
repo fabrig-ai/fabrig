@@ -13,7 +13,11 @@ use temper_client_view::words::{TimeForm, Word as Shared};
 
 pub(crate) mod chat;
 pub(crate) mod foot;
+pub(crate) mod front;
 pub(crate) mod launchpad;
+pub(crate) mod welcome;
+pub(crate) mod work;
+pub use work::work_runs;
 
 /// The box's binding, beside the look's BOX region.
 pub(crate) const BOX: Token = Token::new(3);

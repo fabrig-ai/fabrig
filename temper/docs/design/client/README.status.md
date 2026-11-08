@@ -982,11 +982,6 @@ terminal checks remain section 11's after-landing work.
   decoded and encoded false (`forges-linked`, `tui-box-front`).
 - **Not yet:** 4.6, `linked` true from the printed link's first sign-in, the
   document delivered again then (`serve-sign-in`, `tui-box-front`).
-- **Not yet:** 6.17, the TUI's surface in front of a box: `BoxLine` read
-  and printed, the state's front, printed link, last lines, box state,
-  question and `/log` note, the events `Stop`, `Stay` and `Log`,
-  `work_runs`, and the front's words and tokens (`tui-surface`,
-  `tui-box-front`).
 - **Not yet:** 4.8 and 6.17, `Side::linked`, `welcome::signed_in`, and the
   playground read again when the `forges` watch gains or loses its fake
   row (`domain-front`, `tui-box-front`).
