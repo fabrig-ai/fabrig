@@ -111,6 +111,7 @@ impl World {
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
             scheme,
+            boxed: true,
             link_file: link.map(Into::into),
             note,
             files: note_root,
@@ -140,7 +141,7 @@ impl World {
             leave_after: 0,
             note_write: NoteWrite::Done,
             held_note: None,
-            horizon: Time::ZERO.saturating_add(Duration::from_millis(40)),
+            horizon: Time::ZERO.saturating_add(limits::BACKGROUND).saturating_add(Duration::from_millis(40)),
         }
     }
 
@@ -752,44 +753,40 @@ fn recording_facts_include_the_loaded_records_and_credential() {
 #[test]
 #[cfg(feature = "record")]
 fn background_selects_the_recorded_start_scheme() {
+    use skein_ui_screen::Rgb;
     use skein_ui_screen_terminal::ASK_BACKGROUND;
     use temper_client_shell_tui::journey::Line;
-    for (scheme, answer, expected) in [
-        (None, Some(b"\x1b]11;rgb:fdfd/f6f6/e3e3\x1b\\".as_slice()), Scheme::Light),
-        (None, Some(b"\x1b]11;rgb:0/2b/36\x07".as_slice()), Scheme::Dark),
-        (None, None, Scheme::Dark),
-        (Some(Scheme::Light), None, Scheme::Light),
+    let light = Rgb { red: 253, green: 246, blue: 227 };
+    let dark = Rgb { red: 0, green: 43, blue: 54 };
+    for (scheme, answer, expected, background) in [
+        (None, Some(b"\x1b]11;rgb:fdfd/f6f6/e3e3\x1b\\".as_slice()), Scheme::Light, Some(light)),
+        (None, Some(b"\x1b]11;rgb:0/2b/36\x07".as_slice()), Scheme::Dark, Some(dark)),
+        (None, None, Scheme::Dark, None),
+        (Some(Scheme::Light), None, Scheme::Light, None),
+        (Some(Scheme::Light), Some(b"\x1b]11;rgb:0/2b/36\x07".as_slice()), Scheme::Light, Some(dark)),
+        (Some(Scheme::Dark), Some(b"\x1b]11;rgb:fdfd/f6f6/e3e3\x1b\\".as_slice()), Scheme::Dark, Some(light)),
     ] {
         let mut world =
             World::options(false, false, false, Outcome::Success, Recording::Root, scheme, None, false, None);
+        world.horizon = Time::ZERO.saturating_add(Duration::from_millis(40));
         world.settle();
-        assert!(world.bytes.starts_with(ENTER));
-        assert_eq!(
-            world.bytes.windows(ASK_BACKGROUND.len()).any(|bytes| bytes == ASK_BACKGROUND),
-            scheme.is_none(),
-            "query follows ENTER only when scheme is unknown"
+        assert_eq!(world.bytes.as_slice(), [ENTER, ASK_BACKGROUND].concat(), "every start asks before drawing");
+        assert!(
+            world.run.next_mechanism_deadline().is_some_and(|at| at <= Time::ZERO.saturating_add(limits::BACKGROUND))
         );
-        if scheme.is_none() {
-            assert_eq!(world.bytes.as_slice(), [ENTER, ASK_BACKGROUND].concat(), "no frame before background");
-            assert!(
-                world
-                    .run
-                    .next_mechanism_deadline()
-                    .is_some_and(|at| at <= Time::ZERO.saturating_add(Duration::from_millis(200)))
-            );
-            if let Some(answer) = answer {
-                world.keys(answer);
-            } else {
-                world.now = Time::ZERO.saturating_add(Duration::from_millis(200));
-                world.sim.advance_to(world.now);
-                world.settle();
-            }
+        if let Some(answer) = answer {
+            world.keys(answer);
+        } else {
+            world.now = Time::ZERO.saturating_add(limits::BACKGROUND);
+            world.sim.advance_to(world.now);
+            world.settle();
         }
         world.keys(b"\x1bS");
-        assert!(
-            replay(&world.recording_file().expect("start recording").0)
-                .contains(&Line::Screen { size: SIZE, scheme: expected })
-        );
+        let records = replay(&world.recording_file().expect("start recording").0);
+        assert!(records.contains(&Line::Screen { size: SIZE, scheme: expected }));
+        let recorded = records.iter().find_map(|line| if let Line::Background(rgb) = line { Some(*rgb) } else { None });
+        assert_eq!(recorded, background, "background is independent of the scheme: {scheme:?}");
+        assert!(records.contains(&Line::Box));
         world.draining = true;
         world.keys(b"\x03");
         world.drained(false);
@@ -838,6 +835,8 @@ fn a_fresh_tui_reads_the_runtime_link_outside_its_state_directory() {
 }
 
 fn terminal_text(bytes: &[u8]) -> String {
+    let bytes = bytes.strip_prefix(ENTER).expect("terminal enters full screen");
+    let bytes = bytes.strip_prefix(skein_ui_screen_terminal::ASK_BACKGROUND).expect("terminal asks its background");
     let mut cells = std::collections::BTreeMap::new();
     let mut at = (1, 1);
     let mut chars = std::str::from_utf8(bytes).expect("terminal UTF-8").chars();
