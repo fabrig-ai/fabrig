@@ -3,3 +3,36 @@ repo = "fabrig"
 sources = ["temper/docs/plan/client-binary/inputs/request.md", "temper/docs/design/draft/deployment-binaries.md", "temper/docs/design/draft/deployment-binaries.execution.md", "temper/docs/design/draft/deployment-binaries.status.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "local"
+title = "temper-shell holds the three directories and the engine's link file; the box's temper reads them from there"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 5"
+
+[[part]]
+id = "ctl"
+title = "ctl's start moves into temper-client-shell-cli, one function for both binaries"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 2"
+
+[[part]]
+id = "version"
+title = "The temper-client package, its build script's commit, and temper-client --version"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 4"
+
+[[slice]]
+id = 1
+story = "temper-client prints its version; the box's temper reads its directories and link file from temper-shell and runs ctl from its shell, unchanged"
+parts = ["local", "ctl", "version"]
+walk = false
