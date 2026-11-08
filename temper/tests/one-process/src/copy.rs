@@ -22,6 +22,10 @@ use temper_playground::{
 const SOURCE: &[u8] = b"https://source.example.invalid/acme/app";
 const DESTINATION: &[u8] = b"acme/copied";
 const BRANCH: &[u8] = b"trunk";
+const SOURCE_WORKFLOW_PATH: &[u8] = b".github/workflows/ci.yml";
+const SOURCE_WORKFLOW: &[u8] =
+    b"on: [push]\njobs:\n  source:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo source check\n";
+const RUNNER: &[u8] = b"copy-runner";
 // The source finishes while the killed engine reopens its store.
 const SLOW: Duration = Duration::from_secs(4);
 const DEADLINE: Time = Time::from_nanos(15_000_000_000);
@@ -116,12 +120,16 @@ fn peer(transport: &temper_fake_git_hosted::Typed, fill: Fill, partial: bool) ->
     peer
 }
 
-fn source() -> temper_fake_git_hosted::Typed {
+fn source(workflow: bool) -> temper_fake_git_hosted::Typed {
     use skein_fake_forge_domain::{self as domain, api};
     let mut config = temper_playground::documents::hosted_git::CONFIG;
     // A slow migration and the recovered engine's request can coexist.
     config.limits.calls = 2;
     let mut domain = domain::Domain::new(&config, fixtures::SEED);
+    let mut tree = vec![api::File { path: b"README.md".as_slice().into(), content: b"# Source\n".as_slice().into() }];
+    if workflow {
+        tree.push(api::File { path: SOURCE_WORKFLOW_PATH.into(), content: SOURCE_WORKFLOW.into() });
+    }
     domain::repository(
         &mut domain,
         &config,
@@ -133,10 +141,7 @@ fn source() -> temper_fake_git_hosted::Typed {
             labels: Box::new([]),
             protection: None,
             hooked: false,
-            tree: Box::new([api::File {
-                path: b"README.md".as_slice().into(),
-                content: b"# Source\n".as_slice().into(),
-            }]),
+            tree: tree.into_boxed_slice(),
             checks: api::Checks {
                 cues: Box::new([]),
                 contexts: Box::new([]),
@@ -157,25 +162,34 @@ fn source() -> temper_fake_git_hosted::Typed {
 fn command(caller: &mut Caller, words: &[&[u8]]) {
     caller.commands.push_back(Command::new(words));
 }
-fn copy(caller: &mut Caller, key: &[u8]) {
-    command(
-        caller,
-        &[
-            b"repository",
-            b"copy",
-            b"--project",
-            b"1",
-            b"--forge",
-            b"1",
-            SOURCE,
-            b"--as",
-            DESTINATION,
-            b"--no-home",
-            b"--key",
-            key,
-            b"--json",
-        ],
-    );
+fn json(answer: &crate::ctl::Answer) -> serde_json::Value {
+    // Connect and copy print progress before their terminal adoption answers.
+    serde_json::Deserializer::from_slice(&answer.output)
+        .into_iter::<serde_json::Value>()
+        .last()
+        .expect("terminal ctl answer")
+        .expect("ctl JSON")
+}
+fn copy(caller: &mut Caller, key: &[u8], until_adopted: bool) {
+    let mut words: Vec<&[u8]> = vec![
+        b"repository",
+        b"copy",
+        b"--project",
+        b"1",
+        b"--forge",
+        b"1",
+        SOURCE,
+        b"--as",
+        DESTINATION,
+        b"--no-home",
+        b"--key",
+        key,
+        b"--json",
+    ];
+    if until_adopted {
+        words.extend([b"--until".as_slice(), b"adopted"]);
+    }
+    command(caller, &words);
 }
 fn making(store: &Store) -> Option<&RepositoryMaking> {
     store.rows.values().find_map(|row| {
@@ -211,6 +225,7 @@ enum SourceStage {
     Cut,
     Closing,
     Whole,
+    BesideRepository,
 }
 struct Judge {
     controls: skein_world::Controls,
@@ -225,6 +240,80 @@ struct Judge {
     last_commit: u64,
 }
 impl Judge {
+    fn shutdown(&self, caller: &mut Caller, peer: &mut Peer) {
+        caller.closed = true;
+        self.controls.signal(0, ServiceSignal::Terminate);
+        peer.shutdown();
+    }
+
+    fn beside_repository(&self, caller: &Caller, peer: &Peer) {
+        let [_, connected, _, copied, forges, project] = caller.answers.as_slice() else {
+            panic!("sign-in, connect, connected forge, copy, forges and project answers")
+        };
+        let connected = json(connected);
+        assert_eq!(connected["project"], 1, "the first repository is adopted into project 1");
+        assert_eq!(connected["outcome"]["adopted"]["forge"], 1);
+        let copied = json(copied);
+        assert_eq!(copied["adopted"], true, "ctl waited for adoption");
+        let forges = json(forges);
+        let [forge] = forges["forges"].as_array().expect("forge rows").as_slice() else {
+            panic!("one connected forge")
+        };
+        assert_eq!(forge["number"], 1);
+        assert!(forge["makings"].as_array().expect("making rows").is_empty());
+        let provider = peer
+            .observations()
+            .iter()
+            .find_map(|observation| {
+                if let Observation::Call {
+                    op: Op::Write(Write::Copy { owner, name, .. }),
+                    result: Ok(skein_fake_forge_domain::api::Answer::Copied { repository, .. }),
+                    ..
+                } = observation
+                    && owner.as_ref() == b"acme"
+                    && name.as_ref() == b"copied"
+                {
+                    Some(*repository)
+                } else {
+                    None
+                }
+            })
+            .expect("the forge gave the copied repository its provider id");
+        let project = json(project);
+        assert_eq!(project["number"], 1);
+        let resources = project["resources"].as_array().expect("project resources");
+        assert_eq!(resources.len(), 2, "the first repository and the copy share the project");
+        // Project resources name the forge and provider id as big-endian hex segments.
+        let key = serde_json::json!(["0001", format!("{provider:08x}")]);
+        let repository = resources
+            .iter()
+            .find(|row| row["part"]["key"]["path"] == key)
+            .expect("the copy's provider identity joined the first repository's project");
+        assert_eq!(repository["role"], "owned");
+        assert_eq!(repository["home"], false, "the copy is not the project's home");
+
+        let forge = self.transport.forge.borrow();
+        let source_metadata = forge.domain.metadata(b"acme/app").expect("source metadata");
+        let metadata = forge.domain.metadata(DESTINATION).expect("copy metadata");
+        assert_eq!(metadata.default_branch, source_metadata.default_branch);
+        let source = forge.domain.branch(b"acme/app", &source_metadata.default_branch).expect("source head");
+        let tip = forge.domain.branch(DESTINATION, &metadata.default_branch).expect("copy head");
+        let commit = forge.domain.object(tip).expect("copy's workflow commit");
+        assert_eq!(commit.parent, Some(source), "one workflow commit above the source head");
+        assert_eq!(commit.merge_parent, None);
+        let source_tree = &forge.domain.object(source).expect("source commit").tree;
+        assert_eq!(source_tree.get(SOURCE_WORKFLOW_PATH).expect("source's workflow").as_ref(), SOURCE_WORKFLOW);
+        let mut expected: std::collections::BTreeMap<_, _> = source_tree.iter().collect();
+        let starter = temper_forge_setup::starter_workflow(RUNNER).expect("label's starter workflow");
+        let starter_path = temper_forge_setup::STARTER_PATH.into();
+        expected.insert(&starter_path, &starter);
+        assert_eq!(
+            commit.tree.iter().collect::<std::collections::BTreeMap<_, _>>(),
+            expected,
+            "the source's README and workflow are unchanged beside the label's starter"
+        );
+    }
+
     fn caller(&mut self, service: &mut temper_service::Service, caller: &mut Caller) {
         if !self.handed
             && let Some(link) = service.links().pop()
@@ -232,24 +321,30 @@ impl Judge {
             let mut sign_in = Command::new(&[b"sign-in", b"-"]);
             sign_in.input = link;
             caller.commands.push_back(sign_in);
-            command(
-                caller,
-                &[
-                    b"forge",
-                    b"connect",
-                    b"forgejo-admin",
-                    b"/setup/admin.token",
-                    b"--api",
-                    b"127.0.0.1:3000",
-                    b"--git",
-                    b"http://127.0.0.1:3000",
-                    b"--key",
-                    b"copy-forge",
-                    b"--json",
-                ],
-            );
+            let mut connect: Vec<&[u8]> = vec![
+                b"forge",
+                b"connect",
+                b"forgejo-admin",
+                b"/setup/admin.token",
+                b"--api",
+                b"127.0.0.1:3000",
+                b"--git",
+                b"http://127.0.0.1:3000",
+                b"--key",
+                b"copy-forge",
+                b"--json",
+            ];
+            let beside = self.source == SourceStage::BesideRepository;
+            if beside {
+                connect.extend([b"--first".as_slice(), b"acme/first", b"--project", b"1", b"--label", RUNNER]);
+            }
+            command(caller, &connect);
             command(caller, &[b"forge", b"list", b"--until", b"connected:1", b"--json"]);
-            copy(caller, b"first-copy");
+            copy(caller, b"first-copy", beside);
+            if beside {
+                command(caller, &[b"forge", b"list", b"--json"]);
+                command(caller, &[b"project", b"show", b"1", b"--json"]);
+            }
             self.handed = true;
         }
         while self.answers < caller.answers.len() {
@@ -311,7 +406,8 @@ impl skein_world::Referee<Proc> for Judge {
                 Observation::Head { call, .. } if call.target.as_ref() == b"/api/v1/repos/migrate"
             )
         });
-        if migrating
+        if self.source != SourceStage::BesideRepository
+            && migrating
             && self.seen.borrow().cut.is_none()
             && self.transport.forge.borrow().domain.metadata(DESTINATION).is_ok()
         {
@@ -338,11 +434,19 @@ impl skein_world::Referee<Proc> for Judge {
                 **peer_host = SignalHost::new(whole, None);
                 self.peer_seen = 0;
                 self.source = SourceStage::Whole;
-                copy(caller, b"retry-copy");
+                copy(caller, b"retry-copy", false);
             }
         }
         self.seen.borrow_mut().adopted = acted(&store);
-        if self.seen.borrow().adopted == 1 && row.is_none() && !self.stopped {
+        if self.source == SourceStage::BesideRepository && self.answers == 6 && !self.stopped {
+            self.beside_repository(caller, peer_host);
+            self.shutdown(caller, peer_host);
+            self.stopped = true;
+        } else if self.source != SourceStage::BesideRepository
+            && self.seen.borrow().adopted == 1
+            && row.is_none()
+            && !self.stopped
+        {
             let adopted: Vec<_> = store
                 .rows
                 .values()
@@ -366,9 +470,7 @@ impl skein_world::Referee<Proc> for Judge {
             let source = forge.domain.branch(b"acme/app", BRANCH).expect("source head");
             let tip = forge.domain.branch(DESTINATION, BRANCH).expect("copy head");
             assert_eq!(forge.domain.object(tip).expect("workflow commit").parent, Some(source));
-            caller.closed = true;
-            self.controls.signal(0, ServiceSignal::Terminate);
-            peer_host.shutdown();
+            self.shutdown(caller, peer_host);
             self.stopped = true;
         }
         store.pending.clear();
@@ -392,10 +494,10 @@ impl skein_world::Referee<Proc> for Judge {
     }
 }
 
-fn run(fill: Fill, cut: Option<u32>, cut_short: bool) -> Outcome {
+fn run(fill: Fill, cut: Option<u32>, stage: SourceStage) -> Outcome {
     stories::set(Story::Chat { words: b"Hello" });
     stories::setup_settings(world::Phase::Story);
-    let transport = source();
+    let transport = source(stage == SourceStage::BesideRepository);
     let store = Rc::new(RefCell::new(Store::new()));
     STARTS.with(|starts| {
         *starts.borrow_mut() = Starts { lives: 0, store: Some(store.clone()), transport: Some(transport.clone()) }
@@ -419,7 +521,7 @@ fn run(fill: Fill, cut: Option<u32>, cut_short: bool) -> Outcome {
                 store,
                 transport: transport.clone(),
                 seen: seen.clone(),
-                source: if cut_short { SourceStage::Cut } else { SourceStage::Slow },
+                source: stage,
                 handed: false,
                 answers: 0,
                 peer_seen: 0,
@@ -460,12 +562,18 @@ fn run(fill: Fill, cut: Option<u32>, cut_short: bool) -> Outcome {
 /// Kill the engine under a slow source, retaining the peer and the disk.
 #[must_use]
 pub fn restart() -> Outcome {
-    let measured = run(Fill::Slow(SLOW), None, false);
-    run(Fill::Slow(SLOW), Some(measured.cut.expect("migration cut point")), false)
+    let measured = run(Fill::Slow(SLOW), None, SourceStage::Slow);
+    run(Fill::Slow(SLOW), Some(measured.cut.expect("migration cut point")), SourceStage::Slow)
 }
 
 /// Give the same source first a cut transfer, then a whole transfer.
 #[must_use]
 pub fn cut_short() -> Outcome {
-    run(Fill::Cut, None, true)
+    run(Fill::Cut, None, SourceStage::Cut)
+}
+
+/// Copy through ctl into the first repository's project, preserving the source workflow.
+#[must_use]
+pub fn beside_repository() -> Outcome {
+    run(Fill::Whole, None, SourceStage::BesideRepository)
 }
