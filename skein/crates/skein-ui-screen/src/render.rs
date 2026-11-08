@@ -7,7 +7,7 @@ mod words;
 use skein_lib::{List, Stack};
 use skein_ui::{Node, Role, Tree};
 
-use crate::{Arrange, Cell, Focus, Frame, Paint, Place, RegionLook, Size};
+use crate::{Align, Arrange, Cell, Focus, Frame, Paint, Place, RegionLook, Size};
 use canvas::{Canvas, Viewport};
 
 #[derive(Clone, Copy, Debug)]
@@ -16,6 +16,8 @@ struct Info {
     paint: Paint,
     look: Option<RegionLook>,
     title: bool,
+    align: Align,
+    band: Option<Paint>,
 }
 
 fn look(node: &Node, theme: &crate::Theme) -> Option<RegionLook> {
@@ -54,7 +56,27 @@ fn information(tree: &Tree, theme: &crate::Theme) -> List<Info> {
         }
         tokens = styles(node, theme).over(tokens);
         let parent = parents.last().copied();
-        out.push(Info { parent, paint: tokens.over(region), look: placed, title: false }).expect("one entry per node");
+        let paint = tokens.over(region);
+        let (mut align, mut band) = match parent {
+            Some(parent) => {
+                let data = out.get(parent).expect("parent information exists");
+                (data.align, data.band)
+            }
+            None => (Align::Start, None),
+        };
+        for token in &node.styles {
+            for look in &theme.styles {
+                if *token == look.style {
+                    if look.align == Align::End {
+                        align = Align::End;
+                    }
+                    if look.band {
+                        band = Some(paint);
+                    }
+                }
+            }
+        }
+        out.push(Info { parent, paint, look: placed, title: false, align, band }).expect("one entry per node");
         parents.push(at).expect("ancestors fit nodes");
     }
     for at in 0..tree.len() {
@@ -315,9 +337,12 @@ fn walk(
             out.enter_region(look, data.paint, frame);
             if let Some(title) = title_node(tree, at, look) {
                 let mut title_line = Canvas::first_line(out.columns(), theme.base, tree.len());
-                content(tree, title, info, theme, false, &mut title_line, frame);
+                let mut end_line = Canvas::first_line(out.columns(), theme.base, tree.len());
+                content_part(tree, title, info, theme, false, Some(Align::Start), &mut title_line, frame);
+                content_part(tree, title, info, theme, false, Some(Align::End), &mut end_line, frame);
                 title_line.finish(frame);
-                out.title(&title_line, look, frame);
+                end_line.finish(frame);
+                out.title(&title_line, &end_line, look, frame);
             }
             if look.arrange == Arrange::Spread {
                 spread(tree, at, info, theme, focus, out, frame);
@@ -400,7 +425,9 @@ fn node(
     frame: &mut Frame,
 ) -> Option<u16> {
     let n = tree.get(at).expect("node exists");
-    let paint = info.get(at).expect("node information exists").paint;
+    let data = info.get(at).expect("node information exists");
+    let paint = data.paint;
+    out.looks(data.align, data.band);
     let focused = focus.node == Some(n.id);
     out.tag_focus(focused);
     let indent = out.indent();
@@ -539,6 +566,20 @@ fn content(
     out: &mut Canvas,
     frame: &mut Frame,
 ) {
+    content_part(tree, at, info, theme, focused, None, out, frame);
+}
+
+#[expect(clippy::too_many_arguments, reason = "title capture selects runs by their inherited alignment")]
+fn content_part(
+    tree: &Tree,
+    at: u32,
+    info: &List<Info>,
+    theme: &crate::Theme,
+    focused: bool,
+    part: Option<Align>,
+    out: &mut Canvas,
+    frame: &mut Frame,
+) {
     let root = tree.get(at).expect("content root exists");
     let end = at.saturating_add(root.size);
     let mut found = false;
@@ -550,6 +591,12 @@ fn content(
                 break;
             }
             external_url(tree, external.pop().expect("link exists"), info, theme, focused, out, frame);
+        }
+        let data = info.get(index).expect("content information exists");
+        if let Some(part) = part
+            && data.align != part
+        {
+            continue;
         }
         let node = tree.get(index).expect("content descendant exists");
         let mut paint = info.get(index).expect("node information exists").paint;
@@ -574,6 +621,7 @@ fn content(
         }
     }
     if !found
+        && (part.is_none() || part == Some(info.get(at).expect("root information exists").align))
         && root.role != Role::Progress
         && let Some(name) = &root.name
     {

@@ -1,7 +1,7 @@
 mod every;
 pub use every::every;
 
-use crate::{Arrange, Border, Glyphs, Paint, Place, RegionLook, Rgb, StyleLook, Theme};
+use crate::{Align, Arrange, Border, Glyphs, Paint, Place, RegionLook, Rgb, StyleLook, Theme};
 use skein_lib::{Queue, Token};
 use skein_ui::{Binding, Builder, EntryKind, Limits, NodeId, Owner, Region, Role, Run, State, Style, Tree};
 
@@ -21,6 +21,12 @@ pub const TOP: Region = Region { owner: OWNER, number: 1 };
 pub const BOTTOM: Region = Region { owner: OWNER, number: 2 };
 pub const RED: Style = Style { owner: OWNER, token: 1 };
 pub const BLUE: Style = Style { owner: OWNER, token: 2 };
+pub const LOOKS_TOP: Region = Region { owner: OWNER, number: 3 };
+pub const RULES: Region = Region { owner: OWNER, number: 4 };
+pub const END: Style = Style { owner: OWNER, token: 3 };
+pub const BAND: Style = Style { owner: OWNER, token: 4 };
+pub const BAND_PAINT: Paint = Paint { back: Some(Rgb { red: 0, green: 64, blue: 0 }), ..Paint::NONE };
+pub const REGION_PAINT: Paint = Paint { back: Some(Rgb { red: 32, green: 32, blue: 32 }), ..Paint::NONE };
 pub const RED_PAINT: Paint = Paint { fore: Some(Rgb { red: 255, green: 0, blue: 0 }), bold: true, ..Paint::NONE };
 pub const BLUE_PAINT: Paint = Paint { fore: Some(Rgb { red: 0, green: 0, blue: 255 }), italic: true, ..Paint::NONE };
 pub fn theme() -> Theme {
@@ -39,6 +45,7 @@ pub fn theme() -> Theme {
                     down: '|',
                     paint: Paint { bold: true, ..Paint::NONE },
                     title: true,
+                    sides: true,
                 }),
                 pad: 0,
                 paint: Paint::NONE,
@@ -51,8 +58,43 @@ pub fn theme() -> Theme {
                 pad: 0,
                 paint: Paint::NONE,
             },
+            RegionLook {
+                region: LOOKS_TOP,
+                place: Place::Top,
+                arrange: Arrange::Lines,
+                border: Some(Border {
+                    corners: ['╭', '╮', '╰', '╯'],
+                    across: '─',
+                    down: '│',
+                    paint: Paint { bold: true, ..Paint::NONE },
+                    title: true,
+                    sides: true,
+                }),
+                pad: 1,
+                paint: REGION_PAINT,
+            },
+            RegionLook {
+                region: RULES,
+                place: Place::Bottom,
+                arrange: Arrange::Lines,
+                border: Some(Border {
+                    corners: ['+', '+', '+', '+'],
+                    across: '─',
+                    down: '|',
+                    paint: Paint { bold: true, ..Paint::NONE },
+                    title: false,
+                    sides: false,
+                }),
+                pad: 0,
+                paint: Paint::NONE,
+            },
         ]),
-        styles: Box::new([StyleLook { style: RED, paint: RED_PAINT }, StyleLook { style: BLUE, paint: BLUE_PAINT }]),
+        styles: Box::new([
+            StyleLook { style: RED, paint: RED_PAINT, align: Align::Start, band: false },
+            StyleLook { style: BLUE, paint: BLUE_PAINT, align: Align::Start, band: false },
+            StyleLook { style: END, paint: Paint::NONE, align: Align::End, band: false },
+            StyleLook { style: BAND, paint: BAND_PAINT, align: Align::Start, band: true },
+        ]),
         glyphs: Glyphs { focus: '>', mask: '●' },
     }
 }
@@ -446,6 +488,90 @@ pub fn log_menu_tree() -> Tree {
     b.open(Role::Disclosure);
     b.name(b"Details");
     leaf(&mut b, Role::Paragraph, b"detail");
+    b.close();
+    b.close();
+    b.close();
+    b.close();
+    finish(b)
+}
+
+pub fn looks() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Banner);
+    b.region(LOOKS_TOP);
+    b.open(Role::Heading { level: 1 });
+    for (style, text) in
+        [(RED, b"screen".as_slice()), (BLUE, " · A long painted title".as_bytes()), (END, b"example.test:8367")]
+    {
+        b.open(Role::Text);
+        b.style(style);
+        b.text(Run::Plain, text);
+        b.close();
+    }
+    b.close();
+    leaf(&mut b, Role::Paragraph, b"Inside");
+    b.close();
+    b.open(Role::Paragraph);
+    b.style(END);
+    b.text(Run::Plain, b"Written at 07:42");
+    b.close();
+    b.open(Role::List);
+    b.open(Role::Item);
+    leaf(&mut b, Role::Paragraph, b"Words");
+    b.open(Role::Paragraph);
+    b.style(BAND);
+    b.text(
+        Run::Plain,
+        b"A band paints the indentation and the remaining room, wrapping these words across two rows in a wide frame.",
+    );
+    b.close();
+    b.close();
+    b.close();
+    b.open(Role::Form);
+    b.region(RULES);
+    b.open(Role::TextField);
+    b.name(b"Ask");
+    b.placeholder(b"type here");
+    b.bind(binding());
+    b.close();
+    b.close();
+    b.open(Role::ContentInfo);
+    b.region(BOTTOM);
+    leaf(&mut b, Role::Status, b"Commands");
+    leaf(&mut b, Role::Status, b"Live");
+    b.close();
+    b.close();
+    finish(b)
+}
+
+pub fn look_line(text: &[u8], style: Style, region: Option<Region>) -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.style(RED);
+    b.open(Role::Region);
+    if let Some(region) = region {
+        b.region(region);
+    }
+    b.open(Role::Paragraph);
+    b.style(style);
+    b.text(Run::Plain, text);
+    b.close();
+    b.close();
+    b.close();
+    finish(b)
+}
+
+pub fn end_title() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Banner);
+    b.region(TOP);
+    b.open(Role::Heading { level: 1 });
+    b.text(Run::Plain, b"Title");
+    b.open(Role::Text);
+    b.style(END);
+    b.text(Run::Plain, b"long end");
     b.close();
     b.close();
     b.close();

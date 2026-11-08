@@ -3,8 +3,7 @@
 2026-11-08. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The full-screen
 shell's renderer, keys, drawing and simulated terminal are built, with
-panic restoration and simulated resizes. Regions framed by rules, a
-title's end, lines aligned to their end, bands, options menus from a
+panic restoration and simulated resizes. Options menus from a
 field, a body that follows a log's end and paging by the body's rows are
 not built; other rendering and input extensions remain deferred
 (`ui-screen.md`, sections 3, 5, 6.2 and 10; `ui-screen.status.md`). The kernel's

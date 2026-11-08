@@ -70,6 +70,7 @@ fn every_role_state_and_property_is_laid() {
 #[expect(clippy::disallowed_macros, reason = "hand-written frames are the renderer's independent oracle")]
 #[expect(clippy::disallowed_types, reason = "lossy strings make a failed byte comparison readable in test diagnostics")]
 fn golden_frames_lay_bands_text_fields_scroll_and_roles() {
+    let looks = fixtures::looks();
     let bands = fixtures::bands();
     let text = fixtures::text();
     let fields = fixtures::fields();
@@ -120,6 +121,15 @@ fn golden_frames_lay_bands_text_fields_scroll_and_roles() {
             include_bytes!("golden/scroll.txt").as_slice(),
         ),
         ("roles", &roles, ROLES, None, 0, include_bytes!("golden/roles.txt").as_slice()),
+        ("looks", &looks, ROLES, Some(fixtures::id(&looks, b"Ask")), 0, include_bytes!("golden/looks.txt").as_slice()),
+        (
+            "looks-narrow",
+            &looks,
+            Size { columns: 30, rows: 12 },
+            Some(fixtures::id(&looks, b"Ask")),
+            0,
+            include_bytes!("golden/looks-narrow.txt").as_slice(),
+        ),
     ] {
         let mut frame = Frame::new(size);
         let mut focus = Focus { node, caret, ..Focus::default() };
@@ -450,4 +460,57 @@ fn rendering_honours_focus_paints_scroll_and_frame_bounds() {
         render(&tree, &theme, size, &mut Focus::default(), &mut frame);
         assert_eq!(frame.text().as_ref(), expected.as_bytes(), "{name}");
     }
+}
+
+#[test]
+#[expect(clippy::disallowed_types, reason = "the diagnostic collects every failed table row")]
+fn rendering_lays_end_alignment_bands_and_title_parts() {
+    use core::fmt::Write;
+    let mut failures = String::new();
+    let theme = fixtures::theme();
+    // Eight columns expose the exact-width edge and leave a four-cell padded interior.
+    let line_size = Size { columns: 8, rows: 1 };
+    let band_size = Size { columns: 8, rows: 4 };
+    let band_paint = Paint { back: fixtures::BAND_PAINT.back, ..fixtures::RED_PAINT };
+    let edge_paint = Paint { back: fixtures::REGION_PAINT.back, ..fixtures::RED_PAINT };
+    for (name, tree, size, expected, cells) in [
+        ("exact room", fixtures::look_line(b"12345678", fixtures::END, None), line_size, "12345678\n", &[][..]),
+        ("nearest end under start", fixtures::look_line(b"End", fixtures::END, None), line_size, "     End\n", &[][..]),
+        (
+            "band over region",
+            fixtures::look_line(b"a\nb", fixtures::BAND, Some(fixtures::LOOKS_TOP)),
+            band_size,
+            "╭──────╮\n│ a    │\n│ b    │\n╰──────╯\n",
+            &[
+                (Position { row: 1, column: 0 }, Cell { glyph: '│', paint: edge_paint }),
+                (Position { row: 1, column: 2 }, Cell { glyph: 'a', paint: band_paint }),
+                (Position { row: 1, column: 5 }, Cell { glyph: ' ', paint: band_paint }),
+                (Position { row: 2, column: 5 }, Cell { glyph: ' ', paint: band_paint }),
+            ][..],
+        ),
+        (
+            "title before end",
+            fixtures::end_title(),
+            Size { columns: 12, rows: 2 },
+            "+- Title --+\n+----------+\n",
+            &[][..],
+        ),
+    ] {
+        let mut frame = Frame::new(size);
+        render(&tree, &theme, size, &mut Focus::default(), &mut frame);
+        if frame.text().as_ref() != expected.as_bytes() {
+            writeln!(failures, "{name}: text differs from {expected}").expect("diagnostic writes");
+        }
+        for (at, cell) in cells {
+            let drawn = match frame.row(at.row) {
+                Some(row) => row.get(usize::from(at.column)),
+                None => None,
+            };
+            if drawn != Some(cell) {
+                writeln!(failures, "{name}: paint or glyph differs at {} {}", at.row, at.column)
+                    .expect("diagnostic writes");
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{failures}");
 }
