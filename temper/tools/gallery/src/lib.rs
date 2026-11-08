@@ -15,6 +15,9 @@ mod tests;
 mod worlds;
 pub use samples::Sample;
 
+// The box at 420 pixels, with a phone's 16 pixels each side (client/README.md, 3.5).
+const NARROW: u16 = 388;
+
 pub const STYLESHEETS: [&str; 2] = [
     concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/temper-client-shell-web/temper.css"),
     concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/temper-client-shell-web/task-pages.css"),
@@ -195,6 +198,26 @@ fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInpu
     }
     let title = escape(&skein_ui_web::title::text(&heading(view.tree()), b"temper"));
     let mut html = page.html().replacen("<div", "<div id=\"app\"", 1).replace("<dialog ", "<dialog open ");
+    let mut has_narrow = false;
+    for node in view.tree().nodes() {
+        let Some(drawing) = node.drawing.as_ref().filter(|drawing| drawing.kind == temper_client_view::paths::KIND)
+        else {
+            continue;
+        };
+        let mut scene = Scene::new(&bounds.tree);
+        if !draw(drawing.kind, &drawing.data, NARROW, 0, &mut scene) || scene.refused() {
+            continue;
+        }
+        let attribute = format!("data-node=\"{}\"", node.id.0);
+        if let Some(start) = html.find(&attribute)
+            && let Some(end) = html[start..].find("</svg>")
+        {
+            let mut svg = skein_ui_web::svg::draw(&scene, &[temper_client_view::look::NAMES], NARROW, 0);
+            svg.set("data-gallery-narrow", "");
+            html.insert_str(start + end + "</svg>".len(), &skein_ui_web::dom::print(&svg));
+            has_narrow = true;
+        }
+    }
     if let Some(name) = sample.open_disclosure() {
         for node in view.tree().nodes() {
             if node.role == Role::Disclosure && node.name.as_deref() == Some(name) {
@@ -219,6 +242,14 @@ fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInpu
     let mut styles = String::new();
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");
+    }
+    if has_narrow {
+        styles.push_str(concat!(
+            "<style>\n",
+            "@media (max-width: 760px) { #app .temper-ways-path[data-drawn] > svg:not([data-gallery-narrow]) { display: none; } }\n",
+            "@media (min-width: 761px) { #app .temper-ways-path[data-drawn] > svg[data-gallery-narrow] { display: none; } }\n",
+            "</style>",
+        ));
     }
     format!(
         "<!doctype html>\n<html lang=\"en\"{night}><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>{styles}</head><body>{html}</body></html>\n"

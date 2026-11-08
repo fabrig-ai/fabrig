@@ -27,14 +27,20 @@ fn a_scene_draws_as_its_golden_svg() {
 }
 
 #[test]
-fn a_scene_uses_its_own_height_with_the_box_width() {
-    for height in [0, 74, u16::MAX] {
+fn a_scene_uses_its_own_size_or_its_boxs() {
+    for (width, height) in [(None, 0), (None, 74), (None, u16::MAX), (Some(720), 140)] {
         let mut scene = Scene::new(&LIMITS);
+        if let Some(width) = width {
+            scene.set_width(width);
+        }
         scene.set_height(height);
         let printed = dom::print(&svg::draw(&scene, NAMES, 100, 50));
+        let width = width.unwrap_or(100);
         assert_eq!(
             printed,
-            format!("<svg aria-hidden=\"true\" width=\"100\" height=\"{height}\" viewBox=\"0 0 100 {height}\"></svg>")
+            format!(
+                "<svg aria-hidden=\"true\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"></svg>"
+            )
         );
     }
 }

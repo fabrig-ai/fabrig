@@ -78,6 +78,9 @@ pub(super) fn view_answer(view: ways::View, limits: &w::Limits) -> Option<Box<[u
         ways::View::Charter { charter, card: value } => w::View::Charter(
             w::CharterView::new(limits, w::CharterViewParts { charter, card: card(value, limits)? }).ok()?,
         ),
+        ways::View::Rule { kind, number, card: value } => {
+            w::View::Rule(w::RuleView::new(limits, w::RuleViewParts { kind, number, card: card(value, limits)? }).ok()?)
+        }
         ways::View::NotDrawn(words) => w::View::NotDrawn(w::NotDrawn::new(limits, w::NotDrawnParts { words }).ok()?),
     };
     let answer = w::ViewAnswer::new(limits, w::ViewAnswerParts { view }).ok()?;
@@ -120,7 +123,9 @@ fn path(value: ways::Path, limits: &w::Limits) -> Option<w::BranchPath> {
             ways::Opens::Rule { kind, scope, number } => {
                 w::Opens::Rule(w::OpensRule::new(limits, w::OpensRuleParts { kind, scope, number }).ok()?)
             }
-            ways::Opens::Gate(number) => w::Opens::Gate(w::OpensGate::new(limits, w::OpensGateParts { number }).ok()?),
+            ways::Opens::Gate { number, charter } => {
+                w::Opens::Gate(w::OpensGate::new(limits, w::OpensGateParts { number, charter }).ok()?)
+            }
             ways::Opens::Tier(name) => w::Opens::Tier(w::OpensTier::new(limits, w::OpensTierParts { name }).ok()?),
             ways::Opens::Queue => w::Opens::Queue,
             ways::Opens::Turn => w::Opens::Turn,

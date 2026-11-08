@@ -59,6 +59,7 @@ pub enum View {
     Path(Path),
     Proposal { before: Path, after: Path },
     Charter { charter: u32, card: Card },
+    Rule { kind: u32, number: u32, card: Card },
     NotDrawn(Box<[u8]>), // one line, at most 512 bytes
 }
 

@@ -177,7 +177,12 @@ this shell's text (ui.md, 17.1).
 - **Then every node in preorder,** by its role (ui.md, 3.1). Where a
   row prints `NAME:` above its children, a name already ending in `?`,
   `!` or `:` takes no colon ("What shall we change?", not "What shall
-  we change?:"):
+  we change?:"). A node whose line would be `NAME:` alone, above its
+  children, where the nearest ancestor that printed such a line printed
+  the same `NAME:`, prints no line of its own and indents its children
+  no further, so that a region and the control it names alike, or a
+  drawing and its fallback's list, read once ("Ways of working:" once,
+  its tabs under it); its children print as they would:
 
   | Role | Prints |
   |---|---|
