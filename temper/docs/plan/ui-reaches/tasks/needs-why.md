@@ -111,3 +111,17 @@ Options, each decided:
 ## Report
 
 The implementer's report: `why`'s matching as written, `ready` and where each page waits, the second slot, the words, the rows and their bites, the options taken, the goldens and prints regenerated (each with why it moved), and the runs' counts.
+
+## Rebase (2026-11-08, step merge, foreman ui-reaches/needs-why/foreman-1)
+
+Rebase needs-why, combining vocabulary totals and gallery sample counts.
+The merge conflicts are in `temper/crates/temper-client-view/src/words.rs` and `temper/tools/gallery/src/samples.rs`.
+Integration commit `e315b43aaf` brought in main’s rail, Work and Deployment changes; preserve those alongside `d387278bf1`’s reason lines.
+In `words.rs`, retain all 21 `Why*` variants, their IDs 4334–4354 and English phrases alongside main’s vocabulary changes.
+Combine the declarations: `PHRASES = 2217`, `SEGMENTS = 3930`, `ENGLISH_BYTES = 53852`, and `ALL` length 1535.
+Regenerate and verify these using `tests::accounts::english_phrase_declarations_match_the_vocabulary` in `temper-client-view`, with `SKEIN_CODEGEN_WRITE=1` through heavy; verify again without writing.
+In `samples.rs`, set `N = 369`: integration’s 368 states plus `needs-why`.
+Keep main’s rail disclosures, menu wording, Work/Deployment samples and routing, plus this task’s `needs-why` sample and `home_domain` delivery of empty `Decided` documents.
+Preserve the guarded `Watch::Decided(subject) if home_away` arm before the new general delivery arm; remove `Decided(_)` from the ignored-watch alternatives.
+Verify gallery `each_state_holds_what_its_name_says` and the task’s focused view/domain checks through heavy.
+Regenerate any terminal goldens or journey prints made stale by the combined code using their prescribed generators; report each moved artifact and why.
