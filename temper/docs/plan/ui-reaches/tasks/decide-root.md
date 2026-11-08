@@ -79,3 +79,13 @@ Options, each decided:
 ## Report
 
 The implementer's report: the rule, the schema and the words as written, the charters' sentences, the table's rows, the bites, the runs' counts.
+
+## Rebase (2026-11-08, step merge, foreman ui-reaches/decide-root/foreman-1)
+
+resolve forge.status.md by preserving both tasks’ completed-gap deletions
+The merge conflicts only in `temper/docs/design/domain/forge.status.md`.
+Incoming commit `3c4876649807d7b2e1b3261746f4ccdd177e6115` removes the completed `ui-reaches/keep-asking` gap.
+This branch’s `4f74f25e480789a12e5d1b59051ad089b7049b62` removes the completed `ui-reaches/decide-root` gap and the obsolete “Only goals call it” departure.
+Resolve the overlapping hunk with all three entries absent; neither side alone preserves both tasks’ changes.
+Keep the preceding caller-person/`served_chat` departure and the following `repair-green` departure.
+`temper/crates/temper-service/src/tests/stock.rs` auto-merged; the refusal reports no conflict there.
