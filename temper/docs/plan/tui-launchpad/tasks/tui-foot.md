@@ -3,7 +3,7 @@ id = "tui-foot"
 part = "tui-foot"
 kind = "feature"
 needs = ["tui-surface", "view-lists", "screen-entries"]
-files = ["temper/crates/temper-client-tui/src/view/foot.rs", "temper/crates/temper-client-tui/src/view/foot/**", "temper/crates/temper-client-tui/src/tests/foot.rs", "temper/crates/temper-client-tui/src/tests/golden/foot-*.txt", "temper/crates/temper-client-tui/src/tests/golden/first-*.txt", "temper/crates/temper-client-tui/src/words.rs", "temper/crates/temper-client-tui/src/look.rs", "temper/crates/temper-client-tui/src/view.rs", "temper/crates/temper-client-tui/src/limits.rs", "temper/crates/temper-client-tui/src/tests/event.rs", "temper/crates/temper-client-tui/src/tests/screens.rs", "temper/docs/design/client/tui/journeys/sign-in-approved/02.*", "temper/docs/design/client/README.status.md", "skein/crates/skein-ui-screen/src/render.rs", "skein/crates/skein-ui-screen/src/render/words.rs", "skein/crates/skein-ui-screen/src/tests/render.rs", "skein/crates/skein-ui-screen/src/tests/fixtures.rs"]
+files = ["temper/crates/temper-client-tui/src/view/foot.rs", "temper/crates/temper-client-tui/src/view/foot/**", "temper/crates/temper-client-tui/src/tests/foot.rs", "temper/crates/temper-client-tui/src/tests/golden/foot-*.txt", "temper/crates/temper-client-tui/src/tests/golden/first-*.txt", "temper/crates/temper-client-tui/src/words.rs", "temper/crates/temper-client-tui/src/look.rs", "temper/crates/temper-client-tui/src/view.rs", "temper/crates/temper-client-tui/src/limits.rs", "temper/crates/temper-client-tui/src/tests/event.rs", "temper/crates/temper-client-tui/src/tests/screens.rs", "temper/docs/design/client/tui/journeys/sign-in-approved/02.*", "temper/docs/design/client/tui/journeys/sign-in-approved/01.*", "temper/crates/temper-client-tui/src/state.rs", "temper/docs/design/client/README.status.md", "skein/crates/skein-ui-screen/src/render.rs", "skein/crates/skein-ui-screen/src/render/words.rs", "skein/crates/skein-ui-screen/src/tests/render.rs", "skein/crates/skein-ui-screen/src/tests/fixtures.rs"]
 effort = "high"
 minutes = 240
 +++
@@ -158,3 +158,18 @@ row the focus columns and the placeholder or value alone (extend `fixtures::fiel
 if it takes no states). Then resume from `0329779575`; step 4 adds `heavy cargo nextest
 run -p skein-ui-screen -p skein-ui-screen-terminal` and `skein-ui-screen` to the clippy
 run, and the report names the skein change.
+
+2026-11-08. *Returning sign-in loses its focus after engine-link fallback: repair
+`state.rs` here, or in `tui-surface`?* Here, widened by `Tui::set_local` in
+`temper/crates/temper-client-tui/src/state.rs` and the generated
+`temper/docs/design/client/tui/journeys/sign-in-approved/01.*` alone. The fault is this
+task's: the box now shares `Tui::focus()` with the sign-in field, and the Link field takes
+the focus "as the screen opens" (`temper/docs/design/client/README.md`, 6.14), so the
+sign-in screen stays as it is only if its return asks for the focus again. In
+`set_local`, when `local` is `Local::Ended` and `self.local` is not, advance `self.focus`
+by one (`saturating_add`) and count it as a change; `openings` keeps its meaning and is
+not touched, and no other `Told` changes. The committed "sign-in after engine-link
+fallback" row in `src/tests/foot.rs` is the failing row; see it pass, then reprint with
+`heavy cargo run -p temper-client-journeys` and check `01.txt` and `01.html` carry the
+Link field's focus mark and cursor again, as on main. Then step 4 as before, the whole
+focused run on the final head.
