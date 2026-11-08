@@ -1518,6 +1518,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
     let rows = [
         (
             b"You approve".as_slice(),
+            b"You approve every change".as_slice(),
             b"An agent makes each change; nothing reaches main until you approve it.".as_slice(),
             vec![(
                 1,
@@ -1535,6 +1536,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
         ),
         (
             b"Agents review".as_slice(),
+            b"Agents review every change, and code lands it".as_slice(),
             b"An agent makes each change, another reviews it, and code lands it.".as_slice(),
             vec![(1, review)],
             None,
@@ -1542,6 +1544,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
         ),
         (
             b"Draft first".as_slice(),
+            b"Draft first, then agents build it on its own branch".as_slice(),
             b"You and an agent write a design draft; agents build it on its own branch, and it lands whole.".as_slice(),
             vec![
                 (
@@ -1579,8 +1582,9 @@ fn the_stock_ways_hold_their_words_and_settings() {
     ];
     let stock = crate::stock::ways();
     assert_eq!(stock.len(), rows.len());
-    for (way, (name, line, rules, ways, delegation)) in stock.iter().zip(rows) {
+    for (way, (name, headline, line, rules, ways, delegation)) in stock.iter().zip(rows) {
         assert_eq!(way.name.as_ref(), name);
+        assert_eq!(way.headline.as_ref(), headline, "{name:?}");
         assert_eq!(way.line.as_ref(), line, "{name:?}");
         assert_eq!(way.rules.as_ref(), rules.as_slice(), "{name:?}");
         assert_eq!(way.ways, ways, "{name:?}");

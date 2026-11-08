@@ -178,8 +178,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 - **Not yet:** 13.4: kind 9's stock words for charters 1, 2, 4, 5, 6, 9,
   10, 11 and 12 (`ui-p3e-words`'s `charter-lines`).
 
-- **Not yet:** 13.10: a stock way's headline: the ways hold none and the
-  `ways` read carries an empty one (`ui-p3e-words`'s `way-headlines`).
 
 - **Not yet:** 13.10: the `ways` read carries no project's words
   (`ui-p3e-words`'s `project-words-read`).

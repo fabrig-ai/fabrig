@@ -198,6 +198,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         entries
             .push(ways::WayEntry {
                 name: way.name.clone(),
+                headline: way.headline.clone(),
                 line: way.line.clone(),
                 path,
                 items,

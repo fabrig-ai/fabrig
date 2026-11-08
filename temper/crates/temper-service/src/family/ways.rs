@@ -37,9 +37,8 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
                 w::StockWay::new(
                     limits,
                     w::StockWayParts {
-                        // way-headlines supplies the stock way's headline.
-                        headline: b"".as_slice().into(),
                         name: way.name,
+                        headline: way.headline,
                         line: way.line,
                         path: path(way.path, limits)?,
                         items,
