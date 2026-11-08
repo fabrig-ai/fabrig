@@ -128,3 +128,18 @@ Resolve individual hunks rather than taking whole status files. The relevant tru
 Preserve the task’s `domain/forge.status.md` invariant wording and removal of its `path-stops` gap.
 Check the automatically merged reader fixtures retain the new stop fields and trunk’s legend expectations.
 Regenerate any journey prints made stale by the combined drawing and legend, using their existing tool.
+
+## Rebase (2026-11-08, step merge, foreman look-round-25/path-stops/foreman-3)
+
+resolve the three status-file conflicts while retaining the trunk’s restored implementation account and path-stops’ completed status
+Rebase onto the current landing trunk; inspected `origin/look-round-25/integration` is `c8e51223596301193a3134ad6976f57c4a1f5eec`.
+The merge refusal names three content conflicts. Trunk commit `23b6e64761` merged main and restored status details missing from this branch.
+
+- `temper/docs/design/STATUS.md`: retain the trunk’s restored `ui-p3a-how` implementation paragraph alongside the remaining drawing and Roles gaps. Keep its updated forge citations and engine-binary M2 account.
+- `temper/docs/design/client/README.status.md`: retain the trunk’s restored How work runs implementation paragraph and its updated `temper-engine-shell` source references. Keep the branch’s removal of the 4.6 `path-stops` gap. Retain the `roles-view`, `how-drawing` and `roles-page` gaps; do not restore `ways-misses` or the two-tone departure.
+- `temper/docs/design/draft/surfaces.status.md`: retain the trunk’s section 7 additions: the heading’s chief departure awaits rules by path, and section 11 defers the next step’s suggestions. Preserve the shared path drawing, Roles and remaining P3b–P3e gaps, plus the independently merged updates in sections 12–14.
+
+Resolve individual hunks; taking either side wholesale would lose required status changes.
+Preserve `domain/forge.status.md`’s removal of the `path-stops` gap and its invariant naming conflict, merge, catch-up, prepare, proof and turn.
+These instructions supersede the earlier rebase direction to remove the old How work runs completion account: retain the trunk’s restored account alongside its explicit remaining gaps.
+No implementation change is indicated by this merge refusal.
