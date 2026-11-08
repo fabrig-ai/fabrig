@@ -89,11 +89,33 @@ impl Harness for CopyWorld {
     }
 }
 
+pub(crate) struct Source {
+    pub address: &'static [u8],
+    pub repository: &'static [u8],
+    pub branch: &'static [u8],
+}
+const SOURCES: &[Source] = &[Source { address: SOURCE, repository: b"acme/app", branch: BRANCH }];
+
 fn peer(transport: &temper_fake_git_hosted::Typed, fill: Fill, partial: bool) -> Peer {
+    catalogue_peer(transport, SOURCES, fill, partial)
+}
+
+pub(crate) fn catalogue_peer(
+    transport: &temper_fake_git_hosted::Typed,
+    sources: &[Source],
+    fill: Fill,
+    partial: bool,
+) -> Peer {
     let mut table = temper_playground::fakes::forge_table();
     let mut repositories = List::with_capacity(16);
-    for repository in table.repositories.into_boxed() {
-        repositories.push(repository).expect("source repository");
+    for (index, source) in sources.iter().enumerate() {
+        repositories
+            .push(skein_fake_forge_forgejo::Repository {
+                id: fixtures::REPOSITORY + u32::try_from(index).expect("catalogue size"),
+                full: source.repository.into(),
+                protected: None,
+            })
+            .expect("source repository");
     }
     if partial {
         repositories
@@ -101,12 +123,15 @@ fn peer(transport: &temper_fake_git_hosted::Typed, fill: Fill, partial: bool) ->
             .expect("partial copy");
     }
     table.repositories = repositories;
-    table.sources = Box::new([skein_fake_forge_forgejo::Source {
-        address: SOURCE.into(),
-        repository: b"acme/app".as_slice().into(),
-        private: false,
-        fill,
-    }]);
+    table.sources = sources
+        .iter()
+        .map(|source| skein_fake_forge_forgejo::Source {
+            address: source.address.into(),
+            repository: source.repository.into(),
+            private: false,
+            fill,
+        })
+        .collect();
     let mut peer = Peer::new(
         fixtures::FORGE,
         fixtures::peer_limits(),
@@ -121,6 +146,10 @@ fn peer(transport: &temper_fake_git_hosted::Typed, fill: Fill, partial: bool) ->
 }
 
 fn source(workflow: bool) -> temper_fake_git_hosted::Typed {
+    catalogue(SOURCES, workflow)
+}
+
+pub(crate) fn catalogue(sources: &[Source], workflow: bool) -> temper_fake_git_hosted::Typed {
     use skein_fake_forge_domain::{self as domain, api};
     let mut config = temper_playground::documents::hosted_git::CONFIG;
     // A slow migration and the recovered engine's request can coexist.
@@ -130,31 +159,33 @@ fn source(workflow: bool) -> temper_fake_git_hosted::Typed {
     if workflow {
         tree.push(api::File { path: SOURCE_WORKFLOW_PATH.into(), content: SOURCE_WORKFLOW.into() });
     }
-    domain::repository(
-        &mut domain,
-        &config,
-        api::Setup {
-            id: fixtures::REPOSITORY,
-            name: b"acme/app".as_slice().into(),
-            default: BRANCH.into(),
-            workflows: Box::new([]),
-            labels: Box::new([]),
-            protection: None,
-            hooked: false,
-            tree: tree.into_boxed_slice(),
-            checks: api::Checks {
-                cues: Box::new([]),
-                contexts: Box::new([]),
-                latency_min: Duration::ZERO,
-                latency_max: Duration::ZERO,
-                silent: 0,
-                passes: 1000,
-                reruns: 0,
-                cue: None,
+    for (index, source) in sources.iter().enumerate() {
+        domain::repository(
+            &mut domain,
+            &config,
+            api::Setup {
+                id: fixtures::REPOSITORY + u32::try_from(index).expect("catalogue size"),
+                name: source.repository.into(),
+                default: source.branch.into(),
+                workflows: Box::new([]),
+                labels: Box::new([]),
+                protection: None,
+                hooked: false,
+                tree: tree.clone().into_boxed_slice(),
+                checks: api::Checks {
+                    cues: Box::new([]),
+                    contexts: Box::new([]),
+                    latency_min: Duration::ZERO,
+                    latency_max: Duration::ZERO,
+                    silent: 0,
+                    passes: 1000,
+                    reruns: 0,
+                    cue: None,
+                },
             },
-        },
-    );
-    domain::grant(&mut domain, b"acme/app", 2, api::Permission::Read);
+        );
+        domain::grant(&mut domain, source.repository, 2, api::Permission::Read);
+    }
     let forge = Rc::new(RefCell::new(skein_fake_peers::forge::Forge::new(domain, config)));
     temper_fake_git_hosted::Typed::new(forge, &temper_playground::fakes::forge_table())
 }
@@ -162,7 +193,7 @@ fn source(workflow: bool) -> temper_fake_git_hosted::Typed {
 fn command(caller: &mut Caller, words: &[&[u8]]) {
     caller.commands.push_back(Command::new(words));
 }
-fn json(answer: &crate::ctl::Answer) -> serde_json::Value {
+pub(crate) fn json(answer: &crate::ctl::Answer) -> serde_json::Value {
     // Connect and copy print progress before their terminal adoption answers.
     serde_json::Deserializer::from_slice(&answer.output)
         .into_iter::<serde_json::Value>()
