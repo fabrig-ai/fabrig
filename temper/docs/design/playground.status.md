@@ -1,6 +1,6 @@
 # playground: status
 
-2026-11-06. Where temper's code lags or departs from [playground.md](playground.md).
+2026-11-08. Where temper's code lags or departs from [playground.md](playground.md).
 
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
@@ -25,6 +25,10 @@
     5 s, forge 1 Kept, the account and the project absent
     (`temper/tests/one-process/tests/suite/story_a.rs`); whether what
     lets the web client's walk pass lifts that is unknown.
+  - 9: the native heap at start: `temper/tests/playground/tests/memory.rs`
+    prints its figures, holds no bound and is ignored, run by hand;
+    `temper/tests/one-process/tests/memory.rs` likewise prints story A's
+    high water, which it cannot reach while the story stalls there.
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the memory's and the slice's unset
     (section 11); and published.

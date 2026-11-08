@@ -1106,6 +1106,29 @@ terminal client, the captures and the faults.
   process exit order are their Musts. The case library's 4.1/4.3
   placement, 4.4 pace and 4.5 account choices run only in the real-loop
   fuzzy stories (5.3).
+- **Two drivers' offline proofs,** which their scripts once ran alone
+  (the user's request `ignored-tiers`, 2026-11-08). Each test sets up
+  what its script set up, and the script runs the test:
+  - *B0's,* `crates/temper/tests/proof_live.rs`: the rung's setup through
+    its last read before the account's import, on the fake model with no
+    account, and its whole walk on its twin, the driver the live rung
+    runs (2.7). Real Forgejo, as the stories above.
+  - *The managed GitHub sitting's Ready,*
+    `crates/temper/tests/live_github_managed.rs`'s `managed_ready_client`:
+    the sitting's fake half as `scripts/proof-live-github-managed.sh fake`
+    sets it up. That is the fake GitHub with the sitting's accounts and
+    its two repositories, the sitting's relay in its fake mode, and the
+    engine alone on `tests/support/github/engine.json`. Ready, the web
+    client's domain, view and transport run natively, signs in by the
+    printed link. Connect makes the App by its manifest and installs it
+    on the one repository, and Ready adopts that repository. The
+    sitting's driver runs the same test as its client, naming its mode
+    in `TEMPER_MANAGED_CLIENT` and giving the link on stdin. The push,
+    the planted refusals and the secrets' scan stay the driver's.
+
+  The profile selects these by name beside the `process` binary
+  (`.config/nextest.toml`), so each binary's other tests stay in the
+  suites that hold them.
 
 - **Outside the gate suites:** nextest profile `process-temper`, run
   once the binary and the fake `claude` are built, with
@@ -1496,11 +1519,12 @@ section 8; testing-strategy.md, 2.9).
   test in `crates/temper/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
-  (2.4). B0's three offline proofs are the ignored `proof_live` binary,
-  run by `scripts/proof-live.sh rung-b0-offline` before the live story and never
-  in the process profile. The offline command selects only `proof_live`
-  under profile `live-temper`'s timeout horizon, overriding its default
-  filter; it admits no live account. A driver's own fault is met there, never
+  (2.4). B0's offline proofs need no person: its setup and its walk on
+  the twin are the process tier's (2.6, *Two drivers' offline proofs*),
+  and its live configuration's admission is `suite`'s (`startup.rs`).
+  `scripts/proof-live.sh rung-b0-offline` runs the first two before the
+  live story, under profile `process-temper`, whose default filter
+  selects them; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
     set up through ctl with the playground's copy
@@ -1579,13 +1603,29 @@ section 8; testing-strategy.md, 2.9).
   The rung's one sitting keeps its box up past a panic, which `run_walk`
   catches before its return, and a held Claude Code login is used in
   place, so neither has a guard.
-- **What stays the owner's,** ignored and run by hand: the process tier's chat on a
-  real model, `a_real_model_answers_a_chat_and_pushes_a_small_change` (a person's
-  sitting); `rung_b0_a_person_agrees_a_plan_before_the_change_lands` (the rung's
-  walk); `live_github`'s `a_chat_lands_a_change_on_github_com_through_a_restart`
-  (github.com); `live_github_managed`'s two; and `proof_live`'s three offline driver
-  proofs. The owner also runs the pair, one story at a time, through
-  `scripts/proof-live.sh forge-land` and `forge-land-claude`.
+- **What needs a person,** six tests, each ignored, its reason naming what
+  only a person gives, and each run by its script. None runs on a scripted
+  person alone: each needs a person's account, a person's sign-in or
+  github.com.
+  - `live.rs`'s `a_real_model_answers_a_chat_and_pushes_a_small_change`: a
+    person's fresh ChatGPT sign-in (`scripts/proof-live.sh`). Its story, a real
+    model's chat and pushed change, runs unattended in the landing pair, which
+    carries it on to a landing and a restart; a held login for it as well
+    would spend a real model's run on no check the pair lacks.
+  - `rung_b0_a_person_agrees_a_plan_before_the_change_lands`: a held ChatGPT
+    account, on the rung's own model, sol at high (`scripts/proof-live.sh
+    rung-b0`). Its bounds are that model's passing walk, so the cheapest
+    model would prove another walk.
+  - The landing pair: a held ChatGPT account and a held Claude Code login,
+    the after-landing tier's inputs (above). The owner also runs each alone,
+    through `scripts/proof-live.sh forge-land` and `forge-land-claude`.
+  - `live_github.rs`'s `a_chat_lands_a_change_on_github_com_through_a_restart`:
+    github.com, on the probe App's fixtures the owner holds
+    (`scripts/proof-live-github.sh`).
+  - `live_github_managed.rs`'s `managed_relay`: github.com, where a person
+    makes the App under their own account and installs it
+    (`scripts/proof-live-github-managed.sh live`). The fake sitting starts
+    the same relay in its fake mode, as its relay.
 - **Harness step checks run once,** in `suite` (`tests/suite/support_tests.rs`): no
   live or process test repeats a focused one.
 - **Outside the suites:** nextest profile `live-temper`, whose default filter is the
@@ -2803,13 +2843,13 @@ one complete accepted revision, with refusal and decided-call replay cases (6.4)
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
 crates/temper/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
-crates/temper/tests/proof_live.rs   ignored offline B0 driver proofs (2.7), scripts/proof-live.sh rung-b0-offline
+crates/temper/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
 crates/temper/tests/support/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 crates/temper/tests/support/cluster.rs  the cluster's reader: `crates/temper/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/README.md, 15.5)
 crates/temper/tests/fixtures/cluster  the retained cluster's description, read by the process tier
 crates/temper/tests/live.rs         the live tier (2.7), nextest profile live-temper
 crates/temper/tests/live_github.rs  the live tier's GitHub story (2.7), run by scripts/proof-live-github.sh
-crates/temper/tests/live_github_managed.rs  the owner-run sitting's private relay, never in a default run
+crates/temper/tests/live_github_managed.rs  the managed GitHub sitting: its Ready on the fake, nextest profile process-temper (2.6); its relay against github.com, owner-run (2.7)
 tests/client-browser                temper-client-browser-world: the browser tier (../client/browser.md, section 4), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser-temper
 crates/temper-client-shell-terminal/tests  the terminal's machine world (../client/README.md, section 10)
 crates/temper-fake-git              the fake git program's core: temper fake git (4.3)
