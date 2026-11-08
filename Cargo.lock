@@ -6077,6 +6077,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-shell"
+version = "0.0.0"
+dependencies = [
+ "jig-protocol-config",
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+ "temper-docs",
+]
+
+[[package]]
 name = "temper-stage-one"
 version = "0.0.0"
 dependencies = [
