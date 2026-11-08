@@ -62,10 +62,18 @@ and 11). The Claude Code landing fixture takes `claude-haiku-5-5` by name
 at `low` in both selected charters; ChatGPT keeps stock row 7. Its focused
 settings table establishes no real launch or live landing; that proof
 follows landing (`domain/testing.md`, 2.7 and 11).
-The standard brief follows the declarations at 354,988 bytes;
+The standard brief follows stock charter 5 at 353,072 bytes;
 the larger requested brief remains undecided (`protocol/configuration.md`,
 11 and 13.4). The first
-milestone stands in the code (`README.md`). Ask temper's first milestone
+milestone stands in the code (`README.md`). Each project has the stock's
+rule 1, with removal and reset returning to it; project patterns may
+name a branch across its repositories. The deployment has no stock rule.
+Charter 5 and template 4 are stock, with the delegation that reaches
+them; the reference sets its own project's rule 1 to main alone. Its
+stage-one description still omits that rule, and existing policies need
+an owner's proposal to gain delegation. The three ways, paths, read and
+Ask temper views remain the next design step (`protocol/configuration.md`,
+11 and 13.2 to 13.4; `draft/stock-ways.status.md`). Ask temper's first milestone
 stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1). Charter 3, template 3, `Configure`
 and Settings' offer are gone by plan `ui-ask-drop`. Its walk follows
