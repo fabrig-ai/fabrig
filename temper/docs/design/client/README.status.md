@@ -194,11 +194,6 @@ read-once requirement remains section 11's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
 
-- **Not yet:** 6.14, *A chat*, *a view*, and 6.15's token rows for it:
-  the TUI's chat reads an agent's committed text straight as Markdown, so a
-  `view` block shows as code holding its address
-  (`temper-client-tui`'s `view/chat/read.rs`); `tui-views` of the plan
-  `tui-whole-t1` prints it.
 - **Not yet:** 6.14, *The launchpad* as drawn: the header's brief and
   " · /brief", *Where you left off*'s rows, the person's newest goal among
   them, Needs you's marks and rows, Start, `/brief`'s note, the box's

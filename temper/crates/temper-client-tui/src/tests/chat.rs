@@ -141,6 +141,8 @@ impl Input {
     }
 }
 #[expect(clippy::wildcard_enum_match_arm, reason = "the fixture answers its task, activity and run documents alone")]
+#[expect(clippy::too_many_lines, reason = "the fixture answers chat and view reads through the root's events")]
+#[expect(clippy::manual_map, reason = "the read answer uses an explicit match rather than a closure")]
 fn root(input: &Input) -> Domain {
     let mut root = d::unlinked(&chat_limits(), f::SEED);
     chat_event(&mut root, Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } });
@@ -293,7 +295,10 @@ fn root(input: &Input) -> Domain {
                             })
                         }
                     };
-                    result.map(|result| jig_client::Up::ReadDone { read, result })
+                    match result {
+                        Some(result) => Some(jig_client::Up::ReadDone { read, result }),
+                        None => None,
+                    }
                 } else {
                     None
                 }
@@ -621,6 +626,7 @@ fn request_rule() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the golden rows embed hand-written frame literals")]
+#[expect(clippy::too_many_lines, reason = "one table checks the chat frames and printed views at their review sizes")]
 fn the_chats_are_their_goldens() {
     use skein_ui_screen::{Focus, Size};
     let full = Size { columns: 80, rows: 24 };
