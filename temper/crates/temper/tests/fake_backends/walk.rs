@@ -1,4 +1,6 @@
 //! The welcome's paths to a first chat on `box --fake-backends`, sent as the acts its buttons send.
+//! First sign-in block: temper/docs/design/protocol/setup.md, 7.2.
+use crate::box_link;
 use crate::support::{
     self, Ended, boxed,
     ctl::{self, Call, Step},
@@ -102,15 +104,7 @@ impl Walk {
             |_binary| check(&self.sandbox().join("config"), self.scratch.path()),
         );
         let diagnostic = String::from_utf8_lossy(&outcome.stderr);
-        let block = b"Open this link in a browser on this machine.\n\n\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n";
-        let after_block = outcome
-            .stderr
-            .strip_prefix(block)
-            .unwrap_or_else(|| panic!("the sign-in block is first on stderr: {diagnostic}"));
-        assert!(
-            after_block.starts_with(b"box: effective configuration "),
-            "the effective directories follow the block"
-        );
+        assert_first_block(&outcome.stdout, &outcome.stderr);
         assert!(!diagnostic.contains("Logs:"), "the logs notice belongs to box.log");
         // A refused restart must fail on the box's terminal, before missing
         // ctl answers obscure the reason it never printed a new sign-in link.
@@ -131,6 +125,23 @@ impl Walk {
         assert_eq!(outcome.left, Some(Vec::new()), "no child outlives its box: {diagnostic}");
         Seen { answers: outcome.calls.into_iter().skip(1).collect() }
     }
+}
+
+fn assert_first_block(stdout: &[u8], stderr: &[u8]) {
+    let diagnostic = String::from_utf8_lossy(stderr);
+    let link = support::printed_link(stdout).expect("first printed sign-in link");
+    let address = box_link::address(link);
+    // The walk's PATH has only system programs, and its environment has no HOME.
+    let binary = std::fs::canonicalize(skein_scratch::paths::binary("temper")).expect("test binary");
+    let command = format!("In a terminal: {} http://{address}\n", binary.display());
+    let block = [box_link::PRELUDE, box_link::FOOTER, command.as_bytes()].concat();
+    let after_block = stderr
+        .strip_prefix(block.as_slice())
+        .unwrap_or_else(|| panic!("the sign-in block is first on stderr: {diagnostic}"));
+    assert!(
+        after_block.starts_with(b"box: effective configuration "),
+        "the effective directories follow the block: {diagnostic}"
+    );
 }
 
 fn path(path: &Path) -> &str {
