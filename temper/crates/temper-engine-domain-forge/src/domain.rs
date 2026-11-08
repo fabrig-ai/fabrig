@@ -6923,5 +6923,9 @@ fn merge_available(d: &Domain, row: &ChangeRow, pending: &PendingStep, base_tip:
 }
 
 fn empty_rules(limits: &Limits) -> crate::settings::HeldRules {
-    crate::settings::HeldRules { deployment: Box::new([]), projects: Map::with_capacity(limits.judge_projects) }
+    crate::settings::HeldRules {
+        deployment: Box::new([]),
+        every_project: Box::new([]),
+        projects: Map::with_capacity(limits.judge_projects),
+    }
 }

@@ -212,6 +212,43 @@ fn up_to_date_by_the_landing_rules() {
 }
 
 #[test]
+fn a_project_branch_rule_covers_repositories_adopted_after_it() {
+    let mut d = domain();
+    let mut first = adopted();
+    first.project = 1;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(first.clone()) });
+    let mut required = rule();
+    required.pattern.segments = Box::new([b"branch".as_slice().into()]);
+    required.ci = true;
+    required.gates = Box::new([RuleGate { number: 2, blocking: true, freshness: JudgeFreshness::Clean }]);
+    keep(&mut d, 1, 2, required);
+    let mut later = first.clone();
+    later.provider.repository += 1;
+    later.name = b"later".as_slice().into();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(later.clone()) });
+    let mut other = later.clone();
+    other.project = 2;
+    other.provider.repository += 1;
+    other.name = b"other".as_slice().into();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(other.clone()) });
+    for (repository, branch, covered) in [
+        (&first, b"main".as_slice(), true),
+        (&later, b"main".as_slice(), true),
+        (&later, b"dev".as_slice(), false),
+        (&other, b"main".as_slice(), false),
+    ] {
+        let gates = d.held_gates(&env().limits, repository, branch).expect("bounded gates");
+        assert_eq!(gates.len(), usize::from(covered));
+        if covered {
+            let gate = gates.first().expect("covered gate");
+            assert_eq!(gate.number, 2);
+            assert!(gate.blocking);
+        }
+        assert_eq!(d.held_requires(repository, branch), Requires { ci: true, up_to_date: !covered });
+    }
+}
+
+#[test]
 fn project_rules_add_to_the_deployments() {
     let (mut d, mut evidence) = fixture();
     let mut ci = rule();
