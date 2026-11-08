@@ -1,6 +1,6 @@
 //! Two screens from the client and the TUI's state (temper/docs/design/client/README.md, 6.14 and 7.1).
 use crate::{
-    Browser, Event, Refusal, Signing, Tui, approval_address, look,
+    Browser, Event, Local, Refusal, Signing, Tui, approval_address, look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
@@ -214,9 +214,10 @@ fn projects(me: &jig_client::contract::Me, bound: u32) -> Box<[u8]> {
     out.finish()
 }
 fn first(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words) {
+    let me = if root.client().link().state == Link::SignedOut { None } else { root.pages().me(root.client()) };
     if root.client().link().state == Link::OutOfDate {
         text(b, Role::Paragraph, &words.view().say(Shared::OutOfDateMain, &[]), None);
-    } else if let Some(me) = root.pages().me(root.client()) {
+    } else if let Some(me) = me {
         text(
             b,
             Role::Paragraph,
@@ -239,7 +240,7 @@ fn first(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words) {
         text(b, Role::Alert, &words.say(Word::NotKept, &[]), Some(look::REFUSED));
     }
 }
-fn state(root: &Domain) -> (Shared, Style) {
+fn state(tui: &Tui, root: &Domain) -> (Shared, Style) {
     match root.client().link().state {
         Link::Live => {
             if root.pages().me(root.client()).is_some() {
@@ -251,7 +252,13 @@ fn state(root: &Domain) -> (Shared, Style) {
         Link::Starting => (Shared::Connecting, look::WAITING),
         Link::Offline => (Shared::Offline, look::DOWN),
         Link::OutOfDate => (Shared::OutOfDate, look::DOWN),
-        Link::SignedOut => (Shared::SignedOut, look::DOWN),
+        Link::SignedOut => {
+            if tui.local() == Local::Signing {
+                (Shared::Connecting, look::WAITING)
+            } else {
+                (Shared::SignedOut, look::DOWN)
+            }
+        }
     }
 }
 /// Rebuild when the root's shown count or the TUI's revision changes, or the tick is reached.
@@ -272,7 +279,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     b.open(Role::Main);
     b.region(look::TOP);
     text(&mut b, Role::Heading { level: 1 }, &words.say(Word::Title, &[]), Some(look::TITLE));
-    let signed_out = root.client().link().state == Link::SignedOut;
+    let signed_out = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
     view.tick = if signed_out {
         sign_in(&mut b, tui, root, words, wall)
     } else {
@@ -292,7 +299,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
         b.style(look::HINT);
         b.close();
     }
-    let (state, style) = state(root);
+    let (state, style) = state(tui, root);
     text(&mut b, Role::Status, &words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))]), Some(style));
     b.close();
     b.close();
