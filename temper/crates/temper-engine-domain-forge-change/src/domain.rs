@@ -1208,13 +1208,10 @@ fn take_pushed_head(mut change: Change, head: [u8; 32], now: Wall) -> Stepped {
     Stepped { change, decision: Decision::None }
 }
 
-fn landing(mut change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
+fn landing(change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     match standing.effect {
         EffectResult::Conflict => conflict_due(change, facts.base_tip, Some(head), facts, now, limits),
-        EffectResult::Failed => {
-            change.state = State::First { head, ready_since: change.ready_since.unwrap_or(now) };
-            Stepped { change, decision: Decision::None }
-        }
+        EffectResult::Failed => hold(change, Hold::Failed),
         EffectResult::None | EffectResult::Pending | EffectResult::Made => waiting(change, now, limits),
     }
 }

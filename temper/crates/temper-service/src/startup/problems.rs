@@ -11,6 +11,7 @@ pub enum What {
     Jig(config::What),
     Standalone,
     EngineAlone,
+    UnbuiltWorker,
     WorkerAlone,
     Loopback,
     Connectors,
@@ -140,6 +141,7 @@ fn words(what: What) -> &'static [u8] {
         What::MissingNull => b"missing: null for none",
         What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
         What::EngineAlone => b"an engine alone takes no local worker, one plaintext loopback listener and workers with distinct digest paths",
+        What::UnbuiltWorker => b"this build serves an engine alone",
         What::WorkerAlone => b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.workers and application.limits",
         What::Loopback => b"must be a socket address on loopback",
         What::Connectors => b"must be [1], the forge connector",
@@ -527,6 +529,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 | config::What::Unreadable
                 | config::What::Relative,
             )
+            | What::UnbuiltWorker
             | What::EngineAlone
             | What::WorkerAlone
             | What::Standalone
