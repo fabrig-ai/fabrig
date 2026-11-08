@@ -49,3 +49,16 @@ id = 3
 story = "After a restart, tasks due past the two load slots each load their window and resume, none failing its brief or spending a try"
 parts = ["restart-loads"]
 walk = false
+
+[[part]]
+id = "worker-reads"
+title = "temper's worker reads its link on every pass and both sides print why a link dropped"
+mode = "direct"
+needs = ["engine-link", "worker-link"]
+design = "temper/docs/design/domain/worker.md, 3.1"
+
+[[slice]]
+id = 4
+story = "A worker whose engine records wait at the watermark keeps its link and its pings, and each lost link or ended opening prints one line naming the worker and why"
+parts = ["worker-reads"]
+walk = false

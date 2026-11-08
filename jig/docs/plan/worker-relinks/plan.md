@@ -16,7 +16,7 @@ is never silent.
 | `engine-link` | `tasks/engine-link.md` | | jig | 2, 3 (the workers' part of a stop), 1 (the engine's reasons) |
 | `worker-link` | `tasks/worker-link.md` | | jig | 1 (at the link layers), the worker's reasons |
 | `restart-loads` | `tasks/restart-loads.md` | | temper | 3 (the restart's windows) |
-| `worker-reads` | `tasks/worker-reads.md` (next batch) | `engine-link`, `worker-link` | temper | 1 (temper's worker), the log lines of 1 and 2 |
+| `worker-reads` | `tasks/worker-reads.md` | `engine-link`, `worker-link` | temper | 1 (temper's worker), the log lines of 1 and 2 |
 
 Four tasks: the request's limit. Item 4, the design, is this cut's own
 writing, not a task. Nothing is dropped; what the plan reads narrowly is
@@ -37,9 +37,14 @@ said below.
   transcript load that answers `Failed` for room, where root.md, 8 already
   says busy and due; `restart-loads` removes it with jig's matching
   **Departs** 9.1 in `engine.status.md`.
-- Next batch: `temper/docs/design/domain/worker.md`, 3.1 (the link read and
-  fired every pass, the held entrance sized from the engine's cap) and
-  `temper/docs/design/protocol/README.md`, 15.3 (the loss lines).
+- `temper/docs/design/domain/worker.md`, 3.1: *The link is read and fired
+  on every pass* and *The entrance holds the engine's cap*. Its status: a
+  **Not yet** 3.1.
+- `temper/docs/design/protocol/README.md`, 15.3: the `lost` line, the
+  engine's `worker lost` and `worker opening ended` lines, *A link that
+  drops is never silent*, and the workers' listener's line printed when
+  it fails. Its status: a **Not yet** 15.3. `worker-reads` removes both,
+  with hosts.status.md's 6.6.
 
 ## Decided
 
@@ -103,7 +108,9 @@ is `engine-link` then `worker-reads`.
   main: one line in `jig-protocol-worker-link/src/component.rs`, four in
   `jig-protocol-engine-workers/src/translate.rs`, one in `workers.rs`.
   `engine-link` and `worker-link` touch the same files; the hunks are
-  apart, and whichever lands second merges them.
+  apart, and whichever lands second merges them. The same trunk changed
+  `temper-service/src/tests/worker.rs` (about fifty lines), which
+  `worker-link` touches by a type path and `worker-reads` by a new row.
 - `jig/tests/worker-link/src/joined.rs` is `worker-link`'s, and
   `engine-link` adds one arm at each of its two matches over the engine's
   requests; `worker-link` is told to leave those matches alone.
