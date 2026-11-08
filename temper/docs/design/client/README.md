@@ -7341,7 +7341,8 @@ rest*), with nothing pasted and no key pressed:
   in by the printed link, before or after, leaves the file's link
   live.
 - **Any other end** (refused, `link_unknown`, not ready, busy, full, no
-  answer), the reads spent, or the file read finding none: the TUI falls
+  answer; but in front, not ready and busy (6.17) wait for jig's resend),
+  the reads spent, or the file read finding none: the TUI falls
   back to the sign-in screen as it is with no file, which asks the
   browser's approval (7.1) and takes the paste. It says nothing of the
   file: no refusal line is drawn for the file's link, and a fallback
@@ -8020,8 +8021,10 @@ the user's hand-made frames of the look request `tui-box-front`
   jig's `protocol/client.md`, section 8, *A sign-in held is kept*).
   While it signs in, the welcome is drawn, its state "Connecting". It
   ends as 6.14's *Signed in from the engine's link* says: `link_used` or
-  `link_expired` reads the engine's link file a second later, and any
-  other end falls back to the sign-in screen.
+  `link_expired` reads the engine's link file a second later. Not ready
+  and busy wait for jig's resend after its backoff, still "Connecting",
+  because the box starts serve beside the front. Any other end falls
+  back to the sign-in screen.
 - **The seam** (6.13) gains the front's two: `Start.front`, true in
   front, `Start.local` true with it; and `Report::Front(BoxLine)`, a line
   of the box's, read. At `Start` in front the host tells the TUI's state
