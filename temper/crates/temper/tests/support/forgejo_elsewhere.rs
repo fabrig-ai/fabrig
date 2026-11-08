@@ -1,4 +1,6 @@
 //! A second deployment connects to the owned fixture solely as a Forgejo elsewhere.
+//! Its no-review rule replaces the adopted project's stock rule
+//! (temper/docs/design/protocol/configuration.md, 13.3–13.4).
 use super::{Forge, Process, Scratch, ctl, forgejo::Throwaway, write_private};
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
@@ -245,11 +247,6 @@ fn scripts(repository: &str, readme: &[u8]) -> Box<[Script]> {
 fn setup(root: &Path, restarted: bool) -> Vec<ctl::Step> {
     let mut steps = vec![ctl::Step::Run(ctl::Call::sign_in())];
     if !restarted {
-        steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "--json"])));
-        let file = root.join("config/native-landing-settings.json");
-        steps.push(ctl::Step::Then(Box::new(move |calls| {
-            ctl::settings_change(&calls[1], &file, "elsewhere-landing-settings")
-        })));
         steps.push(ctl::Step::Run(ctl::Call::new(&[
             "forge",
             "connect",
@@ -265,10 +262,19 @@ fn setup(root: &Path, restarted: bool) -> Vec<ctl::Step> {
             "--json",
         ])));
         steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "made:1"])));
+        steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "--json"])));
+        let directory = root.to_path_buf();
+        steps.push(ctl::Step::Then(Box::new(move |calls| {
+            let file = project_settings(&directory, adopted_project(&calls[1]));
+            ctl::settings_change(&calls[3], &file, "elsewhere-landing-settings")
+        })));
     }
-    for kind in ["landing-rule", "forge-charter"] {
-        steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", kind, "1", "--json"])));
-    }
+    let directory = root.to_path_buf();
+    steps.push(ctl::Step::Then(Box::new(move |_| {
+        let project = landing_project(&directory).to_string();
+        ctl::Call::new(&["settings", "show", "landing-rule", "1", "--project", &project, "--json"])
+    })));
+    steps.push(ctl::Step::Run(ctl::Call::new(&["settings", "show", "forge-charter", "1", "--json"])));
     steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "connected:1"])));
     steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])));
     steps
@@ -357,16 +363,46 @@ fn life(root: &Path, restarted: bool) {
     eprintln!("elsewhere life restarted={restarted}: {:?}", clock.now().now.saturating_since(began));
 }
 
-fn assert_landing_settings(ends: &[super::Ended]) {
+fn landing_settings(root: &Path) -> Value {
+    serde_json::from_slice(&fs::read(root.join("config/native-landing-settings.json")).expect("landing settings"))
+        .expect("landing settings JSON")
+}
+
+fn project_settings(root: &Path, project: u64) -> PathBuf {
+    let mut settings = landing_settings(root);
+    settings["items"][0]["setting"]["project"] = project.into();
+    let file = root.join("config/native-landing-settings.json");
+    write_private(&file, &serde_json::to_vec(&settings).expect("project landing settings"));
+    file
+}
+
+fn landing_project(root: &Path) -> u64 {
+    landing_settings(root)["items"][0]["setting"]["project"].as_u64().expect("landing rule's project")
+}
+
+fn adopted_project(call: &super::Ended) -> u64 {
+    // Progress and the terminal answer are separate JSON lines, as for setup.
+    let answer = call.stdout.split(|byte| *byte == b'\n').rfind(|line| !line.is_empty()).expect("adoption answer");
+    let connected: Value = serde_json::from_slice(answer).expect("adoption JSON");
+    assert_eq!(connected["outcome"]["adopted"]["owner"], "elsewhere");
+    assert_eq!(connected["outcome"]["adopted"]["name"], "first");
+    connected["project"].as_u64().expect("adoption's project number")
+}
+
+fn assert_landing_settings(ends: &[super::Ended], project: u64) {
     let rule = ctl::json(&ends[ends.len() - 4]);
     let producer = ctl::json(&ends[ends.len() - 3]);
+    assert_eq!(rule["setting"], json!({"kind":"landing-rule","project":project,"number":1}));
+    for criterion in ["enforce", "ci", "up_to_date"] {
+        assert_eq!(rule["value"][criterion], true, "{criterion} stays enforced");
+    }
     assert_eq!(rule["value"]["gates"], json!([]), "the story supplies no review exchange");
     assert_eq!(producer["value"], 2, "the coding producer is kept across restart");
 }
 
 fn connected(calls: &mut ctl::Calls, root: &Path, restarted: bool) {
     let ends = calls.ends();
-    assert_landing_settings(ends);
+    assert_landing_settings(ends, landing_project(root));
     let forges = ctl::json(ends.last().expect("forges read"));
     let row = &forges["forges"][0];
     assert_eq!(row["state"], "connected");
@@ -384,13 +420,8 @@ fn connected(calls: &mut ctl::Calls, root: &Path, restarted: bool) {
 }
 
 fn start_chat(calls: &mut ctl::Calls, root: &Path) {
-    // Progress and the terminal answer are separate JSON lines, as for setup.
-    let answer =
-        calls.ends()[3].stdout.split(|byte| *byte == b'\n').rfind(|line| !line.is_empty()).expect("adoption answer");
-    let connected: Value = serde_json::from_slice(answer).expect("adoption JSON");
-    let project = connected["project"].as_u64().expect("adoption's project number");
-    assert_eq!(connected["outcome"]["adopted"]["owner"], "elsewhere");
-    assert_eq!(connected["outcome"]["adopted"]["name"], "first");
+    let project = adopted_project(&calls.ends()[1]);
+    assert_eq!(landing_project(root), project, "the chat uses the project's no-review rule");
     let key = root.join("llm-key");
     write_private(&key, jig_channel_kit::fixtures::KEY);
     for call in [
@@ -429,6 +460,29 @@ fn start_chat(calls: &mut ctl::Calls, root: &Path) {
             key,
             "--json",
         ])));
+    }
+}
+
+/// Project selection is checked without starting a deployment or its forge.
+pub mod tests {
+    /// The connect answer selects the rule's project and preserves its criteria and producer.
+    pub fn settings_follow_the_connected_project() {
+        let scratch = super::Scratch::new("elsewhere_project_rule");
+        let config = scratch.path().join("config");
+        super::fs::create_dir(&config).expect("fixture configuration");
+        super::super::owned::producer_landing_settings(&config, 2);
+        let before = super::landing_settings(scratch.path());
+        let call = super::super::Ended {
+            exit: Some(super::Exit::Code(0)),
+            stdout: b"{\"connecting\":{}}\n{\"project\":7,\"outcome\":{\"adopted\":{\"owner\":\"elsewhere\",\"name\":\"first\"}}}\n".to_vec(),
+            stderr: Vec::new(),
+        };
+        super::project_settings(scratch.path(), super::adopted_project(&call));
+        let after = super::landing_settings(scratch.path());
+        assert_eq!(super::landing_project(scratch.path()), 7, "the rule follows the connect answer");
+        assert_eq!(after["items"][0]["set"], before["items"][0]["set"]);
+        assert_eq!(after["items"][1], before["items"][1]);
+        scratch.remove();
     }
 }
 

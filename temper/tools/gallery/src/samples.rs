@@ -455,7 +455,7 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample {
-            name: "home-needs-under-begin",
+            name: "home-begin-with-needs",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -2250,7 +2250,7 @@ fn home_domain(name: &str) -> Domain {
         me.projects.get_mut(0).expect("Home copy project").name = home_text("Widget");
     }
     me.needs_total = match name {
-        "home-at-work" | "home-needs-under-begin" | "home-one-need" => 1,
+        "home-at-work" | "home-begin-with-needs" | "home-one-need" => 1,
         "home-morning" | "home-needs-several" | "home-morning-card" | "home-answered" => 3,
         _ => 0,
     };
@@ -2312,7 +2312,7 @@ fn home_domain(name: &str) -> Domain {
                 | "home-ready"
                 | "home-after-skip"
                 | "home-skip-refused"
-                | "home-needs-under-begin"
+                | "home-begin-with-needs"
         );
     for _ in 0..256 {
         let Some(request) = out.pop() else { break };
@@ -2360,7 +2360,7 @@ fn home_domain(name: &str) -> Domain {
                     }
                     c::Subject::Tasks { .. } => {
                         let mut rows = List::with_capacity(1);
-                        if matches!(name, "home-ready" | "home-begin-settings-left" | "home-needs-under-begin") {
+                        if matches!(name, "home-ready" | "home-begin-settings-left" | "home-begin-with-needs") {
                             let mut row = chat_rows.rows.get(0).expect("sample chat").clone();
                             row.project = 1;
                             rows.push(row).expect("one chat");
@@ -2926,7 +2926,7 @@ fn home_accounts(name: &str, mut accounts: c::Accounts) -> c::Accounts {
 fn home_needs(name: &str) -> skein_lib::List<c::InboxEntry> {
     let mut rows = skein_lib::List::with_capacity(3);
     let tasks: &[u64] = match name {
-        "home-at-work" | "home-needs-under-begin" | "home-one-need" => &[3],
+        "home-at-work" | "home-begin-with-needs" | "home-one-need" => &[3],
         "home-morning" | "home-needs-several" | "home-morning-card" | "home-answered" => &[3, 2, 1],
         _ => &[],
     };

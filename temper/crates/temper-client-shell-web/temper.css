@@ -161,12 +161,10 @@ html:root[data-night]:has(#app) {
   --temper-navigation-signal: var(--temper-accent-dark);
   --temper-playground-line: var(--temper-accent);
   --temper-menu-ink: var(--temper-muted);
-  --temper-menu-shadow: rgba(0, 0, 0, .4);
   --temper-project-hover: var(--gf-hover);
   --temper-entry-focus-line: rgba(140, 170, 230, .5);
   --temper-control-line: var(--temper-line);
   --temper-control-hover-line: var(--temper-muted);
-  --temper-projects-shadow: rgba(0, 0, 0, .4);
   --temper-live: var(--temper-green);
   --temper-entry-line: var(--temper-line);
   --temper-entry-focus-ring: var(--gf-hover);
@@ -190,9 +188,7 @@ html:root[data-night]:has(#app) {
   --temper-proposal-signal: var(--temper-accent-dark);
   --temper-accent-hover: var(--temper-accent-dark);
   --temper-composer-ground: var(--temper-canvas);
-  --temper-entry-shadow: rgba(0, 0, 0, .4);
   --temper-dialog-line: var(--temper-line);
-  --temper-dialog-shadow: rgba(0, 0, 0, .4);
   --temper-field-line: var(--temper-line);
   --temper-task-control-line: var(--temper-line);
   --temper-empty-ink: var(--temper-muted);
@@ -236,31 +232,23 @@ html:root[data-night]:has(#app) {
   --temper-change-hold-line: var(--temper-amber);
   --gf-good-line: rgba(11, 226, 255, .35);
   --gf-good-pale: rgba(11, 226, 255, .1);
-  --gf-shadow-soft: rgba(0, 0, 0, .4);
   --gf-shadow-edge: var(--gf-line);
   --gf-control-hover-line: var(--gf-muted);
   --gf-primary-hover: #fd7a2a;
   --gf-option-ground: var(--gf-hover);
   --gf-error: var(--temper-red);
-  --gf-dialog-shadow: rgba(0, 0, 0, .4);
   --gf-backdrop: rgba(0, 0, 0, .4);
-  --gf-shadow: rgba(0, 0, 0, .4);
   --gf-rail-hover: var(--gf-hover);
   --gf-rail-new-line: var(--gf-line-2);
   --gf-home-row-hover: var(--gf-hover);
   --gf-home-edge: var(--gf-line);
-  --gf-menu-shadow: rgba(0, 0, 0, .4);
   --gf-band-ground: var(--gf-hover);
-  --gf-selection-shadow: rgba(0, 0, 0, .4);
   --gf-composer-focus-line: rgba(140, 170, 230, .5);
-  --gf-latest-shadow: rgba(0, 0, 0, .4);
   --gf-doc-note-ink: var(--gf-signal-ink);
   --gf-doc-flash: var(--gf-signal-pale);
   --gf-goal-running: var(--gf-faint);
   --gf-command-ground: var(--gf-hover);
-  --gf-shadow-faint: rgba(0, 0, 0, .4);
   --gf-signal-border: var(--gf-signal-line);
-  --gf-starter-shadow: rgba(0, 0, 0, .4);
   --gf-away-track: var(--gf-line-2);
   --gf-control-line: var(--gf-line-2);
   --gf-control-ink: var(--gf-ink);
@@ -1407,7 +1395,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 /* The link's state shows only when it is not live. */
 #app > .temper-rail > .temper-rail-foot > [data-region=temper-link]:has(> .temper-live) { display: none; }
 /* A moon by day and a sun by night, at the rail’s foot. */
-#app > .temper-rail > .temper-night-switch { position: absolute; right: 16px; bottom: 24px; width: 30px; height: 30px; padding: 0; font-size: 0; border: 0; border-radius: 8px; background: none; color: var(--gf-muted); cursor: pointer; }
+#app > .temper-rail > .temper-night-switch { position: absolute; right: var(--temper-night-switch-right, 16px); bottom: 24px; width: 30px; height: 30px; padding: 0; font-size: 0; border: 0; border-radius: 8px; background: none; color: var(--gf-muted); cursor: pointer; }
 #app > .temper-rail > .temper-night-switch::before { content: ''; position: absolute; inset: 7px; background: currentColor;
   -webkit-mask: url(files/moon.svg) center / contain no-repeat;
           mask: url(files/moon.svg) center / contain no-repeat; }
@@ -1790,7 +1778,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session .temper-session-composer > button { flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 10px; background: var(--gf-primary) url(files/send.svg) center / 16px no-repeat; color: transparent; font-size: 0; overflow: hidden; }
 #app > .temper-session .temper-session-composer > button:disabled { background-color: var(--gf-line-2); cursor: default; }
 @media (max-width: 760px) {
-  #app:has(> .temper-session) > :is(.temper-rail, .temper-tabbar, .temper-accounts) { display: none; }
+  #app:has(> .temper-session) > :is(.temper-tabbar:has(> a:nth-child(4)), .temper-accounts) { display: none; }
   #app > .temper-session > .temper-session-top { padding: 10px 12px; gap: 8px; }
   #app > .temper-session .temper-crumbs > .temper-back { display: inline-flex; flex: none; min-width: 36px; min-height: 36px; align-items: center; justify-content: center; font-size: 0; color: var(--gf-ink); }
   #app > .temper-session .temper-crumbs > .temper-back::before { content: '‹'; font-size: 20px; line-height: 1; }
@@ -1945,8 +1933,8 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session .temper-doc-note { font-size: 12px; color: var(--gf-doc-note-ink); }
 #app > .temper-rail > .temper-rail-unfold { display: none; }
 #app:has(> .temper-rail):has(> .temper-mode-split) { grid-template-columns: 56px minmax(0, 1fr); }
-#app:has(> .temper-mode-split) > .temper-rail { align-items: center; gap: 14px; padding: 18px 0; }
-#app:has(> .temper-mode-split) > .temper-rail > :not(.temper-brand, .temper-rail-unfold) { display: none; }
+#app:has(> .temper-mode-split) > .temper-rail { --temper-night-switch-right: calc(50% - 15px); align-items: center; gap: 14px; padding: 18px 0; }
+#app:has(> .temper-mode-split) > .temper-rail > :not(.temper-brand, .temper-rail-unfold, .temper-night-switch) { display: none; }
 #app:has(> .temper-mode-split) > .temper-rail > .temper-brand { font-size: 0; }
 #app:has(> .temper-mode-split) > .temper-rail > .temper-brand::before { font-size: 17px; line-height: 1.6; }
 #app:has(> .temper-mode-split) > .temper-rail > .temper-rail-unfold { display: block; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent url(files/menu.svg) center / 18px no-repeat; color: transparent; font-size: 0; }
@@ -2004,8 +1992,8 @@ a.temper-repository-link:hover { text-decoration: underline; }
   #app > .temper-session.temper-terminal.temper-mode-split > .temper-convo > .temper-session-foot { border-top: 1px solid var(--line); padding-top: 8px; }
 }
 
-#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) { position: fixed; inset: 0 auto 0 0; z-index: 20; width: 240px; align-items: stretch; padding: 18px 16px; background: var(--gf-paper); box-shadow: 8px 0 24px var(--gf-selection-shadow); }
-#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > :not(.temper-brand, .temper-rail-unfold) { display: flex; }
+#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) { --temper-night-switch-right: 16px; position: fixed; inset: 0 auto 0 0; z-index: 20; width: 240px; align-items: stretch; padding: 18px 16px; background: var(--gf-paper); box-shadow: 8px 0 24px var(--gf-selection-shadow); }
+#app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > :not(.temper-brand, .temper-rail-unfold, .temper-night-switch) { display: flex; }
 #app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > .temper-brand { font-size: 17px; }
 
 
@@ -3083,6 +3071,15 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 
 /* ==== ui: phone ==== */
 @media (max-width: 760px) {
+
+  /* Ask's three tabs keep the composer above them; the rail's switch belongs to the chat's bar. */
+  #app:has(> .temper-session):has(> .temper-tabbar:not(:has(> a:nth-child(4)))) { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  #app:has(> .temper-session) > .temper-rail,
+  #app:has(> .temper-session) > .temper-rail:has(> .temper-rail-unfold[open]) { display: contents; }
+  #app:has(> .temper-session) > .temper-rail > :not(.temper-night-switch),
+  #app:has(> .temper-session) > .temper-rail:has(> .temper-rail-unfold[open]) > :not(.temper-night-switch) { display: none; }
+  #app > .temper-session > .temper-session-top { anchor-name: --temper-session-top; padding-right: calc(12px + 30px + 8px); }
+  #app:has(> .temper-session) > .temper-rail > .temper-night-switch { top: anchor(--temper-session-top center); right: 12px; transform: translateY(-50%); }
 
   .temper-connect-cards, .temper-connect-pair { grid-template-columns: minmax(0, 1fr); }
   .temper-connect > .temper-settings-path { margin-bottom: 18px; }

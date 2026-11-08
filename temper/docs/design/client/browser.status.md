@@ -8,12 +8,18 @@ their prints derive `data-night` from the kept look. The scoped day
 palettes preserve Accounts and connection fallbacks; the stronger night
 root overrides them. Embedded images and the independent terminal
 palettes retain the literals permitted by the token task. No known
-implementation gap remains in these rules. The `home-begin-*` states
-cover two steps and the cut navigation. The existing history story has
+implementation gap remains in these rules. Shadows keep their day
+colour tokens at night; the night ring tokens retain their own values.
+Ask temper keeps its three equal phone tabs with the composer above,
+and the switch stays at the folded rail's foot or a phone chat bar's
+right, with the folded rail open or closed. The `home-begin-*` states
+cover two steps and the cut navigation; `home-begin-with-needs` and
+`home-begin-settings-left` draw neither Needs you nor Chats under
+To begin. No known implementation gap remains in these repairs.
+The existing history story has
 the night reload row, compiled but not run; it adds no test function.
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
-system preference and night placeholder separate. The nonempty Home
-sections' suppression gap is `README.status.md`, 3.5's.
+system preference and night placeholder separate.
 
 Sections 2.5 and 7.2 have no known implementation gap in the
 `ask-temper-place` repairs: the bar's tag is visible, its separator is
