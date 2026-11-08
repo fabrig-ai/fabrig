@@ -3469,7 +3469,15 @@ fn each_state_holds_what_its_name_says() {
         let (mut view, bounds, _) = built_root(&sample, inputs.clone(), &root);
         let tree = view.tree();
         let mut main = TreeFace::new(tree);
-        let h1 = in_main(Role::Heading { level: 1 }, row.heading);
+        let level = if matches!(
+            root.pages().address(),
+            temper_client_domain::Address::Goals { .. } | temper_client_domain::Address::Changes { .. }
+        ) {
+            2
+        } else {
+            1
+        };
+        let h1 = in_main(Role::Heading { level }, row.heading);
         if row.heading.is_empty() {
             assert_eq!(main.find(&h1), Found::Absent, "{} has no main heading", sample.name);
         } else {
@@ -4130,12 +4138,19 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
             let check = tree.nodes().iter().find(|node| node.id == id).expect("switch node");
             assert_eq!(check.states.as_slice().contains(&skein_ui::State::Pressed), label != off, "{name}: {label}");
         }
-        for (label, expected) in [("Goals", true), ("Changes", changes)] {
-            let present = tree
-                .nodes()
-                .iter()
-                .any(|node| node.role == Role::Link && node.name.as_deref() == Some(label.as_bytes()));
-            assert_eq!(present, expected, "{name}: {label} navigation");
+        let root = samples::domain(&sample);
+        let filters = temper_client_domain::pages::work::shown(
+            &temper_client_domain::pages::work::Filters {
+                goals: 1,
+                changes: 1,
+                ..temper_client_domain::pages::work::Filters::default()
+            },
+            temper_client_domain::pages::work::overrides(&root, 1),
+        );
+        for (label, present, expected) in
+            [("Goals", filters.goals, off != "Goals"), ("Changes", filters.changes, changes)]
+        {
+            assert_eq!(present, expected, "{name}: {label} Work filter");
         }
         let ways = tree
             .nodes()

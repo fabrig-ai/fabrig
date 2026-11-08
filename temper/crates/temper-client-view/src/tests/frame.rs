@@ -1592,9 +1592,11 @@ fn goals_opens_in_its_projects_frame() {
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Second");
-            assert_eq!(
-                fixtures::main_text(view.tree()).as_ref(),
-                "Second · goalsA goal turns a draft into landed work.".as_bytes()
+            assert!(fixtures::find(view.tree(), Role::Paragraph, "Second · Work".as_bytes()).is_some());
+            assert!(fixtures::find(view.tree(), Role::Navigation, b"Work's filters").is_some());
+            assert!(
+                skein_lib::bytes::find(&fixtures::main_text(view.tree()), b"A goal turns a draft into landed work.")
+                    .is_some()
             );
             assert!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).is_empty());
             assert!(fixtures::find(view.tree(), Role::Link, b"Goals").is_some(), "goals page keeps its rail entry");
@@ -1680,9 +1682,10 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Shop");
-            assert_eq!(
-                fixtures::main_text(view.tree()).as_ref(),
-                "Shop · goalsA goal turns a draft into landed work.".as_bytes()
+            assert!(fixtures::find(view.tree(), Role::Paragraph, "Shop · Work".as_bytes()).is_some());
+            assert!(
+                skein_lib::bytes::find(&fixtures::main_text(view.tree()), b"A goal turns a draft into landed work.")
+                    .is_some()
             );
         }
     }

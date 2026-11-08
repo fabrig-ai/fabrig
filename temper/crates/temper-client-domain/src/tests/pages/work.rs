@@ -368,3 +368,331 @@ fn whole_project() -> Case {
         ),
     }
 }
+
+use crate::{Address, Domain, Event, Place, Request, WorkFilter, tests::fixtures as f};
+use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
+use skein_lib::{Queue, Token, Writer};
+use temper_client_protocol_wire::{self as wire, v1 as w};
+
+struct Fixture {
+    root: Domain,
+    out: Queue<Request>,
+    goals: Token,
+    chats: Token,
+    changes: Token,
+}
+impl Fixture {
+    fn new() -> Self {
+        let mut root = crate::unlinked(&work_limits(), f::SEED);
+        let watch = f::start(&mut root, List::uncapped());
+        let mut me = f::chats::me();
+        let project = me.projects.get_mut(0).unwrap();
+        let mut template = project.templates.get(0).unwrap().clone();
+        template.number = jig_client::shapes::GOAL;
+        template.tracked = Some(1);
+        template.label = 8;
+        project.templates = list(&[project.templates.get(0).unwrap().clone(), template]);
+        super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(me)));
+        let out = super::welcome::event(
+            &mut root,
+            Event::Went { place: Place::Address(Address::Work { project: f::PROJECT, filter: WorkFilter::All }) },
+        );
+        let mut goals = None;
+        let mut chats = None;
+        let mut changes = None;
+        for request in &out {
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
+            } = request
+            {
+                match subject {
+                    Watchable::Jig(c::Subject::Tasks { query, .. }) => {
+                        if query.tracked == Some(true) {
+                            goals = Some(*watch);
+                        } else {
+                            chats = Some(*watch);
+                        }
+                    }
+                    Watchable::Family { .. } => {
+                        if Some(subject.clone()) == crate::forge::changes::watch(f::PROJECT, &f::limits().forge) {
+                            changes = Some(*watch);
+                        }
+                    }
+                    Watchable::Jig(_) => {}
+                }
+            }
+        }
+        Self { root, out, goals: goals.unwrap(), chats: chats.unwrap(), changes: changes.unwrap() }
+    }
+    fn up(&mut self, up: Up) {
+        let mut out = super::welcome::event(&mut self.root, Event::Client { event: jig_client::Event::Up { up } });
+        while let Some(request) = out.pop() {
+            self.out.push(request);
+        }
+    }
+    fn answer(&mut self, read: Token, value: c::ReadValue) {
+        self.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(value)) });
+    }
+    fn live(&mut self, watch: Token, rows: &[c::TaskLine]) {
+        self.up(Up::Watched {
+            watch,
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows: list(rows), more: false }))),
+        });
+    }
+    fn lists(&mut self) {
+        let mut ended_goal = super::chats::chat_line();
+        ended_goal.chip.task = 2;
+        ended_goal.last_activity = wall(20);
+        let mut live_goal = ended_goal.clone();
+        live_goal.chip.task = 1;
+        live_goal.last_activity = wall(10);
+        self.live(self.goals, &[live_goal]);
+        let mut chat = super::chats::chat_line();
+        chat.chip.task = 3;
+        chat.last_activity = wall(30);
+        self.live(self.chats, &[chat.clone()]);
+        let mut reads = List::uncapped();
+        for request in &self.out {
+            if let Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Jig(what) } },
+            } = request
+            {
+                reads.push((*read, what.clone())).unwrap();
+            }
+        }
+        for (read, what) in reads.into_boxed() {
+            if let c::Read::Tasks { query, .. } = what {
+                let rows =
+                    if query.tracked == Some(true) { list(&[ended_goal.clone()]) } else { list(&[chat.clone()]) };
+                self.answer(
+                    read,
+                    c::ReadValue::Tasks(Box::new(c::TaskPage {
+                        live: List::uncapped(),
+                        live_after: None,
+                        ended: c::EndedGroup::Rows { rows, after: None, cut: false },
+                    })),
+                );
+            } else if let c::Read::Notes { scope: c::NoteScope::Tasks { .. }, .. } = what {
+                self.answer(
+                    read,
+                    c::ReadValue::Notes(Box::new(c::NotePage {
+                        rows: list(&[draft_note()]),
+                        after: None,
+                        before: None,
+                        cut: false,
+                    })),
+                );
+            }
+        }
+    }
+    fn panel(&mut self) {
+        let mut queued = List::with_capacity(4);
+        for task in 11..=14 {
+            queued
+                .push(
+                    w::ChangesQueued::new(
+                        &w::CEILINGS,
+                        w::ChangesQueuedParts {
+                            task,
+                            title: b"Change".as_slice().into(),
+                            ready_since: wall(40).as_nanos(),
+                            checks_since: None,
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        let panel = w::ChangesPanel::new(
+            &w::CEILINGS,
+            w::ChangesPanelParts {
+                project: f::PROJECT,
+                landing: b"main".as_slice().into(),
+                queues: list(&[w::ChangesQueue::new(
+                    &w::CEILINGS,
+                    w::ChangesQueueParts {
+                        repository: b"owner/repo".as_slice().into(),
+                        branch: b"main".as_slice().into(),
+                        red: false,
+                        changes: queued,
+                    },
+                )
+                .unwrap()]),
+                more: 0,
+                landed: list(&[w::ChangesLanded::new(
+                    &w::CEILINGS,
+                    w::ChangesLandedParts { task: 15, title: b"Landed".as_slice().into(), at: wall(NOW).as_nanos() },
+                )
+                .unwrap()]),
+                landed_more: 0,
+            },
+        )
+        .unwrap();
+        self.up(Up::FamilyDelivered {
+            watch: self.changes,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::changes_panel(&panel),
+            },
+        });
+    }
+}
+
+#[test]
+fn facts_wait_for_all_lists_and_gather_each_kind_and_owner() {
+    let mut fixture = Fixture::new();
+    assert_eq!(work::facts(&fixture.root, f::PROJECT), None, "unread");
+    fixture.lists();
+    assert_eq!(work::facts(&fixture.root, f::PROJECT), None, "changes unread");
+    fixture.panel();
+    let mut reads = List::uncapped();
+    for request in &fixture.out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } },
+        } = request
+        {
+            reads.push((*read, *task)).unwrap();
+        }
+    }
+    for (read, task) in reads.into_boxed() {
+        if task == 14 {
+            continue;
+        }
+        let mut document = f::chat::task();
+        document.chip.task = task;
+        document.goal = if task == 11 || task == 15 { Some(1) } else { None };
+        document.lineage_chips.clear();
+        if task == 12 {
+            let mut root = document.chip.clone();
+            root.task = 3;
+            root.executor = c::ChipExecutor::Agent { charter: 1 };
+            document.lineage_chips.push(root).unwrap();
+        }
+        fixture.answer(read, c::ReadValue::Task(Box::new(document)));
+    }
+    // A read document makes the person's chat a draft, independent of its changes.
+    let facts = work::facts(&fixture.root, f::PROJECT).expect("all lists answered");
+    assert_eq!(facts.goals, list(&[goal(1, true, 10), goal(2, false, 20)]));
+    assert_eq!(facts.chats, list(&[chat(3, 30, true)]), "live/closed duplicate kept once");
+    for (task, expected) in [
+        (11, Belongs::Goal(1)),
+        (12, Belongs::Chat(3)),
+        (13, Belongs::Nothing),
+        (14, Belongs::Nothing),
+        (15, Belongs::Goal(1)),
+    ] {
+        let mut found = None;
+        for row in &facts.changes {
+            if row.task == task {
+                found = Some(row);
+            }
+        }
+        let found = found.unwrap();
+        assert_eq!(found.belongs, expected, "task {task}");
+        if task == 15 {
+            assert_eq!(found.at, Where::Landed { at: wall(NOW) });
+        } else {
+            assert_eq!(found.at, Where::Queued { place: u32::try_from(task - 10).unwrap(), since: wall(40) });
+        }
+    }
+    assert_eq!(work::place(&facts, wall(NOW)).drafts, list(&[card(Item::Draft(3), &[])]));
+    assert_eq!(work::facts(&fixture.root, 99), None);
+}
+
+#[test]
+fn shown_requires_a_count_and_respects_only_its_own_override() {
+    use work::{Overrides, Shown};
+    for (filters, overrides, want) in [
+        (Filters::default(), Overrides::default(), Shown { drafts: false, goals: false, changes: false, chats: false }),
+        (
+            Filters { drafts: 1, goals: 1, changes: 1, chats: 1 },
+            Overrides::default(),
+            Shown { drafts: true, goals: true, changes: true, chats: true },
+        ),
+        (
+            Filters { drafts: 1, goals: 1, changes: 1, chats: 1 },
+            Overrides { goals: true, changes: false },
+            Shown { drafts: true, goals: false, changes: true, chats: true },
+        ),
+        (
+            Filters { drafts: 1, goals: 1, changes: 1, chats: 1 },
+            Overrides { goals: false, changes: true },
+            Shown { drafts: true, goals: true, changes: false, chats: true },
+        ),
+    ] {
+        assert_eq!(work::shown(&filters, overrides), want);
+    }
+}
+
+#[test]
+fn only_read_hidden_settings_override_filters() {
+    use work::Overrides;
+    for (value, want) in [
+        (Some(None), Overrides::default()),
+        (None, Overrides::default()),
+        (Some(Some([true, true])), Overrides::default()),
+        (Some(Some([false, false])), Overrides { goals: true, changes: true }),
+        (Some(Some([false, true])), Overrides { goals: true, changes: false }),
+    ] {
+        let mut root = crate::unlinked(&work_limits(), f::SEED);
+        let watch = f::start(&mut root, List::uncapped());
+        let out = super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(f::chats::me())));
+        let mut kind7 = None;
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
+            } = request
+                && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                && setting.kind() == 7
+            {
+                kind7 = Some(*read);
+            }
+        }
+        if let Some(value) = value {
+            let result = match value {
+                None => Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
+                Some([goals, changes]) => {
+                    let ways = w::ProjectWays::new(
+                        &w::CEILINGS,
+                        w::ProjectWaysParts { skein_bools: [true, goals, changes, false], way: 0 },
+                    )
+                    .unwrap();
+                    let mut bytes = Writer::new(usize::try_from(ways.measure()).unwrap());
+                    ways.encode(&mut bytes).unwrap();
+                    Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::setting_answer(
+                            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(bytes.finish()) })
+                                .unwrap(),
+                        )),
+                    }
+                }
+            };
+            super::welcome::event(
+                &mut root,
+                Event::Client { event: jig_client::Event::Up { up: Up::ReadDone { read: kind7.unwrap(), result } } },
+            );
+        }
+        assert_eq!(work::overrides(&root, f::PROJECT), want, "{value:?}");
+        assert_eq!(work::overrides(&root, 99), Overrides::default());
+    }
+}
+
+fn draft_note() -> c::Note {
+    let mut note = super::chat::draft_note(1, 1, b"Draft body");
+    note.scope = c::NoteScope::Task { project: f::PROJECT, task: 3 };
+    note.description = c::DocumentText::complete(c::Text::new(b"Draft".as_slice().into(), 32).unwrap());
+    note
+}
+
+fn work_limits() -> crate::Limits {
+    let mut limits = f::limits();
+    // Work opens three lists, their provenance and reports at once.
+    limits.client.domain.handles = 64;
+    limits.client.domain.reads = 32;
+    limits.client.exchanges = 32;
+    limits
+}
