@@ -8,6 +8,7 @@ mod goldens;
 mod launchpad;
 mod limits;
 mod note;
+mod place;
 mod screens;
 mod state;
 mod theme;
