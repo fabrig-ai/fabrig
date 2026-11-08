@@ -18,6 +18,7 @@ mod delegation;
 mod goal;
 mod goals;
 mod home;
+mod how;
 mod inbox;
 mod paste;
 mod project_pages;

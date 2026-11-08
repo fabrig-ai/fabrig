@@ -225,6 +225,11 @@ home-refused
 home-skip-refused
 home-try-stopped
 home-with-goals
+how
+how-approve
+how-card
+how-draft
+how-yours
 inbox-empty
 inbox-reference
 inbox-solo
@@ -253,6 +258,7 @@ needs-second-answered
 night-ask
 night-chat-split
 night-home
+night-how
 night-team
 no-project
 out-of-date

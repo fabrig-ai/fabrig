@@ -113,6 +113,10 @@ role of the project's people.
   - **a message its parts don't offer:** a message that wakes the task but
     that the session's parts don't cover ends the session, and the next run
     starts fresh with the parts for it.
+- **An engine restart doesn't end it** (the user, 2026-11-08). The worker
+  and its agent processes keep running and reconnect, so the session goes
+  on warm, and what the engine needs to know it again is stored with the
+  standing role.
 - **Every run writes its Now before it parks.** It is a few lines, cheap to
   write, so whichever run turns out to be the session's last has left it
   current, whatever then ends the session. A run that writes none keeps the
@@ -213,7 +217,8 @@ role of the project's people.
   person is there.
 - **What lasts goes where it belongs.** An instruction for every case becomes
   a rule: the standing role proposes a change to its own rules, and the person, if an
-  owner, accepts it in place ("Add it to Porter's rules?"). An instruction for
+  owner of the deployment, whose charters are (`configuring.md`, 3.3),
+  accepts it in place ("Add it to Porter's rules?"). An instruction for
   the work at hand goes in its Now. A decision becomes a record: an answer, a
   goal, a setting.
 - **Leaving ends the session.** The person leaves, the standing role writes

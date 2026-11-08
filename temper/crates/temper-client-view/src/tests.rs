@@ -20,6 +20,7 @@ mod frame;
 mod goal;
 mod goals;
 mod home;
+mod how;
 mod inbox;
 mod limits;
 mod look;

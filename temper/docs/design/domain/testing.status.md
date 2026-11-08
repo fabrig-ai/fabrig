@@ -99,13 +99,15 @@ are deferred in section 11, with all bounds, orders and checks retained.
   from `limits-heavy`. Both passed in focused tests before moving whole.
   Their original CPU medians transfer about 15.9 CPU s to a tier whose
   current margin is unknown; neither a current tier total nor its fit
-  within 360 CPU s is established by the instruction account.
+  within 540 CPU s is established by the instruction account.
 
 - **Departs:** 6.1: temper's measured focused request-world sum is
   81.892959 CPU s against 30, and the real-loop focused median
   is 31.769481 CPU s against its standing 15 s ceiling. The whole-temper
-  fuzzy median is 125.579032 CPU s against 120, in three warm serial runs
-  including the driver (119.288299–127.664356 CPU s).
+  fuzzy median is 125.579032 CPU s against the strategy's 120, in three
+  warm serial runs including the driver (119.288299–127.664356 CPU s),
+  within the 180 to which the user raised the budget by half on 11-08,
+  for now, to be revisited.
   All 81 tests passed in each run, but two runs and the median exceed
   120; the request's roughly 15 CPU s reduction and reliable headroom
   are not achieved. The gate's own per-test CPU result is unknown from
@@ -220,10 +222,11 @@ the fake's own process story.
   to the next after-landing run on main (11), per the request
   `process-threads` of 2026-11-06; the profile and its callback group are
   configured in `.config/nextest.toml`.
-  2.6: the tier's CPU against its 360 s: of the seven whole runs in
-  `test-speed`'s figures at `b23901eab7`, at differing loads, four read
-  over it (367.8 to 433.7 s) and three within (287.1 to 349.7 s), and
-  they hold no run with that plan's parts together. The request
+  2.6: the tier's CPU against its 540 s, the 360 raised by half by the
+  user's word of 11-08, for now, to be revisited: the seven whole runs in
+  `test-speed`'s figures at `b23901eab7`, at differing loads, read 287.1
+  to 433.7 s, four of them over the 360 (367.8 to 433.7 s), and they hold
+  no run with that plan's parts together. The request
   `walks-lower` put the box's twelve walks at about 81 of a run's 340 CPU s
   by 2026-11-06's medians; ten have gone to lower worlds, and no run
   records the tier without them, nor the two that stay, which a plan

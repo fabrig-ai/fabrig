@@ -41,6 +41,7 @@ pub mod delegation;
 pub mod goal;
 pub mod goals;
 pub mod home;
+pub mod how;
 pub mod inbox;
 pub mod models;
 pub mod needs;
@@ -719,14 +720,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
         Event::Act { act: Act::WayTab { project, tab } } => {
-            if pages.address == (Address::Ask { project })
+            if (pages.address == (Address::Ask { project }) || pages.address == (Address::Settings { project }))
                 && let Some(page) = &mut pages.stock_ways
             {
                 page.show_tab(project, tab);
             }
         }
         Event::Act { act: Act::WayStop { project, stop } } => {
-            if pages.address == (Address::Ask { project })
+            if (pages.address == (Address::Ask { project }) || pages.address == (Address::Settings { project }))
                 && let Some(page) = &mut pages.stock_ways
             {
                 page.show_stop(project, stop);
@@ -1482,7 +1483,14 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         } else if let Some(mut page) = pages.connect_model.take() {
             page.leave();
         }
-        if let Some(page) = pages.stock_ways.take() {
+        let keep_ways = match address_project(&address) {
+            Some(project) => {
+                address_project(&pages.address) == Some(project)
+                    && (address == (Address::Ask { project }) || address == (Address::Settings { project }))
+            }
+            None => false,
+        };
+        if !keep_ways && let Some(page) = pages.stock_ways.take() {
             page.leave(out);
         }
         pages.welcome = None;
@@ -1527,7 +1535,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             }
             pages.chat = Some(chat);
         }
-        if let Address::Ask { project } = address {
+        if let Address::Ask { project } | Address::Settings { project } = address
+            && pages.stock_ways.is_none()
+        {
             pages.stock_ways =
                 Some(crate::forge::stock_ways::StockWays::new(project, &mut pages.next, env.limits.forge, out));
         }
