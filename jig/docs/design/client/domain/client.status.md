@@ -5,6 +5,12 @@
 Unlisted sections have no known gap, including 8.2's `watches_full`
 fact for `me` and application watches through retries and recovery.
 
+Section 8.2's `LinkView.expires` has no known gap: link and service
+sign-ins and approval takes retain the answer's wall expiry, a held
+credential starts with none, and dropping the sign-in clears it.
+Keeping that expiry across an application's restart remains the
+application's responsibility.
+
 Sections 10 and 14 have no known gap in decoding a turn read alone:
 `Read::Turn` uses the archive's byte bound, twice that bound for text
 and smith's block ceiling and message ceiling plus one system message.
