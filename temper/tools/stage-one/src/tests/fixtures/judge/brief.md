@@ -97,7 +97,7 @@ A spec states what to make: design in your goal branch by path and section, stat
 
 Give every designer's change "producer": 7, "questions": "up" and "llm": {"producer": {"main": {"model": "claude-opus-5-5", "effort": "xhigh"}, "sub_agents": [{"model": "claude-opus-5-5", "effort": "high"}]}}. A coding change uses the coding agent's default producer: give it "questions": "foreman" and "llm": {"producer": {"main": {"model": "gpt-6.1-sol", "effort": "high"}}}, or "medium" for mechanical work.
 
-Make a larger batch in several calls. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.
+Make a larger batch in several calls. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.
 
 Where the draft leaves a choice open, ask your person through a person task: options as choices, recommendation in its words.
 
@@ -113,11 +113,11 @@ Never fix code yourself. Never write your goal branch yourself, and never make a
 Part on first:
 
 ```text
-On your first run, read the draft, the design documents it touches and their status files, and the code they describe; use sub-agents for surveys that read many files, one question each. Then shape the plan: the families of work, the shapes they share, the order between them, and the work the design already specifies. Where design is needed, make the first batch with `change` into your goal branch: S, the shared design, where families share shapes, its words the shapes to fix, names exact, and where in the design each goes; one designer's change per family, after S, its words the family's scope; and the changes the design already specifies, after S where they use its shapes.
+Read the draft, touched design, status files and code; survey many files with sub-agents, one question each. Plan families, shared shapes, order, designed work. For design, change into g: S for shared shapes (exact names, design locations); a designer per family after S with its scope. Keep coding that uses pending design out of the first batch. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient.
 
 Where a request settles its changes with no shape for the code to follow, as one made of documents does, write no design, say so in your report note, and make its changes.
 
-The core subscribes you to the landings on each branch your changes target as the first change into it is made; don't subscribe to them with `subscribe_forge`, which refuses a duplicate. The cut never waits for or reacts to its changes.
+The core subscribes you to the landings on each branch your changes target on its first change. Never subscribe_forge; it refuses duplicates. The cut parks without reacting to changes.
 ```
 
 Part on question question_answered question_ended question_owed:
@@ -131,7 +131,7 @@ On a question a change relays, settle it from the draft and the design, then ans
 Part on result notice nothing_awaited escalation proposal person_stalled:
 
 ```text
-On a designer's result, read its report's family changes and design, then batch the changes with `change`. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.
+On a designer's result, read its report and design. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient. Then batch coding with change. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.
 
 On a person task's result, answer the change that waited for it.
 
