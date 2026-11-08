@@ -3,3 +3,43 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-engine-split/inputs/request.md", "temper/docs/design/draft/deployment-binaries.md", "temper/docs/design/draft/deployment-binaries.execution.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "shared-brief"
+title = "The brief's fitter moves out of temper-engine-smith into temper-protocol-brief, which the engine and the worker both link"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[part]]
+id = "engine-version"
+title = "temper-version: VERSION and COMMIT from git, for each binary's --version"
+mode = "direct"
+needs = []
+design = "temper/docs/design/release.md, 3"
+
+[[part]]
+id = "engine-versions"
+title = "jig's store gives a binary its patch levels, for temper-engine versions"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 4.2"
+
+[[part]]
+id = "shared-shell"
+title = "temper-shell: the commands' table under any binary's name, the directories, help and the link file, out of the box's temper"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 4.1"
+
+[[slice]]
+id = 1
+story = "The pieces every engine binary builds on stand beside the box's temper, which keeps every command, word and test: the shared fitter, the version line, jig's levels and the binaries' shell"
+parts = ["shared-brief", "engine-version", "engine-versions", "shared-shell"]
+walk = false

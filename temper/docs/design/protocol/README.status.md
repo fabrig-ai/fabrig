@@ -55,3 +55,44 @@ deferred failure accounting.
 
 - **Not yet:** 4: `temper versions`, `temper upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper/src/commands.rs`). 6: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 9: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
 - **Departs:** 4: a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge.status.md`, 2.8). 6, 7: `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded. 15.5, 15.6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
+
+The deployment's binaries (4.1 and 4.2), from `../draft/deployment-binaries.md`,
+are designed and not yet built:
+
+- **Not yet:** 4.1, 5: `temper-shell`: the commands' table and its
+  renderings, the directories, `help` and the link file are
+  `crates/temper`'s (`commands.rs`, `directories.rs`, `help.rs`,
+  `link_file.rs`), rendered under `temper` alone.
+
+- **Not yet:** 5: `temper-protocol-brief`: the fitter is
+  `temper-engine-smith`'s (`src/start.rs`), and the worker's route calls
+  it there (`temper-service/src/worker_route.rs`).
+
+- **Not yet:** 5: the engine's half of `temper-service` names the
+  worker's crates: its limits hold the checkout's and the git
+  component's (`limits.rs`, `limits/names.rs`), its checks and
+  translation read them (`startup/checks.rs`, `translate.rs`), and it
+  takes the translation's items through `smith-protocol-channel`.
+
+- **Not yet:** 4.1, 5: `temper-service` has no `worker` feature: the
+  worker's half is always built, and nothing refuses a worker's
+  document in a build without it.
+
+- **Not yet:** 4.1, 5: `temper-engine-shell`, the forge's commands:
+  they are `crates/temper`'s (`forge.rs`, `forge_sign_in.rs`,
+  `setup.rs`), and no row is a constant two tables share.
+
+- **Not yet:** 4.1, 5: `temper-engine-shell`, serve: its host and start
+  are `crates/temper`'s (`lib.rs`, `host.rs`, `bundle.rs`), the worker's
+  half inline, with no `WorkerHalf`.
+
+- **Not yet:** 4.2: `crates/temper-engine` doesn't exist: no engine's
+  binary, table, refusal of another shape's document, `versions` or
+  `--version`.
+
+- **Not yet:** 4.1, 4.2: `tests/boundary/tests/binaries.rs` doesn't
+  exist: no test holds a binary's closure.
+
+- **Not yet:** 4.2: `temper-engine upgrade --check` and `--back`: jig's
+  rehearsal and going back (jig's `protocol/store.md`, 10.5) are not
+  built, so neither binary's table has the row.
