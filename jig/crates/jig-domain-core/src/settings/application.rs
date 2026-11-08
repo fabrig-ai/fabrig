@@ -765,10 +765,16 @@ fn finish_proposal(
     routed.work.push(Work::Event(Event::Tasks(event)));
 }
 
+#[derive(Hash, Debug)]
+pub(crate) struct StartDefaults {
+    defaults: Box<[connector::DefaultState]>,
+    dropped: Box<[connector::DroppedDefault]>,
+}
+
 /// Replies may precede settings restore; preparation waits for every owner (engine.md, 17.5–17.7).
 #[derive(Hash, Debug)]
 pub(crate) enum Starting {
-    Waiting { replies: Map<u16, Box<[connector::DefaultState]>> },
+    Waiting { replies: Map<u16, StartDefaults> },
     Prepared { connectors: Box<[u16]>, edits: Box<[Recorded]>, writes: Box<[crate::Write]> },
     Saved,
 }
@@ -813,7 +819,12 @@ pub(crate) fn restore(core: &mut Core, setting: Setting, state: State) -> bool {
     true
 }
 
-pub(crate) fn defaults(core: &mut Core, connector: u16, defaults: Box<[connector::DefaultState]>) {
+pub(crate) fn defaults(
+    core: &mut Core,
+    connector: u16,
+    defaults: Box<[connector::DefaultState]>,
+    dropped: Box<[connector::DroppedDefault]>,
+) {
     use crate::start::ApplicationWhy;
     let mut owns = false;
     for kind in &core.kinds {
@@ -851,11 +862,29 @@ pub(crate) fn defaults(core: &mut Core, connector: u16, defaults: Box<[connector
             return;
         }
     }
+    for name in &dropped {
+        let Some(kind) = kind_of(&core.kinds, name.kind) else {
+            core.refuse_restore(application_failure(
+                Name { kind: name.kind, scope: name.scope, number: name.number },
+                ApplicationWhy::Undeclared,
+            ));
+            return;
+        };
+        assert!(kind.connector == connector, "dropped default returned by its owning connector {connector}");
+        for default in &defaults {
+            assert!(
+                (name.kind, name.scope, name.number) != (default.kind, default.scope, default.number),
+                "connector {connector} both reports and drops a default"
+            );
+        }
+    }
     assert!(owns, "defaults answer from a connector with no declared kind");
     match &mut core.settings_restore.applications {
         Starting::Waiting { replies } => {
             assert!(!replies.contains_key(&connector), "one defaults answer per kind-owning connector");
-            replies.insert(connector, defaults).expect("one defaults answer per kind-owning connector");
+            replies
+                .insert(connector, StartDefaults { defaults, dropped })
+                .expect("one defaults answer per kind-owning connector");
         }
         Starting::Prepared { .. } | Starting::Saved => unreachable!("defaults precede their start's decision"),
     }
@@ -884,23 +913,23 @@ pub(crate) fn prepare_start(core: &mut Core) -> bool {
     let bound = core.current.applications.capacity().checked_mul(2).expect("application default union");
     let mut edits = List::with_capacity(bound);
     let mut writes = List::with_capacity(bound);
-    let mut missing = List::with_capacity(core.current.applications.len());
+    let mut dropped_states = List::with_capacity(core.current.applications.len());
     for (&setting, state) in &core.current.applications {
         match state.follows {
             Follows::Default => {}
             Follows::Changed { .. } | Follows::Removed { .. } => continue,
         }
-        let mut present = false;
-        for (_, defaults) in &replies {
-            for default in defaults {
-                present |= setting == default_setting(default);
+        let mut dropped = false;
+        for (_, reply) in &replies {
+            for name in &reply.dropped {
+                dropped |= setting == Setting::Application { kind: name.kind, scope: name.scope, number: name.number };
             }
         }
-        if !present && let Some(name) = named(setting) {
-            missing.push((setting, name)).expect("stored defaults");
+        if dropped && let Some(name) = named(setting) {
+            dropped_states.push((setting, name)).expect("stored defaults");
         }
     }
-    for (setting, name) in missing.into_boxed() {
+    for (setting, name) in dropped_states.into_boxed() {
         drop(core.current.applications.remove(&setting));
         edits.push(recorded(name, SizedEdit::Remove)).expect("default union");
         writes
@@ -927,12 +956,12 @@ pub(crate) fn prepare_start(core: &mut Core) -> bool {
 
 fn apply_start_defaults(
     core: &mut Core,
-    replies: &Map<u16, Box<[connector::DefaultState]>>,
+    replies: &Map<u16, StartDefaults>,
     edits: &mut List<Recorded>,
     writes: &mut List<crate::Write>,
 ) -> bool {
-    for (_, defaults) in replies {
-        for default in defaults {
+    for (_, reply) in replies {
+        for default in &reply.defaults {
             let setting = default_setting(default);
             let state = State { follows: Follows::Default, size: default.size, charters: default.charters.clone() };
             let previous = core.current.applications.get(&setting);
@@ -972,10 +1001,10 @@ fn apply_start_defaults(
     true
 }
 
-fn start_references(core: &mut Core, replies: &Map<u16, Box<[connector::DefaultState]>>) -> bool {
+fn start_references(core: &mut Core, replies: &Map<u16, StartDefaults>) -> bool {
     // Defaults' references are held even when a change is over their value.
-    for (_, defaults) in replies {
-        for default in defaults {
+    for (_, reply) in replies {
+        for default in &reply.defaults {
             let state = State { follows: Follows::Default, size: default.size, charters: default.charters.clone() };
             if let Err(failure) = state_references(&core.current, &[], default_setting(default), &state) {
                 let _refused = core.refuse_settings(failure);

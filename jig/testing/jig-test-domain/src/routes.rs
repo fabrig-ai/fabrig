@@ -584,7 +584,7 @@ pub(super) fn route_connector(
                     core::effects::connector::Event::SettingsRestored { owner, judged: answers.into_boxed() },
                 )));
             }
-            connector::Request::SettingsDefaults { defaults } => {
+            connector::Request::SettingsDefaults { defaults, dropped } => {
                 let mut states = List::with_capacity(u32::try_from(defaults.len()).expect("bounded defaults"));
                 for default in defaults {
                     states
@@ -598,10 +598,17 @@ pub(super) fn route_connector(
                         })
                         .expect("one state per default");
                 }
+                let mut names = List::with_capacity(u32::try_from(dropped.len()).expect("bounded dropped defaults"));
+                for (kind, scope, number) in dropped {
+                    names
+                        .push(core::effects::connector::DroppedDefault { kind, scope, number })
+                        .expect("one name per dropped default");
+                }
                 work.push(Work::Core(core::Event::EffectConnector(
                     core::effects::connector::Event::SettingsDefaults {
                         connector: number,
                         defaults: states.into_boxed(),
+                        dropped: names.into_boxed(),
                     },
                 )));
             }

@@ -16,10 +16,3 @@ entry still stop the procedure. The exception grants no second writer.
   ignored, as every restore story is (`engine.status.md`, its 17.10),
   its reason a project-scoped default of `jig-test-connector`'s that
   survives the project's deletion.
-
-- **Not yet:** 17: naming, at each start, the defaults a connector
-  stored that the application no longer gives: neither
-  `jig-test-connector` (`src/settings.rs`, `defaults`) nor temper's forge
-  names them, and `jig-domain-core`'s
-  `effects::connector::Event::SettingsDefaults` has no place for them
-  (`engine.status.md`, its 17.5).

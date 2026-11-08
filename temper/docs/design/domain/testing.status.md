@@ -361,8 +361,3 @@ the fake's own process story.
   took its sitting: the plan `ignored-tiers` compiled and listed it,
   and the next after-landing run and the owner's next dry run prove
   them (11).
-
-- **Not yet:** 2.6:
-  `a_default_box_with_a_sign_in_registration_starts_without_dns` is ignored:
-  a start without DNS fails while the sign-in's endpoints resolve at start
-  (`../protocol/configuration.status.md`, 2).
