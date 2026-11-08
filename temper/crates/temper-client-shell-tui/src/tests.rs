@@ -25,6 +25,8 @@ fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
     host.report(Report::Start(Start {
         size: Size { columns: 80, rows: 24 },
         scheme: Scheme::Dark,
+        background: None,
+        boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
         local: false,
         note: None,
@@ -263,6 +265,8 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         let duties = host.report(Report::Start(Start {
             size: Size { columns: 80, rows: 24 },
             scheme: Scheme::Dark,
+            background: None,
+            boxed: false,
             address: address.as_bytes().into(),
             local: false,
             note: None,
@@ -661,6 +665,8 @@ fn local_row(row: LocalRow, failures: &mut Vec<String>) {
     let duties = host.report(Report::Start(Start {
         size: Size { columns: 80, rows: 24 },
         scheme: Scheme::Dark,
+        background: None,
+        boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
         local: row.local,
         kept: Vec::new(),
@@ -1207,6 +1213,8 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.report(Report::Start(Start {
                     size: Size { columns: 80, rows: 24 },
                     scheme: if light { Scheme::Light } else { Scheme::Dark },
+                    background: None,
+                    boxed: false,
                     address: b"127.0.0.1:8367".as_slice().into(),
                     local: false,
                     kept: vec![],

@@ -85,6 +85,8 @@ impl World {
             wall: Wall::EPOCH,
             size: Size { rows: 24, columns: 80 },
             scheme: Scheme::Dark,
+            background: None,
+            boxed: false,
             address: b"127.0.0.1:8367".as_slice().into(),
             local: false,
             note: None,
