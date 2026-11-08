@@ -10,7 +10,9 @@ A goal on a real deployment, at fabrig `7638040201`, met three faults in its run
 
 3. **A parked goal wakes again and again on an escalation it has already passed to its person.** A goal's lead passed a held repair's question to its person through a person task, and waited. For three minutes, 19 activations each woke on the same message, an escalation still waiting for the goal's decision, inspected the same held repair or the pending person task, made no decision, and parked again, a run's cost each time. **The rule, settled:** if a part of the ended run covered the entry's kind and the run left it undecided, the entry doesn't wake the task again by itself. It's offered at the next wake, whatever wakes it, and wakes the task only when it changes, by a new revision or a message about it. If no part of the ended run covered it, it wakes the task again, as now (`temper/docs/design/draft/per-wake.md`, section 4, an entry reaching the cut). It belongs in jig's `domain/tasks.md` 8.6. The failing story first, a row of jig's per-wake story table, with both cases.
 
-4. **The design says so:** `per-wake.md`, section 4, and jig's `domain/tasks.md`, wherever the undecided entry's wake is written, and the invalid class wherever a failed attempt's classes are.
+4. **A due result's part is read.** In the same goal at `b4555e6785`, the run that woke after its landing's result was due had only the charter's shared text, not the part whose `on` set covers results, so it finished without the work that part asks. Check that every kind pending for a run when it starts (a result due among them, not only the entry that woke it) joins the run's reasons, so each covering part is given (`temper/docs/design/draft/per-wake.md`). The failing row first, in the per-wake story table beside item 3's.
+
+5. **The design says so:** `per-wake.md`, section 4, and jig's `domain/tasks.md`, wherever the undecided entry's wake is written, and the invalid class wherever a failed attempt's classes are.
 
 ## Not in this plan
 
