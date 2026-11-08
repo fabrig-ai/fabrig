@@ -1,6 +1,6 @@
 # Status
 
-2026-11-07. Where jig's code lags or departs from its design, from the
+2026-11-08. Where jig's code lags or departs from its design, from the
 status files below. Browser-approved sign-in is built through the wire,
 clients' component, HTTP mapping, configuration and linked and unlinked
 clients. Only the secret's take makes the approving browser's party's
@@ -164,6 +164,16 @@ plan, workspace, renewal, end and usage-window reports, whose sources the user
 is still deciding; `draft/notes-memory.md` keeps the idea of
 notes as agents' memory, a chat's document alone taken up (`domain/engine.md`,
 section 10), the rest not to be planned until the user says.
+
+The asking tool family and a run's settings-proposal read are implemented
+(`domain/authority.md`, section 3; `domain/engine.md`, 7.3). Reading as a
+person remains later work in `domain/engine.md`, section 16.
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief; its implemented path still needs
+  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
 
 Design documents:
 - [`README.md`](README.status.md)

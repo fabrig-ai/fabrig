@@ -2134,6 +2134,12 @@ section 5).
 
 ## 16. Open questions
 
+- **A run reading as its person** (7.3, section 11): the run's settings
+  proposal read checks its family and its task's project, with no party's
+  visibility. A person's project views need a separate run read under that
+  person's access checks before an application can use them for an explaining
+  chat. The asking family alone supplies no such read.
+
 - **A run's `later`** (7.3): a run's `delegate` and `amend` name no
   `later`, so only a party's request or a template gives one. A tool member
   for it waits for a planning agent that needs a delegate's later runs on
