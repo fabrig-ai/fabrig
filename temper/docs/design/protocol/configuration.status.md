@@ -166,9 +166,9 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
-- **Not yet:** 3: a tier's `description`: the start reads no such member,
-  and a tier's card and `see settings gates` say none (`ui-p3e-words`'s
-  `tier-words`).
+- **Not yet:** 3, 13.9: a tier's `description`: the start reads no such
+  member, a tier's card and `see settings gates` say none, and the
+  reference's tiers carry none (`ui-p3e-words`'s `tier-words`).
 
 - **Not yet:** 13.2: kinds 9 and 10, a charter's words and a project's
   words, as the forge's values: no `CharterWords` or `ProjectWords` is

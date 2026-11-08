@@ -2796,7 +2796,9 @@ that changes the stock changes nothing of them.
   `tier-slow.yml`, following main; and g's tier, `goal`, the gate
   without its slowest suites, workflow `tier-goal.yml`, `branch`
   `goal`, `span_ms` 1,200,000 (20 minutes); each uploading its failing
-  tests as `failing`, one id per line (`lines`). The project's
+  tests as `failing`, one id per line (`lines`), and described, as its
+  card says it, "the slow suites" and "the gate without its slowest
+  suites" (section 3). The project's
   `tier_retries` and `verification_bound_ms` are left to their
   defaults.
 - **Charter 5's triage** (`../draft/reference-code-production.md`,
