@@ -118,7 +118,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (6, false, 33_894, 366_241),
         (9, false, 31_337, 368_798),
         (10, false, 31_052, 369_083),
-        (11, true, 10_510, 389_625),
+        (11, true, 10_640, 389_495),
     ] {
         let assignment = assignment(number, open, 14_592);
         let charter = temper_engine_smith::charter(&assignment);

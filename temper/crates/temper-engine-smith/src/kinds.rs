@@ -53,6 +53,10 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
                 v1::ProjectWays::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
             settings::Value::Ways(settings::ProjectWays { drafts, goals, changes, away, way })
         }
+        8 => {
+            let record = v1::ProjectClasses::decode(&v1::CEILINGS, &mut reader).ok()?;
+            settings::Value::Classes(temper_protocol_reaches::classes_from(&record))
+        }
         _ => return None,
     };
     if !reader.is_empty() {

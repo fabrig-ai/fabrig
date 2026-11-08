@@ -770,14 +770,14 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let newest = domain.core.current.newest();
     if let jig_domain_core::SettingsAnswer::Unknown = answer.as_ref()
         && let Some((
-            setting @ jig_domain_core::settings::Setting::Application { kind: kind @ (2 | 6 | 7), scope, number },
+            setting @ jig_domain_core::settings::Setting::Application { kind: kind @ (2 | 6 | 7 | 8), scope, number },
             revision,
         )) = *asked
         && (revision == 0 || revision == newest)
         && domain.core.people.project_members(scope).is_some()
         && let Some(value) = match kind {
             2 => domain.forge.setting(kind, scope, number).cloned(),
-            6 | 7 if number == 1 => temper_engine_domain_forge::settings::project_stock(kind),
+            6..=8 if number == 1 => temper_engine_domain_forge::settings::project_stock(kind),
             _ => None,
         }
     {
