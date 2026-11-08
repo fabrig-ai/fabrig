@@ -25,6 +25,8 @@ pub const LOOKS_TOP: Region = Region { owner: OWNER, number: 3 };
 pub const RULES: Region = Region { owner: OWNER, number: 4 };
 pub const END: Style = Style { owner: OWNER, token: 3 };
 pub const BAND: Style = Style { owner: OWNER, token: 4 };
+pub const NO_LABEL: Style = Style { owner: OWNER, token: 5 };
+pub const LABEL: Style = Style { owner: OWNER, token: 6 };
 pub const BAND_PAINT: Paint = Paint { back: Some(Rgb { red: 0, green: 64, blue: 0 }), ..Paint::NONE };
 pub const REGION_PAINT: Paint = Paint { back: Some(Rgb { red: 32, green: 32, blue: 32 }), ..Paint::NONE };
 pub const RED_PAINT: Paint = Paint { fore: Some(Rgb { red: 255, green: 0, blue: 0 }), bold: true, ..Paint::NONE };
@@ -91,10 +93,12 @@ pub fn theme() -> Theme {
             },
         ]),
         styles: Box::new([
-            StyleLook { style: RED, paint: RED_PAINT, align: Align::Start, band: false },
-            StyleLook { style: BLUE, paint: BLUE_PAINT, align: Align::Start, band: false },
-            StyleLook { style: END, paint: Paint::NONE, align: Align::End, band: false },
-            StyleLook { style: BAND, paint: BAND_PAINT, align: Align::Start, band: true },
+            StyleLook { style: NO_LABEL, paint: Paint::NONE, align: Align::Start, band: false, label: false },
+            StyleLook { style: LABEL, paint: Paint::NONE, align: Align::Start, band: false, label: true },
+            StyleLook { style: RED, paint: RED_PAINT, align: Align::Start, band: false, label: true },
+            StyleLook { style: BLUE, paint: BLUE_PAINT, align: Align::Start, band: false, label: true },
+            StyleLook { style: END, paint: Paint::NONE, align: Align::End, band: false, label: true },
+            StyleLook { style: BAND, paint: BAND_PAINT, align: Align::Start, band: true, label: true },
         ]),
         glyphs: Glyphs { focus: '>', mask: '●' },
     }
@@ -331,6 +335,32 @@ pub fn field_tail(role: Role, value: &[u8], entry: EntryKind) -> Tree {
     }
     b.placeholder(b"hint");
     b.bind(binding());
+    b.close();
+    leaf(&mut b, Role::Paragraph, b"Tail");
+    b.close();
+    finish(b)
+}
+
+/// A separate field inherits its label look through an unstyled group.
+pub fn field_look(role: Role, value: &[u8], entry: EntryKind, nearer_label: bool) -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.style(NO_LABEL);
+    b.open(Role::Group);
+    if nearer_label {
+        b.style(LABEL);
+    }
+    b.open(Role::Group);
+    b.open(role);
+    b.name(b"F");
+    b.value(value, 0);
+    if role == Role::TextField {
+        b.entry(entry);
+    }
+    b.placeholder(b"Ask temper");
+    b.bind(binding());
+    b.close();
+    b.close();
     b.close();
     leaf(&mut b, Role::Paragraph, b"Tail");
     b.close();
