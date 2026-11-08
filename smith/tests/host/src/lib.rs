@@ -435,6 +435,7 @@ pub fn turn_value(bytes: u64) -> host::TurnValue {
     let opener = u64::try_from(core::mem::size_of::<record::Opener>()).expect("opener footprint");
     let kind = if bytes >= opener {
         record::Kind::First(Box::new(record::Opener {
+            system: None,
             affinity: llm::Affinity { key: [0; 16], thread: 0 },
             account: None,
             backend: record::Backend::Direct,

@@ -8,12 +8,13 @@ git_dir=$(git rev-parse --absolute-git-dir)
 index=$(mktemp)
 trap 'rm -f "$index"' EXIT
 cp "$git_dir/index" "$index"
-GIT_INDEX_FILE=$index git add -A
-tree=$(GIT_INDEX_FILE=$index git write-tree)
+export GIT_INDEX_FILE=$index
+git add -A
+tree=$(git write-tree)
 if [ "$(cat "$git_dir/pre-pr-passed" 2>/dev/null || true)" = "$tree" ]; then
     exit 0
 fi
-cargo fmt --all --check
+python3 -I -B tools/pre-pr/pre_pr.py
 for tree_name in skein smith jig temper hearth; do
     (cd "$tree_name" && python3 -I -B scripts/old_forms.py)
 done

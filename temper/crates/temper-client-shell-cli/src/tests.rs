@@ -1034,7 +1034,20 @@ fn repeated_again_keeps_the_original_sign_in_deadline() {
         backoff = backoff.saturating_mul(2).min(skein_lib::Duration::from_secs(2));
     }
     assert_eq!(f.exit(), Some(Exit::Code(1)));
-    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
+    assert_eq!(f.stderr(), b"temper ctl: temper is not ready: it is starting, or its core is not answering, and temper serve's log says why; this link stays usable until it expires\n");
+}
+
+#[test]
+fn a_sign_in_answered_not_ready_then_never_again_says_not_ready() {
+    let mut f = fixtures::Disk::sign_in(fixtures::LINK);
+    f.again_links = 1;
+    f.drain();
+    f.quiet.push(b"/jig/v1/sign-in/link");
+    f.advance_past(SIGN_IN_FIRST);
+    f.advance_past(limits::DEADLINE);
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stdout(), b"");
+    assert_eq!(f.stderr(), b"temper ctl: temper is not ready: it is starting, or its core is not answering, and temper serve's log says why; this link stays usable until it expires\n");
 }
 
 mod busy_watches;

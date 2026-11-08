@@ -15,7 +15,7 @@ pub(super) fn clock(now: Time) -> Wall {
 }
 
 pub(super) fn turn() -> Box<[u8]> {
-    use smith_transcript::v6 as source;
+    use smith_transcript::v7 as source;
     let limits = source::CEILINGS;
     let text = source::Text::new(&limits, source::TextParts { text: b"abc".as_slice().into(), replay: None })
         .expect("supplied worker text");
@@ -36,6 +36,7 @@ pub(super) fn turn() -> Box<[u8]> {
     let value = source::Turn::new(
         &limits,
         source::TurnParts {
+            system: None,
             model: b"model".as_slice().into(),
             effort: None,
             kind: source::TurnKind::Ordinary,
@@ -119,7 +120,7 @@ pub(super) fn seeded_world_with_receiving(
         clock(Time::ZERO),
     );
     let codec = jig_protocol_transcript::Limits {
-        smith: smith_transcript::v6::CEILINGS,
+        smith: smith_transcript::v7::CEILINGS,
         bytes: 1_048_576,
         turn: client::TurnLimits { messages: 2, blocks: 2, text: 32, outcome: 32 },
     };

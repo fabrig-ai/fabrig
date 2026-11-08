@@ -244,28 +244,7 @@ fn initial_files(initial: Initial) -> Vec<skein_fake_machine::Item> {
         Initial::Empty => Vec::new(),
         Initial::Window => {
             let mut items = initial_files(Initial::Current);
-            let endpoints = smith_local_process_world::process::lower_configuration().channel_endpoints;
-            let turn = smith_domain::Turn {
-                dialect: 3,
-                ..smith_domain::session::fixture::turn(
-                    b"model".as_slice().into(),
-                    smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-                        affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-                        account: None,
-                        backend: smith_domain::session::record::Backend::Direct,
-                    })),
-                    Box::new([smith_domain::session::llm::Message {
-                        role: smith_domain::session::llm::Role::Assistant,
-                        content: Box::new([smith_domain::session::llm::Block::Text {
-                            text: Box::new([b'x'; 3000]),
-                            replay: None,
-                        }]),
-                    }]),
-                )
-            };
-            let file =
-                smith_local_protocol::save_turn(1, None, true, &turn, &smith_transcript::CEILINGS, &endpoints).unwrap();
-            assert!(file.bytes.len() > 3000 && file.bytes.len() < 4096);
+            let file = initial_window();
             items.push(Item::file(&file.name, &file.bytes));
             items
         }
@@ -448,4 +427,30 @@ fn extra_seed_713_store_power_loss_proof() {
 #[test]
 fn generated_whole_turn_loading_and_recovery_fit_the_shared_metered_store_bound() {
     sweep(9000, false, Initial::Window);
+}
+
+fn initial_window() -> smith_local_protocol::File {
+    let endpoints = smith_local_process_world::process::lower_configuration().channel_endpoints;
+    let turn = smith_domain::Turn {
+        dialect: 3,
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
+                system: None,
+                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain::session::record::Backend::Direct,
+            })),
+            Box::new([smith_domain::session::llm::Message {
+                role: smith_domain::session::llm::Role::Assistant,
+                content: Box::new([smith_domain::session::llm::Block::Text {
+                    text: Box::new([b'x'; 3000]),
+                    replay: None,
+                }]),
+            }]),
+        )
+    };
+    let file = smith_local_protocol::save_turn(1, None, true, &turn, &smith_transcript::CEILINGS, &endpoints).unwrap();
+    assert!(file.bytes.len() > 3000 && file.bytes.len() < 4096);
+    file
 }

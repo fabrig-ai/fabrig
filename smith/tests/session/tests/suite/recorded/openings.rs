@@ -118,6 +118,7 @@ fn same_window() -> record::Transcript {
     let mut history = transcript(&scenario(SEED));
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
     history.turns[0].kind = record::Kind::First(Box::new(record::Opener {
+        system: None,
         affinity,
         account: Some(ACCOUNT),
         backend: record::Backend::Direct,
@@ -155,12 +156,14 @@ fn carried_windows() -> Vec<CarryCase> {
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
     let mut account = base.clone();
     account.turns[0].kind = record::Kind::First(Box::new(record::Opener {
+        system: None,
         affinity,
         account: Some(OTHER_ACCOUNT),
         backend: record::Backend::Direct,
     }));
     let mut backend = base;
     backend.turns[0].kind = record::Kind::First(Box::new(record::Opener {
+        system: None,
         affinity,
         account: Some(ACCOUNT),
         backend: record::Backend::Program { name: bytes(b"claude_code") },
@@ -176,6 +179,7 @@ fn carried_windows() -> Vec<CarryCase> {
 fn expected_window(model: &[u8]) -> Window {
     Window {
         kind: record::Kind::Window(Box::new(record::Opener {
+            system: Some(bytes(b"instructions")),
             affinity: llm::Affinity { key: [0; 16], thread: 0 },
             account: Some(ACCOUNT),
             backend: record::Backend::Direct,
@@ -262,5 +266,20 @@ fn a_same_window_with_another_model_compacts_on_its_own_model() {
     assert_eq!(world.prompts.first().expect("old model compaction").model.as_ref(), b"model");
     summarise(&mut world);
     assert_eq!(window(world.turns.first().expect("new model window")), expected_window(NEXT_MODEL));
+    world.close();
+}
+
+#[test]
+fn an_opening_turn_keeps_the_supplied_system_text() {
+    let supplied = b"Distinctive selected instructions\n\n## Brief\nDistinctive fitted brief";
+    let mut world = Scripted::new(SEED);
+    let mut start = opening(None, BUDGET);
+    start.spec.system = bytes(supplied);
+    world.open(start);
+    assert_eq!(world.prompts.first().expect("opening prompt").system.as_ref(), supplied);
+    world.complete(said(b"done"), llm::Stop::EndTurn, llm::Usage::ZERO);
+    let turn = world.turns.first().expect("archived opening turn");
+    let record::Kind::First(opener) = &turn.kind else { panic!("opening record") };
+    assert_eq!(opener.system.as_deref(), Some(supplied.as_slice()));
     world.close();
 }
