@@ -13,6 +13,21 @@ pub(crate) fn start_refused(
     cause: crate::StartCause,
     out: &mut Queue<Request>,
 ) {
+    refused(domain, env, owner, why, Some(cause), out);
+}
+
+pub(crate) fn start_busy(domain: &mut Hub, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    refused(domain, env, owner, Box::new([]), None, out);
+}
+
+fn refused(
+    domain: &mut Hub,
+    env: &Env<Limits>,
+    owner: Token,
+    why: Box<[u8]>,
+    cause: Option<crate::StartCause>,
+    out: &mut Queue<Request>,
+) {
     let id = Id::<Hosted>::from_token(owner);
     let entry = domain.hosted.get(id).expect("a start lives until its terminal");
     match &entry.state {
@@ -38,13 +53,12 @@ pub(crate) fn start_refused(
     if let Some(workspace) = workspace {
         out.push(Request::Release { workspace });
     }
-    let answer = RunAnswer {
-        turns: 0,
-        spent: 0,
-        read: None,
-        refused: entry.refusals.take(),
-        ending: Ending::Refused(Refusal::Invalid(Invalid::Start { cause, why: tail(why, &env.limits) })),
+    let refusal = match cause {
+        Some(cause) => Refusal::Invalid(Invalid::Start { cause, why: tail(why, &env.limits) }),
+        None => Refusal::Busy,
     };
+    let answer =
+        RunAnswer { turns: 0, spent: 0, read: None, refused: entry.refusals.take(), ending: Ending::Refused(refusal) };
     out.push(Request::Up(LinkUp::Answer { run: entry.run, attempt: entry.attempt, answer }));
     conclude(domain, id, out);
 }

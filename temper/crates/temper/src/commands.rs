@@ -4,48 +4,8 @@
 use crate::{box_command, directories, fake};
 use std::fmt::Write;
 
-/// Who runs a command: `temper --help`'s groups, in this order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Who {
-    Documentation,
-    Deployment,
-    Clients,
-    Spawned,
-    TestDoubles,
-}
-impl Who {
-    /// "documentation", "deployment", "clients", "spawned", "test doubles".
-    #[must_use]
-    pub fn word(self) -> &'static str {
-        match self {
-            Self::Documentation => "documentation",
-            Self::Deployment => "deployment",
-            Self::Clients => "clients",
-            Self::Spawned => "spawned",
-            Self::TestDoubles => "test doubles",
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Row {
-    /// After `temper`: `["forge", "run"]`.
-    pub words: &'static [&'static str],
-    pub who: Who,
-    /// Each form's arguments, as its usage shows them after the words.
-    pub forms: &'static [&'static str],
-    pub line: &'static str,
-    pub arguments: &'static [Argument],
-    /// The skein settings tables whose flags it takes, printed by its `--help`.
-    pub settings: &'static [&'static skein_shell::Settings],
-    pub notes: &'static str,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct Argument {
-    pub shown: &'static str,
-    pub line: &'static str,
-}
+pub use temper_shell::commands::{Argument, Row, Who};
+use temper_shell::rows;
 
 const DIRECTORIES: Argument = Argument {
     shown: "DIRECTORIES",
@@ -55,21 +15,7 @@ const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in th
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
 pub const COMMANDS: [Row; 23] = [
-    Row {
-        words: &["help"],
-        who: Who::Documentation,
-        forms: &["[NAME | --search WORDS...]"],
-        line: "Print the index of temper's pages, one page whole, or the sections that hold every word.",
-        arguments: &[
-            Argument { shown: "NAME", line: "A page's name, as the index and the pages give it." },
-            Argument {
-                shown: "WORDS",
-                line: "Words that a section must hold every one of, case folded: at most 8, each at most 32 bytes.",
-            },
-        ],
-        settings: &[],
-        notes: "Reads no directory and no configuration, so it works before temper init. A name that is no page, or a search that matches nothing, exits 1. A search prints at most 20 hits, a line each, NAME: HEADING: LINE, then \"and more; narrow the words\" when more matched.",
-    },
+    rows::HELP,
     Row {
         words: &["init"],
         who: Who::Deployment,
@@ -189,46 +135,8 @@ Refused, changing nothing, when the configuration directory already holds temper
         settings: &[&directories::SETTINGS],
         notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
     },
-    Row {
-        words: &[],
-        who: Who::Clients,
-        forms: &["[ADDRESS]"],
-        line: "Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.",
-        arguments: &[Argument {
-            shown: "ADDRESS",
-            line: "Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.",
-        }],
-        settings: &[],
-        notes: "Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.",
-    },
-    Row {
-        words: &["ctl"],
-        who: Who::Clients,
-        forms: &[
-            "DIR GROUP VERB [ARGUMENT...] [--json]",
-            "DIR me|inbox|sign-in|sign-out|pending [ARGUMENT...] [--json]",
-            "DIR --call FILE [--json]",
-            "help [GROUP [VERB]]",
-        ],
-        line: "Act in a deployment as one party, one call a process: the agents' command line.",
-        arguments: &[
-            Argument {
-                shown: "DIR",
-                line: "ctl's private directory for one deployment and one party: its sign-in, its kept requests and the engine's address.",
-            },
-            Argument {
-                shown: "GROUP",
-                line: "A group of tools, a noun of temper's or one of the client's own names; temper ctl help lists them.",
-            },
-            Argument { shown: "VERB", line: "One of the group's tools; temper ctl help GROUP lists them." },
-            Argument {
-                shown: "FILE",
-                line: "One call as JSON, {\"tool\": \"GROUP VERB\", \"arguments\": {...}}, or - for stdin.",
-            },
-        ],
-        settings: &[],
-        notes: "temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.",
-    },
+    rows::TUI,
+    rows::CTL,
     Row {
         words: &["open"],
         who: Who::Clients,
@@ -350,89 +258,33 @@ Refused, changing nothing, when the configuration directory already holds temper
 /// The row whose words begin `words`, the longest such.
 #[must_use]
 pub fn find(words: &[Box<[u8]>]) -> Option<&'static Row> {
-    let mut found: Option<&Row> = None;
-    for row in &COMMANDS {
-        let eligible = !row.words.is_empty() || words.first().is_none_or(|word| word.starts_with(b"http://"));
-        if eligible && begins(words, row.words) && found.is_none_or(|before| before.words.len() < row.words.len()) {
-            found = Some(row);
-        }
-    }
-    found
-}
-
-fn begins(words: &[Box<[u8]>], prefix: &[&str]) -> bool {
-    words.len() >= prefix.len() && words.iter().zip(prefix).all(|(word, text)| word.as_ref() == text.as_bytes())
+    temper_shell::commands::find(&COMMANDS, words)
 }
 
 /// The command words up to the first word no row continues with.
 pub(crate) fn unknown(words: &[Box<[u8]>]) -> String {
-    let mut prefix = Vec::new();
-    for word in words {
-        prefix.push(word.clone());
-        if !COMMANDS.iter().any(|row| row.words.len() >= prefix.len() && begins(&prefix, &row.words[..prefix.len()])) {
-            break;
-        }
-    }
-    let given = String::from_utf8_lossy(&prefix.join(&b' ')).into_owned();
-    let given = if given.is_empty() && words.is_empty() { String::new() } else { format!(" {given}") };
-    format!("temper: no command{given}; temper --help lists them\n")
+    temper_shell::commands::unknown("temper", &COMMANDS, words)
 }
 
-fn command(row: &Row) -> String {
-    if row.words.is_empty() { "temper".into() } else { format!("temper {}", row.words.join(" ")) }
-}
-
+#[expect(dead_code, reason = "keeps the binary's forms entry point beside the shared table printers")]
 pub(crate) fn forms(row: &Row) -> String {
-    let mut text = String::new();
-    for form in row.forms {
-        writeln!(text, "usage: {} {form}", command(row)).expect("writing into a string");
-    }
-    text
+    temper_shell::commands::forms("temper", row)
 }
 
 pub(crate) fn refused(row: &Row, why: &str) -> String {
-    format!("{}: {why}\n{}", command(row), forms(row))
+    temper_shell::commands::refused("temper", row, why)
 }
 
 /// `temper --help`.
 #[must_use]
 pub fn help() -> String {
-    let mut text = String::from(
-        "usage: temper COMMAND [ARGUMENT...]\ntemper help prints the index of temper's pages; temper COMMAND --help prints one command.\n",
-    );
-    let mut previous = None;
-    for row in &COMMANDS {
-        if previous != Some(row.who) {
-            let label = if row.who == Who::Spawned { "spawned, never run by hand" } else { row.who.word() };
-            write!(text, "\n{label}:\n").expect("writing into a string");
-            previous = Some(row.who);
-        }
-        for form in row.forms {
-            writeln!(text, "  {} {form}", command(row)).expect("writing into a string");
-        }
-        if row.who != Who::Spawned {
-            writeln!(text, "    {}", row.line).expect("writing into a string");
-        }
-    }
-    text
+    temper_shell::commands::help("temper", &COMMANDS)
 }
 
 /// `temper COMMAND --help`.
 #[must_use]
 pub fn row(row: &Row) -> String {
-    let mut text = forms(row);
-    writeln!(text, "{}", row.line).expect("writing into a string");
-    for argument in row.arguments {
-        writeln!(text, "  {}: {}", argument.shown, argument.line).expect("writing into a string");
-    }
-    if !row.notes.is_empty() {
-        writeln!(text, "{}", row.notes).expect("writing into a string");
-    }
-    let mut text = text.into_bytes();
-    for table in row.settings {
-        skein_shell::help(table, &mut text);
-    }
-    String::from_utf8(text).expect("help is UTF-8")
+    temper_shell::commands::row("temper", row)
 }
 
 /// The reference page `commands`, whole, as `docs/help/reference/commands.md` holds it.
@@ -442,7 +294,7 @@ pub fn reference() -> String {
         "# temper's commands\n\nKind: reference\n\nEvery command of the temper binary, by who runs it: its usage, what it does, its arguments and its notes.\n",
     );
     for row in &COMMANDS {
-        let command = command(row);
+        let command = temper_shell::commands::command("temper", row);
         let heading = if row.words.is_empty() { format!("{command} [ADDRESS]") } else { command.clone() };
         write!(text, "\n## {heading}\n").expect("writing into a string");
         for form in row.forms {

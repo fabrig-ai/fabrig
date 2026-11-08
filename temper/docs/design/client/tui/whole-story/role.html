@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Terminal, talking with a role</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#151517}</style>
+<link rel="stylesheet" href="../../web/whole-story/whole-story.css">
+</head>
+<body>
+<p style="max-width: 920px; margin: 20px auto 0; font: 13px var(--mono)"><a href="../../web/whole-story/index.html" style="color: #c4c4cc">‹ temper, the whole story</a></p>
+<div style="overflow-x: auto"><div style="width: 920px; height: 640px; margin: 24px auto">
+<div class="term" role="img" aria-label="Talking with Porter, a standing role, in the terminal">
+<div>╭─ temper · <span class="b">vsr-rs</span> · talking with <span class="a">Porter</span> ──────────────────────────────────────────────────── dev.fabrig.ai ─╮</div>
+<div>╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</div>
+<div> <span class="a">Porter</span> <span class="d">· a standing role · owns vsr-rs · this week $49 of $60</span></div>
+<div> <span class="d">Its Now, 06:58: two landings behind; porting the witness catch-up check, waiting for vsr's handoff fix.</span></div>
+<div>&#160;</div>
+<div><span class="s">❯</span> Why two behind? I thought a port took twenty minutes.</div>
+<div>&#160;</div>
+<div><span class="s">✦</span> It does. The second waits on purpose: vsr's handoff fix will touch the same three functions,</div>
+<div>  and it waits on your answer. Porting both together saves a port and a check. If the fix</div>
+<div>  hasn't landed by 18:00, I port the catch-up check alone.</div>
+<div>&#160;</div>
+<div><span class="s">❯</span> Fine. From now on, port likely() and unlikely() as plain conditions; no intrinsics.</div>
+<div>&#160;</div>
+<div><span class="s">✦</span> That's a rule for every port, so it goes in my rules rather than my Now.</div>
+<div>  Add it to Porter's rules?</div>
+<div>&#160;</div>
+<div>  <span class="s">1. Yes, add it</span>        <span class="d">you own vsr-rs, so it applies from the next port</span></div>
+<div>  2. Just for this port</div>
+<div>  3. Tell it something else</div>
+<div>&#160;</div>
+<div><span class="s">❯</span> 1</div>
+<div>&#160;</div>
+<div><span class="s">✦</span> Added to Porter's rules: change 8 in How work runs on vsr-rs. Anything else?</div>
+<div>&#160;</div>
+<div>&#160;</div>
+<div>&#160;</div>
+<div>&#160;</div>
+<div>&#160;</div>
+<div>──────────────────────────────────────────────────────────────────────────────────────────────────────────────</div>
+<div><span class="s">❯</span> <span class="d">Reply, or Esc to leave. Porter writes its Now when you go.</span></div>
+<div>──────────────────────────────────────────────────────────────────────────────────────────────────────────────</div>
+<div> vsr-rs · Porter · Opus 5.5 · high · this session 9 min · $0.60                                     <span class="s">2 need you</span></div>
+</div>
+</div>
+</div>
+</body>
+</html>

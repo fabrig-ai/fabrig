@@ -513,7 +513,7 @@ pub(crate) fn rearm_all(domain: &mut Domain, env: &Env<Limits>) {
 }
 
 /// Once restoration has rearmed deadlines, make every durable task-holder
-/// entry visible again to an idle or adopted run.
+/// entry visible again, except to an idle holder whose last run covered it.
 pub(crate) fn wake_restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut waiting = skein_lib::List::with_capacity(env.limits.tasks);
     for (number, _) in &domain.names {
@@ -532,6 +532,20 @@ pub(crate) fn wake_restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     }
     for &(proposer, number) in &waiting {
         let proposal = context(domain, proposer, number).expect("restored pending proposal");
+        match proposal.state {
+            ProposalState::Pending { holder: ProposalHolder::Task(holder), since } => {
+                if let Some(row) = record(domain, holder)
+                    && row.phase == Phase::Active(crate::Active::Idle)
+                    && crate::reasons::covered(&word(&proposal, since), row.offered)
+                {
+                    continue;
+                }
+            }
+            ProposalState::Pending { .. }
+            | ProposalState::Accepted { .. }
+            | ProposalState::Rejected { .. }
+            | ProposalState::Withdrawn => {}
+        }
         wake_holder(domain, env, &proposal, out);
     }
 }

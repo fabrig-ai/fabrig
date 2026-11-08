@@ -9,11 +9,8 @@ A crash retains the lost-or-not-started recovery rule. The core restart
 table and one-process drain story check the distinction.
 
 Sections 3, 7, 8.2, 8.3, 8.6 and 9 have no known gap in run reasons,
-their retention across kept continuations and retries, offered-message
-fences or wakes for undecided entries, including a read escalation
-awaiting an unanswered direct person delegate. Exact reads are kept for
-the attempt; a restart reoffers unresolved entries without changing their
-holder, entry or stall time. A choice's `later` is checked with
+their retention across kept continuations and retries, or offered-message
+fences, beyond the **Not yet** entries below. A choice's `later` is checked with
 its first choice, and an amended choice without it removes the old one.
 Resumed parts, documents per part, choices per wake kind and offering a
 message with its part remain section 13's later work.

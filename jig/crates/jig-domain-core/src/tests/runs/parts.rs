@@ -164,9 +164,10 @@ enum Arrival {
     BeforeWorkspace,
 }
 
-fn preparing_parts(parts: bool) -> (Core, Limits) {
+fn preparing_parts(parts: bool, questions: bool) -> (Core, Limits) {
     let (mut core, limits) = tree_core();
-    let root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
+    let mut root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
+    root.wake.questions = questions;
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([root]));
     let child = new_row(&core, 2, tasks::Funder::Task(1), None);
     fixtures::make_batch(&mut core, &limits, tasks::Party::Task(1), Box::new([child]));
@@ -210,7 +211,7 @@ fn sent_words_follow_prepared_parts_and_always_complete_their_route() {
         ("no parts", false, false, tasks::Party::Task(2), tasks::MessageKind::Question, true),
         ("own instructions", true, true, tasks::Party::Task(2), tasks::MessageKind::Question, true),
     ] {
-        let (mut core, limits) = preparing_parts(parts);
+        let (mut core, limits) = preparing_parts(parts, true);
         if own {
             let mut row = core.tasks.task(1).unwrap().clone();
             row.instructions = Some(b"own".as_slice().into());
@@ -332,7 +333,7 @@ fn finish_brief(core: &mut Core, limits: &Limits, mut owner: Token) {
 }
 
 #[test]
-fn arrivals_between_preparation_and_claim_use_the_prepared_parts() {
+fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts() {
     for arrival in [
         Arrival::BeforeBrief,
         Arrival::DuringResult,
@@ -340,12 +341,13 @@ fn arrivals_between_preparation_and_claim_use_the_prepared_parts() {
         Arrival::BeforeComplete,
         Arrival::BeforeWorkspace,
     ] {
-        for (name, parts, kind, kept) in [
-            ("kept question", true, tasks::MessageKind::Question, true),
-            ("person words", true, tasks::MessageKind::Words, false),
-            ("no parts", false, tasks::MessageKind::Question, false),
+        for (name, parts, questions, kind, kept) in [
+            ("new question", true, true, tasks::MessageKind::Question, false),
+            ("non-waking question", true, false, tasks::MessageKind::Question, true),
+            ("person words", true, true, tasks::MessageKind::Words, false),
+            ("no parts", false, true, tasks::MessageKind::Question, false),
         ] {
-            let (mut core, limits) = preparing_parts(parts);
+            let (mut core, limits) = preparing_parts(parts, questions);
             let prepared = core.contexts.get(&1).unwrap().clone();
             let mut result = None;
             if arrival == Arrival::DuringResult {
@@ -435,7 +437,7 @@ fn arrivals_between_preparation_and_claim_use_the_prepared_parts() {
                     && let Now::RunPrepared { run, messages, .. } = now.as_ref()
                 {
                     assert_eq!(run.policy.instructions.as_ref(), b"S\n\nF", "{arrival:?}: prepared instructions");
-                    assert!(messages.is_empty(), "{arrival:?}: kept question absent at start");
+                    assert!(messages.is_empty(), "{arrival:?}: kept word absent at start");
                     budget = Some(run.budget);
                 }
             }
@@ -446,7 +448,7 @@ fn arrivals_between_preparation_and_claim_use_the_prepared_parts() {
             assert_eq!(row.reasons, prepared.reasons, "{arrival:?}: prepared reasons claimed");
             assert_eq!(row.offered, Reasons::EMPTY);
             assert_eq!(row.refusals, 0);
-            assert_eq!(row.inbox.len(), 1, "{arrival:?}: question keeps its place");
+            assert_eq!(row.inbox.len(), 1, "{arrival:?}: kept word keeps its place");
         }
     }
 }
