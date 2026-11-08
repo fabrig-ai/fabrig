@@ -7898,10 +7898,11 @@ words, parts and order bind and whose figures don't), illustrative:
   Home reads every project (`../draft/surfaces.md`, 3; temper/ui's P2);
   the header holds the brief's sentence and `/brief` its whole, since
   the engine keeps a sentence and a lede and no more (`../domain/forge.md`,
-  5.7); a chat's row ends with `/chats N`, the open question's default
-  (`../draft/surfaces.md`, 15), not `/resume N`; what is open in a row is
-  its state as Home words it, not counted open points, which nothing
-  keeps; the quiet line names the link's state, "● Live", as the Pair
+  5.7); a chat's row ends with `/chats N`, numbering the rows as the
+  open question's default numbers `/chats`' list (`../draft/surfaces.md`,
+  15), where the mockups draw `/chats` once, on the first row
+  (`../draft/surfaces.status.md`); what is open in a row is its state
+  as Home words it; the quiet line names the link's state, "● Live", as the Pair
   mockup does; the sections keep the at-scale mockup's order, Where you
   left off before Needs you; "Landed this week" (Pair's) and "Team on
   PROJECT" are not drawn, the first not in `../draft/surfaces.md`, 11.1,
@@ -9921,17 +9922,23 @@ own tests:
   chat's document at 1440, 1000 and 420 px, across and down the page,
   against the look request's pages, and walks a real Ask temper
   chat asked to show a way. M3b adds a stop pressed in a reply opening
-  its card, the views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
-  of views, temper/tui's (`../draft/ask-temper.execution.md`, M3b). A view
+  its card and the views `queue`, `task N tree` and `task N timeline`
+  (`../draft/ask-temper.execution.md`, M3b); the TUI prints views and
+  draws none (6.14, *A chat*). A view
   at an older revision, and a decided proposal's paths, wait for a read of
   the settings as a revision left them. Default: the focused tables and
   gallery samples, which establish no rendered look.
 
 - **The TUI's later passes** (6.11 to 6.16, 7.1): beyond the
-  launchpad, its commands and a chat, the side pane and drafting, needs
-  from elsewhere, hand-offs and choosing a project from a checkout
-  (`../draft/tui.md`, section 3). Default: refine each on the recorded
-  frames before designing it.
+  launchpad as drawn, its commands, the walk of what needs the person
+  and a chat: a design session with the side pane, `/draft` and a
+  chat's document printed beside it, T2's (`../draft/surfaces.md`,
+  11.2); talking with a role, `/talk`, `/tell` and the launchpad's team
+  lines, T3's (`../draft/surfaces.md`, 11.1, 11.3 and 11.4); a need
+  from elsewhere on a chat, the line above its box; the web's hand-off,
+  a page's terminal command to copy; and choosing a project from a
+  checkout (`../draft/tui.md`, sections 2 and 3). Default: refine each
+  on the recorded frames before designing it.
 - **The launchpad's and a chat's later parts** (6.14): the brief, *Where
   you left off* and Needs you across the person's projects, once the
   root reads Home across them (`../draft/surfaces.md`, 3); a newest goal
@@ -9977,7 +9984,15 @@ own tests:
   the left-off chats reached by Up and Down, `/effort` on the launchpad,
   a Markdown list's "•", the chat's title in the rule above the box with
   "box" as its place, and the runtime on
-  macOS. The user takes the recorded frames and refines the look on them
+  macOS. Walk the launchpad as drawn against its mockups
+  (`tui/whole-story/launchpad.html` and `pair/` beside it): the brief
+  and `/brief`, *Where you left off* with a goal among its rows, each
+  mark under Needs you and its walk by `n` and `/needs`, `/change` and
+  `/ask` with words, `/chats N`, and `/open` opening the browser on the
+  page in focus; and a reply's views printed in a chat beside the web's
+  drawing of them (`../draft/surfaces.md`, 11.1, 11.4 and 11.5). The
+  user takes the recorded frames, `launchpad-drawn`'s among them, and
+  refines the look on them
   (`tui/journeys.md`, sections 9 and 10), and the look requests
   `tui-launchpad` and `tui-chat-title-below` are checked against them
   (`../draft/look-requests.md`, sections 4 and 5). Simulated closing, client-world
