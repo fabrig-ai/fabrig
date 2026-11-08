@@ -219,3 +219,9 @@ taken that main yet. Rerun once it has; then the base check passes and you go
 on. In the check, `RAIL_NAV` is the style of the slot that holds the rail's
 `entries` (`frame.rs`, after the switcher), where "Work" and "How work runs"
 are drawn: that is what "holding" means; Team's entry goes in `entries`.
+
+2026-11-08. *Run team-rail-15 again found no `pages/rail.rs` on its base: what
+now?* Same as the answer to team-rail-14: the stop was right; change nothing.
+At 21:33Z `origin/main` (0d6f7a9b65) holds ui-p1-rail's rail, but this trunk
+(3529ac68fd) still hasn't taken that main. Rerun once it has; then the base
+check passes and you go on.
