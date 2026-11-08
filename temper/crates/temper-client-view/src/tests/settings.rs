@@ -340,29 +340,20 @@ fn a_repository_row_is_no_link() {
     }
 }
 #[test]
-fn accounts_are_in_the_settings_column_with_or_without_a_project() {
-    for (address, heading, style) in [(Address::Accounts, b"Accounts".as_slice(), look::ACCOUNTS_PAGE)] {
-        let (mut root, watch, _) = f::root_at(address, &f::domain_limits());
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            assert!(main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
-            assert!(
-                !main(view.tree())
-                    .iter()
-                    .any(|n| n.role == Role::Heading { level: 1 } && n.name.as_deref() == Some(heading))
-            );
-            assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::PAGEBAR)));
-            styled(view.tree(), style);
-        }
-        let mut me = root.pages().me(root.client()).unwrap().clone();
-        me.projects.clear();
-        f::deliver_me(&mut root, watch, me);
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            find(view.tree(), Role::Heading { level: 1 }, heading);
-            assert!(main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
-            assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::SETTINGS]);
-        }
+fn accounts_are_in_the_projects_settings_column() {
+    let root = f::root_at(Address::Accounts, &f::domain_limits()).0;
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_COL)));
+        assert!(
+            !main(view.tree())
+                .iter()
+                .any(|n| n.role == Role::Heading { level: 1 } && n.name.as_deref() == Some(b"Accounts"))
+        );
+        assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::PAGEBAR)));
+        styled(view.tree(), look::ACCOUNTS_PAGE);
     }
 }
+
 #[test]
 fn sign_out_is_at_the_foot_of_accounts() {
     let root = root(Address::Accounts);
@@ -919,34 +910,21 @@ fn until_read_the_switches_are_disabled_and_show_stock() {
 }
 
 #[test]
-fn alone_it_keeps_its_heading_and_lede_with_no_tabs() {
-    let (mut root, watch, _) = f::root_at(Address::Forges, &f::domain_limits());
-    for project in [true, false] {
-        if !project {
-            let mut me = root.pages().me(root.client()).unwrap().clone();
-            me.projects.clear();
-            f::deliver_me(&mut root, watch, me);
-        }
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::SETTINGS]);
-            let col = styled(view.tree(), look::SETTINGS_COL);
-            let intro = styled(view.tree(), look::SETTINGS_INTRO);
-            assert!(col.len() > intro.len());
-            find(view.tree(), Role::Heading { level: 1 }, if project { b"Where your code lives." } else { b"Forges" });
-            assert_eq!(
-                intro.iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_KICKER)).count(),
-                usize::from(project)
-            );
-            assert_eq!(
-                main(view.tree()).iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_TABS)).count(),
-                usize::from(project)
-            );
-            find(
-                view.tree(),
-                Role::Paragraph,
-                b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
-            );
-        }
+fn forges_keep_the_projects_heading_lede_and_tabs() {
+    let (root, _, _) = f::root_at(Address::Forges, &f::domain_limits());
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert_eq!(main(view.tree())[0].styles.as_slice(), &[look::MAIN, look::SETTINGS]);
+        let col = styled(view.tree(), look::SETTINGS_COL);
+        let intro = styled(view.tree(), look::SETTINGS_INTRO);
+        assert!(col.len() > intro.len());
+        find(view.tree(), Role::Heading { level: 1 }, b"Where your code lives.");
+        assert_eq!(intro.iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_KICKER)).count(), 1);
+        assert_eq!(main(view.tree()).iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_TABS)).count(), 1);
+        find(
+            view.tree(),
+            Role::Paragraph,
+            b"Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
+        );
     }
 }
 

@@ -20,7 +20,7 @@ fn go(address: Address) -> d::Action {
 }
 #[test]
 fn the_forges_page_says_its_words_and_folds_each_row() {
-    let (mut root, watch, ..) = f::root_at_with_forges(
+    let (root, ..) = f::root_at_with_forges(
         Address::Forges,
         &f::domain_limits(),
         b"Shop",
@@ -28,33 +28,26 @@ fn the_forges_page_says_its_words_and_folds_each_row() {
         None,
         Some(cf::rows(cf::connected(), w::Offer::Offered)),
     );
-    for project in [true, false] {
-        if !project {
-            let mut me = root.pages().me(root.client()).unwrap().clone();
-            me.projects.clear();
-            f::deliver_me(&mut root, watch, me);
-        }
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            cf::words_in_order(
-                view.tree(),
-                &[
-                    if project { "Where your code lives." } else { "Forges" },
-                    "Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
-                    "Your forges · 2",
-                    "+ Connect a forge",
-                ],
-            );
-            let row = view
-                .tree()
-                .nodes()
-                .iter()
-                .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
-                .unwrap();
-            assert!(!row.states.as_slice().contains(&State::Expanded));
-            assert_eq!(row.description.as_deref(), Some("Forge 3 · Forgejo · Connected as temper".as_bytes()));
-            assert!(f::find(view.tree(), Role::Term, b"Account").is_some());
-            assert!(f::find(view.tree(), Role::Description, "temper · user 42".as_bytes()).is_some());
-        }
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        cf::words_in_order(
+            view.tree(),
+            &[
+                "Where your code lives.",
+                "Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
+                "Your forges · 2",
+                "+ Connect a forge",
+            ],
+        );
+        let row = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
+            .unwrap();
+        assert!(!row.states.as_slice().contains(&State::Expanded));
+        assert_eq!(row.description.as_deref(), Some("Forge 3 · Forgejo · Connected as temper".as_bytes()));
+        assert!(f::find(view.tree(), Role::Term, b"Account").is_some());
+        assert!(f::find(view.tree(), Role::Description, "temper · user 42".as_bytes()).is_some());
     }
 }
 

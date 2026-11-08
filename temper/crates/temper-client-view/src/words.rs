@@ -606,6 +606,8 @@ pub enum Word {
     SettingsFor,
     ProjectNotYours,
     NoProjectLine,
+    ProjectName,
+    NoProjectSetUp,
     TokensDescription,
     TokensApi,
     TokensGit,
@@ -1547,7 +1549,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2102;
+const PHRASES: u32 = 2104;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1574,10 +1576,10 @@ const PHRASES: u32 = 2102;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3687;
+const SEGMENTS: u32 = 3689;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51981;
-const ALL: [Word; 1420] = [
+const ENGLISH_BYTES: u32 = 52059;
+const ALL: [Word; 1422] = [
     Word::NightMode,
     Word::CloseTitle,
     Word::CloseChat,
@@ -2158,6 +2160,8 @@ const ALL: [Word; 1420] = [
     Word::SettingsFor,
     Word::ProjectNotYours,
     Word::NoProjectLine,
+    Word::ProjectName,
+    Word::NoProjectSetUp,
     Word::TokensDescription,
     Word::TokensApi,
     Word::TokensGit,
@@ -3614,6 +3618,8 @@ impl Word {
             Self::SettingsFor => 2200,
             Self::ProjectNotYours => 2201,
             Self::NoProjectLine => 2197,
+            Self::ProjectName => 2198,
+            Self::NoProjectSetUp => 2199,
             Self::ModelKeyDescription => 2100,
             Self::ModelKeyField => 2101,
             Self::ModelAddKey => 2102,
@@ -5325,7 +5331,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::SettingsFor => (&[b"Settings for ", b""], &[Name]),
         Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
-        Word::NoProjectLine => (&[b"Make one from the project switcher."], &[]),
+        Word::NoProjectLine => (&[b"Make your first one, or ask an owner to add you to theirs."], &[]),
+        Word::ProjectName => (&[b"Project name"], &[]),
+        Word::NoProjectSetUp => (&[b"Setting temper up makes your first project."], &[]),
         Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
         Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),
         Word::ModelAddKey => (&[b"Add key"], &[]),
