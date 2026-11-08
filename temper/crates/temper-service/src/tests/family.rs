@@ -3039,6 +3039,14 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
                         edit: ways::Edit::Set(forge::settings::Value::Charter(3)),
                     },
                     ways::Item { kind: 2, scope: 7, number: 4, edit: ways::Edit::Remove },
+                    ways::Item {
+                        kind: 8,
+                        scope: 7,
+                        number: 1,
+                        edit: ways::Edit::Set(forge::settings::Value::Classes(
+                            temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
+                        )),
+                    },
                 ]),
             })
             .unwrap();
@@ -3061,7 +3069,7 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
             (entry.name.as_ref(), entry.line.as_ref(), entry.delegation)
         );
         assert_eq!(got.path(), &expected);
-        assert_eq!(got.items().len(), 2);
+        assert_eq!(got.items().len(), 3);
         let set = got.items().get(0).unwrap();
         assert_eq!((set.kind(), set.scope(), set.number()), (3, 7, 1));
         let w::SettingEdit::Set(value) = set.edit() else { panic!("set item") };
@@ -3070,6 +3078,16 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
         assert_eq!(
             (removed.kind(), removed.scope(), removed.number(), removed.edit()),
             (2, 7, 4, &w::SettingEdit::Removed)
+        );
+        let classes = got.items().get(2).unwrap();
+        assert_eq!((classes.kind(), classes.scope(), classes.number()), (8, 7, 1));
+        let w::SettingEdit::Set(value) = classes.edit() else { panic!("classes item") };
+        assert_eq!(
+            value.value(),
+            temper_engine_smith::kinds::encode(&forge::settings::Value::Classes(
+                temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
+            ))
+            .as_ref()
         );
     }
     let mut after = path.clone();
