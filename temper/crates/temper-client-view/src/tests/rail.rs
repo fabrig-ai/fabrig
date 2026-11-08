@@ -591,7 +591,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     b"Needs you 3"
                 };
                 let current = match address {
-                    Address::Home { .. } => Some(b"Home".as_slice()),
+                    Address::AllHome | Address::Home { .. } => Some(b"Home".as_slice()),
                     Address::Inbox { .. } => Some(needs),
                     Address::Chats { .. } | Address::NewChat { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
                     Address::Changes { .. } => Some(b"Changes".as_slice()),

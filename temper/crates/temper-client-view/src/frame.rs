@@ -716,7 +716,7 @@ struct Shown {
 // Navigation follows project ways and keeps the open page (client/README.md, 5.3).
 fn shown(root: &Domain, project: u32) -> Shown {
     let (home, inbox, chats) = match root.pages().address() {
-        Address::Home { .. } => (true, false, false),
+        Address::AllHome | Address::Home { .. } => (true, false, false),
         Address::Inbox { .. } => (false, true, false),
         Address::Chats { .. } | Address::NewChat { .. } => (false, false, true),
         Address::Chat { .. } => (false, false, !crate::pages::chat::asking(root)),
@@ -858,6 +858,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Home { .. }
+        | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }

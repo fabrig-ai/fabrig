@@ -441,6 +441,7 @@ pub(super) fn root_at_with_values(
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::NewChat { .. }
         | temper_client_domain::Address::Accounts
+        | temper_client_domain::Address::AllHome
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
