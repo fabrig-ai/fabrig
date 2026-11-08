@@ -107,18 +107,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
-- **Not yet:** 13.2, 13.3: a pattern of kind 2 beginning at `branch`: the
-  forge refuses a first segment other than `forge`
-  (`temper-engine-domain-forge/src/settings.rs`, `judge`) and matches every
-  pattern against a branch's whole resource path (`gates.rs`, `covers`),
-  and the root overlaps a rule with each repository's path alone
-  (`temper-engine-domain/src/route/kinds.rs`, `covers_repository`).
-- **Not yet:** 13.3, 13.4: the forge holds no rule given for every
-  project: an entry of kind 2 for no one scope is a default like any
-  other, a project's rule 1 removed or reset leaves it none, and the
-  root's run `settings` read takes no stock of kind 2
-  (`temper-engine-domain-forge/src/kinds.rs`;
-  `temper-engine-domain/src/route/host_route.rs`, `settings`).
 - **Not yet:** 13.4: the stock module gives the forge kind 1's rule 1 over
   every branch of every forge, and no project's rule 1
   (`temper-service/src/stock.rs`, `forge`).
