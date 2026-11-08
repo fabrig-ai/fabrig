@@ -61,7 +61,7 @@ impl Look {
         }
     }
 }
-/// Whether the terminal draws the page at this address: a chat's, `NewChat` or `Configure`.
+/// Whether the terminal draws the page at this address: a chat's, `NewChat` or `Ask`.
 #[must_use]
 pub fn draws(address: &crate::Address) -> bool {
     use crate::Address;

@@ -6,7 +6,10 @@ use skein_lib::Duration;
 use temper_engine_domain_world::{direct::Driver, protocol, store::Store, walking};
 
 pub(super) const CHAT: u32 = 1;
-pub(super) const CONFIGURING: u32 = 3;
+pub(super) const ASK_CHARTER: u32 = 11;
+pub(super) const ASK_TEMPLATE: u32 = 5;
+pub(super) const SETTINGS_CHARTER: u32 = 12;
+pub(super) const SETTINGS_TEMPLATE: u32 = 12;
 pub(super) const REMOVED: u32 = 7;
 pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
@@ -242,6 +245,58 @@ fn worker_hello() -> Event {
     hello.bounds.turns = 800; // Stock's largest charter.
     hello.bounds.message_bytes = MESSAGE_BYTES;
     greeting
+}
+
+/// The settings family's own tools (temper/docs/design/domain/agent.md, 4.3).
+pub(super) fn settings_config() -> engine::Config {
+    let mut config = config();
+    let mut charter = config
+        .core
+        .defaults
+        .charters
+        .iter()
+        .find(|charter| charter.number == CHAT)
+        .expect("stock chat charter")
+        .clone();
+    charter.number = SETTINGS_CHARTER;
+    charter.policy.tools = jig_domain_tasks::Tools(1920);
+    charter.policy.modify = false;
+    charter.policy.agents = false;
+    charter.policy.instructions = b"Read and propose settings.".as_slice().into();
+    let mut charters = config.core.defaults.charters.into_vec();
+    charters.push(charter);
+    config.core.defaults.charters = charters.into_boxed_slice();
+    let mut template = config
+        .core
+        .defaults
+        .templates
+        .iter()
+        .find(|template| template.number == CHAT)
+        .expect("stock chat template")
+        .clone();
+    template.number = SETTINGS_TEMPLATE;
+    template.name = b"settings".as_slice().into();
+    template.executor = people::TemplateExecutor::Charter(SETTINGS_CHARTER);
+    let mut templates = config.core.defaults.templates.into_vec();
+    templates.push(template);
+    config.core.defaults.templates = templates.into_boxed_slice();
+    offer_settings(&mut config.core.defaults.rules.ceiling);
+    let mut policy = config.core.seed_projects[0].policy.clone();
+    offer_settings(&mut policy.policy.ceiling);
+    for role in &mut policy.policy.roles {
+        offer_settings(&mut role.authority);
+    }
+    config.core.seed_projects[0].policy = policy.clone();
+    config.core.defaults.policies.insert(1, policy).expect("world's policy 1");
+    config
+}
+fn offer_settings(authority: &mut jig_domain_authority::Authority) {
+    if authority.delegation.tasks == 0 {
+        return;
+    }
+    let mut kinds = authority.delegation.kinds.clone().into_vec();
+    kinds.push(jig_domain_authority::Executor::Charter(SETTINGS_CHARTER));
+    authority.delegation.kinds = kinds.into_boxed_slice();
 }
 
 pub(super) fn moving_config() -> engine::Config {
@@ -587,12 +642,65 @@ impl World {
     }
 }
 
-pub(super) fn read_charter(driver: &mut Driver, run: &engine::Assignment, completion: u32, number: u32) -> Value {
-    let input = json!({"setting":{"kind":"charter","number":number}});
-    read_value(driver, run, completion, input)
+/// A `see` answer whole, following `more: TOKEN` (agent.md, 8.4.1); the parts it took.
+pub(super) fn see_whole(
+    driver: &mut Driver,
+    run: &engine::Assignment,
+    completion: u32,
+    address: &str,
+) -> (String, u32) {
+    let before = driver.store.applied;
+    let mut address = address.to_owned();
+    let mut whole = String::new();
+    let mut from = 0;
+    let mut parts = 0;
+    loop {
+        let (body, error) =
+            host_tool(driver, run, completion + parts, b"see", json!({"address":address}).to_string().as_bytes());
+        let text = std::str::from_utf8(&body).expect("see UTF-8");
+        assert!(!error, "{address}: {text}");
+        assert!(body.len() <= usize::try_from(driver.env.limits.call_answer_bytes - 3).expect("answer allowance"));
+        assert!(
+            body.len() <= usize::try_from(smith_agent_world::LIMITS.run.host_reply_bytes).expect("host reply bound")
+        );
+        if let Some(bound) = driver.env.limits.host_reply_bytes {
+            assert!(body.len() <= usize::try_from(bound).expect("host reply allowance"));
+        }
+        let end = text.find("more: ").or_else(|| text.find("see: ")).expect("see following addresses");
+        assert!(end <= usize::try_from(temper_engine_smith::SEE_PART).expect("see part bound"));
+        let next = text.lines().find_map(|line| line.strip_prefix("more: "));
+        let bytes = next.map_or(end, |token| {
+            let offset = token.rsplit_once('@').expect("continuation token").1.parse::<usize>().expect("byte offset");
+            assert!(offset > from, "pagination advances");
+            offset - from
+        });
+        whole.push_str(text.get(..bytes).expect("original part bytes"));
+        from += bytes;
+        parts += 1;
+        assert_eq!(driver.store.applied, before, "each read part commits nothing");
+        if let Some(token) = next {
+            address = format!("more {token}");
+        } else {
+            return (whole, parts);
+        }
+    }
 }
-pub(super) fn read_value(driver: &mut Driver, run: &engine::Assignment, completion: u32, input: Value) -> Value {
-    let (text, _) = read_whole(driver, run, completion, input);
+/// A `see settings KIND N` answer's JSON value, its heading line dropped.
+pub(super) fn see_value(driver: &mut Driver, run: &engine::Assignment, completion: u32, address: &str) -> Value {
+    let (text, _) = see_whole(driver, run, completion, address);
+    let (_, text) = text.split_once('\n').expect("setting heading");
+    serde_json::Deserializer::from_str(text).into_iter::<Value>().next().expect("setting value").expect("setting JSON")
+}
+pub(super) fn see_charter(driver: &mut Driver, run: &engine::Assignment, completion: u32, number: u32) -> Value {
+    see_value(driver, run, completion, &format!("settings charter {number}"))
+}
+
+pub(super) fn settings_charter(driver: &mut Driver, run: &engine::Assignment, completion: u32, number: u32) -> Value {
+    let input = json!({"setting":{"kind":"charter","number":number}});
+    settings_value(driver, run, completion, input)
+}
+pub(super) fn settings_value(driver: &mut Driver, run: &engine::Assignment, completion: u32, input: Value) -> Value {
+    let (text, _) = settings_whole(driver, run, completion, input);
     let (_, text) = text.split_once('\n').expect("setting heading");
     serde_json::from_str(text.trim()).expect("setting JSON")
 }
@@ -605,7 +713,7 @@ pub(super) fn omit_removable(authority: &mut Value) {
     kinds.retain(|kind| kind != &json!({"charter":REMOVED}));
     assert_eq!(kinds.len() + 1, before, "one charter reference removed");
 }
-pub(super) fn read_whole(
+pub(super) fn settings_whole(
     driver: &mut Driver,
     run: &engine::Assignment,
     completion: u32,
@@ -711,7 +819,7 @@ pub(super) fn parts_call(
 }
 /// Restart the root and reconnect the same person and worker, keeping the store.
 pub(super) fn restart_settings_world(world: &mut World, run: &engine::Assignment) {
-    let config = config();
+    let config = settings_config();
     let identity = config.core.owners[0].identity.clone();
     world.driver.reopen(config);
     let mut greeting = worker_hello();

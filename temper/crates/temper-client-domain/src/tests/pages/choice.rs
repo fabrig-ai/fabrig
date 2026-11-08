@@ -75,7 +75,7 @@ fn an_absent_template_choice_keeps_the_engine_default() {
 fn home_chooses_the_ask_template_and_new_chat_keeps_its_own() {
     use crate::Address;
     const ASK: u32 = 5;
-    let mut me = super::chats::configuring_me();
+    let mut me = super::chats::asking_me();
     let project = me.projects.get_mut(0).expect("project");
     project.defaults = List::from_boxed(Box::new([
         c::MeDefault { template: ASK, choice: choice(b"asking") },

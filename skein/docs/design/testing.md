@@ -253,10 +253,21 @@ second, which is why it is skein's (testing-strategy.md, 7).
   liveness deadlines.** A liveness deadline's patience is its time less
   the run's start. A referee can return its own starved verdict through
   `Referee::starved() -> Option<Starved>`. The loop drains the forced
-  cleanup before passing that verdict on. `Starved::pass()` prints the
-  `skein-world: starved:` line, naming the wait with `, by <what>`, and
-  exits 0 under nextest; a run elsewhere reports the same green warning
-  under testing-strategy.md, 8.1. Tree starvation also names
+  cleanup before passing that verdict on. `Starved::pass()` writes the
+  `skein-world: starved:` line to stderr, naming the wait with `, by <what>`,
+  and ends the test as a starved pass: in a one-process run
+  (`TIERS_ONE_PROCESS` set, by `tools/tiers/design.md`'s one-process
+  mode) it unwinds with
+  `std::panic::resume_unwind` and the payload `StarvedPass`, so that only
+  its test ends, nothing follows the line, and the process goes on to its
+  next test; under nextest it exits 0; elsewhere it fails with the figures.
+  `Starved::exit()` ends a helper process, one a test starts and whose
+  stderr it reads, with the line and exit 0 wherever a starved wait passes.
+  `starved_passes()` says whether it passes here (`TIERS_ONE_PROCESS` or
+  `NEXTEST` set), and `pass_starved(line)` ends the running test with a line
+  a helper wrote, as `pass` does. Every place that keys on `NEXTEST` for
+  starvation keys on `starved_passes()`, and a test that runs a child to see
+  a deadline fail removes both variables from it. Tree starvation also names
   the tree's wait and accounting source. Conformance's `Backend` gives
   `wait_begins`, `wait_unanswered` and `wait_figures`; the simulator uses
   their defaults.

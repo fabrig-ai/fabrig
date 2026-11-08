@@ -498,7 +498,7 @@ fn home_counts_live_and_ended_chats_as_asked() {
     }
 }
 #[test]
-fn another_persons_project_cannot_start_a_configuring_chat() {
+fn another_persons_project_cannot_start_an_asking_chat() {
     let mut f = fixture();
     event(&mut f.root, Event::Went { place: Place::Address(Address::Ask { project: OTHER_PROJECT }) });
     let out = event(
@@ -512,7 +512,7 @@ fn another_persons_project_cannot_start_a_configuring_chat() {
             sent = true;
         }
     }
-    assert!(!sent, "Configure's address never falls back to another project");
+    assert!(!sent, "Ask temper's address never falls back to another project");
     assert!(!home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).chat_asked);
 }
 
@@ -709,22 +709,22 @@ fn home_hears_its_chats_and_its_inbox_alike() {
     }
 }
 
-const CONFIGURING: u32 = 5;
+const ASKING: u32 = 5;
 const TWO_TEMPLATES: u32 = 2;
 const FACTS: u32 = 5;
 // Live watch, read page's live rows, read page's ended rows.
 const CHAT_SOURCES: u32 = 3;
 
-fn configuring_me() -> c::Me {
+fn asking_me() -> c::Me {
     let mut me = f::chats::me();
     let project = me.projects.get_mut(0).unwrap();
     let stock = project.templates.get(0).unwrap().clone();
-    let mut configuring = stock.clone();
-    configuring.number = CONFIGURING;
-    configuring.executor = c::TemplateExecutor::Charter(CONFIGURING);
+    let mut asking = stock.clone();
+    asking.number = ASKING;
+    asking.executor = c::TemplateExecutor::Charter(ASKING);
     project.templates = List::with_capacity(TWO_TEMPLATES);
     project.templates.push(stock).unwrap();
-    project.templates.push(configuring).unwrap();
+    project.templates.push(asking).unwrap();
     me
 }
 fn chat_page(f: &mut Fixture, rows: List<c::TaskLine>, live: bool, after: Option<c::Cursor>) {
@@ -793,11 +793,11 @@ fn family_answer(outcome: w::Outcome) -> jig_client::Outcome {
     }))
 }
 #[test]
-fn a_configuring_chat_marks_the_first_step_and_not_the_third() {
+fn an_asking_chat_marks_the_first_step_and_not_the_third() {
     for source in 0..CHAT_SOURCES {
-        let mut f = fixture_with_me(configuring_me());
+        let mut f = fixture_with_me(asking_me());
         let mut row = super::chats::chat_line();
-        row.chip.executor = c::ChipExecutor::Agent { charter: CONFIGURING };
+        row.chip.executor = c::ChipExecutor::Agent { charter: ASKING };
         let mut rows = List::with_capacity(ONE);
         rows.push(row).unwrap();
         if source == 0 {
@@ -807,13 +807,13 @@ fn a_configuring_chat_marks_the_first_step_and_not_the_third() {
         }
         let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(facts.configured, "source={source}");
-        assert!(!facts.chat_asked, "configuring alone source={source}");
+        assert!(!facts.chat_asked, "asking alone source={source}");
         assert!(!home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).configured);
     }
 }
 #[test]
 fn a_stock_chat_marks_the_third_step_alone() {
-    for me in [f::chats::me(), configuring_me()] {
+    for me in [f::chats::me(), asking_me()] {
         for source in 0..CHAT_SOURCES {
             let mut f = fixture_with_me(me.clone());
             if source == 0 {
@@ -826,11 +826,11 @@ fn a_stock_chat_marks_the_third_step_alone() {
             assert!(facts.chat_asked);
         }
     }
-    let mut chosen = configuring_me();
+    let mut chosen = asking_me();
     chosen.projects.get_mut(0).unwrap().templates.get_mut(1).unwrap().executor = c::TemplateExecutor::Chosen;
-    assert!(!pages::chats::asking(&chosen, f::PROJECT, &c::ChipExecutor::Agent { charter: CONFIGURING }));
+    assert!(!pages::chats::asking(&chosen, f::PROJECT, &c::ChipExecutor::Agent { charter: ASKING }));
     for source in 0..CHAT_SOURCES {
-        let mut f = fixture_with_me(configuring_me());
+        let mut f = fixture_with_me(asking_me());
         if source == 0 {
             deliver(
                 &mut f.root,
@@ -846,7 +846,7 @@ fn a_stock_chat_marks_the_third_step_alone() {
             );
         }
         let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
-        assert!(!facts.configured, "a configuring chat past the cut isn't seen");
+        assert!(!facts.configured, "an Ask temper chat past the cut isn't seen");
         assert!(facts.chat_asked, "a cut counts as another chat");
     }
 }
@@ -880,10 +880,10 @@ fn to_begin_waits_for_every_fact() {
         assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Unknown);
         assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).to_begin());
     }
-    let mut f = fixture_with_me(configuring_me());
+    let mut f = fixture_with_me(asking_me());
     ready(&mut f);
     let mut rows = chat_rows();
-    rows.get_mut(0).unwrap().chip.executor = c::ChipExecutor::Agent { charter: CONFIGURING };
+    rows.get_mut(0).unwrap().chip.executor = c::ChipExecutor::Agent { charter: ASKING };
     deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
     assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured);
     up(&mut f.root, Up::WatchEnded { watch: f.live, end: c::WatchEnd::SubjectEnded });

@@ -4,6 +4,9 @@ use jig_domain_core::settings as s;
 use temper_engine_domain_forge::settings;
 use temper_engine_domain_world::kinds;
 
+const ASK_CHARTER: u32 = 11;
+const SETTINGS_CHARTER: u32 = 12;
+
 fn box_owner() -> people::IdentityKey {
     people::IdentityKey { provider: 3, subject: b"owner-a".as_slice().into() }
 }
@@ -33,7 +36,9 @@ fn defaults() -> s::Defaults {
 
         providers: Box::new([]),
     };
-    temper_service::stock::with_models(llm.models.clone(), 4096)
+    let mut defaults = temper_service::stock::with_models(llm.models.clone(), 4096);
+    temper_engine_domain_world::forge_routes::add_settings_charter(&mut defaults);
+    defaults
 }
 
 fn world_with_owner(identity: people::IdentityKey) -> World {
@@ -123,7 +128,11 @@ fn approval_rule(role: u32, people: u32) -> settings::Value {
     })
 }
 
-fn configuring_proposal(world: &mut World, role: u32, key: u8) -> engine::Assignment {
+fn asking_proposal(world: &mut World, role: u32, key: u8) -> engine::Assignment {
+    proposal(world, role, key, ASK_CHARTER)
+}
+
+fn proposal(world: &mut World, role: u32, key: u8, charter: u32) -> engine::Assignment {
     let mut hello_event = protocol::hello_slots(Token::new(7), 2, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) =
         &mut hello_event
@@ -141,9 +150,9 @@ fn configuring_proposal(world: &mut World, role: u32, key: u8) -> engine::Assign
     else {
         panic!("chat")
     };
-    batch[0].executor = people::TaskExecutor::Agent { charter: 3 };
+    batch[0].executor = people::TaskExecutor::Agent { charter };
     let run = assigned_chat(world, key, people::Ask::Create { project, batch });
-    assert_eq!(run.charter, 3);
+    assert_eq!(run.charter, charter);
     let mut charter = defaults().charters[0].clone();
     charter.policy.instructions = b"Keep reports short.".as_slice().into();
     let items: Box<[s::Item]> = Box::new([
@@ -165,49 +174,61 @@ fn configuring_proposal(world: &mut World, role: u32, key: u8) -> engine::Assign
 
 #[test]
 fn a_box_refuses_an_unfulfillable_person_approval_rule() {
-    let mut world = box_world();
-    let before = kinds::revision(&world.store.rows);
-    let run = configuring_proposal(&mut world, 0, 92);
-    if let Some(engine::CallAnswer::Proposed { proposal, .. }) = world.answers.last().cloned() {
-        world.send(engine::Event::Party(engine::PartyInput::Ask {
-            models: Box::new([]),
-            reply_to: ReplyTo::new(Token::new(93)),
-            sign_in: world.signed_in.expect("owner session"),
-            key: [93; 16],
-            ask: people::Ask::DecideProposal {
-                project: people::DEPLOYMENT,
-                proposer: people::Proposer::Task(run.task),
-                proposal,
-                decision: people::ProposalDecision::Accept,
-                running: Some(people::Running::Stays),
-            },
-        }));
-        for _ in 0..200 {
-            world.tick();
+    for (charter, at_call) in [(SETTINGS_CHARTER, false), (ASK_CHARTER, true)] {
+        let mut world = box_world();
+        let before = kinds::revision(&world.store.rows);
+        let run = proposal(&mut world, 0, 92, charter);
+        let refusal = if at_call {
+            let Some(engine::CallAnswer::Parts(answer)) = world.answers.last() else {
+                panic!("asking call refuses before recording a proposal: {:?}", world.answers)
+            };
+            let engine::PartsAnswer::Approvals { why } = answer.as_ref() else {
+                panic!("asking call's approval refusal: {answer:?}")
+            };
+            String::from_utf8_lossy(why).into_owned()
+        } else {
+            let Some(engine::CallAnswer::Proposed { proposal, .. }) = world.answers.last().cloned() else {
+                panic!("settings charter records a proposal before acceptance: {:?}", world.answers)
+            };
+            world.send(engine::Event::Party(engine::PartyInput::Ask {
+                models: Box::new([]),
+                reply_to: ReplyTo::new(Token::new(93)),
+                sign_in: world.signed_in.expect("owner session"),
+                key: [93; 16],
+                ask: people::Ask::DecideProposal {
+                    project: people::DEPLOYMENT,
+                    proposer: people::Proposer::Task(run.task),
+                    proposal,
+                    decision: people::ProposalDecision::Accept,
+                    running: Some(people::Running::Stays),
+                },
+            }));
+            settle(&mut world);
+            world
+                .web_replies
+                .iter()
+                .find_map(|reply| match reply {
+                    people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) => {
+                        Some(String::from_utf8_lossy(why).into_owned())
+                    }
+                    _ => None,
+                })
+                .expect("acceptance refuses the unusable approval rule")
+        };
+        assert_eq!(kinds::revision(&world.store.rows), before, "an unusable rule must never become effective");
+        for words in [
+            "project 1 role 0 on forge forge.example requires 1 distinct known forge people; currently 0 eligible",
+            "add",
+        ] {
+            assert!(
+                refusal.contains(words),
+                "charter {charter}: actionable approval refusal needs {words:?}: {refusal:?}; answers={:?}; replies={:?}",
+                world.answers,
+                world.web_replies
+            );
         }
+        world.close();
     }
-    assert_eq!(kinds::revision(&world.store.rows), before, "an unusable rule must never become effective");
-    let refusal = world
-        .web_replies
-        .iter()
-        .find_map(|reply| match reply {
-            people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) => {
-                Some(String::from_utf8_lossy(why).into_owned())
-            }
-            _ => None,
-        })
-        .expect("acceptance refuses the unusable approval rule");
-    for words in
-        ["project 1 role 0 on forge forge.example requires 1 distinct known forge people; currently 0 eligible", "add"]
-    {
-        assert!(
-            refusal.contains(words),
-            "actionable approval refusal needs {words:?}: {refusal:?}; answers={:?}; replies={:?}",
-            world.answers,
-            world.web_replies
-        );
-    }
-    world.close();
 }
 
 fn approval_identity_world(link: bool, second_forge: bool, fake_forge: bool) -> World {
@@ -625,7 +646,7 @@ fn sign_in_other_project(world: &mut World) {
 fn a_box_persons_change_waits_under_needs_you_until_their_review_lands_it() {
     let mut world = linked_box_world();
     let before = kinds::revision(&world.store.rows);
-    let run = configuring_proposal(&mut world, 0, 92);
+    let run = asking_proposal(&mut world, 0, 92);
     let Some(engine::CallAnswer::Proposed { proposal, .. }) = world.answers.last().cloned() else {
         panic!("person's approval proposal: {:?}", world.answers)
     };
@@ -744,10 +765,10 @@ fn readopt(world: &mut World, key: u8) {
     settle(world);
 }
 
-fn decide_configuring(world: &mut World, key: u8) {
-    let run = configuring_proposal(world, 2, key);
+fn decide_proposal(world: &mut World, key: u8, charter: u32) {
+    let run = proposal(world, 2, key, charter);
     let Some(engine::CallAnswer::Proposed { proposal, .. }) = world.answers.last().cloned() else {
-        panic!("recorded configuring proposal: {:?}", world.answers)
+        panic!("recorded settings proposal: {:?}", world.answers)
     };
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
@@ -805,7 +826,7 @@ fn stock_adoption_seeds_safe_human_approval_roles() {
     assert_stock_roles();
     let mut world = box_world();
     let before = kinds::revision(&world.store.rows);
-    decide_configuring(&mut world, 101);
+    decide_proposal(&mut world, 101, SETTINGS_CHARTER);
     assert_eq!(kinds::revision(&world.store.rows), before);
     let refusal = world
         .web_replies
@@ -828,7 +849,7 @@ fn stock_adoption_seeds_safe_human_approval_roles() {
     fake::grant(&mut world.fake, b"org/repo", 3, raw::Permission::Read);
     fake::grant(&mut world.fake, b"org/repo", 5, raw::Permission::Admin);
     readopt(&mut world, 102);
-    decide_configuring(&mut world, 103);
+    decide_proposal(&mut world, 103, SETTINGS_CHARTER);
     assert_eq!(kinds::revision(&world.store.rows), before, "other roles cannot fulfill member approvals");
     fake::grant(&mut world.fake, b"org/repo", 4, raw::Permission::Write);
     readopt(&mut world, 104);
@@ -840,7 +861,7 @@ fn stock_adoption_seeds_safe_human_approval_roles() {
             (5, people::Role::Maintainer),
         ])
     );
-    decide_configuring(&mut world, 105);
+    decide_proposal(&mut world, 105, ASK_CHARTER);
     assert_eq!(
         kinds::revision(&world.store.rows),
         before + 1,
@@ -1017,7 +1038,7 @@ fn duplicate_approvals_count_once() {
         fake::grant(&mut world.fake, b"org/repo", user, raw::Permission::Write);
     }
     readopt(&mut world, 102);
-    decide_configuring(&mut world, 105);
+    decide_proposal(&mut world, 105, ASK_CHARTER);
     let before = kinds::revision(&world.store.rows);
     world.send(kinds::change(
         world.signed_in.expect("owner session"),

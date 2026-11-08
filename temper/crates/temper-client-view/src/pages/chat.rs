@@ -43,7 +43,7 @@ pub(crate) fn main(
         super::terminal::style(b, root.pages().look());
     }
     b.style(super::document::mode(root.pages().chat()));
-    let configuring = configuring(root);
+    let asking = asking(root);
     b.style(look::SESSION);
     if let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
@@ -92,7 +92,7 @@ pub(crate) fn main(
                 words,
                 bindings,
                 Some(task.project),
-                if configuring { super::session::Path::Ask } else { super::session::Path::Chats },
+                if asking { super::session::Path::Ask } else { super::session::Path::Chats },
                 super::session::Heading::Chat { whole: &whole, short: &short, numbered: &numbered, hint },
             );
             super::session::right(b);
@@ -102,11 +102,11 @@ pub(crate) fn main(
             } else {
                 super::session::number(b, words, task.chip.task);
             }
-            if configuring {
+            if asking {
                 b.open(Role::Paragraph);
                 b.style(look::CHATS_TAG);
                 words.text(b, Word::ToolSeparator, &[]);
-                words.text(b, Word::Configuring, &[]);
+                words.text(b, Word::Asking, &[]);
                 b.close();
             }
             super::document::seg(b, chat, words, bindings);
@@ -120,7 +120,7 @@ pub(crate) fn main(
             }
             super::session::to_terminal(b, words, bindings);
             super::chat_sheet::bar(b, root, words, bindings);
-            if configuring && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
+            if asking && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
                 b.open(Role::Button);
                 b.name(&words.say(Word::StartOver, &[]));
                 b.style(look::START_OVER);
@@ -363,7 +363,7 @@ fn conversation_tail(
     act_status(b, root, chat, words);
 }
 /// The delivered chat's chip decides its path and current navigation entry (client/README.md, 3.5).
-pub(crate) fn configuring(root: &Domain) -> bool {
+pub(crate) fn asking(root: &Domain) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
     let Some(me) = root.pages().me(root.client()) else { return false };

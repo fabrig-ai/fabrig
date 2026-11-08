@@ -522,9 +522,15 @@ Every request has one answer, of one of these kinds:
   - *unknown:* nothing by that name the party may see;
   - *name taken:* another project holds the name a `MakeProject` or a
     rename gives, under simple case folding (`../../domain/core.md`,
-    6.1); it names no project, which the party may not see;
+    6.1); it names no project, which the party may not see; or a live
+    source holds the program source's name a declaration gives, or
+    another holder's reservation does (`../../domain/accounts.md`, 3.4),
+    naming neither;
   - *not offered:* the deployment does not offer it (an executor it does
-    not have, a charter its newest revision removed);
+    not have, a charter its newest revision removed; for an account's
+    act, what `../../domain/accounts.md`, section 5, says: a declaration
+    to an LLM provider offering the holder no program's login, a resume
+    of a source that is not limited);
   - *stale:* a change or a proposal of settings names a revision other
     than the newest, which it names (`../../domain/engine.md`, 17.2);
   - *judged:* an application's connector refused an item of its kind of

@@ -257,21 +257,21 @@ pub(crate) fn row(
     b.style(crate::look::CHATS_TOP);
     // A slot keeps the number's command available in the terminal (client/README.md, 3.5).
     b.open(Role::Slot);
-    let configuring = match root.pages().me(root.client()) {
+    let asking = match root.pages().me(root.client()) {
         Some(me) => temper_client_domain::pages::chats::asking(me, line.project, &line.chip.executor),
         None => false,
     };
     let number = words.say(Word::Chat, &[Hole::Number(line.chip.task)]);
     crate::link(b, &number, bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }));
     b.text(Run::Plain, &number);
-    if configuring && words.shell == crate::words::Shell::Terminal {
+    if asking && words.shell == crate::words::Shell::Terminal {
         words.text(b, Word::ToolSeparator, &[]);
-        words.text(b, Word::Configuring, &[]);
+        words.text(b, Word::Asking, &[]);
     }
     b.close();
-    if configuring && words.shell == crate::words::Shell::Browser {
+    if asking && words.shell == crate::words::Shell::Browser {
         words.text(b, Word::ToolSeparator, &[]);
-        words.text(b, Word::Configuring, &[]);
+        words.text(b, Word::Asking, &[]);
     }
     if let Some(chats) = root.pages().chats() {
         if let Some(title) = chats.documents.get(&line.chip.task) {

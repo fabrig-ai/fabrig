@@ -50,7 +50,7 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
     b.open(Role::Slot);
     b.style(look::TERMINAL_TOP);
     b.open(Role::Navigation);
-    b.name(&w.say(Word::ConfigureWhere, &[]));
+    b.name(&w.say(Word::AskWhere, &[]));
     b.style(look::TERMINAL_WHERE);
     text(b, &say(w, T::Star), look::TERMINAL_STAR);
     if let Some(project) = at.project {
@@ -70,9 +70,9 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
     b.close();
     if let Some(number) = at.number {
         text(b, &w.say(Word::Chat, &[Hole::Number(number)]), look::TERMINAL_TASK);
-        if super::chat::configuring(root) {
+        if super::chat::asking(root) {
             text(b, &w.say(Word::ToolSeparator, &[]), look::TERMINAL_SEP);
-            text(b, &w.say(Word::Configuring, &[]), look::TERMINAL_TASK);
+            text(b, &w.say(Word::Asking, &[]), look::TERMINAL_TASK);
         }
     }
     b.close();

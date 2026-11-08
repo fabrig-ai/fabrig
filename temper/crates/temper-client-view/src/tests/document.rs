@@ -115,7 +115,7 @@ fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, sta
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
     if state != ProposalState::Ordinary {
-        let mut me = configuring_me(&source);
+        let mut me = asking_me(&source);
         if state == ProposalState::DraftOffered
             || state == ProposalState::EndedDraftOffered
             || state == ProposalState::UnsendableDraftOffered
@@ -254,7 +254,7 @@ fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, sta
     d::step(&mut root, &env, d::Event::Act { action: d::Action::Pages(Act::Mode { mode }) }, &mut out);
     root
 }
-fn configuring_me(source: &d::Domain) -> c::Me {
+fn asking_me(source: &d::Domain) -> c::Me {
     let mut me = source.pages().me(source.client()).unwrap().clone();
     let member = me.projects.get_mut(0).unwrap();
     let mut template = member.templates.get(0).unwrap().clone();

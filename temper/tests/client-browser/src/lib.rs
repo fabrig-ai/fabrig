@@ -473,7 +473,7 @@ mod tests {
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         let defaults = &core.defaults;
         let bound = &agent["endpoints"][0]["limits"];
-        assert_eq!(defaults.charters.len(), 8);
+        assert_eq!(defaults.charters.len(), 7);
         for charter in &defaults.charters {
             let resolved =
                 jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)

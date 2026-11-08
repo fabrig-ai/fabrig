@@ -226,6 +226,20 @@ pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
     settle(front, root);
 }
 
+/// Answer a program sign-out through the configured worker's link.
+pub fn program_signed_out(front: &mut Joint, root: &mut Root, name: &[u8]) {
+    front.engine.send(temper_engine_domain_world::protocol::up(
+        fixtures::QUESTION_WORKER,
+        jig_domain_host::LinkUp::SignedOut {
+            name: SourceName::new(name).expect("declared login name"),
+            result: jig_domain_link::SignOutResult::SignedOut,
+        },
+        engine::Parts::none(),
+    ));
+    front.engine.settle();
+    settle(front, root);
+}
+
 /// Settle the welcome's trial before a story scripts its own worker attempt
 /// (temper/docs/design/domain/trial.md, 2; temper/docs/design/domain/testing.md, 6.3).
 pub fn answer_trial(front: &mut Joint, root: &mut Root) {

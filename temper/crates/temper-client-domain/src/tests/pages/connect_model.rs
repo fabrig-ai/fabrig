@@ -507,19 +507,27 @@ fn welcome_claude_busy_refusal_keeps_checking_and_other_refusals_remain_visible(
 }
 #[test]
 fn welcome_claude_recovers_an_issued_name_and_resets_when_the_way_changes() {
-    let (mut root, watch) = claude();
-    let declaration = sends(signed_in(&mut root)).pop().unwrap();
-    program_document(&mut root, watch, false, false);
-    let check =
-        sends(answered(&mut root, declaration.0, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }))
-            .pop()
-            .expect("an issued name resolves to its source");
-    assert_check(check.2);
-    event(
-        &mut root,
-        Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
-    );
-    assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
+    for (refusal, recovers) in [(c::Refusal::NameTaken, true), (c::Refusal::NotOffered, false)] {
+        let (mut root, watch) = claude();
+        let declaration = sends(signed_in(&mut root)).pop().unwrap();
+        program_document(&mut root, watch, false, false);
+        let mut checks = sends(answered(&mut root, declaration.0, c::Answer::Refused { refusal, at: None }));
+        if recovers {
+            let check = checks.pop().expect("an issued name resolves to its source");
+            assert_check(check.2);
+            assert_eq!(checked(&root), connect_model::ProgramCheck::Checking { source: 43 });
+            assert!(root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().outcome.is_none());
+        } else {
+            assert!(checks.is_empty(), "not offered must not check an existing source");
+            assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
+            assert!(root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().outcome.is_some());
+        }
+        event(
+            &mut root,
+            Event::Went { place: crate::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
+        );
+        assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
+    }
 }
 #[test]
 fn welcome_claude_never_declares_from_a_cut_document_or_another_holders_source() {

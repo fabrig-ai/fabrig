@@ -52,6 +52,15 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **Ended:** Completed, Failed, Cancelled, or Ended (`ended` to a wait).
   `task show` prints the result; verdicts name `verdict CODE` with their
   reason, also in requester wakes and `task activity`.
+- **An invalid run's end** in `task activity` says why: `run 3 ended:
+  its result broke its contract (verdict)`, naming `form`, `verdict`,
+  `words`, `change` or `followups`. These mean a different result form,
+  an unoffered verdict code, too many word bytes, a different change kind
+  or connector, or too many follow-up tasks. `run 3 ended: its result
+  couldn't be read` means no contract kind was recorded: the adapter
+  could not decode or translate the result. `--json` gives the cause in
+  the failed end's optional `invalid_reason`. The cause describes that
+  run; retry classification and counters are unchanged.
 - A start past a host's limits is refused and frees its reservation.
 - **What it waits on** prints after `waiting on:`: `Kept by its
   dependencies`, `Waiting for delegates`, `Waiting for news`, `Nothing

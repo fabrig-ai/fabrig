@@ -9,7 +9,7 @@ use temper_engine_domain as engine;
 use temper_engine_domain_forge::settings::{ProjectWays, Value};
 use temper_engine_domain_world::kinds;
 
-use super::configuring_chat::{accept, propose};
+use super::asking_chat::{accept, propose};
 
 type ClientWorld = World<Temper, Joint>;
 const PROJECT: u32 = 1;

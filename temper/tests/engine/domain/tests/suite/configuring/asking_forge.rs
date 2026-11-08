@@ -33,14 +33,14 @@ fn an_asking_chat_reads_the_forge() {
     bounds.journal.transcript_bytes = 65_536;
     let mut world = World::with_limits(config, &bounds);
     configuring_repository(&mut world);
-    let configuring = world.chat(CONFIGURING, world.owner, 20);
+    let chat = world.chat(CHAT, world.owner, 20);
     let (branch, error) =
-        host_tool(&mut world.driver, &configuring, 1, b"read_branch", br#"{"repository":"org/repo","branch":"main"}"#);
+        host_tool(&mut world.driver, &chat, 1, b"read_branch", br#"{"repository":"org/repo","branch":"main"}"#);
     assert!(!error, "{}", String::from_utf8_lossy(&branch));
     let head = std::str::from_utf8(&branch).unwrap().trim();
     let expected_file = format!("docs/direction.md at {head}:\n{}", "rules\n".repeat(5334));
-    let run = world.chat(5, world.owner, 21);
-    assert_eq!(run.charter, 11);
+    let run = world.chat(ASK_TEMPLATE, world.owner, 21);
+    assert_eq!(run.charter, ASK_CHARTER);
     let before = world.driver.store.rows.clone();
     let mut completion = 1;
     for (line, heading, content, expected_error, following) in [

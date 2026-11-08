@@ -1,6 +1,6 @@
 # contract: status
 
-2026-11-07. Where jig's code lags or departs from [contract.md](contract.md).
+2026-11-08. Where jig's code lags or departs from [contract.md](contract.md).
 
 Sections 3.2 and 5.1 have no known gap in charter parts or `later` on
 the client wire. A task document shows its next run's choice, flattening

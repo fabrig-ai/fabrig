@@ -64,7 +64,7 @@ fn model(w: World) -> c::LlmChoice {
         subagents: List::with_capacity(0),
     }
 }
-fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
+fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
     let mut me = base_frame(person(w), project(w));
     let member = me.projects.get_mut(0).expect("one project");
     let template = member.templates.get_mut(0).expect("chat template");
@@ -159,8 +159,8 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
     me.needs_total = if w == Solo { 2 } else { 0 };
     me.updates = c::Count { value: if w == Solo { 2 } else { u32::from(w == Reference) }, limited: false };
     me.deployment_role = Some(c::HeldRole::Owner);
-    if configuring {
-        configure_frame(&mut me);
+    if asking {
+        ask_frame(&mut me);
     }
     me
 }
@@ -229,23 +229,23 @@ fn providers(w: World) -> List<c::ProviderOffer> {
 fn needs(w: World) -> c::Needs {
     c::Needs { proposals: u32::from(w == Solo), questions: u32::from(w == Solo), escalations: 0, person_tasks: 0 }
 }
-/// The gallery's T10 is configuring beside ordinary chats.
-fn configuring_chip(chip: &mut c::Chip) {
+/// The gallery's T10 is Ask temper beside ordinary chats.
+fn asking_chip(chip: &mut c::Chip) {
     if chip.task == 10 {
         chip.executor = c::ChipExecutor::Agent { charter: 11 };
     }
 }
-/// The configuring gallery states list template 5 and its creating bounds.
-fn configure_frame(me: &mut c::Me) {
-    let member = me.projects.get_mut(0).expect("configure project");
+/// The Ask temper gallery states list template 5 and its creating bounds.
+fn ask_frame(me: &mut c::Me) {
+    let member = me.projects.get_mut(0).expect("asking project");
     let stock = member.templates.get(0).expect("stock chat").clone();
-    let mut configuring = stock.clone();
-    configuring.number = 5;
-    configuring.name = doc("Ask temper");
-    configuring.executor = c::TemplateExecutor::Charter(11);
+    let mut asking = stock.clone();
+    asking.number = 5;
+    asking.name = doc("Ask temper");
+    asking.executor = c::TemplateExecutor::Charter(11);
     member.templates = List::with_capacity(2);
     member.templates.push(stock).expect("stock");
-    member.templates.push(configuring).expect("configuring");
+    member.templates.push(asking).expect("asking");
     let mut charters = List::with_capacity(2);
     charters.push(1).expect("stock charter");
     charters.push(11).expect("asking charter");
@@ -342,7 +342,7 @@ fn agent_work_task() -> c::Task {
     task.label = 0;
     task.flags.conversation = false;
     task.chip.executor = c::ChipExecutor::Agent { charter: 11 };
-    task.chip.details.details.executor = c::Executor::Agent { charter: 3 };
+    task.chip.details.details.executor = c::Executor::Agent { charter: 11 };
     task.chip.details.details.attempt = Some(1);
     task.chip.details.details.run_since = Some(Wall::from_nanos(chat_work::AT));
     task
@@ -383,7 +383,7 @@ pub(super) fn linked_chat_world(w: World, address: Address) -> Domain {
     )
     .0
 }
-pub(super) fn configuring_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
+pub(super) fn asking_world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, true, None, None, false)
 }
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
@@ -397,7 +397,7 @@ fn world_in_layout(
     w: World,
     address: Address,
     then: Then,
-    configuring_chat: bool,
+    asking_chat: bool,
     goals: Option<&str>,
     settings: Option<&str>,
     copies: bool,
@@ -405,7 +405,7 @@ fn world_in_layout(
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
     let goals = if agent_work { Some("chat-work-running") } else { goals };
-    let configuring = configuring_chat || matches!(address, Address::Ask { .. });
+    let asking = asking_chat || matches!(address, Address::Ask { .. });
     let connecting = matches!(
         address,
         Address::ConnectModel { .. } | Address::Welcome { step: temper_client_domain::Step::Model { .. } }
@@ -426,7 +426,7 @@ fn world_in_layout(
     let mut forge_watch = None;
     let mut accounts_watch = None;
     let mut settings_chat_watch = None;
-    let settings_chat = settings.filter(|name| name.starts_with("configure-chat-"));
+    let settings_chat = settings.filter(|name| name.starts_with("ask-chat-"));
     let mut playground_read = false;
     // Every response answers an open/read, including the playground family read.
     for _ in 0_u32..256 {
@@ -436,7 +436,7 @@ fn world_in_layout(
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(subject) } => {
                     let document = match subject {
                         c::Subject::Me => {
-                            let mut me = frame(w, connecting, configuring);
+                            let mut me = frame(w, connecting, asking);
                             if matches!(then, Then::Sheet(Confirmation::CloseWork | Confirmation::CloseFailed)) {
                                 me.projects
                                     .get_mut(0)
@@ -448,7 +448,7 @@ fn world_in_layout(
                             }
                             if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
                                 let templates = me.projects.get(0).expect("draft project").templates.clone();
-                                configure_frame(&mut me);
+                                ask_frame(&mut me);
                                 me.projects.get_mut(0).expect("draft project").templates = templates;
                             }
                             if settings_chat.is_some() {
@@ -502,9 +502,9 @@ fn world_in_layout(
                             } else {
                                 task_window(w, window)
                             };
-                            if configuring_chat {
+                            if asking_chat {
                                 for row in tasks.rows.iter_mut() {
-                                    configuring_chip(&mut row.chip);
+                                    asking_chip(&mut row.chip);
                                 }
                             }
                             Some(c::Delivery::Tasks(Box::new(tasks)))
@@ -542,15 +542,15 @@ fn world_in_layout(
                                 task.chip.details.details.attempt = Some(1);
                                 task.waits_on = c::WaitsOn::Nothing;
                             }
-                            if configuring_chat {
-                                configuring_chip(&mut task.chip);
+                            if asking_chat {
+                                asking_chip(&mut task.chip);
                             }
                             if let Some(name) = settings_chat {
                                 settings_chat_watch = Some(watch);
-                                task.activity = if name == "configure-chat-replaced" { 6 } else { 3 };
+                                task.activity = if name == "ask-chat-replaced" { 6 } else { 3 };
                                 task.proposals = List::with_capacity(2);
                                 task.proposals.push(PROPOSAL).expect("settings proposal");
-                                if name == "configure-chat-replaced" {
+                                if name == "ask-chat-replaced" {
                                     task.proposals.push(SETTINGS_NEXT).expect("later proposal");
                                 }
                             }
@@ -835,7 +835,7 @@ fn world_in_layout(
     assert!(out.is_empty(), "world fixture settles: {w:?} {settings:?} {out:?}");
     first_run_ready(&mut root, w, forge_watch, &mut out);
     if let Some(name) = settings_chat
-        && !name.starts_with("configure-chat-proposal")
+        && !name.starts_with("ask-chat-proposal")
     {
         finish_settings_proposal(&mut root, settings_chat_watch.expect("settings chat watch"), name, &mut out);
     }
@@ -1608,7 +1608,7 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             } else if matches!(then, Then::Mode(_) | Then::Sheet(Confirmation::StartOver))
                 && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 })
             {
-                configuring_note(scope)
+                asking_note(scope)
             } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 1 }) {
                 chat_note(scope)
             } else {
@@ -1649,7 +1649,7 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
         }))),
         c::Read::Activity { task: number, before } => Some(c::ReadValue::Activity(Box::new(
             if matches!(then, Then::Mode(_) | Then::DraftEmpty) && *number == 10 {
-                configuring_activity()
+                asking_activity()
             } else if then == Then::DraftEmpty && *number == 1 {
                 c::ActivityPage { rows: List::with_capacity(0), before: None, after: None, cut: false }
             } else if matches!(then, Then::Mode(_)) && *number == 1 {
@@ -2029,7 +2029,7 @@ fn goal_page(w: World, name: Option<&str>) -> c::TaskPage {
         },
     }
 }
-fn configuring_activity() -> c::ActivityPage {
+fn asking_activity() -> c::ActivityPage {
     let mut blocks = List::with_capacity(3);
     blocks.push(c::Block::Text(text("Drafts first, then goals that land as one. I’ve written how Hello would run that, beside us; it grows as we talk."))).expect("reply");
     blocks
@@ -2050,11 +2050,11 @@ fn configuring_activity() -> c::ActivityPage {
         decoded.task = 10;
     }
     let mut rows = List::with_capacity(1);
-    rows.push(line).expect("configuring turn");
+    rows.push(line).expect("asking turn");
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
 
-fn configuring_note(scope: &c::NoteScope) -> c::NotePage {
+fn asking_note(scope: &c::NoteScope) -> c::NotePage {
     let mut rows = List::with_capacity(1);
     rows.push(c::Note {
         number: 1,
@@ -2067,7 +2067,7 @@ fn configuring_note(scope: &c::NoteScope) -> c::NotePage {
         changed: Some(now(Solo)),
         acts: List::with_capacity(0),
         cut: false,
-    }).expect("configuring document");
+    }).expect("asking document");
     c::NotePage { rows, before: None, after: None, cut: false }
 }
 
@@ -4834,17 +4834,17 @@ fn settings_proposal(key: c::ProposalKey, name: &str) -> c::ReadValue {
     proposal.key = key;
     proposal.project = 0;
     proposal.projects = List::with_capacity(2);
-    if name != "configure-chat-proposal-deployment" {
+    if name != "ask-chat-proposal-deployment" {
         proposal.projects.push(PROJECT).expect("first project");
     }
-    if name == "configure-chat-proposal-two-projects" {
+    if name == "ask-chat-proposal-two-projects" {
         proposal.projects.push(2).expect("second project");
     }
     proposal.reason = doc("## temper enforces\nI work alone on small changes.\nKeep drafts beside the code.");
     let mut items = List::with_capacity(3);
-    let settings = if name == "configure-chat-proposal-deployment" {
+    let settings = if name == "ask-chat-proposal-deployment" {
         List::from_boxed(Box::new([c::Setting::Charter(c::SettingNumber { number: 1 })]))
-    } else if name == "configure-chat-proposal-two-projects" {
+    } else if name == "ask-chat-proposal-two-projects" {
         List::from_boxed(Box::new([
             c::Setting::Application { kind: 7, scope: PROJECT, number: 1 },
             c::Setting::Application { kind: 7, scope: 2, number: 1 },
@@ -4917,8 +4917,7 @@ fn settings_proposal_values(root: &mut Domain, read: Token, out: &mut Queue<Requ
 fn settings_activity(name: &str) -> c::ActivityPage {
     // Each proposal has its making line, tool completion and following reply.
     let mut rows = List::with_capacity(6);
-    let keys: &[c::ProposalKey] =
-        if name == "configure-chat-replaced" { &[PROPOSAL, SETTINGS_NEXT] } else { &[PROPOSAL] };
+    let keys: &[c::ProposalKey] = if name == "ask-chat-replaced" { &[PROPOSAL, SETTINGS_NEXT] } else { &[PROPOSAL] };
     for key in keys {
         let made = documents::line(
             1,
@@ -4953,7 +4952,7 @@ fn settings_activity(name: &str) -> c::ActivityPage {
 fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &mut Queue<Request>) {
     let mut task = root.pages().chat().expect("chat").task(root.client()).expect("task").clone();
     task.proposals = List::with_capacity(1);
-    if name == "configure-chat-replaced" {
+    if name == "ask-chat-replaced" {
         task.proposals.push(SETTINGS_NEXT).expect("pending proposal");
     }
     deliver(root, watch, c::Delivery::Task(Box::new(task)), out);
@@ -4967,9 +4966,9 @@ fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &m
             assert_eq!(key, PROPOSAL);
             let c::ReadValue::Proposal(proposal) = settings_proposal(key, name) else { unreachable!("settings") };
             let c::ProposalAction::Settings(settings) = proposal.action else { unreachable!("settings") };
-            let state = if name == "configure-chat-accepted" {
+            let state = if name == "ask-chat-accepted" {
                 c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) }
-            } else if name == "configure-chat-rejected" {
+            } else if name == "ask-chat-rejected" {
                 c::ProposalHistoryState::Rejected {
                     by: c::Requester::Person(73),
                     reason: doc("Keep the current settings."),
@@ -4988,7 +4987,7 @@ fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &m
                             projects: proposal.projects,
                             against: settings.against,
                             items: settings.items,
-                            made: if name == "configure-chat-accepted" { Some(1) } else { None },
+                            made: if name == "ask-chat-accepted" { Some(1) } else { None },
                         }),
                         number: key.number,
                         proposer: 10,
@@ -5143,7 +5142,7 @@ pub(super) fn home_add_sheet(root: &mut Domain, copies: bool) {
 }
 
 fn chat_note(scope: &c::NoteScope) -> c::NotePage {
-    let mut page = configuring_note(scope);
+    let mut page = asking_note(scope);
     let note = page.rows.get_mut(0).expect("one document");
     note.description = doc("Away mode");
     note.revision = c::Revision { value: 2 };

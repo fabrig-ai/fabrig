@@ -2358,8 +2358,10 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 A fuzzy test lives in its world's crate, beside the focused ones, and
 uses that world: a world's settings, random ones included, are the
 world's, not either suite's. The nextest filters select `fuzzy::` modules
-in the `suite` binary. Each test runs in its own process, so a memory
-scenario and a sweep never share an allocator's counters.
+in the `suite` binary. A binary's tests share its process, one at a time
+(testing-strategy.md, 8, *A binary is a process*), so a memory scenario
+meters only what grows within its own spans (skein's `heap`), and reads no
+counter a sweep before it moved.
 
 ### 6.2 The worker's runtime world
 
@@ -2441,13 +2443,13 @@ each behaviour in the lowest world that owns it, and one smoke above:
 | the client's step and view tests (`../client/README.md`, section 10) | How work runs' rows from the `settings` document and each setting, in each tag; the card for an owner and for a member; the review's split of a proposal's items into enforced and followed, and its effect; stale and accepted; each act as the operations it sends; the gallery's worlds and the terminal's goldens gaining the two pages | milliseconds each, in their suites |
 | the forge's world (`tests/engine/forge`) | forge.md 18's settings stories: a rule changed between two merges; a gate a rule adds asked for on a queued change, which leaves the queue; one a rule drops no longer waited on; a project's rule adding an approval; a rule refused; a change kept on its charter, and one held when it is no longer offered; a restart handing the values back before the records | about 0.3 s, seven stories at the world's usual cost |
 | the engine's domain world (`tests/engine/domain`) | through the root and the core on jig's store: a change naming a landing rule and a charter committed in one decision, and refused whole when the forge refuses its rule; a project's rule changed by its owner, refused as not theirs for another; a new forge's charter reaching the next change's delegates while a live change keeps its own; a project made after the first start covered by the deployment's rule; the two requirements removed from the rules, landing left to the procedure's waits; the resume fixture restarting with changed values. A stored settings policy and a stored project policy, each admitted under a larger policy allowance and committed through the real store, refuse a cold start under the smaller allowance naming the setting or project; a policy at the bound is admitted in its own story. Root and store use the same test envelope, including sufficient journal and page bytes. | about 0.6 s |
-| the engine's domain world, the configuring agent (`agent.md`, 8.1) | scripted runs of charter 3: an owner's chat proposing and its acceptance heard; a member's, waiting for an owner; one withdrawn as stale, read again and proposed afresh; one rejected with a reason and revised; one accepted with running work moved; `settings` reads of each kind, a held charter, a revision and a history page, each within the answer's bound; `propose_settings` refused for a stale revision and for an item out of shape; a run with no `settings` family refused by its authority | about 0.5 s, its stories at the world's usual cost |
-| the engine's domain world, the configuring agent's reads (`agent.md`, 8.1) | scripted runs of charter 3: a project's ways and questions read at their stock with none stored, and as stored once a change sets them; a read of a project that isn't one, answered not read; the inventory's people, its own project's alone, the person and temper's writer marked; a member's chat reads what an owner's does and a run without the settings family is refused; an approval's refusal naming no command | its stories at the world's usual cost, not measured apart |
+| the engine's domain world, configuring by Ask temper (`agent.md`, 8.1 and 8.4) | scripted runs of charter 11 from template 5: an owner's chat proposing and its acceptance heard; a member's, waiting for an owner; one withdrawn as stale, read again and proposed afresh; one rejected with a reason and revised; one accepted with running work moved; `see` reads of each kind, a held charter, a revision and the history, each part within its bound; `propose_settings` refused for a stale revision and for an item out of shape; a run with no `settings` family refused by its authority. The settings family's own tools, which no stock charter is declared (`agent.md`, 4.3), keep their stories on a charter of the world's own holding that family: the `settings` read's offsets and pages, a proposal from a note, the note's refusals and its replay, `more` refused to a charter that is not asking, and a rule refused at acceptance | about 0.5 s, its stories at the world's usual cost |
+| the engine's domain world, Ask temper's configuring reads (`agent.md`, 8.1 and 8.4.1) | scripted runs of charter 11: a project's ways and questions read at their stock with none stored, and as stored once a change sets them; a read that finds nothing, answered not read; the inventory's people, its own project's alone, the person and temper's writer marked; a member's chat reads what an owner's does and a run without the settings family is refused; an approval's refusal naming no command | its stories at the world's usual cost, not measured apart |
 | the engine's domain world, a box's approval identities (`agent.md`, 8.1; `forge.md`, 4.6) | on a box whose owned Forgejo's `Reconcile` answered the person's id, and on one whose manifest-made App's account is the person's: the inventory names the person's forge account by the link; their owner-role rule with `people: 1` is accepted, and `people: 2` refused naming the forge; a link cleared when the deployment has a second owner, and the rule then refused. On a deployment of several members, and on a pasted App, the requester without a forge identity is refused as before, and accepted once a human collaborator is adopted as admin. The script checks context and outcomes, not a real model's judgement | within the domain world's focused budget |
 | the engine's domain world, a box's approval waiting (`forge.md`, 8.12) | on a box whose forge links its person and whose rule of theirs is accepted, as in the box's approval identities, on each forge it links: a change made and stepped to its merge waits on the person's approval; the person's `approvals` document holds its row, theirs to give, while a second party of another project reads none; the linked user's review approving it at the head is posted on the fake forge; the row goes as the merge is admitted, and the change lands. The read's rows by state, head and role are the root's and the forge's step tables | within the domain world's focused budget, steps of an existing story |
 | the engine's domain world, a charter's documents (`../protocol/configuration.md`, 13.7) | through the core's plan, the root's binding and the forge's gather: a run of a charter naming a document gets its section at the branch's head; after a change lands that edits the file, the next run's section has the new text; a heading's part alone; a missing file, heading or repository, a section saying so and the run going on. The gather's own cases (a heading's bounds, a cut at a line end, each section saying why) are the forge crate's step tests | about 0.1 s, four stories |
 | fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 120 s, measured with it; no new binary |
-| the client and the engine, joined (6.3) | "Tell temper how you work" starting the configuring chat, whose run proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
+| the client and the engine, joined (6.3) | Ask temper's page, and `chat start --template 5` through ctl, starting Ask temper, whose run of charter 11 proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
 | the one-process world (2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
 | the real loop (2.4) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling, |
 | the system world (2.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/tools.md`, 11.4) | at most 2 s, a world story's aim (6.1) |
@@ -2478,8 +2480,8 @@ each behaviour in the lowest world that owns it, and one smoke above:
 
 Stage 1 of configuring temper by talking to it
 (`../draft/configuring.md`, 8.1) is a walk, never in the gate: a pass
-of QA, playing a person on a box with the stock settings, has the
-configuring agent (`agent.md`, 8.1) propose the reference's
+of QA, playing a person on a box with the stock settings, has Ask
+temper (`agent.md`, 8.1 and 8.4) propose the reference's
 configuration from the person's documents alone, accepts it, and checks
 what was accepted twice, by code and by a judge. What it is checked
 against is the golden: `../draft/reference-code-production.md`,
@@ -2611,7 +2613,7 @@ the forge's API as an observer, the limits against the box's document):
 - **the models:** Opus 5.5 on Claude Code for the coordinator and
   designers; gpt-6.1-sol on smith's direct backend, on an OpenAI
   account's key, for producers, foremen and the triage; a real model
-  for the configuring chat;
+  for Ask temper, charter 11's;
 - **the document's members the profile sets** over `temper init`'s:
   `docs/examples/reference/limits.json`'s overrides, and `landing.json`, the project's merge job and its two
   tiers (13.9); a change's question bound,
@@ -2633,7 +2635,7 @@ the box, never the agent.
 The walk's bounds, the user's (2026-11-04): the box's limits are the
 reference's profile whole, as above, its spends and times the box's; the
 pass takes at most 3 hours of wall time from the box's start to the
-stage's verdict, the configuring chat at most 40 of the person's
+stage's verdict, the Ask temper chat at most 40 of the person's
 messages, and the judge one session at Opus 5.5, high, within 30
 minutes.
 
