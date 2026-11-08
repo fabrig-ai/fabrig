@@ -798,3 +798,127 @@ fn only_timers_and_task_watches_count_as_pending_arrivals() {
         assert_eq!(world.record(ASKER).tries.run, u32::from(topic));
     }
 }
+
+const GOAL: u64 = 4;
+const GOAL_CHILD: u64 = 23;
+const GOAL_PEER: u64 = 25;
+const GOAL_PERSON: u64 = 35;
+
+fn subscribing_goal(limits: &Limits) -> World {
+    let mut world = World::new(471, *limits);
+    let mut goal = task(GOAL, &[]);
+    goal.tracked = Some(1);
+    goal.numbers.budget = 1_000;
+    goal.authority.budget.spend = 1_000;
+    assert_eq!(world.make(PERSON_PARTY, vec![goal]), Reply::Made(vec![GOAL]));
+    let delegates = [GOAL_CHILD, GOAL_PEER, GOAL_PERSON].map(|number| {
+        let mut delegate = task(number, &[]);
+        delegate.funder = Funder::Task(GOAL);
+        if number == GOAL_PERSON {
+            delegate.executor = Executor::Person(PersonAddress::Person(PERSON));
+        }
+        delegate
+    });
+    assert_eq!(world.make(Party::Task(GOAL), delegates.into()), Reply::Made(vec![23, 25, 35]));
+    world.claim(GOAL, ATTEMPT);
+    world
+}
+
+fn task_interest(number: u64, target: u64) -> Subscription {
+    Subscription { number, kind: SubscriptionKind::Task { target, held: true, result: true } }
+}
+
+fn timer_interest(number: u64) -> Subscription {
+    Subscription {
+        number,
+        kind: SubscriptionKind::Timer {
+            at: Wall::from_nanos(1_000_000),
+            period: Some(skein_lib::Duration::from_millis(1)),
+        },
+    }
+}
+
+fn subscribe_goal(world: &mut World, subscription: Subscription) -> Reply {
+    response(world, |reply_to| Event::Subscribe { reply_to, task: GOAL, subscription })
+}
+
+fn subscription_full(world: &mut World, subscription: Subscription, cause: CapacityCause) {
+    let before = world.record(GOAL).subscriptions.clone();
+    assert_eq!(
+        subscribe_goal(world, subscription),
+        Reply::Refused(Problem::capacity(
+            Some(GOAL),
+            Refusal::Busy,
+            Capacity {
+                project: Some(1),
+                by: Party::Task(GOAL),
+                action: CapacityAction::Subscription { number: subscription.number },
+                cause,
+            },
+        ))
+    );
+    assert_eq!(world.record(GOAL).subscriptions, before);
+    assert_eq!(world.record(GOAL).phase, Phase::Active(Active::Running { attempt: ATTEMPT }));
+}
+
+fn replace_interest(world: &mut World, obsolete: u64, subscription: Subscription) {
+    assert_eq!(
+        response(world, |reply_to| Event::Unsubscribe { reply_to, task: GOAL, subscription: obsolete }),
+        Reply::Done
+    );
+    assert_eq!(subscribe_goal(world, subscription), Reply::Done);
+    assert!(world.record(GOAL).subscriptions.contains(&subscription));
+}
+
+#[test]
+fn an_active_goals_subscription_limit_names_task_and_timer_refusals() {
+    let mut world = subscribing_goal(&Limits { subscriptions: 4, inbox_messages: 12, ..LIMITS });
+    for subscription in
+        [task_interest(1, GOAL_CHILD), task_interest(2, GOAL_PEER), timer_interest(3), timer_interest(4)]
+    {
+        assert_eq!(subscribe_goal(&mut world, subscription), Reply::Done);
+    }
+    let cause = CapacityCause::Subscriptions { limit: 4 };
+    subscription_full(&mut world, task_interest(5, GOAL_PERSON), cause);
+    subscription_full(&mut world, timer_interest(6), cause);
+    replace_interest(&mut world, 1, task_interest(5, GOAL_PERSON));
+    replace_interest(&mut world, 3, timer_interest(6));
+    assert_eq!(world.record(GOAL).subscriptions.len(), 4);
+}
+
+#[test]
+fn an_active_goals_subscription_inbox_reservations_outlive_a_read() {
+    // The goal keeps core news, three delegates' results and a person-stall slot.
+    // Two standing interests then fill either the message or byte bound alone.
+    for limits in
+        [Limits { inbox_messages: 7, run_inbox: 7, ..LIMITS }, Limits { message_bytes: 16, inbox_bytes: 176, ..LIMITS }]
+    {
+        let mut world = subscribing_goal(&limits);
+        assert_eq!(subscribe_goal(&mut world, task_interest(1, GOAL_CHILD)), Reply::Done);
+        assert_eq!(subscribe_goal(&mut world, timer_interest(2)), Reply::Done);
+        let cause = CapacityCause::Inbox { task: GOAL, messages: limits.inbox_messages, bytes: limits.inbox_bytes };
+        for subscription in [task_interest(3, GOAL_PEER), task_interest(4, GOAL_PERSON), timer_interest(5)] {
+            subscription_full(&mut world, subscription, cause);
+        }
+        world.send(Event::Notice {
+            task: GOAL,
+            word: Word {
+                number: 1,
+                from: Party::Task(GOAL),
+                kind: MessageKind::Timer { subscription: 2 },
+                words: b"tick".as_slice().into(),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: false,
+            },
+        });
+        assert_eq!(world.record(GOAL).inbox.len(), 1);
+        read_inbox(&mut world, GOAL, ATTEMPT);
+        assert!(world.record(GOAL).inbox.is_empty());
+        subscription_full(&mut world, task_interest(4, GOAL_PERSON), cause);
+        subscription_full(&mut world, timer_interest(5), cause);
+        replace_interest(&mut world, 1, task_interest(4, GOAL_PERSON));
+        replace_interest(&mut world, 2, timer_interest(5));
+        assert_eq!(world.record(GOAL).subscriptions.len(), 2);
+    }
+}
