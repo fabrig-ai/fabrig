@@ -30,6 +30,16 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
         connector::Ask::KeepSettings { revision, proposal, items } => {
             let asked = typed_items(domain, proposal, &items);
             domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
+            let projects = domain.core.projects.clone();
+            for &project in &projects {
+                let mut affected = false;
+                for item in &asked {
+                    affected |= item.scope == 0 || item.scope == project;
+                }
+                if affected {
+                    super::ways::mark(domain, project);
+                }
+            }
         }
         connector::Ask::KeepProposalSettings { proposal, items } => {
             let asked = typed_items(domain, None, &items);

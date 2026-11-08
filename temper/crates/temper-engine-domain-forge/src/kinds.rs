@@ -313,6 +313,13 @@ impl Domain {
     /// Every rule a merge into a repository of `project` meets: the deployment's,
     /// then the project's by number, its rule N the every-project rule N while
     /// the project has no value of its own set (temper/docs/design/protocol/configuration.md, 13.4).
+    /// Given rules used when a project's hypothetical edit removes its own rule
+    /// (temper/docs/design/protocol/configuration.md, 13.4).
+    #[must_use]
+    pub fn every_project_rules(&self) -> &[settings::Held] {
+        &self.held_rules.every_project
+    }
+
     #[must_use]
     pub fn landing_rules(&self, project: u32) -> Box<[settings::Held]> {
         held_for_project(&self.held_rules, project)

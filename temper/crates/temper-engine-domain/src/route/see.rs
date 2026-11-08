@@ -95,6 +95,7 @@ pub(crate) enum SeeReading {
 /// One address, as its line parses in the chat's project (agent.md, 8.4.1).
 #[derive(PartialEq, Eq, Debug)]
 pub(crate) enum Address {
+    Ways,
     Inventory,
     Setting(Setting),
     Landing,
@@ -125,6 +126,7 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         words.push(line.get(from..).expect("address word")).expect("admitted address words");
     }
     match words.as_slice() {
+        [b"ways"] => Address::Ways,
         [b"settings"] => Address::Inventory,
         [b"settings", b"rules"] => Address::Setting(Setting::Rules),
         [b"settings", b"landing"] => Address::Landing,
@@ -178,9 +180,7 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"file", repository, path, branch] if repository_name(repository) => {
             Address::File { repository: (*repository).into(), path: (*path).into(), branch: Some((*branch).into()) }
         }
-        [b"me" | b"project" | b"goals" | b"tasks" | b"changes" | b"inbox" | b"ways"] | [b"goals", b"ended"] => {
-            Address::NotYet
-        }
+        [b"me" | b"project" | b"goals" | b"tasks" | b"changes" | b"inbox"] | [b"goals", b"ended"] => Address::NotYet,
         [b"task", number] | [b"task", number, b"tree" | b"activity"] if natural(number).is_some() => Address::NotYet,
         [b"change", number] if small(number).is_some() => Address::NotYet,
         [b"task", number, b"turn", turn] if natural(number).is_some() && turn_number(turn) => Address::NotYet,
@@ -274,8 +274,21 @@ pub(crate) fn call(
     line: Box<[u8]>,
     from: u32,
 ) {
-    let project = domain.core.tasks.delegation(key.task).expect("authorized chat delegation").project;
+    let context = domain.core.tasks.delegation(key.task).expect("authorized chat delegation");
+    let project = context.project;
     let read = match address(&line, project) {
+        Address::Ways => {
+            let party = match context.requester {
+                jig_domain_tasks::Party::Person(party) => party,
+                jig_domain_tasks::Party::Task(_) | jig_domain_tasks::Party::Deployment { .. } => {
+                    deliver(env, decision, to, line, from, SeeAnswer::Unknown);
+                    return;
+                }
+            };
+            let document = super::ways::document(domain, project, party);
+            deliver(env, decision, to, line, from, SeeAnswer::Ways(Box::new(document)));
+            return;
+        }
         Address::Inventory => core::SettingsRead::Inventory,
         Address::Setting(setting) => core::SettingsRead::Setting { setting, revision: 0 },
         Address::Revisions => core::SettingsRead::Revisions { before: None },

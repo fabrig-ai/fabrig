@@ -45,6 +45,7 @@ pub struct Config {
 /// What the root keeps of its configuration once its children hold theirs.
 #[derive(Hash, Debug)]
 pub(crate) struct RootConfig {
+    pub(crate) ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     pub(crate) merge_kind: Option<JobBound>,
     pub(crate) forge_connector: u16,
     pub(crate) landings: Map<u32, ProjectLanding>,
