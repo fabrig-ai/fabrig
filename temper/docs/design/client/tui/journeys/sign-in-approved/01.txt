@@ -5,7 +5,7 @@
 │ No tab? Open http://127.0.0.1:44485/terminal?code=XQDH-NDZJ                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:44485/jig/v1/sign-in/link?secret=… (enter sends)    │
+│   Link: http://127.0.0.1:44485/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

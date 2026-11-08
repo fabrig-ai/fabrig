@@ -137,10 +137,6 @@ its 320 px, as the user accepted in `look-round-17`.
 
 
 
-- **Not yet:** 6.14, *The foot* and *The commands*: no box, running line,
-  quiet line, list or note is drawn; the first screen's bottom row says
-  "q to quit".
-
 
 - **Not yet:** 6.14, *The launchpad*: the TUI draws the first screen,
   "Connected to HOST:PORT as NAME" and its projects.

@@ -148,6 +148,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
     }
 }
 
+#[expect(clippy::disallowed_methods, reason = "display widths read characters from validated UTF-8 view words")]
 fn width(bytes: &[u8]) -> u32 {
     let mut columns = 0_u32;
     for character in core::str::from_utf8(bytes).expect("view words are UTF-8").chars() {

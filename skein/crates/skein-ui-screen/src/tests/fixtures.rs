@@ -454,7 +454,7 @@ pub fn field_tail(role: Role, value: &[u8], entry: EntryKind) -> Tree {
 }
 
 /// A separate field inherits its label look through an unstyled group.
-pub fn field_look(role: Role, value: &[u8], entry: EntryKind, nearer_label: bool) -> Tree {
+pub fn field_look(role: Role, value: &[u8], entry: EntryKind, nearer_label: bool, states: &[State]) -> Tree {
     let mut b = Builder::new(&LIMITS);
     b.open(Role::Page);
     b.style(NO_LABEL);
@@ -466,6 +466,9 @@ pub fn field_look(role: Role, value: &[u8], entry: EntryKind, nearer_label: bool
     b.open(role);
     b.name(b"F");
     b.value(value, 0);
+    for state in states {
+        b.state(*state);
+    }
     if role == Role::TextField {
         b.entry(entry);
     }

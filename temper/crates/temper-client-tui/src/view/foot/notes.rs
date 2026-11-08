@@ -8,7 +8,6 @@ use temper_client_domain::{Domain, pages::terminal::Note};
 use temper_client_view::shared;
 
 #[derive(Debug)]
-#[cfg_attr(not(test), expect(dead_code, reason = "read by the tasks tui-launchpad and tui-chat of tui-launchpad"))]
 pub(crate) struct Notes {
     pub lines: Box<[Box<[u8]>]>,
 }
