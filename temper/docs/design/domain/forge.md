@@ -2912,7 +2912,7 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   advice, enforcing nothing" where not; `name` "the deployment's rule N"
   or "the project's rule N"; its facts, in this order, each only where
   the rule has it: "Covers", its pattern in words ("every branch", "the
-  branch main", "branches beginning temper", "OWNER/NAME's main"); "Asks",
+  branch main", "branches beginning temper", "OWNER/NAME's branch main"); "Asks",
   "CI" and "up to date" as the rule asks them, joined by ", "; "Gates",
   each gate's name as the review stop's card names its charter ("the
   reviewer"), "blocking" or "advice", "at a clean head" where `clean`,
