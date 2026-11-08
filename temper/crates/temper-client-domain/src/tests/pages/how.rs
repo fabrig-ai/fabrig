@@ -1,8 +1,8 @@
-//! How work runs' shared parts and lanes (temper/docs/design/client/README.md, 5.13).
+//! How work runs' shared parts (temper/docs/design/client/README.md, 5.13).
 use super::fixtures as f;
 use crate::{
     Address, Domain, Event, Place, Request,
-    pages::how::{self, Budget, Column, Facts, Head, Lane, Parts, Path, Read},
+    pages::how::{self, Budget, Facts, Head, Parts, Path, Read},
 };
 use jig_client::{Down, Readable, Readout, Up, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
@@ -195,8 +195,7 @@ fn path() -> w::BranchPath {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table covers the parts, lanes and gathered facts")]
-fn parts_lanes_and_facts_follow_the_project_rules() {
+fn parts_and_facts_follow_the_project_rules() {
     for (read, head, path) in [
         (Read::Reading, Head::Reading, Path::Reading),
         (Read::Ended, Head::Reading, Path::Ended),
@@ -229,26 +228,6 @@ fn parts_lanes_and_facts_follow_the_project_rules() {
             );
         }
     }
-    assert_eq!(
-        how::lanes(&path()).as_slice(),
-        &[
-            Column::Stop { stop: 0, lane: Lane::You },
-            Column::Stop { stop: 1, lane: Lane::Agents },
-            Column::Stop { stop: 2, lane: Lane::Code },
-            Column::Bar { stop: 3 },
-            Column::Stop { stop: 4, lane: Lane::You },
-            Column::Stop { stop: 5, lane: Lane::Agents },
-            Column::Stop { stop: 6, lane: Lane::Code },
-            Column::Bar { stop: 7 },
-        ]
-    );
-    let empty = w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::with_capacity(0) },
-    )
-    .unwrap();
-    assert!(how::lanes(&empty).is_empty());
-
     for (asking, tracked, ways, read, expected) in [
         (false, true, None, Read::Reading, Facts { asking: false, read: Read::Reading, goals: false, budget: None }),
         (

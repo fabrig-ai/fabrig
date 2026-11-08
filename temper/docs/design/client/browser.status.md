@@ -14,9 +14,6 @@
   on record. How work runs' six states, `how` to `night-how`, add to it,
   with no CPU figure on record either.
 
-- **Not yet:** 2.5, *How work runs' look*, and 7.2's `how` states
-  (`how-drawing`, `look-round-25`): the path is the lanes' table, its
-  pills blue and slate on `--gf-agent` and `--gf-code`.
 - **Not yet:** 2.5, *How work runs' look*, *Roles*, and 7.2's
   `how-draft` (`roles-page`, `look-round-25`): no Roles' rules, tokens or
   rows.

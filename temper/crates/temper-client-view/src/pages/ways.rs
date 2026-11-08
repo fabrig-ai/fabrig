@@ -63,7 +63,9 @@ pub(crate) fn drawing(
             wire::Actor::Code => (paths::Mark::Code, Some(bindings.insert(Act::WayStop { project, stop: index }))),
             wire::Actor::Bar => (paths::Mark::Bar, None),
         };
-        stops.push(paths::Stop { mark, words: stop.words(), needed: false, over: b"" }).expect("wire bounds stops");
+        stops
+            .push(paths::Stop { mark, words: stop.words(), needed: stop.needed(), over: stop.over() })
+            .expect("wire bounds stops");
         acts.push(act).expect("one act per stop");
     }
     let pressed =
