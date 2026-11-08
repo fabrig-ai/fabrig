@@ -31,7 +31,7 @@ temper.workspace = true
 temper-client-shell-cli.workspace = true
 temper-client-shell-terminal.workspace = true
 temper-client-tools.workspace = true
-temper-service.workspace = true
+temper-service = { workspace = true, features = ["worker"] }
 temper-fake-git-hosted.workspace = true
 temper-worker-checkout-world.workspace = true
 temper-fake-git.workspace = true

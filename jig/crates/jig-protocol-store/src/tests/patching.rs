@@ -100,7 +100,7 @@ fn the_binary_is_before_baseline_only_without_any_kept_text() {
         (BASE, levels(0, 0)),
         (SETS, levels(2, 2)),
     ] {
-        assert_eq!(plan::binary(&sets), expected);
+        assert_eq!(crate::levels(&sets), expected);
     }
 }
 #[test]
