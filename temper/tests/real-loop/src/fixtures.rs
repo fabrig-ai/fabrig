@@ -537,7 +537,11 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     if flags["case"] == true {
         crate::case::defaults::apply(&mut defaults, flags, stock_period_spend);
     }
-    temper_service::stock::Given::Own { jig: defaults, forge: crate::settings::forge(&values) }
+    temper_service::stock::Given::Own {
+        jig: defaults,
+        forge: crate::settings::forge(&values),
+        ways: temper_service::stock::ways(),
+    }
 }
 
 /// Keep the fixture's other settings while making its chats standing.

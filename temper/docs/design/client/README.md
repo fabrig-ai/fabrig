@@ -4120,6 +4120,50 @@ the person to check existence and grant the repository to the App.
   *What the client keeps*). The engine fills `kind` and `address` from the
   forge's configuration as it does a change's panel's pull request's
   (`forge.md`, 9.2).
+- **A path, `BranchPath`** (`../domain/forge.md`, 8.13): `repository`, option,
+  `owner/name`, none for a project with no repository; `branch`; `stops`,
+  at most 24, in order, each a `Stop`:
+  - `actor`, `Actor`: `person`, `agent`, `code` or `bar`;
+  - `step`, `PathStep`: `ask`, `draft`, `plan`, `produce`, `produce_many`,
+    `check`, `review`, `repair`, `approve`, `update`, `resolve`, `merge`,
+    `prepare`, `prove`, `turn`, `verify` or `branch`;
+  - `words`, at most 64 bytes, as the path draws them ("you ask",
+    "produce ×n", "an owner approves", "main");
+  - `opens`, `Opens`: `nothing`, `charter` (`charter`), `rule` (`kind`,
+    `scope`, `number`), `gate` (`number`), `tier` (`name`), `queue` or
+    `turn`;
+  - `card`, `Card`: `who`, at most 128 bytes, as "an agent · holds a
+    change until it approves"; `name`, at most 64, as "the reviewer",
+    "owner", "CI" or "main"; `facts`, at most 4, each a `Fact`, `label`
+    at most 32 bytes and `value` at most 128, as "Model" and "Opus 5.5 ·
+    high", "Can", "Asked to".
+- **A project's ways, the subject `ways`:** of the project's scope, for a
+  party with a role there, its window unused; on the wire `Watching`'s
+  `ways`, `WaysSubject`: `project`. The root makes its document, since
+  roles, charters and models are the core's (`../domain/forge.md`, 8.13).
+  Its document, `WaysPanel` (`../protocol/configuration.md`, 13.10):
+  - `project`; `ways`, at most 4, the stock's in their order, each a
+    `StockWay`: `name`, at most 64 bytes; `line`, at most 256; `path`, its
+    path over the project; `items`, at most 8, each a `ProposalItem`, what
+    "Use this" sends; `delegation`, whether the project's policy lacks the
+    delegation the way needs (13.10 there);
+  - `current`, option, the index of the way the project runs; `own`, the
+    project's own path; `may_change`, whether the reader may change the
+    project's settings, an owner of it.
+
+  Marked at each committed change of settings, at each adoption into the
+  project or removal from it, and at a change of the reader's role. A
+  path's bounds are set so that the worst document the root makes, the
+  stock's ways and the project's own path, each at 24 stops of the
+  largest agent's card, fits one decision's delivery in the smallest
+  profile.
+- **A view, the read `View`:** `ViewRead`: `project` and `address`, at most
+  512 bytes, a `view` block's line (5.16), read in the project's scope by a
+  party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,
+  a `WayView`, `name`, `line`, `path` and `current`; `path`, a `BranchPath`;
+  `proposal`, a `ProposalView`, `before` and `after`; `charter`, a
+  `CharterView`, `charter` and its `card`; or `not_drawn`, `words`, at
+  most 512 bytes, saying in a line why it is not drawn.
 - **A proposal's items, the read `ProposalItems`:** its answer,
   `ProposalItemsAnswer`, holds the items and `owned_approval`, whether one of
   them is a landing rule with an enforcing approval covering a writable
@@ -6060,6 +6104,27 @@ on this tab.
   words, `full` and a person who is no owner too, the control back at its
   value. A `stale` refusal is sent once more against the revision it names.
   Answered, the client takes the value at once and reads it again.
+- **A way's acts** (`../draft/stock-ways.md`, section 5;
+  `../protocol/configuration.md`, 13.10): Ask temper's page watches the
+  project's `ways` (4.6) while open, its state the page's. *"Use this"* on a
+  way the project doesn't run sends at once jig's `ChangeSettings` of that
+  way's `items`, running work staying, against the newest revision the person
+  has, one decision, as a control on this tab does; where the way's
+  `delegation` holds, the project's policy joins the items, read whole and
+  set with charter 5, role 0 and the merge job added to its ceiling's and
+  role 0's delegation. *"Keep it"* does the same for the way the project
+  runs, while To begin's "Tell temper how you work" is left (3.5, *To
+  begin*), so that its values become the project's own and that change
+  marks the step done; once the step is done the current way has no act.
+  A project that runs no stock way has a fourth, *"Yours"*, current, its
+  path the read's `own`, with no act. Neither act shows where `may_change`
+  is false. While one is out both are disabled; a `stale` refusal is sent
+  once more against the revision it names; a refusal is said in jig's
+  words with the forge's reason, as an approval too few people can give
+  names the forge, the role, how many it asks and how many can
+  (`../protocol/configuration.md`, 13.2); answered, the subject's next
+  document shows the way current. How the page draws the ways is the look
+  request `ask-temper-ways`'s.
 - **The terminal:** the switches as checks, the selects as selects, a disabled
   one marked so; it all prints.
 - **What the settings change:** the rail and the tab bar (5.3), `goals` hiding
@@ -6400,6 +6465,48 @@ measures it (skein's `ui-web.md`, section 7).
   It opens with one page. The line under its bound log's name says
   `(up, down: more lines)`; there is no pill, and sending on a chat reads
   the end again.
+
+### 5.16 Views in a reply
+
+A view is a picture temper's code draws from what is stored
+(`../draft/ask-temper.md`, 6.1 and 6.2): placed by address, never drawn by
+hand. Its stops come from the engine's one derivation
+(`../domain/forge.md`, 8.13), so a reply, Ask temper's page and the
+terminal draw the same path.
+
+- **The block:** in a turn's text or the chat's document, a fenced block
+  at the top level, its info string `view` and its one line the view's
+  address. The client splits the text at such blocks before reading the
+  rest as Markdown (skein's `ui.md`, section 10), so that a `view` block
+  is never shown as code; one indented, inside another block or with more
+  than one line stays code.
+- **The addresses** of this milestone: `way NAME`, a stock way by its name
+  as `ways` gives it, any case, over the chat's project; `path OWNER/NAME
+  [BRANCH]`, a repository of the chat's project, its landing branch when
+  left out; `proposal tN/K`, a waiting proposal's path before and after
+  over the project's home repository's landing branch; `charter N`, a
+  role. A path or a charter takes `@revision N`, drawn when N is the
+  newest revision; an older one is not drawn yet, and says so.
+- **Read when shown:** the chat page reads each address it shows once,
+  through the forge's read `View` in the chat's project (4.6), equal
+  addresses sharing one read, and again when the session's `settings`
+  watch names a newer revision. Until it answers, the block says
+  "Drawing VIEW…"; a read refused or failed says in a line that the view
+  could not be drawn, and the address.
+- **Drawn:** a path as temper's own drawing kind beside skein's flows:
+  its stops on a line, a person's and an agent's above it, code's below,
+  the line rising to each judgement and falling back, the dotted line
+  no merge tool crosses, each branch's bar, the landing branch's at its
+  end; each stop its mark, an agent's a four-point star, a person's a
+  ring, code's a small square, and its words. A way draws its name and
+  line over its path; a proposal its two paths, "Before" and "After"; a
+  charter its card, `who`, `name` and `facts`, as a list of terms; a
+  `not_drawn` its words. The drawing's fallback, which the terminal
+  prints and a narrow page keeps, is a stop a line, its words and its
+  actor in words ("produce, an agent").
+- **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
+  opening its card, the views `queue`, `task N tree` and `task N
+  timeline`, and the TUI's drawing of views, temper/tui's.
 
 ## 6. The terminal shells
 
@@ -8493,9 +8600,25 @@ own tests:
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
   instructions. The opening keeps the configuring page's starters and reference;
-  an opening led by a question remains a separate look decision. Views,
-  sketches and preferences join at M3 and M4 of
+  an opening led by a question remains a separate look decision. The other
+  views, sketches and preferences join at M3b and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
+- **The ways on Ask temper's page** (3.5, 5.13): the opening's "What it
+  sets" and "Ways to begin" give way to the ways as tabs drawn from the
+  `ways` read, "Use this", "Keep it" and "Yours" among them, and a stop's
+  card opening in place: the look request `ask-temper-ways`, its plan
+  `look-ask-ways` (`../draft/stock-ways.status.md`). Default: the read and
+  the acts in the domain, drawn by no page until then.
+- **Views after landing and M3b** (5.16): temper/ui compares a path, a
+  way, a proposal's two paths and a charter's card in a reply and in the
+  chat's document at 1440, 1000 and 420 px, with the fallback a narrow page
+  keeps, against the look request's pages, and walks a real Ask temper
+  chat asked to show a way. M3b adds a stop pressed opening its card, the
+  views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
+  of views, temper/tui's (`../draft/ask-temper.execution.md`, M3b). A view
+  at an older revision, and a decided proposal's paths, wait for a read of
+  the settings as a revision left them. Default: the focused tables and
+  gallery samples, which establish no rendered look.
 
 - **The TUI's later passes** (6.11 to 6.16, 7.1): beyond the
   launchpad, its commands and a chat, the side pane and drafting, needs

@@ -155,7 +155,7 @@ pub(crate) fn adoption_given() -> temper_service::stock::Given {
     static GIVEN: std::sync::OnceLock<Given> = std::sync::OnceLock::new();
     match GIVEN.get_or_init(|| crate::stories::given(&serde_json::from_slice(&document()).expect("deployment JSON"))) {
         Given::Stock => Given::Stock,
-        Given::Own { jig, forge } => {
+        Given::Own { jig, forge, ways } => {
             let mut policies = skein_lib::Map::with_capacity(jig.policies.capacity());
             for (number, policy) in &jig.policies {
                 policies.insert(*number, policy.clone()).expect("adoption policies");
@@ -169,6 +169,7 @@ pub(crate) fn adoption_given() -> temper_service::stock::Given {
                     models: jig.models.clone(),
                 },
                 forge: forge.clone(),
+                ways: ways.clone(),
             }
         }
     }

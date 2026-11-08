@@ -20,7 +20,14 @@ fn release_answers_project_released_after_its_commit() {
     child.push(forge::Request::Erase { key: forge::Key::Repository(repository) });
     child.push(forge::Request::ProjectReleased { request });
     crate::route::forge_route::outputs(&mut domain, &env, &mut decision, &mut child);
-    assert!(domain.work.is_empty(), "core hears nothing before commit");
+    // Ways invalidation may ask for a document whose delivery shares this barrier.
+    while let Some(work) = domain.work.pop() {
+        let crate::Work::Core(jig_domain_core::Event::Marked { connector: owner, subjects }) = work else {
+            panic!("only the ways mark may reach the core before commit");
+        };
+        assert_eq!(owner, connector);
+        assert_eq!(subjects.as_slice(), [Token::new(crate::ways::subject(1))]);
+    }
     accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true).unwrap();
     let Some(Output::Commit { number, writes }) = crate::decision::commit(&mut domain.journal, &env.limits.journal)
     else {

@@ -1314,13 +1314,19 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
-- **Choosing a project's stock way** (13.2 to 13.4;
-  `../draft/stock-ways.md`, sections 2 and 4 to 7): the three ways as
-  data, derived paths, the watched `ways` read, its settings acts and
-  Ask temper's views belong to the draft's next step. Default: the
-  per-project rule and stock draft coordinator, with a project's
-  existing policy changed only by its owner's accepted proposal. The
-  ways page follows that step and the owned-forge person link.
+- **Choosing a project's stock way on its page** (13.10;
+  `../draft/stock-ways.md`, section 7's step 4): Ask temper's opening
+  drawing the ways as tabs with their acts and a stop's card is the look
+  request `ask-temper-ways`, which follows the owned-forge person link,
+  since "Use this" on You approve is refused with no eligible owner on a
+  box until then. Default: the read, its acts and the views as 13.10 has
+  them, a project's existing policy gaining Draft first's delegation by
+  that way's act or by its owner's accepted proposal.
+- **A landing branch with another name than `main`** (13.10;
+  `../draft/stock-ways.md`, section 2): Draft first's rule 1 names
+  `main`, so over a repository whose landing branch is named otherwise
+  its rules cover no landing branch, and its path shows none of their
+  stops there. Default: later, as the draft has it.
 - **The reference's project rule in stage one** (13.9): its settings
   description must include the project's own rule 1 alongside the
   deployment's rules, so a goal's branches do not inherit the stock's
@@ -3039,3 +3045,46 @@ that changes the stock changes nothing of them.
 
 The reference's charter 6 also returns `finish` for a red the change did not
 cause, with that red on the asker's Left list (2026-11-04).
+
+### 13.10 The stock ways
+
+The ways a project can work, pre-made settings of its own scope that it
+opts into (`../draft/stock-ways.md`, sections 2 and 5): data in the
+`stock` module, given to the engine at each start beside the forge's
+defaults (13.4), so that a test world gives its own or none.
+
+| Way | Its line | Its items, in the project's scope |
+|---|---|---|
+| You approve | "An agent makes each change; nothing reaches main until you approve it." | kind 2's rule 1: every branch (`branch`, open: 13.2), enforced, CI, up to date, no gate, one approval by role 0, `clean`; rules 2 to 4 removed |
+| Agents review | "An agent makes each change, another reviews it, and code lands it." | kind 2's rule 1, the stock's (13.4); rules 2 to 4 removed |
+| Draft first | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: `branch`, exact `main`, enforced, CI, up to date, no gate, no approval; rule 2: `branch`, open `temper`, enforced, no CI, not up to date, no gate, no approval; rules 3 and 4 removed; kind 7: the project's own, or the stock's with none, with `drafts` and `goals` on and `way` 4; the project's policy, where its delegation lacks charter 5, role 0 or the merge job (job 3), with them added to its ceiling's and role 0's delegation |
+
+- **In this order,** from more of the person to more of their agents, as
+  the page's tabs are. Each way's name and line are its words, the
+  stock's, carried by the read (below), so that the page and `see ways`
+  say the same.
+- **A way's items** are what jig's `ChangeSettings` carries (jig's
+  `domain/engine.md`, 17.2), computed by the root for one project from
+  the way and that project's settings: a rule *set* to its value, each
+  rule the way names none of *removed*; kind 7 *set* to the project's
+  value with the way's members laid over it; a project's policy item
+  only where its delegation lacks what the way needs. Every value is
+  set whole, never reset, so that a way's values become the project's
+  own and a release's new stock leaves them.
+- **Nothing else:** charters, models, questions (kind 6), kind 7's
+  `changes` and `away`, a repository's gates and tiers, and the project's
+  landing stay as they are, so that a person's choices of models survive
+  a change of way. You approve and Agents review set no kind 7: a project
+  that ran Draft first keeps its goals' way, and their paths over it
+  start with a goal.
+- **Each way's path** over the project is `../domain/forge.md`, 8.13's
+  derivation over the project's settings with the way's items laid over
+  them. The way the project runs is the first whose path equals the
+  project's own, stop for stop; none, where none does.
+- **The forge's `ways` read** (`../client/README.md`, 4.6;
+  `../client/forge.md`, section 9) gives each way
+  with its words, its path and its items, the way the project runs or
+  none, the project's own path, and whether the reader may change the
+  project's settings: an owner of the project, as jig's `ChangeSettings`
+  asks (jig's `domain/people.md`, 5.1). "Use this" and "Keep it" send
+  its items (`../client/README.md`, 5.13).

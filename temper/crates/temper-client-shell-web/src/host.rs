@@ -404,7 +404,7 @@ pub fn page(bounds: &skein_ui::Limits, primary: Primary) -> Page<'static> {
         Look {
             names: &[view::look::NAMES, skein_ui::flow::NAMES],
             pictures: &[],
-            draw: skein_ui::flow::draw,
+            draw: view::paths::draw_any,
             components: &[],
             elements: view::look::ELEMENTS,
         },

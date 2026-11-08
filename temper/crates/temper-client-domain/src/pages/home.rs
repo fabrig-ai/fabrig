@@ -251,7 +251,7 @@ impl Home {
     }
 }
 
-fn configured(client: &Client) -> bool {
+pub(crate) fn configured(client: &Client) -> bool {
     let Some(document) = client.document(forge::ways::handle()) else { return false };
     if document.state == jig_client::State::Ended {
         return false;

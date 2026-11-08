@@ -30,6 +30,16 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: conn
         connector::Ask::KeepSettings { revision, proposal, items } => {
             let asked = typed_items(domain, proposal, &items);
             domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
+            let projects = domain.core.projects.clone();
+            for &project in &projects {
+                let mut affected = false;
+                for item in &asked {
+                    affected |= item.scope == 0 || item.scope == project;
+                }
+                if affected {
+                    super::ways::mark(domain, project);
+                }
+            }
         }
         connector::Ask::KeepProposalSettings { proposal, items } => {
             let asked = typed_items(domain, None, &items);
@@ -371,10 +381,23 @@ pub(super) fn read(
         revision_begin(domain, env, decision, reply, sign_in, scope, query);
         return;
     }
+    if why.is_none() {
+        match query {
+            crate::ForgeRead::View { project, address } => {
+                super::ways::view::read(domain, env, decision, reply, sign_in, project, address);
+                return;
+            }
+            crate::ForgeRead::Setting { .. }
+            | crate::ForgeRead::RevisionSetting { .. }
+            | crate::ForgeRead::ProposalItems { .. }
+            | crate::ForgeRead::ProgramEnvironment => {}
+        }
+    }
     let delivery = match why {
         Some(why) => crate::Delivery::Read { reply, answer: Answer::None(why) },
         None => {
             let answer = match query {
+                crate::ForgeRead::View { .. } => unreachable!("view reads have their own answer"),
                 crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
                     crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
@@ -409,6 +432,7 @@ fn read_refusal(
         Some(party) => {
             let permitted = match scope {
                 ApplicationScope::Deployment => match query {
+                    crate::ForgeRead::View { project, .. } => domain.core.people.role(party, *project).is_some(),
                     crate::ForgeRead::ProgramEnvironment => {
                         domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
                     }
@@ -418,6 +442,7 @@ fn read_refusal(
                 },
                 ApplicationScope::Project(project) => {
                     let own_kind = match query {
+                        crate::ForgeRead::View { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
                             (*kind == 2 || *kind == 6 || *kind == 7) && *scope == project
@@ -487,6 +512,10 @@ pub(super) fn revision_answer(
 ) {
     let token = reply.into_token();
     let reply = skein_lib::ReplyTo::new(token);
+    if domain.view_reads.contains_key(&token) {
+        super::ways::view::answered(domain, env, decision, reply, answer);
+        return;
+    }
     let Some(query) = domain.revision_reads.remove(&token) else {
         super::emit(decision, &env.limits, crate::Delivery::Read { reply, answer });
         return;

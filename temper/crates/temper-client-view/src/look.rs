@@ -1293,6 +1293,16 @@ pub const NAMES: Names<'static> = Names {
         b"temper-approve-acts",
         b"temper-approve-primary",
         b"temper-night-switch",
+        b"temper-ways-base",
+        b"temper-ways-auth",
+        b"temper-ways-person",
+        b"temper-ways-agent",
+        b"temper-ways-code",
+        b"temper-ways-bar",
+        b"temper-ways-words",
+        b"temper-view",
+        b"temper-view-muted",
+        b"temper-view-card",
     ],
     regions: &[b"temper-link"],
 };
@@ -1658,6 +1668,20 @@ pub const APPROVE_CODE: Style = Style { owner: owner(), token: 604 };
 pub const APPROVE_ASKED: Style = Style { owner: owner(), token: 605 };
 pub const APPROVE_ACTS: Style = Style { owner: owner(), token: 606 };
 pub const APPROVE_PRIMARY: Style = Style { owner: owner(), token: 607 };
+
+// Path marks (temper/docs/design/client/README.md, 5.16).
+pub const WAYS_BASE: Style = Style { owner: owner(), token: 609 };
+pub const WAYS_AUTH: Style = Style { owner: owner(), token: 610 };
+pub const WAYS_PERSON: Style = Style { owner: owner(), token: 611 };
+pub const WAYS_AGENT: Style = Style { owner: owner(), token: 612 };
+pub const WAYS_CODE: Style = Style { owner: owner(), token: 613 };
+pub const WAYS_BAR: Style = Style { owner: owner(), token: 614 };
+pub const WAYS_WORDS: Style = Style { owner: owner(), token: 615 };
+
+/// Reply views (temper/docs/design/client/README.md, 5.16).
+pub const VIEW: Style = Style { owner: owner(), token: 616 };
+pub const VIEW_MUTED: Style = Style { owner: owner(), token: 617 };
+pub const VIEW_CARD: Style = Style { owner: owner(), token: 618 };
 
 #[cfg(test)]
 mod tests {

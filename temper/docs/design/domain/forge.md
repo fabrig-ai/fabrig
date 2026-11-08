@@ -1095,7 +1095,8 @@ connector as `Dismissed` is (5.5), and a document computed at its read.
   Each saves the row, marks the subject `status` and answers looked, the
   answer held behind the commit as `Dismiss`'s is and unknown after a
   restart. The 30 minutes are the limit `forge.sitting_ms`, `SITTING` in each
-  profile, a limit so that a box's walk reaches a second sitting in its tier.
+  profile. A story reaches a second sitting on its world's clock, never by
+  waiting (`testing.md`, 2.6).
 - **Its document:** the subject `status`, `status_subject(project)`, one
   number a project, outside the task numbers as `changes_subject`'s are,
   of the project's scope. The core's ask for a document names the
@@ -2796,6 +2797,100 @@ which is what a person's approval asks of it.
   such a rule stops their mistakes, not one trying to get past it, and the
   client says so (`../client/README.md`, 5.13; `../draft/forge-identity.md`,
   section 6).
+
+### 8.13 A branch's path
+
+The stops a change takes to land on a branch, derived in code from the
+settings that apply there (`../draft/stock-ways.md`, section 4): the
+engine derives, and every client draws what it is given, so that the
+ways on Ask temper's page (`../protocol/configuration.md`, 13.10),
+Ask temper's `see ways` and views (`agent.md`, 8.4.1;
+`../client/README.md`, 5.16) and the terminal never disagree.
+
+- **Over a project, a repository of it and a branch,** from what
+  applies to that branch as the forge holds it then:
+  - every landing rule of kinds 1 and 2 covering the branch (8.9;
+    `../protocol/configuration.md`, 13.3), a project's rule 1 the
+    stock's while it has none of its own; a rule that does not enforce
+    adds its gates, as advice, and nothing else;
+  - the forge's charters (kind 3): the change's producer, its reviews'
+    charter and the charters they name;
+  - the project's ways (kind 7): work starts as a goal when `goals` is
+    on and `way` names a template whose resources hold *its own goal
+    branch*, as template 4's do (`../protocol/configuration.md`, 13.4);
+    otherwise as a chat's change;
+  - the project's landing, by queue or by turn, and the repository's
+    CI, its test gates and its tiers, each with the branch it follows
+    (`landing.md`, 13.1; `after-landing.md`, section 2).
+  The ways' paths and a proposal's "after" take the same derivation
+  over the settings with items laid over them, each item as its
+  decision would leave its setting (`../protocol/configuration.md`,
+  13.10).
+- **A path** is a list of stops, each its actor, a person, an agent,
+  code or a branch's bar; its words; and what it opens: a charter, a
+  rule, a gate, a tier, the queue or the turn. The card each stop opens
+  is the path's too (below).
+- **A typical run, with one repair,** a segment per branch the change
+  lands on, each in this order:
+  1. *Who starts,* on the first segment alone: for a chat's change, "you
+     ask", the person, then "produce", the producer's charter; for a
+     goal, "draft", the person, then "plan", the template's charter,
+     then "produce ×n", the producer's charter, the goal's changes being
+     one stop as a flow has one path.
+  2. *"check",* code, where a covering rule that enforces asks CI and
+     the repository was adopted with CI; under `turn`, none, since no CI
+     runs on a pushed head (`landing.md`, section 3).
+  3. *Each gate* the forge asks a change there for (8.3 and 8.9): the
+     covering rules' gates, enforced or not, once by number in the order
+     the rules give them, each an agent's review, "review", the reviews'
+     charter's; and, for a repository adopted without CI, each of its
+     checks, "check", the producer's charter's, which runs it.
+  4. *One "repair",* the producer's, on the first segment where a
+     check or a gate precedes it, once on the whole path; then "check"
+     again where step 2 drew one. What a repair goes back through, its
+     reviews and approvals, the line doesn't repeat; its card says so.
+  5. *Each approval* of the covering rules that enforce: "you approve"
+     where the reader holds the role, otherwise the role's name, as
+     "an owner approves"; "×N" after it where it asks N people, N past
+     one.
+  6. *By queue:* "update", code, and "resolve", the producer's, where a
+     covering rule that enforces asks up to date; then "merge", code,
+     opening the queue (section 9). *By turn* (`landing.md`, section
+     8): "prepare", code, opening the turn; "resolve", the producer's;
+     "prove", code, where the repository has test gates, opening the
+     turn, its card naming the gates, since a stop opens a rule's gate
+     by number and a repository's test gates have none
+     (`../client/README.md`, 4.6), then "repair", the producer's, while
+     none is drawn; "turn", code, opening the turn.
+  7. *Each tier* following the branch: on a goal's branch "check",
+     code, then "repair", the template's charter's, while none is drawn;
+     on the landing branch "verify", code. A tier opens itself.
+  8. *The branch's bar:* "goal branch" ends a goal's segment, and the
+     landing branch's segment follows by its own rules, its start not
+     repeated; the landing branch's bar, its name, as "main", ends the
+     path.
+- **A stop whose setting is absent isn't drawn:** no "check" without
+  CI, no tier's stops without a tier, no approval no rule asks.
+- **No agent's stop below the line:** an update, a merge, a prepare, a
+  proof and a turn are code's whatever the settings, the derivation
+  having no other actor for them.
+- **A stop's card,** from the same reads: for an agent, its charter's
+  number and its name on the path ("the coding agent" for the producer,
+  "the reviewer" for the reviews' charter, "the coordinator" for a
+  goal template's), whether it holds the change (a blocking gate), the
+  model and effort a run of it would take now for the reader, what its
+  tool families let it do, in words, and its instructions' first
+  sentence; for a person, the role, how many it asks and what they
+  decide; for code, what it checks or does: CI, the repository's
+  gates or tiers by name, the queue or the turn, a merge of exactly
+  the commit its checks saw (8.7); for a bar, the branch.
+- **The project's path** is the path over its home repository's landing
+  branch, or its first adopted repository's with no home; with none,
+  over a branch named `main` of no repository: no CI, no tier, the
+  rules beginning at `branch` alone.
+- **Pure:** the derivation reads nothing and decides nothing; the root
+  gathers what it reads, from the core and the forge, in the decision
+  that answers.
 
 ## 9. Landing queues
 

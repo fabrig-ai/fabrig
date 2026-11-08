@@ -144,9 +144,9 @@ pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, 
             b.key(Key { owner: crate::frame::owner(), kind: 12, a: chat.shown_count, b: 0 });
         }
         if index == 0 {
-            opening(b, section.bytes);
+            first_section(b, section.bytes, chat, words);
         } else {
-            skein_ui::markdown::read(section.bytes, 1, b);
+            crate::views::read(b, section.bytes, 1, Some(chat), words);
         }
         if tinted == Some(index)
             && let Some(write) = write
@@ -175,6 +175,17 @@ fn heading_hash(heading: &[u8]) -> u64 {
         hash = (hash ^ u64::from(*byte)).wrapping_mul(0x0000_0100_0000_01b3);
     }
     hash
+}
+
+fn first_section(b: &mut Builder, bytes: &[u8], chat: &Chat, words: &Words) {
+    for part in &crate::views::parts(bytes) {
+        match part {
+            temper_client_domain::views::Part::Text(text) => opening(b, text.as_bytes()),
+            temper_client_domain::views::Part::View(address) => {
+                crate::views::block(b, address, chat.view(address), words);
+            }
+        }
+    }
 }
 
 // The introductory metadata reads as Markdown in a muted slot beneath the
