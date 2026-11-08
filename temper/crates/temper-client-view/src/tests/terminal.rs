@@ -66,7 +66,7 @@ fn the_terminal_draws_a_chats_pages_in_the_browser_alone() {
                 );
                 assert_eq!(styled(view.tree(), look::RAIL), !terminal, "rail: {address:?} {shell:?} {on}");
                 if terminal {
-                    assert!(!styled(view.tree(), look::BANNER));
+                    assert!(!styled(view.tree(), look::TOP));
                 }
                 assert_eq!(styled(view.tree(), look::TABBAR), shell == Shell::Browser && !terminal, "tabs");
                 assert_eq!(styled(view.tree(), look::TO_TERMINAL), eligible && shell == Shell::Browser && !terminal);

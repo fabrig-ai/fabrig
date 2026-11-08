@@ -20,10 +20,22 @@ executor kinds, including charter 5, role 0 and merge job 3. The stock
 floor measures resolved charters with their parts and catalogue models;
 charter 5 needs 13,123 bytes at init's catalogue. The standard brief is
 353,072 bytes, the owner's approved allowance for that charter's room.
-`ask.txt` omits Showing and Remembering. The stock first-request check
-holds 16,384 bytes on both request shapes. Existing project policies
-remain copies and require an owner's accepted proposal to gain the new
-delegation.
+`ask.txt` omits Remembering and all of Showing but its first step. The
+stock first-request check holds 16,384 bytes on both request shapes.
+Existing project policies remain copies and require an owner's accepted
+proposal to gain the new delegation, but for Draft first's "Use this"
+and "Keep it", which add charter 5, role 0 and the merge job where the
+policy lacks them (13.10).
+
+Section 13.10 has no known gap: the stock module holds the three ways,
+given to the engine at each start beside the forge's defaults; the root
+lays each way's items over the project, derives its path and the
+project's own, and finds the way the project runs, for the watched
+`ways` read and `see ways` alike. Focused tables hold the three paths
+over a project with CI and both tiers and with neither, the current way
+and "Yours", "Use this" refused for too few approvers and "Keep it"
+marking To begin's step done; a 64-seed fuzzy test derives paths over
+random rules.
 
 Section 13.9's `project.json` sets its project's rule 1 to main alone,
 with no gate or approval, over the stock's every-branch rule; its two

@@ -145,8 +145,10 @@ The client's link exposes a watch's Busy refusal through retries and clears
 it on recovery; distinguishing its capacity cause remains deferred
 (`client/domain/client.md`, section 18).
 Printed-link sign-ins carry used, expired and unknown reasons through the
-client; malformed browser secrets take that same exchange. The history of
-eight digests is memory-only, so forgotten links are unknown; longer history and
+client; malformed browser secrets take that same exchange. A local link
+lives beside the printed link, each spent apart, the local one drawn
+again at once and never printed (`protocol/client.md`, section 8).
+The history of eight digests is memory-only, so forgotten links are unknown; longer history and
 fallback to a live cookie remain deferred (`protocol/client.md`, sections
 8 and 15; `client/domain/client.md`, sections 12 and 18).
 Decoded turns retain model and effort outside the text budget, and a

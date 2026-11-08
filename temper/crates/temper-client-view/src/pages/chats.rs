@@ -26,16 +26,6 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(crate::look::MAIN);
     b.style(crate::look::CHATS_PAGE);
-    if let Some(me) = root.pages().me(root.client())
-        && me.projects.is_empty()
-        && let Some(deployment) = root.forge().deployment()
-        && !deployment.welcome
-    {
-        text(b, Role::Heading { level: 1 }, &words.say(Word::NoProjectYet, &[]));
-        text(b, Role::Paragraph, &words.say(Word::NoProjectLine, &[]));
-        b.close();
-        return;
-    }
     intro(b, root, words);
     repository_context(b, root, words, bindings);
     list(b, root, words, bindings, times);

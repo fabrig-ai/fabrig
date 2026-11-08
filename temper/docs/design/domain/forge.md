@@ -2856,10 +2856,12 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   6. *By queue:* "update", code, and "resolve", the producer's, where a
      covering rule that enforces asks up to date; then "merge", code,
      opening the queue (section 9). *By turn* (`landing.md`, section
-     8): "prepare", code; "resolve", the producer's; "prove", code,
-     where the repository has test gates, opening them, then "repair",
-     the producer's, while none is drawn; "turn", code, opening the
-     turn.
+     8): "prepare", code, opening the turn; "resolve", the producer's;
+     "prove", code, where the repository has test gates, opening the
+     turn, its card naming the gates, since a stop opens a rule's gate
+     by number and a repository's test gates have none
+     (`../client/README.md`, 4.6), then "repair", the producer's, while
+     none is drawn; "turn", code, opening the turn.
   7. *Each tier* following the branch: on a goal's branch "check",
      code, then "repair", the template's charter's, while none is drawn;
      on the landing branch "verify", code. A tier opens itself.

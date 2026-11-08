@@ -42,7 +42,20 @@ newest open Ask temper chat. Template 5 starts its chat; without it no
 chat starts. Section 5.13 offers neither configuring chat nor Ask temper
 on Settings. The opening retains the configuring page's starters and
 reference, as the renamed-page draft specifies. The post-landing walk,
-views and preferences remain section 11's work.
+M3b's views and preferences remain section 11's work.
+
+Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
+`BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
+Ask temper's page watches its project's `ways` while open, and its domain
+sends "Use this" and "Keep it" as one `ChangeSettings` of the read's items,
+with the project's policy joined where a way's `delegation` holds, offers
+"Yours" where no way is current, no act where `may_change` is false, and
+"Keep it" only while To begin's first step is left. A turn's and a chat
+document's top-level `view` blocks are split out, read through `View` and
+redrawn at a newer revision, drawn as temper's path drawing kind with a
+stop a line as the terminal's fallback. Ask temper's page draws no ways,
+tabs or acts: that is the look request `ask-temper-ways`'s, as 5.13 says
+(section 11). Rendered comparison of the drawing follows landing.
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's
@@ -55,7 +68,14 @@ TUI's crates, command, private directory, link file and sign-in note,
 host seam, pasted-link sign-in, launchpad, commands, chats, themes,
 closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
 renewal and suppression after a noted sign-out. The expiry is noted once
-the link is live with a party. The base uses the terminal's default colours,
+the link is live with a party. The link file holds the engine's local
+link alone, kept at each `LocalLink` once the clients' listener is up and
+never printed; a printed link is printed alone and never kept, and the
+box's first secret is never written. The service's table signs the
+local and the given link in, in either order, and the joint world signs
+a TUI in from the file and a browser by the printed link in either
+order, and a second TUI by the next local link (section 10). The base
+uses the terminal's default colours,
 focus uses the accent, active command names are plain while inactive names
 and question choices stay bold, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
@@ -720,8 +740,6 @@ read's head explicit.
   jig before the tab can use it.
   5.13: Home draws neither "Show goals" nor "See the settings", so
   nothing opens the tab by them.
-  5.3: the banner's "Changes", on a page that is no project's:
-  the request of 2026-11-05 asked for the rail, and its mock has no banner.
   3.5, *Goals*: a project whose `me` lists no goal template opens no watch
   (`temper-client-domain`'s `pages/goals.rs`, `query`), so its page draws the
   kicker and the lede alone, with no heading and no filters, where the section
@@ -750,12 +768,6 @@ read's head explicit.
   domain's memory alone (`temper-engine-domain-forge`'s `domain.rs`
   `apps`), so a GitHub forge found unfinished after a restart offers
   "Start over" alone.
-  3.5, With no project
-  yet, where the document shows the welcome: its heading, words and acts; `pages/chats.rs` draws its page
-  alone. There too, with a welcome or without one, `NewChat` at its address
-  outside the playground's start: `temper-client-view`'s `pages/new_chat.rs`
-  draws its layout where the section has it give way, its line calling the
-  missing project "Project".
   4.7: the "not installed" outcome, "temper's App is not installed on
   OWNER.", with "Install on another account": `temper-service/src/family.rs`
   maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;
@@ -772,14 +784,6 @@ read's head explicit.
   activity, so an Ask temper chat not closed but past that window isn't
   seen and they open `Ask { project }`; the landings of `configure-temper-name`
   and `ask-temper-place` accepted it, raising no bound for one link.
-  3.5, With no project yet, and 5.3: where the document
-  shows the welcome, with no project, the banner's place for it reads "No project yet" followed by the new
-  project's form, "New project" and "Create" (`temper-client-view`'s
-  `frame.rs`, `switcher`), where 5.3 ends the switcher's list with that
-  form and 3.5 leaves the first project to the playground's start or
-  the welcome's Ready. The code records no reason; it lets a person make
-  the project Ready would offer before Ready, the case of the draft's open question
-  (`../draft/first-run-projects.status.md`).
   3.5, 4.6, Changes: the queue's first says "checking" at whichever step of
   its turn, and "checks started" gives when that step began
   (`temper-engine-domain-forge`'s `views/changes.rs`, `Change.since`), where
@@ -933,9 +937,10 @@ read's head explicit.
 - **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
   2026-11-06, decided by its plan's cut. A press outside that took the focus to
   another control leaves it there, where the request returns the focus to the row:
-  the row would take back what that press landed on. A project-less `Accounts` page
-  keeps its "Sign out" in the banner, where the request keeps it at the tab's foot:
-  that page has no such row (5.1). Over 760 px the tab's whole row leaves, "Signed in
+  the row would take back what that press landed on. With no project, "Sign out" is
+  the top bar's, where the request keeps it at the `Accounts` tab's foot: the later
+  request `outside-pages` draws the column "No project yet" in that page's place
+  (3.5, *With no project yet*; 5.1). Over 760 px the tab's whole row leaves, "Signed in
   as NAME" and the login with "Sign out", where the request moves "Sign out" alone:
   one form holds them, and the sheet hides it, since the view knows no width (section
   11, *The person's login over 760 px*). The rail's "+ New chat" menu closes on a
@@ -962,18 +967,34 @@ read's head explicit.
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
+- **Design departs:** 5.1, from the look request `outside-pages` of 2026-11-08,
+  decided by its plan's cut: the top bar's link region holds the link's state in
+  every state, "Signed out", "Connecting" and "Live" among them, where the request
+  draws none of these, and the browser shows it only while it says "Offline", by a
+  rule the request's overlay lacks. The terminal's first line prints the region's
+  word (6.4), and the story worlds read "Live" there.
 - **Design departs:** 3.5, *Goals*, and 5.8, from the mock's `goals.html` and
   `goal.html`, by the request `ui-goal-asks-2`, decided by its cut: a row and a goal's
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
   ended done with no change has its own "done" line. Counting landings on a row needs
   a stored and a wire field for a small word; section 11 holds it.
 
-Sections 3.5, 5.1 and 5.12 have the browser's approval page, its root
-state and actions, the asked time, signed-out card and approved read each
-second. Section 7.1's native half asks and starts the take, keeping only
-the code and expiry in the root. The domain and view tables, eleven
-gallery states and joint-client stories cover the page and an approving
-browser's party, with a non-browser refused. Sections 6.13 and 7.1 have
+Sections 3.5, *With no project yet*, and 5.1 have no known
+implementation gap in the top bar wherever the rail isn't, the column of
+the pages not about the work, the sign-in page and the `Authorize`
+place, or no project yet's first-project form and the welcome's acts in
+place of any address's page. The view's tables cover each place in both
+shells; temper/ui's rendered comparison follows landing (`browser.md`,
+section 5).
+
+Sections 3.5, 5.1 and 5.12 have the browser's approval page in the
+column, its root state and actions, the asked time, the signed-out
+state with Google's way back to the page and its code where that way
+is given, and the approved read each second. Section 7.1's native half
+asks and starts the take, keeping only the code and expiry in the root.
+The domain and view tables, twelve gallery states and joint-client
+stories cover the page and an approving browser's party, with a
+non-browser refused. Sections 6.13 and 7.1 have
 no known implementation gap in the TUI's ask, locally constructed
 address, single-argument opener with null descriptors, `Opened` report,
 fallback lines, pasted-link replacement or Enter to ask again. Golden

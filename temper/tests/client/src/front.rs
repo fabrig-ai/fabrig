@@ -599,6 +599,7 @@ impl Joint {
             },
             skein_lib::Secret::new(Box::new(PRINTED)),
         );
+        self.pump_component();
     }
 
     pub fn link_client(&mut self, who: ClientId, limits: jig_client::DomainLimits) {
@@ -610,6 +611,11 @@ impl Joint {
     #[must_use]
     pub fn latest_link(&self) -> Option<Box<[u8]>> {
         self.component.latest_link.as_ref().map(|secret| link_url(secret.expose()))
+    }
+
+    #[must_use]
+    pub fn local_link(&self) -> Option<Box<[u8]>> {
+        self.component.local_link.as_ref().map(|secret| link_url(secret.expose()))
     }
 
     pub fn carry(&mut self, who: ClientId, now: Time, request: jig_client::Request) {

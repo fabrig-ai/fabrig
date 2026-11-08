@@ -127,9 +127,10 @@ impl skein_shell::Host for Host {
             {
                 self.output_failed = true;
                 self.service.shutdown();
-            } else {
-                self.keep_link(&link);
             }
+        }
+        while let Some(link) = self.service.local_links().pop() {
+            self.keep_link(&link);
         }
         if self.wait_check {
             self.service.check_wait_boundary(self.now);

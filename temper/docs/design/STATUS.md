@@ -12,13 +12,26 @@ story from the launchpad through the streamed and committed answer
 surfaces remain deferred; the sign-in field takes `q` as text and
 Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
 `draft/tui.status.md`). Browser-approved sign-in's engine configuration,
-native client-root half and web page at `/terminal` are built, with eleven
-gallery states and joint-client stories. The TUI's approval ask, locally
+native client-root half and web page at `/terminal` are built, with twelve
+gallery states and joint-client stories; signed out with Google's way
+given, the page's "Continue with Google" comes back to it with its code.
+Every page outside a project, the server's pages and the boot are in the
+welcome's look, by the look request `outside-pages`: the top bar wherever
+the rail isn't, the column, no project yet's first-project form, and the
+old banner, cards, `files/brand.svg` and `#b8664e` gone, with two focused
+tests keeping them out. The design departs from the request in the top
+bar's link region, which the terminal prints, the GitHub App's setup
+pages' fonts and the stylesheets' accent; temper/ui's rendered comparison
+follows landing (`client/README.status.md`, 5.1; `client/forge.status.md`,
+9.1; `client/browser.status.md`, 2.5). The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
-The local box's private link file, bare command's address discovery,
-automatic sign-in, quiet fallback and bounded rereads are built, with
-the expiry note and joint-world renewal and sign-out stories. The note
+The local box's private link file, holding the engine's local link
+alone so that a TUI never spends the printed link, bare command's
+address discovery, automatic sign-in, quiet fallback and bounded rereads
+are built, with the expiry note and joint-world renewal, sign-out and
+either-order stories; `serve.log` is not read for the file's secret
+(`protocol/setup.status.md`, 13.4). The note
 uses a minute's slack: a revocation near expiry or a missing note can
 still renew, so unconditional refusal after sign-out remains a departure
 from the request (`draft/tui.status.md`, 4.1). Terminal-default base
@@ -77,14 +90,21 @@ name a branch across its repositories. The deployment has no stock rule.
 Charter 5 and template 4 are stock, with the delegation that reaches
 them; the reference sets its own project's rule 1 to main alone. Its
 stage-one description still omits that rule, and existing policies need
-an owner's proposal to gain delegation. The three ways, paths, read and
-Ask temper views remain the next design step (`protocol/configuration.md`,
-11 and 13.2 to 13.4; `draft/stock-ways.status.md`). Ask temper's first milestone
+an owner's proposal to gain delegation but where Draft first's act adds
+it. The three stock ways are data given at each start, one derivation
+draws a branch's path, and the watched `ways` read, `see ways`, the
+`View` read and the views `way`, `path`, `proposal` and `charter` in a
+reply are built, with "Use this", "Keep it" and "Yours" in the client's
+domain; Ask temper's page draws none of them until the look request
+`ask-temper-ways` (`domain/forge.md`, 8.13; `protocol/configuration.md`,
+11 and 13.2 to 13.10; `client/README.md`, 5.13, 5.16 and 11;
+`draft/stock-ways.status.md`). Ask temper's first milestone
 stands in the code, with its own project page, rail entry and phone tab
-(`draft/ask-temper.execution.md`, M1). Charter 3, template 3, `Configure`
-and Settings' offer are gone by plan `ui-ask-drop`. Its walk follows
-landing. The remaining reads, views and preferences belong to M2 to M4
-(`draft/ask-temper.status.md`).
+(`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
+the instructions' first step of Showing. Charter 3, template 3, `Configure`
+and Settings' offer are gone by plan `ui-ask-drop`. Its walks follow
+landing. The remaining reads, views, sketches and preferences belong to
+M2, M3b and M4 (`draft/ask-temper.status.md`).
 Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;
@@ -564,8 +584,8 @@ hidden tab, or a paste's end on the welcome. It draws the waiting page of the re
 `sign-in-new-tab`; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rail's person's menu departs from the request
-`ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less
-`Accounts` page's "Sign out", which stays the banner's, and the tab's whole row leaving
+`ui-owner-menu` in a press outside that took the focus, which keeps it, "Sign out"
+with no project, which is the top bar's, and the tab's whole row leaving
 over 760 px, the login with it (`client/README.md`). A chat started by sending opens on its
 composer and a send leaves the focus there, but a starter's press asks the same on a phone,
 and no run on record shows what a real phone's keyboard does (`client/README.md`), and no test
