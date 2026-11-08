@@ -3,8 +3,9 @@ use crate::words::Words;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::phrases::{Form, Phrase, PhraseId, PhraseShape, PluralClass, Segment};
-#[derive(Clone, Copy)]
-pub(crate) enum TerminalWord {
+#[derive(Clone, Copy, Debug)]
+/// The terminal's phrases (temper/docs/design/client/README.md, 3.5, A chat's terminal).
+pub enum TerminalWord {
     Enter,
     Star,
     Slash,

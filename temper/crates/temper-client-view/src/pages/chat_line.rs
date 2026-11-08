@@ -9,33 +9,40 @@ use skein_lib::{List, Wall, Writer};
 use skein_ui::{Builder, Key, Role, Run as TextRun, phrases::Hole};
 use temper_client_domain::pages::calls::{self, Touched};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Call<'a> {
     source: &'a c::Call,
     touched: Touched,
     summary: Option<&'a c::Text>,
 }
-pub(crate) struct Run<'a> {
+/// A run of calls (temper/docs/design/client/README.md, 3.5, its calls).
+#[derive(Debug)]
+pub struct Run<'a> {
     calls: List<Call<'a>>,
     first: Option<Wall>,
     key: Option<Key>,
     last: Option<Wall>,
 }
 impl<'a> Run<'a> {
-    pub(crate) fn with_capacity(calls: u32) -> Self {
+    /// Starts an empty run within the conversation window (temper/docs/design/client/README.md, 3.5, its calls).
+    #[must_use]
+    pub fn with_capacity(calls: u32) -> Self {
         Self { calls: List::with_capacity(calls), first: None, key: None, last: None }
     }
     pub(crate) fn key(&mut self, key: Key) {
         self.key.get_or_insert(key);
     }
-    pub(crate) fn call(&mut self, call: &'a c::Call, at: Wall, since: Option<Wall>) {
+    /// Adds an ended call at its activity time (temper/docs/design/client/README.md, 3.5, its calls).
+    pub fn call(&mut self, call: &'a c::Call, at: Wall, since: Option<Wall>) {
         self.first.get_or_insert(since.unwrap_or(at));
         self.last = Some(at);
         self.calls
             .push(Call { source: call, summary: None, touched: calls::touched(call.tool.bytes(), call.input.bytes()) })
             .expect("window bounds run calls");
     }
-    pub(crate) fn has_call(&self, number: u64) -> bool {
+    /// Whether this run holds the numbered call (temper/docs/design/client/README.md, 3.5, its calls).
+    #[must_use]
+    pub fn has_call(&self, number: u64) -> bool {
         for call in &self.calls {
             if call.source.number == number {
                 return true;
@@ -43,7 +50,8 @@ impl<'a> Run<'a> {
         }
         false
     }
-    pub(crate) fn result(&mut self, call: u64, summary: &'a c::Text) {
+    /// Adds the summary of a call whose result followed it (temper/docs/design/client/README.md, 3.5, its calls).
+    pub fn result(&mut self, call: u64, summary: &'a c::Text) {
         for row in self.calls.iter_mut().rev() {
             if row.source.number == call {
                 row.summary = Some(summary);
@@ -51,20 +59,21 @@ impl<'a> Run<'a> {
             }
         }
     }
-    pub(crate) fn is_empty(&self) -> bool {
+    /// Whether no ended call is held (temper/docs/design/client/README.md, 3.5, its calls).
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.calls.is_empty()
     }
-    /// Draws its turn and empties; nothing when empty and with nothing under way.
-    pub(crate) fn flush(
+    /// The run's words, emptied after reading (temper/docs/design/client/README.md, 3.5, its calls).
+    pub fn line(
         &mut self,
-        b: &mut Builder,
         current: Option<&c::CurrentCall>,
         running: bool,
         words: &Words,
         terminal: bool,
-    ) {
+    ) -> Option<crate::shared::RunLine> {
         if self.is_empty() && current.is_none() {
-            return;
+            return None;
         }
         let name = if let Some(call) = self.calls.as_slice().first() {
             if self.calls.len() == 1 { alone(call.source, words) } else { phrases(self.calls.as_slice(), words) }
@@ -121,27 +130,53 @@ impl<'a> Run<'a> {
                 None => description,
             })
         };
+        self.calls.clear();
+        self.first = None;
+        self.key = None;
+        self.last = None;
+        Some(crate::shared::RunLine {
+            name: cut(&name, 256),
+            description: match description {
+                Some(description) => Some(cut(&description, 256)),
+                None => None,
+            },
+            failed,
+            running,
+        })
+    }
+    /// Draws its turn and empties; nothing when empty and with nothing under way.
+    pub(crate) fn flush(
+        &mut self,
+        b: &mut Builder,
+        current: Option<&c::CurrentCall>,
+        running: bool,
+        words: &Words,
+        terminal: bool,
+    ) {
+        let key = self.key;
+        let calls = self.calls.clone();
+        let Some(line) = self.line(current, running, words, terminal) else { return };
         b.open(Role::Slot);
-        b.key(self.key.unwrap_or(Key { owner: crate::frame::owner(), kind: 52, a: 0, b: 0 }));
+        b.key(key.unwrap_or(Key { owner: crate::frame::owner(), kind: 52, a: 0, b: 0 }));
         b.style(look::TURN);
         b.open(Role::Disclosure);
         b.style(look::WORK);
         b.style(look::TURN_TOOL);
         b.style(look::WORK_RUN);
-        if running {
+        if line.running {
             b.style(look::WORK_RUNNING);
         }
-        if failed != 0 {
+        if line.failed != 0 {
             b.style(look::WORK_FAILED);
         }
-        b.name(&cut(&name, 256));
-        if let Some(description) = description {
-            b.description(&cut(&description, 256));
+        b.name(&line.name);
+        if let Some(description) = line.description {
+            b.description(&description);
         }
         b.open(Role::Slot);
         b.style(look::WORK);
         b.style(look::WORK_CALLS);
-        for call in &self.calls {
+        for call in &calls {
             let outcome = match call.source.outcome.as_ref().or(call.summary) {
                 Some(text) => Some(text.bytes()),
                 None => None,
@@ -154,10 +189,6 @@ impl<'a> Run<'a> {
         b.close();
         b.close();
         b.close();
-        self.calls.clear();
-        self.first = None;
-        self.key = None;
-        self.last = None;
     }
 }
 fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
@@ -172,9 +203,10 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
                 break;
             }
         }
-        if earlier {
+        if earlier || see_more_beside_another(call, calls) {
             continue;
         }
+        let see = see_words(tool, &call.touched);
         let table = completed_words(call.source, &call.touched);
         let mut count = 0_u64;
         for (index, other) in calls.iter().enumerate() {
@@ -190,12 +222,23 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
                     }
                 }
             }
+            if let Some(see) = &see {
+                for previous in calls.get(..index).expect("earlier calls") {
+                    if same_group(previous, call) && see_same_argument(see, &previous.touched, &other.touched) {
+                        repeated = true;
+                        break;
+                    }
+                }
+            }
             if !repeated {
                 count = count.checked_add(1).expect("window calls");
             }
         }
-        let part = counted(tool, table.as_ref(), count, words);
-        let part = capitalized(part, parts.is_empty() && table.is_some());
+        let part = match &see {
+            Some(see) => see_counted(see, count),
+            None => counted(tool, table.as_ref(), count, words),
+        };
+        let part = capitalized(part, parts.is_empty() && (table.is_some() || see.is_some()));
         let extra = if parts.is_empty() { 0 } else { 2 };
         let next =
             length.checked_add(extra).expect("bounded separators").checked_add(part.len()).expect("bounded phrase");
@@ -215,6 +258,13 @@ fn phrases(calls: &[Call<'_>], words: &Words) -> Box<[u8]> {
     out.finish()
 }
 fn same_group(first: &Call<'_>, other: &Call<'_>) -> bool {
+    if first.source.tool.bytes() == b"see" && other.source.tool.bytes() == b"see" {
+        return match (see_words(b"see", &first.touched), see_words(b"see", &other.touched)) {
+            (Some(first), Some(other)) => first.group == other.group,
+            (None, None) => true,
+            (Some(_), None) | (None, Some(_)) => false,
+        };
+    }
     first.source.tool.bytes() == other.source.tool.bytes()
         && (first.source.tool.bytes() != b"propose_settings" || first.source.failed == other.source.failed)
 }
@@ -326,6 +376,9 @@ fn completed_words(call: &c::Call, touched: &Touched) -> Option<ToolWords> {
 }
 fn alone(call: &c::Call, words: &Words) -> Box<[u8]> {
     let touched = calls::touched(call.tool.bytes(), call.input.bytes());
+    if let Some(see) = see_words(call.tool.bytes(), &touched) {
+        return capitalized(see_alone(&see, false), true);
+    }
     let Some(table) = completed_words(call, &touched) else {
         return skein_lib::bytes::copy_of(call.tool.bytes());
     };
@@ -352,6 +405,9 @@ fn under_way(call: &c::CurrentCall, words: &Words, capitalize: bool) -> Box<[u8]
         return capitalized(words.say(Word::WorkProposingChange, &[]), capitalize);
     }
     let touched = calls::touched(call.tool.bytes(), call.input.bytes());
+    if let Some(see) = see_words(call.tool.bytes(), &touched) {
+        return capitalized(see_alone(&see, true), capitalize);
+    }
     let Some(table) = tool_words(call.tool.bytes(), &touched) else {
         return skein_lib::bytes::copy_of(call.tool.bytes());
     };
@@ -466,4 +522,170 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
         out.put(part).expect("measured text join");
     }
     out.finish()
+}
+
+// The phrase book's declarations live in words.rs. These literal phrases keep its
+// fixed capacities while sharing the run's words (README.md, 3.5, its calls).
+#[derive(Clone, Copy)]
+enum SeeCount {
+    Calls,
+    Distinct,
+    Docs,
+}
+struct SeeWords<'a> {
+    group: &'a [u8],
+    count: SeeCount,
+    noun: Option<&'static [u8]>,
+    done: &'static [u8],
+    present: &'static [u8],
+    argument: &'a [u8],
+}
+fn address(touched: &Touched) -> Option<&[u8]> {
+    match touched {
+        Touched::Other { argument } => argument.as_deref(),
+        Touched::Doc { .. }
+        | Touched::Search { .. }
+        | Touched::Inventory
+        | Touched::Setting { .. }
+        | Touched::SettingHistory => None,
+    }
+}
+fn first_word(words: &[u8]) -> (&[u8], &[u8]) {
+    let words = words.trim_ascii();
+    for (at, byte) in words.iter().enumerate() {
+        if byte.is_ascii_whitespace() {
+            return (words.get(..at).expect("word prefix"), words.get(at..).expect("word suffix").trim_ascii_start());
+        }
+    }
+    (words, b"")
+}
+fn see_words<'a>(tool: &[u8], touched: &'a Touched) -> Option<SeeWords<'a>> {
+    if tool != b"see" {
+        return None;
+    }
+    let (group, rest) = first_word(address(touched)?);
+    let (done, present): (&[u8], &[u8]) = match group {
+        b"changes" => (b"listed changes", b"listing changes"),
+        b"tasks" => (b"listed tasks", b"listing tasks"),
+        b"goals" => (b"listed goals", b"listing goals"),
+        b"inbox" => (b"checked the inbox", b"checking the inbox"),
+        b"me" => (b"checked your role", b"checking your role"),
+        b"project" => (b"read the project", b"reading the project"),
+        b"settings" => (b"checked settings", b"checking settings"),
+        b"ways" => (b"read the ways", b"reading the ways"),
+        b"revisions" | b"revision" => (b"read the history", b"reading the history"),
+        b"more" => (b"read on", b"reading on"),
+        b"change" | b"task" | b"proposal" | b"help" | b"file" => (b"read ", b"reading "),
+        _ => return None,
+    };
+    let mut see = SeeWords { group, count: SeeCount::Calls, noun: None, done, present, argument: b"" };
+    match group {
+        b"change" | b"task" => {
+            let (number, _) = first_word(rest);
+            if number.is_empty() {
+                return None;
+            }
+            for byte in number {
+                if !byte.is_ascii_digit() {
+                    return None;
+                }
+            }
+            // Numbers compare without their leading zeros.
+            let mut start = 0;
+            for (at, byte) in number.iter().enumerate() {
+                start = at;
+                if *byte != b'0' {
+                    break;
+                }
+            }
+            see.argument = number.get(start..).expect("number suffix");
+            see.count = SeeCount::Distinct;
+            see.noun = Some(if group == b"change" { b"change" } else { b"task" });
+        }
+        b"proposal" => {
+            see.argument = first_word(rest).0;
+            if see.argument.is_empty() {
+                return None;
+            }
+            see.count = SeeCount::Distinct;
+            see.noun = Some(b"proposal");
+        }
+        b"file" => {
+            let (_, path) = first_word(rest);
+            see.argument = first_word(path).0;
+            if see.argument.is_empty() {
+                return None;
+            }
+            see.count = SeeCount::Distinct;
+            see.noun = Some(b"file");
+        }
+        b"help" => {
+            see.count = SeeCount::Docs;
+            see.noun = Some(b"doc");
+            let (page, rest) = first_word(rest);
+            if page == b"search" && !rest.is_empty() {
+                see.done = b"searched the docs for ";
+                see.present = b"searching the docs for ";
+                see.argument = rest;
+            } else if page.is_empty() {
+                see.done = b"read the docs";
+                see.present = b"reading the docs";
+            } else {
+                see.done = b"read the page ";
+                see.argument = page;
+            }
+        }
+        b"changes" | b"tasks" | b"goals" | b"inbox" | b"me" | b"project" | b"settings" | b"ways" | b"revisions"
+        | b"revision" | b"more" => {}
+        _ => return None,
+    }
+    Some(see)
+}
+fn see_same_argument(see: &SeeWords<'_>, previous: &Touched, other: &Touched) -> bool {
+    match see.count {
+        SeeCount::Calls => return false,
+        SeeCount::Distinct | SeeCount::Docs => {}
+    }
+    match (see_words(b"see", previous), see_words(b"see", other)) {
+        (Some(previous), Some(other)) => {
+            let distinct = match see.count {
+                SeeCount::Calls => false,
+                SeeCount::Distinct => true,
+                SeeCount::Docs => other.done == b"read the page ",
+            };
+            distinct && previous.done == other.done && previous.argument == other.argument
+        }
+        (Some(_) | None, None) | (None, Some(_)) => false,
+    }
+}
+fn see_counted(see: &SeeWords<'_>, count: u64) -> Box<[u8]> {
+    let number = skein_lib::Decimal::of(count);
+    match see.noun {
+        Some(noun) => joined(&[b"read ", number.as_bytes(), b" ", noun, if count == 1 { b"" } else { b"s" }]),
+        None if count == 1 => see.done.into(),
+        None => joined(&[see.done, b" ", number.as_bytes(), "×".as_bytes()]),
+    }
+}
+fn see_alone(see: &SeeWords<'_>, present: bool) -> Box<[u8]> {
+    let prefix = if present { see.present } else { see.done };
+    if see.group == b"change" || see.group == b"task" || see.group == b"proposal" {
+        joined(&[prefix, see.group, b" ", see.argument])
+    } else {
+        joined(&[prefix, see.argument])
+    }
+}
+fn see_more_beside_another(call: &Call<'_>, calls: &[Call<'_>]) -> bool {
+    let Some(see) = see_words(call.source.tool.bytes(), &call.touched) else { return false };
+    if see.group != b"more" {
+        return false;
+    }
+    for other in calls {
+        if other.source.tool.bytes() == b"see" {
+            match see_words(b"see", &other.touched) {
+                Some(see) if see.group == b"more" => {}
+                Some(_) | None => return true,
+            }
+        }
+    }
+    false
 }
