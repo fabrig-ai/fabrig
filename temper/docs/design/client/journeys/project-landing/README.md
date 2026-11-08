@@ -12,11 +12,12 @@ the recording there. Alt+Shift+S saves the settled Home. The recording
 holds no act; its first replay proves the print against the live page.
 
 - `01.html`: Home in Hello, with "Hello is ready.", the ChatGPT plan
-  and Forgejo line, and To begin's two steps left: "Tell temper how you
-  work" and "Start a chat". The repository step says "work/hello is in
-  Hello". "Skip" and "Add Claude or another plan" remain available.
-  The rail lists "Ask temper" after "Chats", and the phone's tab bar
-  "Ask" after "Chats", as a fresh box offers Ask temper.
+  and Forgejo line, and To begin's one step left, "Tell temper how you
+  work", after the repository's done step, "work/hello is in Hello" and
+  "temper can change its code now.". "Skip" and "Add Claude or another
+  plan" remain available. While To begin shows, the rail lists "Home" and
+  "Ask temper" alone, with "Settings" at its foot and the night switch after it, and the phone's tab bar
+  "Home", "Ask" and "Settings", as a fresh box offers Ask temper.
 
 The walk is recorded by `again project-landing` from its `setup`, with
 no hand driver.

@@ -630,8 +630,8 @@ mod copy;
 #[test]
 fn the_look_is_kept_and_full_screen_carried() {
     use root::pages::terminal::{Font, Look, Theme};
-    let terminal = Look { terminal: true, theme: Theme::Dark, font: Font::DejaVu };
-    let light = Look { terminal: false, theme: Theme::Light, font: Font::Plex };
+    let terminal = Look { terminal: true, theme: Theme::Dark, font: Font::DejaVu, night: false };
+    let light = Look { terminal: false, theme: Theme::Light, font: Font::Plex, night: false };
     for (value, decoded) in [
         (Some(b"100".as_slice()), Some(terminal)),
         (Some(b"011".as_slice()), Some(light)),
@@ -639,7 +639,18 @@ fn the_look_is_kept_and_full_screen_carried() {
         (Some(b"111".as_slice()), Some(Look { terminal: true, ..light })),
         (Some(b"1".as_slice()), None),
         (Some(b"abc".as_slice()), None),
-        (Some(b"1000".as_slice()), None),
+        (Some(b"1000".as_slice()), Some(terminal)),
+        (Some(b"0110".as_slice()), Some(light)),
+        (Some(b"1001".as_slice()), Some(Look { night: true, ..terminal })),
+        (Some(b"0111".as_slice()), Some(Look { night: true, ..light })),
+        (Some(b"0000".as_slice()), Some(Look::default())),
+        (Some(b"1111".as_slice()), Some(Look { terminal: true, night: true, ..light })),
+        (Some(b"10000".as_slice()), None),
+        (Some(b"1002".as_slice()), None),
+        (Some(b"000x".as_slice()), None),
+        (Some(b"2000".as_slice()), None),
+        (Some(b"0200".as_slice()), None),
+        (Some(b"0020".as_slice()), None),
         (Some(b"200".as_slice()), None),
         (Some(b"020".as_slice()), None),
         (Some(b"002".as_slice()), None),
@@ -653,16 +664,27 @@ fn the_look_is_kept_and_full_screen_carried() {
             .collect();
         host.start(b"/chats/new", stored, None);
         assert_eq!(host.root.pages().look(), decoded.unwrap_or_default(), "{value:?}");
+        assert_eq!(host.night(), decoded.unwrap_or_default().night, "night restored before any report: {value:?}");
         let duties = host.report(Report::Start);
         assert_eq!(duties.keep_look, None, "start never writes a look");
         assert_eq!(duties.screen, None, "a reload never asks for full screen");
     }
-    for (look, bytes) in [(terminal, *b"100"), (light, *b"011")] {
+    for (before, look, bytes) in [
+        (terminal, Look { night: true, ..terminal }, *b"1001"),
+        (Look { night: true, ..terminal }, terminal, *b"1000"),
+        (light, Look { night: true, ..light }, *b"0111"),
+        (Look { night: true, ..light }, light, *b"0110"),
+    ] {
         assert_eq!(records::encode_look(look), bytes);
         let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
-        host.out.push(Request::KeepLook { look });
+        host.event(Event::LookKept { look: before });
+        host.event(Event::Act {
+            action: root::Action::Pages(root::pages::Act::Terminal(root::pages::terminal::Act::Night)),
+        });
         let duties = host.report(Report::Start);
+        assert_eq!(host.night(), look.night);
         assert_eq!(duties.keep_look, Some(bytes));
+        assert_eq!(duties.screen, None, "night asks no full screen");
         assert!(duties.asked.is_empty(), "the transport carries no kept write");
         assert_eq!(duties.writes, 0);
         assert_eq!(host.report(Report::Start).keep_look, None, "a duty is taken once");

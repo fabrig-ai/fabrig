@@ -590,8 +590,11 @@ by the client, not by a route:
 2. The client signs in by `Transport`: its exchanges are same-origin,
    started by temper's page, so the cookie goes with them whatever site
    the navigation came from.
-3. It sends jig's `Authorize { query }` (`POST /jig/v1/authorize`), and
-   draws the answer:
+3. Once the link is live and local transport credit is available, it
+   sends jig's `Authorize { query }` (`POST /jig/v1/authorize`), and
+   draws the answer. Cancelled watch exchanges and cleanup calls retain
+   credit until their HTTP reply or failure (jig's `protocol/client.md`,
+   section 13); the first authorization waits for that credit:
 
 | jig's answer | The page |
 |---|---|
@@ -599,7 +602,7 @@ by the client, not by a route:
 | *signed out* | the sign-in page (section 7), under its "Sign in" the line "to continue to **FORGE**", its `then` the authorization's address, so Google's return lands back at step 1 |
 | refused *unknown client* or *unknown redirect* | "This sign-in can’t continue": "The site that sent you here asked temper to send you back to an address temper doesn’t know. Nothing was sent anywhere.", and "Back to sign in"; no address is followed |
 | refused *malformed*, *no provider* or *not a person* | the same heading, its paragraph open (section 10) |
-| *not ready* or *busy* | "temper couldn’t sign you in just now": "It is starting or stopping, or signing many people in at once. Nothing was kept: try again in a moment." |
+| *not ready*, *busy* or a locally *lost* exchange | "temper couldn’t sign you in just now": "It is starting or stopping, or signing many people in at once. Nothing was kept: try again in a moment." |
 
 - **FORGE** is the forge as the client names it (`../client/forge.md`,
   5.4): "Forgejo at HOST", or "Forgejo on this machine" for an owned
@@ -931,6 +934,11 @@ bot's and the person's tokens, and neither passes this provider.
 
 ## 10. Open questions
 
+- **Startup readiness beyond local admission** (9.3): waiting for people
+  during authorization, Google's return mint and approval sign-in is
+  separate from waiting for transport credit. Its policy and bound are
+  jig's (`jig/docs/design/protocol/client.md`, section 15); no startup
+  retry is chosen here.
 - **Generating the provider's key in process** (9.9): it needs a key
   generator in skein; its signing library does not generate RSA keys.
   Default: `openssl` at init, with the provider off and password links

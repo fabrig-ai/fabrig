@@ -8,6 +8,7 @@ pub struct Look {
     pub terminal: bool,
     pub theme: Theme,
     pub font: Font,
+    pub night: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Theme {
@@ -29,6 +30,8 @@ pub enum Act {
     Theme,
     /// `/font`: the other font.
     Font,
+    /// The night switch: the other of day and night, on any page.
+    Night,
     /// A command pressed or sent whole.
     Run { command: Command },
     /// Close a list and clear a command prefix.
@@ -40,6 +43,7 @@ impl Look {
             Act::Run { .. } | Act::Dismiss => return,
             Act::Enter => self.terminal = true,
             Act::Leave => self.terminal = false,
+            Act::Night => self.night = !self.night,
             Act::Theme => {
                 self.theme = match self.theme {
                     Theme::Dark => Theme::Light,
@@ -57,7 +61,7 @@ impl Look {
         match act {
             Act::Enter => out.push(super::Request::Screen { on: true }),
             Act::Leave => out.push(super::Request::Screen { on: false }),
-            Act::Theme | Act::Font | Act::Run { .. } | Act::Dismiss => {}
+            Act::Theme | Act::Font | Act::Night | Act::Run { .. } | Act::Dismiss => {}
         }
     }
 }
@@ -89,7 +93,7 @@ pub fn draws(address: &crate::Address) -> bool {
 // The look contract requires Default; the subset forbids deriving it.
 impl Default for Look {
     fn default() -> Self {
-        Self { terminal: false, theme: Theme::Dark, font: Font::DejaVu }
+        Self { terminal: false, theme: Theme::Dark, font: Font::DejaVu, night: false }
     }
 }
 #[expect(clippy::derivable_impls, reason = "the strict subset forbids deriving Default")]
@@ -261,7 +265,7 @@ impl super::Pages {
                 }
                 return None;
             }
-            Act::Enter | Act::Leave | Act::Theme | Act::Font => {
+            Act::Enter | Act::Leave | Act::Theme | Act::Font | Act::Night => {
                 let font = act == Act::Font;
                 self.look.act(act, out);
                 if font {

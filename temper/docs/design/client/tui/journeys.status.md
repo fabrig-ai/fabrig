@@ -23,5 +23,16 @@ with its own lease and push target; its existing test table covers
 both branches and the refusal naming both. The branch change leaves
 no deferred work; section 11's choices remain as written.
 
+Sections 3.2, 4.1 and 5 have the local-file and note records, replay
+through the shipped host, and redaction of a found link even when it
+is never sent. Section 6.4's pages draw terminal-default colours with
+the scheme's stand-ins. Sections 8.2 and 9 have the regenerated
+`sign-in-approved`: its own runtime directory finds no engine's link,
+and an unanswered background query selects dark. The recording carries
+`local`, `read`, `found none` and the later expiry note; it follows the
+browser's approval and keeps two frames. No work from this plan remains
+deferred in the journey machinery; section 11's manual checks and look
+refinement remain.
+
 - **Not yet:** 9: `sign-in-approved` recorded to the launchpad, and
   `launchpad-chat`, neither recorded.

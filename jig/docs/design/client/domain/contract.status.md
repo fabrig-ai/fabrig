@@ -2,6 +2,14 @@
 
 2026-11-08. Where jig's code lags or departs from [contract.md](contract.md).
 
+Section 4 has no known gap in a program declaration's name-taken
+refusal: the accounts child and core carry it through the existing
+client refusal. A declaration's not-offered answer names the absence
+of a program offer; a resume's names a source that is not limited.
+The joined client-world story covers revival, its host-check dispatch
+and a live name's refusal through ctl. No wire or stored format changes
+are needed for these meanings.
+
 Sections 3.2 and 5.1 have no known gap in charter parts or `later` on
 the client wire. A task document shows its next run's choice, flattening
 `later` after the first activation only for a charter whose runs do not

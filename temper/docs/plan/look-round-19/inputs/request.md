@@ -1,23 +1,19 @@
-# ui-account-again: a forgotten Claude Code account can be declared again
+# look-round-19: Start's page, To begin in two steps, and a night mode
 
-A finding from temper/qa's proof preflight (2026-11-08, dev.fabrig.ai at `7638040201`). A person forgot a Claude Code program account, and temper said "Signed out on every machine". Then they declared it again under the same program name:
+A look plan, step 1 of `temper/docs/design/draft/stock-ways.md`'s section 7: three look requests on `origin/look-requests`, each found by its trailer, with nothing needed before them. Follow `temper/docs/design/draft/look-requests.md`, sections 3 and 5, for each. Read each commit's whole message: what its pages show, and the states they don't show, which this plan builds too.
 
-    account declare 2 claude_code claude-6 --key ...
-    account declare: This act is not offered
+## Tasks
 
-That exits 2. The worker still reports `claude-6` as `usable`, with `sign_out signed_out` and `cleanup true`, and provider 2's readiness as unavailable. Forgetting isn't meant to be final: a person who signs out of an account may sign it back in, under the name they gave it before.
+1. **`Look-request: ask-temper-start`** (`e9da9f87a8`): what Start opens on a new project. Its message says it adds nothing beyond `ui-ask-m1`'s move of Configure into Ask temper. So this is its account (section 5): each state it shows matched against what's on main, and the account committed. If one differs, make it match.
+2. **`Look-request: to-begin-two-steps`** (`4332a26265`): To begin in two steps, the repository first, and the chat step gone (`Facts::left()` counts two). Build every line and note it names, the `HomeNote*` words by its rule, with `HomeNoteThree` and `HomeNoteChats` gone. While To begin is unfinished, the rail on Home and on Ask temper's page holds Home, Ask temper and Settings, and the phone's tab bar Home, Ask and Settings, three equal tabs. Home's Needs you and Chats sections stay out while the card shows.
+3. **`Look-request: night-mode`** (`3c5333485a`): a first pass, kept by the user to refine later. Tokens first, so `temper.css`'s colours come from tokens with a night set, after fabrig.ai's colours as the request's pages draw them. The switch is at the rail's foot, a moon by day and a sun by night, and at the top bar's right on a phone. The glow is small and faint, at the window's top right, over the whole window, with a fine grain and no rings. Build it on the request's three pages: the landing, Ask temper, and a chat beside its draft. The rest of the client takes the tokens as they fall, with no page left unreadable at night. Where the switch's choice is kept, and whether a first visit follows the system's scheme, are this task's to decide, as the smallest thing that holds across reloads. Say which in `plan.md`.
 
-## One task
-
-1. **A failing row first**, beside the account acts' table (`temper/crates/temper-client-tools/src/tests/jig/account_acts.rs`), or at the lowest place the cause shows on the fake backends. It forgets a program account, then declares one of the same program and name, and today gets "This act is not offered".
-2. **Find why the act is withheld and fix it at its lowest place.** Candidates: the forgotten source still held by the worker, a name kept after the forget, or the offer's rule reading a signed-out source as present. After the forget, the declare is offered and takes the name, and its "it works" check runs as for a first declare.
-3. **A withheld act says why and what to do.** Where an account act stays refused for a reason a person can fix, its refusal names that reason and the next step, not "This act is not offered" alone. That goes in the words of `temper-client-tools/src/jig/render/outcome.rs`, ctl's and the web's alike, as a row each.
+The browser tier's cap of 12 holds: a new case is a row of an existing table test, and the gallery gains states for night.
 
 ## Sources
 
-- `temper/crates/temper-client-tools/src/tests/jig/account_acts.rs`
-- `temper/crates/temper-client-tools/src/jig/render/outcome.rs`
-- `temper/docs/design/client/README.md`
+- `temper/docs/design/draft/look-requests.md`
+- `temper/docs/design/draft/stock-ways.md`
 
 
 ## For every task of this plan

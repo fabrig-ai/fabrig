@@ -21,7 +21,7 @@ fn act(root: &mut d::Domain, act: Act) {
     f::root_event(root, Event::Act { action: d::Action::Pages(act) });
 }
 fn terminal_root(running: bool) -> d::Domain {
-    let mut task = super::chat::configuring_task();
+    let mut task = super::chat::asking_task();
     task.chip.details.phase = c::ChipPhase::Active(if running { c::RunStage::Due } else { c::RunStage::Idle });
     task.chip.phase = task.chip.details.phase.compact();
     task.waits_on = if running { c::WaitsOn::Nothing } else { c::WaitsOn::News };
@@ -30,7 +30,7 @@ fn terminal_root(running: bool) -> d::Domain {
     task.wake.words = c::WakeRule::Immediate;
     task.delegates.clear();
     task.run_wait = None;
-    let mut root = super::chat::configuring_task_root(task, true, 1);
+    let mut root = super::chat::asking_task_root(task, true, 1);
     act(&mut root, Act::Terminal(terminal::Act::Enter));
     root
 }
@@ -126,11 +126,11 @@ fn note(note: Note) -> Row {
             act(&mut root, Act::Send);
         }
         Note::Closed => {
-            let mut task = super::chat::configuring_task();
+            let mut task = super::chat::asking_task();
             task.chip.details.phase = c::ChipPhase::Ended;
             task.chip.phase = c::Phase::Ended;
             task.acts.clear();
-            root = super::chat::configuring_task_root(task, true, 1);
+            root = super::chat::asking_task_root(task, true, 1);
             act(&mut root, Act::Terminal(terminal::Act::Enter));
             act(&mut root, Act::Send);
         }

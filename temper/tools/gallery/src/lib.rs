@@ -120,7 +120,13 @@ fn built_with(
     sample: &Sample,
     inputs: ViewInputs,
 ) -> (temper_client_view::View, temper_client_view::Limits, Vec<skein_ui::Patch>) {
-    let root = samples::domain(sample);
+    built_root(sample, inputs, &samples::domain(sample))
+}
+fn built_root(
+    sample: &Sample,
+    inputs: ViewInputs,
+    root: &temper_client_domain::Domain,
+) -> (temper_client_view::View, temper_client_view::Limits, Vec<skein_ui::Patch>) {
     let ViewInputs { limits, words, bounds } = inputs;
     let mut view = temper_client_view::View::with_sign_in(
         &bounds,
@@ -136,7 +142,7 @@ fn built_with(
     forge_sign_in.read("3 forgejo http://127.0.0.1:8368 owned");
     view.forge_sign_in(forge_sign_in);
     let mut patches = Queue::with_capacity(bounds.tree.patches);
-    temper_client_view::build(&mut view, &root, worlds::sample_now(sample.world, sample.name), &mut patches);
+    temper_client_view::build(&mut view, root, worlds::sample_now(sample.world, sample.name), &mut patches);
     let mut collected = Vec::new();
     for _ in 0..patches.len() {
         collected.push(patches.pop().expect("queued patch"));
@@ -149,7 +155,9 @@ pub fn page(sample: &Sample, digest: &skein_ui_bundle::Digest) -> String {
     page_with(sample, digest, ViewInputs::new())
 }
 fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInputs) -> String {
-    let (mut view, bounds, collected) = built_with(sample, inputs);
+    let root = samples::domain(sample);
+    let night = if root.pages().look().night { " data-night" } else { "" };
+    let (mut view, bounds, collected) = built_root(sample, inputs, &root);
     let mut page = Page::new(
         Look {
             names: &[temper_client_view::look::NAMES],
@@ -208,7 +216,7 @@ fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInpu
         write!(styles, "<link rel=\"stylesheet\" href=\"bundle/{digest}/{file}\">").expect("write string");
     }
     format!(
-        "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>{styles}</head><body>{html}</body></html>\n"
+        "<!doctype html>\n<html lang=\"en\"{night}><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>{title}</title>{styles}</head><body>{html}</body></html>\n"
     )
 }
 fn heading(tree: &skein_ui::Tree) -> Vec<u8> {

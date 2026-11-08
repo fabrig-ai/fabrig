@@ -169,6 +169,20 @@ The asking tool family and a run's settings-proposal read are implemented
 (`domain/authority.md`, section 3; `domain/engine.md`, 7.3). Reading as a
 person remains later work in `domain/engine.md`, section 16.
 
+Client transport admission counts cancelled watch openings and cleanup
+until their HTTP reply or failure. Its focused stream table holds an
+authorization until credit returns. The provider still passes people's
+restoration refusal through as not ready, beyond the design's stopping
+case; a bounded startup wait remains separate work
+(`protocol/client.status.md`, section 18; `protocol/client.md`, section 15).
+
+Removed program names can be declared again by their original holders,
+with the reservation moved atomically and a host login check dispatched;
+live names and another holder's reservation answer name taken
+(`domain/accounts.md`, 3.4 and section 5; `client/domain/contract.md`,
+section 4). Finer reasons for key and sign-in acts' not-offered answers
+remain deferred in those documents' open questions.
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`domain/README.md`](domain/README.status.md)

@@ -15,9 +15,20 @@ native client-root half and web page at `/terminal` are built, with eleven
 gallery states and joint-client stories. The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
+The local box's private link file, bare command's address discovery,
+automatic sign-in, quiet fallback and bounded rereads are built, with
+the expiry note and joint-world renewal and sign-out stories. The note
+uses a minute's slack: a revocation near expiry or a missing note can
+still renew, so unconditional refusal after sign-out remains a departure
+from the request (`draft/tui.status.md`, 4.1). Terminal-default base
+colours, accent focus and scheme selection from COLORFGBG or a bounded
+OSC 11 query are built (`client/README.md`, 6.11 to 6.16).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
+That journey uses a runtime directory apart from the box's and no
+COLORFGBG, so it exercises approval and the dark fallback; its pages
+use the theme's stand-ins for terminal-default colours.
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
 remains later work (`client/tui/journeys.md`, 3.1 and 11).
@@ -304,14 +315,15 @@ has no outcome in the supplied inventory, and the real-box sign-in
 story awaits its after-landing run. Repository links and box-owned sign-in
 are built, with native browser clicks at 1440 and Settings links at 420;
 the runner was disabled. No separate attacker-review outcome is supplied,
-three laptop baseline cases remain unrepeated, and an intermittent busy
-authorization page without a request is unresolved (`protocol/setup.md`,
+three laptop baseline cases remain unrepeated, and the exploratory busy
+authorization page without a request remains untraced (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). The cross-site
 restart authorization failure is local fetch admission loss: the client
 stopped counting cancelled watch exchanges and cleanup calls before their
 HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
 reply or failure, so authorization waits for room (`protocol/sign-in.md`,
-9.3). `temper init`'s documents hold
+9.3). Startup readiness beyond that local admission remains separate
+work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
@@ -670,6 +682,15 @@ not-ready line. The accepted distinct watch not-ready refusal and its
 ctl deadline line are absent; wire reasons and the browser membership
 check remain later work (`protocol/README.status.md`, 8.2;
 `client/tools.status.md`, 6.3; `client/tools.md`, section 14).
+
+Forgotten program accounts can be declared again under their name, with
+the host login check dispatched. Ctl and the web explain declarations'
+name-taken and not-offered answers and a retry or resume's not-offered
+answer; ConnectModel recovers the person's own live name. The joined
+client-world story uses a fake worker. The request's broader wording
+for key and sign-in refusals remains deferred because their not-offered
+answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
+`client/README.md`, 5.5 and section 11).
 
 Design documents:
 - [`README.md`](README.status.md)
