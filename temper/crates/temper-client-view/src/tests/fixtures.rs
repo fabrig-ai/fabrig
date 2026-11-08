@@ -2274,7 +2274,7 @@ fn classes_bytes(classes: &temper_protocol_reaches::Classes) -> Box<[u8]> {
 fn ways_bytes(ways: forge::ways::Ways) -> Box<[u8]> {
     let value = w::ProjectWays::new(
         &w::CEILINGS,
-        w::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+        w::ProjectWaysParts { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way },
     )
     .unwrap();
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());

@@ -49,9 +49,9 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             })
         }
         7 => {
-            let v1::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way } =
+            let v1::ProjectWaysParts { drafts, goals, changes, way } =
                 v1::ProjectWays::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
-            settings::Value::Ways(settings::ProjectWays { drafts, goals, changes, away, way })
+            settings::Value::Ways(settings::ProjectWays { drafts, goals, changes, way })
         }
         8 => {
             let record = v1::ProjectClasses::decode(&v1::CEILINGS, &mut reader).ok()?;
@@ -241,7 +241,7 @@ fn wire_questions(route: Route) -> v1::ProjectQuestions {
 fn wire_ways(ways: settings::ProjectWays) -> v1::ProjectWays {
     v1::ProjectWays::new(
         &v1::CEILINGS,
-        v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+        v1::ProjectWaysParts { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way },
     )
     .expect("fixed ways fields")
 }

@@ -2,10 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5.13, *What the project shows* and *The card in a chat*: the
-  tab draws kind 7's "Away switch" row and a proposal's "Away switch: shown",
-  from a member the kind keeps. `ui-reaches/ways-away`.
-
 - **Not yet:** 10: the client world holds no story of what reaches a person.
   `ui-reaches/reaches-story`.
 
@@ -958,9 +954,6 @@ read's head explicit.
     again" first: a refused message leaves the row marked, and its task won't ask.
   - 3.5: Home's away form is not drawn while To begin shows, where the request has
     it with any row showing.
-  - 5.13: the tab's "Away switch" row says "Hidden" with kind 7's `away` false, and
-    a project with a goal, or the party's row on, shows the switch all the same,
-    since the request has any of the three show it.
 - **Design departs:** 3.5, *A chat's conversation*, its cards, from the request
   `ui-chats` of 2026-11-05, which names a proposal, a held task and a question's
   answer as cards in the conversation: a chat's page holds proposals alone

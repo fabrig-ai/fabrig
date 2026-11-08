@@ -73,7 +73,7 @@ fn the_configuring_cue_proposes_project_ways_with_the_hosts_settings_form() {
     assert_eq!(
         call["arguments"]["items"],
         serde_json::json!([
-            {"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}}
+            {"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}}
         ])
     );
     assert_eq!(cue["turns"][1]["finish"], "stop");

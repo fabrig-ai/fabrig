@@ -126,7 +126,6 @@ fn configuration(limits: &mut engine::Limits) -> engine::Config {
                         drafts: true,
                         goals: true,
                         changes: true,
-                        away: false,
                         way: 0,
                     },
                 ),

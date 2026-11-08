@@ -124,11 +124,7 @@ fn propose_in(mut world: ClientWorld, items: Option<Box<[s::Item]>>) -> (ClientW
     let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter 1") };
     assert_eq!(charter.policy.waiting, Duration::from_secs(1));
     charter.policy.waiting = Duration::from_secs(2);
-    let reason = if items.is_some() {
-        b"Show drafts, goals, changes and the away switch.".as_slice()
-    } else {
-        REASON.as_bytes()
-    };
+    let reason = if items.is_some() { b"Show drafts, goals and changes.".as_slice() } else { REASON.as_bytes() };
     let items = items.unwrap_or_else(|| {
         Box::new([s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(s::Value::Charter(charter)) }])
     });
@@ -398,7 +394,6 @@ fn an_asking_proposal_of_a_projects_ways_reaches_its_needs_and_its_rail() {
         drafts: true,
         goals: true,
         changes: false,
-        away: true,
         way: 0,
     });
     let item = temper_engine_domain_world::kinds::item(7, PROJECT, 1, &value);

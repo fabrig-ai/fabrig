@@ -45,7 +45,7 @@ pub(super) fn setting(name: &str) -> Box<[u8]> {
     let draft = name == "how-draft";
     let ways = w::ProjectWays::new(
         &w::CEILINGS,
-        w::ProjectWaysParts { skein_bools: [draft, draft, false, false], way: if draft { 4 } else { 0 } },
+        w::ProjectWaysParts { drafts: draft, goals: draft, changes: false, way: if draft { 4 } else { 0 } },
     )
     .expect("How project ways");
     let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
@@ -489,9 +489,11 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
             .expect("four rules");
     }
     if index == 2 {
-        let ways =
-            w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { skein_bools: [true, true, false, false], way: 4 })
-                .expect("draft goals");
+        let ways = w::ProjectWays::new(
+            &w::CEILINGS,
+            w::ProjectWaysParts { drafts: true, goals: true, changes: false, way: 4 },
+        )
+        .expect("draft goals");
         let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
         ways.encode(&mut writer).expect("measured ways");
         items

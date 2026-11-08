@@ -53,7 +53,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::None)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
-        (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, away: false, way: u32::MAX })),
+        (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
         (8, d::Value::Classes(classes.clone())),
     ] {
         for slot in [

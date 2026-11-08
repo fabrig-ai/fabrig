@@ -110,7 +110,6 @@ impl Joint {
                 drafts: false,
                 goals: true,
                 changes: false,
-                away: true,
                 way: 0,
             });
         front.engine.send(kinds::change(

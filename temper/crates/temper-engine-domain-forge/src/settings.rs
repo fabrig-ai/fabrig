@@ -67,12 +67,10 @@ pub struct RuleApproval {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "each project way is an independent client visibility choice")]
 pub struct ProjectWays {
     pub drafts: bool,
     pub goals: bool,
     pub changes: bool,
-    pub away: bool,
     pub way: u32,
 }
 
@@ -109,10 +107,10 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
             })
         }
         7 => {
-            let ways = ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 };
+            let ways = ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
             let record = v1::ProjectWays::new(
                 &v1::CEILINGS,
-                v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+                v1::ProjectWaysParts { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way },
             )
             .expect("fixed ways fields");
             Some(SizedValue { value: Value::Ways(ways), size: record.measure() })

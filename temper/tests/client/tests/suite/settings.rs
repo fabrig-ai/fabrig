@@ -19,7 +19,7 @@ const WORKER: skein_lib::Token = skein_lib::Token::new(7);
 const ROSTER: u8 = 202;
 const OTHER_OWNER: u64 = 8;
 const CHANGE_CALL: u64 = 1;
-const SWITCHES: [&[u8]; 4] = [b"Chats can write drafts", b"Goals", b"Changes", b"Away switch"];
+const SWITCHES: [&[u8]; 3] = [b"Chats can write drafts", b"Goals", b"Changes"];
 
 fn see(find: Find) -> Step<Address> {
     Step::See { find, within: fixtures::WITHIN }
@@ -58,7 +58,7 @@ fn work_filter(world: &mut ClientWorld, person: ClientId, label: &[u8], shown: b
     );
 }
 fn accepted() -> (ClientWorld, ClientId) {
-    let value = Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, away: true, way: 0 });
+    let value = Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, way: 0 });
     let (mut world, agent, _, proposal) =
         propose(false, Some(Box::new([kinds::item(WAYS_KIND, PROJECT, SETTING, &value)])));
     fixtures::settings_goal(world.front());

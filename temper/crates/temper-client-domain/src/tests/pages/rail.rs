@@ -144,7 +144,7 @@ fn project_domain() -> Domain {
         {
             let ways = w::ProjectWays::new(
                 &w::CEILINGS,
-                w::ProjectWaysParts { skein_bools: [true, false, false, true], way: 0 },
+                w::ProjectWaysParts { drafts: true, goals: false, changes: false, way: 0 },
             )
             .expect("ways");
             let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways size"));

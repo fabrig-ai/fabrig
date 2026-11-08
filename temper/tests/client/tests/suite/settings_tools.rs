@@ -637,14 +637,14 @@ fn restored_forge_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 
     })
 }
 
-const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
+const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
 
 #[test]
 fn settings_show_prints_a_projects_ways_and_questions() {
     let mut world = revision_world();
     let agent = fixtures::agent(&mut world);
     for (kind, value) in [
-        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":false,"changes":false,"way":0}"#),
         (b"project-questions", "\"none\""),
     ] {
         let shown = call(&mut world, agent, &[b"settings", b"show", kind, b"1"]);
@@ -659,7 +659,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     assert!(inventory.contains("project-ways 1") && inventory.contains("project-questions 1"), "{inventory}");
     let project = configuration().core.seed_projects[0].name.as_bytes().to_vec();
     for (kind, value) in [
-        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}"#),
+        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":true,"changes":false,"way":0}"#),
         (b"project-questions", "\"foreman\""),
     ] {
         for selector in [b"1".as_slice(), project.as_ref()] {

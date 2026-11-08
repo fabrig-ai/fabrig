@@ -397,7 +397,6 @@ fn shows(
             shown.changes,
             Ways { changes: !shown.changes, ..shown },
         ),
-        (WaysRow::Away, Word::SettingsAway, Word::SettingsAwayLine, shown.away, Ways { away: !shown.away, ..shown }),
     ] {
         let label = w.say(label, &[]);
         row(b, w, &label, Some(line));
@@ -406,12 +405,8 @@ fn shows(
         let word = match (key, value) {
             (WaysRow::Drafts, true) => Word::SettingsOn,
             (WaysRow::Drafts, false) => Word::SettingsOff,
-            (WaysRow::Goals | WaysRow::Changes | WaysRow::Away | WaysRow::Classes | WaysRow::Way(_), true) => {
-                Word::SettingsShown
-            }
-            (WaysRow::Goals | WaysRow::Changes | WaysRow::Away | WaysRow::Classes | WaysRow::Way(_), false) => {
-                Word::SettingsHidden
-            }
+            (WaysRow::Goals | WaysRow::Changes | WaysRow::Classes | WaysRow::Way(_), true) => Word::SettingsShown,
+            (WaysRow::Goals | WaysRow::Changes | WaysRow::Classes | WaysRow::Way(_), false) => Word::SettingsHidden,
         };
         crate::cards::text(b, Role::Text, &w.say(word, &[]));
         b.open(Role::Check);

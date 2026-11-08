@@ -741,14 +741,8 @@ fn project_values() -> [(u32, SizedValue); 3] {
         (
             7,
             SizedValue {
-                value: Value::Ways(crate::settings::ProjectWays {
-                    drafts: true,
-                    goals: false,
-                    changes: true,
-                    away: false,
-                    way: 0,
-                }),
-                size: 8,
+                value: Value::Ways(crate::settings::ProjectWays { drafts: true, goals: false, changes: true, way: 0 }),
+                size: 7,
             },
         ),
         (

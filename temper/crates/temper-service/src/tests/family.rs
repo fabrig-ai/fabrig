@@ -3506,7 +3506,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
         stops: stops.into_boxed(),
     };
     let project = 7;
-    let kind7 = forge::settings::ProjectWays { drafts: true, goals: true, changes: true, away: true, way: u32::MAX };
+    let kind7 = forge::settings::ProjectWays { drafts: true, goals: true, changes: true, way: u32::MAX };
     let mut entries = List::uncapped();
     for way in crate::stock::ways() {
         let items = ways::items(&way, project, Some(&kind7));

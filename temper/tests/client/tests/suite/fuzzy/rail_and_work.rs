@@ -270,13 +270,7 @@ fn cards(section: &List<Card>) -> Vec<((u8, u64), Vec<u64>)> {
 }
 
 fn ways(rng: &mut Rng) -> Ways {
-    Ways {
-        drafts: rng.chance(500),
-        goals: rng.chance(500),
-        changes: rng.chance(500),
-        away: rng.chance(500),
-        way: small_count(rng),
-    }
+    Ways { drafts: rng.chance(500), goals: rng.chance(500), changes: rng.chance(500), way: small_count(rng) }
 }
 
 fn check_shown(filters: &work::Filters, settings: Option<Ways>, seed: u64) {
@@ -310,14 +304,15 @@ fn sweep(seed: u64) {
     if second == first {
         second.drafts = !second.drafts;
     }
-    // Away is also shown for existing goals or an on Away row, independently of kind 7.
+    // Away is shown by the classes or an on Away row, independently of kind 7.
+    let classes_ask = rng.chance(500);
     let away_on = rng.chance(500);
     let mut revisions = Vec::new();
     check_shown(&before.filters, None, seed);
     for settings in [first, second] {
         check_shown(&before.filters, Some(settings), seed);
         rail.drafts = settings.drafts;
-        rail.away = !oracle.goals.is_empty() || away_on || settings.away;
+        rail.away = classes_ask || away_on;
         revisions.push(check_rail(&rail, seed));
     }
     let [old, new] = revisions.as_slice() else { panic!("two settings revisions") };

@@ -183,7 +183,6 @@ pub enum Word {
     SettingsProposalDrafts,
     SettingsProposalGoals,
     SettingsProposalChanges,
-    SettingsProposalAway,
     SettingsProposalWay,
     SettingsProposalOn,
     SettingsProposalOff,
@@ -222,8 +221,6 @@ pub enum Word {
     SettingsGoalsLine,
     SettingsChanges,
     SettingsChangesLine,
-    SettingsAway,
-    SettingsAwayLine,
     SettingsOn,
     SettingsOff,
     SettingsShown,
@@ -1679,7 +1676,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2231;
+const PHRASES: u32 = 2228;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1706,10 +1703,10 @@ const PHRASES: u32 = 2231;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3956;
+const SEGMENTS: u32 = 3951;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 54309;
-const ALL: [Word; 1549] = [
+const ENGLISH_BYTES: u32 = 54232;
+const ALL: [Word; 1546] = [
     Word::StopAsking,
     Word::StopAskingDecide,
     Word::StopAskingWords,
@@ -1877,7 +1874,6 @@ const ALL: [Word; 1549] = [
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
     Word::SettingsProposalChanges,
-    Word::SettingsProposalAway,
     Word::SettingsProposalWay,
     Word::SettingsProposalOn,
     Word::SettingsProposalOff,
@@ -1915,8 +1911,6 @@ const ALL: [Word; 1549] = [
     Word::SettingsGoalsLine,
     Word::SettingsChanges,
     Word::SettingsChangesLine,
-    Word::SettingsAway,
-    Word::SettingsAwayLine,
     Word::SettingsOn,
     Word::SettingsOff,
     Word::SettingsShown,
@@ -3538,7 +3532,6 @@ impl Word {
             Self::SettingsProposalDrafts => 3417,
             Self::SettingsProposalGoals => 3418,
             Self::SettingsProposalChanges => 3419,
-            Self::SettingsProposalAway => 3420,
             Self::SettingsProposalWay => 3421,
             Self::SettingsProposalOn => 3422,
             Self::SettingsProposalOff => 3423,
@@ -3576,8 +3569,6 @@ impl Word {
             Self::SettingsGoalsLine => 3438,
             Self::SettingsChanges => 3439,
             Self::SettingsChangesLine => 3440,
-            Self::SettingsAway => 3441,
-            Self::SettingsAwayLine => 3442,
             Self::SettingsOn => 3443,
             Self::SettingsOff => 3444,
             Self::SettingsShown => 3445,
@@ -6475,15 +6466,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsGoalsLine => (&[b"Bigger work from a draft: a plan, tasks, landing."], &[]),
         Word::SettingsChanges => (&[b"Changes"], &[]),
         Word::SettingsChangesLine => (&[b"The landing queue, as Work's filter."], &[]),
-        Word::SettingsAway => (&[b"Away switch"], &[]),
-        Word::SettingsAwayLine => (&[b"Lets agents decide within limits while you\xe2\x80\x99re away."], &[]),
         Word::SettingsProposalTitle => (&[b"How temper will run ", b""], &[Name]),
         Word::SettingsProposalTitleAll => (&[b"How temper will run your projects"], &[]),
         Word::SettingsProposalDeploymentOwners => (&[b"Owners of this deployment"], &[]),
         Word::SettingsProposalDrafts => (&[b"Drafts: ", b""], &[Name]),
         Word::SettingsProposalGoals => (&[b"Goals: ", b""], &[Name]),
         Word::SettingsProposalChanges => (&[b"Changes page: ", b""], &[Name]),
-        Word::SettingsProposalAway => (&[b"Away switch: ", b""], &[Name]),
         Word::SettingsProposalWay => (&[b"Way: ", b""], &[Name]),
         Word::SettingsProposalOn => (&[b"on"], &[]),
         Word::SettingsProposalOff => (&[b"off"], &[]),

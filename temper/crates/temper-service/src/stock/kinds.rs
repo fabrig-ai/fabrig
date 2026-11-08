@@ -82,7 +82,6 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
                 drafts: true,
                 goals: false,
                 changes: false,
-                away: false,
                 way: 0,
             })),
             per_scope: 1,

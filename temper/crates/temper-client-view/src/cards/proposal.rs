@@ -894,10 +894,6 @@ fn proposed_ways(
             Word::SettingsProposalChanges,
             if ways.changes { Word::SettingsProposalShown } else { Word::SettingsProposalHidden },
         ),
-        (
-            Word::SettingsProposalAway,
-            if ways.away { Word::SettingsProposalShown } else { Word::SettingsProposalHidden },
-        ),
     ] {
         setting_line(b, &words.say(word, &[Hole::Name(words.say(value, &[]))]));
     }

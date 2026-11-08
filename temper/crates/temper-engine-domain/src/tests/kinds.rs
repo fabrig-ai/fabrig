@@ -952,14 +952,8 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
 
 fn ways(way: u32) -> settings::SizedValue {
     settings::SizedValue {
-        size: 8,
-        value: settings::Value::Ways(settings::ProjectWays {
-            drafts: true,
-            goals: false,
-            changes: true,
-            away: false,
-            way,
-        }),
+        size: 7,
+        value: settings::Value::Ways(settings::ProjectWays { drafts: true, goals: false, changes: true, way }),
     }
 }
 

@@ -164,7 +164,9 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     w::ProjectWays::new(
                         &w::CEILINGS,
                         w::ProjectWaysParts {
-                            skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away],
+                            drafts: ways.drafts,
+                            goals: ways.goals,
+                            changes: ways.changes,
                             way: ways.way,
                         },
                     )
@@ -204,8 +206,8 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     w::Route::Up => temper_engine_domain_forge_change::Route::Up,
                 }),
                 w::SettingValue::Ways(value) => {
-                    let w::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way } = value.into_parts();
-                    d::Value::Ways(d::ProjectWays { drafts, goals, changes, away, way })
+                    let w::ProjectWaysParts { drafts, goals, changes, way } = value.into_parts();
+                    d::Value::Ways(d::ProjectWays { drafts, goals, changes, way })
                 }
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
                 w::SettingValue::Classes(record) => {

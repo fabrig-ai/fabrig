@@ -1470,7 +1470,7 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 7,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 8,
+                value_bytes: 7,
                 per_scope: 1,
                 charters: 0
             },
