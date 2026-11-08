@@ -253,6 +253,7 @@ needs-second-answered
 night-ask
 night-chat-split
 night-home
+night-team
 no-project
 out-of-date
 playground-resetting
@@ -297,6 +298,8 @@ task-releasing
 task-releasing-uncertain
 task-solo-T3
 task-solo-T9
+team
+team-alone
 welcome-first-run-0
 welcome-forge-choose
 welcome-forge-connected

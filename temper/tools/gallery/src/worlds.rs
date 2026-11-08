@@ -2,6 +2,10 @@
 //! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
 use temper_fixtures::client_documents as documents;
 mod chat_work;
+mod team;
+pub(super) fn team_world(name: &str) -> Domain {
+    team::world(name)
+}
 mod views;
 mod ways;
 pub(super) fn ways_world(name: &str) -> Domain {
