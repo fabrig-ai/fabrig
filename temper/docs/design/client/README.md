@@ -6566,9 +6566,10 @@ draws its heading and its "Task brief".
 The TUI (`../draft/tui.md`) is a person's full-screen terminal client:
 temper's client root, a view of its own and skein's full-screen shell
 (skein's `ui-screen.md`), over the native transport `temper open` uses.
-Its first pass (`../draft/tui.md`, section 4) signs in by the box's
-printed link, pasted, and draws a first screen that proves the
-connection, live (6.14). `temper open` stays the tests' line client
+Its first pass (`../draft/tui.md`, section 4) signs in from the local
+engine's link file, with a pasted link or the browser's approval as
+fallback, and draws a first screen that proves the connection, live
+(6.14 and 7.1). `temper open` stays the tests' line client
 (6.9).
 
 - **Bare `temper`** runs the TUI when stdin and stdout are both
@@ -6765,10 +6766,10 @@ connection, live (6.14). `temper open` stays the tests' line client
   browser to open, once for each approval asked (7.1); and closing, once.
   After closing, every report but `Heard` and `Kept` does nothing, so
   the native shell's last write still lands.
-- **The note:** after each report, an expiry the link names
-  (`link().expires`, jig's `client/domain/client.md`, 8.2) that differs
-  from the note's `Until` is a duty to note `Until` it; a sign-in judged
-  ended (6.14) is a duty to note `SignedOut`, once.
+- **The note:** after each report, once the link is live with a party,
+  an expiry it names (`link().expires`, jig's `client/domain/client.md`,
+  8.2) that differs from the note's `Until` is a duty to note `Until`
+  it. A sign-in judged ended (6.14) is a duty to note `SignedOut`, once.
 - **The credential:** after each report the host reads it from
   `jig-client`'s `link()`, through the root. One that differs from the
   one kept is a duty to keep it, before the first screen is drawn on it;
@@ -7914,16 +7915,26 @@ own tests:
   (`../draft/tui.md`, section 3). Default: refine each on the recorded
   frames before designing it; the first pass is sections 4 and 5 of
   that draft.
+- **The TUI's command-line flags** (6.11 and 6.12): choosing another
+  deployment and overriding local sign-in or the scheme wait for the
+  user's command-line design. The environment names the local deployment.
+- **The TUI's design location:** sections 6.11 to 6.16 and 7.1 stay
+  here; moving them under `client/tui/`, as `../README.md`, section 6
+  assigns them, is a later cleanup that must preserve their citations.
 - **Approval between hosts and managing sign-ins** (7.1): a deployment
   at a name, Google on the web, the code typed there with the ask's origin
   and age shown, and the web's list of a person's sign-ins, each ended
   from there (`../draft/tui.md`, section 7). Default: loopback, approved
   by a browser signed in by the printed link.
-- **The TUI after landing** (6.11 to 6.16): on a fresh box, paste its
-  printed link into the TUI in another terminal and read the first
-  screen, then sign in through the browser's approval and check refusal
-  and asking again (`../draft/tui.execution.md`, M1 and M2). The user
-  takes `sign-in-approved`'s frames and refines the look on them
+- **The TUI after landing** (6.11 to 6.16): on a fresh box, start bare
+  `temper` in another terminal and read the first screen with nothing
+  pasted; check renewal after expiry and refusal to renew after a
+  sign-out noted before the expiry slack. With no usable engine's link
+  file, paste the printed link, then sign in through the browser's
+  approval and check refusal and asking again
+  (`../draft/tui.execution.md`, M1 and M2). Check the terminal's own
+  colours and background answer in emacs vterm, and the runtime on
+  macOS. The user takes `sign-in-approved`'s frames and refines the look on them
   (`tui/journeys.md`, sections 9 and 10). Simulated closing, client-world
   stories and a recorded pseudo-terminal establish no real terminal's
   look or macOS runtime.
@@ -7941,6 +7952,12 @@ own tests:
   (6.14): read as a sign-in ended, so the TUI waits for a person's act
   there. Default: so, the safe side, until a deployment's own name
   tells engines apart.
+- **Expiry and revocation at the same time** (6.14): the engine answers
+  both as signed out. The note's last minute is treated as expiry, so a
+  revocation in that interval can renew automatically; an absent or
+  unreadable note also permits a local try. Distinguishing these ends
+  reliably needs an engine answer that names the reason. Default: the
+  note and its minute's slack, with this limit kept explicit.
 - **The TUI while offline** (6.14): the first screen keeps "Connected to
   HOST:PORT as NAME" while the state says "Offline". Default: so, its
   words refined on the recording.

@@ -13,9 +13,20 @@ native client-root half and web page at `/terminal` are built, with eleven
 gallery states and joint-client stories. The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
+The local box's private link file, bare command's address discovery,
+automatic sign-in, quiet fallback and bounded rereads are built, with
+the expiry note and joint-world renewal and sign-out stories. The note
+uses a minute's slack: a revocation near expiry or a missing note can
+still renew, so unconditional refusal after sign-out remains a departure
+from the request (`draft/tui.status.md`, 4.1). Terminal-default base
+colours, accent focus and scheme selection from COLORFGBG or a bounded
+OSC 11 query are built (`client/README.md`, 6.11 to 6.16).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
+That journey uses a runtime directory apart from the box's and no
+COLORFGBG, so it exercises approval and the dark fallback; its pages
+use the theme's stand-ins for terminal-default colours.
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
 remains later work (`client/tui/journeys.md`, 3.1 and 11).
