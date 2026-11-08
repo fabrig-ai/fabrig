@@ -155,7 +155,7 @@ fn the_run_is_made_from_the_shipped_limits() {
     use skein_ui_screen_terminal::{Depth, Terminal};
     let limits = limits::tui();
     assert!(limits::valid(&limits));
-    let settings = limits::terminal(&limits, Depth::Indexed);
+    let settings = limits::terminal(&limits, Depth::Indexed, true);
     assert_eq!(settings.interval, limits.interval);
     assert_eq!(settings.depth, Depth::Indexed);
     assert_eq!(settings.most, limits.most);
