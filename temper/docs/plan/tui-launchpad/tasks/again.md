@@ -3,7 +3,7 @@ id = "again"
 part = "again"
 kind = "feature"
 needs = ["journey-setup", "tui-launchpad", "tui-foot", "tui-chat", "host-launchpad", "joint"]
-files = ["temper/docs/design/client/tui/journeys/sign-in-approved/**", "temper/docs/design/client/tui/journeys/launchpad-chat/**", "temper/docs/design/client/tui/journeys.status.md", "temper/tools/journeys/src/tui_again.rs", "temper/tools/journeys/src/tui_again/**"]
+files = ["temper/docs/design/client/tui/journeys/sign-in-approved/**", "temper/docs/design/client/tui/journeys/launchpad-chat/**", "temper/docs/design/client/tui/journeys.status.md", "temper/tools/journeys/src/tui_again.rs", "temper/tools/journeys/src/tui_again/**", "skein/crates/skein-ui-screen-terminal/src/keys.rs", "skein/crates/skein-ui-screen-terminal/src/terminal.rs", "skein/crates/skein-ui-screen-terminal/src/tests/**", "skein/tests/ui-screen/**"]
 effort = "high"
 minutes = 150
 +++
@@ -142,3 +142,27 @@ browser before the TUI starts, and nothing of it reaches the recording. No code,
 shared reader and no other task changes; the status file still loses only its **Not
 yet** entry. Keep the pushed `sign-in-approved` work and go on from step 2's `again
 launchpad-chat`.
+
+2026-11-08. **Q:** `launchpad-chat`'s `key escape` never reaches the TUI: once the
+terminal asks its background, skein's decoder holds a lone ESC for good. Repair skein,
+or change the walk? **A:** repair skein, in this task; the walk stays as the acceptance
+has it. The decoder departs from its design: `skein/docs/design/ui-screen.md`, 6.1's
+table makes an `ESC` alone at a read's end `Escape`, and `answers` changes only what
+`ESC ]` begins; `keys.rs`'s `if !self.answers` drops every person's Escape in any TUI
+that asks its background, not only in the journey. 6.1 now says how the two meet
+(*`Escape` while the background is awaited*): the read-final `ESC` is held only while
+the background is `Waiting`; the wait's end (an answer, an unreadable one, the wait
+passing, `Terminal::answer_background`'s leaving `Waiting`) gives a held `ESC` as
+`Escape` into the terminal's keys, and from then on a read-final `ESC` is `Escape`
+again. The task's `files` now take `skein-ui-screen-terminal`'s `keys.rs`,
+`terminal.rs`, its unit tests and `skein/tests/ui-screen`. Do it first, before
+`again`, in the lowest tier: a decoder method the terminal calls at the wait's end (its
+name yours, documented against 6.1); decoder rows for a lone ESC held while waiting,
+given at the wait's end, and `Escape` after it (the existing answer table, all splits
+while waiting, still holds); a simulated-terminal row in `skein/tests/ui-screen` for
+Escape after an unanswered wait. Run those tests by name and
+`heavy cargo nextest run -p skein-ui-screen-terminal`; `cargo fmt`, and
+`heavy cargo clippy -p skein-ui-screen-terminal --all-targets -- -D warnings`. Commit it
+alone, saying why, with the trailer `Look-request: tui-launchpad`; the account gains a
+row for it (landed, a skein repair the journey needed). Then go on from step 2's
+`again launchpad-chat`; the driver's lone-ESC bytes stay as they are.
