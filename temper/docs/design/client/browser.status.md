@@ -186,7 +186,10 @@ establish no rendered equality.
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
   `browser_pages`'s `enter_starts_one_chat_and_the_composer_keeps_the_focus` holds the
-  heading taking it from the main, and that module has no test of its own.
+  heading taking it from the main, and that module has no test of its own. No test
+  opens an address while `me` is read and sees the page's heading take the focus from
+  the empty busy main, nor reaches the wait for a main not yet drawn: `focus.rs`
+  compiles for wasm32, and no browser story walks either.
 - **Not yet:** 2.5: the answer of 2026-11-06 to the `ui-rename-focus` task
   `rename-row` asks a test that a long chat's document never exceeds its window at
   1280x720 and 1000x600 with "Older", since gone (`README.md`, 5.15), pressed twice. What holds it is the sheet's
@@ -336,6 +339,29 @@ and keep `#b8664e` out of the bundle's and the server's pages' sources.
 Section 7.2's `signed-out`, `out-of-date`, `no-project` and
 `approve-signed-out-google` are present. The rendered comparison against
 the request's pages is section 5's, after landing.
+
+Sections 2.5 and 8.2 have no known implementation gap in `look-round-22`'s
+repairs: the column's field-name rule, `.temper-outside form >
+label[for]:has(+ input)`, outweighing skein's small label; at night the
+root's ground, `:root[data-night]:has(body #app)`, giving way to the
+body's; the welcome's top bar, under the welcome's main, packed to its
+end, its steps taking the free space and an end straight after the brand
+its own; and "Sign in"
+on the public pages wherever the view's `Ways` give the origin, Google's
+way or not. The view's public table has the no-way and unknown-way rows,
+and the browser tier's public story expects "temper" and "Sign in" on
+every page (8.4), with no passing run supplied here. No focused test
+reads the rules, whose effect is rendered; that comparison is section
+5's, after landing.
+
+- **Not yet:** 2.5, *The welcome's look*: while `me` is read at
+  `/welcome`, once the deployment's read has answered, the top bar draws
+  temper box's line and the steps (`README.md`, 5.1) without the
+  welcome's look: its rules select `#app:has(> .temper-welcome)`, the
+  welcome's main, and the main is then empty, with no class, so the
+  steps take the flows' list rule (`.temper-flow-steps`, a grid) and the
+  bar the outside pages' row. Seen by reading `temper.css`; no render
+  shows how long it lasts.
 
 - **Design departs:** 2.5, from the look request `outside-pages` of
   2026-11-08, decided by its plan's cut: `--temper-accent` and the light
