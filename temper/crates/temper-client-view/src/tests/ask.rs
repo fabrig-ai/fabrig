@@ -216,6 +216,7 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
     )
     .unwrap()
 }
+#[expect(clippy::too_many_lines, reason = "the three paths keep their stops and supplied cards in one fixture")]
 fn path(index: usize) -> w::BranchPath {
     use w::{
         Actor::{Agent, Bar, Code, Person},
@@ -264,42 +265,120 @@ fn path(index: usize) -> w::BranchPath {
     ];
     let stops = paths[index]
         .iter()
-        .map(|(actor, step, words)| {
+        .enumerate()
+        .map(|(at, (actor, step, words))| {
+            let code = match step {
+                S::Merge => Some((
+                    w::Opens::Queue,
+                    "code · lands the change",
+                    "the queue",
+                    "Does",
+                    "merges exactly the commit its checks saw",
+                )),
+                S::Check if index == 2 && at == 4 => Some((
+                    w::Opens::Tier(
+                        w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: b"slow".as_slice().into() }).unwrap(),
+                    ),
+                    "code · checks the goal's branch",
+                    "slow",
+                    "Runs",
+                    "the tier slow on the goal's branch",
+                )),
+                S::Check => Some((
+                    w::Opens::Rule(
+                        w::OpensRule::new(&w::CEILINGS, w::OpensRuleParts { kind: 1, scope: 0, number: 1 }).unwrap(),
+                    ),
+                    "code · holds a change until CI passes",
+                    "CI",
+                    "Checks",
+                    "the repository's CI, at the change's head",
+                )),
+                S::Prove => {
+                    Some((w::Opens::Turn, "code · runs the test gates at the candidate", "the turn", "Gates", "unit"))
+                }
+                S::Update => Some((
+                    w::Opens::Queue,
+                    "code · brings the change up to date with its branch",
+                    "the queue",
+                    "Does",
+                    "merges the branch's tip into the change, never by an agent",
+                )),
+                S::Verify => Some((
+                    w::Opens::Tier(
+                        w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: b"slow".as_slice().into() }).unwrap(),
+                    ),
+                    "code · checks what landed",
+                    "slow",
+                    "Runs",
+                    "the tier slow after each landing",
+                )),
+                S::Ask
+                | S::Draft
+                | S::Plan
+                | S::Produce
+                | S::ProduceMany
+                | S::Review
+                | S::Repair
+                | S::Approve
+                | S::Resolve
+                | S::Prepare
+                | S::Turn
+                | S::Branch => None,
+            };
+            let code = if *actor == Code { code } else { None };
             w::Stop::new(
                 &w::CEILINGS,
                 w::StopParts {
                     actor: actor.clone(),
                     step: step.clone(),
                     words: (*words).into(),
-                    opens: if *step == S::Review {
+                    opens: if let Some((opens, ..)) = &code {
+                        opens.clone()
+                    } else if *step == S::Review {
                         w::Opens::Gate(w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1 }).unwrap())
                     } else {
                         w::Opens::Nothing
                     },
-                    card: w::Card::new(
-                        &w::CEILINGS,
-                        w::CardParts {
-                            who: "an agent · holds a change until it approves".as_bytes().into(),
-                            name: b"the reviewer".as_slice().into(),
-                            facts: List::from_boxed(
-                                [
-                                    (b"Model".as_slice(), "Claude Opus 5.5 · high".as_bytes()),
-                                    (b"Can", b"read the change and its checks; never edit, push or merge"),
-                                    (b"Asked to", b"Review the change at the named head."),
-                                ]
-                                .into_iter()
-                                .map(|(label, value)| {
-                                    w::Fact::new(
-                                        &w::CEILINGS,
-                                        w::FactParts { label: label.into(), value: value.into() },
-                                    )
-                                    .unwrap()
-                                })
-                                .collect(),
-                            ),
-                        },
-                    )
-                    .unwrap(),
+                    card: if let Some((_, who, name, label, value)) = code {
+                        w::Card::new(
+                            &w::CEILINGS,
+                            w::CardParts {
+                                who: who.as_bytes().into(),
+                                name: name.as_bytes().into(),
+                                facts: List::from_boxed(Box::new([w::Fact::new(
+                                    &w::CEILINGS,
+                                    w::FactParts { label: label.as_bytes().into(), value: value.as_bytes().into() },
+                                )
+                                .unwrap()])),
+                            },
+                        )
+                        .unwrap()
+                    } else {
+                        w::Card::new(
+                            &w::CEILINGS,
+                            w::CardParts {
+                                who: "an agent · holds a change until it approves".as_bytes().into(),
+                                name: b"the reviewer".as_slice().into(),
+                                facts: List::from_boxed(
+                                    [
+                                        (b"Model".as_slice(), "Claude Opus 5.5 · high".as_bytes()),
+                                        (b"Can", b"read the change and its checks; never edit, push or merge"),
+                                        (b"Asked to", b"Review the change at the named head."),
+                                    ]
+                                    .into_iter()
+                                    .map(|(label, value)| {
+                                        w::Fact::new(
+                                            &w::CEILINGS,
+                                            w::FactParts { label: label.into(), value: value.into() },
+                                        )
+                                        .unwrap()
+                                    })
+                                    .collect(),
+                                ),
+                            },
+                        )
+                        .unwrap()
+                    },
                 },
             )
             .unwrap()
@@ -476,6 +555,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the existing interaction rows cover agent and code cards in both shells")]
 fn stop_presses_open_move_close_and_tabs_close_cards() {
     for browser in [false, true] {
         let mut f = fixture(Some(CURRENT), true, false);
@@ -532,6 +612,47 @@ fn stop_presses_open_move_close_and_tabs_close_cards() {
                     .and_then(|n| n.name.as_deref()),
                 heading
             );
+        }
+        for (label, heading, who, fact, value, link) in [
+            (
+                b"check, code".as_slice(),
+                b"Check".as_slice(),
+                "code · holds a change until CI passes",
+                b"Checks".as_slice(),
+                b"the repository's CI, at the change's head".as_slice(),
+                Some("Open CI ›"),
+            ),
+            (
+                b"merge, code",
+                b"Merge",
+                "code · lands the change",
+                b"Does",
+                b"merges exactly the commit its checks saw",
+                None,
+            ),
+        ] {
+            press(&mut f.root, browser, Role::Button, label);
+            let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+            assert_eq!(styled(view.tree(), look::WAYS_ZOOM)[0].name.as_deref(), Some(heading));
+            let head = children(styled(view.tree(), look::WAYS_ZOOM_HEAD));
+            assert_eq!(head[0].role, Role::Heading { level: 3 });
+            assert_eq!(head[0].name.as_deref(), Some(heading));
+            assert_eq!(head[1].role, Role::Text);
+            assert_eq!(
+                head[1].text.iter().flat_map(|run| run.text.iter().copied()).collect::<Vec<_>>(),
+                who.as_bytes()
+            );
+            let card = styled(view.tree(), look::WAYS_ZOOM);
+            let facts: Vec<_> = card.iter().filter(|n| n.role == Role::Term || n.role == Role::Description).collect();
+            assert_eq!(facts.len(), 2);
+            assert_eq!((facts[0].role, facts[0].name.as_deref()), (Role::Term, Some(fact)));
+            assert_eq!((facts[1].role, facts[1].name.as_deref()), (Role::Description, Some(value)));
+            let links: Vec<_> = card.iter().filter(|n| n.role == Role::Link).collect();
+            assert_eq!(links.len(), usize::from(link.is_some()));
+            if let Some(link) = link {
+                let id = named(view.tree(), Role::Link, link.as_bytes()).id;
+                assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/settings".as_slice()));
+            }
         }
         let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
         let id = tab(view.tree(), 0).id;
