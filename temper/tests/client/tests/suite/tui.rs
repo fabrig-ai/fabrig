@@ -127,6 +127,71 @@ fn a_tui_signed_in_by_its_pasted_link_draws_me() {
     assert_eq!(tui.address.as_deref(), Some(ADDRESS));
 }
 
+#[test]
+fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
+    const QUESTION: &str = "Which checks should we run?";
+    const PARTS: &[&[u8]] = &[b"Run the focused checks", b" before the fuzzy suite."];
+    const ANSWER: &str = "Run the focused checks before the fuzzy suite.";
+    let mut world = fixtures::tui_asking_world(fixtures::SEED);
+    world.front().reply_in_pieces(PARTS);
+    let mut tui = Tui::start(&mut world, TUI, None);
+    tui.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    let text = tui.text();
+    for words in [CONNECTED, "Ask temper", PROJECTS, "● Live"] {
+        assert!(text.contains(words), "missing {words:?}: {text}");
+    }
+
+    tui.type_words(&mut world, "/");
+    tui.run(&mut world, STEP);
+    let text = tui.text();
+    for command in ["/model", "/new", "/chats", "/theme", "/help", "/exit"] {
+        assert!(text.contains(command), "missing {command}: {text}");
+    }
+    assert!(!text.contains("/font"), "{text}");
+    tui.press(&mut world, vec![Key::Escape]);
+    tui.run(&mut world, STEP);
+    let text = tui.text();
+    assert!(text.contains("❯ Ask temper"), "Esc clears the box: {text}");
+    assert!(!text.contains("/exit"), "Esc closes the commands: {text}");
+    assert!(text.contains(PROJECTS), "{text}");
+
+    tui.type_words(&mut world, QUESTION);
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    let front = world.front();
+    let assignment = front.assignments.last().expect("Ask temper run assigned");
+    assert_eq!(assignment.charter, 11);
+    let task = front.engine.task(assignment.task).expect("Ask temper task");
+    assert_eq!(task.spec.words.as_ref(), QUESTION.as_bytes());
+    let heading = format!("✦ Project 1 / {QUESTION} T{}", assignment.task);
+    let text = tui.text();
+    assert!(text.contains(&heading), "{text}");
+    assert!(text.contains(&format!("❯ {QUESTION}")), "{text}");
+    assert!(text.contains("✦ Run the focused checks"), "{text}");
+    assert!(text.contains("✦ Working"), "{text}");
+    assert!(!text.contains(ANSWER), "only the first piece is released: {text}");
+
+    assert!(world.front().release_reply(), "release the second piece without committing");
+    tui.run(&mut world, STEP);
+    let text = tui.text();
+    assert!(text.contains(ANSWER), "{text}");
+    assert!(text.contains("✦ Working"), "the whole reply is still provisional: {text}");
+    assert!(world.front().release_reply(), "commit the whole answer");
+    tui.run(&mut world, fixtures::WITHIN);
+    let text = tui.text();
+    assert!(text.contains(&format!("✦ {ANSWER}")), "{text}");
+    assert!(!text.contains("✦ Working"), "the run has ended: {text}");
+    assert!(text.contains(PROJECTS), "{text}");
+    assert!(text.contains("● Live"), "{text}");
+    assert!(!world.front().release_reply(), "no reply remains held after commit");
+
+    tui.type_words(&mut world, "/exit");
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, STEP);
+    assert!(tui.closed, "/exit asks the shipped host to close");
+}
+
 fn file_secret_is_in_no_frame(tui: &Tui, link: &[u8]) {
     let url = std::str::from_utf8(link).expect("fixture URL");
     let (_, secret) = url.split_once("?secret=").expect("fixture secret field");

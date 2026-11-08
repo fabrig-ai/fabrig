@@ -52,11 +52,10 @@ descriptions and rows retained. No known gap remains in that wording.
 
 Sections 2, 6.11 to 6.16 and 7.1 have no known implementation gap in the
 TUI's crates, command, private directory, link file and sign-in note,
-host seam, pasted-link sign-in, themes, closing, automatic
-local sign-in, quiet fallback, bounded rereads, expiry renewal and
-suppression after a noted sign-out, beyond the **Not yet** entries of
-the launchpad, its commands and a chat below. The expiry is noted once the link
-is live with a party. The base uses the terminal's default colours,
+host seam, pasted-link sign-in, launchpad, commands, chats, themes,
+closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
+renewal and suppression after a noted sign-out. The expiry is noted once
+the link is live with a party. The base uses the terminal's default colours,
 focus uses the accent, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
@@ -131,14 +130,6 @@ remains intentional: `>_` and the status words leave the path less than
 its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
-
-
-
-
-
-
-- **Not yet:** 10, *The TUI in the joint world*: no story asks temper
-  from the launchpad and reads the chat it starts.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs

@@ -229,7 +229,7 @@ pub(crate) fn running_words(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     if task.result.is_none()
         && !super::chats::ended(&task.chip)
         && !temper_client_domain::pages::chat::paused(&task.chip, me)
-        && (super::chats::working(root, w, &chat.thread)
+        && (super::chats::active(root, w)
             || (delegates > 0 && (task.waits_on == c::WaitsOn::Delegates || task.waits_on == c::WaitsOn::News))
             || account)
     {

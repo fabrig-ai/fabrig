@@ -94,6 +94,11 @@ impl Tui {
         }
     }
 
+    /// Types words through the same character keys a terminal supplies.
+    pub fn type_words(&mut self, world: &mut World<Temper, Joint>, words: &str) {
+        self.press(world, words.chars().map(Key::Char).collect());
+    }
+
     /// Runs the world's own steps, carrying each report's duties at once.
     pub fn run(&mut self, world: &mut World<Temper, Joint>, span: Duration) {
         let until = world.now().saturating_add(span);
