@@ -88,3 +88,14 @@ Acceptance:
 As the implementer's text says; how many tries `again` took, the recording's first lines
 up to its first `approval-ask` (no secret is in them: the recording is redacted), and
 the status entries deleted or left.
+
+## Rebase (2026-11-08, step merge, foreman tui-link-colours/again/foreman-1)
+
+resolve the client status conflict while preserving main’s unrelated gaps
+Rebase onto the landing trunk; the reported conflict is solely `temper/docs/design/client/README.status.md`.
+Main commit `9629ace7df` added `## Gaps and departures` and the `ui-ask-m1` `proposal-read` design gap, carried into the trunk by `05d76213cb`.
+Keep that heading and gap, together with the trunk’s date and Ask temper status changes.
+Apply `b9420ef001`’s deletion of the three TUI **Not yet** entries for host link/expiry, terminal colours, and binary startup.
+Keep the TUI introduction ending “live first screen, themes and closing.” without its obsolete exception.
+The unrelated `ui-ask-m1` gap does not require retaining that exception.
+Preserve the task’s recording, generated frames, environment changes and journey-status cleanup.
