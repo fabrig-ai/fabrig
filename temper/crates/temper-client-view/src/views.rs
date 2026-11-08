@@ -94,6 +94,7 @@ fn drawn(b: &mut Builder, address: &[u8], view: &w::View, words: &Words) {
             }
         }
         w::View::Charter(charter) => card(b, charter.card()),
+        w::View::Rule(rule) => card(b, rule.card()),
         w::View::NotDrawn(value) => line(b, Role::Paragraph, value.words()),
     }
 }
@@ -124,6 +125,11 @@ fn card(b: &mut Builder, card: &w::Card) {
     b.style(look::VIEW_MUTED);
     b.text(Run::Plain, card.who());
     b.close();
+    facts(b, card);
+    b.close();
+}
+
+pub(crate) fn facts(b: &mut Builder, card: &w::Card) {
     b.open(Role::Group);
     for fact in card.facts() {
         b.open(Role::Slot);
@@ -131,7 +137,6 @@ fn card(b: &mut Builder, card: &w::Card) {
         line(b, Role::Description, fact.value());
         b.close();
     }
-    b.close();
     b.close();
 }
 

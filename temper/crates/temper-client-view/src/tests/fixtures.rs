@@ -448,6 +448,8 @@ pub(super) fn root_at_with_values(
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Models { .. }
         | temper_client_domain::Address::Builders { .. }
+        | temper_client_domain::Address::Role { .. }
+        | temper_client_domain::Address::Rule { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Ask { .. }

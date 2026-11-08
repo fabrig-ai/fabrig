@@ -28,6 +28,8 @@ impl Position {
 
 struct Layout {
     across: bool,
+    drawn: u32,
+    width: u32,
     span: u32,
     gaps: u32,
     offset: u32,
@@ -41,10 +43,13 @@ impl Layout {
         let bar = data.stops.last()?.mark == Mark::Bar;
         let places = count.checked_sub(u32::from(bar))?;
         let gaps = places.saturating_sub(1);
-        let span = u32::from(width).saturating_sub(80);
+        let width = u32::from(width);
+        let span = width.saturating_sub(80);
         let across = width >= 560 && span >= gaps.checked_mul(48)?;
+        let drawn = if across { width.max(720) } else { width };
+        let span = drawn.saturating_sub(80);
         let end = if across {
-            u32::from(width).checked_sub(8)?.checked_mul(100)?
+            drawn.checked_sub(8)?.checked_mul(100)?
         } else {
             places
                 .saturating_sub(1)
@@ -53,16 +58,16 @@ impl Layout {
                 .checked_add(if bar { 38 } else { 0 })?
                 .checked_mul(100)?
         };
-        let height = if across {
-            if data.open.is_some() { 154 } else { 140 }
-        } else {
-            u16::try_from(end.checked_div(100)?.checked_add(if bar { 14 } else { 24 })?).ok()?
-        };
+        let closed = if across { 140 } else { end.checked_div(100)?.checked_add(if bar { 14 } else { 24 })? };
+        let room = if data.open.is_some() { if across { scaled(14, drawn, width)? } else { 14 } } else { 0 };
+        let height = u16::try_from(closed.checked_add(room)?).ok()?;
         Some(Layout {
             across,
+            drawn,
+            width,
             span: span.checked_mul(100)?,
             gaps,
-            offset: u32::from(width).saturating_sub(360).checked_div(2)?.checked_mul(100)?,
+            offset: width.saturating_sub(360).checked_div(2)?.checked_mul(100)?,
             end,
             height,
         })
@@ -97,6 +102,11 @@ impl Layout {
     }
 }
 
+/// Round a box's pixels to the scene's pixels, with halves rounded up.
+fn scaled(pixels: u32, drawn: u32, width: u32) -> Option<u32> {
+    pixels.checked_mul(drawn)?.checked_add(width.checked_div(2)?)?.checked_div(width)
+}
+
 fn judgement(mark: Mark) -> bool {
     match mark {
         Mark::Person | Mark::Agent => true,
@@ -118,7 +128,7 @@ pub fn draw(kind: DrawingKind, data: &[u8], width: u16, _height: u16, scene: &mu
 fn paint(data: &Decoded<'_>, width: u16, scene: &mut Scene) -> Option<()> {
     let layout = Layout::new(data, width)?;
     let (from, to) = if layout.across {
-        (Point { x: 0, y: 72 }, Point { x: width, y: 72 })
+        (Point { x: 0, y: 72 }, Point { x: u16::try_from(layout.drawn).ok()?, y: 72 })
     } else {
         let x = u16::try_from(layout.offset.checked_div(100)?.checked_add(178)?).ok()?;
         (Point { x, y: 0 }, Point { x, y: u16::try_from(layout.end.checked_div(100)?).ok()? })
@@ -137,13 +147,22 @@ fn paint(data: &Decoded<'_>, width: u16, scene: &mut Scene) -> Option<()> {
         && let Some(index) = data.open
     {
         let x = u16::try_from(layout.along(index, false)?.checked_div(100)?).ok()?;
+        let c = u16::try_from(scaled(6, layout.drawn, layout.width)?).ok()?;
+        let height = layout.height;
         if !scene.polyline(
-            &[Point { x: x.saturating_sub(6), y: 154 }, Point { x, y: 148 }, Point { x: x.checked_add(6)?, y: 154 }],
+            &[
+                Point { x: x.checked_sub(c)?, y: height },
+                Point { x, y: height.checked_sub(c)? },
+                Point { x: x.checked_add(c)?, y: height },
+            ],
             &[WAYS_CARET],
         ) {
             return None;
         }
     }
     scene.set_height(layout.height);
+    if layout.across && layout.width < 720 {
+        scene.set_width(u16::try_from(layout.drawn).ok()?);
+    }
     Some(())
 }

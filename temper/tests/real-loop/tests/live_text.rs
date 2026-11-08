@@ -80,7 +80,8 @@ fn a_person_reads_a_chats_reply_as_it_is_written_then_its_committed_turn() {
 
 fn provisional(text: &str) -> Option<String> {
     let (_, conversation) = text.split_once("Conversation:\n")?;
-    let (_, assistant) = conversation.split_once("Temper\n")?;
+    let (speaker, assistant) = conversation.split_once("Temper\n")?;
+    let (_, indent) = speaker.rsplit_once('\n')?;
     let (prefix, _) = assistant.split_once(PROVISIONAL_LINE)?;
-    Some(prefix.lines().map_while(|line| line.strip_prefix("    ")).collect::<Vec<_>>().join("\n"))
+    Some(prefix.lines().map_while(|line| line.strip_prefix(indent)).collect::<Vec<_>>().join("\n"))
 }

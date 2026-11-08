@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
 <style>body{margin:0;background:#f7f7f5}</style>
 <link rel="stylesheet" href="whole-story.css">
+<script src="whole-story.js"></script>
 </head>
 <body>
 <div class="app">
@@ -28,6 +29,7 @@
       <a href="#">Deployment</a>
       <a href="#">Owner</a>
     </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
   </nav>
 
   <main class="main">
@@ -45,7 +47,7 @@
         <div class="card">
           <div class="from"><span class="who a">goal</span> membership-handoff · Draft first · from your draft, Thursday · $31 of $50</div>
           <p class="q">Six of nine tasks landed on the goal's branch. The witness rejoin fix waits on your answer; two tasks wait on it.</p>
-          <div class="bar" style="height: 6px; border-radius: 3px; background: #e7e7e3; overflow: hidden"><i style="display: block; width: 66%; height: 100%; background: #3f3f46"></i></div>
+          <div class="bar" style="height: 6px; border-radius: 3px; background: var(--line); overflow: hidden"><i style="display: block; width: 66%; height: 100%; background: var(--ink2)"></i></div>
           <div class="rows">
             <div class="row" style="grid-template-columns: 22px minmax(0, 1fr) auto"><span class="muted">✓</span><span>Handoff states and their tests</span><span class="r">landed Fri 14:10</span></div>
             <div class="row" style="grid-template-columns: 22px minmax(0, 1fr) auto"><span class="muted">✓</span><span>Witness retention across a handoff · and four more</span><span class="r">landed by Sat 21:40</span></div>
@@ -68,7 +70,7 @@
 
         <div class="card">
           <div class="from"><span class="who p">chat</span> with you, Saturday · "the comment on vsr_step_many is stale"</div>
-          <p>One change from it: the comment rewritten from the code. <span class="muted">Checked, reviewed, landing on its own: docs.</span></p>
+          <p>One change from it: the comment rewritten from the code. <span class="muted">Checked, landing on its own: docs.</span></p>
           <p class="small"><a href="#">Open the chat</a> · <a href="#">Open the change</a></p>
         </div>
       </section>

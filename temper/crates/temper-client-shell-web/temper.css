@@ -1486,6 +1486,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
   .temper-view-card > [role="group"] > div { grid-template-columns: 1fr; gap: .25rem; }
 }
 /* ask-temper-ways: judgement above the dotted authority boundary, code below. */
+.temper-ways-path[data-drawn] > svg :is(g, line, polyline, path, rect, circle, text) { stroke: none; }
 #app > .temper-session .temper-ways-path { margin: 0; }
 #app > .temper-session .temper-ways-path > svg { display: block; width: 100%; height: auto; overflow: visible; }
 #app > .temper-session .temper-ways-path text { font: 400 11.5px var(--gf-mono); fill: var(--gf-ink-2); }

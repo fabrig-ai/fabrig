@@ -13,4 +13,4 @@ mod words;
 
 pub use path::*;
 pub use ways::*;
-pub use words::{can, first_sentence};
+pub use words::{can, cut_on_word, first_sentence};

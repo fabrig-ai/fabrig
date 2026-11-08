@@ -54,6 +54,10 @@ pub enum Op {
     Component { node: NodeId, component: usize, made: Made },
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "scene dimensions, log following and pending scrolls are independent"
+)]
 struct Held {
     made: Made,
     parent: NodeId,
@@ -61,6 +65,7 @@ struct Held {
     element: Element,
     size: Option<(u16, u16)>,
     drawn: Option<Element>,
+    scene_width: bool,
     scene_height: bool,
     href: Option<Box<[u8]>>,
     follow_log: bool,
@@ -380,6 +385,7 @@ impl<'a> Page<'a> {
                 element,
                 size: None,
                 drawn: None,
+                scene_width: false,
                 scene_height: false,
                 href: None,
                 follow_log: !made.attribute.states.as_slice().contains(&State::Continues),
@@ -466,6 +472,7 @@ impl<'a> Page<'a> {
     fn draw(&mut self, node: NodeId) {
         let held = self.nodes.get_mut(&node).expect("held node");
         held.drawn = None;
+        held.scene_width = false;
         held.scene_height = false;
         if components::index(&held.made, &self.look).is_some() {
             return;
@@ -476,6 +483,7 @@ impl<'a> Page<'a> {
             let scene = self.scene.get_or_insert_with(|| Scene::new(&self.limits));
             scene.clear();
             if (self.look.draw)(drawing.kind, &drawing.data, width, height, scene) && !scene.refused() {
+                held.scene_width = scene.width().is_some();
                 held.scene_height = scene.height().is_some();
                 held.drawn = Some(svg::draw(scene, self.look.names, width, height));
             }
@@ -491,6 +499,9 @@ impl<'a> Page<'a> {
         if let Some(svg) = &held.drawn {
             let core = semantic_mut(&mut element);
             core.set("data-drawn", "");
+            if held.scene_width {
+                core.set("data-scene-width", "");
+            }
             if held.scene_height {
                 core.set("data-scene-height", "");
             }
@@ -797,7 +808,9 @@ impl Page<'_> {
                 self.held(node).drawn.as_ref()?;
                 let mut data = List::with_capacity(self.act_bytes);
                 let scene = self.scene.as_ref()?;
-                if !scene.refused() && scene.act_at(&under, Point { x, y }, &mut data) {
+                let (box_width, _) = self.held(node).size?;
+                let point = scene_point(Point { x, y }, scene.width(), box_width);
+                if !scene.refused() && scene.act_at(&under, point, &mut data) {
                     Some((node, Act::Drawing { data: data.into_boxed() }))
                 } else {
                     None
@@ -1243,6 +1256,24 @@ impl Page<'_> {
             }
         }
     }
+}
+
+fn scene_point(point: Point, width: Option<u16>, box_width: u16) -> Point {
+    let Some(width) = width else {
+        return point;
+    };
+    if box_width == 0 {
+        return point;
+    }
+    let scale = |coordinate| {
+        let scaled = u32::from(coordinate)
+            .checked_mul(u32::from(width))
+            .expect("two u16 coordinates fit u32")
+            .checked_div(u32::from(box_width))
+            .expect("box width is nonzero");
+        u16::try_from(scaled).unwrap_or(u16::MAX)
+    };
+    Point { x: scale(point.x), y: scale(point.y) }
 }
 
 fn enabled(attribute: &skein_ui::Attribute) -> bool {

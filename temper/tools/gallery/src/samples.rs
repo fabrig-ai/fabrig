@@ -1324,6 +1324,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => {
@@ -1363,6 +1365,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
