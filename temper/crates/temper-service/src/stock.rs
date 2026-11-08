@@ -711,11 +711,11 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
     use temper_engine_smith::kinds::size;
     let values = [
         (
-            1,
+            2,
             1,
             settings::Value::Rule(settings::LandingRule {
                 pattern: forge::GatePattern {
-                    segments: Box::new([b"forge".as_slice().into()]),
+                    segments: Box::new([b"branch".as_slice().into()]),
                     last: forge::GateLast::Open(Box::default()),
                 },
                 enforce: true,
