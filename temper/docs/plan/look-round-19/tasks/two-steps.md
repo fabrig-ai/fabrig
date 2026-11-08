@@ -119,3 +119,14 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: the domain's shape (`facts`, `beginning`, `chat_counts`), the tests changed and each rule broken by hand, the gallery's renames, the prints that moved, the options taken, the runs' counts, and the account as committed.
+
+## Rebase (2026-11-08, step merge, foreman look-round-19/two-steps/foreman-1)
+
+rebase the two status files, preserving completed sibling tasks and removing only two-steps’ gaps.
+The merge conflicts are in `temper/docs/design/client/README.status.md` and `temper/docs/design/client/journeys.status.md`.
+Rebase onto the landing trunk; the observed integration tip is `b27aab0315`.
+In `README.status.md`, combine this task’s deletion of the To begin gap with `4ae29cdab4` (`night-keep`): retain only “**Not yet:** 5.3: the rail draws no night switch. The plan `look-round-19`’s task `night-switch` builds it.”
+Do not restore the obsolete three-byte record, missing night act or missing `data-night` claims.
+In `journeys.status.md`, preserve `b14f146fc5` (`start-account`)’s deletion of the uncommitted-account gap.
+Replace the combined project-landing/night gap with this task’s remaining entry: “9: no print draws the night switch; the plan `look-round-19`’s task `night-switch` reprints them.”
+Preserve all unrelated status text and the cleanly merged browser-status and stylesheet changes.
