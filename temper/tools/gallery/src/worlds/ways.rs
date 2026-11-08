@@ -256,7 +256,7 @@ fn stop(step: w::PathStep) -> w::Stop {
             card(
                 "code · holds a change until CI passes",
                 "CI",
-                &[("Checks", "the repository's CI, at the change's head")],
+                &[("Checks", "every check the repository's CI workflows report, at the change's head")],
             ),
         ),
         Review => (

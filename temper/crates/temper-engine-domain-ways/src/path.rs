@@ -136,9 +136,10 @@ pub struct Repository {
     pub host: Box<[u8]>, // the forge's host, as `covers_branch` takes it
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,
-    pub ci: bool,                // adopted with CI
-    pub checks: Box<[u32]>,      // its checks, for a repository adopted without CI
-    pub gates: Box<[Box<[u8]>]>, // its test gates' names (landing by turn)
+    pub ci: bool,                   // adopted with CI
+    pub checks: Box<[u32]>,         // its checks, for a repository adopted without CI
+    pub contexts: Box<[Box<[u8]>]>, // the landing branch's required checks, as the forge's protection holds them
+    pub gates: Box<[Box<[u8]>]>,    // its test gates' names (landing by turn)
     pub tiers: Box<[Tier]>,
 }
 
