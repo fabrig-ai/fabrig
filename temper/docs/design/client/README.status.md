@@ -68,7 +68,14 @@ TUI's crates, command, private directory, link file and sign-in note,
 host seam, pasted-link sign-in, launchpad, commands, chats, themes,
 closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
 renewal and suppression after a noted sign-out. The expiry is noted once
-the link is live with a party. The base uses the terminal's default colours,
+the link is live with a party. The link file holds the engine's local
+link alone, kept at each `LocalLink` once the clients' listener is up and
+never printed; a printed link is printed alone and never kept, and the
+box's first secret is never written. The service's table signs the
+local and the given link in, in either order, and the joint world signs
+a TUI in from the file and a browser by the printed link in either
+order, and a second TUI by the next local link (section 10). The base
+uses the terminal's default colours,
 focus uses the accent, active command names are plain while inactive names
 and question choices stay bold, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's

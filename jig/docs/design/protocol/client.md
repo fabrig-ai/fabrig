@@ -1218,9 +1218,14 @@ Each within jig's suites' budgets.
   that readiness policy. No retry interval or wait bound is chosen here;
   section 18's stopping-only refusal remains the contract.
 - **Remembering why a printed link failed** (8): recognising a used or
-  expired link across a restart, or beyond the last 8 remembered links,
-  would need longer-lived history. Default: the bounded in-memory digests;
-  a forgotten link is `link_unknown`, with no stored-format change.
+  expired link, printed or local, across a restart, or beyond the last 8
+  remembered links, would need longer-lived history. Default: the
+  bounded in-memory digests; a forgotten link is `link_unknown`, with no
+  stored-format change. A forgotten local link's sign-in is then any
+  unknown secret's, and draws a fresh printed link when the printed link
+  is neither live nor reserved, so the startup prints again for a native
+  client's try: one that read the local link before a restart, or before
+  8 other links were spent or expired.
 - **Several tabs:** each tab a client with its own stream, which a hidden
   tab lets go (`browser.md`, section 10); whether tabs of one person
   share one stream through the platform's means.

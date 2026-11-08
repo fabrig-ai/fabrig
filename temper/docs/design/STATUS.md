@@ -26,9 +26,12 @@ follows landing (`client/README.status.md`, 5.1; `client/forge.status.md`,
 9.1; `client/browser.status.md`, 2.5). The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
-The local box's private link file, bare command's address discovery,
-automatic sign-in, quiet fallback and bounded rereads are built, with
-the expiry note and joint-world renewal and sign-out stories. The note
+The local box's private link file, holding the engine's local link
+alone so that a TUI never spends the printed link, bare command's
+address discovery, automatic sign-in, quiet fallback and bounded rereads
+are built, with the expiry note and joint-world renewal, sign-out and
+either-order stories; `serve.log` is not read for the file's secret
+(`protocol/setup.status.md`, 13.4). The note
 uses a minute's slack: a revocation near expiry or a missing note can
 still renew, so unconditional refusal after sign-out remains a departure
 from the request (`draft/tui.status.md`, 4.1). Terminal-default base

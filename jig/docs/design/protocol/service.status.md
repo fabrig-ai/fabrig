@@ -25,3 +25,7 @@ by smith's status check (`jig/testing/jig-test/tests/process.rs`,
 Section 3's reference startup refuses approval off loopback, naming
 `engine.clients.approval`, independently of whether the printed link is
 enabled. The startup table includes that refusal.
+
+Section 7's reference service prints the printed link alone and drops
+the secret `LocalLink` gives (`jig/testing/jig-test-service/src/clients.rs`);
+no known gap.
