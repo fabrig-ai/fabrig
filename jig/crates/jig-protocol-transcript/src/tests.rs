@@ -928,8 +928,8 @@ fn the_clients_call_name_bound_matches_the_transcript_ceiling() {
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "fixed version-6 wire fixture checks unavailable historical context")]
-fn supplied_system_text_survives_translation_and_historical_absence() {
+#[expect(clippy::disallowed_macros, reason = "fixed version-6 wire fixture checks unavailable system context")]
+fn supplied_system_text_survives_translation_and_missing_context() {
     let supplied = b"Selected FIRST instructions\n\n## Brief\nDocument commit: abcdef";
     let original = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]);
     let mut parts = original.clone().into_parts();
@@ -947,8 +947,8 @@ fn supplied_system_text_survives_translation_and_historical_absence() {
     let cut = decode(&bounded, &bytes).unwrap();
     assert!(cut.cut);
     assert_text_budget(&cut, 12);
-    let historical = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_smallest.bin");
-    assert!(decode(&limits(), historical).unwrap().messages.is_empty());
+    let version_six = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_smallest.bin");
+    assert!(decode(&limits(), version_six).unwrap().messages.is_empty());
     assert_eq!(decode(&limits(), &encode(&original)).unwrap().messages.len(), 1);
 }
 
