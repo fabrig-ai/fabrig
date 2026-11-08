@@ -20,6 +20,7 @@ or the nearest thing, and says so in that draft's status.
   M0; the rest wait only for what they draw or call: Team's page for
   areas, talking with a role for roles and the launchpad, How work runs
   for the classes, and rules by path and follows for their parts.
+- **Readiness at the go** is section 5: what starts at once, and what waits on work in flight.
 - **Two stories close it:** E on a box through `temper ctl`, and V, the
   vsr pilot on a real deployment (`whole-story.md`, section 11).
 - **Speed comes from width:** each track runs its milestones one plan
@@ -173,13 +174,53 @@ or the nearest thing, and says so in that draft's status.
   of it.
 - **Wide where it can be:** a track may run two plans at once when
   they share no files, such as P1 and P2, or R2 and R3.
-- **Started ahead of the go** (the user, 2026-11-08): the terminal's
-  directing work. P6 starts at once. T1 starts when `tui-box-front` and
-  `client-binary` have landed, and T2 when T1 and P6 have, beside the
-  work already in flight. Every other milestone waits for the user's
-  word, which comes no earlier than 2026-11-11.
+- **The go** (the user, 2026-11-08): the whole story starts now, each
+  milestone as soon as section 5 clears it, in parallel as far as the
+  builders allow. Work in flight that helps it carries on. The terminal's
+  directing work leads: P6 at once, T1 when `tui-box-front` and
+  `client-binary` have landed, T2 when T1 and P6 have.
+- **No walk of what will change** (the user, 2026-11-08): until its
+  milestone has landed, a walk skips what that milestone replaces: the
+  launchpad's layout before T1, the rail and the Goals and Changes lists
+  before P1, and the ways' drawing and words and Settings' How work runs
+  tab before P3. A real bug there is still repaired.
 - **Ask temper around it** (the user, 2026-11-08): M2 and M4, which this
-  draft needs (`whole-story.md`, section 8), run ahead of the go, after
-  P6. M3b runs after this draft's stories, as nothing here needs its
+  draft needs (`whole-story.md`, section 8), run beside it. M3b runs after this draft's stories, as nothing here needs its
   views. The TUI's drawing of views is dropped for v0.1.0: T1 prints
   them (`surfaces.md`, 11.5).
+
+## 5. Readiness at the go
+
+As read on 2026-11-08 at 16:05Z from the areas' work in flight. The user's
+go came that day (section 4), so each milestone starts when its row clears;
+plans land meanwhile, so read what it waits on afresh.
+
+| | At the go | Waits on, and why |
+|---|---|---|
+| M0 | done | |
+| P1 | starts once one plan lands | temper/ui's `red-78`, a repair in Chats' history, the page P1 folds into Work |
+| P2 | starts | |
+| P3 | waits | N1, for the classes it draws; temper/ui's `look-round-24`, the ways page's drawing, which How work runs takes over |
+| P4 | waits | R2, by its needs |
+| P5 | waits | P2, by its needs |
+| P6 | starts | |
+| N1 | starts | |
+| N2 | waits | N1, by its needs; temper/migration's `goal-branch-first`, if it changes how a branch's queue admits a change, which N2 changes too |
+| N3 | waits | N1, by its needs |
+| R1 | waits | `goal-call-faults` and `wake-faults`, which change how a goal is woken and what a batched `change` keeps, in jig's tasks and temper's agent tools that R1 changes too |
+| R2, R3 | wait | R1, by their needs |
+| F1 | waits | `goal-call-faults`, for `change`'s parameters a follow change uses |
+| F2 | waits | F1, by its needs |
+| T1 | waits | temper/tui's `tui-box-front` and `client-binary`, which change how the TUI starts and the crates that hold it |
+| T2 | waits | T1 and P6, by its needs; finding-465's repair, a chat losing its opening question |
+| T3 | waits | T1, R2 and R3, by its needs |
+| E, V | wait | every milestone above, and V its own needs |
+
+- **At the go, four start:** P2, P6 and N1 at once, and P1 once
+  `red-78` lands. All four are temper/ui's, run two at a time where
+  their files allow.
+- **The rest wait on their own prerequisites,** except where work in
+  flight touches the same parts: `red-78` and `look-round-24` for P1 and
+  P3, `goal-call-faults` and `wake-faults` for R1 and F1, and
+  `tui-box-front` and `client-binary` for T1, the longest, at 9 of 19
+  and 5 of 7 tasks when read.
