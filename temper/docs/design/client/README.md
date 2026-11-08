@@ -7951,10 +7951,12 @@ own tests:
   main at 1440, 1000 and 420 px, with menus and disclosures open and
   each state their messages name (`../draft/look-requests.md`, 4).
   Include both steps left, each alone, done and skipped, Home with a need
-  or chat while the card shows, and the restricted navigation on Home
-  and Ask temper, its three tabs on a phone. Check the night switch at
-  every width, in the rail folded beside a Split and at a phone's chat
-  bar, reload, the three night pages, their shadows, and readability
+  and a chat left out while either step remains, and their return after
+  the last step or a skip. Check the restricted navigation on Home
+  and Ask temper, its three tabs on a phone and composer above them.
+  Check the night switch at every width, in the rail folded beside a
+  Split, open and closed, and at a phone's chat bar, reload, the three
+  night pages, their shadows, and readability
   elsewhere. The night palette is the user's first pass
   to refine; system preference and the placeholder's night look remain
   `browser.md`, section 5's choices. Default: focused tables, gallery

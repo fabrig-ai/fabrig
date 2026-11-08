@@ -858,7 +858,11 @@ temper/ui compares the three requests with main after landing
   each named state (`../draft/look-requests.md`, section 4). Use
   `project-landing`'s two-step print, the `home-begin-*` states and the
   three `night-*` states; include Home with a need and a chat left out
-  while To begin shows (`home-begin-with-needs`). Default: replayed prints and hand-made
+  with either step left (`home-begin-with-needs`), and their return after
+  the last step or a skip. Check Ask temper's three phone tabs with its
+  composer above, the switch in the folded rail open and closed and at
+  a phone's chat bar, and shadows against the day values (`browser.md`,
+  2.5). Default: replayed prints and hand-made
   gallery inputs, with no recording of a night choice; print equality
   establishes no rendered equality. Findings are filed back, and repairs
   carry the request's trailer.
