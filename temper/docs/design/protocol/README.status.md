@@ -59,9 +59,6 @@ deferred failure accounting.
 The deployment's binaries (4.1 and 4.2), from `../draft/deployment-binaries.md`,
 are designed and not yet built:
 
-- **Not yet:** 4.1, 4.2: `tests/boundary/tests/binaries.rs` doesn't
-  exist: no test holds a binary's closure.
-
 - **Not yet:** 4.2: `temper-engine upgrade --check` and `--back`: jig's
   rehearsal and going back (jig's `protocol/store.md`, 10.5) are not
   built, so neither binary's table has the row.
