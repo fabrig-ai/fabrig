@@ -221,10 +221,8 @@ fn settings_links_carry_the_forge_and_account_marks_in_both_shells() {
             b"an account needs you",
         ),
     ] {
-        let (mut root, watch) = f::forge_root_accounts(
-            Address::Settings { project: f::PROJECT },
-            super::connect_forge::rows(connection, w::Offer::Offered),
-        );
+        let (mut root, watch) =
+            f::forge_root_accounts(Address::Accounts, super::connect_forge::rows(connection, w::Offer::Offered));
         let mut accounts = super::accounts::document(1);
         accounts.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().state = account;
         super::accounts::deliver(&mut root, watch, accounts);
@@ -2155,6 +2153,11 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
             crate::act(&mut view, link, Act::Press),
             Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chat { task } }))
         );
+        let menu = f::find(view.tree(), Role::MenuItem, b"Ask temper").unwrap();
+        assert_eq!(
+            crate::act(&mut view, menu, Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chat { task } }))
+        );
         let text = f::main_text(view.tree());
         assert!(skein_lib::bytes::find(&text, b"Hello").is_none(), "the watched row is not drawn on Settings");
     }
@@ -2672,7 +2675,7 @@ fn goals_takes_chats_place() {
             crate::act(&mut view, row, Act::Press),
             Some(d::Action::Pages(d::pages::Act::Go { address: Address::Task { task: 9 } }))
         );
-        let goals = f::find(view.tree(), Role::Link, b"Goals").unwrap();
+        let goals = f::find(view.tree(), Role::Link, b"Work").unwrap();
         assert!(!subtree(view.tree(), goals)[0].states.as_slice().contains(&skein_ui::State::Current));
         contains(&printed(&view), "A goal report.");
     }
@@ -2744,11 +2747,11 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
             }
             let nav = styled(view.tree(), crate::look::RAIL_NAV);
             let entries: Vec<_> =
-                children(subtree(view.tree(), nav.id)).iter().map(|node| node.name.as_deref().unwrap()).collect();
+                children(subtree(view.tree(), nav.id)).iter().filter_map(|node| node.name.as_deref()).collect();
             let expected = if cut {
                 vec![b"Home".as_slice(), b"Ask temper"]
             } else {
-                vec![b"Home".as_slice(), b"Needs you", b"Goals", b"Chats", b"Ask temper"]
+                vec![b"Home".as_slice(), b"Needs you", b"Work", b"Ask temper", b"How work runs"]
             };
             assert_eq!(entries, expected, "{address:?}, skipped={skipped}");
             assert_eq!(
@@ -2759,19 +2762,20 @@ fn to_begin_cuts_the_rail_on_home_and_ask_alone() {
             assert!(
                 subtree(view.tree(), foot.id)
                     .iter()
-                    .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Settings"))
+                    .any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Deployment"))
             );
         }
         let view = f::browser_page_view(&root);
         let tabs = styled(view.tree(), crate::look::TABBAR);
+        assert_eq!(tabs.styles.as_slice().contains(&crate::look::TABBAR_BEGINNING), cut);
         let links = children(subtree(view.tree(), tabs.id));
-        let entries: Vec<_> = links.iter().map(|node| node.name.as_deref().unwrap()).collect();
+        let entries: Vec<_> = links.iter().filter_map(|node| node.name.as_deref()).collect();
         assert_eq!(
             entries,
             if cut {
-                vec![b"Home".as_slice(), b"Ask temper", b"Settings"]
+                vec![b"Home".as_slice(), b"Ask temper", b"Deployment"]
             } else {
-                vec![b"Home".as_slice(), b"Needs you", b"Goals", b"Chats", b"Ask temper"]
+                vec![b"Home".as_slice(), b"Needs you", b"Work", b"Ask temper"]
             },
             "{address:?}"
         );

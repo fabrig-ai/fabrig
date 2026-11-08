@@ -373,6 +373,9 @@ fn wanted(root: &Domain) -> List<u32> {
         | Address::Rule { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
+        | Address::Work { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Adopt { .. } => {}
     }
     wanted
@@ -405,6 +408,9 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
         | Address::Rule { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
+        | Address::Work { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Adopt { .. } => false,
     };
     let pages = &mut root.pages;

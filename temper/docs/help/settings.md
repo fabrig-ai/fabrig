@@ -13,10 +13,11 @@ number, or project for ways, questions and classes; rules have no number:
 `landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`,
 `project-ways 2`, `project-questions 2`, `project-classes 2`.
 
-- A project's ways say whether chats can write drafts and whether Goals,
-  Changes and the Away switch show, and which offered template with
+- A project's ways say whether chats can write drafts, whether Work's Goals
+  and Changes filters and the Away switch show, and which offered template with
   `tracked` set a goal starts by; 0 takes the first. The stock offers drafts, hides the
-  other three and uses 0.
+  two filters and the switch and uses 0. Goals and Changes hide no rail entry;
+  work under a hidden filter stays under Work's All filter.
 - A project's questions give a change's question route when its maker
   names none: `none`, `foreman` or `up`. The stock uses `none`.
 - A project's classes say which questions agents decide and tell you about,
@@ -104,6 +105,9 @@ its default. A stored change still wins over a changed default.
 
 ## Acting on it
 
+- On the rail, **How work runs** opens the project's process and its
+  Repositories tab. On a phone, choose **How work runs for PROJECT** in
+  the project switcher.
 - Tell Ask temper how you work (`temper help chat`). It reads
   settings and proposes what temper enforces and agents follow; an owner decides.
 - `temper ctl`: `settings show` reads the inventory: newest revision,
@@ -135,8 +139,9 @@ its default. A stored change still wins over a changed default.
 
 ### Models
 
-On Settings, Models, temper reads each provider's list where it can: as an
-account becomes usable, once a day and when you choose **Read again**.
+In Deployment, at the rail's foot, open Models. temper reads each provider's
+list where it can: as an account becomes usable, once a day and when you
+choose **Read again**.
 A new model starts off the picker, marked “new” for a week. Its prices are
 estimated until Ask temper sets them. A failed read says so on
 Models and changes nothing.

@@ -44,9 +44,13 @@
 ><button type="button"
 >Create</button
 ></form
-><a aria-label="Settings for Hello" href="/projects/1/settings"
+><a aria-label="How work runs for Hello" href="/projects/1/settings"
 ><span
->Settings for Hello</span
+>How work runs for Hello</span
+></a
+><a aria-label="Deployment" href="/accounts"
+><span
+>Deployment</span
 ></a
 ></div
 ></div
@@ -62,58 +66,64 @@
 ><span
 >Needs you</span
 ></a
-><a aria-label="Chats" href="/chats"
+><a aria-label="Work" href="/projects/1/work"
 ><span
->Chats</span
+>Work</span
 ></a
 ><a aria-label="Ask temper" href="/projects/1/ask"
 ><span
 >Ask temper</span
 ></a
+><div class="temper-rail-sep"
+></div
+><a aria-label="How work runs" aria-current="page" href="/projects/1/settings"
+><span
+>How work runs</span
+></a
 ></div
 ><div class="temper-rail-new"
-><a aria-label="New chat" href="/chats/new"
+><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-246" aria-expanded="false"
+>New draft or change</button
+><div role="menu" aria-label="New draft or change" id="skein-ui-menu-246" hidden=""
+><div role="menuitem" aria-label="Draft" aria-describedby="skein-ui-description-247"
 ><span
->+ New chat</span
-></a
-><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-36" aria-expanded="false"
->More ways to start work</button
-><div role="menu" aria-label="More ways to start work" id="skein-ui-menu-36" hidden=""
-><div role="menuitem" aria-label="Chat" aria-describedby="skein-ui-description-37"
-><span
->Chat</span
-><span id="skein-ui-description-37"
->Ask about the code or ask for a change.</span
+>Draft</span
+><span id="skein-ui-description-247"
+>A design session that ends in a goal, best had in the terminal.</span
 ></div
-><div role="menuitem" aria-label="Goal" aria-describedby="skein-ui-description-38"
+><div role="menuitem" aria-label="Change" aria-describedby="skein-ui-description-248"
 ><span
->Goal</span
-><span id="skein-ui-description-38"
->Agents plan a larger change and land it.</span
+>Change</span
+><span id="skein-ui-description-248"
+>Ask for one change.</span
 ></div
-><div role="menuitem" class="temper-rail-new-all"
->All ways to start work</div
+><div role="menuitem" aria-label="Ask temper" aria-describedby="skein-ui-description-249"
+><span
+>Ask temper</span
+><span id="skein-ui-description-249"
+>Ask about this project, or change how its work runs.</span
+></div
 ></div
 ></div
 ><div class="temper-rail-foot"
+><button type="button" class="temper-away"
+>Away<div class="temper-away-track"
+></div
+></button
 ><section data-region="temper-link"
 ><div role="status" aria-label="Live" class="temper-live"
 ><span
 >Live</span
 ></div
 ></section
-><button type="button" class="temper-away"
->Away<div class="temper-away-track"
-></div
-></button
-><a aria-label="Settings" aria-current="page" href="/projects/1/settings"
+><a aria-label="Deployment" href="/accounts"
 ><span
->Settings</span
+>Deployment</span
 ></a
 ><div class="temper-rail-person"
-><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-46" aria-expanded="false"
+><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-48" aria-expanded="false"
 >Owner</button
-><div role="menu" aria-label="Owner" id="skein-ui-menu-46" hidden=""
+><div role="menu" aria-label="Owner" id="skein-ui-menu-48" hidden=""
 ><div role="menuitem"
 >Accounts</div
 ><div role="menuitem"
@@ -127,9 +137,9 @@
 ><main class="temper-main temper-settings"
 ><div class="temper-settings-col temper-how-wide"
 ><div class="temper-settings-intro"
-><p aria-label="Hello · settings" class="temper-settings-kicker"
+><p aria-label="Hello · how work runs" class="temper-settings-kicker"
 ><span
->Hello · settings</span
+>Hello · how work runs</span
 ></p
 ><h1 aria-label="Agents review" class="temper-settings-headline"
 ><span
@@ -144,7 +154,7 @@
 >Ask temper to change this</span
 ></a
 ></div
-><nav aria-label="Settings" class="temper-settings-tabs"
+><nav aria-label="How work runs" class="temper-settings-tabs"
 ><a aria-label="How work runs" aria-current="page" href="/projects/1/settings"
 ><span
 >How work runs</span
@@ -152,22 +162,6 @@
 ><a aria-label="Repositories" href="/projects/1/settings/repositories"
 ><span
 >Repositories</span
-></a
-><a aria-label="Forges" href="/forges"
-><span
->Forges</span
-></a
-><a aria-label="Accounts" href="/accounts"
-><span
->Accounts</span
-></a
-><a aria-label="Models" href="/projects/1/settings/models"
-><span
->Models</span
-></a
-><a aria-label="Builders" href="/projects/1/settings/builders"
-><span
->Builders</span
 ></a
 ></nav
 ><div class="temper-settings-body"
@@ -412,17 +406,17 @@
 ></small
 ></div
 ><div class="temper-settings-checks"
-><input type="checkbox" checked="" id="skein-ui-label-101"
-><label for="skein-ui-label-101"
+><input type="checkbox" checked="" id="skein-ui-label-95"
+><label for="skein-ui-label-95"
 >Implementation choices</label
-><input type="checkbox" checked="" id="skein-ui-label-102"
-><label for="skein-ui-label-102"
+><input type="checkbox" checked="" id="skein-ui-label-96"
+><label for="skein-ui-label-96"
 >New dependencies</label
-><input type="checkbox" checked="" id="skein-ui-label-103"
-><label for="skein-ui-label-103"
+><input type="checkbox" checked="" id="skein-ui-label-97"
+><label for="skein-ui-label-97"
 >Departures from a landed design</label
-><input type="checkbox" disabled="" id="skein-ui-label-104"
-><label for="skein-ui-label-104"
+><input type="checkbox" disabled="" id="skein-ui-label-98"
+><label for="skein-ui-label-98"
 >Money past a budget, what can’t be undone, and changes to these rules: always wait</label
 ></div
 ></div
@@ -466,8 +460,8 @@
 ><span
 >On</span
 ></span
-><input type="checkbox" checked="" class="temper-settings-switch" id="skein-ui-label-117"
-><label for="skein-ui-label-117"
+><input type="checkbox" checked="" class="temper-settings-switch" id="skein-ui-label-111"
+><label for="skein-ui-label-111"
 >Chats can write drafts</label
 ></div
 ></div
@@ -487,8 +481,8 @@
 ><span
 >Hidden</span
 ></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-127"
-><label for="skein-ui-label-127"
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-121"
+><label for="skein-ui-label-121"
 >Goals</label
 ></div
 ></div
@@ -498,9 +492,9 @@
 ><span
 >Changes</span
 ></span
-><small role="generic" aria-label="The landing queue, as a page." class="temper-settings-detail"
+><small role="generic" aria-label="The landing queue, as Work's filter." class="temper-settings-detail"
 ><span
->The landing queue, as a page.</span
+>The landing queue, as Work's filter.</span
 ></small
 ></div
 ><div class="temper-settings-toggle-row"
@@ -508,8 +502,8 @@
 ><span
 >Hidden</span
 ></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-137"
-><label for="skein-ui-label-137"
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-131"
+><label for="skein-ui-label-131"
 >Changes</label
 ></div
 ></div
@@ -529,8 +523,8 @@
 ><span
 >Hidden</span
 ></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-147"
-><label for="skein-ui-label-147"
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-141"
+><label for="skein-ui-label-141"
 >Away switch</label
 ></div
 ></div
@@ -547,17 +541,13 @@
 ><span
 >Needs you</span
 ></a
-><a aria-label="Chats" href="/chats"
+><a aria-label="Work" href="/projects/1/work"
 ><span
->Chats</span
+>Work</span
 ></a
 ><a aria-label="Ask temper" href="/projects/1/ask"
 ><span
 >Ask</span
-></a
-><a aria-label="Settings" aria-current="page" href="/projects/1/settings"
-><span
->Settings</span
 ></a
 ></nav
 ></div

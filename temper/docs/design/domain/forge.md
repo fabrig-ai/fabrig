@@ -3350,8 +3350,13 @@ own, never a change's:
   taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
 - **Written by change alone:** each of the goal's changes lands into it
-  as its landing branch, its merge ordered by the branch's queue (section
-  9) and taking the branch's writer slot while in flight; the goal's own
+  as its landing branch. An ordinary `change` call from the goal or its
+  subtree defaults to the nearest applicable held goal branch; an explicit
+  destination outside it refuses the whole call before delegation. This
+  also holds for every member of a batch. The deliberate `"branch": "mine"`
+  change lands that held branch whole into the base instead (8.1).
+  Each child merge is ordered by the branch's queue (section
+  9) and takes the branch's writer slot while in flight; the goal's own
   runs read it and take no writer slot of it (jig's `domain/tasks.md`, 6.3),
   so merges into it go on while they run.
   A change whose landing branch is a goal's own, made by a task that is

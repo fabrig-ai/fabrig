@@ -39,22 +39,40 @@ fn switch(world: &ClientWorld, person: ClientId, label: &[u8], on: bool) {
     assert_eq!(node.states.iter().any(|state| *state == State::Pressed), on, "{label:?}");
     assert!(!node.states.iter().any(|state| *state == State::Disabled), "answered switch is enabled");
 }
+fn work_filter(world: &mut ClientWorld, person: ClientId, label: &[u8], shown: bool) {
+    let find = Find::named(Role::Link, label).within(Box::new([skein_fake_person::Target::ExactRole {
+        role: Role::Navigation,
+        name: b"Work's filters".as_slice().into(),
+    }]));
+    let observation = if shown { see(find) } else { Step::Gone { find, within: fixtures::WITHIN } };
+    run(
+        world,
+        person,
+        vec![
+            Step::Press { find: Find::exactly_named(Role::Link, b"Work") },
+            see(Find::exactly_named(Role::Navigation, b"Work's filters")),
+            observation,
+            Step::Press { find: Find::exactly_named(Role::Link, b"How work runs") },
+            see(Find::exactly_named(Role::Check, b"Goals")),
+        ],
+    );
+}
 fn accepted() -> (ClientWorld, ClientId) {
     let value = Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, away: true, way: 0 });
     let (mut world, agent, _, proposal) =
         propose(false, Some(Box::new([kinds::item(WAYS_KIND, PROJECT, SETTING, &value)])));
+    fixtures::settings_goal(world.front());
     let person = world.client(fixtures::PARTY, Address::Settings { project: PROJECT });
     run(&mut world, person, vec![see(Find::exactly_named(Role::Check, b"Changes"))]);
     switch(&world, person, b"Changes", false);
     accept(&mut world, agent, &proposal, b"accept-ways");
-    run(&mut world, person, vec![see(Find::exactly_named(Role::Link, b"Changes"))]);
+    work_filter(&mut world, person, "Goals · ".as_bytes(), true);
     (world, person)
 }
 
 #[test]
-fn an_accepted_proposal_of_a_projects_ways_shows_in_its_rail() {
-    let (mut world, person) = accepted();
-    run(&mut world, person, vec![see(Find::exactly_named(Role::Link, b"Goals"))]);
+fn an_accepted_proposal_of_a_projects_ways_shows_in_works_filters() {
+    let (world, person) = accepted();
     for label in SWITCHES {
         switch(&world, person, label, true);
     }
@@ -63,18 +81,36 @@ fn an_accepted_proposal_of_a_projects_ways_shows_in_its_rail() {
     assert!(root.pages().me(root.client()).expect("me").projects.iter().any(|project| project.project == PROJECT));
 }
 
-#[test]
-fn a_switch_on_the_tab_changes_the_rail_and_a_member_is_refused() {
-    let (mut world, owner) = accepted();
-    run(
-        &mut world,
-        owner,
-        vec![
-            Step::Press { find: Find::exactly_named(Role::Check, b"Changes") },
-            Step::Gone { find: Find::exactly_named(Role::Link, b"Changes"), within: fixtures::WITHIN },
-        ],
-    );
+fn changes_filter_switch() {
+    let mut front = Joint::with_settings_changes(fixtures::SEED, &fixtures::domain_limits());
+    front.engine.forge =
+        Some(temper_engine_domain_world::forge_stand::ForgeStand::with_checks(fixtures::REPOSITORIES, &[b"build"]));
+    fixtures::adopt_change_repository(&mut front);
+    front.engine.forge.as_mut().expect("fake forge").push_branch(7, b"temper/settings");
+    let change = fixtures::goal_with_pushed_change(&mut front, b"temper/settings");
+    let mut world =
+        World::new(Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, front);
+    let owner = world.client(fixtures::PARTY, fixtures::task_page(change));
+    let review = super::change_page::review(&mut world, owner, change);
+    super::change_page::finish_review(&mut world, review);
+    run(&mut world, owner, vec![see(Find::text("Landed · merge commit".as_bytes()))]);
+    world.go(owner, Address::Settings { project: PROJECT });
+    run(&mut world, owner, vec![see(Find::exactly_named(Role::Check, b"Changes"))]);
+    run(&mut world, owner, vec![Step::Press { find: Find::exactly_named(Role::Check, b"Changes") }]);
+    switch(&world, owner, b"Changes", true);
+    work_filter(&mut world, owner, "Changes · ".as_bytes(), true);
+    run(&mut world, owner, vec![Step::Press { find: Find::exactly_named(Role::Check, b"Changes") }]);
     switch(&world, owner, b"Changes", false);
+    work_filter(&mut world, owner, "Changes · ".as_bytes(), false);
+}
+
+#[test]
+fn a_switch_on_the_tab_changes_works_filters_and_a_member_is_refused() {
+    changes_filter_switch();
+    let (mut world, owner) = accepted();
+    run(&mut world, owner, vec![Step::Press { find: Find::exactly_named(Role::Check, b"Goals") }]);
+    switch(&world, owner, b"Goals", false);
+    work_filter(&mut world, owner, "Goals · ".as_bytes(), false);
     let driver = &mut world.front().engine;
     let reply = skein_lib::ReplyTo::new(skein_lib::Token::new(u64::from(ROSTER)));
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
@@ -147,12 +183,12 @@ fn a_switch_on_the_tab_changes_the_rail_and_a_member_is_refused() {
         &mut world,
         person,
         vec![
-            Step::Press { find: Find::exactly_named(Role::Check, b"Changes") },
+            Step::Press { find: Find::exactly_named(Role::Check, b"Goals") },
             see(Find::text(b"The held role does not permit this action")),
-            Step::Gone { find: Find::exactly_named(Role::Link, b"Changes"), within: fixtures::WITHIN },
         ],
     );
-    switch(&world, person, b"Changes", false);
+    switch(&world, person, b"Goals", false);
+    work_filter(&mut world, person, "Goals · ".as_bytes(), false);
     assert_eq!(
         world.root(person).person().forge().ways_refused(temper_client_domain::forge::ways::Control::Ways),
         Some(&jig_client::contract::Refusal::Role { held: Some(jig_client::contract::HeldRole::Member) })

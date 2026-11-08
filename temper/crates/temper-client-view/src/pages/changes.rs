@@ -123,7 +123,7 @@ pub(crate) fn landing_parts(b: &mut Builder, parts: &[LinePart], words: &Words) 
         b.close();
     }
 }
-fn count_named(count: u64, words: &Words) -> Box<[u8]> {
+pub(crate) fn count_named(count: u64, words: &Words) -> Box<[u8]> {
     let word = match count {
         2 => Word::ChangesTwo,
         3 => Word::ChangesThree,
@@ -173,11 +173,9 @@ pub(crate) fn main(
     b.open(Role::Main);
     b.style(look::HOME);
     b.style(look::CHANGES);
+    super::work::head(b, root, words, bindings, project, times);
     b.open(Role::Slot);
     b.style(look::HOME_INTRO);
-    let name = super::project_name(root.pages().me(root.client()), project)
-        .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
-    text(b, Role::Paragraph, &words.say(Word::ChangesKicker, &[Hole::Name(name)]), Some(look::HOME_KICKER));
     let state = match root.pages().changes() {
         Some(page) => Some(page.state()),
         None => None,
@@ -198,17 +196,9 @@ pub(crate) fn main(
             return;
         }
     };
-    text(b, Role::Heading { level: 1 }, &heading(panel, words), None);
+    text(b, Role::Heading { level: 2 }, &heading(panel, words), None);
     b.open(Role::Paragraph);
     b.style(look::HOME_LEDE);
-    let mut red = List::uncapped();
-    for queue in panel.queues() {
-        if queue.red() {
-            red.push(queue.branch()).expect("bounded queues");
-        }
-    }
-    let facts = LandingFacts::panel(panel, red.as_slice());
-    landing_parts(b, &landing_line(&facts, words, times), words);
     let branch = branch_words(panel, words, Word::ChangesItsBranch);
     b.text(Run::Plain, &words.say(Word::ChangesLede, &[Hole::Name(branch)]));
     b.close();
