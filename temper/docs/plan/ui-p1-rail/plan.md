@@ -25,20 +25,31 @@ and 8. The design this cut wrote, on the trunk with the first push:
 |---|---|---|---|---|
 | `addresses` | `tasks/addresses.md` | | `Work`, `Members`, `Limits` and their paths; Work's five addresses share the goals', changes' and chats' reads; reserved style slots | 130 |
 | `rail` | `tasks/rail-parts.md` | | `pages::rail::parts`, `facts`, `across`: the rail's parts as one pure function | 70 |
+| `rail` | `tasks/rail.md` | addresses, rail-parts | the view's rail, new box, foot, switcher with All projects, tab bar, in both shells; `temper.css`'s `ui: rail` | 220 |
+| `rail` | `tasks/readers.md` | rail, work-page, deployment | the client world's, browser's, real loop's, one process's and `temper`'s stories walk the new rail | 150 |
 | `work` | `tasks/work-list.md` | | `pages::work::place`: what goes where on Work's one list | 110 |
+| `work` | `tasks/work-page.md` | addresses, work-list | Work's page, its head and filters, its cards; Goals and Changes under Work's head; kind 7's overrides; `work::facts` | 270 |
+| `work` | `tasks/joint-world.md` | rail, work-page, readers | the client's joint world: Work across two projects | 120 |
+| `deployment` | `tasks/deployment.md` | addresses | Deployment's frame and tabs, Workers, Members and its reads, Limits; How work runs' two tabs | 240 |
+| `checks` | `tasks/fuzz.md` | rail-parts, work-list, work-page | section 12's rules over `rail::parts`, `work::place` and `work::shown`, random settings and moves | 90 |
+| `checks` | `tasks/gallery.md` | rail, work-page, deployment | the gallery's fifteen new states | 150 |
+| `checks` | `tasks/regenerate.md` | rail, work-page, deployment | the terminal shell's goldens and the stale web journeys regenerated | 120 |
 | `help` | `tasks/help.md` | | the help pages' navigation words | 50 |
 
-Still to come in later pushes, each released as it holds together: `rail` (the
-view's rail, tab bar, switcher and person's menu), `work-page` (Work's page, its
-head and filters on Goals and Changes, the facts gatherer), `deployment` (the
-Deployment frame, Workers, Members and its read, Limits), then `readers` (the
-client world's, browser's and process stories' presses), `fuzz` (section 12's
-rules over the rail's and Work's functions), `joint-world` (Work across two
-projects), `gallery` (the new states) and `regenerate` (the terminal's goldens
-and the journeys).
+About 1,720 implementer-minutes in all.
 
-**Critical path, as it stands:** `addresses` (130) → `work-page` (about 270) →
-`gallery` or `readers` (about 150): about nine hours of implementer time.
+**Critical path:** `addresses` (130) → `work-page` (270) → `readers` (150) →
+`joint-world` (120): about eleven hours. Beside it, `deployment` (240) and `rail`
+(220) end before `work-page`; `gallery`, `regenerate` and `fuzz` run beside
+`readers`.
+
+**Who waits on whom, and why:** the three page tasks (`rail`, `work-page`,
+`deployment`) run at once, each on its own files in `temper-client-view`, after
+`addresses` settles the shared ones. Every story outside the view that presses the
+old rail waits for all three, so that one task (`readers`) rewrites each story once;
+likewise the goldens and journeys (`regenerate`), which all three change. Until
+`readers` lands, the client world's stories that press "New chat", "Settings",
+"Goals" or "Chats" are red on the trunk; the page tasks list them under `## Left`.
 
 ## What was decided
 
@@ -52,7 +63,10 @@ and the journeys).
   them.
 - **Kind 7's Goals and Changes switches hide Work's filters, not rail entries:**
   section 12's overrides, so the switches keep a meaning until How work runs (P3)
-  takes them to its foot.
+  takes them to its foot. Stock kind 7 holds both Hidden, so a stock project's
+  Work draws no Goals or Changes chip while its goals and changes still list under
+  All and their addresses still open; a way that uses goals sets Goals shown. The
+  rail no longer reads kind 7 at all.
 - **Team is in the rail's parts but never shown:** no read gives the rail a
   project's members or a standing role, and Team has no page until P4. The rule
   is in `rail::parts` and its fuzz test; the status names the lag.

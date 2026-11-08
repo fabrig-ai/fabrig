@@ -43,12 +43,14 @@ pub mod home;
 pub mod inbox;
 pub mod models;
 pub mod needs;
+pub mod rail;
 pub mod report;
 pub mod start_goal;
 pub mod switcher;
 pub mod task;
 pub mod terminal;
 pub mod welcome;
+pub mod work;
 /// The chosen playground waits for its project membership (temper/docs/design/client/README.md, 4.8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PlaygroundChoice {
