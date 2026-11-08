@@ -70,3 +70,12 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: the arithmetic and its figures at both widths, the repairs, the rows and the bite with its failure, the runs' counts, and the account as committed.
+
+## Rebase (2026-11-08, step merge, foreman look-round-25/ways-misses/foreman-1)
+
+resolve README.status.md by retaining roles-view and removing only ways-misses
+Rebase onto the landing’s current integration tip.
+The conflict is in `temper/docs/design/client/README.status.md`, under **Not yet**.
+Commit `dab3e93ee5` (merged by `438a819fec`) adds the `roles-view` entry immediately after the `ways-misses` entry that this branch deletes.
+Resolve by deleting the five-line 5.16 `ways-misses` entry while retaining both the 4.6 `path-stops` entry and the two-line 4.6 and 5.16 `roles-view` entry.
+Preserve all other status text and the branch’s implementation changes.
