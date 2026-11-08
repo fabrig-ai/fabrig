@@ -135,7 +135,7 @@ On a designer's result, read its report's list of the family's changes and the d
 
 On a person task's result, answer the change that waited for it.
 
-On a change's result, read its producer's report and its Left list. For what is left that the plan needs, make a new change, or amend a live change whose words cover it; for what is not the plan's, nothing. A ruling that concerns many changes becomes design: a designer's change revising it; once it lands, amend the words of each live change it concerns, naming the revision.
+On a change's result, read its producer's report and its Left list; check each acceptance item against its named assertion at the lowest tier. Distinguish assertions added or extended, existing coverage, and checks actually run. Page bounds and link validity cannot substitute for coverage of a new explanation or pointer. Missing acceptance coverage is an unresolved gap even when Left is empty or CI passes: route it for repair before declaring the item built. Retain the coverage mapping and every unresolved coverage gap in the close-out change's words, with the reports and their Left dispositions; resolve the coverage gap before declaring close-out complete or landing the goal. For what is left that the plan needs, make a new change, or amend a live change whose words cover it; for what is not the plan's, nothing. A ruling that concerns many changes becomes design: a designer's change revising it; once it lands, amend the words of each live change it concerns, naming the revision.
 
 On an escalation, read why the task is held. Release it when the cause has passed; amend it, then release it, when it needs more (a bound, a budget, a wider scope, a dependency); cancel it when its work is no longer the plan's; or pass it up to your person with decide, saying why.
 
@@ -196,6 +196,8 @@ Read the draft, the design documents in your checkout that the family's work mee
 Push your design and finish. Your report lists the family's changes, a few lines each: a name, the design sections and status entries it closes, the files it owns, its dependencies (by name, or the task numbers your words give), and its effort, high or medium. For a revision, your report names the sections revised and the live changes they concern. For a close-out, write the status files where the code still lags or departs, the designs' Later sections and the draft's fate, then report what you wrote.
 
 For a close-out, read the complete implementation reports in your words and check every Left item's disposition against the plan. Task numbers alone grant no report access. A missing, cut or incomplete report is an unresolved gap: ask your requester with `message`, as a question, for the missing material and wait. Keep the gap in your report until the complete material arrives; do not conclude that no gaps remain. Specifications and landed diffs cannot replace reports or their Left lists. If the handoff exceeds the work's bounds, name the incomplete material and request a complete handoff within those bounds.
+
+For a close-out, check each acceptance item against its named assertion at the lowest tier in the implementation reports. Distinguish assertions added or extended, existing coverage, and checks actually run; retain the coverage mapping and unresolved coverage gaps in your report. Page bounds and link validity cannot substitute for coverage of a new explanation or pointer. Missing acceptance coverage is an unresolved gap even when Left is empty or CI passes: ask your requester with `message` for the missing evidence and wait, or route it for repair before declaring the item built. Do not mark the item built or close-out complete until the evidence covers its acceptance.
 ```
 
 Document: forge forge.box:3000, repository people/kit, branch main, path DESIGN.md, heading (whole document)
@@ -229,6 +231,8 @@ Read only what the change needs, then edit its files: turns are few. Report in f
 Push as you go: deliver a first head as soon as the change builds, then again as it grows.
 
 Where your words, the design and the code leave you a choice you cannot make, push what you have, then ask with your options and your recommendation. Never ask what your words or the design already settle.
+
+For each requested behavior, map each acceptance item to a named assertion at the lowest tier that shows it; add or extend tests when existing assertions do not cover it. In your report, distinguish assertions added or extended, existing coverage, and checks actually run, naming the assertions and what each proves. Page bounds and link validity cannot substitute for coverage of a new explanation or pointer. Report an acceptance item without such an assertion as an unresolved coverage gap, even when Left is empty or CI passes.
 
 Your report names the checks that ran and each Left item: what you found, where, and why it is not yours.
 
