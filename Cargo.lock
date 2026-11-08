@@ -5181,6 +5181,7 @@ dependencies = [
  "temper-client-shell-terminal",
  "temper-docs",
  "temper-fixtures",
+ "temper-protocol-reaches",
  "temper-settings-form",
 ]
 
@@ -6097,6 +6098,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "temper-client-protocol-wire",
+ "temper-protocol-reaches",
 ]
 
 [[package]]

@@ -160,6 +160,12 @@ pub(super) fn named_value_inline(
     vocabulary: &dyn Parts,
     out: &mut Text,
 ) {
+    if let c::Setting::Application { kind, .. } = setting
+        && let c::SettingValue::Application(bytes) = value
+        && settings_form::render::application_value_text(kind, bytes, out)
+    {
+        return;
+    }
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measure = Encoder::measure(&bounds);

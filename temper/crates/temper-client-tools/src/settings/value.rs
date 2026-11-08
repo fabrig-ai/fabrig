@@ -48,6 +48,9 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.unsigned(u64::from(value.way()));
             out.object_end();
         }
+        8 => {
+            return settings_form::render::application_value(kind, bytes, out);
+        }
         _ => return false,
     }
     true
