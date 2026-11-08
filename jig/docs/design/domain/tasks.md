@@ -1987,3 +1987,9 @@ the newest when it moved.
   `finish` with no call to its host (engine.md, 7.3 and 7.4), and costs a turn;
   parking stays underneath it, as a refusal can't cover every path to a finish.
   Default: it parks, an application's charter saying beforehand to call `wait`.
+- **A finish put off for live delegates, told** (5.6; engine.md, 7.4):
+  whether the next run is told that its task's last run finished while
+  its delegates were live, a bounded note the tasks store keeps for its
+  brief. Default: it isn't, the plan `wake-faults`'s answer of
+  2026-11-08; revisited if a model is seen finishing again and again while
+  its delegates run.
