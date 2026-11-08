@@ -26,7 +26,7 @@ fn model() -> c::MeModel {
         provider: None,
         window: 8192,
         output: 1024,
-        efforts: List::from_boxed(Box::new([text(b"high")])),
+        efforts: List::from_boxed(Box::new([text(b"low"), text(b"high")])),
         effort: Some(text(b"high")),
         prices: c::ModelPrices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
         description: None,
@@ -70,6 +70,15 @@ fn root_state(project: bool, picker: bool, chat: bool, delegate: bool, draft: bo
     if let Some(project) = me.projects.get_mut(0) {
         project.templates = List::from_boxed(Box::new([template(1), template(5)]));
         if picker {
+            project.defaults = List::from_boxed(Box::new([c::MeDefault {
+                template: d::pages::chats::ASKING_TEMPLATE,
+                choice: c::LlmChoice {
+                    account: Some(1),
+                    main: c::ModelEffort { model: text(b"model"), effort: Some(text(b"high")) },
+                    subagents: List::with_capacity(0),
+                    later: None,
+                },
+            }]));
             project.models = List::from_boxed(Box::new([model()]));
         }
     }
@@ -285,7 +294,7 @@ fn active_command_name_is_plain_weight() {
     f::build(&mut view, &Tui::new(f::ADDRESS), &root);
     let size = Size { columns: 80, rows: 24 };
     for scheme in [Scheme::Dark, Scheme::Light] {
-        let theme = crate::theme(scheme);
+        let theme = crate::theme(scheme, None);
         let mut focus = Focus::default();
         let mut frame = Frame::new(size);
         for active in [b"/model".as_slice(), b"/new"] {
@@ -330,7 +339,7 @@ fn command_paints(frame: &skein_ui_screen::Frame, active: &[u8], theme: &skein_u
             }
         }
     }
-    assert_eq!(commands, 6);
+    assert_eq!(commands, 7);
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions search the rendered tree")]
 fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
@@ -354,7 +363,15 @@ fn the_foot_says_each_state() {
             "/",
             None,
             None,
-            &[Command::Model, Command::New, Command::Chats, Command::Theme, Command::Help, Command::Exit][..],
+            &[
+                Command::Model,
+                Command::Effort,
+                Command::New,
+                Command::Chats,
+                Command::Theme,
+                Command::Help,
+                Command::Exit,
+            ][..],
         ),
         ("launchpad prefix", true, false, "/c", None, None, &[Command::Chats][..]),
         ("chat prefix", true, true, "/c", None, None, &[Command::Close, Command::Chats][..]),
@@ -362,6 +379,7 @@ fn the_foot_says_each_state() {
         ("whitespace", true, false, "/new ", None, Some("Ask temper"), &[][..]),
         ("unicode whitespace", true, false, "/new\u{a0}", None, Some("Ask temper"), &[][..]),
         ("models", true, false, "", Some(Listing::Model), None, &[][..]),
+        ("launchpad efforts", true, false, "", Some(Listing::Effort), None, &[][..]),
         ("efforts", true, true, "", Some(Listing::Effort), None, &[][..]),
         ("chats", true, false, "", Some(Listing::Chats), None, &[][..]),
     ] {
@@ -553,11 +571,11 @@ fn read_states() {
         let mut focus = skein_ui_screen::Focus::default();
         let mut frame = skein_ui_screen::Frame::new(size);
         f::build(&mut view, &tui, &initial);
-        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark), size, &mut focus, &mut frame);
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut focus, &mut frame);
         tui.step(Told::Link { link: jig_client::Link::SignedOut });
         tui.step(Told::Local { local: next });
         f::build(&mut view, &tui, &f::signed_out());
-        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark), size, &mut focus, &mut frame);
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut focus, &mut frame);
         assert_eq!(focus.node, Some(f::find(view.tree(), Role::TextField, b"Link").id), "{name}");
     }
 }
@@ -674,12 +692,13 @@ fn note_states() {
     tui.step(Told::Unknown { words: Some(b"/font".as_slice().into()) });
     let notes: foot::Notes = foot::read_notes(&root, &tui, &words);
     let want = [
-        "/model  Change the model, from the next turn",
-        "/new    Start a new chat",
-        "/chats  Open another chat",
-        "/theme  Dark or light",
-        "/help   Commands and keys",
-        "/exit   Close temper",
+        "/model   Change the model, from the next turn",
+        "/effort  Change the effort",
+        "/new     Start a new chat",
+        "/chats   Open another chat",
+        "/theme   Dark or light",
+        "/help    Commands and keys",
+        "/exit    Close temper",
         "Enter sends",
         "Tab completes a command",
         "PgUp and PgDn read back",
@@ -746,6 +765,7 @@ fn the_foots_are_their_goldens() {
     for ((name, scheme, size, _, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {
+                background: Some(crate::theme::palette(*scheme)[0].1),
                 name,
                 tree: view.tree(),
                 scheme: *scheme,
@@ -756,4 +776,39 @@ fn the_foots_are_their_goldens() {
             .unwrap();
     }
     goldens::check(checks.as_slice());
+}
+
+#[test]
+fn the_launchpad_effort_list_changes_homes_choice() {
+    let mut root = root(true, true, false, false, false);
+    let mut view = f::view();
+    let tui = Tui::new(f::ADDRESS);
+    let me = root.pages().me(root.client()).unwrap();
+    assert_eq!(root.pages().choice().chosen(me).unwrap().main.effort.as_ref().unwrap().bytes(), b"high");
+    act(&mut root, d::pages::Act::ChatWords { words: b"/effort".as_slice().into() });
+    f::build(&mut view, &tui, &root);
+    let item = f::find(view.tree(), Role::MenuItem, b"/effort");
+    assert_eq!(crate::event(&view, item.id, Act::Press), Some(TuiEvent::Command { command: Command::Effort }));
+    act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Effort }));
+    f::build(&mut view, &tui, &root);
+    let head = b"Effort. A change applies from the next turn.";
+    let heading = f::find(view.tree(), Role::Text, head);
+    assert_eq!(heading.styles.as_slice(), [look::LIST_HEAD]);
+    let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
+    assert!(f::index(view.tree(), field.id) < f::index(view.tree(), heading.id));
+    for (name, index) in [(b"low".as_slice(), 0), (b"high".as_slice(), 1)] {
+        let item = f::find(view.tree(), Role::MenuItem, name);
+        assert_eq!(
+            crate::event(&view, item.id, Act::Press),
+            Some(TuiEvent::Act { act: d::pages::Act::Choice(d::pages::choice::Act::Effort { index }) })
+        );
+    }
+    let item = f::find(view.tree(), Role::MenuItem, b"low");
+    let Some(TuiEvent::Act { act: action }) = crate::event(&view, item.id, Act::Press) else {
+        unreachable!("effort option carries the root's act");
+    };
+    act(&mut root, action);
+    let me = root.pages().me(root.client()).unwrap();
+    assert_eq!(root.pages().choice().chosen(me).unwrap().main.effort.as_ref().unwrap().bytes(), b"low");
+    assert!(root.pages().chat().is_none());
 }

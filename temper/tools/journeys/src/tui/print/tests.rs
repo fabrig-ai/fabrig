@@ -4,14 +4,14 @@ use skein_ui_screen::{Cell, Size};
 fn marked(key: Option<Key>) -> Mark {
     let size = Size { rows: 2, columns: 8 };
     let mut frame = Frame::new(size);
-    frame.clear(size, Cell { glyph: ' ', paint: theme(Scheme::Dark).base });
+    frame.clear(size, Cell { glyph: ' ', paint: theme(Scheme::Dark, None).base });
     Mark { frame, live: None, key }
 }
 
 #[test]
 fn rows_group_paints_escape_text_and_wrap_the_cursor() {
     let mut mark = marked(None);
-    let base = theme(Scheme::Dark).base;
+    let base = theme(Scheme::Dark, None).base;
     let accent = Paint { fore: Some(palette(Scheme::Dark)[4].1), ..base };
     for (column, glyph, paint) in
         [(0, '<', base), (1, '>', base), (2, '&', accent), (3, '"', accent), (4, '界', base), (5, '\0', base)]
@@ -38,12 +38,8 @@ fn rows_group_paints_escape_text_and_wrap_the_cursor() {
 fn palette_colours_and_each_attribute_have_classes() {
     for (paint, expected) in [
         (
-            Paint {
-                fore: Some(palette(Scheme::Light)[4].1),
-                back: Some(Rgb { red: 0xf4, green: 0xf0, blue: 0xe9 }),
-                ..Paint::NONE
-            },
-            "<span class=\"f-accent b-sel\">",
+            Paint { fore: Some(palette(Scheme::Light)[4].1), back: Some(palette(Scheme::Light)[3].1), ..Paint::NONE },
+            "<span class=\"f-accent b-faint\">",
         ),
         (Paint { bold: true, ..Paint::NONE }, "<span class=\"bold\">"),
         (Paint { dim: true, ..Paint::NONE }, "<span class=\"dim\">"),

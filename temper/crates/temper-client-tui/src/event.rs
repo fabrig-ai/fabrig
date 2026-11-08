@@ -10,4 +10,5 @@ pub enum Event {
     Act { act: temper_client_domain::pages::Act },
     Aside { object: jig_client::contract::ObjectKey },
     Dismiss,
+    LeftOff { task: Option<u64> },
 }
