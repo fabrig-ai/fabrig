@@ -85,7 +85,11 @@ fn an_activity_line_of_each_kind_reads_back() {
             why: domain::Why::Retry { tries: fixtures::task_record().tries },
             resumed: true,
         },
-        domain::Line::RunEnded { attempt: 3, end: domain::EndKind::Failed { class: domain::Class::Lost }, spent: 7 },
+        domain::Line::RunEnded {
+            attempt: 3,
+            end: domain::EndKind::Failed { class: domain::Class::Lost, invalid_result: None },
+            spent: 7,
+        },
         domain::Line::Turn { reply: 37, attempt: 3, turn: 5, read: Some(5) },
         domain::Line::Decided { revision: 3, proposal: Some(domain::DecidedProposal { number: 7, made: true }) },
         domain::Line::Milestone { position: 13 },
@@ -561,5 +565,23 @@ fn run_reason_bits_refuse_unknown_kinds() {
         record.reasons = reasons;
         record.offered = offered;
         assert_eq!(saved_tasks(&live_record(record)), Err(bound_problem(path)));
+    }
+}
+
+#[test]
+fn invalid_run_ends_keep_their_contract_kind_in_store_bytes() {
+    for reason in [
+        domain::InvalidResult::Form,
+        domain::InvalidResult::Verdict,
+        domain::InvalidResult::Words,
+        domain::InvalidResult::Change,
+        domain::InvalidResult::Followups,
+    ] {
+        let row = activity(domain::Line::RunEnded {
+            attempt: 3,
+            end: domain::EndKind::Failed { class: domain::Class::Invalid, invalid_result: Some(reason) },
+            spent: 7,
+        });
+        assert_eq!(saved_tasks(&row), Ok(row));
     }
 }

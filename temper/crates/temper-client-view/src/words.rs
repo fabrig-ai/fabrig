@@ -1060,6 +1060,10 @@ pub enum Word {
     ChatCancelled,
     RunBegan,
     RunEnded,
+    /// A run ended with a result outside its admitted contract.
+    RunEndedInvalid,
+    /// A run ended with a result the adapter could not read.
+    RunEndedUnreadable,
     Message,
     MessagePlaceholder,
     Send,
@@ -1545,7 +1549,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2103;
+const PHRASES: u32 = 2105;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1572,10 +1576,10 @@ const PHRASES: u32 = 2103;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3682;
+const SEGMENTS: u32 = 3690;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52088;
-const ALL: [Word; 1421] = [
+const ENGLISH_BYTES: u32 = 52171;
+const ALL: [Word; 1423] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2596,6 +2600,8 @@ const ALL: [Word; 1421] = [
     Word::ChatCancelled,
     Word::RunBegan,
     Word::RunEnded,
+    Word::RunEndedInvalid,
+    Word::RunEndedUnreadable,
     Word::Message,
     Word::MessagePlaceholder,
     Word::Send,
@@ -4127,6 +4133,8 @@ impl Word {
             Self::ChatCancelled => 1046,
             Self::RunBegan => 150,
             Self::RunEnded => 151,
+            Self::RunEndedInvalid => 4183,
+            Self::RunEndedUnreadable => 4184,
             Self::Message => 146,
             Self::MessagePlaceholder => 1077,
             Self::Send => 147,
@@ -5879,6 +5887,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatCancelled => (&[b"Cancelled \xc2\xb7 ", b""], &[Name]),
         Word::RunBegan => (&[b"Run ", b" began"], &[Number]),
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
+        Word::RunEndedInvalid => (&[b"Run ", b" ended: its result broke its contract (", b")"], &[Number, Name]),
+        Word::RunEndedUnreadable => (&[b"Run ", b" ended: its result couldn't be read"], &[Number]),
         Word::Message => (&[b"Message"], &[]),
         Word::MessagePlaceholder => (&[b"Reply to T"], &[Number]),
         Word::Send => (&[b"Send"], &[]),

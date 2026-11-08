@@ -38,8 +38,29 @@ pub enum RunEnd {
     Parked,
     Finished,
     Cancelled,
-    Failed { class: HoldFailure },
+    Failed {
+        /// Failure class used by the retry policy.
+        class: HoldFailure,
+        /// Present only for invalid results, including an unreadable result.
+        invalid_reason: Option<InvalidReason>,
+    },
     Refused,
+}
+/// Public cause of an invalid run result (protocol/client.md, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum InvalidReason {
+    /// The result used a different contract form.
+    Form,
+    /// The verdict code was outside the contract's choices.
+    Verdict,
+    /// The result's words exceeded the contract's bound.
+    Words,
+    /// The change named a different connector or result kind.
+    Change,
+    /// The result proposed too many follow-up tasks.
+    Followups,
+    /// The adapter could not decode or translate the result.
+    UnreadableResult,
 }
 /// All bytes are whole admitted words. No text-loss marker exists in this source.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
