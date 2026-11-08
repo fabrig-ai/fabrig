@@ -29,13 +29,6 @@ fake status supplies it; this does not establish a real-login render check.
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
   7.3; this is a design gap, not an absent implementation.
 
-- **Not yet:** 5.1: an answer not asked for aborts the agent: a file
-  answer that reaches a program backend with nothing outstanding panics
-  in `Backend::file_event` (`smith-protocol-program/src/backend/files.rs`,
-  "one pending private file request") or `Backend::native_event`
-  (`backend/native.rs`), rather than failing that program's run (plan
-  `program-burst-files`).
-
 - **Not yet:** 5.1: an answer's program is told by any token the program
   owns: the agent service's `file_event`
   (`smith-agent-service/src/service/program.rs`) routes a file answer to

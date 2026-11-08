@@ -484,7 +484,7 @@ impl Backend {
         match event {
             BelowEvent::File { event, descriptor } => {
                 if event.owner() == self.token(Owner::Native) {
-                    self.native_event(event, up, below);
+                    self.native_event(env, event, up, below);
                 } else {
                     self.file_event(env, event, descriptor, up, below);
                 }
