@@ -85,6 +85,8 @@ pub fn draws(address: &crate::Address) -> bool {
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Adopt { .. } => false,
     }

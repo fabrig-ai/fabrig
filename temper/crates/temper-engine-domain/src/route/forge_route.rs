@@ -1606,14 +1606,8 @@ fn goal_members(
         let Some(change_topic) = change_topic(domain, task) else { continue };
         match topic {
             forge::Topic::Landings { .. } if *topic != change_topic => continue,
-            forge::Topic::Ci { repository, .. } => match change_topic {
-                forge::Topic::Landings { repository: home, .. } if home == *repository => {}
-                forge::Topic::Landings { .. }
-                | forge::Topic::Ci { .. }
-                | forge::Topic::Pull { .. }
-                | forge::Topic::Participation { .. } => continue,
-            },
-            forge::Topic::Landings { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } => {}
+            forge::Topic::Landings { .. } => {}
+            forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } => continue,
         }
         let mut hinted = false;
         let mut present = false;
@@ -4590,7 +4584,6 @@ pub(crate) fn outputs(
                 route_resource(domain, env, project, &name, role, hold);
             }
 
-            forge::Request::GoalTopic { goal, topic } => subscribe_goal(domain, env, goal, topic),
             forge::Request::GoalUntopic { goal, topic } => {
                 if let Some(subscriber) = domain.forge.topic_subscriber(goal, &topic) {
                     domain.work.push(Work::Tasks(tasks::Event::Unsubscribe {

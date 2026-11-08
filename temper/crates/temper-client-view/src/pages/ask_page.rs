@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::forge::stock_ways::{State as WaysState, StockWays, WayAct};
-use temper_client_domain::{Domain, pages::Act};
+use temper_client_domain::{Address, Domain, pages::Act};
 use temper_client_protocol_wire::v1 as wire;
 
 pub(crate) fn main(
@@ -205,18 +205,17 @@ fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut Bindings, 
     b.style(look::WAYS_ZOOM_HEAD);
     text(b, Role::Heading { level: 3 }, &heading, None);
     b.text(Run::Plain, card.who());
-    match stop.opens() {
-        wire::Opens::Charter(_) | wire::Opens::Gate(_) | wire::Opens::Rule(_) => {
-            let label = w.say(Word::WaysOpen, &[Hole::Name(copy_of(card.name()))]);
-            crate::link(
-                b,
-                &label,
-                bindings.insert(Act::Go { address: temper_client_domain::Address::Settings { project } }),
-            );
-            b.text(Run::Plain, &label);
-            b.close();
-        }
-        wire::Opens::Nothing | wire::Opens::Tier(_) | wire::Opens::Queue | wire::Opens::Turn => {}
+    let address = match stop.opens() {
+        wire::Opens::Charter(c) => Some(Address::Role { project, charter: c.charter() }),
+        wire::Opens::Gate(g) => Some(Address::Role { project, charter: g.charter() }),
+        wire::Opens::Rule(r) => Some(Address::Rule { project, kind: r.kind(), number: r.number() }),
+        wire::Opens::Nothing | wire::Opens::Tier(_) | wire::Opens::Queue | wire::Opens::Turn => None,
+    };
+    if let Some(address) = address {
+        let label = w.say(Word::WaysOpen, &[Hole::Name(copy_of(card.name()))]);
+        crate::link(b, &label, bindings.insert(Act::Go { address }));
+        b.text(Run::Plain, &label);
+        b.close();
     }
     b.close();
     b.open(Role::Group);

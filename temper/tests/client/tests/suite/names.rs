@@ -11,6 +11,8 @@ fn client_crates_carry_the_client_prefix() {
         "temper",
         &[
             "temper",
+            // Both binaries share their start helpers (temper/docs/design/client/README.md, 2).
+            "temper-shell",
             // The engine world and shared fixtures keep their test-kit names
             // (temper/docs/design/domain/testing.md, 7).
             "temper-engine-domain-world",

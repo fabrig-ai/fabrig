@@ -1690,6 +1690,17 @@ fn a_second_proposal_is_refused_naming_the_one_pending() {
 }
 
 #[test]
+fn a_subscription_refused_for_a_full_room_names_its_bound() {
+    let value = engine::CallAnswer::SubscriptionRefused(busy_problem(
+        tasks::CapacityAction::Subscription { number: 23 },
+        tasks::CapacityCause::Subscriptions { limit: 4 },
+    ));
+    let rendered = answer(&value);
+    assert_eq!(rendered.text(), b"Refused: task 2 busy: it holds its most subscriptions (at most 4, counting the topics the engine keeps for a goal); unsubscribe one it made to make room");
+    assert!(rendered.error());
+}
+
+#[test]
 fn a_busy_without_a_capacity_keeps_its_words() {
     let value = engine::CallAnswer::ControlRefused(tasks::Problem::new(Some(2), tasks::Refusal::Busy));
     let rendered = answer(&value);
@@ -2196,25 +2207,25 @@ fn change_batch_refuses_outer_options() {
     let input = format!(r#"{{"changes":[{members}],{options}}}"#);
     assert_eq!(
         configured_change(input.as_bytes()),
-        Err(Problem::Range(b"landing: put inside each changes item")),
+        Err(Problem::Beside(b"landing")),
         "combined recorded option placement must fail before returning an engine call"
     );
-    let cases: &[(&str, &str, &[u8])] = &[
-        ("repository", r#""owner/name""#, b"repository: put inside each changes item"),
-        ("name", r#""batch""#, b"name: put inside each changes item"),
-        ("landing", r#""goal""#, b"landing: put inside each changes item"),
-        ("branch", r#""run""#, b"branch: put inside each changes item"),
-        ("merge", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#, b"merge: put inside each changes item"),
-        ("after", "[1]", b"after: put inside each changes item"),
-        ("producer", "2", b"producer: put inside each changes item"),
-        ("llm", r#"{"producer":{"main":{"model":"sol","effort":"high"}}}"#, b"llm: put inside each changes item"),
-        ("questions", r#""foreman""#, b"questions: put inside each changes item"),
-        ("repairs", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#, b"repairs: put inside each changes item"),
+    let cases: &[(&str, &str)] = &[
+        ("repository", r#""owner/name""#),
+        ("name", r#""batch""#),
+        ("landing", r#""goal""#),
+        ("branch", r#""run""#),
+        ("merge", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#),
+        ("after", "[1]"),
+        ("producer", "2"),
+        ("llm", r#"{"producer":{"main":{"model":"sol","effort":"high"}}}"#),
+        ("questions", r#""foreman""#),
+        ("repairs", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#),
     ];
-    for (field, value, message) in cases {
+    for (field, value) in cases {
         for value in [*value, "null"] {
             let input = format!(r#"{{"changes":[{members}],"{field}":{value}}}"#);
-            assert_eq!(configured_change(input.as_bytes()), Err(Problem::Range(message)), "{input}");
+            assert_eq!(configured_change(input.as_bytes()), Err(Problem::Beside(field.as_bytes())), "{input}");
         }
     }
     let input = format!(r#"{{"changes":[{members}],"words":"outer"}}"#);
@@ -2295,7 +2306,11 @@ fn change_batch_declares_each_member() {
 #[test]
 fn change_refuses_words_with_changes_and_empty_members() {
     let cases: &[(&[u8], Problem)] = &[
+        (br#"{"questions":"up","producer":2,"changes":[{"words":"a"}]}"#, Problem::Beside(b"producer")),
+        (br#"{"questions":"up","repairs":true,"changes":[{"words":"a"}]}"#, Problem::Beside(b"repairs")),
+        (br#"{"landing":"goal","changes":[{}]}"#, Problem::Beside(b"landing")),
         (br#"{"words":"a","changes":[{"words":"b"}]}"#, Problem::Range(b"changes")),
+        (br#"{"words":"a","landing":"goal","changes":[{"words":"b"}]}"#, Problem::Range(b"changes")),
         (br#"{"changes":[]}"#, Problem::Range(b"changes")),
         (br#"{"changes":{}}"#, Problem::Type(b"changes")),
         (br#"{"changes":[true]}"#, Problem::Type(b"changes")),

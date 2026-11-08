@@ -153,7 +153,8 @@ fn a_stalled_change_holds_its_task_and_wakes_its_idle_goal() {
     let (mut world, goal, task, producer) = preparing(true);
     waiting(&mut world, task, &producer, true);
     world.until(Until::Ready);
-    let read = Some(live_task(&world, goal.task).last_message);
+    // A goal has no CI news to read while its change waits for checks.
+    let read = live_task(&world, goal.task).inbox.last().map(|word| word.number);
     world.send(protocol::turn(CHANNEL, goal.task, goal.attempt, 1, 0, read, b"Wait for CI"));
     world.until(Until::Ready);
     park_after_turn(&mut world, &goal, read, 1);

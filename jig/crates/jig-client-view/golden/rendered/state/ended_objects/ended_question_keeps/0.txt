@@ -26,12 +26,11 @@ Ended object:
     Whole words
     `~�`
   Task 8: Review:
-    Task 8: Review:
-      [2] Task 8: Review
-      Person 1
-      Held
-      Held budget
-      Current revision 4
+    [2] Task 8: Review
+    Person 1
+    Held
+    Held budget
+    Current revision 4
     Completed
     Completion time not supplied
     independent result

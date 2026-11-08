@@ -512,7 +512,8 @@ Typed, so the engine can act on them without reading prose:
 
 - **refused** at the entrance: busy; or invalid, beyond the hub's
   limits, with smith's parts that do not decode (6.8), or as a start
-  smith refuses, naming what (section 8);
+  smith refuses, naming what (section 8); a start the agent refuses for
+  want of room is refused busy, as at the entrance (section 8);
 - **preparation failed:** transient (the system could not be reached,
   the worker's side failed or ran out of time, another run of the
   workstream holds its workspace), or permanent until something changes
@@ -983,9 +984,15 @@ channel without counting an agent short.
 
 A refused agent start carries its typed cause, `StartCause::{Other,
 Grants}`, apart from the operator's bytes. Either is an invalid start:
-it spends a try, as any refused start does, so that a host that refuses
-the same start every time ends its task's tries rather than spawning an
-agent for ever.
+it spends a try of the permanent class, an assignment its host found
+invalid (tasks.md, 5.5), as any invalid start but a refused transcript
+does, so that a host that refuses the same start every time ends its
+task's tries rather than spawning an agent for ever. No model gave
+anything, so none is ever the invalid class, which is a result's. An
+agent that refuses a start for want of room, as smith does when it is
+busy, says so (`FromAgent::StartBusy`), and the hub answers the start
+refused busy, as at its entrance: no failure, placed again
+(engine.md, section 8).
 
 ## 9. Messages and delivery
 

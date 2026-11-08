@@ -225,14 +225,14 @@ impl Walk {
         if matches!(self.page, Page::Private) {
             assert_eq!(
                 self.text,
-                ["temper", "Not public, or not here.", "Read public projects"],
+                ["temper", "Sign in", "Not public, or not here.", "Read public projects"],
                 "unknown drops the goal and its change"
             );
         }
         if matches!(self.page, Page::Empty | Page::Malformed) {
             assert_eq!(
                 self.text,
-                ["temper", "Public projects", "No public projects yet."],
+                ["temper", "Sign in", "Public projects", "No public projects yet."],
                 "no public project remains"
             );
         }

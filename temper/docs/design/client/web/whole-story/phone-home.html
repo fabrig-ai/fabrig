@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone, Home</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="whole-story.css">
+<script src="whole-story.js"></script>
+</head>
+<body>
+<div class="phone">
+  <header class="ptop">
+    <span class="brand"><b>✦</b>All projects</span>
+    <button class="pchip" type="button">Away: off</button>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
+  </header>
+  <div class="pbody">
+    <div class="intro" style="gap: 10px">
+      <p class="kicker">Sunday 08:04 · last looked 9 h ago</p>
+      <h1 class="headline">31 changes landed. Two things need you.</h1>
+      <p class="lede">vsr's handoff goal is six of nine in; a fuzz finding overnight was reproduced, and its fix waits on you. vsr-rs is two behind vsr, all C tests passing on Rust.</p>
+      <p class="byline">The status agent, 07:52</p>
+    </div>
+    <div class="section" style="gap: 10px">
+      <div class="shead"><h2>Needs you · 2</h2></div>
+      <div class="card need" style="padding: 14px">
+        <p class="from"><span class="chip">vsr</span> protocol core</p>
+        <p class="q" style="font-size: 15.5px">Count a rejoining witness only once it holds the log suffix?</p>
+        <a class="choice rec" href="phone-need.html">Only once caught up <small>recommended</small></a>
+        <a class="choice quiet" href="phone-need.html">More</a>
+      </div>
+      <div class="card need" style="padding: 14px">
+        <p class="from"><span class="chip">vsr-rs</span> budget</p>
+        <p class="q" style="font-size: 15.5px">Raise Porter's week to $75?</p>
+        <a class="choice rec" href="#">Raise to $75 <small>recommended</small></a>
+      </div>
+    </div>
+    <a class="card" href="#" style="padding: 12px 14px; text-decoration: none; flex-direction: row; justify-content: space-between"><span>Decided for you · 4</span><span class="muted">›</span></a>
+  </div>
+  <nav class="ptabs" aria-label="temper">
+    <a class="on" href="phone-home.html">Home</a>
+    <a href="phone-need.html">Needs <span class="count">2</span></a>
+    <a href="#">Work</a>
+    <a href="#">Ask</a>
+  </nav>
+</div>
+</body>
+</html>

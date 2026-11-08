@@ -1430,6 +1430,16 @@ goals.
   (jig's `domain/connectors.md`, 5.4): the landings on the branches its
   subtree's changes target, which the core subscribes it to as the first
   change into each is made, until the goal ends.
+- **Those are a goal's only topics from the core.** CI on its changes'
+  heads is each change's own, read by its procedure (7.1); the goal hears
+  a change's end or hold as any requester hears its delegate's (jig's
+  `domain/tasks.md`, 8.1), and a run that wants a head's CI subscribes to
+  it. So the topics the core keeps for a goal number its landing branches,
+  however many changes it makes, and its run keeps room in its task's
+  subscriptions for its own: a person task it waits on, a repair before a
+  held landing's release, its timers (`agent.md`, 4.3). A goal's
+  subscription to CI on a head that the core holds at restart is dropped
+  there, its jig row with it.
 - **A landing temper did not make** is news like any other: what landed
   is read, a pull request or a range of commits.
 
@@ -2880,10 +2890,35 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   goal template's), whether it holds the change (a blocking gate), the
   model and effort a run of it would take now for the reader, what its
   tool families let it do, in words, and its instructions' first
-  sentence; for a person, the role, how many it asks and what they
+  sentence, whole, in quotes, within 184 bytes, and past them cut at the
+  last word's end that fits with "…"; for a person, the role, how many it asks and what they
   decide; for code, what it checks or does: CI, the repository's
   gates or tiers by name, the queue or the turn, a merge of exactly
-  the commit its checks saw (8.7); for a bar, the branch.
+  the commit its checks saw (8.7); for a bar, the branch. A review's
+  stop opens its gate and names the gate's reviews' charter beside it,
+  the role its card describes and opens. Every other fact's value is at
+  most 128 bytes, cut the same way.
+- **CI's card** names what CI is: its fact "Checks", where the landing
+  branch's protection names required checks (8.7, the forge's
+  `contexts`), "the CI workflows' checks A, B and C, at the change's
+  head", each context as the forge holds it, joined by ", " and a last
+  " and "; with none, "every check the repository's CI workflows report,
+  at the change's head", since CI then folds every check reported there.
+  The forge reads no list of a repository's workflows (section 20).
+- **A rule's card,** the view `rule K/N` (`../client/README.md`, 5.16),
+  for the landing rule N of kind K (1, the deployment's; 2, the
+  project's), as the forge holds it then: `who` "a landing rule ·
+  holds a merge until it is met" where it enforces, "a landing rule ·
+  advice, enforcing nothing" where not; `name` "the deployment's rule N"
+  or "the project's rule N"; its facts, in this order, each only where
+  the rule has it: "Covers", its pattern in words ("every branch", "the
+  branch main", "branches beginning temper", "OWNER/NAME's main"); "Asks",
+  "CI" and "up to date" as the rule asks them, joined by ", "; "Gates",
+  each gate's name as the review stop's card names its charter ("the
+  reviewer"), "blocking" or "advice", "at a clean head" where `clean`,
+  joined by "; "; "Approvals", each as its stop's words say it ("an
+  owner approves", "×N" past one), joined by "; ". A rule there is none
+  of is `not_drawn`, "no rule K/N.".
 - **The project's path** is the path over its home repository's landing
   branch, or its first adopted repository's with no home; with none,
   over a branch named `main` of no repository: no CI, no tier, the
@@ -3563,6 +3598,13 @@ forge once its removal's decision has committed, and a removal ends
 whole.
 
 ## 20. Open questions
+
+- **A repository's CI workflows by name** (8.13, *CI's card*): the forge
+  reads no list of the workflows a repository runs, on GitHub or Forgejo,
+  so CI's card names the landing branch's required checks, or none.
+  Reading the workflows at adoption, and keeping them current, is a read
+  of each forge's not yet planned (the look request `ask-temper-ways`,
+  2026-11-08).
 
 - **Project-scoped rules on a real forge** (8.9): observe the
   every-project default, its override and reset, and branch-relative

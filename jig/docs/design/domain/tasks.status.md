@@ -8,12 +8,23 @@ saved work, spends no try, adds no backoff and makes the task due again.
 A crash retains the lost-or-not-started recovery rule. The core restart
 table and one-process drain story check the distinction.
 
-Sections 3, 7, 8.2, 8.3, 8.6 and 9 have no known gap in run reasons,
+Sections 5.5 and 5.6 have no known gap in a start its host refused
+before the run's first turn, or in an agent's finish while its task's
+delegates are live. A refused transcript is transient, any other invalid
+start permanent, and an agent's busy refusal no failure
+(`jig-domain-hub-link`'s `payload::ending`). A finish not asking to
+cancel live delegates parks with no try spent (`run/ends.rs`,
+`run_parks`), on the program backend too, as the channel world's
+`a_program_finish_with_live_delegates_parks_without_a_try` shows with a
+scripted program.
+
+Sections 3, 7, 8.1, 8.2, 8.3, 8.6 and 9 have no known gap in run reasons,
 their retention across kept continuations and retries, offered-message
-fences or wakes for undecided entries, including a read escalation
-awaiting an unanswered direct person delegate. Exact reads are kept for
-the attempt; a restart reoffers unresolved entries without changing their
-holder, entry or stall time. A choice's `later` is checked with
+fences, a run prepared again for every reason waiting at its claim, or an
+entry left undecided: one its run covered waits for a change and is
+offered at the next wake, one it did not cover or refused wakes the task
+again (`wake.rs`, `after_run`), and a restart wakes an idle holder only
+for an entry its last run wasn't offered. A choice's `later` is checked with
 its first choice, and an amended choice without it removes the old one.
 Resumed parts, documents per part, choices per wake kind and offering a
 message with its part remain section 13's later work.

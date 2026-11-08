@@ -246,6 +246,18 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   Task reads decide nothing and keep no named-call record. Escalations name
   their task and hold revision and give this recovery call. Read access does
   not grant messages or amendments to ended tasks, or the subscribe family.
+- **A run's subscriptions take its task's room.** `subscribe`, to a task
+  or a timer, and `subscribe_forge` each take one of the task's
+  subscriptions, at most `tasks.subscriptions` (jig's `domain/tasks.md`,
+  8.4 and section 11), where the topics the core keeps for a goal
+  (`forge.md`, 7.2) count too. A call past that room is refused, saying
+  why, as jig's `domain/engine.md`, 7.3 has every refusal do:
+  `subscribe` answers "Refused: task 4 busy: it holds its most
+  subscriptions (at most 4, counting the topics the engine keeps for a
+  goal); unsubscribe one it made to make room", and `subscribe_forge`
+  names `tasks.subscriptions` as its own room's refusals do. A
+  subscription that would leave no room in the task's inbox for its news
+  is refused as any call past the inbox is, naming the inbox.
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, the room of the agent's smallest window (4.6), before any
@@ -601,6 +613,19 @@ delegate from what it knows:
   `domain/tasks.md`, section 4): all of them or none, the call's answer
   naming each change's task in the call's order. A call names either
   `words` or `changes`, never both; `changes` holds at least one.
+  A batch's change takes every member from its own object alone, the
+  members below `changes` and those to come too, and nothing from the
+  call's: a call with `changes` names no other member. One that does is
+  refused as it is decoded, before any change is made, naming the first
+  such member in the declaration's order (`repository`, `name`,
+  `landing`, `branch`, `merge`, `after`, `producer`, `llm`, `repairs`,
+  `questions`) and saying it belongs in each change: "host call member
+  belongs in each change, not beside changes: landing". A landing, a
+  producer, a route for questions or an LLM choice given once for a
+  whole batch is never dropped unheard, and the run gives it again in
+  each change's object. A member's own value is the change's, as in the
+  single form; `words` beside `changes` is refused naming `changes`, as
+  above.
 - **`producer`:** the number of the charter the change's producing
   task, its repairs, its resolutions and its checks' gates run under
   (forge.md, 8.1); left out, the forge's change charter, kind 3's number
@@ -1844,7 +1869,17 @@ host:
 - **A task read where the process has no local agent.** The engine does not
   know its remote agents' reply bound, so a run there reads a task's words in
   pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each
-  worker's reply bound at the engine. Default: the documents' window.
+  worker's reply bound at the engine, by one of two ways: each worker names
+  its agents' host reply bound in its hello on jig's worker link, a byte
+  count jig carries without naming smith, and the engine sizes each read by
+  the worker running the attempt, as a local agent's is (a change of jig's
+  link); or the engine's document names each worker's bound in
+  `hosts.workers` (a configuration change, unchecked against the worker's
+  own). temper/migration's answer of 2026-11-08 to the request
+  `goal-call-faults` names the first as the way to a page as large as the
+  reply allows and leaves the choice to the design owner, a protocol
+  decision a plan of its own follows. Default: the documents' window, which
+  a deployment raises by its own `documents.text_bytes`.
 - **The person's forge identity in a chat's brief,** rather than in the
   settings inventory (8.1), which Ask temper reads first.
   A brief section would spend every chat's room for what one charter

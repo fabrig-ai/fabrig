@@ -210,8 +210,10 @@ fn goal_with_read_escalation() -> World {
     world.claim(1, 5);
     goal_turn(&mut world, 5, 1, Some(23));
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
+    assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
+    say(&mut world, 24);
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
-    assert_eq!(world.record(1).due_reason, jig_domain_tasks::Why::Message { message: 23 });
+    assert_eq!(world.record(1).due_reason, jig_domain_tasks::Why::Message { message: 24 });
     world.claim(1, 6);
     goal_turn(&mut world, 6, 1, Some(23));
     world
@@ -250,9 +252,9 @@ fn a_retired_escalation_does_not_reactivate_its_holder() {
         world.restart();
         assert_eq!(world.record(1).phase, Phase::Active(Active::Idle));
         assert!(!world.activations.contains(&1));
-        say(&mut world, 24);
+        say(&mut world, 32);
         assert!(world.contexts[&1].inbox.iter().all(|word| word.number != 23));
-        consume_goal_wake(&mut world, 7, 24);
+        consume_goal_wake(&mut world, 7, 32);
     }
 }
 

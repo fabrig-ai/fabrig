@@ -321,6 +321,7 @@ fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
                         task.escalation = state.clone();
                     } else {
                         task.phase = Phase::Active(Active::Idle);
+                        task.offered = jig_domain_tasks::Reasons::FIRST;
                     }
                 }
                 step(&mut domain, &env, Event::Restore { record }, &mut out);

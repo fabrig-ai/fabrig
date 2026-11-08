@@ -25,6 +25,18 @@ so producers, repairs, resolutions and agent gates keep one choice.
 The goal template's first/later choice is separate, as
 `../protocol/configuration.md`, 13.9 specifies.
 
+Section 4.3.1 has no known gap in a batch's members: a `change` call with
+`changes` and any of the ten members beside them, a `null` too, is refused
+as it is decoded, before any change is made, naming the first in the
+declaration's order (`temper-engine-smith/src/calls.rs`,
+`change_batch_options`; `temper-service/src/tools.rs`, `invalid`).
+Section 4.3 has no known gap in a run's subscription room: a `subscribe`
+past `tasks.subscriptions` names the room and its bound
+(`temper-engine-smith/src/answers.rs`, `task_capacity`), and the engine
+world refuses a goal's own timer and delegate past a room of one
+(`temper/tests/engine/domain/tests/suite/forge_routes.rs`,
+`forge_subscription_rooms_name_their_limits`).
+
 Sections 4.3 and 4.3.2 have no known implementation gap in `goal`'s
 156-byte declaration, the nonempty branch-prefix description or the
 next reads named by `read_branches` `Empty` and `read_branch` `Missing`.

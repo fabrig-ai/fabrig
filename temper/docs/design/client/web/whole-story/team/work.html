@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team profile, Work</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+<script src="../whole-story.js"></script>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">shop <small>1 project</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">2</span></a>
+      <a class="on" href="work.html">Work</a>
+      <a href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">You</a>
+    </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
+  </nav>
+
+  <main class="main">
+    <div class="col">
+      <header class="intro">
+        <p class="kicker">shop · Work</p>
+        <h1 class="headline">One goal and five changes in flight</h1>
+        <p class="lede">Each started in a chat by one of you. Agents produce and review; each change waits for its sign-off, then lands on its own.</p>
+        <div class="chips"><span class="chip">In flight · 6</span><span class="chip">Landed this week · 9</span><span class="chip">By anyone</span></div>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Goal · coupons</h2><span>asked by Kit in a chat, Thursday · 2 of 3</span></div>
+        <div class="card">
+          <p>Coupons that tell the customer why they don't apply. Three changes, each landing on its own once signed.</p>
+          <p class="byline">Written by its agent at 07:55</p>
+          <div class="rows">
+            <div class="row" style="grid-template-columns: 110px minmax(0, 1fr) auto"><span class="chip good">landed</span><span>Coupon codes are case-insensitive · signed by you</span><span class="r">#208</span></div>
+            <div class="row" style="grid-template-columns: 110px minmax(0, 1fr) auto"><span class="chip sig">your turn</span><span>Expired coupons say why · reviewed, waits on your sign-off</span><span class="r">#215</span></div>
+            <div class="row" style="grid-template-columns: 110px minmax(0, 1fr) auto"><span class="chip">producing</span><span>A coupon's minimum basket is shown at checkout</span><span class="r">20 min</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Changes</h2><span>one chat, one change</span></div>
+        <div class="scroll">
+          <table class="tbl">
+            <thead><tr><th>Change</th><th>Asked by</th><th>Where it is</th><th>Waits on</th></tr></thead>
+            <tbody>
+              <tr><td>Retry a declined card once, after 2 s <span class="mono">payments/</span></td><td>Sam</td><td>reviewed · 1 of 2 signed</td><td><span class="who p">you</span></td></tr>
+              <tr><td>Product page shows stock per size <span class="mono">storefront/</span></td><td>Kit</td><td>reviewed</td><td><span class="who p">Kit</span></td></tr>
+              <tr><td>Search ignores accents</td><td>you</td><td>in review</td><td><span class="who a">an agent</span></td></tr>
+              <tr><td>Cart keeps items for 30 days</td><td>Sam</td><td>CI failed, being repaired</td><td><span class="who a">an agent</span></td></tr>
+              <tr><td>Invoice PDF uses the shop's font</td><td>Kit</td><td>producing</td><td><span class="who a">an agent</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>The chats they came from</h2><span>a chat stays with what it started</span></div>
+        <div class="rows">
+          <div class="row"><span class="mono">Sam · Fri 16:10</span><div><p>"Declined cards: can we retry the soft declines once?"</p><p class="small muted">Made change #214.</p></div><a class="r" href="#">Open</a></div>
+          <div class="row"><span class="mono">Kit · Thu 14:30</span><div><p>"Coupons should say why they don't apply."</p><p class="small muted">Made goal "coupons", three changes.</p></div><a class="r" href="#">Open</a></div>
+          <div class="row"><span class="mono">you · Thu 09:05</span><div><p>"Searching café should find cafe."</p><p class="small muted">Made one change, in review.</p></div><a class="r" href="#">Open</a></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

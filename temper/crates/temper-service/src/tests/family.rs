@@ -3406,7 +3406,10 @@ fn the_worst_small_ways_document_fits_its_decision() {
         facts: Box::new([
             ways::Fact { label: b"Model".as_slice().into(), value: repeated(b'm', value_bytes) },
             ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true).into() },
-            ways::Fact { label: b"Asked to".as_slice().into(), value: repeated(b'a', value_bytes) },
+            ways::Fact {
+                label: b"Asked to".as_slice().into(),
+                value: repeated(b'a', u32::try_from(ways::ASKED).unwrap()),
+            },
         ]),
     };
     let mut stops = List::uncapped();

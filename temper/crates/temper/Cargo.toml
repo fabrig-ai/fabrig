@@ -16,6 +16,7 @@ test = false
 record = ["temper-client-shell-tui/record"]
 
 [dependencies]
+temper-shell.workspace = true
 settings-form.workspace = true
 temper-docs.workspace = true
 skein-fail-stop.workspace = true

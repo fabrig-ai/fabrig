@@ -870,7 +870,8 @@ component instead (6.1).
   fallback shown.
 - **Drawn as inline SVG:** an `<svg aria-hidden="true">` of the scene's
   size (ui.md, 11.2), first in the drawing's `<figure>` and at its top
-  left, so a point in the scene is the same point in the figure's box; one
+  left, so a point in the scene is the same point in the figure's box
+  but where the scene says its width (below); one
   element per mark:
 
   | Mark | SVG |
@@ -887,6 +888,14 @@ component instead (6.1).
   figure's flow and the figure is as high as its scene. The figure is
   observed as any is, and measured again at that height it draws the same
   SVG. The SVG itself says nothing of it, so a flow's bytes are its case's.
+- **A scene that says its width** (ui.md, 11.2) has an SVG of that width
+  and its height, its `viewBox` the same, and the page part sets
+  `data-scene-width` on the figure, beside `data-scene-height`, so that
+  `skein-ui.css` scales the SVG to the figure's width, keeping its
+  proportions, in the figure's flow: the figure is as high as the scaled
+  scene, and measured again at that height it draws the same SVG. A press's
+  point there (below) is the box's point scaled to the scene's own pixels,
+  each coordinate times the scene's width over the box's, rounded down.
 - **A mark's tokens are classes,** by their names; its hint, never
   needed to decide, is a `<title>` in it, shown on hover. Colours,
   widths and fonts are the stylesheets' (section 12): a scene says none.
@@ -1103,7 +1112,8 @@ share sheet, a clipboard write, a file picked).
   - hides a drawn drawing's fallback (`data-drawn`) from sight only,
     taking no space, and places a scene's SVG at its figure's top left, or
     in its flow where the scene says its height (`data-scene-height`,
-    section 8);
+    section 8), scaled to the figure's width where it says its width
+    (`data-scene-width`);
   - hides a completed item's word (`skein-ui-state-`) from sight only,
     in the same way (section 6);
   - gives every mark of a scene a default, strokes in the text's colour
