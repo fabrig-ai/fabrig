@@ -513,6 +513,31 @@ struct LocalRow {
 }
 
 #[test]
+#[ignore = "front retry on NotReady awaits the startup policy decision against client/README.md, 6.17"]
+fn a_front_retries_a_not_ready_handed_link() {
+    let mut failures = Vec::new();
+    local_row(
+        LocalRow {
+            front: true,
+            name: "front not ready",
+            local: true,
+            note: None,
+            held: false,
+            first: LocalWant::Read,
+            steps: vec![
+                (LocalAct::Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET))), LocalWant::Send),
+                (LocalAct::Answer(w::SignInAnswer::NotReady), LocalWant::Quiet),
+                (LocalAct::Due(SECOND), LocalWant::Send),
+                (LocalAct::Answer(signed_in_answer()), LocalWant::Keep),
+                (LocalAct::Connect, LocalWant::Until),
+            ],
+        },
+        &mut failures,
+    );
+    assert!(failures.is_empty(), "front startup retry: {failures:?}");
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one table holds the engine-link outcomes and sign-out judgements")]
 fn the_engines_link_signs_in_and_falls_back() {
     use LocalAct::{Answer, Approve, Connect, Due, End, Found, Lost, Paste};
