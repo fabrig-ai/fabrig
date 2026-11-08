@@ -82,8 +82,32 @@ fn the_trees_fit_their_limits() {
     let gave_up = skein_lib::bytes::concat(&[step.as_bytes(), b" gave up"]);
     let gave_up_note =
         skein_lib::bytes::concat(&[b"The box gave up: ", step.as_bytes(), b". /log shows why; Ctrl+C closes."]);
-    let mut failures = skein_lib::List::with_capacity(56);
+    let change_start = skein_lib::bytes::concat(&[b"one change, run as ", title.as_bytes(), b"'s way says"]);
+    // Seven scheme bytes, 64 authority bytes, seven path bytes and twenty task digits.
+    let page_address = skein_lib::bytes::concat(&[b"http://", &[b'a'; 64], b"/tasks/18446744073709551615"]);
+    let open_at = skein_lib::bytes::concat(&[b"Open ", &page_address, b" in your browser."]);
+    let mut failures = skein_lib::List::with_capacity(76);
     for (word, holes, want) in [
+        (Word::KindChat, &[][..], ", a chat".as_bytes()),
+        (Word::KindGoal, &[][..], ", a goal".as_bytes()),
+        (Word::WalksThem, &[][..], "n walks them".as_bytes()),
+        (Word::MoneyNeed, &[][..], "$".as_bytes()),
+        (Word::SignOffNeed, &[][..], "✓".as_bytes()),
+        (Word::StartHead, &[][..], "Start".as_bytes()),
+        (Word::ChangeCommand, &[][..], "One change, run as the project's way says".as_bytes()),
+        (Word::BriefCommand, &[][..], "The brief, whole".as_bytes()),
+        (Word::NeedsCommand, &[][..], "Walk what needs you".as_bytes()),
+        (Word::OpenCommand, &[][..], "Open this on the web".as_bytes()),
+        (Word::BriefMore, &[][..], " · /brief".as_bytes()),
+        (Word::BoxStart, &[][..], "Ask for a change, or ask temper.  / for commands".as_bytes()),
+        (Word::ToWalk, &[][..], "n to walk".as_bytes()),
+        (Word::Next, &[][..], "Next".as_bytes()),
+        (Word::OpenOnWeb, &[][..], "Open it on the web".as_bytes()),
+        (Word::WalkDone, &[][..], "Nothing else needs you.".as_bytes()),
+        (Word::KeyWalk, &[][..], "n walks what needs you".as_bytes()),
+        (Word::ChatNumber, &[Hole::Number(u64::MAX)][..], "/chats 18446744073709551615".as_bytes()),
+        (Word::ChangeStart, &[Hole::Name(title.as_bytes().into())][..], &change_start),
+        (Word::OpenAt, &[Hole::Name(page_address)][..], &open_at),
         (Word::BoxPurpose, &[][..], "on this machine, to try it".as_bytes()),
         (Word::WelcomeOpen, &[][..], "Welcome. Set temper up in your browser: open this link on this machine.".as_bytes()),
         (Word::LinkOnce, &[][..], "It signs you in as this temper's owner, once, within 2 hours.".as_bytes()),

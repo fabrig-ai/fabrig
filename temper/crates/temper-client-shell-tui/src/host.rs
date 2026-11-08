@@ -411,8 +411,21 @@ impl Host {
         }
     }
 
+    #[expect(clippy::match_same_arms, reason = "shell-launchpad gives each inert event arm its own behavior")]
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
         match event {
+            tui::Event::Own { .. } => {
+                // No action here; shell-launchpad handles the TUI's own commands.
+            }
+            tui::Event::Open { .. } => {
+                // No action here; shell-launchpad opens the page through the browser duty.
+            }
+            tui::Event::Walk { .. } => {
+                // No action here; shell-launchpad takes the prompt's act and marks the need shown.
+            }
+            tui::Event::EndWalk => {
+                // No action here; shell-launchpad ends the walk in the TUI's state.
+            }
             tui::Event::Typed { value } => self.typed(value),
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {

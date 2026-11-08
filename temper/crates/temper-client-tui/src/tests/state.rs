@@ -339,6 +339,7 @@ fn the_surface_state_changes_only_when_its_facts_change() {
         }
     }
     assert!(failures.is_empty(), "surface state rows: {failures:?}");
+    walk_rows();
     for link in [Link::Starting, Link::Live, Link::Offline, Link::OutOfDate] {
         let mut tui = Tui::new(f::ADDRESS);
         tui.step(Told::Link { link });
@@ -467,4 +468,92 @@ fn the_front_states_steps_are_its_table() {
         }
     }
     assert!(failures.is_empty(), "front state rows: {failures:?}");
+}
+
+// Walk (by key, taken, shown object, shown other), brief, opener, revision.
+type WalkFacts<'a> = (Option<(bool, bool, bool, bool)>, bool, Option<&'a [u8]>, u64);
+
+fn walk_rows() {
+    use jig_client::contract::ObjectKey;
+    // The contract holds 64 objects; the next remains not shown, without evicting one.
+    const HELD: u32 = 64;
+    let object = ObjectKey::Question { task: 9, message: 1 };
+    let other = ObjectKey::Question { task: 9, message: 2 };
+    let walk = Told::Walk { by_key: true };
+    let walked = Told::Walked { object };
+    let note = Told::NotOpened { address: Some(Box::from(*b"http://example.test/tasks/9")) };
+    let rows: &[(&str, &[Told], WalkFacts<'_>)] = &[
+        ("initial walk", &[], (None, false, None, 0)),
+        ("n", core::slice::from_ref(&walk), (Some((true, false, false, false)), false, None, 1)),
+        ("same walk", &[walk.clone(), walk.clone()], (Some((true, false, false, false)), false, None, 1)),
+        ("/needs", &[Told::Walk { by_key: false }], (Some((false, false, false, false)), false, None, 1)),
+        ("walked", &[walk.clone(), walked.clone()], (Some((true, true, true, false)), false, None, 2)),
+        (
+            "same walked",
+            &[walk.clone(), walked.clone(), walked.clone()],
+            (Some((true, true, true, false)), false, None, 2),
+        ),
+        ("walked outside walk", core::slice::from_ref(&walked), (None, false, None, 0)),
+        (
+            "restart walk",
+            &[walk.clone(), walked.clone(), walk.clone()],
+            (Some((true, false, false, false)), false, None, 3),
+        ),
+        ("end walk", &[walk.clone(), Told::EndWalk], (None, false, None, 2)),
+        ("no walk to end", &[Told::EndWalk], (None, false, None, 0)),
+        ("went ends walk", &[walk.clone(), Told::Went], (None, false, None, 2)),
+        ("cleared ends walk", &[walk.clone(), Told::Cleared], (None, false, None, 2)),
+        ("typing ends walk", &[walk.clone(), Told::Typed { value: Box::from(*b"words") }], (None, false, None, 2)),
+        (
+            "empty typing keeps walk",
+            &[walk.clone(), Told::Typed { value: Box::default() }],
+            (Some((true, false, false, false)), false, None, 1),
+        ),
+        ("brief", &[Told::Brief], (None, true, None, 1)),
+        ("same brief", &[Told::Brief, Told::Brief], (None, true, None, 1)),
+        ("went clears brief", &[Told::Brief, Told::Went], (None, false, None, 2)),
+        ("send clears brief", &[Told::Brief, Told::Cleared], (None, false, None, 2)),
+        ("opener", core::slice::from_ref(&note), (None, false, Some(b"http://example.test/tasks/9"), 1)),
+        ("same opener", &[note.clone(), note.clone()], (None, false, Some(b"http://example.test/tasks/9"), 1)),
+        ("no opener address", &[Told::NotOpened { address: None }], (None, false, None, 0)),
+        ("clear opener", &[note.clone(), Told::NotOpened { address: None }], (None, false, None, 2)),
+        ("went clears opener", &[note.clone(), Told::Went], (None, false, None, 2)),
+        ("send clears opener", &[note.clone(), Told::Cleared], (None, false, None, 2)),
+        (
+            "end keeps notes",
+            &[Told::Brief, note.clone(), walk.clone(), Told::EndWalk],
+            (None, true, Some(b"http://example.test/tasks/9"), 4),
+        ),
+        ("went clears all", &[Told::Brief, note.clone(), walk.clone(), Told::Went], (None, false, None, 4)),
+        ("send clears all", &[Told::Brief, note.clone(), walk.clone(), Told::Cleared], (None, false, None, 4)),
+    ];
+    let mut failures = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for (name, steps, want) in rows {
+        let mut tui = Tui::new(f::ADDRESS);
+        for told in *steps {
+            tui.step(told.clone());
+        }
+        let mut walk = None;
+        if let Some(held) = tui.walk() {
+            walk = Some((held.by_key(), held.taken(), held.shown(&object), held.shown(&other)));
+        }
+        if (walk, tui.brief_shown(), tui.not_opened(), tui.revision()) != *want {
+            failures.push(*name).unwrap();
+        }
+    }
+    assert!(failures.is_empty(), "walk and note rows: {failures:?}");
+    assert_eq!(crate::limits::WALK, HELD);
+    for count in [HELD, HELD + 1] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Walk { by_key: false });
+        for task in 0..count {
+            tui.step(Told::Walked { object: ObjectKey::Task(u64::from(task)) });
+        }
+        let walk = tui.walk().unwrap();
+        assert!(walk.taken());
+        for task in 0..HELD {
+            assert!(walk.shown(&ObjectKey::Task(u64::from(task))), "{count}: {task}");
+        }
+        assert!(!walk.shown(&ObjectKey::Task(u64::from(HELD))));
+    }
 }

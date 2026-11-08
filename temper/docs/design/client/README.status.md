@@ -202,11 +202,6 @@ in `../draft/tui.status.md`; no rendered-equality result is supplied.
 - **Not yet:** 6.14, *Needs you* and *Walking what needs you*: the view's
   `shared` has no `need_prompts`, `NeedPrompt`, `NeedMark` or `NeedAct`;
   `view-needs` of the plan `tui-whole-t1` builds them.
-- **Not yet:** 6.13, *The TUI's events* (`Own`, `Open`, `Walk`,
-  `EndWalk`), and 6.14's words, state and keys under the launchpad as
-  drawn (the walk's state, `/brief`'s and the opener's notes, `n`,
-  `/chats N`'s numbering, Enter on a goal, the object in focus):
-  `tui-surface` of the plan `tui-whole-t1` builds them.
 - **Not yet:** 6.14, *The launchpad* as drawn: the header's brief and
   " · /brief", *Where you left off*'s rows, the person's newest goal among
   them, Needs you's marks and rows, Start, `/brief`'s note, the box's
