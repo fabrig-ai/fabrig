@@ -300,7 +300,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     expected.policy.tools = jig_domain_tasks::Tools(3072);
     assert_eq!(*charter, expected);
     let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
-    assert_eq!(words.len(), 7335);
+    ask_design_first_rules(words);
     assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
     for heading in ["## temper, as you explain it", "## Finding out", "## Answering", "## Configuring", "## Your voice"]
     {
@@ -315,6 +315,17 @@ fn ask_temper_is_charter_11_and_template_5() {
     expected.name = b"ask".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(11);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 5).unwrap(), expected);
+}
+
+fn ask_design_first_rules(words: &str) {
+    assert!(words.contains("Design-first charters: land design into g before coding."));
+    assert!(
+        words
+            .contains("Use after only for live prerequisites (your live delegates or earlier names in the same batch)")
+    );
+    assert!(words.contains(
+        "once design has landed into g, cite its path and section in words and omit its ended task from after"
+    ));
 }
 
 #[test]
