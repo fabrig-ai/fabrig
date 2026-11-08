@@ -156,6 +156,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                         None => Some(jig_protocol_engine_clients::Event::Abort),
                     }
                 }
+                root::PartyRequest::Deliver(root::Delivery::Ways { .. }) => None,
                 root::PartyRequest::Deliver(root::Delivery::Approvals { watcher, document }) => {
                     match crate::family::approvals(
                         *document,
@@ -336,6 +337,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Forges { .. }
             | root::Delivery::ForgeDocument { .. }
             | root::Delivery::Trials { .. }
+            | root::Delivery::Ways { .. }
             | root::Delivery::Approvals { .. }
             | root::Delivery::Panel { .. }
             | root::Delivery::Public { .. }

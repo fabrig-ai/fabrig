@@ -48,6 +48,11 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
+    /// The project's ways (temper/docs/design/domain/forge.md, 8.13).
+    Ways {
+        watcher: Token,
+        document: Box<temper_engine_domain_ways::WaysDocument>,
+    },
     /// A job and its typed forge workspace, held behind the assignment's commit.
     AssignedJob {
         channel: Token,
@@ -518,6 +523,7 @@ impl Decision {
             Delivery::Assigned { assignment, .. } => assignment_within(assignment, limits),
             Delivery::Host(host) => host_within(host, limits),
             Delivery::SourceSignedOut { .. }
+            | Delivery::Ways { .. }
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
             | Delivery::ProjectMade { .. }
@@ -826,7 +832,8 @@ fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
             crate::SeeAnswer::Call { answer, .. } => {
                 bytes_within(crate::store::call_answer_bytes(answer), limits.transcript_bytes)
             }
-            crate::SeeAnswer::Settings(_)
+            crate::SeeAnswer::Ways(_)
+            | crate::SeeAnswer::Settings(_)
             | crate::SeeAnswer::Page { .. }
             | crate::SeeAnswer::Search { .. }
             | crate::SeeAnswer::Landing(_)

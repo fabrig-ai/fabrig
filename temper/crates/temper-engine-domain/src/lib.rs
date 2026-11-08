@@ -65,3 +65,5 @@ pub fn carried_at_start(number: u64) -> Request {
     assert!(number >= 1_u64 << 63_u32, "carried number space");
     Request::EraseCarried { number }
 }
+
+pub use temper_engine_domain_ways as ways;
