@@ -7,7 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::Link;
 use skein_lib::{
-    Wall,
+    List, Wall,
     bytes::{concat, copy_of},
 };
 use skein_ui::{Binding, Builder, Role, State, Style, phrases::Hole};
@@ -31,7 +31,9 @@ pub(crate) struct Foot {
     pub style: Style,
     pub composer: Option<Composer>,
     pub running: Option<Box<[u8]>>,
-    pub hint: Box<[u8]>,
+    pub project: Option<Box<[u8]>>,
+    pub paused: bool,
+    pub launchpad: bool,
     pub needs: Count,
     pub box_state: Option<(Box<[u8]>, Style)>,
     pub playground: bool,
@@ -120,7 +122,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
     let placeholder = if chat.is_some() {
         words.say(if ended { Word::Ended } else { Word::Reply }, &[])
     } else if project.is_some() {
-        words.say(Word::AskTemper, &[])
+        words.say(Word::BoxStart, &[])
     } else {
         shared::say(words.view(), TerminalWord::Commands)
     };
@@ -165,7 +167,9 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
         running: if chat.is_some() { shared::running(root, words.view()) } else { None },
         box_state: front::box_state(tui, words),
         playground: front::playground(root, project),
-        hint: shared::say(words.view(), if paused { TerminalWord::Paused } else { TerminalWord::Commands }),
+        project: project_name(root, project),
+        paused,
+        launchpad: chat.is_none(),
         needs: match project {
             Some(project) => root.pages().needs().count(root.client(), root.forge().approvals(), project),
             None => Count::default(),
@@ -180,6 +184,19 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
     }
 }
 
+fn project_name(root: &Domain, number: Option<u32>) -> Option<Box<[u8]>> {
+    let me = root.pages().me(root.client())?;
+    let number = match number {
+        Some(number) => number,
+        None => me.projects.get(0)?.project,
+    };
+    for project in &me.projects {
+        if project.project == number {
+            return Some(copy_of(project.name.bytes()));
+        }
+    }
+    None
+}
 #[expect(clippy::disallowed_methods, reason = "display widths read characters from validated UTF-8 view words")]
 fn width(bytes: &[u8]) -> u32 {
     let mut columns = 0_u32;
@@ -228,52 +245,64 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     } else {
         Box::default()
     };
-    let playground = if part.playground { words.say(Word::Playground, &[]) } else { Box::default() };
-    let mut left_width = width(&part.hint);
-    if let Some((state, _style)) = &part.box_state {
-        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(state));
+    let mut right = List::with_capacity(5);
+    if let Some((state, style)) = &part.box_state {
+        right.push((copy_of(state), *style)).expect("five quiet line parts");
     }
     if part.playground {
-        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(&playground));
+        right.push((words.say(Word::Playground, &[]), look::HINT)).expect("five quiet line parts");
+    }
+    if part.paused {
+        right.push((shared::say(words.view(), TerminalWord::Paused), look::HINT)).expect("five quiet line parts");
     }
     if !needing.is_empty() {
-        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(&needing));
+        right.push((needing, look::SIGNAL)).expect("five quiet line parts");
     }
-    let closed = match &part.closed {
-        Some(closed) => {
-            part.columns == 0
-                || left_width
-                    .saturating_add(width(closed))
-                    .saturating_add(width(&separator))
-                    .saturating_add(width(&part.state))
-                    .saturating_add(4)
-                    <= u32::from(part.columns)
+    let mut right_width = 0_u32;
+    for (index, (line, _style)) in right.iter().enumerate() {
+        if index > 0 {
+            right_width = right_width.saturating_add(width(&separator));
         }
-        None => false,
+        right_width = right_width.saturating_add(width(line));
+    }
+    let mut left_width = width(&part.state);
+    if let Some(project) = &part.project {
+        left_width = left_width.saturating_add(width(project)).saturating_add(width(&separator));
+    }
+    let closed_width = match &part.closed {
+        Some(closed) => width(closed).saturating_add(width(&separator)),
+        None => 0,
     };
+    let walk = words.say(Word::ToWalk, &[]);
+    let walk_width = width(&walk).saturating_add(width(&separator));
+    let room = if part.columns == 0 { u32::MAX } else { u32::from(part.columns) };
+    let total = left_width.saturating_add(closed_width).saturating_add(right_width).saturating_add(4);
+    let walking = part.launchpad && part.needs.count > 0 && total.saturating_add(walk_width) <= room;
+    let closed = part.closed.is_some() && total <= room;
     b.open(Role::ContentInfo);
     b.region(look::BOTTOM);
-    b.open(Role::Paragraph);
-    text(b, Role::Text, &part.hint, Some(look::HINT));
-    if let Some((state, style)) = &part.box_state {
-        text(b, Role::Text, &separator, Some(look::HINT));
-        text(b, Role::Text, state, Some(*style));
-    }
-    if part.playground {
-        text(b, Role::Text, &separator, Some(look::HINT));
-        text(b, Role::Text, &playground, Some(look::HINT));
-    }
-    if !needing.is_empty() {
-        text(b, Role::Text, &separator, Some(look::HINT));
-        text(b, Role::Text, &needing, Some(look::SIGNAL));
-    }
-    b.close();
     b.open(Role::Status);
+    if let Some(project) = &part.project {
+        text(b, Role::Text, project, Some(look::HINT));
+        text(b, Role::Text, &separator, Some(look::FAINT));
+    }
     if closed {
         text(b, Role::Text, part.closed.as_deref().expect("closed line is present"), Some(look::HINT));
-        text(b, Role::Text, &separator, Some(look::HINT));
+        text(b, Role::Text, &separator, Some(look::FAINT));
     }
     text(b, Role::Text, &part.state, Some(part.style));
+    b.close();
+    b.open(Role::Paragraph);
+    for (index, (line, style)) in right.iter().enumerate() {
+        if index > 0 {
+            text(b, Role::Text, &separator, Some(look::FAINT));
+        }
+        text(b, Role::Text, line, Some(*style));
+    }
+    if walking {
+        text(b, Role::Text, &separator, Some(look::FAINT));
+        text(b, Role::Text, &walk, Some(look::HINT));
+    }
     b.close();
     b.close();
 }

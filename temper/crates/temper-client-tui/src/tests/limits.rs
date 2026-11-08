@@ -223,6 +223,69 @@ fn the_trees_fit_their_limits() {
         assert_eq!(field.value.as_ref().unwrap().text.len(), 512);
         assert_eq!(view.tree().len(), if browser { 28 } else { 18 });
     }
+    // Home's three rows, five needs, Start and the whole brief coexist at their bounds.
+    for bytes in [200_usize, 600] {
+        use crate::view::{self, launchpad};
+        let root = super::launchpad::home(None, &[]);
+        let mut part = launchpad::read(&root, &tui, &words, f::NOW);
+        part.project = Some(name.into());
+        part.lines
+            .push(launchpad::Line { role: Role::Paragraph, words: "s".repeat(200).as_bytes().into(), style: None })
+            .unwrap();
+        part.lines
+            .push(launchpad::Line {
+                role: Role::Paragraph,
+                words: b"written by the status agent 07:42 \xc2\xb7 /brief".as_slice().into(),
+                style: Some(look::BYLINE),
+            })
+            .unwrap();
+        for task in 0..3 {
+            part.left_off
+                .push(launchpad::LeftOff {
+                    task,
+                    project: name.into(),
+                    title: title.as_bytes().into(),
+                    kind: launchpad::LeftKind::Chat { number: u32::try_from(task + 1).unwrap() },
+                    at: b"Fri 18:40".as_slice().into(),
+                    state: b"waiting on you".as_slice().into(),
+                })
+                .unwrap();
+        }
+        let mut needs = skein_lib::List::with_capacity(5);
+        for _row in 0_u32..5 {
+            needs
+                .push(launchpad::NeedRow {
+                    mark: temper_client_view::shared::NeedMark::SignOff,
+                    project: name.into(),
+                    words: Box::new([b'w'; 512]),
+                })
+                .unwrap();
+        }
+        part.needs = needs.into_boxed();
+        for length in [200, bytes] {
+            part.brief
+                .push(launchpad::Line {
+                    role: Role::Paragraph,
+                    words: "b".repeat(length).as_bytes().into(),
+                    style: Some(look::NOTE),
+                })
+                .unwrap();
+        }
+        part.brief
+            .push(launchpad::Line {
+                role: Role::Paragraph,
+                words: b"written by the status agent 07:42".as_slice().into(),
+                style: Some(look::NOTE),
+            })
+            .unwrap();
+        let foot = view::foot::read(&root, &tui, &words, f::NOW);
+        view::signed(
+            &mut view,
+            &view::Signed { body: view::Body::Launchpad(part), foot },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        fits(view.tree(), &bounds);
+    }
     // Each retained view can replace an address with two full printed paths.
     let page = temper_client_view::Limits::of(&domain, words.view()).unwrap();
     let chat_bounds = crate::limits(&domain, &page.tree, 512).unwrap();

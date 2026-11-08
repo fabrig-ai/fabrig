@@ -368,7 +368,7 @@ fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
 fn the_foot_says_each_state() {
     let mut failures = List::with_capacity(32);
     for (name, project, chat, typed, listing, placeholder, commands) in [
-        ("launchpad", true, false, "", None, Some("Ask temper"), &[][..]),
+        ("launchpad", true, false, "", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
         ("no project", false, false, "", None, Some("/ for commands"), &[][..]),
         ("chat", true, true, "", None, Some("Reply"), &[][..]),
         (
@@ -390,9 +390,17 @@ fn the_foot_says_each_state() {
         ),
         ("launchpad prefix", true, false, "/c", None, None, &[Command::Chats][..]),
         ("chat prefix", true, true, "/c", None, None, &[Command::Close, Command::Chats][..]),
-        ("unknown", true, false, "/zz", None, Some("Ask temper"), &[][..]),
-        ("whitespace", true, false, "/new ", None, Some("Ask temper"), &[][..]),
-        ("unicode whitespace", true, false, "/new\u{a0}", None, Some("Ask temper"), &[][..]),
+        ("unknown", true, false, "/zz", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
+        ("whitespace", true, false, "/new ", None, Some("Ask for a change, or ask temper.  / for commands"), &[][..]),
+        (
+            "unicode whitespace",
+            true,
+            false,
+            "/new\u{a0}",
+            None,
+            Some("Ask for a change, or ask temper.  / for commands"),
+            &[][..],
+        ),
         ("models", true, false, "", Some(Listing::Model), None, &[][..]),
         ("launchpad efforts", true, false, "", Some(Listing::Effort), None, &[][..]),
         ("efforts", true, true, "", Some(Listing::Effort), None, &[][..]),
@@ -509,11 +517,7 @@ fn read_states() {
         let root = root_state(true, true, true, false, false, state);
         let part = foot::read(&root, &tui, &words, f::NOW);
         assert_eq!(part.composer.as_ref().unwrap().placeholder.as_ref(), placeholder.as_bytes(), "{name}");
-        assert_eq!(
-            part.hint.as_ref(),
-            if paused { "paused · a message resumes it".as_bytes() } else { b"/ for commands" },
-            "{name}"
-        );
+        assert_eq!(part.paused, paused, "{name}");
         assert_eq!(part.running.is_some(), running, "{name}");
         let expected = part.running.clone();
         let view = draw(part);
@@ -606,11 +610,12 @@ fn quiet_states() {
         ("one", 1, false, 0, "Claude Opus 5.5 · high", true, "1 needs you"),
         ("three", 3, false, 0, "Claude Opus 5.5 · high", true, "3 need you"),
         ("cut", 3, true, 0, "Claude Opus 5.5 · high", true, "3+ need you"),
+        ("medium", 1, false, 60, "Claude Opus 5.5 · high", true, "1 needs you"),
         ("narrow", 1, false, 40, "Claude Opus 5.5 · high", false, "1 needs you"),
-        ("fits exactly", 0, false, 49, "Claude Opus 5.5 · high", true, ""),
-        ("one column short", 0, false, 48, "Claude Opus 5.5 · high", false, ""),
-        ("wide glyph fits", 0, false, 29, "界", true, ""),
-        ("wide glyph short", 0, false, 28, "界", false, ""),
+        ("fits exactly", 0, false, 42, "Claude Opus 5.5 · high", true, ""),
+        ("one column short", 0, false, 41, "Claude Opus 5.5 · high", false, ""),
+        ("wide glyph fits", 0, false, 22, "界", true, ""),
+        ("wide glyph short", 0, false, 21, "界", false, ""),
     ] {
         let mut part = foot::read(&root, &tui, &words, f::NOW);
         part.needs = d::pages::needs::Count { count, cut };
@@ -624,6 +629,7 @@ fn quiet_states() {
             assert_eq!(f::text(view.tree(), signal).as_ref(), expected.as_bytes(), "{name}");
         }
         assert_eq!(has(view.tree(), look::HINT, line.as_bytes()), closed, "{name}");
+        assert_eq!(has(view.tree(), look::HINT, b"n to walk"), count > 0 && columns == 0, "{name}");
         let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
         let start = f::index(view.tree(), bottom.id);
         let mut next = start.checked_add(1).unwrap();
@@ -635,6 +641,54 @@ fn quiet_states() {
             }
         }
         assert_eq!(children, 2, "{name}");
+    }
+    let part = foot::read(&root, &tui, &words, f::NOW);
+    assert_eq!(
+        part.composer.as_ref().unwrap().placeholder.as_ref(),
+        b"Ask for a change, or ask temper.  / for commands"
+    );
+    let view = draw(part);
+    let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+    assert_eq!(f::text(view.tree(), bottom).as_ref(), "Demo · model · high · ● Live".as_bytes());
+    for (name, project, picker, chat, task, columns, left, right) in [
+        (
+            "launchpad",
+            true,
+            true,
+            false,
+            TaskState::Idle,
+            80,
+            "Demo · Claude Opus 5.5 · high · ● Live",
+            "1 needs you · n to walk",
+        ),
+        ("medium", true, true, false, TaskState::Idle, 60, "Demo · Claude Opus 5.5 · high · ● Live", "1 needs you"),
+        ("narrow", true, true, false, TaskState::Idle, 40, "Demo · ● Live", "1 needs you"),
+        ("chat", true, true, true, TaskState::Idle, 80, "Demo · Claude Opus 5.5 · high · ● Live", "1 needs you"),
+        (
+            "paused",
+            true,
+            true,
+            true,
+            TaskState::Paused,
+            110,
+            "Demo · Claude Opus 5.5 · high · ● Live",
+            "paused · a message resumes it · 1 needs you",
+        ),
+        ("no picker", true, false, false, TaskState::Idle, 80, "Demo · ● Live", "1 needs you · n to walk"),
+        ("no project", false, false, false, TaskState::Idle, 80, "● Live", ""),
+    ] {
+        let root = root_state(project, picker, chat, false, false, task);
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
+        part.columns = columns;
+        part.closed = if picker { Some("Claude Opus 5.5 · high".as_bytes().into()) } else { None };
+        part.needs = d::pages::needs::Count { count: u32::from(project), cut: false };
+        let view = draw(part);
+        let tree = view.tree();
+        let bottom = tree.nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+        let first = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
+        let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
+        assert_eq!(f::text(tree, first).as_ref(), left.as_bytes(), "{name}");
+        assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
     }
     front_quiet(&root, &words);
     let no_picker = root_state(true, false, false, false, false, TaskState::Idle);
@@ -1105,30 +1159,14 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
     const PAST_STEP: usize = 65;
     type StepCase = (Box<[u8]>, Box<[u8]>);
     for (name, step, playground, count, columns, expected, closed) in [
-        ("restarting", Some(false), false, 0, 0, "/ for commands · forgejo-3 restarting", true),
-        ("gave up", Some(true), false, 0, 0, "/ for commands · forgejo-3 gave up", true),
-        ("playground", None, true, 0, 0, "/ for commands · playground", true),
-        (
-            "restarting with needs",
-            Some(false),
-            false,
-            1,
-            0,
-            "/ for commands · forgejo-3 restarting · 1 needs you",
-            true,
-        ),
-        ("gave up with needs", Some(true), false, 1, 0, "/ for commands · forgejo-3 gave up · 1 needs you", true),
-        ("playground with needs", None, true, 1, 0, "/ for commands · playground · 1 needs you", true),
-        (
-            "all in order",
-            Some(false),
-            true,
-            1,
-            0,
-            "/ for commands · forgejo-3 restarting · playground · 1 needs you",
-            true,
-        ),
-        ("narrow with state", Some(false), false, 0, 65, "/ for commands · forgejo-3 restarting", false),
+        ("restarting", Some(false), false, 0, 0, "forgejo-3 restarting", true),
+        ("gave up", Some(true), false, 0, 0, "forgejo-3 gave up", true),
+        ("playground", None, true, 0, 0, "playground", true),
+        ("restarting with needs", Some(false), false, 1, 0, "forgejo-3 restarting · 1 needs you · n to walk", true),
+        ("gave up with needs", Some(true), false, 1, 0, "forgejo-3 gave up · 1 needs you · n to walk", true),
+        ("playground with needs", None, true, 1, 0, "playground · 1 needs you · n to walk", true),
+        ("all in order", Some(false), true, 1, 0, "forgejo-3 restarting · playground · 1 needs you · n to walk", true),
+        ("narrow with state", Some(false), false, 0, 60, "forgejo-3 restarting", false),
     ] {
         let root = super::launchpad::home_read(
             None,
@@ -1154,6 +1192,8 @@ fn front_quiet(root: &Domain, words: &crate::words::Words) {
         let view = draw(part);
         let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
         let paragraph = &view.tree().nodes()[f::index(view.tree(), bottom.id).checked_add(1).unwrap()];
+        let paragraph = &view.tree().nodes()
+            [f::index(view.tree(), paragraph.id).checked_add(usize::try_from(paragraph.size).unwrap()).unwrap()];
         assert_eq!(f::text(view.tree(), paragraph).as_ref(), expected.as_bytes(), "{name}");
         assert_eq!(has(view.tree(), look::HINT, "Claude Opus 5.5 · high".as_bytes()), closed, "{name}");
         if let Some(gave_up) = step {
