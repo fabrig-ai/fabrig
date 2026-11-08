@@ -1,0 +1,5 @@
+draft = "skein-limit-40"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-limit-40/inputs/request.md", "AGENTS.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "agents/loop"
