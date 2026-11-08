@@ -282,6 +282,77 @@ fn a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice() {
     world.close();
 }
 
+fn covered_escalation(seed: u64) -> (World, (u64, u64), u64, tasks::Word) {
+    let (mut world, first) = first(seed, true, true);
+    let child = story::escalation(&mut world, first);
+    let entry = world.inbound.last().expect("escalation relayed").clone();
+    story::turn(&mut world, first, Some(entry.number));
+    story::park(&mut world, first, Some(entry.number));
+    assert_assignment(&world, first.0, b"S\n\nH", story::M2, std::slice::from_ref(&entry));
+    assert_eq!(live_row(&world, first.0).offered, tasks::Reasons::ESCALATION);
+    let second = (first.0, live_row(&world, first.0).attempt);
+    story::turn(&mut world, second, Some(entry.number));
+    park_with_entry(&mut world, second, child, &entry);
+    (world, second, child, entry)
+}
+
+fn park_with_entry(world: &mut World, run: (u64, u64), child: u64, entry: &tasks::Word) {
+    let assignments = world.assignments.len();
+    story::park(world, run, Some(entry.number));
+    assert_eq!(world.assignments.len(), assignments, "a covered undecided entry must not assign another run");
+    assert_waiting_entry(world, run.0, child, entry);
+}
+
+fn assert_waiting_entry(world: &World, holder: u64, child: u64, entry: &tasks::Word) {
+    assert_eq!(live_row(world, holder).phase, tasks::Phase::Active(tasks::Active::Idle));
+    let row = live_row(world, child);
+    assert!(matches!(row.phase, tasks::Phase::Held { .. }));
+    assert!(matches!(row.escalation,
+        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(task), entry: number, .. }
+            if task == holder && number == entry.number));
+}
+
+fn an_escalation_its_part_left_waits_for_a_change() {
+    let (mut world, run, child, entry) = covered_escalation(868);
+    fixtures::ask(
+        &mut world,
+        85,
+        people::Ask::Say { project: 1, task: run.0, words: b"Please check".as_slice().into() },
+    );
+    let words = live_row(&world, run.0).inbox[0].clone();
+    assert_eq!(words.kind, tasks::MessageKind::Words);
+    assert_assignment(&world, run.0, b"S\n\nH", story::M2, &[entry.clone(), words.clone()]);
+    assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::WORDS.union(tasks::Reasons::ESCALATION));
+    let next = (run.0, live_row(&world, run.0).attempt);
+    story::turn(&mut world, next, Some(words.number));
+    park_with_entry(&mut world, next, child, &entry);
+    let revision = live_row(&world, child).revisions.hold;
+    story::rehold(&mut world, child);
+    let new_revision = live_row(&world, child).revisions.hold;
+    assert!(new_revision > revision);
+    let changed = world.assigned.as_ref().expect("changed entry wakes holder");
+    assert_eq!(changed.task, run.0);
+    assert!(changed.attempt > next.1);
+    let [new_entry] = changed.messages.as_ref() else { panic!("new entry at start") };
+    assert!(new_entry.number > entry.number);
+    assert_eq!(new_entry.kind, tasks::MessageKind::Escalation { task: child, revision: new_revision });
+    assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::ESCALATION);
+    world.close();
+}
+
+fn a_covered_escalation_stays_parked_across_a_restart() {
+    const SEED: u64 = 869;
+    let (mut world, run, child, entry) = covered_escalation(SEED);
+    let caller = fixtures::run(&world);
+    story::park(&mut world, caller, None);
+    world.stop();
+    let assignments = world.assignments.len();
+    world.restart_with(story::setup(SEED, true).configuration.expect("same configuration"));
+    assert_eq!(world.assignments.len(), assignments, "restoring a covered entry must not assign a run");
+    assert_waiting_entry(&world, run.0, child, &entry);
+    world.close();
+}
+
 #[test]
 fn per_wake_scenarios() {
     let mut bundle = super::bundle::Bundle::default();
@@ -292,5 +363,7 @@ fn per_wake_scenarios() {
     crate::bundle::case!(bundle, 865, a_charter_without_parts_relays_the_question_and_keeps_its_model);
     crate::bundle::case!(bundle, 866, a_question_arriving_after_preparation_waits_for_the_next_run);
     crate::bundle::case!(bundle, 867, a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice);
+    crate::bundle::case!(bundle, 868, an_escalation_its_part_left_waits_for_a_change);
+    crate::bundle::case!(bundle, 869, a_covered_escalation_stays_parked_across_a_restart);
     bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }

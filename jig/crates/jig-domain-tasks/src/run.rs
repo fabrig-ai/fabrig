@@ -133,7 +133,6 @@ fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: C
     task.record.run_spent = 0;
     task.record.invalid_result = None;
     task.record.turn = 0;
-    task.read_escalations = Box::new([]);
     task.record.refused = Box::new([]);
     task.record.phase = Phase::Active(Active::Claimed { attempt });
     let why = task.record.due_reason;
