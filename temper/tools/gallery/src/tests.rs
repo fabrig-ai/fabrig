@@ -122,6 +122,9 @@ struct Holds {
     parts: &'static [Part],
 }
 enum Part {
+    HowPath { you: &'static str, agent: &'static str, code: &'static str, verify: bool },
+    StyledText { style: skein_ui::Style, text: &'static [&'static str] },
+    Current { name: &'static str },
     Tabs { names: &'static [&'static str], selected: usize },
     Path { stops: &'static [&'static str] },
     Drawing { style: skein_ui::Style, count: usize },
@@ -143,6 +146,97 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 static HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "how",
+        heading: "Agents review",
+        parts: &[
+            Part::Text { text: "the way: Agents review" },
+            Part::Text { text: "An agent makes each change, another reviews it, and code lands it." },
+            Part::Named { role: Role::Link, name: "Ask temper to change this" },
+            Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
+            Part::HowPath { you: "you ask", agent: "the reviewer", code: "CI", verify: true },
+            Part::Configured { value: false },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Absent { role: Role::Button, name: "Use this" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "What the project shows" },
+            Part::Named { role: Role::Check, name: "Goals" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Budgets" },
+        ],
+    },
+    Holds {
+        name: "how-approve",
+        heading: "You approve",
+        parts: &[
+            Part::Text { text: "the way: You approve" },
+            Part::Named { role: Role::Link, name: "Ask temper to change this" },
+            Part::Tabs { names: &["You approvenow", "Agents review", "Draft first"], selected: 0 },
+            Part::HowPath { you: "you approve", agent: "the coding agent", code: "the queue", verify: false },
+            Part::Absent { role: Role::Button, name: "CI" },
+            Part::Absent { role: Role::Button, name: "main checks" },
+            Part::Absent { role: Role::Button, name: "goal checks" },
+        ],
+    },
+    Holds {
+        name: "how-draft",
+        heading: "Draft first",
+        parts: &[
+            Part::Text { text: "the way: Draft first" },
+            Part::Named { role: Role::Link, name: "Ask temper to change this" },
+            Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
+            Part::HowPath { you: "draft", agent: "the coordinator", code: "goal checks", verify: true },
+            Part::Named { role: Role::ColumnHeader, name: "goal branch" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Budgets" },
+            Part::StyledText {
+                style: temper_client_view::look::HOW_ROW,
+                text: &["Goals", "each given its own when it starts", "80"],
+            },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
+        ],
+    },
+    Holds {
+        name: "how-yours",
+        heading: "A way of its own",
+        parts: &[
+            Part::Text { text: "the way: its own" },
+            Part::Named { role: Role::Link, name: "Ask temper to change this" },
+            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::HowPath { you: "you ask", agent: "the coding agent", code: "the queue", verify: false },
+            Part::Absent { role: Role::Button, name: "Use this" },
+            Part::Absent { role: Role::Button, name: "Keep it" },
+        ],
+    },
+    Holds {
+        name: "how-card",
+        heading: "Agents review",
+        parts: &[
+            Part::Text { text: "the way: Agents review" },
+            Part::Named { role: Role::Link, name: "Ask temper to change this" },
+            Part::HowPath { you: "you ask", agent: "the reviewer", code: "CI", verify: true },
+            Part::Current { name: "the reviewer" },
+            Part::Named { role: Role::Region, name: "Review" },
+            Part::Named { role: Role::Link, name: "Open the reviewer ›" },
+            Part::Named { role: Role::Term, name: "Model" },
+            Part::Named { role: Role::Description, name: "Claude Opus 5.5 · high" },
+            Part::Named { role: Role::Term, name: "Can" },
+            Part::Named { role: Role::Description, name: "read the change and its checks; never edit, push or merge" },
+            Part::Named { role: Role::Term, name: "Asked to" },
+            Part::Named {
+                role: Role::Description,
+                name: "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.”",
+            },
+            Part::NoStyle { style: temper_client_view::look::WAYS_CARET },
+        ],
+    },
+    Holds {
+        name: "night-how",
+        heading: "Agents review",
+        parts: &[
+            Part::Text { text: "the way: Agents review" },
+            Part::Named { role: Role::Link, name: "Ask temper to change this" },
+            Part::HowPath { you: "you ask", agent: "the reviewer", code: "CI", verify: true },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
     Holds {
         name: "chat-view-way",
         heading: "T10 · How changes land",
@@ -3478,6 +3572,69 @@ fn each_state_holds_what_its_name_says() {
         let mut described = tree.nodes().iter();
         for part in row.parts {
             match part {
+                Part::HowPath { you, agent, code, verify } => {
+                    let table = descendants(tree, Role::Table, "The path of a change", sample.name);
+                    for (lane, stop) in [("You", you), ("Agents", agent), ("Code", code)] {
+                        let row = table
+                            .iter()
+                            .position(|node| {
+                                node.role == Role::RowHeader && node.name.as_deref() == Some(lane.as_bytes())
+                            })
+                            .expect("lane header");
+                        let parent = table.get(row.checked_sub(1).expect("lane row")).expect("lane parent");
+                        assert_eq!(parent.role, Role::Row, "{}: lane row", sample.name);
+                        let end = row - 1 + usize::try_from(parent.size).expect("lane span");
+                        assert!(
+                            table[row..end].iter().any(|node| {
+                                node.role == Role::Button && node.name.as_deref() == Some(stop.as_bytes())
+                            }),
+                            "{}: {stop} in {lane}",
+                            sample.name
+                        );
+                    }
+                    let headers: Vec<_> = table
+                        .iter()
+                        .filter(|node| node.role == Role::ColumnHeader)
+                        .map(|node| node.name.as_deref().expect("column name"))
+                        .collect();
+                    let main = headers.iter().position(|name| *name == b"main").expect("main bar");
+                    if *verify {
+                        assert_eq!(
+                            headers.get(main.checked_sub(1).expect("before main")),
+                            Some(&b"Verify".as_slice()),
+                            "{}: verify before main",
+                            sample.name
+                        );
+                    } else {
+                        assert!(
+                            !headers.iter().any(|name| matches!(*name, b"Check" | b"Verify")),
+                            "{}: no CI or tiers",
+                            sample.name
+                        );
+                    }
+                }
+                Part::StyledText { style, text } => {
+                    let nodes = tree.nodes();
+                    let start = nodes
+                        .iter()
+                        .position(|node| node.styles.as_slice().contains(style))
+                        .unwrap_or_else(|| panic!("{}: missing row {style:?}", sample.name));
+                    let end = start + usize::try_from(nodes[start].size).expect("row span");
+                    let actual: Vec<_> = nodes[start..end]
+                        .iter()
+                        .flat_map(|node| node.text.iter())
+                        .map(|run| std::str::from_utf8(&run.text).expect("row words"))
+                        .collect();
+                    assert_eq!(actual, *text, "{}: row text", sample.name);
+                }
+                Part::Current { name } => {
+                    let id = find(tree, Role::Button, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("stop").states.as_slice().contains(&skein_ui::State::Current),
+                        "{}: current stop",
+                        sample.name
+                    );
+                }
                 Part::Tabs { names, selected } => {
                     let tabs = descendants(tree, Role::Tabs, "Ways of working", sample.name);
                     let actual: Vec<_> = tabs.iter().filter(|node| node.role == Role::Tab).collect();

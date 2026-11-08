@@ -253,3 +253,21 @@ button { cursor: pointer; }
 .track { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .track .box { gap: 6px; }
 .track .box b { font-size: 15px; }
+
+/* Roles on How work runs: a row a role, opening to what it is. */
+.role > summary { grid-template-columns: 200px minmax(0, 1fr) auto; list-style: none; cursor: pointer; }
+.role > summary::-webkit-details-marker { display: none; }
+.role > summary > .r::after { content: '›'; display: inline-block; margin-left: 10px; }
+.role[open] > summary > .r::after { transform: rotate(90deg); }
+.role[open] > summary { border-bottom: 0; }
+.role > dl { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; font-size: 13.5px; line-height: 1.55; }
+.role > dl > div { display: contents; }
+.role dt { font: 400 11.5px/1.9 var(--mono); color: var(--faint); }
+.role dd { margin: 0; color: var(--ink2); }
+.role-more { display: flex; gap: 18px; margin: 10px 0 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); font-size: 13px; }
+@media (max-width: 760px) {
+  .role > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .role > summary > .small { grid-column: 1 / -1; grid-row: 2; }
+  .role > dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .role dd { margin-bottom: 6px; }
+}
