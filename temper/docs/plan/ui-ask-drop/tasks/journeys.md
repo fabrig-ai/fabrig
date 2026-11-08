@@ -91,3 +91,14 @@ Run generation through `heavy`, one journey at a time, from `temper/tools/journe
 After each regeneration, run `heavy cargo nextest run -p temper-client-journeys --lib -E 'test(=tests::the_committed_journeys_are_their_print)'`.
 Regenerate any further journey that replay identifies as stale, and confirm the five required recordings contain no removed stock entries.
 Report each regenerated journey, attempts, print differences and replay result.
+
+## Rebase (2026-11-08, step merge, foreman ui-ask-drop/journeys/foreman-3)
+
+preserve main’s TUI key documentation while deleting the obsolete template-3 recording gap
+Rebase onto the current integration tip and resolve `temper/docs/design/client/tui/journeys.status.md`.
+Main’s `8a91d0b749`, brought into integration by `69e36eb57f`, adds the Alt+m/Alt+s key forms, host-passage test coverage and deferred manual Meta-key check; preserve those additions.
+Retain the branch’s deletion of the entire **Not yet:** section-9 bullet about `sign-in-approved` recording template 3.
+Change “No known implementation gap but the one below.” to “No known implementation gap.” because that bullet is removed.
+Preserve the remaining status text and the branch’s regenerated recordings and prints.
+The refusal reports only this status-file conflict; it does not require regenerating recordings again.
+After rebasing, run `heavy cargo nextest run -p temper-client-journeys --lib -E 'test(=tests::the_committed_journeys_are_their_print)'` and verify that it selects and passes the test.
