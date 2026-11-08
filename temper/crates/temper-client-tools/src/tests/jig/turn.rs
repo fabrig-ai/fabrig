@@ -134,3 +134,25 @@ fn a_document_sized_turn_prints_escaped_tool_names_with_the_shipped_limits() {
     let escaped = tool_bytes.checked_mul(limits::ROWS).expect("bounded document");
     assert_eq!(fixtures::occurrences(&printed.stdout, br"\u0000"), usize::try_from(escaped).expect("count fits"));
 }
+
+#[test]
+fn supplied_system_words_print_in_text_and_json() {
+    use jig_client::contract as c;
+    let supplied = b"Selected instructions and supplied brief";
+    for (call, json) in [(fixtures::TURN_CALL, false), (fixtures::TURN_JSON_CALL, true)] {
+        let mut blocks = skein_lib::List::with_capacity(1);
+        blocks
+            .push(c::Block::Text(c::Text::new(supplied.as_slice().into(), 128).expect("supplied words")))
+            .expect("block");
+        let mut value = fixtures::turn_blocks(blocks);
+        let ReadResult::Value(ReadValue::Turn(turn)) = &mut value else { panic!("archived turn") };
+        let c::TurnRead::Decoded(turn) = &mut turn.turn else { panic!("decoded turn") };
+        turn.messages.get_mut(0).expect("supplied message").speaker = c::Speaker::System;
+        let printed = fixtures::read_answer(call, value);
+        assert_eq!(printed.status, 0);
+        assert!(skein_lib::bytes::find(&printed.stdout, supplied).is_some());
+        if json {
+            assert!(skein_lib::bytes::find(&printed.stdout, br#""speaker":"system""#).is_some());
+        }
+    }
+}

@@ -603,6 +603,99 @@ fn close_out_receives_complete_implementation_reports() {
     world.close();
 }
 
+// temper/docs/design/protocol/configuration.md, 13.9: delivered rules and retained
+// evidence cross the report boundary; scripted choices do not prove model compliance.
+#[test]
+fn close_out_requires_acceptance_specific_regression_evidence() {
+    use std::fmt::Write;
+    let (mut world, mut goal) = reference_person_world("none");
+    let mut handoff = String::from("Close out the plan.\n\n");
+    let mut producers = Vec::new();
+    for (number, covered) in [(1, false), (2, true)] {
+        let spec = "Add the cancelled-early-start explanation and its task-help pointer; \
+                    each needs an assertion for its new words.";
+        let (change, producer) = close_out_change(&mut world, &goal, number, spec, 2);
+        let report = acceptance_report(covered);
+        close_out_land(&mut world, change, &producer, report.as_bytes());
+        let (read, pieces) = close_out_report(&mut world, &goal, producer.task);
+        assert_eq!(read, report, "acceptance evidence survives report continuations");
+        assert!(pieces > 1, "evidence uses the bounded report path");
+        writeln!(handoff, "Change task {change}; producer task {}:\n{read}", producer.task).expect("handoff");
+        let disposition = if covered {
+            "Coverage disposition: explanation and pointer have separate named assertions."
+        } else {
+            "Coverage disposition: unresolved gap for explanation and pointer; repair before built."
+        };
+        writeln!(handoff, "{disposition}\n").expect("coverage disposition");
+        producers.push(producer);
+    }
+    person_park(&mut world, &goal);
+    goal = person_assignment(&mut world, 5, Some(&goal));
+    let (_, close_out) = close_out_change(&mut world, &goal, 10, &handoff, 7);
+    assert_close_out_reports(&close_out, &handoff, &[]);
+    for producer in &producers {
+        assert_acceptance_instructions(producer);
+    }
+    assert_acceptance_instructions(&goal);
+    assert_acceptance_instructions(&close_out);
+    // The restart oracle must see both fake landings on the watched branch.
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll_max);
+    world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+    world.close();
+}
+
+fn acceptance_report(covered: bool) -> String {
+    let evidence = if covered {
+        "Assertions added or extended: cancelled_early_start_explains_cancellation asserts the new explanation; \
+         cancelled_early_start_points_to_task_help asserts the task-help pointer.\n\
+         Existing coverage: change_and_task_help_say_what_a_cancelled_early_start_means covers the seed \
+         cancellation label and replacement producer, not these new words.\n\
+         Checks actually run: both new assertions failed with their required words removed, then passed restored."
+    } else {
+        "No new tests were added. The only test-file edit raises the member-line bound from 160 to 512.\n\
+         Acceptance explanation: no named assertion for its new words.\n\
+         Acceptance pointer: no named assertion for the task-help pointer.\n\
+         Existing coverage: change_and_task_help_say_what_a_cancelled_early_start_means covers the seed \
+         cancellation label and replacement producer. Checks actually run: page bounds and link validity passed."
+    };
+    format!("Implemented help explanation and task-help pointer.\n{evidence}\nCI: passed.\nLeft: none.\n")
+}
+
+fn assert_acceptance_instructions(run: &engine::Assignment) {
+    let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
+    for rule in [
+        "assertions added or extended",
+        "existing coverage",
+        "checks actually run",
+        "Page bounds and link validity",
+        "explanation or pointer",
+    ] {
+        assert!(instructions.contains(rule), "charter {} acceptance evidence requires: {rule}", run.charter);
+    }
+    let rules: &[&str] = match run.charter {
+        2 => &[
+            "map each acceptance item to a named assertion at the lowest tier",
+            "add or extend tests when existing assertions do not cover it",
+        ],
+        5 => &[
+            "check each acceptance item against its named assertion at the lowest tier",
+            "coverage mapping and every unresolved coverage gap in the close-out change's words",
+            "even when Left is empty or CI passes",
+            "route it for repair before declaring the item built",
+        ],
+        7 => &[
+            "check each acceptance item against its named assertion at the lowest tier",
+            "even when Left is empty or CI passes",
+            "route it for repair before declaring the item built",
+            "retain the coverage mapping and unresolved coverage gaps in your report",
+        ],
+        other => panic!("acceptance review charter {other}"),
+    };
+    for rule in rules {
+        assert!(instructions.contains(rule), "charter {} acceptance evidence requires: {rule}", run.charter);
+    }
+}
+
 fn close_out_change(
     world: &mut PersonWorld,
     goal: &engine::Assignment,

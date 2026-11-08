@@ -63,6 +63,7 @@ enum Stage {
     Activity,
     Tree,
     Delegates,
+    Stop,
     Done,
 }
 struct Judge {
@@ -113,56 +114,59 @@ impl Judge {
                 self.stage = Stage::Activity;
                 self.next(caller, &["task", "activity", "3"], true);
             }
-            Stage::Activity => {
-                let page: Value = serde_json::from_slice(&output).expect("activity JSON");
-                let rows = page["rows"].as_array().expect("activity rows");
-                assert!(!rows.is_empty() && rows.len() <= 2, "template row bound");
-                let mut seen = self.seen.borrow_mut();
-                seen.pages += 1;
-                for row in rows {
-                    let position = row["position"].as_u64().expect("activity position");
-                    if let Some(previous) = seen.positions.last() {
-                        assert_eq!(position + 1, *previous, "no missing activity");
-                    } else {
-                        assert_eq!(position, self.activity_head);
-                    }
-                    seen.positions.push(position);
-                }
-                drop(seen);
-                if let Some(next) = page["read_on"].as_str() {
-                    self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), true);
-                } else {
-                    assert_eq!(self.seen.borrow().positions.last(), Some(&1));
-                    self.stage = Stage::Tree;
-                    self.next(caller, &["task", "show", "1", "--tree"], false);
-                }
-            }
-            Stage::Tree => {
-                let text = String::from_utf8(output).expect("tree text");
-                let next = text
-                    .lines()
-                    .find_map(|line| line.strip_prefix("read on with: "))
-                    .expect("tree continuation")
-                    .to_owned();
-                self.seen.borrow_mut().tree = text;
-                self.stage = Stage::Delegates;
-                self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), false);
-            }
-            Stage::Delegates => {
-                let text = std::str::from_utf8(&output).expect("delegates text");
-                let tasks: Vec<u64> = text
-                    .lines()
-                    .filter_map(|line| line.split_once(" · ").and_then(|(number, _)| number.parse().ok()))
-                    .collect();
-                assert!(!tasks.is_empty() && tasks.len() <= 2, "template task page bound");
-                self.seen.borrow_mut().delegates.extend(tasks);
-                if let Some(next) = text.lines().find_map(|line| line.strip_prefix("read on with: ")) {
-                    self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), false);
-                } else {
-                    self.stage = Stage::Done;
-                }
-            }
+            Stage::Activity => self.activity(caller, &output),
+            Stage::Tree => self.tree(caller, output),
+            Stage::Delegates => self.delegates(caller, &output),
+            Stage::Stop => self.stage = Stage::Done,
             Stage::Settled | Stage::Done => panic!("unexpected paging answer"),
+        }
+    }
+
+    fn activity(&mut self, caller: &mut Caller, output: &[u8]) {
+        let page: Value = serde_json::from_slice(output).expect("activity JSON");
+        let rows = page["rows"].as_array().expect("activity rows");
+        assert!(!rows.is_empty() && rows.len() <= 2, "template row bound");
+        let mut seen = self.seen.borrow_mut();
+        seen.pages += 1;
+        for row in rows {
+            let position = row["position"].as_u64().expect("activity position");
+            if let Some(previous) = seen.positions.last() {
+                assert_eq!(position + 1, *previous, "no missing activity");
+            } else {
+                assert_eq!(position, self.activity_head);
+            }
+            seen.positions.push(position);
+        }
+        drop(seen);
+        if let Some(next) = page["read_on"].as_str() {
+            self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), true);
+        } else {
+            assert_eq!(self.seen.borrow().positions.last(), Some(&1));
+            self.stage = Stage::Tree;
+            self.next(caller, &["task", "show", "1", "--tree"], false);
+        }
+    }
+    fn tree(&mut self, caller: &mut Caller, output: Vec<u8>) {
+        let text = String::from_utf8(output).expect("tree text");
+        let next =
+            text.lines().find_map(|line| line.strip_prefix("read on with: ")).expect("tree continuation").to_owned();
+        self.seen.borrow_mut().tree = text;
+        self.stage = Stage::Delegates;
+        self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), false);
+    }
+    fn delegates(&mut self, caller: &mut Caller, output: &[u8]) {
+        let text = std::str::from_utf8(output).expect("delegates text");
+        let tasks: Vec<u64> = text
+            .lines()
+            .filter_map(|line| line.split_once(" · ").and_then(|(number, _)| number.parse().ok()))
+            .collect();
+        assert!(!tasks.is_empty() && tasks.len() <= 2, "template task page bound");
+        self.seen.borrow_mut().delegates.extend(tasks);
+        if let Some(next) = text.lines().find_map(|line| line.strip_prefix("read on with: ")) {
+            self.next(caller, &next.split_ascii_whitespace().collect::<Vec<_>>(), false);
+        } else {
+            self.stage = Stage::Stop;
+            self.next(caller, &["task", "stop", "1", "--key", "paging-stop"], false);
         }
     }
 }

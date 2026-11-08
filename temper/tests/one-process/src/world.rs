@@ -344,6 +344,7 @@ pub(crate) enum HarnessProcess {
     Ctl(Box<crate::ctl::Recorded>),
     Calls(Box<crate::ctl::Caller>),
     Client(Box<SignalHost<Person>>),
+    ProgramSource(Box<smith_fake_claude::Fake>),
 }
 impl HarnessProcess {
     fn host(&self) -> &dyn Host {
@@ -351,6 +352,7 @@ impl HarnessProcess {
             Self::Ctl(h) => h.as_ref(),
             Self::Calls(h) => h.as_ref(),
             Self::Client(h) => h.as_ref(),
+            Self::ProgramSource(h) => h.as_ref(),
         }
     }
     fn host_mut(&mut self) -> &mut dyn Host {
@@ -358,6 +360,7 @@ impl HarnessProcess {
             Self::Ctl(h) => h.as_mut(),
             Self::Calls(h) => h.as_mut(),
             Self::Client(h) => h.as_mut(),
+            Self::ProgramSource(h) => h.as_mut(),
         }
     }
 }
@@ -372,6 +375,7 @@ impl Host for HarnessProcess {
                 Self::Ctl(_) => Role::Ctl,
                 Self::Calls(_) => Role::Caller,
                 Self::Client(_) => Role::Client,
+                Self::ProgramSource(_) => Role::Agent,
             };
             for complete in self.host_mut().completions().iter() {
                 observer::complete(role, complete);
@@ -449,6 +453,23 @@ impl Person {
                 Start::Token,
             )
             .expect("saved native client"),
+        );
+    }
+    /// Open a saved sign-in with an explicit receiving preset for a recovery story.
+    pub(crate) fn saved_with_limits(&mut self, limits: &temper_client_shell_terminal::limits::Limits) {
+        self.client = Some(
+            NativeClient::new(
+                ClientSettings {
+                    engine: skein_io::Addr::Ip(fixtures::CLIENTS),
+                    directory: b"private".as_slice().into(),
+                    limits: *limits,
+                },
+                self.root.take().expect("saved client root"),
+                1000,
+                fixtures::SEED,
+                Start::Token,
+            )
+            .expect("saved native client with explicit limits"),
         );
     }
     fn new(root: Fd, scenario: Story) -> Self {
@@ -1204,7 +1225,7 @@ fn run_phase(
             | Proc::Peer(_)
             | Proc::Forge(_)
             | Proc::Visitor(_)
-            | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_)) => None,
+            | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_) | HarnessProcess::ProgramSource(_)) => None,
         })
         .sum();
     let chats_answered = if matches!(scenario, Story::ChatReadThenWait { .. }) {
@@ -1252,4 +1273,17 @@ mod tests;
 
 pub(crate) fn lower_store(store: Option<Rc<RefCell<Store>>>) {
     STORE.with(|cell| *cell.borrow_mut() = store);
+}
+
+impl ServiceObserver {
+    /// Decode durable records under the scenario's configured record bounds.
+    pub(crate) fn with_codec(
+        mut self,
+        codec: &jig_protocol_store::codec::View,
+        families: &temper_protocol_store::Bounds,
+    ) -> Self {
+        self.codec = *codec;
+        self.families = *families;
+        self
+    }
 }

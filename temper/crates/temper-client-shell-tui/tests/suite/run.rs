@@ -619,9 +619,10 @@ fn replay(recording: &[u8]) -> Vec<temper_client_shell_tui::journey::Line> {
     use temper_client_shell_tui::journey;
     let lines = journey::lines(recording).expect("read recording");
     assert!(
-        !lines
-            .iter()
-            .any(|line| matches!(line, journey::Line::Key { key: skein_ui_screen_terminal::Key::Alt('M' | 'S'), .. })),
+        !lines.iter().any(|line| matches!(
+            line,
+            journey::Line::Key { key: skein_ui_screen_terminal::Key::Alt('M' | 'S' | 'm' | 's'), .. }
+        )),
         "recording controls never reach the host"
     );
     let mut replay = journey::Replay::new(recording).expect("replay envelope");
@@ -635,35 +636,37 @@ fn replay(recording: &[u8]) -> Vec<temper_client_shell_tui::journey::Line> {
 #[cfg(feature = "record")]
 fn recording_keys_save_whole_and_closing_saves_again() {
     use temper_client_shell_tui::journey::Line;
-    let mut world = World::recording(false, true, false, Outcome::Success, Recording::Root);
-    world.settle();
-    world.keys(b"\x1bM\x1bS");
-    let (first, mode) = world.recording_file().expect("save key writes recording");
-    assert_eq!(mode, 0o600, "recording is private");
-    let lines = replay(&first);
-    assert!(lines.contains(&Line::Seed(SEED)));
-    assert!(lines.contains(&Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH }));
-    assert!(lines.contains(&Line::Screen { size: SIZE, scheme: Scheme::Dark }));
-    assert!(lines.contains(&Line::Address(b"127.0.0.1:8367".as_slice().into())));
-    assert!(lines.iter().any(|line| matches!(line, Line::Mark(Some(_)))));
-    assert!(matches!(lines.last(), Some(Line::End(Some(_)))));
-    assert!(
-        !lines.iter().any(|line| matches!(line, Line::Key { key: skein_ui_screen_terminal::Key::Alt(_), .. })),
-        "recording keys never reach the host"
-    );
-    world.keys(b"\t\x1bS");
-    let (second, mode) = world.recording_file().expect("second save");
-    assert_eq!(mode, 0o600);
-    assert!(second.len() > first.len(), "second save includes more reports");
-    replay(&second);
-    world.draining = true;
-    world.leave_after = world.saved + 1;
-    world.keys(b"\x03");
-    let (closed, mode) = world.recording_file().expect("closing save");
-    assert_eq!(mode, 0o600);
-    assert!(closed.len() > second.len(), "closing saves the final reports");
-    assert!(replay(&closed).contains(&Line::Quit));
-    world.drained(false);
+    for (mark, save) in [(b"\x1bM", b"\x1bS"), (b"\x1bm", b"\x1bs")] {
+        let mut world = World::recording(false, true, false, Outcome::Success, Recording::Root);
+        world.settle();
+        world.keys(&[mark.as_slice(), save.as_slice()].concat());
+        let (first, mode) = world.recording_file().unwrap_or_else(|| panic!("{mark:?}: save key writes recording"));
+        assert_eq!(mode, 0o600, "{mark:?}: recording is private");
+        let lines = replay(&first);
+        assert!(lines.contains(&Line::Seed(SEED)), "{mark:?}");
+        assert!(lines.contains(&Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH }), "{mark:?}");
+        assert!(lines.contains(&Line::Screen { size: SIZE, scheme: Scheme::Dark }), "{mark:?}");
+        assert!(lines.contains(&Line::Address(b"127.0.0.1:8367".as_slice().into())), "{mark:?}");
+        assert!(lines.iter().any(|line| matches!(line, Line::Mark(Some(_)))), "{mark:?}");
+        assert!(matches!(lines.last(), Some(Line::End(Some(_)))), "{mark:?}");
+        assert!(
+            !lines.iter().any(|line| matches!(line, Line::Key { key: skein_ui_screen_terminal::Key::Alt(_), .. })),
+            "{mark:?}: recording keys never reach the host"
+        );
+        world.keys(&[b"\t".as_slice(), save.as_slice()].concat());
+        let (second, mode) = world.recording_file().unwrap_or_else(|| panic!("{mark:?}: second save"));
+        assert_eq!(mode, 0o600, "{mark:?}");
+        assert!(second.len() > first.len(), "{mark:?}: second save includes more reports");
+        replay(&second);
+        world.draining = true;
+        world.leave_after = world.saved + 1;
+        world.keys(b"\x03");
+        let (closed, mode) = world.recording_file().unwrap_or_else(|| panic!("{mark:?}: closing save"));
+        assert_eq!(mode, 0o600, "{mark:?}");
+        assert!(closed.len() > second.len(), "{mark:?}: closing saves the final reports");
+        assert!(replay(&closed).contains(&Line::Quit), "{mark:?}");
+        world.drained(false);
+    }
 }
 
 #[test]

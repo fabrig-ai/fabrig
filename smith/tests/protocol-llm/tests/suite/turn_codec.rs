@@ -8,6 +8,7 @@ fn a_domain_turn_round_trips_its_account_and_backend() {
     for (kind, sequence) in [
         (
             record::Kind::First(Box::new(record::Opener {
+                system: Some(bytes(b"selected instructions\n\n## Brief\nkept bytes")),
                 affinity,
                 account: Some(7),
                 backend: record::Backend::Program { name: bytes(b"claude_code") },
@@ -16,6 +17,7 @@ fn a_domain_turn_round_trips_its_account_and_backend() {
         ),
         (
             record::Kind::Window(Box::new(record::Opener {
+                system: Some(bytes(b"selected instructions\n\n## Brief\nkept bytes")),
                 affinity,
                 account: Some(7),
                 backend: record::Backend::Program { name: bytes(b"claude_code") },

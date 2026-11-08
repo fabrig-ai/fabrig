@@ -147,10 +147,11 @@ fn compose_with_reading(
     let mut bounds = limits::native();
     if reading {
         let domain = &mut bounds.client.client.domain;
-        domain.document_bytes = 2048;
+        // The document admits opening context; turn_text bounds the conversation window.
         domain.text = 256;
         domain.long_text = 1024;
         domain.turn_text = 1024;
+        bounds.client.window_bytes = Some(2048);
     }
     let (view, _) = limits::view(&bounds).expect("native view bounds");
     let mut client = NativeClient::new(

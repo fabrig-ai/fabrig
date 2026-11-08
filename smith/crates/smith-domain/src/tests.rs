@@ -490,15 +490,7 @@ fn oversized_resume_history_is_refused_when_the_conversation_opens() {
                 sequence,
                 ..session::fixture::turn(
                     b"model-a".as_slice().into(),
-                    if sequence == 1 {
-                        session::record::Kind::First(Box::new(session::record::Opener {
-                            affinity: session::llm::Affinity { key: [0; 16], thread: 0 },
-                            account: None,
-                            backend: session::record::Backend::Direct,
-                        }))
-                    } else {
-                        session::record::Kind::Ordinary
-                    },
+                    if sequence == 1 { first_turn_kind() } else { session::record::Kind::Ordinary },
                     Box::new([session::llm::Message { role: Role::User, content: Box::new([]) }]),
                 )
             })
@@ -2028,6 +2020,7 @@ fn first_message_after_awaiting_restores_history_and_absent_host_answers_once() 
             ..session::fixture::turn(
                 b"model-a".as_slice().into(),
                 session::record::Kind::First(Box::new(session::record::Opener {
+                    system: None,
                     affinity: crate::llm::Affinity { key: [0; 16], thread: 0 },
                     account: Some(0),
                     backend: session::record::Backend::Direct,
@@ -2430,4 +2423,13 @@ fn the_charters_effort_reaches_the_sessions_first_request() {
         let (_, _, prompt) = harness.admit(7, requested);
         assert_eq!(prompt.effort.as_deref(), effort);
     }
+}
+
+fn first_turn_kind() -> session::record::Kind {
+    session::record::Kind::First(Box::new(session::record::Opener {
+        system: None,
+        affinity: session::llm::Affinity { key: [0; 16], thread: 0 },
+        account: None,
+        backend: session::record::Backend::Direct,
+    }))
 }

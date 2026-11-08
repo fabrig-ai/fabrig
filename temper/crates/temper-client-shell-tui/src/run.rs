@@ -453,7 +453,7 @@ impl Run {
             && let Some(recorder) = &mut recording.recorder
         {
             match key {
-                Key::Alt('M') => {
+                Key::Alt('M' | 'm') => {
                     recorder.deadline(self.host.deadline());
                     recorder.turn(self.env.now, self.env.wall);
                     recorder.mark(&mut self.host);
@@ -461,7 +461,7 @@ impl Run {
                     recorder.turn(self.env.now, self.env.wall);
                     return true;
                 }
-                Key::Alt('S') => {
+                Key::Alt('S' | 's') => {
                     recorder.deadline(self.host.deadline());
                     recording.save.pending = Some(recorder.save(&mut self.host));
                     recorder.turn(self.env.now, self.env.wall);
@@ -982,7 +982,7 @@ mod tests {
         };
         let mut run = Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
             .expect("adopt synthetic descriptors without kernel calls");
-        for key in [Key::Alt('M'), Key::Alt('S')] {
+        for key in [Key::Alt('M'), Key::Alt('S'), Key::Alt('m'), Key::Alt('s')] {
             assert!(!run.record_key(&key), "no interception without a root: {key:?}");
         }
     }

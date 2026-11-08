@@ -90,11 +90,10 @@ fn decode(bytes: &[u8], limits: &codec::View, task: u64, at: u64) -> Result<smit
     if record.task != task {
         return Err(Refusal::Frame { task, at });
     }
-    let mut reader = skein_lib::Reader::new(&record.transcript);
-    let turn = match smith::Turn::decode(&smith::CEILINGS, &mut reader) {
+    let turn = match smith::decode_archived(&smith::CEILINGS, &record.transcript) {
         Ok(turn) => turn,
         Err(problem) => {
-            if problem.path == smith::v6::Path::TurnVersion && record.transcript.len() >= 2 {
+            if problem.path == smith::v7::Path::TurnVersion && record.transcript.len() >= 2 {
                 return Err(Refusal::Version {
                     task,
                     version: u16::from_be_bytes([record.transcript[0], record.transcript[1]]),

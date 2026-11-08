@@ -789,6 +789,14 @@ for any presentation of a chat or of any agent task's activity.
   archive's byte bound admits is cut, a call's input included, and a
   reader paging it reads every byte; one past that bound is too large,
   as now (section 14).
+  A turn read alone includes an opening's retained system text as a leading
+  system message, including the supplied instructions and fitted brief.
+  Activity pages keep conversation blocks alone, so inspection metadata
+  consumes no conversation window or words budget. Brief-tail rendering
+  excludes archived system context: a fresh run composes its own prefix.
+  The archived message bound reserves one more than smith's message
+  ceiling for that system message. Version-6 turns remain readable with
+  their system context unavailable, never rebuilt from task settings.
   Neither the application nor the helpers link smith.
 - **What the conversation last ran on.** `Thread.latest_llm` is the `llm`
   of the newest decoded turn that names a model, taken when the window
@@ -1134,7 +1142,7 @@ Each is configured and bounds what enters or is retained:
 `DomainLimits.turn_text` is one committed turn's shared text budget in the
 transcript, priced in this order: its calls' names; its texts, an opaque block's
 dialect with them; its calls' outcomes, a line each within `text`; its calls'
-inputs; and its results' summaries. An outcome comes before the inputs because a
+inputs; its results' summaries; then its retained system context. An outcome comes before the inputs because a
 call's input can fill the budget, a note's whole body, and what reads a call's
 outcome needs its line. It is at least the receiving field bound `text` and at
 most `turn_bytes`; limits outside those bounds are refused. It bounds the

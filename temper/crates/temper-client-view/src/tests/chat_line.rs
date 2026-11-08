@@ -591,6 +591,50 @@ fn the_terminal_writes_the_ellipsis() {
 }
 
 #[test]
+fn failed_settings_proposals_do_not_claim_a_change() {
+    let input = br#"{"reason":"private reason","items":[]}"#;
+    let refusal = b"owner approval cannot be proposed";
+    let cases: &[(u64, &[bool], &str, &str)] = &[
+        (8, &[true], "see ×8, failed to propose a change", "1 failed"),
+        (2, &[true], "see ×2, failed to propose a change", "1 failed"),
+        (0, &[true], "Failed to propose a change", "1 failed"),
+        (0, &[true, true], "Failed to propose a change 2×", "2 failed"),
+        (0, &[false, true], "Proposed a change, failed to propose a change", "1 failed"),
+        (0, &[true, false], "Failed to propose a change, proposed a change", "1 failed"),
+        (0, &[false, true, false, true], "Proposed a change 2×, failed to propose a change 2×", "2 failed"),
+    ];
+    for (reads, proposals, name, description) in cases {
+        let mut calls = List::with_capacity(CALLS);
+        for number in 0..*reads {
+            calls.push(call(number, b"see", b"{}", Some(b"seen"))).unwrap();
+        }
+        for (index, failed) in proposals.iter().enumerate() {
+            let number = reads.checked_add(u64::try_from(index).unwrap()).unwrap();
+            let outcome = if *failed { Some(refusal.as_slice()) } else { None };
+            let mut proposal = call(number, b"propose_settings", input, outcome);
+            proposal.failed = *failed;
+            calls.push(proposal).unwrap();
+        }
+        let tree = line(calls.as_slice(), &[], None, false, 0);
+        assert_eq!(disclosure(&tree).name.as_deref(), Some(name.as_bytes()));
+        assert_eq!(disclosure(&tree).description.as_deref(), Some(description.as_bytes()));
+        assert!(disclosure(&tree).styles.as_slice().contains(&look::WORK_FAILED));
+        let mut failed_row = false;
+        for node in tree.nodes() {
+            if node.role == Role::Paragraph
+                && node.name.as_deref()
+                    == Some(b"propose_settings: failed: owner approval cannot be proposed".as_slice())
+            {
+                assert!(node.styles.as_slice().contains(&look::WORK_FAILED));
+                failed_row = true;
+            }
+        }
+        assert!(failed_row);
+        assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"private reason").is_none());
+    }
+}
+
+#[test]
 fn proposing_settings_says_a_change_without_its_reason() {
     let input = br#"{"reason":"private reason","items":[]}"#;
     let one = call(1, b"propose_settings", input, None);

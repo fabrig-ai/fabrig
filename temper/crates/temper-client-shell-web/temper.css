@@ -1513,7 +1513,12 @@ a.temper-repository-link:hover { text-decoration: underline; }
 /* Every chat keeps the session frame around the shared conversation. */
 #app:has(> .temper-rail) > .temper-session { padding-bottom: 0; }
 #app > .temper-session .temper-session-right { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-left: auto; color: var(--gf-muted); font-size: 12px; }
-#app > .temper-session .temper-session-right > p:not(.temper-byline) { display: none; }
+#app > .temper-session .temper-session-right > p:not(.temper-byline, .temper-chats-tag) { display: none; }
+#app > .temper-session .temper-session-right > p.temper-chats-tag { margin: 0 0 0 -10px; font-size: 12px; white-space: pre; color: var(--gf-faint); }
+@media (max-width: 760px) {
+  #app > .temper-session .temper-session-right > p.temper-chats-tag { margin-left: 0; }
+  #app > .temper-session .temper-session-right > p.temper-chats-tag > :first-child { display: none; }
+}
 #app > .temper-session .temper-session-right > [role=status] { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 12px; font-weight: 400; color: var(--gf-faint); text-transform: lowercase; }
 #app > .temper-session .temper-session-right > .temper-state-needs { color: var(--gf-signal); }
 #app > .temper-session .temper-session-right > button:not(.temper-start-over) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }

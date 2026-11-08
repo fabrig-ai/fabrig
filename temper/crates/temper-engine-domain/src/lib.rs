@@ -14,6 +14,8 @@ mod budget;
 mod deadline;
 mod decision;
 mod domain;
+mod journal_stop;
+pub use journal_stop::JournalStop;
 mod limits;
 mod link;
 pub mod loads;
