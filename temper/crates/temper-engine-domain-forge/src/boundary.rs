@@ -1775,6 +1775,11 @@ pub enum Event {
         tag: u64,
         head: skein_forge::api::Commit,
     },
+    /// A counted person's request refused the change's merge (domain/forge.md, 8.3).
+    ReviewRequested {
+        task: u64,
+        head: skein_forge::api::Commit,
+    },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
         /// The change's current authority delegates to the merge kind (domain/forge.md, 8.4).

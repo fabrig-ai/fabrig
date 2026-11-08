@@ -377,6 +377,8 @@ pub struct DelegateSpend {
 #[expect(clippy::struct_excessive_bools, reason = "independent task and effect standing")]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Heard {
+    /// A counted person's request refused the merge (temper/docs/design/domain/forge.md, 8.3).
+    pub review_request: Option<Commit>,
     /// The head its live producing delegate conflicted on, until that delegate ends.
     pub start_conflict: Option<Commit>,
     /// Current authority, translated from jig's live accounting.

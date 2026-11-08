@@ -110,7 +110,7 @@ fn approval(
         return Verdict::Wait;
     }
     let (counted, refused) = approval_count(role, freshness, head, clean, reviewers);
-    if refused {
+    if refused.is_some() {
         Verdict::Refuse
     } else if skein_lib::len_u64(counted.len()) < u64::from(people) {
         Verdict::Wait
@@ -126,16 +126,14 @@ pub(crate) fn approval_count(
     head: skein_forge::api::Commit,
     clean: &[skein_forge::api::Commit],
     reviewers: &[Reviewer],
-) -> (Box<[Reviewer]>, bool) {
+) -> (Box<[Reviewer]>, Option<skein_forge::api::Commit>) {
     let mut counted = List::uncapped();
-    let mut refused = false;
     for reviewer in reviewers {
         if reviewer.role != role || !valid(reviewer.head, head, clean, freshness) {
             continue;
         }
         match reviewer.verdict {
-            skein_forge::api::Verdict::RequestChanges => refused = true,
-            skein_forge::api::Verdict::Comment => {}
+            skein_forge::api::Verdict::RequestChanges | skein_forge::api::Verdict::Comment => {}
             skein_forge::api::Verdict::Approve => {
                 let mut conflicting = false;
                 for other in reviewers {
@@ -158,7 +156,20 @@ pub(crate) fn approval_count(
             }
         }
     }
-    (counted.into_boxed(), refused)
+    // Prefer the change's head, then the latest clean predecessor in the
+    // change's order, independent of the order the forge returned reviewers.
+    for candidate in core::iter::once(&head).chain(clean.iter().rev()) {
+        for reviewer in reviewers {
+            if reviewer.role == role
+                && reviewer.head == *candidate
+                && valid(reviewer.head, head, clean, freshness)
+                && reviewer.verdict == skein_forge::api::Verdict::RequestChanges
+            {
+                return (counted.into_boxed(), Some(*candidate));
+            }
+        }
+    }
+    (counted.into_boxed(), None)
 }
 
 /// Judge one configured criterion against the change's coherent evidence.

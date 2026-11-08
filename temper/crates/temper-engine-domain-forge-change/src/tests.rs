@@ -79,6 +79,7 @@ fn facts() -> Facts {
 }
 fn heard() -> Heard {
     Heard {
+        review_request: None,
         start_conflict: None,
         lacking: None,
         spend: None,
@@ -677,6 +678,25 @@ fn an_update_conflict_resolves_after_release_and_keeps_its_resolution_bound() {
         assert_eq!(decide(&c, &facts(), &h).decision, Decision::Hold(Hold::Resolutions));
     }
 }
+#[test]
+fn a_persons_request_in_first_repairs_with_its_reviewed_head() {
+    for (request, repairs, contains_base, expected, count) in [
+        (Some(NEW), 0, Status::Passed, Decision::Delegate(Delegate::Repair(Repair::Review { head: NEW })), 1),
+        (Some(NEW), LIMITS.repairs, Status::Passed, Decision::Hold(Hold::Repairs), LIMITS.repairs),
+        (Some(NEW), 0, Status::Failed, Decision::Effect(Effect::Update { head: HEAD, base: BASE }), 0),
+        (None, 0, Status::Passed, Decision::Effect(Effect::Merge { head: HEAD, base: BASE }), 0),
+    ] {
+        let mut c = change(State::First { head: HEAD, ready_since: at(0) });
+        c.repairs = repairs;
+        let mut f = facts();
+        f.contains_base = contains_base;
+        let h = Heard { review_request: request, ..heard() };
+        let next = decide(&c, &f, &h);
+        assert_eq!(next.decision, expected, "{request:?}, {repairs}, {contains_base:?}");
+        assert_eq!(next.change.repairs, count);
+    }
+}
+
 #[test]
 fn a_failed_check_takes_the_base_before_a_repair_and_both_bounds_hold() {
     let mut f = facts();

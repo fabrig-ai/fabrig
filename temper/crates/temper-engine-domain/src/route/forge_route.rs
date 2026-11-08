@@ -2044,6 +2044,18 @@ fn configured_gates(
     domain.forge.held_gates(&env.limits.forge, repository, base)
 }
 
+fn refused_review_request(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    evidence: &forge::ChangeEvidence,
+) -> Option<skein_forge::api::Commit> {
+    let row = domain.forge.change(task)?;
+    let head = evidence.head?;
+    let reviewers = landing_reviewers(domain, env, row, evidence)?;
+    domain.forge.review_request(task, head, evidence, &reviewers.reviewers)
+}
+
 fn landing_reviewers(
     domain: &Domain,
     env: &Env<Limits>,
@@ -2590,6 +2602,7 @@ fn change_step(
         kept: landing_route::kept(domain, env, task),
         pending: landing_route::pending(domain, env, task, provider, base),
         heard: forge_change::Heard {
+            review_request: None,
             start_conflict: None,
             lacking: change_authority_lack(domain, task),
             spend: change_spend(domain, task),
@@ -5500,9 +5513,18 @@ pub(crate) fn effect_ask(
                     if answer == authority::Answer::Wait {
                         retain_review_wait(domain, env, task, &evidence);
                     }
+                    let request = if answer == authority::Answer::Refuse
+                        && why == jig_domain_core::effects::connector::EffectRefusal::Authority
+                    {
+                        refused_review_request(domain, env, task, &evidence)
+                    } else {
+                        None
+                    };
                     domain.work.push(Work::Forge(forge::Event::VetoChange { task, entry, prior: evidence.prior }));
                     if answer == authority::Answer::Wait {
                         domain.forge.wait_change(&super::environment_forge(env), task, None);
+                    } else if let Some(head) = request {
+                        domain.work.push(Work::Forge(forge::Event::ReviewRequested { task, head }));
                     } else if answer != authority::Answer::Refuse
                         || domain.core.tasks.waiting_effect_problem(task).is_none()
                     {

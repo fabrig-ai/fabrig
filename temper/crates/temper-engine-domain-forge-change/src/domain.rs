@@ -216,7 +216,7 @@ fn advance_phase(
         }
         State::CancellingGates { head } => cancelling_gates(next, *head, facts, now, limits),
         State::Queued { head, ready_since } => queued(next, *head, *ready_since, facts),
-        State::First { head, ready_since } => first(next, *head, *ready_since, facts, now, limits),
+        State::First { head, ready_since } => first(next, *head, *ready_since, facts, standing, now, limits),
         State::Updating { from, base, ready_since } => {
             updating(next, *from, *base, *ready_since, facts, standing, now, limits)
         }
@@ -897,9 +897,20 @@ fn blocking_gates_pass(change: &Change, facts: &Facts, head: [u8; 32]) -> bool {
     true
 }
 
-fn first(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+fn first(
+    mut change: Change,
+    head: [u8; 32],
+    ready_since: Wall,
+    facts: &Facts,
+    standing: &Heard,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
+    }
+    if let Some(reviewed) = standing.review_request {
+        return repair_due(change, Repair::Review { head: reviewed }, facts, now, limits);
     }
     if facts.kept
         || facts.ci.head != head
