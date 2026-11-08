@@ -17,6 +17,7 @@ mod update_lost;
 mod writer;
 
 mod fuzzy {
+    mod branch_patterns;
     mod simulation;
 }
 

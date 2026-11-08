@@ -485,20 +485,45 @@ fn application_item(bytes: Box<[u8]>) -> s::Item {
 }
 #[test]
 fn settings_proposals_carry_typed_landing_values() {
-    let value = landing_value();
-    let bytes = crate::kinds::encode(&value);
-    let size = u32::try_from(bytes.len()).expect("fixture encoding");
-    let call = decided(b"propose_settings", br#"{"against":1,"reason":"landing","items":[{"setting":{"kind":"landing-rule","number":1},"set":{"pattern":{"segments":["666f726765"],"last":{"open":""}},"enforce":true,"ci":true,"up_to_date":false,"gates":[],"approvals":[]}}]}"#).expect("landing proposal");
-    let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
-    assert_eq!(
-        kinds.as_ref(),
-        &[engine::KindValue {
-            kind: 1,
-            scope: 0,
-            number: 1,
-            value: temper_engine_domain_forge::settings::SizedValue { value, size }
-        }]
-    );
+    use temper_engine_domain_forge::{GateLast, GatePattern, settings};
+    for (body, kind, scope, value) in [
+        (
+            br#"{"against":1,"reason":"landing","items":[{"setting":{"kind":"landing-rule","number":1},"set":{"pattern":{"segments":["666f726765"],"last":{"open":""}},"enforce":true,"ci":true,"up_to_date":false,"gates":[],"approvals":[]}}]}"#.as_slice(),
+            1,
+            0,
+            landing_value(),
+        ),
+        (
+            br#"{"against":1,"reason":"landing","items":[{"setting":{"kind":"landing-rule","project":7,"number":1},"set":{"pattern":{"segments":["6272616e6368"],"last":{"exact":"6d61696e"}},"enforce":true,"ci":true,"up_to_date":false,"gates":[],"approvals":[]}}]}"#,
+            2,
+            7,
+            settings::Value::Rule(settings::LandingRule {
+                pattern: GatePattern {
+                    segments: Box::new([Box::from(b"branch".as_slice())]),
+                    last: GateLast::Exact(Box::from(b"main".as_slice())),
+                },
+                enforce: true,
+                ci: true,
+                up_to_date: false,
+                gates: Box::new([]),
+                approvals: Box::new([]),
+            }),
+        ),
+    ] {
+        let bytes = crate::kinds::encode(&value);
+        let size = u32::try_from(bytes.len()).expect("fixture encoding");
+        let call = decided(b"propose_settings", body).expect("landing proposal");
+        let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
+        assert_eq!(
+            kinds.as_ref(),
+            &[engine::KindValue {
+                kind,
+                scope,
+                number: 1,
+                value: settings::SizedValue { value, size }
+            }]
+        );
+    }
 }
 #[test]
 fn settings_proposals_refuse_cut_or_trailing_value_bytes() {

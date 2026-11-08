@@ -8,6 +8,7 @@ use crate::settings::{
 };
 use core::slice::from_ref;
 use jig_domain_core::settings::application::{Restored, RestoredEdit};
+use skein_lib::List;
 
 const BOUNDS: Bounds = Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 8, segments: 8, segment_bytes: 32 };
 
@@ -82,9 +83,10 @@ fn a_change_of_rules_is_judged_kept_and_held() {
     assert_eq!(out.pop(), Some(save(&asked, SettingSlot::Change)));
     assert!(out.is_empty());
     let Value::Rule(expected) = rule(false).value else { panic!("rule fixture") };
-    let (deployment, project) = d.landing_rules(1);
-    assert_eq!(deployment.len(), 1);
-    assert_eq!(project, &[Held { scope: 1, number: 1, rule: expected }]);
+    let held = d.landing_rules(1);
+    assert_eq!(held.len(), 2);
+    assert_eq!(held.first().expect("deployment rule").scope, 0);
+    assert_eq!(&held[1..], &[Held { scope: 1, number: 1, rule: expected }]);
     assert_eq!(d.charters(), ForgeCharters { change: 2, review: 4 });
     assert_eq!(d.setting(2, 1, 1), Some(&rule(false)));
 
@@ -96,8 +98,103 @@ fn a_change_of_rules_is_judged_kept_and_held() {
         &[item(2, 1, 3, Edit::Set(rule(true))), item(2, 1, 2, Edit::Set(rule(false)))],
         &mut out,
     );
-    for (held, number) in d.landing_rules(1).1.iter().zip([1, 2, 3]) {
+    for (held, number) in project_rules(&d, 1).iter().zip([1, 2, 3]) {
         assert_eq!(held.number, number);
+    }
+}
+
+fn project_rules(d: &Domain, project: u32) -> Box<[Held]> {
+    let mut rules = List::uncapped();
+    for held in d.landing_rules(project) {
+        if held.scope != 0 {
+            rules.push(held).expect("bounded project rules");
+        }
+    }
+    rules.into_boxed()
+}
+
+fn given_rule() -> SizedValue {
+    SizedValue {
+        value: Value::Rule(LandingRule {
+            pattern: GatePattern {
+                segments: Box::new([b"branch".as_slice().into()]),
+                last: GateLast::Open(Box::new([])),
+            },
+            enforce: true,
+            ci: true,
+            up_to_date: true,
+            gates: Box::new([crate::settings::RuleGate {
+                number: 1,
+                blocking: true,
+                freshness: JudgeFreshness::Clean,
+            }]),
+            approvals: Box::new([]),
+        }),
+        size: 64,
+    }
+}
+
+fn given_stock() -> Box<[Stock]> {
+    let mut defaults = List::uncapped();
+    for item in stock() {
+        defaults.push(item).expect("bounded stock");
+    }
+    defaults.push(Stock { kind: 2, scope: 0, number: 1, value: given_rule() }).expect("given rule fits stock");
+    defaults.into_boxed()
+}
+
+#[test]
+fn every_project_holds_its_given_rule_until_it_sets_its_own() {
+    for edit in [Edit::Reset, Edit::Remove] {
+        let mut d = domain();
+        let states = d.give_settings_defaults(given_stock());
+        for state in &states {
+            assert_ne!(state.kind, 2, "the given rule is not jig state");
+        }
+        let Value::Rule(given) = given_rule().value else { panic!("given rule") };
+        for project in [1, 2] {
+            assert_eq!(project_rules(&d, project).as_ref(), &[Held { scope: project, number: 1, rule: given.clone() }]);
+        }
+        let mut own = rule(true);
+        let Value::Rule(own_rule) = &mut own.value else { panic!("own rule") };
+        own_rule.up_to_date = false;
+        let mut out = Queue::uncapped();
+        d.keep_settings(&env(), 2, None, &[item(2, 1, 1, Edit::Set(own.clone()))], &mut out);
+        assert_eq!(d.setting(2, 1, 1), Some(&own));
+        let Value::Rule(own_rule) = &own.value else { panic!("own rule") };
+        assert_eq!(
+            project_rules(&d, 1).as_ref(),
+            &[Held { scope: 1, number: 1, rule: own_rule.clone() }],
+            "own rule replaces the given rule"
+        );
+        assert_eq!(d.setting(2, 2, 1), Some(&given_rule()));
+        assert_eq!(project_rules(&d, 2).as_ref(), &[Held { scope: 2, number: 1, rule: given.clone() }]);
+        assert_eq!(
+            d.judge_settings(&BOUNDS, &[item(2, 1, 1, Edit::Reset)]).as_ref(),
+            &[Judged::Accept { size: 64, charter: None }]
+        );
+        d.keep_settings(&env(), 3, None, &[item(2, 1, 1, edit.clone())], &mut out);
+        assert_eq!(d.setting(2, 1, 1), Some(&given_rule()), "{edit:?}");
+        assert_eq!(project_rules(&d, 1).as_ref(), &[Held { scope: 1, number: 1, rule: given.clone() }]);
+        d.keep_settings(&env(), 4, None, &[item(2, 2, 2, Edit::Set(own.clone()))], &mut out);
+        let Value::Rule(own_rule) = own.value else { panic!("own rule") };
+        assert_eq!(
+            project_rules(&d, 2).as_ref(),
+            &[Held { scope: 2, number: 1, rule: given }, Held { scope: 2, number: 2, rule: own_rule },]
+        );
+        d.save_settings_defaults(&mut out);
+        let mut restarted = domain();
+        for (key, edit) in &d.setting_rows {
+            restore(&mut restarted, &item(key.kind, key.scope, key.number, edit.clone()), key.slot);
+        }
+        outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        assert_eq!(restarted.landing_rules(1), d.landing_rules(1), "given rule survives restore before stock");
+        assert_eq!(restarted.landing_rules(2), d.landing_rules(2), "own rule survives restore");
+        d.erase_project_settings(2, &mut out);
+        assert!(!d.held_rules.projects.contains_key(&2));
+        for (key, _) in &d.setting_rows {
+            assert!(key.kind != 2 || key.scope != 2);
+        }
     }
 }
 
@@ -257,6 +354,7 @@ fn defaults_say_which_differ_and_are_saved() {
 #[test]
 fn a_change_of_rules_wakes_the_live_changes_it_covers() {
     let mut d = stocked();
+    d.give_settings_defaults(given_stock());
     let mut repository = adopted();
     repository.project = 1;
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
@@ -279,6 +377,11 @@ fn a_change_of_rules_wakes_the_live_changes_it_covers() {
     assert_eq!(d.next_wall_deadline(), None);
     d.keep_settings(&env(), 2, None, &[item(2, 1, 1, Edit::Set(rule(false)))], &mut out);
     assert_eq!(d.next_wall_deadline(), None, "unchanged rules do not wake");
+    for edit in [Edit::Reset, Edit::Set(rule(false)), Edit::Remove] {
+        d.keep_settings(&env(), 3, None, &[item(2, 1, 1, edit)], &mut out);
+        assert_eq!(d.next_wall_deadline(), Some(env().wall), "own and given rules wake the project");
+        d.offered_change(CHANGE);
+    }
     d.keep_settings(&env(), 2, None, &[item(1, 0, 1, Edit::Remove)], &mut out);
     assert_eq!(d.next_wall_deadline(), Some(env().wall), "deployment rules cover the change");
 }
@@ -295,7 +398,7 @@ fn a_released_project_erases_its_rules() {
     let other = item(2, 2, 1, Edit::Set(rule(true)));
     restore(&mut d, &other, SettingSlot::Change);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert_eq!(d.landing_rules(1).1.len(), 1);
+    assert_eq!(project_rules(&d, 1).len(), 1);
     let sent = outputs(&mut d, Event::ReleaseProject { project: 1, request: Token::new(9) });
     assert_eq!(
         sent.as_ref(),
@@ -306,10 +409,10 @@ fn a_released_project_erases_its_rules() {
             Request::ProjectReleased { request: Token::new(9) },
         ]
     );
-    assert!(d.landing_rules(1).1.is_empty());
+    assert!(project_rules(&d, 1).is_empty());
     assert!(d.proposal_settings(7).is_empty());
     assert_eq!(d.setting(1, 0, 2), Some(&rule(false)));
-    assert_eq!(d.landing_rules(2).1.len(), 1);
+    assert_eq!(project_rules(&d, 2).len(), 1);
     assert_eq!(d.charters(), ForgeCharters { change: 2, review: 4 });
 }
 
@@ -323,11 +426,13 @@ fn restored_rows_are_held_at_the_end_of_the_restore() {
     restore(&mut d, &item(3, 0, 1, Edit::Set(charter(6))), SettingSlot::Change);
     restore(&mut d, &item(3, 0, 2, Edit::Set(charter(4))), SettingSlot::Default);
     restore(&mut d, &item(3, 0, 2, Edit::Set(charter(8))), SettingSlot::Proposal(7));
-    assert!(d.landing_rules(1).1.is_empty());
+    assert!(project_rules(&d, 1).is_empty());
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert!(d.landing_rules(1).0.is_empty());
-    assert_eq!(d.landing_rules(1).1.len(), 1);
-    assert_eq!(d.landing_rules(1).1[0].number, 2);
+    for held in d.landing_rules(1) {
+        assert_ne!(held.scope, 0);
+    }
+    assert_eq!(project_rules(&d, 1).len(), 1);
+    assert_eq!(project_rules(&d, 1)[0].number, 2);
     assert_eq!(d.charters(), ForgeCharters { change: 6, review: 4 });
     d.give_settings_defaults(stock());
     assert_eq!(d.charters().change, 6, "stored changes override current stock");

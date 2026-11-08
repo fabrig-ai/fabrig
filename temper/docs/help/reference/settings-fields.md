@@ -455,7 +455,7 @@ A requirement judged from facts read before the effect.
 
 A landing rule for the deployment or one project. Its criteria apply to every landing it covers.
 
-- `pattern`: `landing-pattern`. The resources the rule covers: a forge's host, repository owner and name, then branch and its segments.
+- `pattern`: `landing-pattern`. `forge`, the forge's host, repository owner and name, then `branch` and its segments; or, for a project's rule, `branch` and its segments alone, covering that branch in each of the project's repositories.
 - `enforce`: true or false. True makes each criterion a requirement every landing it covers must meet; false leaves them to the change procedure alone.
 - `ci`: true or false. CI must have passed at the change's head.
 - `up_to_date`: true or false. The change's head must contain its base's tip.
@@ -480,7 +480,7 @@ Distinct people holding a project role approve the change, each by a review on t
 
 ## landing-pattern
 
-The resources the rule covers: the exact base segments, then an exact last segment or an open prefix and all below it.
+The exact base segments, then an exact last segment or an open prefix and all below it. A project's rule may begin at `branch`, covering that branch in each of its repositories.
 
 - `segments`: list of at most 9, each hex, at most 4,096 bytes. The exact base segments of the resources the rule covers.
 - `last`: `landing-last`. One more segment, equal to an exact value or beginning with an open value, with all below it.

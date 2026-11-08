@@ -12,7 +12,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     let answered = files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
     let written = parse(content(&answered, b"temper.json"));
     let reference = parse(include_bytes!("../../../../docs/examples/reference/settings.json"));
-    let mut charters = vec![1, 2, 4, 6, 9, 10, 11];
+    let mut charters = vec![1, 2, 4, 5, 6, 9, 10, 11];
     for item in reference["items"].as_array().unwrap() {
         if item["setting"]["kind"] == "charter" {
             charters.push(item["setting"]["number"].as_u64().unwrap());

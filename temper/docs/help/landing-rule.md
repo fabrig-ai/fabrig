@@ -25,6 +25,12 @@ The rules are settings: kind 1 holds the deployment's rules, kind 2 each
 project's. Rules are numbered from 1 within their scope and add together.
 The forge judges each change to them before it is kept.
 
+A deployment rule's pattern begins at `forge` (hex `666f726765`), then
+the forge's host, repository owner and name, then `branch` and its segments.
+A project's rule may use that form or begin at `branch` (hex `6272616e6368`)
+and its segments alone, covering that branch in each of the project's
+repositories, including those adopted later.
+
 An enforcing approval rule on a box needs nothing added for your approval:
 temper knows your account on the box's own Forgejo, and on GitHub when temper
 made the App from your own account. Name your role in the rule, owner (0) on a
@@ -55,10 +61,12 @@ out and use agent review alone.
 Membership can change later; only known people with the role at the merge
 count.
 
-The binary supplies one deployment rule, covering every branch of every
-repository, that enforces CI passed, up to date, and gate 1, an agent's
-review, blocking and fresh at a clean head; no approvals. Every change
-is reviewed by an agent before it lands.
+Each project's rule 1 is the stock's: every branch of each of its
+repositories, enforcing CI passed, up to date, and gate 1, an agent's
+review, blocking and fresh at a clean head; no approvals. The project's
+owners may change it; removing or resetting it brings the stock back.
+The deployment has no rule of its own until its owners add one; its rules
+add to every project's.
 
 ## How it changes
 

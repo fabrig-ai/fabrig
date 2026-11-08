@@ -1325,7 +1325,10 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
                 charters.push(*charter);
             }
             Edit::Set(Value::Template(template)) => {
-                defaults.templates = [defaults.templates.as_ref(), &[*template]].concat().into();
+                let mut templates = defaults.templates.to_vec();
+                templates.retain(|old| old.number != template.number);
+                templates.push(*template);
+                defaults.templates = templates.into();
             }
             other => panic!("reference task settings: {other:?}"),
         }

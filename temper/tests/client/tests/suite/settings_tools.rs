@@ -223,9 +223,9 @@ const KINDS: &[SettingWalk] = &[
     SettingWalk { selector: r#"{"kind":"policy","number":1}"#, name: "policy 1", show: &[b"policy", b"1"] },
     SettingWalk { selector: r#"{"kind":"rules"}"#, name: "rules", show: &[b"rules"] },
     SettingWalk {
-        selector: r#"{"kind":"landing-rule","number":1}"#,
-        name: "landing-rule 1",
-        show: &[b"landing-rule", b"1"],
+        selector: r#"{"kind":"landing-rule","project":1,"number":1}"#,
+        name: "landing-rule 1 --project 1",
+        show: &[b"landing-rule", b"1", b"--project", b"1"],
     },
     SettingWalk {
         selector: r#"{"kind":"forge-charter","number":1}"#,

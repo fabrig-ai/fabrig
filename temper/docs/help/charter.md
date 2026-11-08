@@ -33,15 +33,16 @@ whose `on` meets why it runs. A charter holds:
   how long it waits idle, and the timeout of its calls to temper's
   tools.
 
-The stock holds seven charters: 1 for chats, 2 for coding, 4 for reviews,
-6 for foremen, 9 for the status agent, 10 for a model's trial and 11 for
-Ask temper. Ask temper explains temper and turns how a person describes
+The stock holds eight charters: 1 for chats, 2 for coding, 4 for reviews,
+5 for coordinators, 6 for foremen, 9 for the status agent, 10 for a model's
+trial and 11 for Ask temper. Ask temper explains temper and turns how a person describes
 their work into a proposal of settings (`temper help chat`).
 The status agent writes the few lines at the top
 of a project's Home from the facts in its task, with no tools.
 Charter 10 runs one short turn,
 with no tools, paid by the person. It is never offered as an executor;
-the stock's rules still offer six charter executors and three procedures.
+the stock's rules offer seven charter executors, procedures 2, 3 and 4,
+merge job 3 and roles 0, 1 and 2.
 
 The forge's procedures run a change's agent work under three charters,
 which the change keeps from its making to its end: its producing and

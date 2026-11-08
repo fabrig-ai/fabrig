@@ -79,9 +79,10 @@ jq -s '{items: map({setting, set: .value})}' reference-rules.json reference-poli
 jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-input.json > FILE
 ```
 
-Expect: widened rules and policy 1 in `FILE`, retaining executors and adding
-coordinator charter 5, designer charter 7, foreman charter 6, change procedure 2,
-merge job 3 and person role 0. Install charters first, offering these families.
+Expect: widened rules and policy 1 in `FILE`, retaining executors. The stock's
+delegation already holds coordinator charter 5, foreman charter 6, change procedure 2,
+merge job 3 and person role 0; the widening adds designer charter 7, keeping each
+kind once. Install charters first, offering these families.
 Size tasks, depth and spend (temper help budget).
 
 Policy 1 affects future projects. Existing projects need project-policy.
@@ -98,6 +99,17 @@ Widen its ceiling and creator role; combine:
 ```sh
 jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-project.json > reference-project-settings.json
 jq -s '{items: [.[].items[]]}' FILE reference-project-settings.json > reference-settings.json
+mv reference-settings.json FILE
+```
+
+Once the case's project exists, `project.json` sets its project's ways and its
+rule 1, main's, in place of the stock's rule 1 over every branch, whose CI and
+review would hold merges into its goal branches. Set its project number as for
+the `project-policy` above, then combine it with `FILE`:
+
+```sh
+jq --argjson project PROJECT '.items[].setting.project = $project' project.json > reference-project-ways.json
+jq -s '{items: [.[].items[]]}' FILE reference-project-ways.json > reference-settings.json
 mv reference-settings.json FILE
 ```
 
