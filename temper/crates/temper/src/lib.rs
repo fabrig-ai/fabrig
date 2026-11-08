@@ -8,11 +8,9 @@ use skein_shell::{Clock, Config, Kernel};
 use std::{
     ffi::OsString,
     fmt::Write,
-    net::ToSocketAddrs,
     os::unix::{ffi::OsStrExt, fs::FileTypeExt},
     path::{Path, PathBuf},
 };
-use temper_forge_setup_shell::process as forge_exec;
 use temper_service::{
     self as service,
     settings::{Files, Seeds},
@@ -53,8 +51,9 @@ pub mod ctl;
 pub mod fake;
 mod fake_backends;
 use fake_backends::json;
-pub mod forge;
-mod forge_sign_in;
+pub use temper_engine_shell::forge;
+use temper_engine_shell::{address, forge_sign_in, listener_words, login_passwd};
+use temper_forge_setup_shell::process as forge_exec;
 pub mod github_logs;
 mod google_runtime;
 pub use temper_shell::help;
@@ -65,7 +64,7 @@ pub mod open;
 mod printed;
 mod program_login;
 mod restart_fault;
-mod setup;
+pub use temper_engine_shell::setup;
 mod tui;
 mod worker_alone;
 pub use host::{Host, ending as service_ending};
@@ -162,29 +161,16 @@ fn configure_row(
                 _ => Err(invalid()),
             };
         }
-        ["internal", "forge-child"] => {
-            let [flag, parent, signal_flag, signal, separator, program, rest @ ..] = arguments else {
-                return Err(invalid());
-            };
-            if flag.as_ref() != b"--parent"
-                || signal_flag.as_ref() != b"--signal"
-                || separator.as_ref() != b"--"
-                || program.is_empty()
-            {
-                return Err(invalid());
-            }
-            let parent =
-                std::str::from_utf8(parent).ok().and_then(|pid| pid.parse::<u32>().ok()).ok_or_else(invalid)?;
-            let signal = match signal.as_ref() {
-                b"kill" => skein_io::kernel::Signal::Kill,
-                b"terminate" => skein_io::kernel::Signal::Terminate,
-                _ => return Err(invalid()),
-            };
-            return Ok(Command::ForgeChild {
-                parent,
-                signal,
-                program: std::ffi::OsStr::from_bytes(program).into(),
-                arguments: os(rest),
+        ["forge", _] | ["internal", "forge-child"] => {
+            return temper_engine_shell::forge::configure(row, arguments, environment, working).map(|command| {
+                match command {
+                    forge::Command::Forge { directories, arguments, ssl_cert_file } => {
+                        Command::Forge { directories, arguments, ssl_cert_file }
+                    }
+                    forge::Command::ForgeChild { parent, signal, program, arguments } => {
+                        Command::ForgeChild { parent, signal, program, arguments }
+                    }
+                }
             });
         }
         _ => {}
@@ -212,24 +198,6 @@ fn configure_row(
             Ok(Command::BoxFakeBackends { directories, bundle, echo })
         }
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
-        ["forge", verb] => {
-            let valid = if *verb == "run" {
-                rest.len() == 2 && (rest[1] == "forgejo" || rest[1] == "runner")
-            } else {
-                rest.len() == 1
-            };
-            if !valid || rest[0].to_str().and_then(|n| n.parse::<u16>().ok()).is_none() {
-                return Err(invalid());
-            }
-            let mut arguments = vec![OsString::from(verb)];
-            arguments.extend(rest);
-            let ssl_cert_file = environment
-                .iter()
-                .find(|(name, _)| name.as_ref() == b"SSL_CERT_FILE")
-                .filter(|(_, value)| !value.is_empty())
-                .map(|(_, value)| path(value).to_path_buf());
-            Ok(Command::Forge { directories, arguments, ssl_cert_file })
-        }
         _ => Err(invalid()),
     }
 }
@@ -277,11 +245,16 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
         Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments)),
         Command::ForgeChild { parent, signal, program, arguments } => {
-            let why = forge_exec::child(parent, signal, &program, &arguments);
-            return Err(prefixed("temper internal forge-child", &why.to_string()));
+            return temper_engine_shell::forge::command(
+                "temper",
+                forge::Command::ForgeChild { parent, signal, program, arguments },
+            );
         }
         Command::Forge { directories, arguments, ssl_cert_file } => {
-            return Ok(forge::run(&directories, &arguments, ssl_cert_file));
+            return temper_engine_shell::forge::command(
+                "temper",
+                forge::Command::Forge { directories, arguments, ssl_cert_file },
+            );
         }
         Command::Help { request } => {
             print!("{}", help::answer(&request)?);
@@ -334,16 +307,6 @@ fn read_files_with_asked(names: Box<[config::File]>, asked: Box<[config::File]>,
         }
     }
     if refused.is_empty() { Ok(Files { entries }) } else { Err(refused) }
-}
-fn address(configured: &config::Address) -> Result<std::net::SocketAddr, String> {
-    match configured {
-        config::Address::Addr(address) => address.socket().ok_or_else(|| "requires a socket address".into()),
-        config::Address::Host { name, port } => (std::str::from_utf8(name).map_err(|why| why.to_string())?, *port)
-            .to_socket_addrs()
-            .map_err(|why| why.to_string())?
-            .next()
-            .ok_or_else(|| "endpoint has no address".into()),
-    }
 }
 fn trust(file: Option<&[u8]>) -> Result<skein_tls::Config, String> {
     let source = file
@@ -611,20 +574,6 @@ fn listeners_refusal(why: skein_shell::ListenersRefusal) -> String {
 fn held_refusal(why: skein_shell::ListenersRefusal) -> String {
     format!("held listener: {}", listener_words(why))
 }
-fn listener_words(why: skein_shell::ListenersRefusal) -> String {
-    use skein_shell::ListenersRefusal as Why;
-    match why {
-        Why::BadCount => "expected a decimal listener count".into(),
-        Why::TooMany { bound } => format!("listener count exceeds {bound}"),
-        Why::NotOpen { fd } => format!("fd {} is not open", fd.raw()),
-        Why::NotSocket { fd, .. } => format!("fd {} is not a socket", fd.raw()),
-        Why::NotStream { fd, .. } => format!("fd {} is not a stream socket", fd.raw()),
-        Why::NotListening { fd } => format!("fd {} is not listening", fd.raw()),
-        Why::NotIp { fd } => format!("fd {} is not an IP listener", fd.raw()),
-        Why::Check { fd, check, errno } => format!("fd {}: {}: errno {errno}", fd.raw(), check.name()),
-        Why::Kernel { fd, errno } => format!("fd {}: close-on-exec: errno {errno}", fd.raw()),
-    }
-}
 fn box_refusal(why: service::system::BoxRefusal) -> String {
     use service::system::BoxRefusal;
     let words = match why {
@@ -721,20 +670,6 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
 /// The effective user's login (protocol/setup.md, 8.2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
     if cfg!(target_os = "macos") { forge_exec::login_id() } else { login_passwd(user) }
-}
-
-/// The effective user's passwd login; forge commands preserve lookup refusals.
-fn login_passwd(user: u32) -> Result<Box<[u8]>, String> {
-    let passwd = skein_shell::read_file(std::path::Path::new("/etc/passwd"), 1 << 20)
-        .map_err(|why| format!("user: {}", unread(why)))?;
-    for line in passwd.split(|c| *c == b'\n') {
-        let fields: Vec<_> = line.split(|c| *c == b':').collect();
-        if fields.get(2).and_then(|id| std::str::from_utf8(id).ok()).and_then(|id| id.parse::<u32>().ok()) == Some(user)
-        {
-            return Ok(fields[0].into());
-        }
-    }
-    Err(format!("user {user}: no login in /etc/passwd"))
 }
 
 #[cfg(test)]

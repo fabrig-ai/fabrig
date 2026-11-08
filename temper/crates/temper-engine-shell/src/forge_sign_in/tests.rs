@@ -1,4 +1,5 @@
 use super::make_missing;
+use crate::test_configuration as configuration;
 use std::{
     fs,
     os::unix::fs::{MetadataExt, PermissionsExt},
@@ -35,7 +36,7 @@ fn a_public_client_refuses_before_creating_any_file() {
     let directory = std::env::temp_dir().join(format!("temper-public-sign-in-{}", std::process::id()));
     fs::create_dir(&directory).expect("fresh scratch");
     fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("private scratch");
-    let (_, bytes) = crate::tests::configuration::documents(&directory, "/fixture/temper");
+    let (_, bytes) = configuration::documents(&directory, "/fixture/temper");
     let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("fixture JSON");
     value["engine"]["clients"]["provider"] = json!({
         "key":"provider.key", "addresses":[1],
@@ -51,13 +52,13 @@ fn a_public_client_refuses_before_creating_any_file() {
         "members":[{"address":"sam@example.com","login":"sam"}],"forges":[{"forge":1,"client":"forgejo"}]
     });
     let bytes = serde_json::to_vec(&value).expect("configuration");
-    let directories = crate::tests::configuration::directories(&directory);
+    let directories = configuration::directories(&directory);
     let named = temper_service::startup::named(&bytes, &directories.jig()).expect("named public client");
     let refusal = super::run(&directories, &bytes, &named, 1);
     let files = fs::read_dir(&directory).expect("scratch entries").count();
     let configuration = directory.join("temper.json");
     fs::write(&configuration, &bytes).expect("command configuration");
-    let exit = crate::forge::run(&directories, &["sign-in".into(), "1".into()], None);
+    let exit = crate::forge::run("temper", &directories, &["sign-in".into(), "1".into()], None);
     let command_files = fs::read_dir(&directory).expect("command scratch entries").count();
     fs::remove_dir_all(directory).expect("scratch removed");
     assert_eq!(refusal, Err("its client has no secret; a box adds its own source".into()));

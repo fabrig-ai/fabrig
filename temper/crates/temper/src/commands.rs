@@ -4,7 +4,7 @@
 use crate::{box_command, directories, fake};
 pub use temper_shell::commands::{Argument, DIRECTORIES, HELP, Row, Table, Who};
 
-const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
+use temper_engine_shell::forge::{FETCH, FORGE, FORGE_CHILD, PREPARE, REMOVE, RUN, SIGN_IN, SOURCE};
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
 pub const COMMANDS: [Row; 23] = [
@@ -74,60 +74,12 @@ Refused, changing nothing, when the configuration directory already holds temper
         settings: &[&directories::SETTINGS],
         notes: "Checks the configuration and the agent's, makes the source's directory, then replaces itself by the program's sign-in, whose exit status is then its own. The engine need not run.",
     },
-    Row {
-        words: &["forge", "fetch"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Download an owned forge's Forgejo and runner binaries into the cache.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "Fetches only the binaries the forge's setup gives as \"fetched\", at temper's pinned versions, for amd64 or arm64; another machine is refused, naming its architecture. It says how far each binary has gone on its stdout, a line at each percent. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
-    },
-    Row {
-        words: &["forge", "prepare"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Prepare an owned forge before its Forgejo first runs.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
-    },
-    Row {
-        words: &["forge", "run"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE forgejo|runner"],
-        line: "Run an owned forge's Forgejo or its runner.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "Checks the binary and the preparation, and takes the forge's lock, first. Run alone, it replaces itself by the program, whose exit status is then its own; given the forge's listener, as the box gives it, it runs the program as its child. A forge with no group's file takes `application.machine.owned`, in `<data>/forge-N`, and writes nothing under `box/`.",
-    },
-    Row {
-        words: &["forge", "remove"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Remove a stopped box slot's forge directory, keeping the cache.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "Reads the slot's kind from box/groups/FORGE and refuses a directory outside data or in the cache.",
-    },
-    Row {
-        words: &["forge", "source"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Add the box’s public temper sign-in source to its owned Forgejo.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "Lists the sources and adds temper when absent, under the setup deadline. Prints source added or source failed WHY and exits 0 either way: a failure keeps the box running with plain links.",
-    },
-    Row {
-        words: &["forge", "sign-in"],
-        who: Who::Deployment,
-        forms: &["[DIRECTORIES] FORGE"],
-        line: "Make what people need to sign in to temper through a Forgejo, and print the Forgejo command that registers temper.",
-        arguments: &[DIRECTORIES, FORGE],
-        settings: &[&directories::SETTINGS],
-        notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
-    },
+    FETCH,
+    PREPARE,
+    RUN,
+    REMOVE,
+    SOURCE,
+    SIGN_IN,
     Row {
         words: &[],
         who: Who::Clients,
@@ -216,18 +168,7 @@ Refused, changing nothing, when the configuration directory already holds temper
         settings: &[&directories::SETTINGS],
         notes: "",
     },
-    Row {
-        words: &["internal", "forge-child"],
-        who: Who::Spawned,
-        forms: &["--parent PID --signal kill|terminate -- PROGRAM ARGS..."],
-        line: "Run an owned forge's program, sent SIGNAL when its parent PID ends.",
-        arguments: &[
-            Argument { shown: "PID", line: "The process whose end ends the program." },
-            Argument { shown: "PROGRAM", line: "The program to run, with its ARGS." },
-        ],
-        settings: &[],
-        notes: "",
-    },
+    FORGE_CHILD,
     Row {
         words: &["fake", "llm"],
         who: Who::TestDoubles,

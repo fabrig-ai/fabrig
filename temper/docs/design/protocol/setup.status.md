@@ -123,9 +123,5 @@ approval setting reaches an ask. The TUI's browser flow and recorded
 approval journey are present. Its fresh-box terminal check remains
 later work in section 15 and `../client/README.md`, section 11.
 
-- **Not yet:** 11: `temper-engine-shell` doesn't exist: the forge's
-  commands and their checks are `crates/temper`'s (`forge.rs`,
-  `forge_sign_in.rs`, `setup.rs`).
-
 - **Not yet:** 7.4, 11: `temper-engine` doesn't exist: an engine host's
   units run the box's `temper`.
