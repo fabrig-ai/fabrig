@@ -176,6 +176,13 @@ restoration refusal through as not ready, beyond the design's stopping
 case; a bounded startup wait remains separate work
 (`protocol/client.status.md`, section 18; `protocol/client.md`, section 15).
 
+Removed program names can be declared again by their original holders,
+with the reservation moved atomically and a host login check dispatched;
+live names and another holder's reservation answer name taken
+(`domain/accounts.md`, 3.4 and section 5; `client/domain/contract.md`,
+section 4). Finer reasons for key and sign-in acts' not-offered answers
+remain deferred in those documents' open questions.
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`domain/README.md`](domain/README.status.md)
