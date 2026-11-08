@@ -199,7 +199,6 @@ fn assert_landed(world: &mut World, goal: u64, change: u64, base: u64, head: u64
 }
 
 #[test]
-#[ignore = "the fake forge squashes Style merges; a goal's landing requires a merge commit (C5)"]
 fn a_goal_makes_two_changes_into_its_branch_the_second_after_the_first() {
     let mut world = world();
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };

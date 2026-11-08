@@ -208,7 +208,6 @@ fn release(world: &mut World, goal: &engine::Assignment, landing: u64) {
 }
 
 #[test]
-#[ignore = "restart oracle changes Deployment.messages after the released goal landing"]
 fn a_goals_landing_held_past_its_repairs_lands_after_a_change_into_its_branch() {
     // The reference's main asks CI and up to date, with no gates; g asks neither.
     let mut world = world();
