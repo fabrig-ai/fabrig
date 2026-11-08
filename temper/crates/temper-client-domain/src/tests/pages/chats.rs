@@ -94,6 +94,45 @@ pub(super) fn asking_me() -> Me {
 }
 
 #[test]
+fn asking_composer_accepts_more_than_a_cue() {
+    use crate::{
+        Address,
+        pages::{self, Act},
+    };
+    for (bound, hold, length) in [(300, 400, 257), (300, 400, 300), (300, 400, 301), (300, 300, 301)] {
+        let mut me = asking_me();
+        me.words_bytes = bound;
+        let mut limits = fixtures::limits();
+        limits.client.domain.long_text = hold;
+        let mut page = Page::new(me.clone(), Address::Ask { project: fixtures::PROJECT });
+        let mut words = skein_lib::bytes::zeroed(length);
+        words.fill(b'a');
+        for act in [Act::ChatWords { words: words.clone() }, Act::StartChat, Act::StartChat] {
+            pages::step(
+                &mut page.pages,
+                &fixtures::env(&limits),
+                page.root.client(),
+                pages::Event::Act { act },
+                &mut page.out,
+            );
+        }
+        let chats = page.pages.chats().expect("asking chats");
+        assert_eq!(chats.words.as_ref(), &words[..length.min(usize::try_from(hold).unwrap())]);
+        assert_eq!(chats.beyond, u64::try_from(length.saturating_sub(usize::try_from(hold).unwrap())).unwrap());
+        let sent = fixtures::acts::sent(&mut page.out);
+        if length <= usize::try_from(bound).unwrap() {
+            let expected =
+                jig_client::shapes::chat_from(&me, fixtures::PROJECT, ASKING, Text::new(words, bound).unwrap())
+                    .unwrap();
+            assert_eq!(sent.as_ref(), [expected], "one complete Ask request at {length} bytes");
+        } else {
+            assert!(sent.is_empty(), "excess words must stay unsent");
+            assert!(chats.start.is_none());
+        }
+    }
+}
+
+#[test]
 fn ask_and_new_chat_start_their_template_and_open_the_chat() {
     use crate::{Address, pages::Act};
     for (me, charter, address) in [
@@ -396,54 +435,33 @@ fn starting_a_chat_waits_for_the_first_words() {
 fn a_started_chat_opens_its_conversation_activity() {}
 
 #[test]
-fn suggestions_and_asking_chats_keep_the_cue_bound_when_receiving_grows() {
+fn suggestions_keep_the_cue_bound_when_receiving_grows() {
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
     limits.client.domain.long_text = 2048;
     limits.client.domain.turn_text = 2048;
     let bound = usize::try_from(temper_client_protocol_wire::CUE_BYTES).unwrap();
     let me = asking_me();
-    for suggested in [false, true] {
-        for length in [bound, bound + 1] {
-            let mut words = skein_lib::bytes::zeroed(length);
-            words.fill(b'a');
-            let mut chats = Chats::new(FIRST);
-            let mut out = Queue::with_capacity(OUTPUTS);
-            let mut serial = SERIAL;
-            if suggested {
-                chats.suggest(
-                    &fixtures::env(&limits),
-                    Some(&me),
-                    Some(fixtures::PROJECT),
-                    &words,
-                    &crate::pages::choice::Draft::default(),
-                    &mut serial,
-                    &mut out,
-                );
-            } else {
-                chats.ask_chat(
-                    &fixtures::env(&limits),
-                    Some(&me),
-                    Some(fixtures::PROJECT),
-                    words.clone(),
-                    &crate::pages::choice::Draft::default(),
-                    &mut serial,
-                    &mut out,
-                );
-            }
-            let sent = fixtures::acts::sent(&mut out);
-            assert_eq!(sent.len(), usize::from(length == bound), "suggested={suggested}, length={length}");
-            if length == bound {
-                let words = Text::new(words, temper_client_protocol_wire::CUE_BYTES).unwrap();
-                assert_eq!(
-                    sent.as_ref(),
-                    [if suggested {
-                        jig_client::shapes::chat(&me, fixtures::PROJECT, words).unwrap()
-                    } else {
-                        jig_client::shapes::chat_from(&me, fixtures::PROJECT, ASKING, words).unwrap()
-                    }]
-                );
-            }
+    for length in [bound, bound + 1] {
+        let mut words = skein_lib::bytes::zeroed(length);
+        words.fill(b'a');
+        let mut chats = Chats::new(FIRST);
+        let mut out = Queue::with_capacity(OUTPUTS);
+        let mut serial = SERIAL;
+        chats.suggest(
+            &fixtures::env(&limits),
+            Some(&me),
+            Some(fixtures::PROJECT),
+            &words,
+            &crate::pages::choice::Draft::default(),
+            &mut serial,
+            &mut out,
+        );
+        let sent = fixtures::acts::sent(&mut out);
+        assert_eq!(sent.len(), usize::from(length == bound), "length={length}");
+        if length == bound {
+            let words = Text::new(words, temper_client_protocol_wire::CUE_BYTES).unwrap();
+            assert_eq!(sent.as_ref(), [jig_client::shapes::chat(&me, fixtures::PROJECT, words).unwrap()]);
         }
     }
 }

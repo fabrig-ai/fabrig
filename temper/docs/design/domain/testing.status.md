@@ -280,9 +280,7 @@ the fake's own process story.
   establishes no real launch with
   `--model claude-haiku-5-5 --effort low` or live landing. That evidence
   remains after-landing work (11): the plan compiles the live story
-  without running it, and no worker holds its login. The pair's `#[ignore]`
-  reasons still say "a person's sitting" and "owner-run only"
-  (`crates/temper/tests/live.rs`).
+  without running it, and no worker holds its login.
   2.7: the held record's guard is shown on the fake issuer and on stubs
   alone (`crates/temper/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,
@@ -331,7 +329,8 @@ the fake's own process story.
   alias of whoever runs fabrig's development, and the outward check
   matches that name only with digits after it. The same request left it
   in place.
-  2.7: the managed sitting's `fake` and `fake-wide` runs and `startup.rs`'s
+  2.7: the managed sitting's `fake` and `fake-wide` runs,
+  `managed_ready_client`'s fake sitting and `startup.rs`'s
   `the_live_github_configuration_passes_startup_admission` keep
   `fabrig-ai`, where the user's request of 11-04 gives tests on the fake
   forge a neutral owner, because the first are the live sitting's dry
@@ -353,3 +352,14 @@ the fake's own process story.
   sitting kills the box; and a `stat` of the record's path disarms it,
   where the draft has an explicit export, because a record back at its
   path owes nothing whichever return brought it.
+
+- **Not yet:** 2.6: B0's two offline proofs have no runtime result in
+  profile `process-temper`, and no CPU figure against the tier's budgets
+  (`tools/tiers/budgets.toml`): the plan `ignored-tiers` compiled and
+  listed them, and the next after-landing run proves them (11).
+- **Not yet:** 2.6: `managed_ready_client`'s fake sitting has no
+  runtime result in profile `process-temper`, and its client role no
+  run under `scripts/proof-live-github-managed.sh fake` since the test
+  took its sitting: the plan `ignored-tiers` compiled and listed it,
+  and the next after-landing run and the owner's next dry run prove
+  them (11).
