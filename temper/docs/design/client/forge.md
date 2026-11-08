@@ -101,7 +101,7 @@ producing ─ opening ─ checking ─ gating ─ queued ─ first ─ landing �
 | gating | which gates are running, as chips, and which requirements wait |
 | queued | its place in its landing branch's queue, and who is ahead; handed to GitHub's merge queue, "in GitHub's merge queue, n", n its place there |
 | first | first in the queue: updating from its base, CI on the updated head, or merging |
-| repairing | why (CI's failure, a gate's remarks, a semantic conflict, taken out of GitHub's merge queue and GitHub's reason), the repair as a chip, and how many repairs are left |
+| repairing | why (CI's failure, a gate's remarks, a person's request for changes on the forge, a semantic conflict, taken out of GitHub's merge queue and GitHub's reason), the repair as a chip, and how many repairs are left |
 | updating | the base it takes in |
 | resolving | the conflicting files, the resolution as a chip, and how many are left |
 | recreating, reopening | after drift released (6.2): its branch made again at the head temper last knew, or its pull request reopened or retargeted back |
@@ -314,8 +314,10 @@ its own:
   would come back unknown. Then the pair: "Open", to the change's `Task { task
   }`, and "Later", which marks it as any card is marked (`README.md`, 3.5,
   *What the client keeps*). Nothing is answered in the client: a person who
-  won't approve asks for changes on the forge, which holds the change as a
-  requirement refused does (6.1).
+  won't approve asks for changes on the forge, saying what to change there,
+  and the change repairs with their remarks (`../domain/forge.md`, 8.3), then
+  waits for their review at the repaired head; past its repairs it holds as
+  any change past them does (6.1).
 - **Its address,** the pull request's files page, where the review box is:
   - on a Forgejo whose page facts offer sign-in (`../protocol/sign-in.md`,
     9.3): `ROOT/user/oauth2/temper?redirect_to=` and the path
@@ -1098,7 +1100,7 @@ read failure names its backend cause and what a release retries.
 | resolutions spent | the conflicts resolved of their limit, and the base it conflicts with | takes it back, its resolutions counted again |
 | updates spent | the updates made of their limit | takes it back, its updates counted again |
 | an approval declined | who declined it, at which head, and why | amended to drop the approval and released, in one request; released alone, it is held again at the same head |
-| a requirement refused at the merge (`../domain/forge.md`, 8.7) | which of its landing rule's requirements refused, at which head: CI failed, a gate asked for changes, a person's review on the forge asked for changes, by whom | takes it back, judged again at its next merge: held again while the refusal stands |
+| a requirement refused at the merge (`../domain/forge.md`, 8.7) | which of its landing rule's requirements refused, at which head: CI failed, a gate asked for changes; a person's review on the forge asking for changes starts a repair instead (`../domain/forge.md`, 8.3) | takes it back, judged again at its next merge: held again while the refusal stands |
 | a delegate or a write failed for good | which: its producing task's failure, or the forge's refusal of a write (a protected branch, a forbidden write) | takes it back, to decide afresh |
 | a write uncertain, of a kind that cannot be recovered (`../domain/forge.md`, section 6) | the write, that it may or may not have been made, and where to look on the forge: the branch, the pull request's reviews or comments, the issue | makes it again, or goes on without it, as the person says (jig's `client/domain/objects.md`, section 5) |
 

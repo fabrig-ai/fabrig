@@ -108,6 +108,7 @@ pub fn change_step_task_running(
         task,
         entry,
         heard: change::Heard {
+            review_request: None,
             start_conflict: None,
             lacking: None,
             spend: None,

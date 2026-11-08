@@ -40,6 +40,10 @@ kind remains shape.
 
 ## Gaps and departures
 
+- **Not yet:** 6, the delegates' table, from the request `n4-request-changes`
+  of 2026-11-08: no repair is made of a person's request on the forge
+  (`forge.md`, 8.3, and its status).
+
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,

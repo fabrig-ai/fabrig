@@ -94,7 +94,7 @@ fn ci_on_another_head_or_not_passed_keeps_the_repair() {
 
 #[test]
 fn green_ci_leaves_review_and_landing_repairs_alone() {
-    for why in [Repair::Gate(9), Repair::Landing { gate: 3 }] {
+    for why in [Repair::Gate(9), Repair::Landing { gate: 3 }, Repair::Review { head: BASE }] {
         let c = repairing(why, true);
         let mut f = facts();
         f.delegate = Some(Delegate::Repair(why));
