@@ -2293,7 +2293,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Term, name: "Asked to" },
             Part::Named {
                 role: Role::Description,
-                name: "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against wh”",
+                name: "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.”",
             },
         ],
     },
@@ -3733,6 +3733,7 @@ fn goal_pages_hold_reports_counts_and_only_their_needs() {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the print walk checks every sample and its shared bundle")]
 fn print_writes_every_page_and_the_bundle() {
     let scratch = Scratch::new("temper-client-gallery-print");
     let out = scratch.path().join("gallery");
@@ -3767,6 +3768,26 @@ fn print_writes_every_page_and_the_bundle() {
         assert!(at >= position, "table order");
         position = at + link.len();
         let page = fs::read_to_string(out.join(format!("{}.html", sample.name))).expect("sample page");
+        let view = crate::view(&sample);
+        let paths = view
+            .tree()
+            .nodes()
+            .iter()
+            .filter(|node| node.drawing.as_ref().is_some_and(|drawing| drawing.kind == temper_client_view::paths::KIND))
+            .count();
+        assert_eq!(page.matches("data-gallery-narrow=\"\"").count(), paths, "{}: narrow paths", sample.name);
+        for svg in page.split("<svg").skip(1) {
+            let (attributes, _) = svg.split_once('>').expect("SVG attributes");
+            if attributes.contains("data-gallery-narrow=\"\"") {
+                assert!(attributes.contains("viewBox=\"0 0 388 "), "{}: narrow viewBox", sample.name);
+            }
+        }
+        assert_eq!(
+            page.matches("@media (max-width: 760px)").count(),
+            usize::from(paths > 0),
+            "{}: narrow media rule",
+            sample.name
+        );
         let night = sample.name.starts_with("night-");
         assert_eq!(page.contains("<html lang=\"en\" data-night>"), night, "{}: night attribute", sample.name);
         assert_eq!(page.contains("<html lang=\"en\">"), !night, "{}: day root", sample.name);

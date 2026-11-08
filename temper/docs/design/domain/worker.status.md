@@ -5,6 +5,10 @@ Section 4.3's failed and refused answer diagnostics reach serve's stderr and the
 `serve.log`; that operator-output path has no gap. A failed-run hold's
 `way out:` points to that log, and `temper help hold` names its location
 under both `box` and `serve` (`../client/tools.md`, 6.1).
+Section 4.3's busy start has no known gap: smith's busy, an agent with
+no room or a run it has no room for, reaches the hub as
+`FromAgent::StartBusy` (`temper-worker-domain`'s `agents.rs`, `ended`,
+and `hand_out.rs`, `Finish::of`), and spends no try.
 
 Section 5's later goal start has no known implementation gap. The checkout
 world's three goal stories cover r already contained in g, a clean merge
@@ -18,6 +22,11 @@ saved start overtaken by a repair remains deferred (`forge.md`, section 20).
   change, so it is section 12's question. The `ctl-words` request requires
   the user's decision on the bound and readers before that text is kept;
   no such decision is supplied. The log directions leave this question open.
+  4.3: `temper help task` says an "invalid results" hold may mean an
+  assignment was refused before any model turn (`temper/docs/help/task.md`),
+  where such a start spends a permanent try, and a hold for it says
+  permanent failures; `temper-docs`'s `tests/rules.rs` finds that page by
+  those words.
   4.4: the prepare and key kinds: neither kind's entry is
   built, so the worker's hello declares the merge kind alone
   (`temper/crates/temper-service/src/worker.rs`), and with prepare the

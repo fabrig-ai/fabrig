@@ -1,12 +1,11 @@
 == What the picker offers. == Live
 First:
   [1] temper
-  First:
-    [2] First (pressed)
-    New project:
-      [3] New project: (empty) (enter sends)
-      [4] Create
-    [5] Settings for First
+  [2] First (pressed)
+  New project:
+    [3] New project: (empty) (enter sends)
+    [4] Create
+  [5] Settings for First
   [6] Home
   [7] Needs you
   [8] Chats
@@ -19,15 +18,15 @@ First:
     [12] All ways to start work
   [13] Settings (current)
   * Pat
-First · settings
+Deployment
 The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has.
-Settings:
-  [14] How work runs
-  [15] Repositories
-  [16] Forges
-  [17] Accounts
-  [18] Models (current)
-  [19] Builders
+Deployment:
+  [14] Accounts
+  [15] Forges
+  [16] Models (current)
+  [17] Workers
+  [18] Members
+  [19] Limits
 ## Claude
 These come with temper.
 Opus 5.5 claude-opus-5-5 · high · the default On

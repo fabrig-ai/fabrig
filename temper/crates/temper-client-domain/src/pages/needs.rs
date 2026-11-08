@@ -320,6 +320,8 @@ impl Session {
             | Address::Home { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
+            | Address::Role { .. }
+            | Address::Rule { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
             | Address::Ask { .. }
@@ -722,6 +724,8 @@ pub(crate) fn act(
                 | Address::Task { .. }
                 | Address::Models { .. }
                 | Address::Builders { .. }
+                | Address::Role { .. }
+                | Address::Rule { .. }
                 | Address::Repositories { .. }
                 | Address::Settings { .. }
                 | Address::Ask { .. }

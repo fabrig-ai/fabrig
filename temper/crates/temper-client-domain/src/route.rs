@@ -215,6 +215,8 @@ pub(crate) fn route_forge(
                     | Address::Settings { .. }
                     | Address::Models { .. }
                     | Address::Builders { .. }
+                    | Address::Role { .. }
+                    | Address::Rule { .. }
                     | Address::Repositories { .. }
                     | Address::Work { .. }
                     | Address::Goals { .. }
@@ -539,6 +541,8 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Repositories { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Ask { .. }
         | Address::Welcome { .. } => false,
     };

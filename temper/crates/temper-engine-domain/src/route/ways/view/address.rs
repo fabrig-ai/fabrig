@@ -8,6 +8,7 @@ pub(super) enum Address {
     Path { repository: Box<[u8]>, branch: Option<Box<[u8]>>, revision: Option<u32> },
     Proposal { proposer: Proposer, number: u64 },
     Charter { number: u32, revision: Option<u32> },
+    Rule { kind: u32, number: u32 },
     Unknown,
 }
 
@@ -82,6 +83,16 @@ pub(super) fn parse(line: &[u8]) -> Address {
             Some(number) => Address::Charter { number, revision },
             None => Address::Unknown,
         },
+        [b"rule", word] if revision.is_none() => {
+            let Some(at) = bytes::find(word, b"/") else { return Address::Unknown };
+            let after = at.checked_add(1).expect("rule address offset");
+            let kind = natural(word.get(..at).expect("rule kind"));
+            let number = natural(word.get(after..).expect("rule number"));
+            match (kind, number) {
+                (Some(kind @ (1 | 2)), Some(number)) => Address::Rule { kind, number },
+                _ => Address::Unknown,
+            }
+        }
         [b"proposal", ..] if revision.is_none() => match crate::route::see::address(line, 0) {
             crate::route::see::Address::Proposal { proposer, number } => Address::Proposal { proposer, number },
             crate::route::see::Address::Ways

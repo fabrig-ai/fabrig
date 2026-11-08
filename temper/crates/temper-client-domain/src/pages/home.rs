@@ -1031,6 +1031,8 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
         | crate::Address::Models { .. }
         | crate::Address::Builders { .. }
         | crate::Address::Work { .. }
+        | crate::Address::Role { .. }
+        | crate::Address::Rule { .. }
         | crate::Address::Goals { .. }
         | crate::Address::Ask { .. }
         | crate::Address::Adopt { .. } => return,

@@ -93,6 +93,8 @@ impl Switcher {
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
+            | Address::Role { .. }
+            | Address::Rule { .. }
             | Address::Repositories { .. }
             | Address::Work { .. }
             | Address::Goals { .. }

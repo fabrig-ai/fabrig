@@ -333,6 +333,81 @@ fn an_ordinary_group_prints_its_children_as_a_slot_does() {
             expected = Some(text);
         }
     }
+    for (outer, name, middle, item, inner, inner_name, expected) in [
+        (
+            Role::Region,
+            b"Ways".as_slice(),
+            None,
+            false,
+            Role::Tabs,
+            b"Ways".as_slice(),
+            b"== ops == \nWays:\n  [1] Pick\n".as_slice(),
+        ),
+        (Role::Drawing, b"Path", None, false, Role::List, b"Path", b"== ops == \nPath:\n  - first\n  - second\n"),
+        (
+            Role::Region,
+            b"Ways",
+            None,
+            false,
+            Role::List,
+            b"Other",
+            b"== ops == \nWays:\n  Other:\n    - first\n    - second\n",
+        ),
+        (
+            Role::Region,
+            b"Ways",
+            Some(b"Inner".as_slice()),
+            false,
+            Role::List,
+            b"Ways",
+            b"== ops == \nWays:\n  Inner:\n    Ways:\n      - first\n      - second\n",
+        ),
+        (
+            Role::Region,
+            b"Spend",
+            None,
+            true,
+            Role::List,
+            b"Spend",
+            b"== ops == \nSpend:\n  - Spend:\n      - first\n      - second\n",
+        ),
+    ] {
+        let mut b = skein_ui::Builder::new(&fixtures::LIMITS);
+        b.open(Role::Page);
+        b.open(outer);
+        b.name(name);
+        if let Some(middle) = middle {
+            b.open(Role::Region);
+            b.name(middle);
+        }
+        if item {
+            b.open(Role::Item);
+        }
+        b.open(inner);
+        b.name(inner_name);
+        if inner == Role::Tabs {
+            b.open(Role::Tab);
+            b.name(b"Pick");
+            b.bind(fixtures::binding());
+            b.close();
+        } else {
+            fixtures::leaf(&mut b, Role::Item, b"first");
+            fixtures::leaf(&mut b, Role::Item, b"second");
+        }
+        b.close();
+        if item {
+            b.close();
+        }
+        if middle.is_some() {
+            b.close();
+        }
+        b.close();
+        b.close();
+        let tree = b.finish();
+        let mut print = Print::new(&fixtures::LIMITS).unwrap();
+        render(&tree, b"ops", None, &mut print);
+        assert_eq!(print.text.as_slice(), expected);
+    }
 }
 
 #[test]
