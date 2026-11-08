@@ -1207,18 +1207,23 @@ fn assert_pending_question(run: &temper_engine_domain::Assignment) {
 #[test]
 fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
     use jig_protocol_engine_workers::{Loss, host::Output};
-    for (worker, position) in [(Some(b"worker-a".as_slice()), Some(0)), (Some(b"worker-b".as_slice()), Some(1)), (None, None)] {
+    for (worker, position) in
+        [(Some(b"worker-a".as_slice()), Some(0)), (Some(b"worker-b".as_slice()), Some(1)), (None, None)]
+    {
         let mut service = fixtures::started();
         let workers = &mut service.engine.as_mut().unwrap().workers;
-        let worker = worker.map(Box::from);
+        let worker = match worker {
+            Some(name) => Some(Box::from(name)),
+            None => None,
+        };
         let mut events = skein_lib::Queue::uncapped();
         let why = Loss::Refused { reason: 256 };
-        for _ in 0..2 {
+        for _ in 0_u8..2 {
             workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);
         }
         assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: worker.clone(), why }));
         assert!(workers.notes.is_empty(), "the same opening refusal prints once");
-        let other = if position == Some(0) { 1 } else { 0 };
+        let other = u32::from(position == Some(0));
         workers.route(hello_for_loss_notes(other), &mut events);
         workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);
         assert!(workers.notes.is_empty(), "another worker's hello does not reset this name");

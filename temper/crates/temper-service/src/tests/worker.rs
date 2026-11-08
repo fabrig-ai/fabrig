@@ -1090,20 +1090,15 @@ fn a_linked_loss_is_noted_once_and_a_refused_dial_has_no_lost_line() {
     stand.worker.iterate(now, Wall::EPOCH);
     assert!(stand.worker.notes().is_empty());
     let mut refused = socket_stand();
-    refused.worker.link(
-        fixtures::NOW,
-        link::Request::Fact { why: link::Loss::Closed(skein_channel::Closed::RefusedPeer(256)) },
-    );
+    refused
+        .worker
+        .link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(skein_channel::Closed::RefusedPeer(256)) });
     assert_eq!(refused.worker.notes().pop(), Some(refusal_note(crate::Refusal::Peer(256))));
     assert!(refused.worker.notes().is_empty(), "a dial that never linked has no lost line");
 }
 
 fn lost_note(why: link::Loss) -> crate::Note {
-    crate::Note::Lost {
-        worker: b"worker-a".as_slice().into(),
-        address: Box::new(([127, 0, 0, 1], 7100).into()),
-        why,
-    }
+    crate::Note::Lost { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()), why }
 }
 
 #[test]

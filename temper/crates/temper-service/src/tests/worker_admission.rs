@@ -1,7 +1,7 @@
 //! Admission under pressure, through the real worker and its concrete peers.
 use super::fixtures;
 use super::fixtures::worker_peers::{
-    AGENT_CHILD, AGENT_ERROR, AGENT_INPUT, AGENT_OUTPUT, AGENT_OWNER, AgentPeer, LinkPeer, PEER_STEPS,
+    AGENT_CHILD, AGENT_ERROR, AGENT_INPUT, AGENT_OUTPUT, AGENT_OWNER, AgentPeer, LinkPeer, LinkRecord, PEER_STEPS,
     cancellation_turn, demanded_bytes, socket_stand,
 };
 use jig_domain_host as hub;
@@ -289,17 +289,17 @@ fn a_worker_whose_engine_records_wait_keeps_its_link() {
         peer.component.fire(now, &mut peer.out);
         // Settle demanded headers and bodies on this second's clock. The
         // backlog stays at the watermark throughout every service pass.
-        for _ in 0..32 {
+        for _ in 0_u8..32 {
             let worker = service.worker.as_mut().unwrap();
             // The concrete peer takes the socket requests before the service
             // publishes them to its separate IO machine.
-            load(worker, 0);
             peer.turn(worker);
-            assert!(
-                !peer.records.iter().any(|record| matches!(record,
-                    fixtures::worker_peers::LinkRecord::Lost | fixtures::worker_peers::LinkRecord::Ended)),
-                "the engine lost a healthy worker at {seconds}s while its records waited"
-            );
+            for record in &peer.records {
+                assert!(
+                    *record != LinkRecord::Lost && *record != LinkRecord::Ended,
+                    "the engine lost a healthy worker at {seconds}s while its records waited"
+                );
+            }
             assert!(worker.notes().is_empty(), "the worker's linked link gives no loss fact");
         }
         crate::iterate(&mut service, now, Wall::EPOCH);
@@ -332,13 +332,18 @@ fn a_new_wire_record_past_the_entrance_faults_the_link() {
         peer.exchange(&mut stand.worker);
         stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
         if let Some(note) = stand.worker.notes().pop() {
-            assert_eq!(note, crate::Note::Lost {
-                worker: b"worker-a".as_slice().into(),
-                address: Box::new(([127, 0, 0, 1], 7100).into()),
-                why: link::Loss::Fault,
-            });
+            assert_eq!(
+                note,
+                crate::Note::Lost {
+                    worker: b"worker-a".as_slice().into(),
+                    address: Box::new(([127, 0, 0, 1], 7100).into()),
+                    why: link::Loss::Fault,
+                }
+            );
             assert_eq!(stand.worker.held.len(), stand.worker.held.capacity());
-            assert!(stand.worker.engine.iter().all(|event| !root::is_new_work(event)), "the extra record is dropped");
+            for event in &stand.worker.engine {
+                assert!(!root::is_new_work(event), "the extra record is dropped");
+            }
             assert!(stand.worker.notes().is_empty());
             return;
         }

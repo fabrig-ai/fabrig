@@ -125,7 +125,7 @@ impl LinkPeer {
                     },
                 ),
                 io::Request::Output { down: stream::OutputDown::Send { bytes, .. }, .. } => {
-                    self.received += bytes.len();
+                    self.received = self.received.checked_add(bytes.len()).expect("received link bytes fit usize");
                     self.engine_bytes.append(&bytes).unwrap();
                 }
                 io::Request::Stream { down: stream::Down::Demand { read, .. }, .. } => self.worker_read = Some(read),
@@ -157,7 +157,9 @@ impl LinkPeer {
                 engine_link::Request::Lower { lower: Lower::Read(stream::Down::Demand { read, .. }), .. } => {
                     self.engine_read = Some(read);
                 }
-                engine_link::Request::Take { .. } => {}
+                engine_link::Request::Take { .. }
+                | engine_link::Request::Close { .. }
+                | engine_link::Request::Abort { .. } => {}
                 request @ (engine_link::Request::Hello { .. } | engine_link::Request::Up { .. }) => {
                     if let engine_link::Request::Hello { .. } = &request {
                         self.records.push(LinkRecord::Hello).expect("bounded link records");
@@ -176,10 +178,8 @@ impl LinkPeer {
                     self.records.push(LinkRecord::Ended).expect("bounded link records");
                     return Some(request);
                 }
-                engine_link::Request::Close { .. } | engine_link::Request::Abort { .. } => {}
                 other @ (engine_link::Request::TurnAway { .. }
                 | engine_link::Request::Lower { .. }
-
                 | engine_link::Request::Closed) => panic!("engine request: {other:?}"),
             }
         }
@@ -192,11 +192,7 @@ impl LinkPeer {
         None
     }
     pub(crate) fn lower(&mut self, event: LowerEvent) {
-        self.component.down(
-            self.now,
-            engine_link::Event::Lower { connection: Token::new(1), event },
-            &mut self.out,
-        );
+        self.component.down(self.now, engine_link::Event::Lower { connection: Token::new(1), event }, &mut self.out);
     }
 }
 

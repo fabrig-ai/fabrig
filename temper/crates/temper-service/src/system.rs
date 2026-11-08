@@ -1007,11 +1007,7 @@ fn route_events(service: &mut Service) {
             } else if !engine.workers.up(service.io_env.now, event, &mut engine.events) && engine.end.is_none() {
                 let address = engine.workers.host.listener_address(owner);
                 engine.workers.notes.push(crate::Note::WorkerListenerFailed { address, error });
-                engine.end = Some(End::Stopped(Stop::Listener {
-                    listener: crate::Listening::Workers,
-                    address,
-                    error,
-                }));
+                engine.end = Some(End::Stopped(Stop::Listener { listener: crate::Listening::Workers, address, error }));
             }
             engine.drain_worker_notes();
             for (listener, addr) in [

@@ -48,7 +48,12 @@ impl Workers {
         }
         let opening_names = worker_names.len().checked_add(1).ok_or(kit::host::invalid(What::Bound))?;
         Ok(Self {
-            host, encoding, forges: table, bad_parts: 0, notes: Queue::uncapped(), worker_names,
+            host,
+            encoding,
+            forges: table,
+            bad_parts: 0,
+            notes: Queue::uncapped(),
+            worker_names,
             opening_ends: Map::with_capacity(opening_names),
         })
     }
@@ -156,7 +161,9 @@ impl Workers {
             }
             kit::host::Output::Ended { worker, channel: None, why } => {
                 if self.opening_ends.get(&worker) != Some(&why) {
-                    self.opening_ends.insert(worker.clone(), why).expect("configured worker names and unnamed openings");
+                    self.opening_ends
+                        .insert(worker.clone(), why)
+                        .expect("configured worker names and unnamed openings");
                     self.notes.push(crate::Note::WorkerOpeningEnded { worker, why });
                 }
             }
