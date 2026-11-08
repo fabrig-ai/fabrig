@@ -1316,6 +1316,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-acts",
         b"temper-ways-use",
         b"temper-ways-refused",
+        b"temper-team",
+        b"temper-team-intro",
+        b"temper-team-people",
+        b"temper-team-person",
+        b"temper-team-role",
+        b"temper-team-line",
     ],
     regions: &[b"temper-link"],
 };
@@ -1729,6 +1735,14 @@ pub const WAYS_KIND_LINE: Style = Style { owner: owner(), token: 642 };
 pub const WAYS_ACTS: Style = Style { owner: owner(), token: 643 };
 pub const WAYS_USE: Style = Style { owner: owner(), token: 644 };
 pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
+
+/// Team’s column and people (temper/docs/design/client/browser.md, 2.5, Team’s look).
+pub const TEAM: Style = Style { owner: owner(), token: 646 };
+pub const TEAM_INTRO: Style = Style { owner: owner(), token: 647 };
+pub const TEAM_PEOPLE: Style = Style { owner: owner(), token: 648 };
+pub const TEAM_PERSON: Style = Style { owner: owner(), token: 649 };
+pub const TEAM_ROLE: Style = Style { owner: owner(), token: 650 };
+pub const TEAM_LINE: Style = Style { owner: owner(), token: 651 };
 
 #[cfg(test)]
 mod tests {

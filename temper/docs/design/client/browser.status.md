@@ -2,7 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.5, *Team's look*: `temper.css` has no rule of Team's.
 - **Not yet:** 7.2: the gallery holds none of `team`, `team-alone` and
   `night-team`.
 - **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
