@@ -1,5 +1,5 @@
-//! The composer, quiet line and lists (temper/docs/design/client/README.md, 6.14, The foot).
-use super::{Binds, chat as conversation, text};
+//! The composer, quiet line and lists (temper/docs/design/client/README.md, 6.14 and 6.17, The foot).
+use super::{Binds, chat as conversation, front, text};
 use crate::{
     Event, Local, Tui, look,
     words::{Word, Words},
@@ -33,6 +33,8 @@ pub(crate) struct Foot {
     pub running: Option<Box<[u8]>>,
     pub hint: Box<[u8]>,
     pub needs: Count,
+    pub box_state: Option<(Box<[u8]>, Style)>,
+    pub playground: bool,
     pub closed: Option<Box<[u8]>>,
     pub columns: u16,
     pub list: Option<Options>,
@@ -139,7 +141,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
                 project,
                 title: conversation::cut(&shared::heading(task.chip.title.bytes()), words),
                 task: chat.task,
-                place: crate::place(tui.address(), tui.boxed()),
+                place: crate::place(tui.address(), tui.front() || tui.boxed()),
             })
         }
         (Some(_), None) | (None, Some(_) | None) => None,
@@ -161,6 +163,8 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
             })
         },
         running: if chat.is_some() { shared::running(root, words.view()) } else { None },
+        box_state: front::box_state(tui, words),
+        playground: front::playground(root, project),
         hint: shared::say(words.view(), if paused { TerminalWord::Paused } else { TerminalWord::Commands }),
         needs: match project {
             Some(project) => root.pages().needs().count(root.client(), root.forge().approvals(), project),
@@ -224,7 +228,14 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     } else {
         Box::default()
     };
+    let playground = if part.playground { words.say(Word::Playground, &[]) } else { Box::default() };
     let mut left_width = width(&part.hint);
+    if let Some((state, _style)) = &part.box_state {
+        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(state));
+    }
+    if part.playground {
+        left_width = left_width.saturating_add(width(&separator)).saturating_add(width(&playground));
+    }
     if !needing.is_empty() {
         left_width = left_width.saturating_add(width(&separator)).saturating_add(width(&needing));
     }
@@ -244,6 +255,14 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     b.region(look::BOTTOM);
     b.open(Role::Paragraph);
     text(b, Role::Text, &part.hint, Some(look::HINT));
+    if let Some((state, style)) = &part.box_state {
+        text(b, Role::Text, &separator, Some(look::HINT));
+        text(b, Role::Text, state, Some(*style));
+    }
+    if part.playground {
+        text(b, Role::Text, &separator, Some(look::HINT));
+        text(b, Role::Text, &playground, Some(look::HINT));
+    }
     if !needing.is_empty() {
         text(b, Role::Text, &separator, Some(look::HINT));
         text(b, Role::Text, &needing, Some(look::SIGNAL));

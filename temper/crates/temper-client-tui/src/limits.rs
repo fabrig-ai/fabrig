@@ -1,6 +1,10 @@
-//! The screens' and chat page's bound (temper/docs/design/client/README.md, 6.14).
+//! The screens' and chat page's bound (temper/docs/design/client/README.md, 6.14 and 6.17).
 use crate::words::Word;
 use temper_client_domain::Limits as Domain;
+
+pub const BOX_LOG: u32 = 50;
+pub const LOG_LINE: u32 = 512;
+pub const STEP: u32 = 64;
 
 #[must_use]
 pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<skein_ui::Limits> {
@@ -64,13 +68,15 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
     // Up to eight help notes of eighteen lines, and the TUI's unknown-command note.
     let note_lines = 8_u32.checked_mul(18)?.checked_add(1)?;
     let nodes = foot_nodes.checked_add(64)?.checked_add(note_lines.checked_mul(2)?)?;
+    let most = u32::try_from(crate::BoxLine::MOST).ok()?;
+    let front_text = BOX_LOG.checked_mul(LOG_LINE)?.checked_add(most)?.checked_add(4096)?;
     let foot_text = field.checked_add(line.checked_mul(16)?)?;
     let screens = skein_ui::Limits {
         // Signing in: Page, Main, ten pairs of blocks and text leaves,
         // the field, ContentInfo and its paragraph and status text pairs.
         nodes,
         depth: 9,
-        text_per_node: field.max(line),
+        text_per_node: field.max(line).max(most),
         text_bytes: signing
             .max(launchpad.checked_add(own)?.checked_add(foot_text)?.checked_add(line.checked_mul(note_lines)?)?),
         styles_per_node: 2,
@@ -79,14 +85,14 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
         ..skein_ui::Limits::EMPTY
     };
     let limits = skein_ui::Limits {
-        nodes: screens.nodes.max(view.nodes),
+        nodes: screens.nodes.max(view.nodes).checked_add(192)?,
         depth: screens.depth.max(view.depth),
         text_per_node: screens.text_per_node.max(view.text_per_node),
-        text_bytes: screens.text_bytes.max(view.text_bytes),
+        text_bytes: screens.text_bytes.max(view.text_bytes).checked_add(front_text)?,
         drawing_bytes: screens.drawing_bytes.max(view.drawing_bytes),
         styles_per_node: screens.styles_per_node.max(view.styles_per_node),
-        patches: screens.patches.max(view.patches),
-        bindings: screens.bindings.max(view.bindings),
+        patches: screens.patches.max(view.patches).checked_add(192_u32.checked_mul(4)?)?,
+        bindings: screens.bindings.max(view.bindings).checked_add(1)?,
         slots: screens.slots.max(view.slots),
         markdown_depth: screens.markdown_depth.max(view.markdown_depth),
         scene_marks: screens.scene_marks.max(view.scene_marks),

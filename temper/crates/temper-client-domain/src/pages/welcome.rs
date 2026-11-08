@@ -157,6 +157,23 @@ pub fn decision(root: &Domain) -> Option<FirstRun> {
         FirstRun::Unfinished { step: crate::Step::Ready }
     })
 }
+/// The person signed in by the printed link: the forges document says so,
+/// or the welcome's decision is past its first step, or `me` names a
+/// project (temper/docs/design/client/README.md, 6.17).
+#[must_use]
+pub fn signed_in(root: &Domain) -> bool {
+    if root.forge().linked() == Some(true) {
+        return true;
+    }
+    match decision(root) {
+        Some(FirstRun::Unfinished { .. } | FirstRun::Whole) => return true,
+        Some(FirstRun::Empty) | None => {}
+    }
+    match accounts::current_me(root.client()) {
+        Some(me) => !me.projects.is_empty(),
+        None => false,
+    }
+}
 /// A real connected forge, including GitHub's accepted installation (3.5).
 #[must_use]
 pub fn forge_connected(row: &forges::Row) -> bool {

@@ -4,6 +4,7 @@ pub mod listeners;
 pub mod support;
 
 mod agent_modes;
+mod box_front;
 mod box_listeners;
 mod configuration;
 mod fake;
