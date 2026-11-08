@@ -285,12 +285,12 @@ pub(crate) fn how_work_runs(
         let stored = root.forge().ways(project);
         let shown = match root.forge().ways_asked(Control::Ways) {
             Some(Asked::Ways(value)) => *value,
-            Some(Asked::Questions(_)) | None => stored.unwrap_or(Ways::STOCK),
+            Some(Asked::Questions(_) | Asked::Classes(_)) | None => stored.unwrap_or(Ways::STOCK),
         };
         super::how::path(b, root, w, bindings, project);
         super::how::budgets(b, root, w, project);
         needs(b, root, w, forge, project);
-        away_settings(b, root, w, bindings, project, wall);
+        away_settings(b, root, w, bindings, forge, project, wall);
         shows(b, root, w, forge, project, stored.is_none(), shown);
         if shown.goals {
             working(b, root, w, forge, project, shown);
@@ -384,8 +384,12 @@ fn shows(
         let word = match (key, value) {
             (WaysRow::Drafts, true) => Word::SettingsOn,
             (WaysRow::Drafts, false) => Word::SettingsOff,
-            (WaysRow::Goals | WaysRow::Changes | WaysRow::Away | WaysRow::Way(_), true) => Word::SettingsShown,
-            (WaysRow::Goals | WaysRow::Changes | WaysRow::Away | WaysRow::Way(_), false) => Word::SettingsHidden,
+            (WaysRow::Goals | WaysRow::Changes | WaysRow::Away | WaysRow::Classes | WaysRow::Way(_), true) => {
+                Word::SettingsShown
+            }
+            (WaysRow::Goals | WaysRow::Changes | WaysRow::Away | WaysRow::Classes | WaysRow::Way(_), false) => {
+                Word::SettingsHidden
+            }
         };
         crate::cards::text(b, Role::Text, &w.say(word, &[]));
         b.open(Role::Check);
@@ -447,7 +451,7 @@ fn needs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings
     let stored = root.forge().questions(project);
     let shown = match root.forge().ways_asked(Control::Questions) {
         Some(Asked::Questions(route)) => *route,
-        Some(Asked::Ways(_)) | None => stored.unwrap_or(Route::None),
+        Some(Asked::Ways(_) | Asked::Classes(_)) | None => stored.unwrap_or(Route::None),
     };
     let label = w.say(Word::SettingsQuestions, &[]);
     row(b, w, &label, None);
@@ -472,16 +476,26 @@ fn needs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings
     b.close();
     b.close();
 }
-/// The row's choices remain editable while off (client/README.md, 3.5, Away).
+/// Settings draws the classes; the row's duration stays editable while off (client/README.md, 5.13).
 fn away_settings(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
+    forge: &mut ForgeBindings,
     project: u32,
     wall: skein_lib::Wall,
 ) {
-    if !root.away_shown(project, wall) {
+    use temper_protocol_reaches::{Class, Classes, Way};
+    let stock = Classes::stock(Way::AgentsReview);
+    let stored = root.forge().classes(project);
+    let asked = root.forge().ways_asked(Control::Classes);
+    let shown = match asked {
+        Some(Asked::Classes(classes)) => classes,
+        Some(Asked::Ways(_) | Asked::Questions(_)) | None => stored.unwrap_or(&stock),
+    };
+    let asking = forge::classes::asking(shown);
+    if asking.is_empty() {
         return;
     }
     b.open(Role::Slot);
@@ -496,29 +510,65 @@ fn away_settings(
         b.focus(count);
     }
     b.close();
-    let row_value = root.forge().away(project);
-    let eight = match row_value {
-        Some(row) => row.until.is_some(),
-        None => true,
-    };
-    let disabled = root.pages().away_busy();
-    row(b, w, &w.say(Word::AwaySettingsUntil, &[]), Some(Word::AwayUntilLine));
-    b.open(Role::Select);
-    b.name(&w.say(Word::AwaySettingsUntil, &[]));
-    if disabled {
-        b.state(State::Disabled);
+    let decides = crate::cards::proposal::class_objects(w, shown, Class::Decide);
+    if !decides.is_empty() {
+        text(b, Role::Text, &w.say(Word::ClassesDecideLine, &[Hole::Name(decides)]), look::SETTINGS_DETAIL);
     }
-    for (choice, word) in [(true, Word::AwayEight), (false, Word::AwayByHand)] {
-        b.open(Role::Option);
-        b.name(&w.say(word, &[]));
-        b.bind(bindings.insert(Act::Away(Away::Until { project, eight: choice })));
-        if choice == eight {
-            b.state(State::Selected);
+    row(b, w, &w.say(Word::ClassesAsking, &[]), Some(Word::ClassesAskingDetail));
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_CHECKS);
+    for item in asking {
+        let mut name = crate::shared::object(w, item.subject, item.item, Some(shown));
+        if let Some(first) = name.first_mut() {
+            first.make_ascii_uppercase();
+        }
+        b.open(Role::Check);
+        b.name(&name);
+        b.bind(forge.insert_way(
+            ways::Act::Set { project, asked: Asked::Classes(forge::classes::turned(shown, item)) },
+            WaysRow::Classes,
+        ));
+        if item.away {
+            b.state(State::Pressed);
+        }
+        if stored.is_none() || asked.is_some() {
+            b.state(State::Disabled);
         }
         b.close();
     }
+    b.open(Role::Check);
+    let locked = w.say(Word::ClassesLocked, &[]);
+    b.name(&locked);
+    b.state(State::Disabled);
     b.close();
     b.close();
+    refused(b, root, w, Control::Classes);
+    b.close();
+    if root.away_shown(project, wall) {
+        let row_value = root.forge().away(project);
+        let eight = match row_value {
+            Some(row) => row.until.is_some(),
+            None => true,
+        };
+        let disabled = root.pages().away_busy();
+        row(b, w, &w.say(Word::AwaySettingsUntil, &[]), Some(Word::AwayUntilLine));
+        b.open(Role::Select);
+        b.name(&w.say(Word::AwaySettingsUntil, &[]));
+        if disabled {
+            b.state(State::Disabled);
+        }
+        for (choice, word) in [(true, Word::AwayEight), (false, Word::AwayByHand)] {
+            b.open(Role::Option);
+            b.name(&w.say(word, &[]));
+            b.bind(bindings.insert(Act::Away(Away::Until { project, eight: choice })));
+            if choice == eight {
+                b.state(State::Selected);
+            }
+            b.close();
+        }
+        b.close();
+        b.close();
+    }
     b.close();
 }
 pub(crate) fn repositories(

@@ -1627,24 +1627,32 @@ fn goals_opens_in_its_projects_frame() {
                 Event::Went { place: Place::Address(address.clone()) },
                 &mut out,
             );
-            // Switching projects reads its kind-7 ways; Goals has no page watch without a template.
-            assert_eq!(out.len(), 1, "only the new project’s ways are read: {out:?}");
-            let Some(Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
-                    },
-            }) = out.pop()
-            else {
-                panic!("project ways read")
-            };
-            let reading =
-                temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                    .unwrap();
-            let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
-                panic!("project ways setting")
-            };
-            assert_eq!((setting.kind(), setting.scope()), (7, fixtures::PROJECT));
+            // Switching projects reads its ways and classes; Goals has no page watch without a template.
+            assert_eq!(out.len(), 2, "only the new project's ways and classes are read: {out:?}");
+            let mut kinds = skein_lib::List::with_capacity(2);
+            while let Some(request) = out.pop() {
+                let Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
+                        },
+                } = request
+                else {
+                    panic!("project settings read")
+                };
+                let reading = temper_client_protocol_wire::decode_reading(
+                    &record.bytes,
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .unwrap();
+                let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
+                    panic!("project setting")
+                };
+                assert_eq!((setting.scope(), setting.number()), (fixtures::PROJECT, 1));
+                kinds.push(setting.kind()).unwrap();
+            }
+            assert!(kinds.as_slice().contains(&7));
+            assert!(kinds.as_slice().contains(&8));
             assert_eq!(root.pages().address(), &address);
             assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
             fixtures::build(&mut view, &root);

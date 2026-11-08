@@ -291,6 +291,7 @@ fn project_values_are_read_on_open_and_dropped_on_close() {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].1, OTHER);
         assert_eq!(held(&f.root, control), None);
+        assert_eq!(f.root.forge().ways(OTHER), None);
         assert_eq!(f.root.forge().classes(OTHER), None);
         ways::progress(
             &mut f.root.forge,
@@ -300,6 +301,7 @@ fn project_values_are_read_on_open_and_dropped_on_close() {
             f::limits().forge,
             &mut Queue::uncapped(),
         );
+        assert_eq!(f.root.forge().ways(OTHER), None);
         assert_eq!(f.root.forge().classes(OTHER), None);
     }
 }

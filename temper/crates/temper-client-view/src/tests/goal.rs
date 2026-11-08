@@ -1107,9 +1107,9 @@ fn how_it_runs_says_its_way_by_its_branch() {
             assert_eq!(
                 section_text(&draw(&root, &words).0, b"How it runs").as_ref(),
                 if has_branch {
-                    b"Plan, tasks, land whole \xc2\xb7 follows the away switch".as_slice()
+                    b"Plan, tasks, land whole \xc2\xb7 asks as the project says".as_slice()
                 } else {
-                    b"Task by task \xc2\xb7 follows the away switch"
+                    b"Task by task \xc2\xb7 asks as the project says"
                 }
             );
         }
@@ -2018,7 +2018,7 @@ mod composer {
 fn how_it_runs_reads_the_asking_line() {
     for (spec, suffix) in [
         (b"Goal\nAsks: always".as_slice(), b"always asks you".as_slice()),
-        (b"Goal\nIt says Asks: always", b"follows the away switch"),
+        (b"Goal\nIt says Asks: always", b"asks as the project says"),
     ] {
         let mut task = document();
         task.spec.specification.words = text(spec);

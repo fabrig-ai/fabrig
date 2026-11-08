@@ -32,13 +32,14 @@ pub enum Meaning {
     SetupField(forge::forges::SetupField),
     Copies,
 }
-/// The row owning kind 7's last request (client/README.md, 5.13).
+/// The row owning the settings' last request (client/README.md, 5.13).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WaysRow {
     Drafts,
     Goals,
     Changes,
     Away,
+    Classes,
     Way(u32),
 }
 #[derive(Debug)]
