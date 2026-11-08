@@ -178,7 +178,9 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"file", repository, path, branch] if repository_name(repository) => {
             Address::File { repository: (*repository).into(), path: (*path).into(), branch: Some((*branch).into()) }
         }
-        [b"me" | b"project" | b"goals" | b"tasks" | b"changes" | b"inbox"] | [b"goals", b"ended"] => Address::NotYet,
+        [b"me" | b"project" | b"goals" | b"tasks" | b"changes" | b"inbox" | b"ways"] | [b"goals", b"ended"] => {
+            Address::NotYet
+        }
         [b"task", number] | [b"task", number, b"tree" | b"activity"] if natural(number).is_some() => Address::NotYet,
         [b"change", number] if small(number).is_some() => Address::NotYet,
         [b"task", number, b"turn", turn] if natural(number).is_some() && turn_number(turn) => Address::NotYet,
