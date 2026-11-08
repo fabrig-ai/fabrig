@@ -509,7 +509,7 @@ fn the_unavailable_top_end_holds_only_the_link_region() {
     }
 }
 
-fn assert_top_end(view: &crate::View, children: &[(Role, Option<&[u8]>)]) {
+pub(super) fn assert_top_end(view: &crate::View, children: &[(Role, Option<&[u8]>)]) {
     let nodes = view.tree().nodes();
     let mut corner = None;
     let mut banner_end = 0;
