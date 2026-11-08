@@ -11,6 +11,13 @@ scope questions, releases the change hold and observes the fake forge's
 child merge before the separate whole-goal landing. It establishes no
 real-model or browser outcome.
 
+Section 8.5 has no known gap in the drafter: a design session's first
+run on the stock gets `drafter.txt` byte for byte, no repository, and no
+`goal`, `change` or `delegate` beside `note`, `recall` and the forge's
+reads (`temper-service/src/tests/ask_bound.rs`). Its instructions'
+judgement with a real model and a session taken up again follow landing;
+the terminal's `/draft` is `../draft/surfaces.md`, 11.2's.
+
 Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
 revision, proposal, help and repository-file reads, 6,144-byte parts,
