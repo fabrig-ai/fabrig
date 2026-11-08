@@ -17,6 +17,7 @@ mod delegation;
 mod goal;
 mod goals;
 mod home;
+mod how;
 mod inbox;
 mod members;
 mod paste;

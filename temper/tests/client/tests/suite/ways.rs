@@ -107,6 +107,98 @@ fn drawn_path(nodes: &[Node]) -> String {
         .join("\n")
 }
 
+#[derive(Debug, PartialEq, Eq)]
+struct PathColumn {
+    header: String,
+    buttons: Vec<(&'static str, String)>,
+}
+
+fn drawn_lanes(nodes: &[Node]) -> Vec<PathColumn> {
+    let table = under(nodes, Role::Table, b"The path of a change");
+    let rows = table
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| node.role == Role::Row)
+        .map(|(at, _)| subtree(table, at))
+        .collect::<Vec<_>>();
+    assert_eq!(rows.len(), 5, "headers, You, Agents, authority, Code");
+    let headers = rows[0]
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| node.role == Role::ColumnHeader)
+        .map(|(at, node)| {
+            let header = words(subtree(rows[0], at));
+            assert_eq!(node.name.as_deref(), Some(header.as_bytes()), "column header names its step");
+            header
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(headers.first().map(String::as_str), Some(""), "empty lane header");
+    let mut columns =
+        headers.into_iter().skip(1).map(|header| PathColumn { header, buttons: Vec::new() }).collect::<Vec<_>>();
+    let authority = rows[3];
+    assert_eq!(words(authority), "authority: no merge tool above this line");
+    let cells = authority.iter().filter(|node| node.role == Role::Cell).collect::<Vec<_>>();
+    assert_eq!(cells.len(), 1, "one authority cell between Agents and Code");
+    let spans = cells[0].spans.expect("authority spans the table");
+    assert_eq!(usize::from(spans.columns), columns.len() + 1);
+    assert_eq!(spans.rows, 1);
+    for (row, lane) in [(rows[1], "You"), (rows[2], "Agents"), (rows[4], "Code")] {
+        assert_eq!(words(under(row, Role::RowHeader, lane.as_bytes())), lane);
+        let cells = row
+            .iter()
+            .enumerate()
+            .filter(|(_, node)| node.role == Role::Cell)
+            .map(|(at, _)| subtree(row, at))
+            .collect::<Vec<_>>();
+        assert_eq!(cells.len(), columns.len(), "one {lane} cell per stop");
+        for (column, cell) in columns.iter_mut().zip(cells) {
+            for button in cell.iter().filter(|node| node.role == Role::Button) {
+                let name =
+                    std::str::from_utf8(button.name.as_deref().expect("named stop button")).expect("stop button words");
+                column.buttons.push((lane, name.to_owned()));
+            }
+        }
+    }
+    columns
+}
+
+fn expected_lanes(expected: &str, path: &temper_client_protocol_wire::v1::BranchPath) -> Vec<PathColumn> {
+    assert_eq!(usize::try_from(path.stops().len()).expect("path length"), expected.lines().count());
+    expected
+        .lines()
+        .zip(path.stops())
+        .map(|(line, stop)| {
+            let (step, actor) = line.split_once(", ").expect("step and actor");
+            let header = match step {
+                "you ask" => "Ask",
+                "draft" => "Draft",
+                "plan" => "Plan",
+                "produce" | "produce ×n" => "Produce",
+                "check" => "Check",
+                "review" => "Review",
+                "repair" => "Repair",
+                "you approve" => "Approve",
+                "update" => "Update",
+                "resolve" => "Resolve",
+                "merge" => "Merge",
+                "verify" => "Verify",
+                "goal branch" | "main" => step,
+                _ => panic!("unexpected stock step: {step}"),
+            };
+            let buttons = match actor {
+                "a person" => vec![("You", std::str::from_utf8(stop.words()).expect("person's words").to_owned())],
+                "an agent" => {
+                    vec![("Agents", std::str::from_utf8(stop.card().name()).expect("agent's name").to_owned())]
+                }
+                "code" => vec![("Code", std::str::from_utf8(stop.card().name()).expect("code's name").to_owned())],
+                "a branch" => Vec::new(),
+                _ => panic!("unexpected stock actor: {actor}"),
+            };
+            PathColumn { header: header.to_owned(), buttons }
+        })
+        .collect()
+}
+
 // The request's figures, with main's verify
 // (temper/docs/design/draft/stock-ways.status.md, Design departs).
 const PATHS: [[&str; 3]; 2] = [
@@ -155,6 +247,24 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
                 .collect::<Vec<_>>();
             assert_eq!(selected.len(), 1);
             assert_eq!(words(subtree(tabs, selected[0].0)), TAB_WORDS[index]);
+        }
+        act(&mut world, person, Act::Go { address: Address::Settings { project: PROJECT } });
+        for (index, (name, expected)) in NAMES.into_iter().zip(paths).enumerate() {
+            let tabs = under(world.tree(person).nodes(), Role::Tabs, b"Ways of working");
+            let tab = tabs.iter().filter(|node| node.role == Role::Tab).nth(index).expect("way's tab").id;
+            world.act(person, tab, skein_ui::Act::Press);
+            settle(&mut world);
+            let nodes = world.tree(person).nodes();
+            assert!(named(nodes, Role::Heading { level: 1 }, b"Agents review"), "heading names the current way");
+            let tab = u32::try_from(index).expect("tab index");
+            assert_eq!(page(&world, person).shown(), Some(tab), "pressed tab is shown");
+            let path = panel(&world, person).ways().get(tab).expect("read's way").path();
+            assert_eq!(
+                drawn_lanes(under(nodes, Role::Group, name)),
+                expected_lanes(expected, path),
+                "{}",
+                String::from_utf8_lossy(name)
+            );
         }
     }
 }

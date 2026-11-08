@@ -1,0 +1,125 @@
+//! A project's stock ways, drawn on Ask temper's page and How work runs
+//! (temper/docs/design/client/README.md, 3.5 and 5.13).
+use crate::{
+    frame::Bindings,
+    look,
+    words::{Word, Words},
+};
+use skein_lib::bytes::copy_of;
+use skein_ui::{Builder, Role, Run, State, phrases::Hole};
+use temper_client_domain::forge::stock_ways::{StockWays, WayAct};
+use temper_client_domain::{Address, pages::Act};
+use temper_client_protocol_wire::v1 as wire;
+
+/// The tabs control "Ways of working", a tab a way, "now" on the current one, and
+/// the axis line under it.
+pub(crate) fn tabs(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
+    let tabs = ways.tabs();
+    b.open(Role::Tabs);
+    b.name(&w.say(Word::WaysTitle, &[]));
+    b.style(look::WAYS_TABS);
+    for (index, tab) in tabs.iter().enumerate() {
+        let index = u32::try_from(index).expect("wire bounds tabs");
+        b.open(Role::Tab);
+        if ways.shown() == Some(index) {
+            b.state(State::Selected);
+        }
+        b.bind(bindings.insert(Act::WayTab { project, tab: index }));
+        b.text(Run::Plain, &tab.name);
+        if tab.current {
+            b.open(Role::Text);
+            b.style(look::WAYS_NOW);
+            b.text(Run::Plain, &w.say(Word::WaysNow, &[]));
+            b.close();
+        }
+        b.close();
+    }
+    b.close();
+    b.open(Role::Paragraph);
+    b.name(&w.say(Word::WaysAxis, &[]));
+    b.style(look::WAYS_AXIS);
+    for word in [Word::WaysYou, Word::WaysAgents] {
+        b.text(Run::Plain, &w.say(word, &[]));
+    }
+    b.close();
+}
+
+/// The open stop's card: heading, `who`, "Open NAME ›" where the stop opens a
+/// charter, a gate or a rule, and its facts.
+pub(crate) fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut Bindings, project: u32) {
+    let mut heading = copy_of(stop.words());
+    if let Some(first) = heading.first_mut() {
+        first.make_ascii_uppercase();
+    }
+    let card = stop.card();
+    b.open(Role::Region);
+    b.name(&heading);
+    b.style(look::WAYS_ZOOM);
+    b.open(Role::Slot);
+    b.style(look::WAYS_ZOOM_HEAD);
+    text(b, Role::Heading { level: 3 }, &heading, None);
+    b.text(Run::Plain, card.who());
+    let address = match stop.opens() {
+        wire::Opens::Charter(c) => Some(Address::Role { project, charter: c.charter() }),
+        wire::Opens::Gate(g) => Some(Address::Role { project, charter: g.charter() }),
+        wire::Opens::Rule(r) => Some(Address::Rule { project, kind: r.kind(), number: r.number() }),
+        wire::Opens::Nothing | wire::Opens::Tier(_) | wire::Opens::Queue | wire::Opens::Turn => None,
+    };
+    if let Some(address) = address {
+        let label = w.say(Word::WaysOpen, &[Hole::Name(copy_of(card.name()))]);
+        crate::link(b, &label, bindings.insert(Act::Go { address }));
+        b.text(Run::Plain, &label);
+        b.close();
+    }
+    b.close();
+    b.open(Role::Group);
+    for fact in card.facts() {
+        b.open(Role::Slot);
+        text(b, Role::Term, fact.label(), None);
+        text(b, Role::Description, fact.value(), None);
+        b.close();
+    }
+    b.close();
+    b.close();
+}
+
+/// The shown way's act, "Use this" or "Keep it", where `ways.act(index)` gives one.
+pub(crate) fn act(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
+    if let Some(act) = ways.act(index) {
+        b.open(Role::Slot);
+        b.style(look::WAYS_ACTS);
+        let (word, act) = match act {
+            WayAct::Use => (Word::WaysUse, Act::UseWay { project, way: index }),
+            WayAct::Keep => (Word::WaysKeep, Act::KeepWay { project }),
+        };
+        b.open(Role::Button);
+        b.style(look::WAYS_USE);
+        b.name(&w.say(word, &[]));
+        b.bind(bindings.insert(act));
+        if ways.sending() {
+            b.state(State::Disabled);
+        }
+        b.close();
+        b.close();
+    }
+}
+
+/// The refusal of the last act, where there is one.
+pub(crate) fn refused(b: &mut Builder, ways: &StockWays, w: &Words) {
+    if let Some(refused) = ways.refused() {
+        b.open(Role::Alert);
+        b.style(look::WAYS_REFUSED);
+        crate::cards::refusal(b, w, refused);
+        b.close();
+    }
+}
+
+fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style>) {
+    b.open(role);
+    if let Some(style) = style {
+        b.style(style);
+    }
+    b.name(words);
+    b.text(Run::Plain, words);
+    b.close();
+}
