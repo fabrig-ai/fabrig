@@ -32,6 +32,8 @@ pub enum Refusal {
     /// A live source holds the program source's name a declaration gives, or another holder's
     /// reservation does (accounts.md, 3.4).
     NameTaken,
+    /// The program source name remains reserved after its account is forgotten.
+    ProgramNameReserved,
     NotKept {
         why: crate::KeyFailure,
     },

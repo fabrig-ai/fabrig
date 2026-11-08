@@ -137,6 +137,7 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         )?),
         p::Refusal::Provider => w::Refusal::Provider,
         p::Refusal::NotOffered => w::Refusal::NotOffered,
+        p::Refusal::ProgramNameReserved => w::Refusal::ProgramNameReserved,
         p::Refusal::NoEscalationHolder => w::Refusal::NoEscalationHolder,
         p::Refusal::KeyConflict => w::Refusal::KeyConflict,
         // Only a made or amended task's refusal names a model, which the answer names by the
