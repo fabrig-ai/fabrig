@@ -1184,14 +1184,14 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-497",
         b"temper-reserved-498",
         b"temper-reserved-499",
-        b"temper-reserved-500",
-        b"temper-reserved-501",
-        b"temper-reserved-502",
-        b"temper-reserved-503",
-        b"temper-reserved-504",
-        b"temper-reserved-505",
-        b"temper-reserved-506",
-        b"temper-reserved-507",
+        b"temper-top",
+        b"temper-top-end",
+        b"temper-outside",
+        b"temper-outside-primary",
+        b"temper-outside-secondary",
+        b"temper-outside-acts",
+        b"temper-outside-quiet",
+        b"temper-approve-field",
         b"temper-reserved-508",
         b"temper-reserved-509",
         b"temper-reserved-510",
@@ -1652,6 +1652,23 @@ pub const TERMINAL_CHOICES: Style = Style { owner: owner(), token: 599 };
 pub const TERMINAL_CARD: Style = Style { owner: owner(), token: 600 };
 pub const TERMINAL_CARD_LINE: Style = Style { owner: owner(), token: 601 };
 pub const TERMINAL_DETAILS: Style = Style { owner: owner(), token: 602 };
+
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const TOP: Style = Style { owner: owner(), token: 500 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const TOP_END: Style = Style { owner: owner(), token: 501 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE: Style = Style { owner: owner(), token: 502 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE_PRIMARY: Style = Style { owner: owner(), token: 503 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE_SECONDARY: Style = Style { owner: owner(), token: 504 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE_ACTS: Style = Style { owner: owner(), token: 505 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE_QUIET: Style = Style { owner: owner(), token: 506 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const APPROVE_FIELD: Style = Style { owner: owner(), token: 507 };
 
 pub const APPROVE: Style = Style { owner: owner(), token: 603 };
 pub const APPROVE_CODE: Style = Style { owner: owner(), token: 604 };

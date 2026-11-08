@@ -218,20 +218,24 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
     use skein_ui::phrases::Hole;
     if root.client().link().state == jig_client::Link::SignedOut {
         match root.client().link().not_signed_in {
-            Some(NotSignedIn::Full { sign_ins, earliest, link_until }) => words.text(
+            Some(NotSignedIn::Full { sign_ins, earliest, link_until }) => crate::outside::words(
                 builder,
+                words,
                 Word::SignInFull,
                 &[Hole::Number(u64::from(sign_ins)), Hole::Wall(earliest), Hole::Wall(link_until)],
             ),
-            Some(NotSignedIn::Busy) => words.text(builder, Word::SignInBusy, &[]),
-            Some(NotSignedIn::LinkUsed) => words.text(builder, Word::SignInLinkUsed, &[]),
-            Some(NotSignedIn::LinkExpired) => words.text(builder, Word::SignInLinkExpired, &[]),
-            Some(NotSignedIn::LinkUnknown) => words.text(builder, Word::SignInLinkUnknown, &[]),
-            Some(NotSignedIn::NotReady) => words.text(builder, Word::SignInNotReady, &[]),
-            Some(NotSignedIn::Approval(_)) | None => words.text(builder, Word::SignedOutMain, &[]),
+            Some(NotSignedIn::Busy) => crate::outside::words(builder, words, Word::SignInBusy, &[]),
+            Some(NotSignedIn::LinkUsed) => crate::outside::words(builder, words, Word::SignInLinkUsed, &[]),
+            Some(NotSignedIn::LinkExpired) => crate::outside::words(builder, words, Word::SignInLinkExpired, &[]),
+            Some(NotSignedIn::LinkUnknown) => crate::outside::words(builder, words, Word::SignInLinkUnknown, &[]),
+            Some(NotSignedIn::NotReady) => crate::outside::words(builder, words, Word::SignInNotReady, &[]),
+            Some(NotSignedIn::Approval(_)) | None => match words.shell {
+                crate::words::Shell::Browser => crate::outside::words(builder, words, Word::SignedOutMain, &[]),
+                crate::words::Shell::Terminal => {}
+            },
         }
     } else {
-        words.text(builder, Word::OutOfDateMain, &[]);
+        crate::outside::words(builder, words, Word::OutOfDateHow, &[]);
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq)]

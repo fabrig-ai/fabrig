@@ -2906,19 +2906,13 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "signed-out",
-        heading: "",
-        parts: &[Part::Named {
-            role: Role::Paragraph,
-            name: "Signed out. To sign in, open a sign-in link temper printed.",
-        }],
+        heading: "Signed out",
+        parts: &[Part::Named { role: Role::Paragraph, name: "To sign in, open a sign-in link temper printed." }],
     },
     Holds {
         name: "out-of-date",
-        heading: "",
-        parts: &[Part::Named {
-            role: Role::Paragraph,
-            name: "This temper is out of date: run the temper the engine runs.",
-        }],
+        heading: "Out of date",
+        parts: &[Part::Named { role: Role::Paragraph, name: "Run the temper the engine runs." }],
     },
     Holds {
         name: "chats-empty",
@@ -3484,7 +3478,7 @@ fn print_writes_every_page_and_the_bundle() {
     let chats = fs::read_to_string(out.join("chats-solo.html")).expect("chats page");
     assert!(chats.contains("<title>Talk to an agent about robin/tally. · temper</title>"), "shell heading title");
     let signed_out = fs::read_to_string(out.join("signed-out.html")).expect("signed-out page");
-    assert!(signed_out.contains("<title>temper</title>"), "shell title without heading");
+    assert!(signed_out.contains("<title>Signed out · temper</title>"), "shell heading title");
     let mut expected = Vec::new();
     for path in STYLESHEETS {
         expected.push(Path::new(path).file_name().expect("stylesheet basename").to_str().expect("ASCII"));

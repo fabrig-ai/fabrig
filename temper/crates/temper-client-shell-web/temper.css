@@ -2925,6 +2925,56 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
   #app > .temper-rail > .temper-away-chip[aria-pressed=true] { border-color: var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); }
 }
 
+/* ==== ui: outside ==== */
+/* outside-pages: the frame and the column of every page outside a project, as the welcome's (01.html to 08.html); the rules of temper.css's old look they replace go. */
+:root:has(#app > .temper-top) {
+  --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
+  --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-signal-line: #f1d5bd;
+  --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
+  --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
+}
+:root:has(#app > .temper-top) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
+/* The top bar: temper's mark, and, signed in, the person and "Sign out". */
+.temper-top { display: flex; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 22px 32px; }
+.temper-top > .temper-brand { min-height: 34px; gap: 8px; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+.temper-top > .temper-brand::before { content: '✦'; width: auto; height: auto; background: none; color: var(--gf-signal); font-weight: 400; }
+.temper-top > .temper-brand::after { display: none; }
+.temper-top-end { display: flex; align-items: center; gap: 14px; min-width: 0; color: var(--gf-muted); font-size: 14px; white-space: nowrap; }
+.temper-top-end > [role=status] { overflow: hidden; text-overflow: ellipsis; }
+.temper-top-end > button { flex: none; min-height: 32px; padding: 4px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: none; color: var(--gf-ink); font: 500 14px/1.4 var(--gf-sans); }
+.temper-top-end > button:hover { background: var(--gf-hover); }
+/* The column: a heading, its words, then its acts. */
+.temper-outside { width: min(400px, calc(100% - 32px)); margin: 0 auto; padding: max(40px, 12vh) 0 80px; }
+.temper-outside h1 { margin: 0 0 8px; font: 600 28px/1.25 var(--gf-sans); letter-spacing: -.01em; color: var(--gf-ink); overflow-wrap: anywhere; }
+.temper-outside p { margin: 0 0 6px; color: var(--gf-muted); }
+.temper-outside-primary, .temper-outside-secondary { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 18px; border-radius: 9px; font: 500 15px/1.4 var(--gf-sans); text-decoration: none; cursor: pointer; }
+.temper-outside-primary { border: 1px solid var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); }
+.temper-outside-primary:hover { filter: brightness(1.18); }
+.temper-outside-secondary { border: 1px solid var(--gf-line-2); background: var(--gf-surface); color: var(--gf-ink); }
+.temper-outside-secondary:hover { background: var(--gf-hover); }
+.temper-outside > .temper-outside-primary { margin-top: 28px; }
+.temper-outside-acts { display: flex; gap: 10px; margin-top: 28px; }
+.temper-outside-acts > * { flex: 1 1 0; }
+.temper-outside .temper-outside-quiet { margin-top: 20px; text-align: center; font-size: 14px; }
+.temper-outside-quiet > a { color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+.temper-outside-quiet > a:hover { color: var(--gf-ink); }
+.temper-outside :is(a, button):focus-visible { outline: 2px solid var(--gf-signal); outline-offset: 3px; }
+/* A field and its act on one line, the field's name above. */
+.temper-outside form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 24px; }
+.temper-outside form > label { flex-basis: 100%; color: var(--gf-ink-2); font-size: 14px; font-weight: 500; }
+.temper-outside form > input { flex: 1 1 10em; min-width: 0; min-height: 44px; padding: 8px 14px; border: 1px solid var(--gf-line-2); border-radius: 9px; background: var(--gf-surface); color: var(--gf-ink); font: 15px/1.4 var(--gf-sans); box-shadow: none; }
+.temper-outside form > input:focus { outline: 2px solid var(--gf-signal-line); outline-offset: 0; border-color: var(--gf-signal); }
+.temper-outside form > button { flex: none; }
+.temper-outside form > [role=alert] { flex-basis: 100%; margin: 0; color: var(--temper-red); font-size: 13.5px; }
+/* A terminal's approval: its code large, in mono, on the surface. */
+.temper-outside form > .temper-approve-field { font: 500 18px/1.4 var(--gf-mono); letter-spacing: .14em; text-transform: uppercase; }
+.temper-outside .temper-approve-code { margin: 24px 0 14px; padding: 16px; border: 1px solid var(--gf-line-2); border-radius: 10px; background: var(--gf-surface); color: var(--gf-ink); font: 500 30px/1.25 var(--gf-mono); letter-spacing: .14em; text-align: center; }
+.temper-outside .temper-approve-asked { font-size: 14px; }
+@media (max-width: 760px) {
+  .temper-top { padding: 14px 16px; }
+  .temper-outside { padding-top: 32px; }
+}
+
 /* ==== ui: public ==== */
 :root:has(#app > .temper-public-page) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73; --gf-hint: #8a8a93;
