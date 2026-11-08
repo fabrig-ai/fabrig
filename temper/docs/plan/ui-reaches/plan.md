@@ -53,6 +53,17 @@ The client's tasks run one after another, since each writes the view's `words.rs
 - **Schema writers in sequence:** `reach-wire`, `decide-forge`, `keep-asking`, `ways-away` (`notes/common.md`), since generated code and goldens don't merge.
 - **Two tasks in one crate at once, on disjoint files or hunks:** `classes-kind` beside `decide-forge` (the wire's `lib.rs`: `settings_kind` against `SetAway`'s validation; smith's `calls.rs`: the settings enums against `decided`'s decoder; `temper-engine-domain`: reads and `see` against `SetAway` and the call's answer), and `classes-ways` beside `decide-forge` in `temper-service/src/tests/family.rs`, each on its own cases.
 
+- **The client's calls** (its designer's, in `temper/docs/design/client/README.md`):
+  - `decided` documents are held by the open page: Home its project's, a filtered Needs you its project's, the unfiltered Needs you at most four projects, the shown card's first, a count past that marked "+" (an open question of section 11, default four).
+  - Home's "While you were away" form only while Away is on or ended less than a day ago; otherwise its everyday intro with the Decided for you region.
+  - Each decided row says what allowed it, "Allowed: …", from its reach, beside the agent's own why.
+  - A need with no asked row says it was asked of the person directly; proposals, held tasks and funds take fixed lines; a question's card waits for its project's document so the line never moves its choices.
+  - Stop asking: an owner applies it in one press; anyone else proposes it as their own, a proposal of settings, which jig today leaves to the deployment's owners.
+  - Settings' Away section: a ticked item is one Away may decide, unticked it asks even when away; it shows on You approve's table too, so an owner can turn Away on there.
+  - **A visible change:** a project with no kind 8 has Agents review's table, which Away may decide, so the switch now shows on every such project; `away-client` re-records the journeys.
+  - Start goal's choice reads "As the project says" or "Always ask"; the Overturn toast "Overturned: it asks you again, under Needs you."
+- **The TUI** draws needs as summary lines and no Decided rows, Away or Settings; its reason line is temper/tui's with T1, a **Not yet** in `temper/docs/design/client/README.status.md`, the reason being a domain function every shell can call.
+
 ## Overlaps with drafts beside this one
 
 - **`temper/docs/design/protocol/configuration.status.md`** is also `ignored-engine/restore-stories`': this cut adds its entries at the file's head, far from that task's 13.2 entry.
