@@ -199,6 +199,8 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     d::Value::Ways(d::ProjectWays { drafts, goals, changes, away, way })
                 }
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
+                // A project's classes' value has no forge value yet (temper/docs/design/protocol/configuration.md, 13.2).
+                w::SettingValue::Classes(_) => return Err(Undecodable),
             };
             d::Edit::Set(d::SizedValue { value, size })
         }
