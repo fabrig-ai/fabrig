@@ -27,7 +27,7 @@ Acceptance:
   `ForgeReadAnswer::View` is encoded as `ViewAnswer`.
 - `route.rs`: `Delivery::Ways` is delivered as the forge family's record
   `WaysPanel`, as `Delivery::Approvals` is.
-- One translation of a path, `ways::Path` to the wire's `Path`, shared by
+- One translation of a path, `ways::Path` to the wire's `BranchPath`, shared by
   both: each stop's actor, step, words, opens and card; a way's `items`
   as `ProposalItem`s, `Set` encoded by `temper_engine_smith::kinds::encode`
   as `forge_read`'s `ProposalItems` arm encodes its values, `Remove` as
@@ -43,7 +43,7 @@ Acceptance:
   wire's ceilings fits one decision's delivery, as the changes panel's
   test does (`:3062`).
 - `temper/docs/design/client/README.status.md`: the sentence "4.6: the
-  records `Path`, `WaysPanel` and `ViewAnswer`, the subject `ways` and the
+  records `BranchPath`, `WaysPanel` and `ViewAnswer`, the subject `ways` and the
   read `View`." leaves its **Not yet**, the rest staying.
 
 ## Inputs
