@@ -68,3 +68,13 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: each rule changed or added with its selector and place, the room left for the tabs and the bar, the reading of acceptance 4 by page and width, the options taken, any oracle repaired, the runs' counts, and the account as committed.
+
+## Rebase (2026-11-08, step merge, foreman look-round-20/tabs-and-switch/foreman-1)
+
+resolve browser.status.md by preserving both tasks’ completed-gap deletions
+The merge conflicts in `temper/docs/design/client/browser.status.md`.
+Integration commit `cf6f1ddaf9` merged `54abccf18f` (“Keep each shadow's day colour at night”), deleting the `night-shadows` Not yet entry.
+Task commit `9d01503711` deletes the adjacent `tabs-and-switch` Not yet entry.
+Resolve the conflict with both entries absent; retain the following `begin-sections` entry and all other status text.
+Preserve both branches’ CSS changes: the night-shadow override removals and this task’s tabs and switch rules. The log reports CSS auto-merged without conflict.
+Keep this task’s `README.status.md` deletion of the `tabs-and-switch` entry.
