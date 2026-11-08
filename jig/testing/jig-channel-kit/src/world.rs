@@ -51,6 +51,8 @@ pub struct Outcome {
     pub refusal: Option<u16>,
     pub reset_injected: bool,
     pub adopting_hellos: u32,
+    pub hellos: u32,
+    pub cuts: u32,
     pub agent_starts: u32,
     pub activity_seen: bool,
     pub text_bytes: usize,
@@ -105,13 +107,15 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     }
     let store = Rc::new(RefCell::new(Store::new()));
     let views = Rc::new(RefCell::new(Views::default()));
-    let referee = make_referee(
+    let cut_ready = Rc::new(std::cell::Cell::new(0));
+    let mut referee = make_referee(
         &script,
         settings.roots_every_step,
         store.clone(),
         views.clone(),
         matches!(script.story, crate::stories::Story::DurableRestart) && before_cut.is_none(),
     );
+    referee.cut_ready = cut_ready.clone();
     let mut machine = skein_fake_machine::Machine::new();
     let _store_root = machine.lay(&[]);
     let client_root = machine.lay(&[]);
@@ -133,22 +137,30 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     let scenario = script.story;
     drop(script);
     let mut reset_injected = false;
+    let mut cuts = 0;
     let settled = harness.run_with_faults(|at, _, submissions| {
-        let reset = !reset_injected && (matches!(scenario, crate::stories::Story::MidFrame) && at == 0
+        let reset_once = !reset_injected && (matches!(scenario, crate::stories::Story::MidFrame) && at == 0
             && submissions.iter().any(|submission| matches!(&submission.kind,
                 skein_io::kernel::Op::Send { bytes, from, .. }
                 if *from > 8 && bytes.len() >= 8 && skein_channel::parse_header(&bytes[..8]).is_ok_and(|head| head.kind == 0x0180))) || matches!(scenario, crate::stories::Story::Reconnect) && at == 1 && submissions.iter().any(|submission| matches!(&submission.kind, skein_io::kernel::Op::Send { bytes, .. } if bytes.len() >= 8 && skein_channel::parse_header(&bytes[..8]).is_ok_and(|head| head.kind == 0x0104))));
+        let cut = matches!(scenario, crate::stories::Story::Cuts { times } if cuts < times)
+            && at == 1 && submissions.iter().any(|submission| matches!(&submission.kind,
+                skein_io::kernel::Op::Recv { .. }));
+        // The referee arms the next cut only after the engine has received the hello.
+        let cut = cut && cuts < cut_ready.get();
+        let reset = reset_once || cut;
+        if cut { cuts += 1; }
         if reset { reset_injected = true; }
         Some(skein_sim::Faults { reset: if reset { 1000 } else { 0 }, ..settings.config.faults })
     });
     crate::referee::roots_at_end(&settled.procs);
     (
-        outcome(&settled.procs, &store.borrow(), &views.borrow(), reset_injected, settled.killed.len()),
+        outcome(&settled.procs, &store.borrow(), &views.borrow(), reset_injected, cuts, settled.killed.len()),
         views.borrow().refusal_message_submissions,
     )
 }
 
-fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, killed: usize) -> Outcome {
+fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, cuts: u32, killed: usize) -> Outcome {
     let worker = procs.iter().find_map(|proc| match proc {
         Proc::Worker(host) => Some(&host.wire),
         Proc::Probe(peer) => Some(&peer.wire),
@@ -221,6 +233,8 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, k
         }),
         refusal,
         reset_injected,
+        cuts,
+        hellos: procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e.wire.hellos) } else { None }).unwrap_or(0),
         adopting_hellos: worker.map_or(0, |wire| wire.adopting_hellos),
         agent_starts: u32::try_from(killed + procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count()).expect("agent count"),
         messages_ended: u32::try_from(views.messages_ended).expect("bounded messages"),
@@ -499,6 +513,7 @@ fn make_referee(
     crate::referee::Referee {
         calibrating_held_turn,
         store,
+        cut_ready: Rc::new(std::cell::Cell::new(0)),
         accounts: crate::account_setup::Setup::default(),
         party: parties::Party::new(1, parties::Role::Owner, 100, fixtures::party_script(script)),
         period: false,
@@ -509,7 +524,8 @@ fn make_referee(
         expected_turns: match script.story {
             crate::stories::Story::InvalidCharter
             | crate::stories::Story::BeyondGrace
-            | crate::stories::Story::Shutdown => 0,
+            | crate::stories::Story::Shutdown
+            | crate::stories::Story::Cuts { .. } => 0,
             crate::stories::Story::Input => 1,
             crate::stories::Story::Window => 7,
             crate::stories::Story::Facts | crate::stories::Story::InvalidTranscript => 2,
@@ -606,6 +622,7 @@ fn launch(
     if !matches!(
         script.story,
         crate::stories::Story::Opening(_)
+            | crate::stories::Story::Cuts { .. }
             | crate::stories::Story::Stalled
             | crate::stories::Story::Quiet
             | crate::stories::Story::Replaced

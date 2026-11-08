@@ -47,6 +47,7 @@ impl RootChecks {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent party, injection and settlement controls")]
 pub struct Referee {
+    pub(crate) cut_ready: Rc<std::cell::Cell<u32>>,
     pub(crate) accounts: crate::account_setup::Setup,
     /// Owned outside every engine process, so restart cannot drop durable rows.
     pub(crate) store: Rc<RefCell<Store>>,
@@ -271,8 +272,9 @@ impl skein_world::Referee<Proc> for Referee {
     fn overdue(&self, now: Time) -> Option<String> {
         (!self.passed && now >= Time::from_nanos(300_000_000_000)).then(|| {
             format!(
-                "story {:?} completes; replies {:?}, durable turns {}, rules {:?}",
+                "story {:?} completes; received hellos {}; replies {:?}, durable turns {}, rules {:?}",
                 self.story,
+                self.cut_ready.get(),
                 self.party.replies,
                 turns(&self.store.borrow()).len(),
                 self.rules
@@ -651,6 +653,7 @@ impl Referee {
             | crate::stories::Story::Stalled
             | crate::stories::Story::Quiet
             | crate::stories::Story::Replaced
+            | crate::stories::Story::Cuts { .. }
             | crate::stories::Story::Reconnect
             | crate::stories::Story::Shutdown
             | crate::stories::Story::Drain
@@ -703,6 +706,14 @@ impl Referee {
 
 impl Referee {
     fn observe_probe(&mut self, procs: &[Proc]) -> bool {
+        if let crate::stories::Story::Cuts { times } = self.story {
+            let engine =
+                procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e) } else { None }).expect("engine");
+            self.cut_ready.set(engine.wire.hellos);
+            self.passed = engine.wire.hellos == times + 1;
+            assert!(engine.wire.placements.is_empty(), "cuts host no run");
+            return true;
+        }
         if let crate::stories::Story::Opening(case) = self.story {
             let probe = procs
                 .iter()
