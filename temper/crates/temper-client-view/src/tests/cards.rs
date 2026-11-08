@@ -391,7 +391,7 @@ use temper_client_domain::{self as d, Action, Event, pages::Act};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 const SETTINGS_KEY: c::ProposalKey = fixtures::chat::PROPOSAL;
 const SETTINGS_REASON: &[u8] = b"I work alone\nKeep drafts beside the code";
-const SETTINGS_KINDS: [(c::Setting, &[u8]); 11] = [
+const SETTINGS_KINDS: [(c::Setting, &[u8]); 13] = [
     (c::Setting::Charter(c::SettingNumber { number: 2 }), b"charter 2"),
     (c::Setting::Template(c::SettingNumber { number: 40 }), b"template 40"),
     (c::Setting::Policy(c::SettingNumber { number: 1 }), b"policy 1"),
@@ -403,6 +403,8 @@ const SETTINGS_KINDS: [(c::Setting, &[u8]); 11] = [
     (c::Setting::Application { kind: 6, scope: fixtures::PROJECT, number: 1 }, b"project-questions 1"),
     (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, b"project-ways 1"),
     (c::Setting::Application { kind: 5, scope: 7, number: 3 }, b"application kind 5, 7, 3"),
+    (c::Setting::Application { kind: 9, scope: 0, number: 4 }, b"charter-words 4"),
+    (c::Setting::Application { kind: 10, scope: fixtures::PROJECT, number: 1 }, b"project-words 1"),
 ];
 fn settings_page(items: &[(c::Setting, c::RevisionItemEdit)], accept: bool) -> c::ReadValue {
     let c::ReadValue::Proposal(mut p) = batch_proposal() else { panic!("proposal") };

@@ -255,7 +255,10 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
             world.act(person, tab, skein_ui::Act::Press);
             settle(&mut world);
             let nodes = world.tree(person).nodes();
-            assert!(named(nodes, Role::Heading { level: 1 }, b"Agents review"), "heading names the current way");
+            assert!(
+                named(nodes, Role::Heading { level: 1 }, b"Agents review every change, and code lands it"),
+                "heading says the current way's headline"
+            );
             let tab = u32::try_from(index).expect("tab index");
             assert_eq!(page(&world, person).shown(), Some(tab), "pressed tab is shown");
             let path = panel(&world, person).ways().get(tab).expect("read's way").path();
