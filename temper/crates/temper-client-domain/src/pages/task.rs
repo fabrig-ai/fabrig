@@ -841,7 +841,7 @@ impl Task {
     }
     pub(crate) fn told(&mut self, now: Time, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
         if let Some(goal) = &mut self.goal
-            && goal.told(&told, out)
+            && goal.told(now, client, &told, out)
         {
             return true;
         }
@@ -979,6 +979,9 @@ impl Task {
             read(self.document, c::Read::Task { task: self.number }, out);
         }
         self.asking.fire(now, self.activity, out);
+        if let Some(goal) = &mut self.goal {
+            goal.fire(now, out);
+        }
     }
     #[must_use]
     pub(crate) const fn next_deadline(&self) -> Option<Time> {
@@ -986,7 +989,11 @@ impl Task {
             DocumentRead::Ended { retry_at, .. } => retry_at,
             DocumentRead::Reading | DocumentRead::Ready => None,
         };
-        super::activity::earliest(document, self.asking.next_deadline())
+        let goal = match &self.goal {
+            Some(goal) => goal.next_deadline(),
+            None => None,
+        };
+        super::activity::earliest(super::activity::earliest(document, self.asking.next_deadline()), goal)
     }
     fn activity_page(&mut self, now: Time, client: &Client, page: Readout, out: &mut Queue<Request>) {
         let why = super::activity::read_end(client, &page);

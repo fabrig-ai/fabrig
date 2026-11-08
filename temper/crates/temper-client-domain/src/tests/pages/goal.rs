@@ -906,16 +906,52 @@ fn a_cut_specification_reads_its_provenance() {
     const LAST: &[u8] = b"away.md\nChat: T4";
     let total = skein_lib::len_u64(FIRST.len() + LAST.len());
     let offset = skein_lib::len_u64(FIRST.len());
-    let mut h = Harness::new(cut_specification());
-    let (handle, from) =
-        source_read(&h.take()).expect("cut goal words need their source before finding Draft: and Chat: lines");
-    assert_eq!(from, 0);
-    h.answer(handle, source(0, total, Some(offset), FIRST));
-    assert_eq!(h.goal().draft, (None, None), "a partial line is not provenance");
-    assert_eq!(source_read(&h.take()), Some((handle, offset)));
-    h.answer(handle, source(offset, total, None, LAST));
-    assert_eq!(h.goal().draft, (Some(Box::from(b"away.md".as_slice())), Some(4)));
-    assert_eq!(source_read(&h.take()), None);
+    for failure in [
+        None,
+        Some((0, c::ReadNone::Unreachable)),
+        Some((offset, c::ReadNone::Unreachable)),
+        Some((offset, c::ReadNone::Busy)),
+    ] {
+        let mut h = Harness::new(cut_specification());
+        let (handle, from) =
+            source_read(&h.take()).expect("cut goal words need their source before finding Draft: and Chat: lines");
+        assert_eq!(from, 0);
+        for (from, next, text) in [(0, Some(offset), FIRST), (offset, None, LAST)] {
+            if let Some((failed_at, why)) = failure
+                && failed_at == from
+            {
+                retry_source(&mut h, handle, from, why);
+            }
+            h.answer(handle, source(from, total, next, text));
+            if let Some(next) = next {
+                assert_eq!(h.goal().draft, (None, None), "a partial line is not provenance");
+                assert_eq!(source_read(&h.take()), Some((handle, next)));
+            }
+        }
+        assert_eq!(h.goal().draft, (Some(Box::from(b"away.md".as_slice())), Some(4)));
+        assert_eq!(source_read(&h.take()), None);
+        assert_eq!(pages::next_deadline(&h.pages), None, "a completed source stops retrying");
+    }
+}
+
+fn retry_source(h: &mut Harness, handle: Handle, from: u64, why: c::ReadNone) {
+    let mut env = fixtures::env(&fixtures::limits());
+    for seconds in [1, 2] {
+        pages::step(
+            &mut h.pages,
+            &env,
+            &h.fixture.client,
+            Event::Told { told: Told::Page { handle, page: Readout::Jig(c::ReadResult::None(why)) } },
+            &mut h.out,
+        );
+        let due = env.now.saturating_add(Duration::from_secs(seconds));
+        assert_eq!(pages::next_deadline(&h.pages), Some(due), "a transient source failure is retried with backoff");
+        pages::fire(&mut h.pages, &env, &h.fixture.client, &mut h.out);
+        assert_eq!(source_read(&h.take()), None, "no early retry");
+        env.now = due;
+        pages::fire(&mut h.pages, &env, &h.fixture.client, &mut h.out);
+        assert_eq!(source_read(&h.take()), Some((handle, from)), "resume the same source chunk");
+    }
 }
 
 #[test]
