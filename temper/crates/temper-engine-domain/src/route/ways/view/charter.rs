@@ -36,7 +36,10 @@ pub(super) fn draw(domain: &Domain, project: u32, party: u64, number: u32) -> wa
                 fact(b"Models", &models(domain, charter)),
                 fact(b"Can", ways::can(policy.inspect, policy.modify, policy.shell, policy.agents)),
                 fact(b"Wakes", &wakes(charter.wake)),
-                fact(b"Asked to", ways::first_sentence(&policy.instructions)),
+                ways::Fact {
+                    label: b"Asked to".as_slice().into(),
+                    value: ways::first_sentence(&policy.instructions, ways::ASKED),
+                },
             ]),
         },
     }

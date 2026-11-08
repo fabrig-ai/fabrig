@@ -404,6 +404,9 @@ fn facts(values: &[(&str, &str)]) -> Box<[Fact]> {
 #[expect(clippy::too_many_lines, reason = "one table checks cards and their bounds")]
 fn cards_open_the_setting_and_stay_within_the_bounds() {
     let review = inputs(1, true, true, Way::Queue, false);
+    let mut stock_review = review.clone();
+    let reviewer_sentence = "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.";
+    stock_review.agents.get_mut(1).unwrap().asked = reviewer_sentence.as_bytes().into();
     let approved = inputs(0, false, false, Way::Queue, false);
     let mut deployment = review.clone();
     deployment.rules.first_mut().unwrap().scope = 0;
@@ -419,6 +422,21 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     no_account.agents.get_mut(1).unwrap().usable = false;
     let turn = inputs(0, true, false, Way::Turn, true);
     let rows = [
+        (
+            &stock_review,
+            Step::Review,
+            Opens::Gate { number: 1, charter: review.reviewer },
+            "an agent · holds a change until it approves",
+            "the reviewer",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge or update"),
+                (
+                    "Asked to",
+                    "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.”",
+                ),
+            ]),
+        ),
         (
             &review,
             Step::Review,
@@ -523,7 +541,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         assert_eq!(stop.opens, opens);
         assert_eq!(stop.card, Card { who: who.as_bytes().into(), name: name.as_bytes().into(), facts });
     }
-    for length in [0, WORDS, VALUE, VALUE + 7] {
+    for length in [0, WORDS, VALUE, VALUE + 7, ASKED, ASKED + 7] {
         let mut inputs = inputs(0, true, true, Way::Queue, false);
         inputs.branch = "é".repeat(length).into_bytes().into();
         for role in &mut inputs.roles {
@@ -540,6 +558,19 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             (0..40).map(|number| RuleGate { number, blocking: true, freshness: JudgeFreshness::Exact }).collect();
         let path = derive(&inputs);
         bounds(&path);
+        for stop in &path.stops {
+            for fact in &stop.card.facts {
+                if fact.label.as_ref() == b"Asked to" {
+                    assert!(fact.value.len() <= ASKED);
+                    if inputs.branch.len() > ASKED - "“”".len() {
+                        assert!(
+                            fact.value.ends_with("…”".as_bytes()),
+                            "overlong instructions carry an ellipsis inside quotes"
+                        );
+                    }
+                }
+            }
+        }
         if length > 0 {
             assert_eq!(path.stops.len(), STOPS);
             assert_eq!(path.stops.last().unwrap().words.as_ref(), skein_lib::bytes::utf8_prefix(&inputs.branch, WORDS));
@@ -551,7 +582,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     agent.effort = None;
     let path = derive(&long_model);
     let model = find(&path, Step::Produce).card.facts.first().unwrap();
-    assert_eq!(model.value.as_ref(), ("x".to_owned() + &"€".repeat(42)).as_bytes());
+    assert_eq!(model.value.as_ref(), ("x".to_owned() + &"€".repeat(41) + "…").as_bytes());
     let mut invalid = inputs(1, true, true, Way::Queue, false);
     invalid.branch = [0x80; 400].into();
     invalid.agents.get_mut(1).unwrap().asked = [0x80; 400].into();

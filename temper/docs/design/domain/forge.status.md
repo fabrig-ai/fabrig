@@ -2,8 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Not yet:** 8.13, *A stop's card*: an agent's "Asked to" is cut at 128 bytes, then 122 inside its quotes, mid-word and with no "…" (`look-round-24`, `asked-sentence`).
-
 - **Not yet:** 8.13, *CI's card*: its fact says "the repository's CI, at the change's head", naming neither the required checks nor the workflows (`look-round-24`, `ci-workflows`).
 
 Section 8.9 has no known implementation gap in every-project given
