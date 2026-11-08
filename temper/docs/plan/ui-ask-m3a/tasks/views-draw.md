@@ -96,3 +96,16 @@ Acceptance:
 
 As the implementer's text asks; name the gallery samples and any
 regenerated print or golden.
+
+## Rebase (2026-11-08, step merge, foreman ui-ask-m3a/views-draw/foreman-1)
+
+resolve the client status conflict by retaining the stock-way update and removing the 5.16 gap.
+Rebase onto the landing target; the sole conflicting path is `temper/docs/design/client/README.status.md`.
+Commit `50b3a88fed` changed the final **Not yet** paragraph’s 5.13 wording; `83d457f228` removed its adjacent 5.16 sentence.
+Combine both changes so that paragraph reads:
+```markdown
+- **Not yet:** 4.6: the records `BranchPath`, `WaysPanel` and `ViewAnswer`, the
+  subject `ways` and the read `View`. 5.13, *A way's acts*: a way's
+  `delegation` adds no policy item.
+```
+Preserve the landing target’s other status updates and the automatically merged CSS and gallery changes.
