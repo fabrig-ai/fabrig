@@ -182,6 +182,13 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Typing marks nothing:** a key whose event is `Typed` marks no
   frame; any other key with an event marks the frame as drawn before it
   (3.4). A key with no event marks nothing.
+- **The events' prints,** `temper_client_tui::Event`'s, with their fields'
+  own `Debug` forms (`../README.md`, 6.13, *The TUI's events*): `Typed {
+  value: [104, 105] }`, for the link's field and the box alike;
+  `SignIn`; `Send`; `Command { command: Help }`; `Act { act: Choice(Model
+  { index: 0, account: Some(3) }) }`, the root's act; `Aside { object: Task(9)
+  }`; `Dismiss`. The record holds them as bytes, with no record kind of
+  their own (3.2, `key`), and a replay compares them as it finds them.
 - **The mark and save keys,** in either form, never reach the host while
   recording: a mark is kept in its own turn; a save writes the recording
   with its end mark, keeping no key record (3.1). Without a recording,

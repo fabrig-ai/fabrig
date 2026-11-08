@@ -20,3 +20,6 @@ tree. Section 10 keeps the deferred rendering and input work.
   `follow`, where today they move it by nine rows.
 - **Not yet:** 3 and 5.4: `label` on a token's look, a text field or
   area laid with no name.
+- **Not yet:** 3 and 5.3: `mark`, `described` and `spaced` on a token's
+  look: an item's mark, a description's own paint, one blank row
+  between children.

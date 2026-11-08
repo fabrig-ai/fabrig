@@ -201,11 +201,19 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
 - **`temper-client-tui`** holds, as modules: `state`, the TUI's own
   state beside the client root (6.14); `event`, what its view makes of a
   person's acts; `words`, its own phrases; `view`, its pages as
-  skein-ui's tree; `look`, its owner and the names of its regions and
-  tokens; `theme`, its two themes (6.15); and `limits`, its tree's. It
-  depends on `skein-ui`, `skein-ui-screen`, skein-lib, `jig-client`,
-  `temper-client-domain` and `temper-client-view`, whose words it says
-  where it says what the view says (6.14), and links no io.
+  skein-ui's tree, with a module of its own for each part of a screen
+  (`view::launchpad`, `view::foot`, `view::chat`); `look`, its owner and
+  the names of its regions and tokens; `theme`, its two themes (6.15);
+  and `limits`, its tree's. It depends on `skein-ui`, `skein-ui-screen`,
+  skein-lib, `jig-client`, `temper-client-domain` and
+  `temper-client-view`, whose words it says where it says what the view
+  says, through the view's shared surface, `temper_client_view::shared`
+  (6.14), and links no io.
+- **`temper_client_view::shared`** is what the browser's terminal says
+  that the TUI says too, as words and data with no tree: functions of
+  the root and the view's words, each one the browser's view itself
+  builds from, so that the two say the same thing alike (6.14, *Its
+  words*). The view's builders and bindings stay its own.
 - **`temper-client-shell-tui`** holds, as modules: `host`, the TUI's
   one seam (6.13); `run`, its loop (6.16); and `limits`, the client's
   from `temper-client-shell-terminal`'s with the TUI's view and screen
@@ -578,12 +586,40 @@ keeps (`../protocol/configuration.md`, section 2).
       `Edit` "edited N files" and `remove` "removed N files", each its
       distinct arguments, a call whose input can't be read one; `search`
       and `Grep` are "searched the files N×", once "searched the files";
-      `shell` and `Bash` are "ran N commands", each call one. Any other
+      `shell` and `Bash` are "ran N commands", each call one; `see`, Ask
+      temper's read (`../draft/ask-temper.md`, 5.1), is a phrase for each
+      first word of its address, in the order first called, as the table
+      below has it. Any other
       tool is its name, counted: "read_file ×2", once "read_file". A run of
       one call alone says what it touched: "Read the page hold", "Searched
       the docs for WORDS", "Checked template 2", "Read src/main.rs",
       "Searched for WORDS", "Ran cargo test", its counted phrase where the
-      input can't be read ("Read 1 file"); any other tool still its name;
+      input can't be read ("Read 1 file"); any other tool still its name.
+      `see`'s phrases, each first word of its address (the input's first
+      text member) a phrase of its own, as if a tool of its own; "N×"
+      once is no count; another first word, or an address that can't be
+      read, is `see`'s name, counted, "see ×2":
+
+      | First word | Counted | One call alone | Under way |
+      |---|---|---|---|
+      | `changes` | "listed changes", N× | "Listed changes" | "listing changes" |
+      | `change` | "read N changes", its distinct numbers | "Read change N" | "reading change N" |
+      | `tasks` | "listed tasks", N× | "Listed tasks" | "listing tasks" |
+      | `task` | "read N tasks", its distinct numbers | "Read task N" | "reading task N" |
+      | `goals` | "listed goals", N× | "Listed goals" | "listing goals" |
+      | `inbox` | "checked the inbox", N× | "Checked the inbox" | "checking the inbox" |
+      | `me` | "checked your role", N× | "Checked your role" | "checking your role" |
+      | `project` | "read the project", N× | "Read the project" | "reading the project" |
+      | `settings` | "checked settings", N× | "Checked settings" | "checking settings" |
+      | `ways` | "read the ways", N× | "Read the ways" | "reading the ways" |
+      | `revisions`, `revision` | "read the history", N× | "Read the history" | "reading the history" |
+      | `proposal` | "read N proposals", its distinct addresses | "Read proposal ID" | "reading proposal ID" |
+      | `help` | "read N docs", each page and each search one | "Read the page NAME", "Searched the docs for WORDS", "Read the docs" | "reading NAME", "searching the docs for WORDS" |
+      | `file` | "read N files", its distinct paths | "Read PATH" | "reading PATH" |
+      | `more` | no phrase of its own where the run has another `see`; else "read on", N× | "Read on" | "reading on" |
+
+      So `see changes` then `see change 1`, `2` and `3` read "Listed
+      changes, read 3 changes";
     - *its description,* faint: the time the run took, then nothing else.
       "29 s", under a minute in whole seconds, then "4 min": from the
       line before the run's first turn to the run's last turn. A committed
@@ -2161,6 +2197,20 @@ keeps (`../protocol/configuration.md`, section 2).
   each line one readable run of words; the kicker, the headline and the
   lede read as one run of words, the foot is a paragraph, and a question's
   choices print as buttons.
+
+  **In the TUI** (6.14, *The launchpad*), Home is the root's page under
+  the launchpad, its look the terminal's (6.13, *The look*), and its
+  composer, which no browser draws, asks Ask temper, as `Ask { project }`'s
+  does (*Ask temper's page*, below): `Act::ChatWords` writes Home's
+  composer words; while Home is open the picker's choice is refreshed
+  against template 5's `resolved_default`, as on `Ask`; `Act::StartChat`
+  starts a new Ask temper chat in the project through the chats' Ask
+  start, always a new one, with the choice made, and its chat's page
+  opens as `Ask`'s does; and a send's words that begin with "/" and hold
+  no white space are the terminal's (*A chat's terminal*, *Commands*)
+  where the look is the terminal's, as on the pages it draws. The
+  browser's Home sends neither `ChatWords` nor `StartChat` and draws no
+  picker, so it is unmoved.
 - **Needs you** (the user's greenfield mock's `needs.html`; `needsPage`):
   `Inbox { filter }` in the browser, its address and its filters as they
   were (`browser.md`, 2.3). It draws one card at a time: no level-1
@@ -6529,8 +6579,9 @@ The TUI (`../draft/tui.md`) is a person's full-screen terminal client:
 temper's client root, a view of its own and skein's full-screen shell
 (skein's `ui-screen.md`), over the native transport `temper open` uses.
 Its first pass (`../draft/tui.md`, section 4) signs in by the box's
-printed link, pasted, and draws a first screen that proves the
-connection, live (6.14). `temper open` stays the tests' line client
+printed link, pasted, or approved by a browser (7.1); once signed in it
+draws, live, a launchpad, the commands of the browser's chat terminal
+and a chat read as that terminal reads it (6.14). `temper open` stays the tests' line client
 (6.9).
 
 - **Bare `temper`** runs the TUI when stdin and stdout are both
@@ -6733,7 +6784,7 @@ connection, live (6.14). `temper open` stays the tests' line client
   ended (6.14) is a duty to note `SignedOut`, once.
 - **The credential:** after each report the host reads it from
   `jig-client`'s `link()`, through the root. One that differs from the
-  one kept is a duty to keep it, before the first screen is drawn on it;
+  one kept is a duty to keep it, before the launchpad is drawn on it;
   none, while the link is signed out by any means (a sign-out
   elsewhere, a sign-in ended, a held credential the engine does not
   know), is a duty to erase it. A sign-in kept by the engine leaves the
@@ -6742,13 +6793,61 @@ connection, live (6.14). `temper open` stays the tests' line client
   6.2) on the tree and the focus the last frame laid, so that a key
   acts on what the person saw: an act on a node becomes the TUI's event
   through its view, if the view names one (6.14); the focus moved draws
-  again; Ctrl+C closes. `Host::event_of` gives the event a key would
-  make, without giving it.
+  again; Ctrl+C closes. Escape, which no node of the TUI's names, makes
+  the event the view says while it draws a list, `Dismiss` on a
+  command's list and `Aside` on the chat's question, and nothing
+  otherwise (`temper_client_tui::escape`). `Host::event_of` gives the event a key
+  would make, without giving it.
 - **The frame:** `Host::frame` lays the view's tree with skein's
-  renderer at the window's size, in the start's theme, with the host's
-  focus (skein's `ui-screen.md`, section 5). After each report the
-  host has already built its view from the root and the TUI's state,
-  so `Host::tree` is the tree the next key reads.
+  renderer at the window's size, in the theme of the scheme the root's
+  look names (*The look*, below), with the host's focus (skein's
+  `ui-screen.md`, section 5). After each report the host has already
+  built its view from the root and the TUI's state, so `Host::tree` is
+  the tree the next key reads.
+- **Its pages:** the root starts at `Inbox { filter: ALL }`, as `temper
+  open`'s does, and the host moves it:
+  - *to the launchpad,* `Went(Home { project })`, the first of `me`'s
+    projects in `me`'s order, after the report in which the link is live
+    with `me` read and naming a project while the root is still at its
+    start's address; until then, and while `me` names none, the root
+    stays there and the TUI draws the launchpad with no project (6.14);
+  - *where the root asks:* a `Request::Show` or a replacing one, a chat
+    started, a chat chosen from `/chats`, is followed at once as `Went`
+    to that address, as the browser's host follows it, within the same
+    report; an address the TUI draws no page for, `Ask { project }` after
+    Start over among them, is followed to `Home` of its project, or of
+    the root's;
+  - *by `/new`:* `Went(Home { project })`, the root's project.
+  Every other duty of the root's but its requests to the native shell,
+  `KeepLook` and `Screen` among them, is the browser's and is dropped,
+  as `temper open` drops them.
+- **The look:** right after `Start` the host gives the root `Event::LookKept
+  { look: Look { terminal: true, theme, font: Font::DejaVu } }`, `theme`
+  the start's scheme, so that the root's terminal machinery is the TUI's
+  as a browser's chat terminal's is (3.5, *A chat's terminal*): commands
+  sent whole, the lists they open, the notes, a confirmation as a list,
+  a chat's question read while it waits on the person. After each
+  report, a theme of the root's look other than the one drawn is the
+  theme drawn from then on (6.15).
+- **The TUI's events** and what the host does with each, by screen (6.14):
+
+  | Event | Does |
+  |---|---|
+  | `Typed { value }` | signing in: the link's field, as before; on the launchpad `Act::ChatWords { words }`, on a chat `Act::MessageWords { words }` |
+  | `SignIn` | signing in's Enter, as before |
+  | `Send` | the box's Enter (6.14, *The box*): words that begin a command the TUI offers press it, as `Command`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's note; the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
+  | `Command { command }` | `Exit` closes (6.16); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
+  | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose` |
+  | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (6.14) |
+  | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)` |
+
+  A key that makes `Act`, `Command`, `Aside` or `Dismiss` marks the frame
+  it acts on in a recording, and typing marks none (`tui/journeys.md`,
+  3.3).
+- **The seam keeps its shape:** `Start`, `Report` and `Duties` gain no
+  field. Following a `Show`, the look, `/theme`, `/new` and `/exit` are
+  the host's own steps on the root and the TUI's state, and closing is
+  the duty `close` it has; nothing new crosses to the run.
 - **Shaped for the recording now:** a recording is the start's facts,
   then turn by turn the clocks, each report with its duties, each key
   with its event, and a mark for each frame the person saw; a replay
@@ -6759,33 +6858,54 @@ connection, live (6.14). `temper open` stays the tests' line client
 
 ### 6.14 Its pages
 
-Two screens, each a tree of the TUI's view, built from the root's link
-and `me` and the TUI's own state: signing in, while the link is signed
-out, and the first screen once signed in, or while the TUI signs in from
-the engine's link (below). Each has a framed top, the
+Three screens, each a tree of the TUI's view, built from the root and
+the TUI's own state: signing in, while the link is signed out; once
+signed in, or while the TUI signs in from the engine's link (below), the
+launchpad, the root at `Home { project }`; and a chat, the root at
+`Chat { task }` (6.13, *Its pages*). Signing in has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
-`tui-bottom`, spread: what closes the TUI, and the link's state. Their
-frames are illustrative: their words and look are refined on the
-recording (`../draft/tui.md`, section 5).
+`tui-bottom`, spread: what closes the TUI, and the link's state. The
+launchpad and a chat share their foot: the box, and under it the quiet
+line or a list (*The foot*, below). The launchpad and a chat are drawn
+from the user's hand-made frames of the look request `tui-launchpad`
+(2026-11-08), at 80 by 24 in the dark theme; their words are the
+browser's chat terminal's (3.5, *A chat's terminal*), and a chat reads
+as `../draft/chat-reading.md` says. Every frame below is illustrative:
+its words and look are refined on the recording (`../draft/tui.md`,
+section 5).
 
 - **The TUI's state,** `temper-client-tui`'s `Tui`, holds what the root
-  does not: the address, the field's value, the sign-in's progress
+  does not: the address, the link field's value, the sign-in's progress
   (asked, answered, lost, or the TUI's own refusal of what was pasted),
   whether it signs in from the engine's link and whether that ended,
   whether the link was signed out after a sign-in, and whether the
-  credential's last write failed. The root stays the one source of the
-  link's state and of `me`.
+  credential's last write failed; the window's columns, for what a
+  narrow row leaves out; the question set aside by "Tell it something
+  else" (*The chat's question*); and the TUI's own note of a command it
+  does not offer (*The commands*). The root stays the one source of the
+  link's state, of `me`, of the pages and their reads, of the box's
+  words and of the terminal's look, lists and notes.
 - **Its words:** where the TUI says what `temper-client-view` says, it
   says the view's phrases (`temper-client-view`'s `words`): the link's
   states, "Live", "Connecting", "Offline", "Signed out" and "Out of
   date" (5.1); a link used, expired or not this temper's, and the
   sign-ins full; "No project yet"; "This temper is out of date: run
-  the temper the engine runs."; "Signed out.". Its other words are its
-  own phrases, under an owner of its own (skein's `ui.md`, section 9).
+  the temper the engine runs."; "Signed out.". On the launchpad and a
+  chat it calls the view's shared surface, `temper_client_view::shared`,
+  for what the browser's terminal says of the same thing, and never the
+  view's builders: Home's headline, a chat's state as Home's rows word
+  it, a need's line, a run's line, the running line's words, the
+  picker's closed line, a chat's short heading, the commands' words and
+  when each is offered, the lists' heads and choices, a confirmation's
+  question and acts, the chat's question, a card's line, the notes'
+  words and the terminal's own phrases ("/ for commands", "✦", "❯").
+  Its other words are its own phrases, under an owner of its own
+  (skein's `ui.md`, section 9).
 - **The link's state** is the bottom row's last child, a status in the
   view's words after the TUI's own `●`: "Live" once `me` is read on a
   live link, "Connecting" while it starts or before `me`, "Offline",
-  "Signed out", "Out of date", each in its token's paint (6.15).
+  "Signed out", "Out of date", each in its token's paint (6.15). On the
+  launchpad and a chat it ends the quiet line.
 
 **Signing in**, illustrative:
 
@@ -6843,7 +6963,7 @@ rest*), with nothing pasted and no key pressed:
   address doesn't say signed out: at its start with no credential kept,
   and again when a sign-in expires (*Expired is not signed out*, below).
   The host asks the duty `local` and, while it signs in from the file,
-  the view draws the first screen's "Connecting to HOST:PORT", the state
+  the view draws the launchpad's "Connecting to HOST:PORT", the state
   "Connecting": no sign-in screen is drawn and no approval is asked.
 - **The file read:** none, a link that `jig-client-protocol-http`'s
   `printed` doesn't read under the prefix `/jig`, or a link for another
@@ -6851,7 +6971,7 @@ rest*), with nothing pasted and no key pressed:
   the host asks the root `SignIn { with: Link { secret, held: None } }`,
   as for a paste (section 7), and keeps nothing of the secret but its
   SHA-256, to tell a fresh link from it.
-- **Signed in:** the first screen, as by a link pasted; the credential
+- **Signed in:** the launchpad, as by a link pasted; the credential
   kept (6.13), and the note `Until` the sign-in's expiry.
 - **Answered `link_used` or `link_expired`:** a sign-in by a spent or
   expired link draws a fresh one when none is live, which the engine
@@ -6885,33 +7005,358 @@ rest*), with nothing pasted and no key pressed:
   the TUI's state; a recording keeps it in the person's private file, and
   `add` redacts it (`tui/journeys.md`, section 5).
 
-**The first screen**, illustrative (`../draft/tui.md`, 4.3):
+**The launchpad**, illustrative (the request's 01):
 
 ```
-╭─ temper ─────────────────────────────────────╮
-│ Connected to 127.0.0.1:8367 as Owner         │
-│ Projects: Hello · Demo                       │
-╰──────────────────────────────────────────────╯
+╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
+│ 3 changes landed overnight. csv-export is two of three tasks in; one         │
+│ waits on you.                                                                │
+│                                            written by the status agent 07:42 │
+╰──────────────────────────────────────────────────────────────────────────────╯
 
- q to quit                                ● Live
+ Where you left off
+   Away mode · Waiting for you
+
+ Needs you
+   ? csv-export: comma or semicolon?
+
+────────────────────────────────────────────────────────────────────────────────
+❯ Ask temper
+────────────────────────────────────────────────────────────────────────────────
+ / for commands · 1 needs you                   Claude Opus 5.5 · high · ● Live
 ```
 
-- **What it reads:** `me` (3.1), its party's name and its projects'
-  names, through `root.pages().me(root.client())`, and the link's state,
-  live: each change is drawn at the next frame. With no project, the
-  view's "No project yet".
-- **Before `me`:** "Connecting to HOST:PORT", the state "Connecting".
-- **The engine stopped and started again:** the state goes "Offline",
-  then "Live" again; `me` stays drawn as last read, and nothing is lost,
-  since `jig-client` keeps the watches and opens them again (3.3).
-- **Out of date:** the view's "This temper is out of date: run the
-  temper the engine runs." in place of the lines, the state "Out of
-  date".
-- **q to quit:** a button whose shortcut is `q`, no modifier (skein's
-  `ui.md`, 6.1); its press closes the TUI (6.16).
-- **A sign-in not kept:** when the credential's write failed, a line
-  "This sign-in could not be kept: the next temper asks for a link
-  again.".
+- **Its project:** the root's, `Home { project }` (6.13, *Its pages*).
+  Home's reads are the launchpad's: the status agent's brief and what
+  needs the person through `pages::home::facts(root, project, wall)`,
+  the needs' cards through `pages().needs()`, the person's chats
+  through `pages().chats()` (3.5, *Home*). The TUI derives none of them
+  again, and each is drawn at the next frame after it changes.
+- **The header,** the region `tui-top`, framed, its level-1 heading in
+  its border: "temper" (`tui-title`), " · " (`tui-faint`) and the
+  project's name (`tui-name`); and, at the border's end, `HOST:PORT`
+  (`tui-address`, aligned to the end), which skein leaves out first
+  where the border lacks the room for both (skein's `ui-screen.md`,
+  5.2). Inside it:
+  - *with a brief new to the person* (`Facts::brief`, 3.5, *Home on any
+    project*): its sentence and its lede, one paragraph, then "written
+    by the status agent HH:MM" (`tui-byline`, aligned to the end), HH:MM
+    its `at` in the view's clock (5.12, *clock*);
+  - *with none,* Home's headline, as the browser's Home says it, by the
+    view's one function (3.5, *the headline*): the landed sentence and
+    the needs sentence, "The last change landed 2 hours ago. Nothing
+    needs you.", with no byline, since the computed Home has no prose of
+    its own; while Home's facts have not answered, nothing under the
+    title (3.5: no page claims empty before its read answers);
+  - *before `me`:* "Connecting to HOST:PORT", the state "Connecting";
+    *out of date:* the view's "This temper is out of date: run the
+    temper the engine runs.", the state "Out of date";
+  - *a sign-in not kept,* when the credential's write failed: the line
+    "This sign-in could not be kept: the next temper asks for a link
+    again." (`tui-refused`).
+- **Where you left off,** the first of the sections (`tui-spaced`, a
+  blank row between two), the term "Where you left off" (`tui-head`)
+  and, as its description two columns in, the
+  person's most recent live chat in the project: of Home's chats
+  (`Chats::live`, the person's chats by last activity), the newest that
+  has not ended, its title, then " · " and its state as Home's Chats row
+  words it (the view's `shared::chat_state`), in `tui-hint`. Left out
+  with no such chat, and while the chats' read has not answered. The
+  person's newest goal is not drawn: Home reads the project's goals by
+  priority, not the person's newest (section 11). Whether the chat
+  writes a draft is not said: drafting is not the TUI's yet
+  (`../draft/tui.md`, section 3, *Drafting*).
+- **Needs you,** the next section, the term "Needs you" and a line a
+  need, at most five, in Home's order (`Session::needs`, the inbox's
+  cards then the forge's approvals, those marked later last): "?"
+  (`tui-signal`) for a question and "•" for any other kind, then its
+  words as Home's lines say them, "TITLE: SHORT" (`shared::need_line`).
+  Left out while nothing needs the person, as the quiet line's count
+  is, and while the needs' read has not answered.
+- **No project yet:** while `me` names no project the root stays at its
+  start's address (6.13): the border holds "temper" alone, and under it
+  the view's "No project yet" and the TUI's "Setting temper up makes
+  your first project: open http://HOST:PORT in a browser.". The box
+  takes commands alone, its placeholder "/ for commands", and Enter on
+  other words sends nothing: Ask temper's chat is a project's, by its
+  template (`../draft/ask-temper.md`, section 9), so with no project
+  there is no one to ask.
+- **Nothing to press:** the box is the only node of the launchpad a
+  person acts on, so the keys stay in it (*The box*, below). `/chats`
+  opens a chat, the one left off among them; what needs the person is
+  answered in its chat or on the web.
+- **The terminal's notes** (3.5, *The terminal's notes*) follow the
+  sections, each in `tui-note`.
+
+**The foot,** the launchpad's and a chat's, from the bottom up: the
+quiet line, or a list in its place; the box between two rules; on a
+chat, the running line above them.
+
+- **The running line,** the region `tui-working`: on a chat, while the
+  browser's terminal draws its running line (3.5, *The running line*;
+  `shared::running`), "✦" and its words, "working", "waiting on 1
+  delegate", "Waiting for an account" (`tui-running`), with no clock and
+  no pulse.
+- **The box,** the region `tui-box`, framed by two rules across the
+  window and no sides (skein's `ui-screen.md`, 5.2): one text area
+  (`tui-field`) that submits on Enter, named "Ask temper" on the launchpad
+  and "Message" on a chat, as the browser's composers are, its name the
+  tree's and not laid (skein's `ui-screen.md`, 3, `label`); the focus's
+  mark `❯` before it. Its placeholder: "Ask temper" on the launchpad,
+  "/ for commands" with no project, "Reply" on a chat, and on a chat
+  that has ended "/new starts another chat", as the browser's terminal
+  keeps its box for commands there; none while a list stands under it.
+  - *Its words are the root's:* Home's composer's on the launchpad
+    (`Act::ChatWords`) and the chat's on a chat (`Act::MessageWords`),
+    so that what the domain reads of them, a command's beginning, a
+    send, a list's closing, is the browser terminal's. Its value is
+    always those words; its write count moves whenever they change by
+    anything but the person's typing (a command cleared them, a chat
+    opened).
+  - *The focus:* the box asks for it as each screen opens and keeps it.
+    It is the only node a person acts on outside a list, so Tab, Up and
+    Down leave the focus where it is (skein's `ui-screen.md`, 6.2), and
+    `q` types: the first screen's "q to quit" is gone. Ctrl+C closes the
+    TUI from anywhere (6.16).
+  - *Enter:* the box's words, by what they are, in this order: a
+    command's beginning, as *The commands* say; on a chat whose question
+    stands, its answer in words (*The chat's question*); with no
+    project, nothing; otherwise sent: on the launchpad `Act::StartChat`,
+    which asks Ask temper in the project and opens the chat it makes
+    (3.5, *Home*, *In the TUI*), on a chat `Act::Send`. A refusal or a
+    failure the root keeps for the send is drawn under the box, in
+    `tui-refused`, in the view's words.
+  - *No new line:* a terminal reads Shift+Enter as Enter, so the box
+    takes one paragraph; words wrap as the box's lines (section 11).
+- **The quiet line,** the region `tui-bottom`, spread, as the sign-in's
+  bottom row: at its left "/ for commands" (the terminal's phrase,
+  `tui-hint`), or "paused · a message resumes it" on a chat the person
+  paused, then, while something needs the person in the project, " · "
+  and "1 needs you", "3 need you", or "3+ need you" where the read is
+  cut (`tui-signal`), the rail's count of the project
+  (`Session::count`, 3.5, *Needs you*); at its right the picker's
+  closed line, "Claude Opus 5.5 · high" (`shared::closed_line`), then "
+  · " and the link's state, all in `tui-hint` but the state. With no
+  picker (no project, no usable account), the closed line and its " · "
+  are left out. The chat's spend is the browser's alone.
+- **A narrow terminal:** the header's address goes first (above); then
+  the quiet line leaves out the closed line and its " · " where its two
+  halves, two spaces between them and its padding are wider than the
+  window's columns, and skein cuts what still does not fit from the
+  left half's end; a chat's top line leaves out the address likewise
+  (*A chat*).
+
+**The commands**, the browser terminal's (3.5, *A chat's terminal*,
+*Commands*), illustrative (the request's 02):
+
+```
+────────────────────────────────────────────────────────────────────────────────
+❯ /
+────────────────────────────────────────────────────────────────────────────────
+❯ /model   Change the model, from the next turn
+  /new     Start a new chat
+  /chats   Open another chat
+  /theme   Dark or light
+  /help    Commands and keys
+  /exit    Close temper
+```
+
+- **Offered:** on the launchpad `/model`, while the picker is
+  changeable, then `/new`, `/chats`, `/theme`, `/help` and `/exit`; on a
+  chat `/model`, `/effort`, `/pause`, `/close` and `/start-over`, each
+  where the view says the browser's terminal offers it
+  (`shared::offered`), then `/new`, `/chats`, `/theme`, `/help` and
+  `/exit`; with no project `/theme`, `/help` and `/exit`. Never
+  `/draft` or `/goal`, since drafting is not the TUI's yet, nor `/font`,
+  the browser's alone; `/effort` is not on the launchpad, as the
+  request's 02 lists its commands. `/close` and `/start-over` are
+  offered only on a chat with no delegate: a close that asks its
+  delegates' fates is the web's sheet (section 11).
+- **Their words:** each command's name and the browser terminal's words
+  (`shared::description`), but `/exit`'s, "Close temper".
+- **The list:** the box's words beginning with "/" and holding no white
+  space open the commands under the box in the quiet line's place, the
+  region `tui-list`: an options menu after the box (skein's `ui.md`,
+  3.2, *options*), named "Commands", with no head, each command offered
+  whose name begins with the words, in the domain's `Command::ALL`
+  order, its name and, as its description, its words (`tui-option`), the
+  first active. While it stands the box keeps the focus: Up and Down
+  move the active command, Enter presses it, Tab completes its name
+  (skein's `ui-screen.md`, 6.2), Esc closes the list and clears the
+  words (`terminal::Act::Dismiss`). With no command beginning with the
+  words, no list stands.
+- **Pressed,** or sent whole, which with its list standing is the same
+  press: `/exit` closes the TUI (6.16) and never reaches the root;
+  `/new` opens the launchpad (6.13), whose next question starts a new
+  Ask temper chat; any other is the root's `terminal::Act::Run {
+  command }`, so that its list opens, its note is written or its act is
+  taken, as in the browser's terminal. The box is cleared.
+- **Words no command of the TUI's names:** words that begin with "/",
+  hold no white space and begin no command the TUI offers there are
+  cleared from the box (`terminal::Act::Dismiss`), nothing is sent, and
+  the TUI notes "Unknown command /WORDS. /help lists them." in the
+  view's words (`shared::note`) after the root's notes, until the next
+  send or screen. So `/font`, which the root knows, is unknown here.
+- **A command's list,** under the box in the quiet line's place, an
+  options menu after it, its head a line of its own at the row's start
+  (`tui-list-head`), its choices its items, the current one active;
+  taking one closes it, Esc closes it, and words typed close it (the
+  root's):
+  - `/model`: the view's head, "Model. A change applies from the next
+    turn."; the picker's models, each its shown name and, as its words,
+    what pays and "default" on the default's (`shared::models`), taking
+    one `choice::Act::Model`. A provider with no model, which the
+    browser's terminal lists with "Connect a plan or key ›", is left
+    out: connecting an account is the web's (`../draft/tui.md`,
+    section 2).
+  - `/effort`: "Effort. A change applies from the next turn."; the
+    chosen model's efforts (`shared::efforts`), `choice::Act::Effort`.
+  - `/chats`: "Chats"; the person's live chats in the project, newest
+    activity first, the open one left out, each "TN" and its title
+    (`shared::chats`), read when the list opens as the browser's is;
+    taking one is `Act::Go` to its `Chat { task }`, followed as 6.13
+    says.
+  - `/close` and `/start-over`: the confirmation's question as the head
+    and its two acts as choices, "Close" or "Start over" first, then
+    "Keep it open" or "Keep this one" (`shared::confirmation`):
+    `Act::Confirm` and `Act::Cancel`.
+- **`/help`'s note:** the commands the TUI offers there, each name
+  padded with spaces to the longest and two more, then its words; then
+  its keys, a line each: "Enter sends", "Tab completes a command", "PgUp
+  and PgDn read back", "Esc closes a list", "Ctrl+C closes temper". The
+  root keeps the note (`terminal::Note::Help`); its words are the TUI's.
+- **`/theme`:** the root's look's theme flips, and the TUI draws in the
+  scheme it names (6.13, *The look*), for that run: the TUI keeps no
+  theme of its own, and the next one starts in the terminal's (6.15).
+
+**A chat**, illustrative (the request's 03):
+
+```
+ ✦ Hello / What landed overnight? T2                            127.0.0.1:8367
+
+❯ What landed overnight?
+
+▸ Listed changes, read 3 changes  6 s
+
+✦ Three changes landed between 22:10 and 06:40:
+
+  1. csv-export: the report's columns, the first of its three tasks.
+  2. csv-export: the export button on the report page.
+  3. fix-login: a session no longer ends when the forge restarts.
+
+  csv-export's last task waits on you: whether the file separates its
+  values with a comma or a▌
+
+✦ working
+────────────────────────────────────────────────────────────────────────────────
+❯ Reply
+────────────────────────────────────────────────────────────────────────────────
+ / for commands · 1 needs you                   Claude Opus 5.5 · high · ● Live
+```
+
+- **Its chat:** the root's, `Chat { task }`: its task, its thread, the
+  call under way, its delegations and its proposals, as the root's chat
+  page holds them (3.5, `Chat { task }`; `pages().chat()`).
+- **The top line,** the region `tui-chat-top`, spread, padded one
+  column: at its left "✦" (`tui-star`), the project's name (`tui-name`),
+  " / " (`tui-faint`), the chat's short heading as the browser's bar
+  shows it (3.5, *A chat's heading is short*; `shared::heading`,
+  `tui-name`) and " T2", the chat's number (`tui-hint`); at its right
+  `HOST:PORT` (`tui-address`), left out where the two do not fit the
+  window's columns, before skein cuts the title's end.
+- **The conversation,** in the body: a log (skein's `ui.md`, 3.2) with
+  the chat's end request (`Chat::to_end`), holding one list, an item an
+  entry, in the thread's order as the browser's terminal reads it (3.5,
+  *The conversation*), with a blank row between two entries
+  (`tui-spaced`). Each
+  entry's glyph and its words' indent are its token's look (6.15):
+  - *the person's words,* the chat's request and each words line a
+    person sent: "❯", then each paragraph, on the `sel` band across the
+    row (`tui-said`);
+  - *a delegate's words:* "✦", "TN · " and its words (`tui-agent`);
+  - *a run of calls,* as the browser's terminal reads one (3.5, *its
+    calls*): "▸", its name and, two spaces after, its description, the
+    run's time, "1 failed · 29 s" in `tui-run-failed`, or the call under
+    way with "…" while it runs (`tui-run`), from the view's run line
+    (`shared::Run`, `shared::RunLine`), so that it counts what has ended
+    and names the call being made. Its rows are not drawn (section 11);
+  - *the agent's texts:* "✦", then each text read as Markdown by
+    skein-ui's reader, its blocks two columns in (`tui-agent`); numbered
+    lists are numbered, as skein's reader orders them;
+  - *the words being written:* the turn being written, whole, read by
+    `markdown::read_growing` (skein's `ui.md`, section 10), its end a
+    small block after its last word, a reversed space (`tui-end`), in
+    the browser's "▍" place. A closed block is read again to the same
+    nodes and stays as it was; the committed turn draws the same blocks
+    in the same place, and only the block goes;
+  - *the three dots:* while the chat works and the turn being written
+    has no word and no call yet, "✦" and "…" (`tui-dots`), as the
+    browser's dots stand;
+  - *a card,* one line each, after the conversation's lines in the
+    order the page holds them: a delegated task (`Chat::delegations`,
+    its task as `Chat::delegation` reads it) "✦", "TN · KIND", its title
+    and its state (`shared::delegation_line`); a proposal in the chat's
+    subtree (`Chat::cards`) "✦", "Proposal" (`tui-signal`) and its title
+    (`shared::proposal_line`). A card carries no act: a proposal is
+    accepted on the web. Placing each at the call that made it is the
+    browser's walk (section 11);
+  - *not drawn,* as in the browser's terminal: the speakers' names, the
+    turns' times, a turn's opaque blocks, a run's beginning and end;
+    and, the TUI's, a document's write, since drafting is not the
+    TUI's yet, and "Being sent" and "Sent", the conversation showing the
+    words.
+  The terminal's notes follow the conversation, each in `tui-note`.
+- **Reading back:** PgUp and PgDn page the body by its rows while the
+  box keeps the focus (skein's `ui-screen.md`, 6.2); the body follows the
+  conversation's end as it grows, until the person pages up, and again
+  once they page down to it (5.2 there). The window is the one the
+  chat's page reads as it opens: earlier pages are not read as the head
+  nears, since skein's screen reports no log edge yet (its section 10),
+  and there is no "Latest ↓" (section 11).
+- **The foot:** the running line, the box, "Reply", and the quiet line,
+  "paused · a message resumes it" on a chat the person paused. On a
+  chat that has ended the box takes commands alone, and words that are
+  no command note "This chat is closed. /new starts another.", the
+  root's note (3.5, *The box*).
+
+**The chat's question**, illustrative (the request's 04):
+
+```
+❯ Answer it with a comma
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+Answer csv-export's question with "Comma"?
+❯ 1. Answer Comma
+  2. Answer Semicolon
+  3. Tell it something else
+```
+
+- **Which:** while a chat waits on the person, the root reads its
+  subtree's questions (3.5, *A goal's question*), and the TUI draws the
+  first the browser's terminal would, one the person may answer
+  (`shared::question`), in the region `tui-list`, while the box is
+  empty, no other list stands and the person has not set it aside.
+- **Its list:** an options menu after the box, its question line as the
+  head (`tui-list-head`), then its parsed choices numbered "1. ", "2. ",
+  the recommended one first and active and the others in their order,
+  then "Tell it something else". With no parsed choice, its question
+  line and "Tell it something else" alone.
+- **Choosing** answers it as Needs you does (`needs::Act::Choose`, the
+  choice's words).
+- **"Tell it something else,"** or Esc, or words typed, sets the list
+  aside for that question: the box shows "Reply" again, and while the
+  question stands, Enter on the box's words that are no command answers
+  it in those words, as Needs you's reply does (`needs::Act::OpenReply`,
+  `Act::CardWords`, `needs::Act::SendReply`), and clears the box. A
+  refusal is drawn under the box in the view's words. Another question
+  draws its list again.
+- **Departs from the browser's terminal,** which keeps the choices'
+  order, marks the recommended one selected where it stands and ends
+  with "Later": the TUI puts the recommended choice first and "Tell it
+  something else" last, as `../draft/tui.md`, section 3 asks, and has no
+  Later, since the box is there for an answer in the person's words.
 
 ### 6.15 Its theme
 
@@ -6924,35 +7369,79 @@ rest*), with nothing pasted and no key pressed:
   paint with no colour, which skein draws as SGR 39 and 49 (skein's
   `ui-screen.md`, sections 3 and 7), so that the terminal's ground and
   body text show through and the TUI paints only its accents, as Claude
-  Code does. No region and no token names a background. The palette:
+  Code does. No region names a background, and one token does: the `sel`
+  band of the person's words, the background the user asked for with
+  the active choice's on 2026-11-08 (the look request `tui-launchpad`).
+  The palette:
 
   | Colour | Dark | Light | What it paints |
   |---|---|---|---|
   | bg | `#191816` | `#fffefd` | nothing on a terminal: the stand-in for its default background on a journey's page (`tui/journeys.md`, 6.4) |
   | ink | `#e8e3da` | `#34312c` | nothing on a terminal: the stand-in for its default text there |
-  | dim | `#9a9388` | `#7a736a` | the hints, "Connecting", the sign-in's progress |
-  | faint | `#6a655c` | `#b5aea3` | the border, the placeholder |
-  | accent | `#e08a68` | `#b8664e` | the title, the focus, "Offline", "Signed out", "Out of date", a refusal |
+  | dim | `#9a9388` | `#7a736a` | the hints, "Connecting", the sign-in's progress, the address, the byline, a run's line, the running line's words, an option's words, the notes |
+  | faint | `#6a655c` | `#b5aea3` | the border and the rules, the placeholder, the separators " · " and " / ", the three dots |
+  | accent | `#e08a68` | `#b8664e` | the title, the focus, "Offline", "Signed out", "Out of date", a refusal, "✦", what needs the person, a failed run |
   | good | `#8fc28f` | `#3f7d4e` | "Live" |
+  | sel | `#2a2825` | `#f4f0e9` | the background of the person's words and of the active choice, as the browser's terminal's `--sel` |
 
   The terminal's `--line` is left out: a border's glyphs in it would
-  barely show. Its `--sel` is left out with the focus's background.
+  barely show.
 - **Its regions,** placed by name (skein's `ui-screen.md`, 5.2):
-  `tui-top` at the top, its children on lines, framed by `╭ ╮ ╰ ╯`, `─`
-  and `│` in the faint colour, its first level-1 heading in the border
-  as its title, one column of padding; `tui-bottom` at the bottom,
-  spread along one row, one column of padding. Nothing else is placed;
-  the body is empty in this pass.
-- **Its tokens:** `tui-title` (accent, bold), `tui-hint` (dim),
-  `tui-live` (good), `tui-waiting` (dim), `tui-down` (accent) and
-  `tui-refused` (accent), under the TUI's owner, its names' prefix
-  `tui` (skein's `ui.md`, section 8).
-- **Its glyphs and its focus:** `❯` the focus mark, `•` the mask. The
-  focus is shown by the mark and the accent, the focus's paint the
-  accent's foreground with no background of its own, as Claude Code
-  shows it; in the spread bottom row, which keeps no focus columns, the
-  accent alone. Reverse video is the fallback should the mark and the
-  accent not show it (section 11).
+
+  | Region | Place | Arranged | Border | Padding | Holds |
+  |---|---|---|---|---|---|
+  | `tui-top` | top | lines | `╭ ╮ ╰ ╯`, `─`, `│`, faint, its title in it, with sides | 1 | signing in's lines; the launchpad's header |
+  | `tui-chat-top` | top | spread | none | 1 | a chat's top line |
+  | `tui-sections` | body | lines | none | 1 | the launchpad's sections and notes |
+  | `tui-working` | bottom | lines | none | 0 | a chat's running line |
+  | `tui-box` | bottom | lines | `─`, faint, no sides: a rule above, one below | 0 | the box, and a send's refusal under it |
+  | `tui-list` | bottom | lines | none | 0 | a list in the quiet line's place |
+  | `tui-bottom` | bottom | spread | none | 1 | signing in's bottom row; the quiet line |
+
+  A chat's conversation and notes are in the body, unplaced, from the
+  row's start.
+- **Its tokens,** under the TUI's owner, its names' prefix `tui` (skein's
+  `ui.md`, section 8), each look a paint over the region's and, where
+  the table says, an alignment, a band, a mark, a description's paint,
+  rows between children or no label (skein's `ui-screen.md`, 3):
+
+  | Token | Paint | Else | Carried by |
+  |---|---|---|---|
+  | `tui-title` | accent, bold | | "temper" in a title |
+  | `tui-hint` | dim | | hints, the quiet line's words, a chat's state on the launchpad, the chat's number |
+  | `tui-live` | good | | "Live" |
+  | `tui-waiting` | dim | | "Connecting", the sign-in's progress |
+  | `tui-down` | accent | | "Offline", "Signed out", "Out of date" |
+  | `tui-refused` | accent | | a refusal |
+  | `tui-name` | bold | | the project's name, a chat's heading |
+  | `tui-faint` | faint | | " · " in the title, " / " in the top line |
+  | `tui-address` | dim | aligned to the end | `HOST:PORT` in a title, and at a top line's end |
+  | `tui-byline` | dim | aligned to the end | "written by the status agent HH:MM" |
+  | `tui-head` | bold | | "Where you left off", "Needs you" |
+  | `tui-signal` | accent | | "?" before a question, the count of what needs the person, "Proposal" |
+  | `tui-star` | accent | | a top line's "✦" |
+  | `tui-said` | none | a band of `sel`; the mark `❯`, dim | the person's words |
+  | `tui-agent` | none | the mark `✦`, accent | the agent's texts, a delegate's words, a card |
+  | `tui-run` | dim | the mark `▸`, dim | a run's line |
+  | `tui-run-failed` | accent | | a failed run's description |
+  | `tui-dots` | faint | the mark `✦`, accent | the three dots |
+  | `tui-running` | dim | the mark `✦`, accent | the running line |
+  | `tui-end` | reverse | | the end of the words being written |
+  | `tui-field` | none | no label | the box's text area |
+  | `tui-list-head` | bold | | a list's head |
+  | `tui-option` | bold | its description dim | an option: its name, and its words as its description |
+  | `tui-note` | dim | | a note |
+  | `tui-spaced` | none | a blank row between two children | the launchpad's sections, the conversation's entries |
+
+- **Its glyphs, its focus and the active choice:** `❯` the focus mark,
+  `•` the mask. The focus is shown by the mark and the accent, the
+  focus's paint the accent's foreground with no background of its own,
+  as Claude Code shows it; in a spread row, which keeps no focus
+  columns, the accent alone. The active choice of a list is shown as
+  skein lays it (`ui-screen.md`, 5.3): the focus's mark and paint over
+  the active paint, a band of `sel` across the list. Reverse video is
+  the fallback should the mark and the accent not show the focus
+  (section 11).
 - **The scheme,** dark or light, chosen before `Start`, which carries
   it (6.13): from `COLORFGBG` where its last field, the background the
   terminal declares, is a number, light for 7 or 15 and dark for any
@@ -6963,7 +7452,9 @@ rest*), with nothing pasted and no key pressed:
   7152 G + 722 B` above 1,275,000, half of white's, else dark; with no
   answer within the wait, dark. The answer is never read as a key, and
   a recording keeps the scheme among its start's facts
-  (`tui/journeys.md`, 3.2).
+  (`tui/journeys.md`, 3.2). The host gives it to the root as its look's
+  theme (6.13, *The look*); from then on the TUI draws in the theme the
+  root's look names, which `/theme` flips for the run.
 - **The colours' depth,** chosen by the binary: 24-bit where
   `COLORTERM` is `truecolor` or `24bit`, else the 256 indexed ones
   (skein's `ui-screen.md`, section 7).
@@ -6982,8 +7473,11 @@ rest*), with nothing pasted and no key pressed:
 - **Its settings,** `temper-client-shell-tui`'s `limits`: the client's
   and its connections' from `temper-client-shell-terminal`'s
   `limits::native()`; the TUI's tree's from `temper-client-tui`'s
-  `limits`; a frame of at most 200 rows by 500 columns; a paste of at
-  most 512 bytes, the link's field's bound; a frame drawn at most every
+  `limits`, at least the browser view's tree's (5.4), since the TUI
+  draws no more of a chat than the chat's page holds, and at least its
+  sign-in's; a frame of at most 200 rows by 500 columns; a paste of at
+  most 512 bytes, the link's field's bound, which a paste into the box
+  keeps too (section 11); a frame drawn at most every
   20 ms; the terminal's background waited for at most 200 ms,
   `limits::BACKGROUND` (6.15).
 - **Its run's settings** (`run::Settings`), the binary's: beside the
@@ -7006,7 +7500,7 @@ rest*), with nothing pasted and no key pressed:
   goes to the terminal, which draws the newest at its pace. No key is
   taken and no frame drawn before `Start`.
 - **Time and the seed** are skein-shell's, as `temper open`'s (6.2).
-- **Closing:** `q` on the first screen, Ctrl+C anywhere, the input's
+- **Closing:** `/exit`, Ctrl+C anywhere, the input's
   end, SIGINT or SIGTERM. The TUI doesn't sign out. The terminal
   finishes the write it began and writes its `LEAVE`; the native shell
   finishes the small store's last write, then closes its connections
@@ -7690,11 +8184,21 @@ own tests:
   meets a refusal of temper's own limits before the process tier does.
 - **The TUI** (6.11 to 6.16): golden frames, `Frame::print`s laid by
   skein's renderer in the TUI's theme, kept beside `temper-client-tui`'s
-  step tests and changed only by hand: the first screen at 80 by 24 and
-  40 by 12, dark and light, and signing in at 80 by 24. Rows of its
-  state and view (each sign-in line, each link state, each act's
-  event), of its host (the pasted link's checks, the credential's
-  duties, the reports' order, a key's event), of its loop on skein's
+  step tests and changed only by hand: signing in and its approval at 80
+  by 24; the launchpad at 80 by 24, dark and light, and at 40 by 12, its
+  address and model gone; the commands' list, a chat with its answer
+  being written, and a chat's question, at 80 by 24, dark. Each part of
+  a screen is drawn from data its module reads from the root, so its
+  goldens and rows need no engine. Rows of its state and view (each
+  sign-in line, each link state, each state of the launchpad, the foot
+  and a chat the request names, each act's event), of the view's shared
+  surface beside the browser's own (each function the words the
+  browser's terminal draws, `see`'s phrases a row each), of the domain's
+  Home in the terminal's look (its composer asking Ask temper, its
+  command words, the browser's Home unmoved), of its host (the pasted
+  link's checks, the credential's duties, the reports' order, a key's
+  event, the launchpad gone to once, a `Show` followed, each event's
+  acts), of its loop on skein's
   simulated machine (each way out writing the terminal's `LEAVE` last
   and exiting 0), and of the binary's parts as functions (the command's
   parse, the directory's resolution, the scheme and the depth). Nothing
@@ -7718,7 +8222,9 @@ own tests:
   signed in from the engine's link with no key pressed, after a browser
   spent the first one too; a stale file's dead link falling back to the
   sign-in screen with no refusal drawn; an expired sign-in renewed from
-  the file; and the file's secret in no frame.
+  the file; the file's secret in no frame; and signed in, the launchpad
+  drawn for the person's project, a question asked from its box, the
+  Ask temper chat it starts opened and its answer drawn.
 - **`tests/client`** (`temper-client-world`), the joint world
   (`../domain/testing.md`, 2.1 and 6.3): temper's client root and view, with
   skein's fake person acting on the tree, joined to temper's engine
@@ -7869,23 +8375,34 @@ own tests:
   sketches and preferences join at M3 and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
 
-- **The TUI's later passes** (6.11 to 6.16, 7.1): beyond the first
-  screen, the launchpad, chats, the side pane, needs from
-  elsewhere, hand-offs and choosing a project from a checkout
+- **The TUI's later passes** (6.11 to 6.16, 7.1): beyond the
+  launchpad, its commands and a chat, the side pane and drafting, needs
+  from elsewhere, hand-offs and choosing a project from a checkout
   (`../draft/tui.md`, section 3). Default: refine each on the recorded
-  frames before designing it; the first pass is sections 4 and 5 of
-  that draft.
+  frames before designing it.
+- **The launchpad's and a chat's later parts** (6.14): the person's
+  newest goal in *Where you left off*, which needs a read of the
+  person's goals by activity that Home does not make; a run opened to its
+  rows; earlier pages read as the conversation's head nears, and "Latest
+  ↓", once skein's screen reports a log's edge (skein's `ui-screen.md`,
+  section 10); a card at the call that made it, and its acts, Accept
+  among them; a close that asks its delegates' fates; a new line in the
+  box, which a terminal's Shift+Enter cannot ask; a paste into the box
+  past the link's 512 bytes; a theme kept across runs. Default: each when the user asks for it on a recorded frame;
+  until then the web does what the TUI leaves out.
 - **Approval between hosts and managing sign-ins** (7.1): a deployment
   at a name, Google on the web, the code typed there with the ask's origin
   and age shown, and the web's list of a person's sign-ins, each ended
   from there (`../draft/tui.md`, section 7). Default: loopback, approved
   by a browser signed in by the printed link.
 - **The TUI after landing** (6.11 to 6.16): on a fresh box, paste its
-  printed link into the TUI in another terminal and read the first
-  screen, then sign in through the browser's approval and check refusal
-  and asking again (`../draft/tui.execution.md`, M1 and M2). The user
-  takes `sign-in-approved`'s frames and refines the look on them
-  (`tui/journeys.md`, sections 9 and 10). Simulated closing, client-world
+  printed link into the TUI in another terminal and read the launchpad,
+  then sign in through the browser's approval and check refusal and
+  asking again (`../draft/tui.execution.md`, M1 and M2); ask temper a
+  question and read the chat as it is written. The user takes the
+  recorded frames and refines the look on them (`tui/journeys.md`,
+  sections 9 and 10), and the look request `tui-launchpad` is checked
+  against them (`../draft/look-requests.md`, sections 4 and 5). Simulated closing, client-world
   stories and a recorded pseudo-terminal establish no real terminal's
   look or macOS runtime.
 - **The TUI's address kept at closing** (6.12): the binary writes it once
@@ -7902,9 +8419,9 @@ own tests:
   (6.14): read as a sign-in ended, so the TUI waits for a person's act
   there. Default: so, the safe side, until a deployment's own name
   tells engines apart.
-- **The TUI while offline** (6.14): the first screen keeps "Connected to
-  HOST:PORT as NAME" while the state says "Offline". Default: so, its
-  words refined on the recording.
+- **The TUI while offline** (6.14): the launchpad and a chat keep what
+  they last read while the state says "Offline". Default: so, its words
+  refined on the recording.
 
 - **The chat terminal after landing** (3.5): temper/ui compares
   `chat-terminal`, `chat-terminal-font`, `chat-terminal-draft` and
