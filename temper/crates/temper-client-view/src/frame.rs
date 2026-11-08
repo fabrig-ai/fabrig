@@ -1250,6 +1250,7 @@ pub(crate) fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::
 }
 
 /// The session's transient status and held answer's Undo (client/README.md, 3.5).
+#[expect(clippy::too_many_lines, reason = "the session toast draws every answered act in one exhaustive dispatch")]
 pub(crate) fn toast(
     b: &mut Builder,
     root: &Domain,
@@ -1267,6 +1268,19 @@ pub(crate) fn toast(
         Toasted::Answered { object, label } => {
             let label = crate::pages::ask::answered_label(w, label);
             (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
+        }
+        Toasted::Way { name, revision, kept } => {
+            let word = if *kept { Word::ToastWayKept } else { Word::ToastWayUsed };
+            (
+                w.say(
+                    word,
+                    &[
+                        skein_ui::phrases::Hole::Name(name.clone()),
+                        skein_ui::phrases::Hole::Number(u64::from(*revision)),
+                    ],
+                ),
+                None,
+            )
         }
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
         Toasted::NotSent => (w.say(Word::ToastNotSent, &[]), None),
@@ -1317,7 +1331,8 @@ pub(crate) fn toast(
                 );
             }
         }
-        Toasted::AwayOn { .. }
+        Toasted::Way { .. }
+        | Toasted::AwayOn { .. }
         | Toasted::AwayOff
         | Toasted::AwayRefused
         | Toasted::Overturned
