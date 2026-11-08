@@ -9,10 +9,6 @@ The stream table holds authorization behind a full fetch table, then
 releases it after successful or failed HTTP terminals, with no duplicate
 watch ending.
 
-- **Not yet:** 4.2 and 8, *The printed link*: `LinkSignedIn` said at the
-  printed link's sign-in; 8, *A secret given* and *The local link*: the
-  first local link's secret given, `local_secret` (`jig-sign-in`,
-  `tui-box-front`).
 - **Departs:** 18: `authorize_reply` in
   `jig/crates/jig-protocol-engine-clients/src/provider.rs` maps people's
   `Again`, including `NotReady` during restoration, to `NotReady`;

@@ -107,6 +107,7 @@ impl Composition {
             addresses: Box::new([]),
             link: identity,
             link_secret: secret.clone(),
+            local_secret: None,
             approval,
             deployment_provider: 2,
             heartbeat: skein_lib::Duration::from_secs(3600),
@@ -792,7 +793,7 @@ impl Composition {
             }
             Request::Link { secret } => self.latest_link = Some(secret),
             Request::LocalLink { secret } => self.local_link = Some(secret),
-            Request::Closed => {}
+            Request::LinkSignedIn | Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }
     }

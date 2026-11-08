@@ -207,6 +207,7 @@ impl World {
                 Request::Application(_)
                 | Request::Link { .. }
                 | Request::LocalLink { .. }
+                | Request::LinkSignedIn
                 | Request::TakeMoved { .. }
                 | Request::MintRefused { .. }
                 | Request::Closed
