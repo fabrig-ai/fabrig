@@ -50,6 +50,33 @@ fn owned_settings_preserve_the_ordinary_producer_without_review() {
 }
 
 #[test]
+fn native_landing_rules_replace_the_projects_stock_review() {
+    let scratch = support::Scratch::new("project_landing_rule");
+    for producer in [1, 2] {
+        support::owned::producer_landing_settings(scratch.path(), producer);
+        let settings: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(scratch.path().join("native-landing-settings.json")).expect("landing settings"),
+        )
+        .expect("settings JSON");
+        assert_eq!(
+            settings["items"][0],
+            serde_json::json!({"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
+                "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
+                "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}}),
+            "no-review fixtures replace project rule 1 and keep CI and freshness"
+        );
+        assert_eq!(settings["items"][1]["set"], producer);
+    }
+    scratch.remove();
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn elsewhere_settings_follow_the_connected_project() {
+    support::forgejo_elsewhere::tests::settings_follow_the_connected_project();
+}
+
+#[test]
 fn story_command_a_callback_command_captures_output_and_keeps_a_bad_exit() {
     support::story_command::tests::a_callback_command_captures_output_and_keeps_a_bad_exit();
 }

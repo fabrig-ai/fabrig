@@ -1118,12 +1118,12 @@ pub fn native_landing_settings(directory: &Path) {
     producer_landing_settings(directory, 1);
 }
 
-/// Stage no-review landing rules and the producer charter this fixture delegates to.
+/// Replace seeded project 1's review rule and select this fixture's producer charter.
 /// temper/docs/design/protocol/configuration.md, 13.4–13.6.
 pub fn producer_landing_settings(directory: &Path, producer: u64) {
     let value = serde_json::json!({"items":[
-        {"setting":{"kind":"landing-rule","number":1},"set":{
-            "pattern":{"segments":["666f726765"],"last":{"open":""}},
+        {"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
+            "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
             "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}},
         {"setting":{"kind":"forge-charter","number":1},"set":producer}
     ]});
