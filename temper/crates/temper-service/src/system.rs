@@ -122,15 +122,6 @@ impl Service {
         }
     }
 
-    /// The worker domain, for a world to inspect before requesting shutdown.
-    #[must_use]
-    pub fn worker_domain(&self) -> Option<&temper_worker_domain::Domain> {
-        match &self.worker {
-            Some(worker) => Some(&worker.root),
-            None => None,
-        }
-    }
-
     /// Keep matching workspace clones on the worker, when one is present.
     pub fn reuse_workspaces(&mut self) {
         if let Some(worker) = &mut self.worker {
@@ -145,6 +136,7 @@ impl Service {
         }
     }
 
+    #[cfg(feature = "worker")]
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,
@@ -305,9 +297,11 @@ impl Service {
     // The stock small profile's Prepared::room:
     // twice its worker root output bound of 5,099. These kernel-facing
     // process queues retain that capacity independently of the watermark.
+    #[cfg(feature = "worker")]
     const WORKER_ALONE_QUEUE: u32 = 10_198;
 
     /// Build the worker and shared IO without allocating any engine children.
+    #[cfg(feature = "worker")]
     pub(crate) fn worker_alone(
         settings: &settings::Worker,
         limits: &limits::Limits,
@@ -319,7 +313,7 @@ impl Service {
         let io_limits = settings.jig.limits.io;
         crate::worker_settings::prepare(settings, agent, limits)?;
         let queue = Self::WORKER_ALONE_QUEUE;
-        let worker_operations = crate::worker_settings::operations(&limits.git_component)
+        let worker_operations = crate::worker_settings::configured_operations(&limits.git_component)
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
         let operations = worker_alone_operations(&io_limits, worker_operations)
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
@@ -710,6 +704,7 @@ impl Service {
         if let Some(engine) = &self.engine {
             roots.entry(&engine.domain);
         }
+        #[cfg(feature = "worker")]
         if let Some(worker) = &self.worker {
             roots.entry(&worker.root);
         }

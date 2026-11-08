@@ -1,9 +1,10 @@
 # The playground world's native heap
 
-Measured 2026-11-03 (`date -u +%F`), on a builder, at commit
-`79d1b7c27b20bce64fcc5e6b3e75c3db3732948e`. These are native counting-allocator
-bytes, not browser memory or resident size. No memory ceiling is set here;
-[playground.md, sections 8 and 11](../design/playground.md) leave that bar to the user.
+These are native counting-allocator bytes, not browser memory or resident size.
+The playground binary's test holds each figure in the current table below with
+a quarter's margin, as a regression bound
+([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
+the memory's bar itself to the user.
 
 ## Commands and scope
 
@@ -11,7 +12,7 @@ From the repository root, with seed 7, the epoch wall clock, calm simulator,
 and trace off:
 
 ```sh
-cargo nextest run -p temper-playground-world --test memory --run-ignored only --no-capture </dev/null
+cargo nextest run -p temper-playground-world --test memory --no-capture </dev/null
 cargo nextest run -p temper-one-process-world --test memory --run-ignored only --no-capture </dev/null
 ```
 
@@ -20,7 +21,8 @@ one turn of every admitted process. Start is the first idle boundary with
 nothing due now: 147 world steps. The two snapshots use separate identical
 worlds, so each disk can be destroyed and its retained heap measured separately.
 The service process contains both engine and worker; they are not separate
-process measurements. There is no client or agent before the visitor acts.
+process measurements. The visitor is admitted at both snapshots; no agent
+runs before the visitor acts.
 
 The test's `skein_sim_world::Meter` uses `skein_heap::Span` for admission,
 process calls, release and restart. Held bytes accumulate signed net growth;
@@ -40,6 +42,10 @@ the composition still captures the sign-in line as its normal `step` does.
 
 ## Measured bytes
 
+Measured 2026-11-03 (`date -u +%F`), on a builder, at commit
+`79d1b7c27b20bce64fcc5e6b3e75c3db3732948e`. This historical table is retained
+for comparison; the test binds the 2026-11-08 table below.
+
 | Process | First step held | First step peak | Start held | Start peak | Story A high water |
 |---|---:|---:|---:|---:|---|
 | 0: service (engine + worker) | 122,754 | 160,247 | 186,163 | 190,459 | unmeasured: story A does not walk yet |
@@ -52,22 +58,42 @@ the composition still captures the sign-in line as its normal `step` does.
 | Fake disk | 8,778 | 43,539 |
 | Shared forge before start | 6,981 | not separately measured at start |
 
+Measured 2026-11-08 (`date -u +%F`), on a builder, at trunk commit
+`2c7e0d079e92266a03d667dba08dca3fd52ca062`. The focused playground test
+binds each figure in this table to `figure + figure / 4`. Start still takes
+147 world steps. The visitor is process 3, so four processes are measured at
+the first step and five at start, with hosted git now process 4. The bounds
+are keyed by the test's process names, including `visitor` and `git`.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 144,717 | 226,963 | 239,146 | 285,982 |
+| 1: fake LLM | 27,449 | 27,449 | 28,185 | 28,185 |
+| 2: fake forge HTTP | 30,002 | 30,002 | 30,743 | 30,787 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,410 | 5,952 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,393 | 124,117 |
+| Shared forge before start | 6,981 | not separately measured at start |
+
 The one-process binary takes the same entry as
 `temper/tests/one-process/tests/suite/story_a.rs`:
 `world::run(fixtures::calm(fixtures::SEED), world::Story::PlaygroundA)`, with
-`Memory::Checked` and trace off. That story's existing test is ignored because
-the composed fake disk lacks `playground-1/admin_token`. The measurement reaches
-person step 3 at 5,000,000,000 simulated ns, then fails because the CSV suggestion
-is missing and the playground remains `Starting`. It does not return an outcome
-or peaks. This is a story failure before a release check, so no `Observe`
-accounting workaround has been applied. Its high water and every knob's effect
-on its high water are **unmeasured: story A does not walk yet**. The measurement
-binary remains ignored for manual use once the story walks. Its status entry
-(`temper/docs/design/playground.status.md`, 8) remains open for that reason.
+`Memory::Checked` and trace off. At the 2026-11-08 commit above, both the story
+and its memory measurement complete person step 3 at 0 simulated ns, then fail
+the referee's `Bounded` promise: "world exceeded its finite iteration bound".
+Neither returns an outcome or peaks. Its high water and every knob's effect
+on its high water are **unmeasured: story A does not walk yet**. The memory
+binary remains ignored with the reason "story A does not walk in the
+one-process world (playground.status.md, 9): no high water to bound". Its
+status entries (`temper/docs/design/playground.status.md`, 8 and 9) remain
+open for that reason.
 
 ## Halving the knobs
 
-Each row below is a separate local, uncommitted edit at the measured commit,
+Each row below is a separate local, uncommitted edit at the 2026-11-03 commit,
 followed by the playground command above, then `git checkout -- <edited-file>`
 before the next edit. No changed knob is committed. The fake-limit rows each
 halve a group of capacities together; they do not attribute effects to individual

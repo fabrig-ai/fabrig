@@ -57,7 +57,7 @@ all 2,000 seeds and 24,000 drawn checks, with six fixed checks once.
 Shared list append bookkeeping and fixed-width generated measurement
 are cheaper. No test, draw, crash, invariant or ending is removed or
 moved. Remaining mechanisms and reliability investigations are deferred
-in section 11; the measured suite overage remains below.
+in section 11; the suite's measured CPU follows the departures below.
 
 Section 5.2's conformance sweeps fork every live commit from one baseline,
 retaining cold restart and independent readback. Section 5.3's retained
@@ -103,24 +103,12 @@ are deferred in section 11, with all bounds, orders and checks retained.
 
 - **Departs:** 6.1: temper's measured focused request-world sum is
   81.892959 CPU s against 30, and the real-loop focused median
-  is 31.769481 CPU s against its standing 15 s ceiling. The whole-temper
-  fuzzy median is 125.579032 CPU s against the strategy's 120, in three
-  warm serial runs including the driver (119.288299–127.664356 CPU s),
-  within the 180 to which the user raised the budget by half on 11-08,
-  for now, to be revisited.
-  All 81 tests passed in each run, but two runs and the median exceed
-  120; the request's roughly 15 CPU s reduction and reliable headroom
-  are not achieved. The gate's own per-test CPU result is unknown from
-  these serial samples, whose driver and feature unions differ from
-  the request's gate baseline.
-  [`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
-  their accounting limits, retained causes and next decisions.
+  is 31.769481 CPU s against its standing 15 s ceiling.
   The focused measurements, their load and accounting limits, retained
   causes and next decisions are in
   [`limits-worlds.md`](../../development/limits-worlds.md). The whole-temper
   focused suite total remains unknown; package sums include warm nextest
-  overhead.
-  No budget or ceiling has been raised.
+  overhead. Neither the focused 30 nor the 15 s ceiling has been raised.
 
 - **Departs:** 5.3 and 6.1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
@@ -133,6 +121,18 @@ are deferred in section 11, with all bounds, orders and checks retained.
   survivor's unique coverage, CPU and profiled instructions, and names
   the closest lower-story candidates. Their placement is the user's to
   decide; no exception or cost-driven move resolves this departure.
+
+Section 6.1's fuzzy suite has no known gap against its 180 CPU s, the
+strategy's 120 raised by half by the user's word of 11-08, for now, to be
+revisited (section 11): the whole-temper fuzzy median is 125.579032 CPU s
+in three warm serial runs including the driver (119.288299–127.664356
+CPU s), all 81 tests passing in each, though two runs and the median
+exceed the 120. The request's roughly 15 CPU s reduction and reliable
+headroom, which section 11 keeps, are not achieved. The gate's own CPU
+result is unknown from these serial samples, whose driver and feature
+unions differ from the request's gate baseline.
+[`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
+their accounting limits, retained causes and next decisions.
 
 Section 2.4's real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses
@@ -280,9 +280,7 @@ the fake's own process story.
   establishes no real launch with
   `--model claude-haiku-5-5 --effort low` or live landing. That evidence
   remains after-landing work (11): the plan compiles the live story
-  without running it, and no worker holds its login. The pair's `#[ignore]`
-  reasons still say "a person's sitting" and "owner-run only"
-  (`crates/temper/tests/live.rs`).
+  without running it, and no worker holds its login.
   2.7: the held record's guard is shown on the fake issuer and on stubs
   alone (`crates/temper/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,
@@ -331,7 +329,8 @@ the fake's own process story.
   alias of whoever runs fabrig's development, and the outward check
   matches that name only with digits after it. The same request left it
   in place.
-  2.7: the managed sitting's `fake` and `fake-wide` runs and `startup.rs`'s
+  2.7: the managed sitting's `fake` and `fake-wide` runs,
+  `managed_ready_client`'s fake sitting and `startup.rs`'s
   `the_live_github_configuration_passes_startup_admission` keep
   `fabrig-ai`, where the user's request of 11-04 gives tests on the fake
   forge a neutral owner, because the first are the live sitting's dry
@@ -353,3 +352,14 @@ the fake's own process story.
   sitting kills the box; and a `stat` of the record's path disarms it,
   where the draft has an explicit export, because a record back at its
   path owes nothing whichever return brought it.
+
+- **Not yet:** 2.6: B0's two offline proofs have no runtime result in
+  profile `process-temper`, and no CPU figure against the tier's budgets
+  (`tools/tiers/budgets.toml`): the plan `ignored-tiers` compiled and
+  listed them, and the next after-landing run proves them (11).
+- **Not yet:** 2.6: `managed_ready_client`'s fake sitting has no
+  runtime result in profile `process-temper`, and its client role no
+  run under `scripts/proof-live-github-managed.sh fake` since the test
+  took its sitting: the plan `ignored-tiers` compiled and listed it,
+  and the next after-landing run and the owner's next dry run prove
+  them (11).

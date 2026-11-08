@@ -742,3 +742,49 @@ fn freed_merge_job(world: &mut World, goal: &engine::Assignment, delegate: u64) 
     );
     job
 }
+
+// temper/docs/design/domain/forge.md, 9: a queued change follows its goal's priority-only amendment.
+#[test]
+fn a_goals_priority_amendment_moves_its_queued_change() {
+    let (mut world, goal, branch) = running_goal();
+    let base = branch_tip(&mut world, &branch);
+    let head = deliver(&mut world, &goal, base, b"priority");
+    let change = make_delivery(&mut world, &goal, DELIVERY_CALL);
+    status(&mut world, head, raw::Check::Passed);
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(row(&world, change).change.state, State::Queued { .. }) {
+            break;
+        }
+    }
+    assert!(matches!(row(&world, change).change.state, State::Queued { .. }), "setup: the change is queued");
+    let old_priority = live_task(&world, goal.task).tracked.expect("tracked goal");
+    assert_eq!(row(&world, change).priority, i32::try_from(old_priority).unwrap());
+    let priority = old_priority + 1;
+    let amendment = people::Amendment {
+        tracked: Some(people::Tracking::Tracked { priority }),
+        addressed: None,
+        instructions: None,
+        spec: None,
+        wake: None,
+        dependencies: None,
+        authority: None,
+        llm: None,
+        reason: b"Change queue priority".as_slice().into(),
+    };
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(96)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [96; 16],
+        ask: people::Ask::Amend { project: 1, task: goal.task, revision: 0, amendment, release: None },
+    }));
+    world.until(Until::Ready);
+    assert_eq!(live_task(&world, goal.task).tracked, Some(priority), "the priority-only amendment was committed");
+    assert_eq!(
+        row(&world, change).priority,
+        i32::try_from(priority).unwrap(),
+        "the goal feed must save its change's new priority"
+    );
+    world.close();
+}

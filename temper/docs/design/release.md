@@ -65,13 +65,20 @@ file the site serves beside it (5.1). The site that links them is
 
 - **`temper --version`** (and `temper version`) prints one line,
   `temper VERSION (COMMIT)`, before any configuration is read, exit 0.
-- **VERSION** is the `temper` crate's version, the workspace's in
-  `Cargo.toml`, `0.1.0` at v0.1.0's tag and `0.0.0` between releases;
-  **COMMIT** the commit it was built from, twelve hex digits, with
-  `-dirty` when the tree had changes, `unknown` when built outside git:
-  set by the `temper` crate's build script from git at build time,
-  which reruns when `HEAD` or the index moves, and held in one place of
-  the crate's own that every command reads.
+  Each of a deployment's binaries prints its own name the same way,
+  `temper-engine VERSION (COMMIT)` (`protocol/README.md`, 4.1).
+- **VERSION** is the workspace's version in `Cargo.toml`, `0.1.0` at
+  v0.1.0's tag and `0.0.0` between releases; **COMMIT** the commit it
+  was built from, twelve hex digits, with `-dirty` when the tree had
+  changes to tracked files, `unknown` when built outside git.
+- **Both are `temper-version`'s,** held in one place every binary reads:
+  its build script reads git at build time, the commit `HEAD` names and
+  whether tracked files differ from it, and reruns when `HEAD`, the
+  branch it names, the packed refs or the index moves, read where `git
+  rev-parse` puts them, a worktree's included; its library holds
+  `VERSION` and `COMMIT`, and `line(NAME)`, the line above. Only a
+  binary's package links it, so a commit rebuilds it and relinks those
+  binaries, and nothing they link.
 
 ## 4. What the machine must have
 

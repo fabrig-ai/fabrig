@@ -9,9 +9,8 @@ use skein_io::Addr;
 use skein_lib::{Decimal, Duration, List, Map, Writer};
 use temper_engine_domain as domain;
 use temper_protocol_worker_wire as payload;
-use temper_worker_domain as worker_domain;
 
-fn at(index: usize, path: Path) -> Path {
+pub(super) fn at(index: usize, path: Path) -> Path {
     path.child(Segment::Index(u32::try_from(index).expect("bounded configuration")))
 }
 fn charter_path(engine: &config::Engine, index: usize) -> Path {
@@ -30,7 +29,7 @@ pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mu
         }
     }
 }
-fn own(name: &[u8]) -> Path {
+pub(super) fn own(name: &[u8]) -> Path {
     Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
 }
 /// The binary's stock fits before any listener opens (protocol/configuration.md, 13.4).
@@ -48,7 +47,7 @@ pub(crate) fn stock(engine: &config::Engine, problems: &mut Problems) {
         );
     }
 }
-fn against(problems: &mut Problems, name: &[u8], other: &'static [u8]) {
+pub(super) fn against(problems: &mut Problems, name: &[u8], other: &'static [u8]) {
     problems.push(own(name), What::Against { other });
 }
 /// Named compatibility checks on the envelope runtime and store actually use.
@@ -262,49 +261,14 @@ pub fn webhooks(members: &super::application::Members, problems: &mut Problems) 
     }
 }
 /// Every git rule is checked independently, so one start reports them all.
-pub fn limits(limits: &limits::Limits, git: &temper_worker_protocol_git::Limits, problems: &mut Problems) {
-    use temper_worker_protocol_git::{Unfit, check};
-    let mut checked = *git;
-    // Repair just the reported rule in the local copy, then ask for the next.
-    for _ in 0_u8..7 {
-        match check(&checked, &limits.checkout) {
-            Ok(()) => break,
-            Err(Unfit::Operations) => {
-                against(problems, b"git_component.operations", b"checkout.workspaces");
-                checked.operations = limits.checkout.workspaces;
-            }
-            Err(Unfit::StdoutBytes) => {
-                against(
-                    problems,
-                    b"git_component.stdout_bytes",
-                    b"checkout.name_bytes and checkout.conflicts * (checkout.path_bytes + 1)",
-                );
-                let Some(bytes) = temper_worker_protocol_git::limits::largest_output(&limits.checkout) else { break };
-                checked.stdout_bytes = bytes;
-            }
-            Err(Unfit::StderrBytes) => {
-                against(problems, b"git_component.stderr_bytes", b"checkout.push_diagnostic");
-                checked.stderr_bytes = u32::try_from(temper_worker_domain_checkout::git::PushDiagnostic::CAPACITY)
-                    .expect("diagnostic bound");
-            }
-            Err(Unfit::ReadBytes) => {
-                against(problems, b"git_component.read_bytes", b"a nonzero read");
-                checked.read_bytes = 1;
-            }
-            Err(Unfit::SweepEntries) => {
-                against(problems, b"git_component.sweep_entries", b"a nonempty sweep page");
-                checked.sweep_entries = 1;
-            }
-            Err(Unfit::SweepBytes) => {
-                against(problems, b"git_component.sweep_bytes", b"the kernel's longest name");
-                checked.sweep_bytes = u32::try_from(skein_io::kernel::LONGEST_NAME).expect("kernel name bound");
-            }
-            Err(Unfit::Memory) => {
-                problems.push(own(b"git_component.operations"), What::Jig(config::What::Bound));
-                break;
-            }
-        }
-    }
+pub fn limits(
+    limits: &limits::Limits,
+    #[cfg(feature = "worker")] git: &limits::GitComponent,
+    #[cfg(not(feature = "worker"))] _: &limits::GitComponent,
+    problems: &mut Problems,
+) {
+    #[cfg(feature = "worker")]
+    super::worker::git_limits(limits, git, problems);
     let sign_in = limits.sign_in;
     for (name, value) in [
         (b"sign_in.members".as_slice(), sign_in.members),
@@ -466,13 +430,14 @@ pub fn channel(
 }
 
 /// Each sender's credential fits the receiving table and smith's bodies.
+#[cfg(feature = "worker")]
 pub fn grants(engine: &config::Engine, worker: &config::Limits, agent: &settings::Agent, problems: &mut Problems) {
-    let credential = crate::worker_settings::credential_bytes(worker.token);
+    let credential = crate::values::token_credential_bytes(worker.token);
     if crate::values::credential_bytes(engine) > credential {
         problems.push(worker_limit(b"accounts.token"), What::Against { other: b"engine.limits accounts.token" });
     }
     let bodies = &agent.limits.bodies;
-    if u32::try_from(smith_host_domain::SourceName::BYTES).expect("bounded source name") > bodies.program_value_name {
+    if u32::try_from(crate::values::SOURCE_NAME_BYTES).expect("bounded source name") > bodies.program_value_name {
         problems.push(
             at(0, Path::root().member(b"workers")).member(b"agent").member(b"configuration"),
             What::Against { other: b"the agent's program_value_name" },
@@ -482,7 +447,8 @@ pub fn grants(engine: &config::Engine, worker: &config::Limits, agent: &settings
         problems.push(worker_limit(b"accounts.token"), What::Against { other: b"the agent's credential_value_bytes" });
     }
 }
-fn worker_limit(member: &[u8]) -> Path {
+#[cfg(feature = "worker")]
+pub(super) fn worker_limit(member: &[u8]) -> Path {
     at(0, Path::root().member(b"workers")).member(b"limits").member(b"overrides").member(member)
 }
 /// The resume window as jig's hub counts it, excluding answered calls
@@ -492,7 +458,7 @@ fn resume_window(bytes: u32) -> Option<u64> {
     let carrier = u64::try_from(size_of::<Box<[u8]>>()).ok()?;
     bytes.checked_add(carrier.checked_sub(4)?.checked_mul(bytes / 4)?)
 }
-fn short(problems: &mut Problems, path: Path, bytes: u64, of: &'static [u8], needs: Option<u64>) {
+pub(super) fn short(problems: &mut Problems, path: Path, bytes: u64, of: &'static [u8], needs: Option<u64>) {
     match needs {
         Some(needs) if bytes < needs => problems.push(path, What::Short { bytes, of, needs }),
         Some(_) => {}
@@ -522,7 +488,7 @@ pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
             .member(b"profile")
             .member(b"declared")
             .member(b"tool_payload"),
-        u64::from(agent.tool_payload),
+        u64::from(agent.tool_payload()),
         b"temper's documentation answer (read_docs)",
         Some(u64::from(temper_engine_smith::DOC_ANSWER)),
     );
@@ -541,14 +507,14 @@ pub fn turns(
         forge_result(own_limits.forge.client.op_bytes, engine.core.tasks.result_bytes, problems);
     }
     if let Some(agent) = agent {
-        let turn = u64::from(agent.limits.bodies.turn_body);
+        let turn = u64::from(agent.turn_body());
         if let Some(engine) = engine {
             short(
                 problems,
                 engine_path.member(b"hub.outcome_bytes"),
                 engine.hub.outcome_bytes,
                 b"the agent's outcome (agent.json profile.declared.tool_payload)",
-                Some(agent.host_limits.outcome_bytes),
+                Some(agent.outcome_bytes()),
             );
             short(
                 problems,
@@ -587,7 +553,7 @@ pub fn turns(
                 path.member(b"hub.outcome_bytes"),
                 worker.limits.hub.outcome_bytes,
                 b"the agent's outcome (agent.json profile.declared.tool_payload)",
-                Some(agent.host_limits.outcome_bytes),
+                Some(agent.outcome_bytes()),
             );
             short(
                 problems,
@@ -619,94 +585,8 @@ pub fn turns(
         }
     }
 }
-/// Byte relationships retain the quantities the worker's admission check compared.
-fn worker_payload(limits: &worker_domain::Limits, unfit: worker_domain::Unfit, problems: &mut Problems) -> bool {
-    use worker_domain::Unfit;
-    const MESSAGE: &[u8] = b"agent.json profile.declared.tool_payload less the 2-byte separator";
-    match unfit {
-        Unfit::Events => problems.push(
-            worker_limit(b"hub.event_bytes"),
-            What::Within {
-                bytes: limits.host.event_bytes,
-                limit: MESSAGE,
-                bound: limits.agent.message_bytes.saturating_sub(worker_domain::SEPARATOR),
-            },
-        ),
-        Unfit::BoundsMessage => short(
-            problems,
-            worker_limit(b"hub.event_bytes"),
-            limits.host.event_bytes,
-            MESSAGE,
-            Some(u64::from(limits.bounds.message_bytes)),
-        ),
-        Unfit::CallBytes => short(
-            problems,
-            own(b"checkout.message_bytes"),
-            u64::from(limits.checkout.message_bytes),
-            b"the agent's call_bytes (agent.json profile.declared.tool_payload)",
-            Some(limits.agent.call_bytes),
-        ),
-        Unfit::TurnQueue => short(
-            problems,
-            worker_limit(b"hub.turn_queue_bytes"),
-            limits.host.turn_queue_bytes,
-            b"the agent's turns * workers[0].limits.overrides.hub.turn_bytes",
-            u64::from(limits.agent.turns).checked_mul(limits.host.turn_bytes),
-        ),
-        Unfit::Agent
-        | Unfit::Unacknowledged
-        | Unfit::Directories
-        | Unfit::Conflicts
-        | Unfit::Paths
-        | Unfit::Names
-        | Unfit::Key
-        | Unfit::Accounts
-        | Unfit::Workspaces
-        | Unfit::Turns
-        | Unfit::Calls
-        | Unfit::Held
-        | Unfit::Inbox
-        | Unfit::Saved
-        | Unfit::BoundsInbox => return false,
-    }
-    true
-}
-/// The worker's rules against the agent's configuration, each naming both
-/// limits (temper-worker-domain's `unfit`).
-pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
-    use worker_domain::Unfit;
-    let worker = at(0, Path::root().member(b"workers"));
-    for unfit in &worker_domain::unfit(limits) {
-        if worker_payload(limits, *unfit, problems) {
-            continue;
-        }
-        let (path, other): (Path, &'static [u8]) = match unfit {
-            Unfit::Agent | Unfit::Unacknowledged => {
-                problems.push(worker.member(b"agent").member(b"configuration"), What::Jig(config::What::Bound));
-                continue;
-            }
-            Unfit::Directories => (own(b"checkout.repositories"), b"the agent's directories"),
-            Unfit::Conflicts => (own(b"checkout.conflicts"), b"the agent's conflicts"),
-            Unfit::Paths => (own(b"checkout.path_bytes"), b"the agent's path_bytes"),
-            Unfit::Names => (own(b"checkout.name_bytes"), b"the agent's name_bytes"),
-            Unfit::Key => (own(b"checkout.name_bytes"), b"a workstream's 8-byte key"),
-            Unfit::Accounts => (worker_limit(b"hub.accounts"), b"the agent's accounts"),
-            Unfit::Workspaces => {
-                (worker.member(b"slots"), b"application.limits.overrides.checkout.workspaces, at least the slots")
-            }
-            Unfit::Turns => (worker_limit(b"hub.turns"), b"the agent's turns"),
-            Unfit::Calls => (worker_limit(b"hub.run_calls"), b"the agent's calls"),
-            Unfit::Held => (worker_limit(b"hub.held"), b"the agent's messages"),
-            Unfit::Inbox => (worker_limit(b"hub.inbox"), b"the agent's messages"),
-            Unfit::Saved => (own(b"checkout.message_bytes"), b"the save's commit message"),
-            Unfit::BoundsInbox => (worker_limit(b"hub.inbox"), b"the agent's hello's inbox"),
-            Unfit::TurnQueue | Unfit::Events | Unfit::CallBytes | Unfit::BoundsMessage => {
-                unreachable!("payload rule reported above")
-            }
-        };
-        problems.push(path, What::Against { other });
-    }
-}
+#[cfg(feature = "worker")]
+pub use super::worker::worker;
 /// The landing rules' limits, one of which a refused rule breaks.
 const LANDING: &[u8] =
     b"root.journal.transcript_bytes, authority.requirements, forge.judge_criteria and forge.change_policy.gates";
@@ -841,7 +721,7 @@ pub fn root(
 /// Endpoint names, and every charter model, agree with the agent.
 pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Problems) {
     for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
-        let agrees = agent.endpoints.resolve(&endpoint.name).is_some();
+        let agrees = agent.resolves_endpoint(&endpoint.name);
         if !agrees {
             problems.push(at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")), What::Agent);
         }
@@ -849,7 +729,7 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
     for (index, provider) in engine.llm.providers.iter().enumerate() {
         for (offered, name) in provider.programs.iter().enumerate() {
             let mut declared = false;
-            for program in &agent.programs {
+            for program in agent.programs() {
                 declared |= program.adapter.name() == name.as_ref();
             }
             if !declared {
@@ -872,9 +752,9 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
         else {
             continue;
         };
-        model(&charter.policy.model, &agent.bounds, path.member(b"model"), problems);
+        model(&charter.policy.model, agent.bounds(), path.member(b"model"), problems);
         for (index, alternative) in charter.policy.alternatives.iter().enumerate() {
-            model(alternative, &agent.bounds, at(index, path.member(b"alternatives")), problems);
+            model(alternative, agent.bounds(), at(index, path.member(b"alternatives")), problems);
         }
     }
 }
@@ -896,7 +776,7 @@ pub fn admission(
 ) {
     use fleet::AgentShortfall;
     let needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
-    let bounds = agent.bounds.clone();
+    let bounds = agent.bounds().clone();
     let Some(why) = fleet::shortfall(&needs, &bounds, fleet::HostKind::Worker) else { return };
     let engine_path = Path::root().member(b"engine");
     let path = match why {
@@ -944,7 +824,7 @@ fn charter_index(engine: &config::Engine, number: u32) -> usize {
 pub(super) fn sockets(
     engine: &config::Engine,
     worker: &config::Worker,
-    git: &temper_worker_protocol_git::Limits,
+    git: &limits::GitComponent,
     members: &super::application::Members,
     problems: &mut Problems,
 ) {
@@ -963,7 +843,7 @@ pub(super) fn sockets(
 fn socket_count(
     engine: &config::Engine,
     worker: &config::Worker,
-    git: &temper_worker_protocol_git::Limits,
+    git: &limits::GitComponent,
     members: &super::application::Members,
 ) -> Option<u64> {
     let mut required = u64::from(limits::server(&engine.limits).connections).checked_add(1)?.checked_add(2)?;

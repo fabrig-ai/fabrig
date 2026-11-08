@@ -133,15 +133,17 @@ caps, as for any machine stacked on a stream (io.md, 2).
   its session id.
 - **Decoding keeps only what it needs.** A bounded JSON document view
   selects the fields for each expected reply and enabled event. Unknown
-  fields, and events it has not enabled, are skipped.
-- **A message is parsed once.** Validating it indexes the span of every
-  value and of every object member's key, in document order, each value
-  knowing where its subtree ends. A field, an array's element or a value's
-  bytes are looked up in that index, so no lookup walks a subtree again, and
-  a key without escapes is compared as its bytes. Ids and node ids
+  fields, and events it has not enabled, are skipped. Ids and node ids
   are parsed as integers, and coordinates as whole CSS pixels with their
   fractions dropped, so no float enters the kit. A screenshot's base64
   is decoded into its PNG's bytes.
+- **A message is indexed once.** Validating it indexes the span of every
+  value and of every object member's key, in document order, each value
+  knowing where its subtree ends: a first walk validates and counts the
+  entries, so that the index is allocated at its size (section 8), and a
+  second fills them. A field, an array's element or a value's bytes are
+  looked up in that index, so no lookup walks a subtree again, and a key
+  without escapes is compared as its bytes.
 - **The domains used:** `Browser` and `Target` (contexts, pages,
   sessions); `Page` (navigation and its lifecycle, screenshots);
   `Emulation` (a viewport set in CSS pixels); `Accessibility` and `DOM` (finding

@@ -643,6 +643,11 @@ from in this repository's own words is left for later.
 
 Jig's and Temper's focused gate entries await the user's word.
 
+Temper's fuzzy 180 (7.3), and the 217.5, 127.5 and 540 CPU seconds of
+`browser-skein`, `browser-temper` and `process-temper`, are 120, 145, 85
+and 360 raised by half by the user's word of 11-08, for now, as
+`budgets.toml`'s comments say: revisiting them is the user's.
+
 `budgets()` validates `[gate.<tree>.<profile>]` and nothing here reads it
 beyond that (7.3): what measures a tree's share of a gate suite and records
 a run over it is left for later.
