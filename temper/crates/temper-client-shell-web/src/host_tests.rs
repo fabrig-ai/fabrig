@@ -643,14 +643,19 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
 #[test]
 #[cfg(not(feature = "small-window"))]
 fn the_ordinary_bundle_keeps_the_whole_document_bound() {
-    assert_eq!(limits::client().window_bytes, None);
+    let client = limits::client();
+    assert_eq!(client.window_bytes, None);
+    assert_eq!(client.client.domain.long_text, 131_072);
+    assert_eq!(client.client.domain.turn_text, 131_072);
 }
 
 #[test]
 #[cfg(feature = "small-window")]
 fn the_small_window_bundle_names_a_valid_narrower_window() {
     let client = limits::client();
-    assert_eq!(client.window_bytes, Some(131_072));
+    assert_eq!(client.window_bytes, Some(32_768));
+    assert_eq!(client.client.domain.long_text, 32_768);
+    assert_eq!(client.client.domain.turn_text, 32_768);
     assert!(limits::valid(&client));
 }
 

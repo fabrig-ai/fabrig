@@ -37,7 +37,7 @@ pub use see::{ADDRESSES, SEE_PART, see_answer};
 pub use settings::{
     settings_answer, settings_answer_bounded, settings_note, settings_repository_answer, settings_text,
 };
-pub use start::{charter, fit_brief, fit_brief_bytes, section, start};
+pub use start::{charter, section, start};
 
 fn decimal(bytes: &[u8], member: &'static [u8]) -> Result<u64, Problem> {
     if bytes.is_empty() {

@@ -406,20 +406,21 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        if self.start.is_some()
-            || words.len() > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits")
-        {
+        if self.start.is_some() {
+            return;
+        }
+        let Some(me) = me else { return };
+        if super::composer::over(&words, self.beyond, me.words_bytes) > 0 {
             return;
         }
         self.words = words;
-        self.beyond = 0;
         let template = ASKING_TEMPLATE;
-        if let (Some(me), Some(project)) = (me, project)
+        if let Some(project) = project
             && jig_client::shapes::template(me, project, template).is_none()
         {
             return;
         }
-        self.send(env, me, project, template, self.words.clone(), Some(choice), serial, out);
+        self.send(env, Some(me), project, template, self.words.clone(), Some(choice), serial, out);
     }
     #[expect(
         clippy::too_many_arguments,

@@ -141,7 +141,17 @@ page in Settings, and the terminal prints "Ways of working:" and "The
 way a change goes:" once each. No gallery state draws those two pages,
 and the repairs' render check follows landing (`client/README.status.md`,
 3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
-`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). Ask temper's
+`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). How work
+runs, Settings' first tab, is the whole story's milestone P3a, by plan
+`ui-p3a-how`: the way the project runs, "Ask temper to change this",
+the ways as tabs over the path in lanes, You, Agents and Code, a goal's
+budget and the switches at its foot, its parts and lanes one pure
+function each, with a fuzz test of their rules, the joint world's
+lanes over CI and tiers and over neither, and six gallery states; its
+render check and walk follow landing. The draft draws the path as Ask
+temper's ways do, the agent's star in ink, which the design doesn't yet
+say, and Roles, which it defers (`client/README.md`, 5.13 and 11; `client/browser.md`,
+2.5 and 7.2; `draft/surfaces.status.md`, 7 and 13). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
@@ -296,17 +306,17 @@ repository's gates are still the document's
 (`protocol/configuration.md`, `domain/landing.md`), and the forge's
 world tells none of their stories (`domain/forge.md`,
 `domain/testing.md`). A goal's own branch and its landing are built,
-but for the held landing's story, ignored for a restart fault
-(`domain/forge.md`). A change relays its agents' questions through a
+and its held landing's story runs (`domain/forge.md`). A change relays its agents' questions through a
 foreman of its own or straight up, within its bound, but no story
 asks from a repair or a resolution, or has its words refused, and a
 step short of message room loses a foreman's verdict
 (`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
-built through ctl, but the restore's stories in the domain world and
-the joined client world are ignored (`protocol/configuration.md`,
-`client/tools.md`). Ask temper, charter 11 from template 5, configures
+built through ctl, and the domain world's restore stories run but
+one, which, with the joined client world's, stays ignored: a setting
+reset to a default the forge does not report to jig loses its state at
+restart (`protocol/configuration.md`, `client/tools.md`). Ask temper, charter 11 from template 5, configures
 through `see`, `document` and the asking `propose_settings`; its reference
 pages are built, but no walk on record has run a real model on its words
 as they stand. No address of `see` reads workers' slots, so it sizes by
@@ -494,9 +504,13 @@ The browser tier holds its twelve tests, with the call line, model picker,
 welcome sign-in and four reading stories in four merged tests, compiled
 with story labels for failed steps but with no run in Chromium yet. Reading's
 four stories, apart, passed with ctl history
-and a 131,072-byte window, but their CPU medians sum to
-44.849900 s and the three targets remain unmet; no whole-tier run proves the
-repair within 85 CPU s. The listener-full ctl failure is repaired; the public
+and a 131,072-byte window, their CPU medians summing to
+44.849900 s against three unmet targets. The tier's window, `long_text` and
+`turn_text` are now 32,768 bytes, reading's code lines scaled with them, and
+skein's decoder indexes each CDP message once, with no CPU figure on record
+since; no whole-tier run proves the
+repair within its 127.5 CPU s, 85 raised by half by the user's word of 11-08,
+for now, to be revisited. The listener-full ctl failure is repaired; the public
 visibility-command failure remains unverified. A whole-bound manual reading
 check, the closed-chat wait's split and a head's stall-deadline story remain
 (`client/browser.md`). A stale view still rereads held Markdown and rebuilds
@@ -696,8 +710,9 @@ focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
 6.1 and 11). Deployment-world measurements sum to 81.892959 focused and
 130.202313 fuzzy CPU s for the measured packages alone; the whole focused
 total remains unknown. The whole fuzzy suite's three warm serial runs
-pass all 81 tests each, but their median is 125.579032 CPU s against 120
-(119.288299–127.664356, including the driver).
+pass all 81 tests each, but their median is 125.579032 CPU s against the
+strategy's 120 (119.288299–127.664356, including the driver), within the 180
+to which the user raised the budget by half on 11-08, for now, to be revisited.
 The requested roughly 15 CPU s reduction and reliable headroom remain
 unachieved; gate accounting is distinct (`domain/testing.md`, sections 6,
 6.1 and 11). The real-loop focused median is 31.769481 CPU s against
@@ -710,7 +725,8 @@ into the process tier and compiled; their runtime there and the tier's
 margin after the estimated 15.9 CPU s transfer remain unobserved
 (`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
 The process tier's three tests at a time await a passing whole run after landing,
-and its CPU-budget overages remain. The fake box keeps two walks, `here_key`
+and no run on record reads the tier as it stands against its 540 CPU s.
+The fake box keeps two walks, `here_key`
 and the browser tab; the ten others' behaviour runs in the joint world, the
 real loop, the one-process world and the fake's own stories, and the tier's
 CPU without them is read after landing. The copy stories' world and the
@@ -798,11 +814,28 @@ The deployment's client, `temper-client`, is built (M1 of
 and `ctl`, run by the box's code from the shells both binaries link, its
 help, refusals and `--version`, on `temper-shell`, which the box's `temper`
 prints its table from. Its ctl story runs the box's `temper serve` as the
-engine until `temper-engine` is built, and runs after landing. It links jig's
+engine until M5 switches it to `temper-engine`, and runs after landing. It links jig's
 accounts protocol and engine-side crates through an unused line of ctl's
-manifest, and no test yet holds its closure: the boundary test is M5's
+manifest, and no test yet holds its closure: its boundary row is M5's; its
+`--version` reads a build script of its own, not `temper-version`
 (`protocol/README.status.md`, 4; `client/README.status.md`, 2). The `commands`
 page names no command's binary (`draft/deployment-binaries.status.md`).
+
+The engine's binary, `temper-engine`, is built (M2, plan `ui-engine-split`):
+`serve` of an engine alone's document with the web client, the owned
+forge's commands, `internal forge-child`, `versions`, help and `--version`
+from `temper-version`, refusing a worker alone's and a standalone document
+by the binary that runs each, in a table step test of the built binary.
+Its commands are `temper-engine-shell`'s, which the box's `temper` runs too
+with its worker's half; `temper-service`'s worker half is its `worker`
+feature, off in the engine's build; the brief's fitter is
+`temper-protocol-brief`'s. The boundary test holds its closure free of the
+worker's domain and smith's agent but `smith-domain` and three of its
+crates, named with their reason; the closure keeps the box's machine and
+the fakes' crates for the document's check (`draft/deployment-binaries.status.md`).
+`upgrade` waits on jig's rehearsal and going back, and the feature-off
+service is built only by the engine's own build, not the gate
+(`protocol/README.status.md`, 4.1 and 4.2; `release.status.md`, 3).
 
 Design documents:
 - [`README.md`](README.status.md)

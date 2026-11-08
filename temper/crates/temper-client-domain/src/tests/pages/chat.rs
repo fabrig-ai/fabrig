@@ -30,6 +30,62 @@ fn opening_a_chat_watches_task_and_reads_its_first_activity_page() {
     assert!(out.is_empty());
 }
 #[test]
+fn a_fast_completed_chat_reads_back_to_its_opening() {
+    use jig_client::thread::window::End;
+    let mut f = f::opened();
+    let mut task = f::task();
+    f::phase(&mut task, c::ChipPhase::Active(c::RunStage::Idle));
+    let request = skein_lib::bytes::copy_of(task.spec.specification.words.bytes());
+    f::deliver(&mut f.client, f.watch, task);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    while f.out.pop().is_some() {}
+    let cursor = c::Cursor::new(Box::from(*b"opening"), 7).unwrap();
+    let page = completed_activity(Some(cursor.clone()));
+    f.chat.told(Time::ZERO, &f.client, Told::Page { handle: f.chat.activity, page: activity_answer(page) }, &mut f.out);
+    assert_eq!(
+        f.out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: f.chat.activity,
+            read: Readable::Jig(c::Read::Activity { task: f::TASK, before: Some(cursor) }),
+        })),
+        "the completed first page reads back to the opening"
+    );
+    let mut rows = skein_lib::List::with_capacity(1);
+    rows.push(owner_activity(1, c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false }))
+        .unwrap();
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle: f.chat.activity,
+            page: activity_answer(c::ActivityPage { rows, before: None, after: None, cut: false }),
+        },
+        &mut f.out,
+    );
+    assert!(f.chat.thread.lines.edges.reaches(End::After));
+    assert_eq!(f.chat.thread.lines.rows.len(), 3);
+    assert_eq!(f.chat.request(&f.client).unwrap().0, request.as_ref());
+    assert!(f.out.is_empty(), "the opening ends the initial read");
+}
+fn completed_activity(before: Option<c::Cursor>) -> c::ActivityPage {
+    let mut blocks = skein_lib::List::with_capacity(1);
+    blocks.push(c::Block::Text(fixtures::acts::text(b"Hello from the local fake model."))).unwrap();
+    let jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(reply))) =
+        f::activity_reply(c::Speaker::Assistant, blocks, 2)
+    else {
+        panic!("reply page")
+    };
+    let mut page = *reply;
+    let turn = page.rows.swap_remove(0).unwrap();
+    page.rows = skein_lib::List::with_capacity(2);
+    page.rows
+        .push(owner_activity(3, c::Activity::RunEnded { attempt: f::ATTEMPT, end: c::RunEnd::Parked, spent: 0 }))
+        .unwrap();
+    page.rows.push(turn).unwrap();
+    page.before = before;
+    page
+}
+#[test]
 fn every_send_asks_for_the_composer() {
     let mut f = f::opened();
     let mut task = f::task();
@@ -1021,14 +1077,104 @@ fn window_activity(page: u32, pages: u32) -> c::ActivityPage {
     }
 }
 #[test]
-fn no_second_read_after_a_first_page() {
-    let limits = fixtures::limits();
+fn a_full_first_page_waits_for_the_persons_next_read() {
+    let mut limits = fixtures::limits();
+    limits.client.domain.document_bytes = u64::from(WINDOW_PAGE_ROWS * c::LINE_ROOM);
     let (mut chat, client, mut out) = reading_chat(&limits);
     window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
     assert!(out.is_empty(), "a page with rows waits for the person's next read");
     assert_eq!(chat.thread.lines.rows.len(), WINDOW_PAGE_ROWS);
     assert!(chat.thread.reading.is_none());
 }
+#[test]
+fn initial_history_stops_when_the_cursor_does_not_advance() {
+    let (mut chat, client, mut out) = reading_chat(&fixtures::limits());
+    window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
+    assert!(out.pop().is_some(), "initial history asks for the older page");
+    window_page(&mut chat, &client, &mut out, 1, WINDOW_PAGES);
+    assert!(out.is_empty(), "the repeated cursor stops automatic reading");
+    assert!(chat.thread.reading.is_none());
+    chat_act(&mut chat, &client, Act::Older, &mut out);
+    assert!(out.pop().is_some(), "a person can still ask for older history");
+}
+
+#[test]
+fn initial_history_keeps_the_newest_page_when_the_next_will_not_fit() {
+    for newer in [false, true] {
+        let mut limits = fixtures::limits();
+        limits.client.domain.document_bytes = u64::from(3 * c::LINE_ROOM);
+        let (mut chat, client, mut out) = reading_chat(&limits);
+        window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
+        assert!(out.pop().is_some(), "there is room to try an older page");
+        let rows = chat.thread.lines.rows.clone();
+        let edges = chat.thread.lines.edges.clone();
+        if newer {
+            chat.thread.committed = chat.thread.loaded.checked_add(1).unwrap();
+        }
+        window_page(&mut chat, &client, &mut out, 1, WINDOW_PAGES);
+        assert_eq!(chat.thread.lines.rows, rows, "initial filling keeps the recent page whole");
+        assert_eq!(chat.thread.lines.edges, edges, "the unread page keeps its cursor");
+        let expected = if newer { Some(first_activity(&chat)) } else { None };
+        assert_eq!(out.pop(), expected, "a newer announced reply still refreshes at the window limit");
+        assert!(out.is_empty());
+        assert_eq!(chat.thread.reading.is_some(), newer);
+    }
+}
+
+#[test]
+fn an_empty_opening_page_keeps_an_announced_tail_read() {
+    for announced in [true, false] {
+        let (mut chat, client, mut out) = reading_chat(&fixtures::limits());
+        if announced {
+            chat.thread.committed = 3;
+        }
+        let mut page = empty_activity();
+        page.before = None;
+        chat.told(Time::ZERO, &client, Told::Page { handle: chat.activity, page: activity_answer(page) }, &mut out);
+        let expected = if announced { Some(first_activity(&chat)) } else { None };
+        assert_eq!(out.pop(), expected, "a stale empty page still reads the announced tail");
+        assert!(out.is_empty());
+        if !announced {
+            assert_eq!(chat.thread.moved(3), Some(c::Read::Activity { task: f::TASK, before: None }));
+        }
+        let cursor = c::Cursor::new(b"opening".as_slice().into(), 7).unwrap();
+        chat.told(
+            Time::ZERO,
+            &client,
+            Told::Page { handle: chat.activity, page: activity_answer(completed_activity(Some(cursor.clone()))) },
+            &mut out,
+        );
+        assert_eq!(
+            out.pop(),
+            Some(Request::Client(Event::Read {
+                handle: chat.activity,
+                read: Readable::Jig(c::Read::Activity { task: f::TASK, before: Some(cursor) }),
+            })),
+            "the first committed history still fills back to its opening"
+        );
+        window_page(&mut chat, &client, &mut out, 0, 1);
+        assert_eq!(chat.thread.loaded, 3);
+        assert!(chat.thread.reading.is_none());
+        assert!(out.is_empty());
+    }
+}
+
+#[test]
+fn initial_empty_history_stops_at_its_page_budget() {
+    let mut limits = fixtures::limits();
+    limits.client.domain.document_bytes = u64::from(2 * c::LINE_ROOM);
+    let (mut chat, client, mut out) = reading_chat(&limits);
+    chat.thread.committed = 3;
+    for (cursor, reads) in [(b"first".as_slice(), true), (b"second".as_slice(), false)] {
+        let mut page = empty_activity();
+        page.before = Some(c::Cursor::new(cursor.into(), 6).unwrap());
+        chat.told(Time::ZERO, &client, Told::Page { handle: chat.activity, page: activity_answer(page) }, &mut out);
+        assert_eq!(out.pop().is_some(), reads, "an empty page spends the initial read budget");
+        assert!(out.is_empty());
+    }
+    assert!(chat.thread.reading.is_none());
+}
+
 #[test]
 fn a_named_window_bounds_the_thread_and_its_lines() {
     const WINDOW_BYTES: u64 = 131_072;
@@ -2121,11 +2267,12 @@ fn the_end_comes_back_after_enough_older() {
     let mut serial = SERIAL;
     for page in 0..WINDOW_PAGES {
         if page > 0 {
-            chat.act(&fixtures::env(&limits), &client, Act::Older, &mut serial, &mut out);
+            if chat.thread.reading.is_none() {
+                chat.act(&fixtures::env(&limits), &client, Act::Older, &mut serial, &mut out);
+            }
             assert!(out.pop().is_some(), "older page {page} is read");
         }
         window_page(&mut chat, &client, &mut out, page, WINDOW_PAGES);
-        while out.pop().is_some() {}
     }
     assert!(!chat.thread.lines.edges.reaches(End::Before), "older reads let the newest lines go");
     for page in (0..WINDOW_PAGES - 1).rev() {
@@ -2208,9 +2355,7 @@ fn a_failed_older_keeps_the_page_and_can_be_retried() {
     use jig_client::thread::window::End;
     let (mut chat, client, mut out) = reading_chat(&fixtures::limits());
     window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
-    while out.pop().is_some() {}
-    chat_act(&mut chat, &client, Act::Older, &mut out);
-    let read = out.pop().expect("older read");
+    let read = out.pop().expect("initial older read");
     let rows = chat.thread.lines.rows.clone();
     let edges = chat.thread.lines.edges.clone();
     chat.words = Box::from(*b"Keep these words");
@@ -2265,10 +2410,8 @@ fn an_ended_read_leaves_latest_free() {
     use jig_client::thread::window::{Edge, End};
     let (mut chat, client, mut out) = reading_chat(&fixtures::limits());
     window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
-    while out.pop().is_some() {}
+    assert!(out.pop().is_some(), "initial older read");
     chat.thread.lines.edges.before = Edge::Dropped;
-    chat_act(&mut chat, &client, Act::Older, &mut out);
-    assert!(out.pop().is_some());
     chat.told(
         Time::ZERO,
         &client,
