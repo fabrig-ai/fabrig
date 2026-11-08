@@ -318,12 +318,3 @@ approval stylesheet beside the sign-in rules. Section 7.2's eleven
 `approve-*` gallery states are present, with domain, view and shell
 coverage. Section 5 keeps the rendered browser check and approval at a
 public name for later; no real-browser result is supplied here.
-
-- **Not yet:** 2.4, 2.5, 7.2, 8.2: *Outside a project* (the look request
-  `outside-pages`): the top bar, the column, the approval's code and field
-  are drawn in the old look still, under the banner, its menu and corner
-  and the sign-in card; the public pages' frame is the old banner; the old
-  look's tokens, rules, `files/brand.svg` and the accent `#b8664e` stand,
-  with no test keeping them out; the first paint's mark is the old star in
-  `#b8664e` with its dot; the gallery has no `no-project` or
-  `approve-signed-out-google`.

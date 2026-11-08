@@ -32,9 +32,6 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   mode, so the client cannot tell selected repositories from all repositories.
   "Not listed" asks the person to check that the repository exists and grant it
   to the App for either mode.
-- **Not yet:** 9.1: the pages' look (the look request `outside-pages`): the
-  setup's pages draw temper's name above a bordered card in the system's
-  look still.
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:
   amending a change's gates from its panel. 4: approvals, a person
