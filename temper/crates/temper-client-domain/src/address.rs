@@ -20,6 +20,8 @@ pub enum Address {
     Repositories { project: u32 },
     Models { project: u32 },
     Builders { project: u32 },
+    Role { project: u32, charter: u32 },
+    Rule { project: u32, kind: u32, number: u32 },
     Ask { project: u32 },
     Adopt { project: u32 },
 }
@@ -108,7 +110,7 @@ pub enum Place {
 }
 
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
-/// `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
+/// `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/roles/<charter>`, `/projects/<project>/settings/rules/<kind>/<number>`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
@@ -148,6 +150,24 @@ pub fn print(address: &Address) -> Box<[u8]> {
         }
         Address::Builders { project } => {
             (b"projects".as_slice(), Some(u64::from(*project)), b"settings/builders".as_slice())
+        }
+        Address::Role { project, charter } => {
+            return skein_lib::bytes::concat(&[
+                b"/projects/",
+                Decimal::of(u64::from(*project)).as_bytes(),
+                b"/settings/roles/",
+                Decimal::of(u64::from(*charter)).as_bytes(),
+            ]);
+        }
+        Address::Rule { project, kind, number } => {
+            return skein_lib::bytes::concat(&[
+                b"/projects/",
+                Decimal::of(u64::from(*project)).as_bytes(),
+                b"/settings/rules/",
+                Decimal::of(u64::from(*kind)).as_bytes(),
+                b"/",
+                Decimal::of(u64::from(*number)).as_bytes(),
+            ]);
         }
         Address::Repositories { project } => {
             (b"projects".as_slice(), Some(u64::from(*project)), b"settings/repositories".as_slice())
@@ -190,6 +210,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
 /// The page a path names, reading the page's query and ignoring other queries and one trailing slash.
 /// Unreadable query fields are dropped; any other path is `Place::Missing`.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one codec reads each page alongside its project paths")]
 pub fn parse(path: &[u8]) -> Place {
     if path == b"/public" || path.starts_with(b"/public/") || path.starts_with(b"/public?") {
         return Place::Public(parse_public(path).unwrap_or(Public::Projects));
@@ -262,6 +283,23 @@ pub fn parse(path: &[u8]) -> Place {
         (b"projects", _, b"settings/builders") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Builders { project }
+        }
+        (b"projects", _, tail) if tail.starts_with(b"settings/roles/") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            let Some(charter) = natural(tail.strip_prefix(b"settings/roles/").expect("role prefix")) else {
+                return Place::Missing;
+            };
+            Address::Role { project, charter }
+        }
+        (b"projects", _, tail) if tail.starts_with(b"settings/rules/") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            let (kind, number) = segment(tail.strip_prefix(b"settings/rules/").expect("rule prefix"));
+            let Some(kind) = project_decimal(kind) else { return Place::Missing };
+            if kind != 1 && kind != 2 {
+                return Place::Missing;
+            }
+            let Some(number) = natural(number) else { return Place::Missing };
+            Address::Rule { project, kind, number }
         }
         (b"projects", _, b"settings/repositories") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
@@ -415,6 +453,11 @@ fn decimal(bytes: &[u8]) -> Option<u64> {
         value = value.checked_mul(10)?.checked_add(u64::from(byte.checked_sub(b'0')?))?;
     }
     Some(value)
+}
+
+fn natural(bytes: &[u8]) -> Option<u32> {
+    let number = project_decimal(bytes)?;
+    if number == 0 { None } else { Some(number) }
 }
 
 fn project_decimal(bytes: &[u8]) -> Option<u32> {

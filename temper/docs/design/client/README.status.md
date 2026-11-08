@@ -1018,6 +1018,5 @@ the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
 
-- **Not yet:** 3.5, *A role's or a rule's page*, and its two rows of the pages' table: no `Role` or `Rule` address, page or read (`look-round-24`, `role-pages`).
 
 - **Not yet:** 3.5, *a stop's card*: every card's link opens `Settings { project }`, not the role or the rule it names (`look-round-24`, `role-links`).
