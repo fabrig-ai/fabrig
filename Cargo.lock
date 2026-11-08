@@ -2416,9 +2416,11 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "jig-protocol-config",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
+ "jig-test-service",
  "skein-channel",
  "skein-codec",
  "skein-fake-channel",
