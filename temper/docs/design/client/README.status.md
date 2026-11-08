@@ -42,7 +42,20 @@ newest open Ask temper chat. Template 5 starts its chat; without it no
 chat starts. Section 5.13 offers neither configuring chat nor Ask temper
 on Settings. The opening retains the configuring page's starters and
 reference, as the renamed-page draft specifies. The post-landing walk,
-views and preferences remain section 11's work.
+M3b's views and preferences remain section 11's work.
+
+Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
+`BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
+Ask temper's page watches its project's `ways` while open, and its domain
+sends "Use this" and "Keep it" as one `ChangeSettings` of the read's items,
+with the project's policy joined where a way's `delegation` holds, offers
+"Yours" where no way is current, no act where `may_change` is false, and
+"Keep it" only while To begin's first step is left. A turn's and a chat
+document's top-level `view` blocks are split out, read through `View` and
+redrawn at a newer revision, drawn as temper's path drawing kind with a
+stop a line as the terminal's fallback. Ask temper's page draws no ways,
+tabs or acts: that is the look request `ask-temper-ways`'s, as 5.13 says
+(section 11). Rendered comparison of the drawing follows landing.
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's

@@ -65,7 +65,8 @@ fn expected(path: &Path, words: &[(Actor, &str)], row: &str) {
 #[expect(clippy::type_complexity, reason = "rows pair inputs with ordered actor and word pairs")]
 fn paths_follow_the_stock_and_branch_rules_in_order() {
     // The look request's three pages, with "verify" added to its first two
-    // paths as plan.md's "What was decided" requires.
+    // paths, since main's tier follows main whatever the way
+    // (temper/docs/design/domain/forge.md, 8.13).
     let mut maintainer = inputs(0, false, false, Way::Queue, false);
     maintainer.rules.first_mut().unwrap().rule.approvals =
         Box::new([RuleApproval { role: 1, people: 2, freshness: JudgeFreshness::Clean }]);

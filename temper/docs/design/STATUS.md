@@ -77,14 +77,21 @@ name a branch across its repositories. The deployment has no stock rule.
 Charter 5 and template 4 are stock, with the delegation that reaches
 them; the reference sets its own project's rule 1 to main alone. Its
 stage-one description still omits that rule, and existing policies need
-an owner's proposal to gain delegation. The three ways, paths, read and
-Ask temper views remain the next design step (`protocol/configuration.md`,
-11 and 13.2 to 13.4; `draft/stock-ways.status.md`). Ask temper's first milestone
+an owner's proposal to gain delegation but where Draft first's act adds
+it. The three stock ways are data given at each start, one derivation
+draws a branch's path, and the watched `ways` read, `see ways`, the
+`View` read and the views `way`, `path`, `proposal` and `charter` in a
+reply are built, with "Use this", "Keep it" and "Yours" in the client's
+domain; Ask temper's page draws none of them until the look request
+`ask-temper-ways` (`domain/forge.md`, 8.13; `protocol/configuration.md`,
+11 and 13.2 to 13.10; `client/README.md`, 5.13, 5.16 and 11;
+`draft/stock-ways.status.md`). Ask temper's first milestone
 stands in the code, with its own project page, rail entry and phone tab
-(`draft/ask-temper.execution.md`, M1). Charter 3, template 3, `Configure`
-and Settings' offer are gone by plan `ui-ask-drop`. Its walk follows
-landing. The remaining reads, views and preferences belong to M2 to M4
-(`draft/ask-temper.status.md`).
+(`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
+the instructions' first step of Showing. Charter 3, template 3, `Configure`
+and Settings' offer are gone by plan `ui-ask-drop`. Its walks follow
+landing. The remaining reads, views, sketches and preferences belong to
+M2, M3b and M4 (`draft/ask-temper.status.md`).
 Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;

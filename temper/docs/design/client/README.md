@@ -8600,9 +8600,25 @@ own tests:
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
   instructions. The opening keeps the configuring page's starters and reference;
-  an opening led by a question remains a separate look decision. Views,
-  sketches and preferences join at M3 and M4 of
+  an opening led by a question remains a separate look decision. The other
+  views, sketches and preferences join at M3b and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
+- **The ways on Ask temper's page** (3.5, 5.13): the opening's "What it
+  sets" and "Ways to begin" give way to the ways as tabs drawn from the
+  `ways` read, "Use this", "Keep it" and "Yours" among them, and a stop's
+  card opening in place: the look request `ask-temper-ways`, its plan
+  `look-ask-ways` (`../draft/stock-ways.status.md`). Default: the read and
+  the acts in the domain, drawn by no page until then.
+- **Views after landing and M3b** (5.16): temper/ui compares a path, a
+  way, a proposal's two paths and a charter's card in a reply and in the
+  chat's document at 1440, 1000 and 420 px, with the fallback a narrow page
+  keeps, against the look request's pages, and walks a real Ask temper
+  chat asked to show a way. M3b adds a stop pressed opening its card, the
+  views `queue`, `task N tree` and `task N timeline`, and the TUI's drawing
+  of views, temper/tui's (`../draft/ask-temper.execution.md`, M3b). A view
+  at an older revision, and a decided proposal's paths, wait for a read of
+  the settings as a revision left them. Default: the focused tables and
+  gallery samples, which establish no rendered look.
 
 - **The TUI's later passes** (6.11 to 6.16, 7.1): beyond the
   launchpad, its commands and a chat, the side pane and drafting, needs
