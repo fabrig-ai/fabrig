@@ -3,7 +3,7 @@
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
 - **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
-  `heavy cargo test -p temper-client-gallery --lib`, serial, measured
+  `cargo test -p temper-client-gallery --lib`, serial, measured
   2.909 CPU s on the pristine base and 2.644 CPU s with the first-run Ask
   repair. The inherited overrun lies in `each_state_holds_what_its_name_says`
   and `print_writes_every_page_and_the_bundle`. A gallery cost repair owns
