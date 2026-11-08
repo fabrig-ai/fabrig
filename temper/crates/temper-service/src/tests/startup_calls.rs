@@ -1,6 +1,7 @@
 //! Local-agent composition at the startup/store/wire boundaries (configuration.md, 7).
 #![expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "ordinary tests edit configuration fixtures")]
 #![expect(clippy::disallowed_macros, reason = "ordinary tests format explicit scalar overrides")]
+use super::worker::check_worker_part;
 use super::*;
 use crate::tests::fixtures;
 use core::fmt::Write;

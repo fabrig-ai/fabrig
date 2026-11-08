@@ -4911,6 +4911,7 @@ dependencies = [
  "temper-real-loop-world",
  "temper-service",
  "temper-settings-form",
+ "temper-shell",
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
@@ -6037,6 +6038,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-protocol-llm",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
  "temper-box",
  "temper-client-domain",
@@ -6081,6 +6083,7 @@ name = "temper-shell"
 version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
+ "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-shell",

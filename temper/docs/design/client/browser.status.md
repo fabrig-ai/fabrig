@@ -42,6 +42,19 @@ gallery worlds offer templates 1, 2 and 5; the reference world's other
 ways use 2, 4, 6 and 7, leaving 5 to Ask temper. The rendered comparison and
 the Ask page's later look round remain section 5's work.
 
+Sections 2.5 and 7.2 have no known implementation gap in Ask temper's
+ways: `temper.css` holds `ask-temper-ways`'s rules, the opening's under
+the settings marker and a path's under the chats marker, each selector
+naming what skein draws where it differs from the request's page, and
+`configure-temper-own-way`'s rules for the old opening and the
+reference's pane are gone. `ask-first-run` draws the ways and the eight
+`ask-ways-*` states stand; `ask-reference` and `ask-reference-draft` are
+gone. Story 11's phone Ask row (4.6) shows the tabs and presses "Draft
+first" to its "Use this", in the existing history story; it checks
+neither Agents review's "now" nor the line and the path, and no passing
+run of it is supplied here. The rendered comparison follows landing
+(`README.md`, section 11).
+
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
 the address, visibility, focus and call-line checks. No implementation

@@ -69,8 +69,9 @@ Modules:
   rows, byte for byte the same.
 - `directories`: `SETTINGS`, `Directories` (its fields and its methods
   `jig`, `document`, `flags`, `open` and `read`), `Refusal`,
-  `EnvironmentEntry`, `resolve`, `private_root` and `make_private`, each
-  `pub`. `Directories::program_environment` stays in `temper`, a free
+  `EnvironmentEntry`, `resolve`, `private_root`, `make_private`, `unread`
+  and `errno` (the kernel error's number, which `temper`'s host and init
+  report), each `pub`. `Directories::program_environment` stays in `temper`, a free
   function `temper::directories::program_environment(directories,
   environment, working, word)`, since it reads `printed`, which stays
   there until `engine-serve` moves both into `temper-engine-shell`

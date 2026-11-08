@@ -262,6 +262,8 @@ html:root[data-night]:has(#app) {
 }
 
 /* ==== ui: night ==== */
+/* At night the root drops the placeholder's day paper, so that the body's ground fills the window however short the page. */
+:root[data-night]:has(body #app) { background: none; }
 /* A faint glow at the top right, over the whole window, with a fine grain so that it shows no rings. */
 :root[data-night]:has(body #app) body { background: url(files/night-grain.svg), radial-gradient(ellipse 38vw 460px at 100% 120px, var(--gf-glow) 0, var(--gf-glow-fade) 45%, transparent 80%), var(--gf-paper); background-attachment: fixed; }
 :root[data-night] #app, :root[data-night] #app > main:where(:not(.temper-terminal)) { background: transparent; }
@@ -1105,11 +1107,13 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 :root:has(.temper-welcome) body { background: var(--gf-paper); color: var(--gf-ink); font: 15px/1.6 var(--gf-sans); letter-spacing: normal; -webkit-font-smoothing: antialiased; }
 #app:has(> .temper-welcome) { --temper-mono: var(--gf-sans); --temper-ink: var(--gf-ink); --temper-muted: var(--gf-muted); --temper-faint: var(--gf-faint); --temper-line: var(--gf-line); --temper-paper: var(--gf-surface); --temper-canvas: var(--gf-paper); }
 /* The top bar: the brand, temper box's line, the steps at its right. */
-#app:has(> .temper-welcome) > .temper-top { position: static; min-height: 0; flex-wrap: wrap; justify-content: space-between; padding: 22px 32px; border: 0; background: var(--gf-paper); gap: 12px 24px; }
+#app:has(> .temper-welcome) > .temper-top { position: static; min-height: 0; flex-wrap: wrap; justify-content: flex-end; padding: 22px 32px; border: 0; background: var(--gf-paper); gap: 12px 24px; }
+/* The end takes the free space when no steps show yet. */
+#app:has(> .temper-welcome) > .temper-top > .temper-brand + .temper-top-end { margin-left: auto; }
 #app:has(> .temper-welcome) .temper-brand { min-height: 34px; gap: 8px; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
 #app:has(> .temper-welcome) .temper-brand::before { content: '✦'; width: auto; height: auto; background: none; color: var(--gf-signal); font-weight: 400; }
 #app:has(> .temper-welcome) .temper-brand::after { display: none; }
-#app:has(> .temper-welcome) .temper-flow-steps { display: flex; align-items: center; gap: 0; margin: 0; padding: 0; counter-reset: gf-step; }
+#app:has(> .temper-welcome) .temper-flow-steps { display: flex; align-items: center; gap: 0; margin: 0 0 0 auto; padding: 0; counter-reset: gf-step; }
 #app:has(> .temper-welcome) .temper-flow-step { display: flex; align-items: center; padding: 0; border: 0; counter-increment: gf-step; color: var(--gf-muted); font: 400 14.5px/1.6 var(--gf-sans); }
 #app:has(> .temper-welcome) .temper-flow-step + .temper-flow-step::before { content: ''; width: 18px; height: 1px; margin: 0 4px; background: var(--gf-line-2); }
 #app:has(> .temper-welcome) .temper-flow-step > a { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 20px; color: inherit; text-decoration: none; }
@@ -1118,7 +1122,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app:has(> .temper-welcome) .temper-flow-step[aria-current] > a::before { border-color: var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); }
 #app:has(> .temper-welcome) .temper-flow-step.temper-flow-done > a::before { content: '✓'; border-color: var(--gf-good-line); background: var(--gf-good-pale); color: var(--gf-good); }
 /* temper box's line, between the brand and the steps; its own row when narrow. */
-#app:has(> .temper-welcome) .temper-welcome-box-line { margin: 0 auto 0 24px; font: 14px/1.6 var(--gf-sans); color: var(--gf-muted); }
+#app:has(> .temper-welcome) .temper-welcome-box-line { margin: 0 0 0 24px; font: 14px/1.6 var(--gf-sans); color: var(--gf-muted); }
 #app:has(> .temper-welcome) .temper-welcome-box-line strong { color: var(--gf-ink); font-weight: 600; }
 #app:has(> .temper-welcome) .temper-welcome-box-line > .temper-flow-quiet { font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app:has(> .temper-welcome) .temper-welcome-box-line > .temper-flow-quiet:hover { text-decoration-color: var(--gf-ink); }
@@ -2924,7 +2928,7 @@ html:root[data-night] #app > .temper-session .temper-ways-acts > .temper-ways-us
 .temper-outside :is(a, button):focus-visible { outline: 2px solid var(--gf-signal); outline-offset: 3px; }
 /* A field and its act on one line, the field's name above. */
 .temper-outside form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 24px; }
-.temper-outside form > label { flex-basis: 100%; color: var(--gf-ink-2); font-size: 14px; font-weight: 500; }
+.temper-outside form > label[for]:has(+ input) { flex-basis: 100%; color: var(--gf-ink-2); font-size: 14px; font-weight: 500; }
 .temper-outside form > input { flex: 1 1 10em; min-width: 0; min-height: 44px; padding: 8px 14px; border: 1px solid var(--gf-line-2); border-radius: 9px; background: var(--gf-surface); color: var(--gf-ink); font: 15px/1.4 var(--gf-sans); box-shadow: none; }
 .temper-outside form > input:focus { outline: 2px solid var(--gf-signal-line); outline-offset: 0; border-color: var(--gf-signal); }
 .temper-outside form > button { flex: none; }

@@ -77,9 +77,13 @@ fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
     }
     panic!("live link reads deployment");
 }
-fn temper_alone(root: &d::Domain) {
+fn temper_and_end(root: &d::Domain) {
     for view in [f::page_view(root), f::browser_page_view(root)] {
-        assert_eq!(f::text(view.tree()).as_ref(), b"temper");
+        assert_eq!(f::text(view.tree()).as_ref(), b"temperLivePat");
+        super::frame::assert_top_end(
+            &view,
+            &[(Role::Region, None), (Role::Status, Some(b"Pat")), (Role::Button, Some(b"Sign out"))],
+        );
         let main = view.tree().nodes().iter().find(|node| node.role == Role::Main).unwrap();
         assert_eq!(main.size, 1, "the main has no children");
         assert!(f::find(view.tree(), Role::Link, b"temper").is_some());
@@ -87,20 +91,20 @@ fn temper_alone(root: &d::Domain) {
     }
 }
 #[test]
-fn before_the_read_the_frame_draws_temper_alone() {
+fn before_the_read_the_frame_draws_temper_and_the_end() {
     for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
     {
         let (root, _) = waiting_for_deployment(step);
-        temper_alone(&root);
+        temper_and_end(&root);
     }
 }
 #[test]
-fn no_welcome_draws_temper_alone() {
+fn no_welcome_draws_temper_and_the_end() {
     for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
     {
         let (mut root, read) = waiting_for_deployment(step);
         f::deliver_deployment(&mut root, read, false, false);
-        temper_alone(&root);
+        temper_and_end(&root);
     }
 }
 #[test]
@@ -473,7 +477,7 @@ fn press(root: &d::Domain, role: Role, name: &str) -> d::Action {
     crate::act(&mut view, id, Act::Press).expect("bound control")
 }
 #[test]
-fn the_welcome_frame_is_the_brand_the_box_line_and_the_steps() {
+fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
     let root = f::welcome_root(Step::Welcome, true);
     let mut view = f::page_view(&root);
     let brand = f::find(view.tree(), Role::Link, b"temper").unwrap();
@@ -488,14 +492,27 @@ fn the_welcome_frame_is_the_brand_the_box_line_and_the_steps() {
             .as_slice()
             .contains(&crate::look::WELCOME_INTRO)
     );
-    assert!(f::find(tree, Role::Button, b"Sign out").is_none());
-    assert!(f::frame_statuses(tree).is_empty());
+    super::frame::assert_top_end(
+        &view,
+        &[(Role::Region, None), (Role::Status, Some(b"Pat")), (Role::Button, Some(b"Sign out"))],
+    );
     let banner = tree.nodes().iter().position(|n| n.role == Role::Banner).unwrap();
     assert_eq!(tree.nodes()[banner].styles.as_slice(), [crate::look::TOP]);
     let brand = &tree.nodes()[banner + 1];
     assert_eq!(brand.name.as_deref(), Some(b"temper".as_slice()));
-    assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::TOP_END)));
     let banner = &tree.nodes()[banner..banner + usize::try_from(tree.nodes()[banner].size).unwrap()];
+    let mut child = 1;
+    for (role, style) in [
+        (Role::Link, crate::look::BRAND),
+        (Role::Slot, crate::look::WELCOME_BOX_LINE),
+        (Role::List, crate::look::FLOW_STEPS),
+        (Role::Slot, crate::look::TOP_END),
+    ] {
+        assert_eq!(banner[child].role, role);
+        assert!(banner[child].styles.as_slice().contains(&style));
+        child += usize::try_from(banner[child].size).unwrap();
+    }
+    assert_eq!(child, banner.len(), "the end finishes the banner");
     let line = banner.iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_BOX_LINE)).unwrap();
     let runs: Vec<_> = banner[line + 1].text.iter().map(|r| (r.run, r.text.as_ref())).collect();
     assert_eq!(
@@ -514,7 +531,7 @@ fn the_welcome_frame_is_the_brand_the_box_line_and_the_steps() {
     }
     assert!(f::find(tree, Role::Region, b"Playground").is_none());
     assert!(!String::from_utf8_lossy(&f::text(tree)).contains("No model yet"));
-    assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Region).count(), 2);
+    assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Region).count(), 3);
 }
 #[test]
 fn an_empty_store_offers_both_cards() {
@@ -603,7 +620,9 @@ fn the_welcome_shows_its_heading_alone_until_it_decides() {
     assert!(!root.pages().welcome().unwrap().decided);
     let view = f::page_view(&root);
     node(view.tree(), Role::Heading { level: 1 }, "Welcome to temper");
-    assert!(!view.tree().nodes().iter().any(|node| node.role == Role::Region));
+    let regions: Vec<_> = view.tree().nodes().iter().filter(|node| node.role == Role::Region).collect();
+    assert_eq!(regions.len(), 1);
+    assert_eq!(regions[0].region, Some(crate::frame::link_region()));
     assert!(
         !view
             .tree()

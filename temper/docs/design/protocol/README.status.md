@@ -59,17 +59,6 @@ deferred failure accounting.
 The deployment's binaries (4.1 and 4.2), from `../draft/deployment-binaries.md`,
 are designed and not yet built:
 
-- **Not yet:** 4.1, 5: `temper-shell`: the commands' table and its
-  renderings, the directories, `help` and the link file are
-  `crates/temper`'s (`commands.rs`, `directories.rs`, `help.rs`,
-  `link_file.rs`), rendered under `temper` alone.
-
-- **Not yet:** 5: the engine's half of `temper-service` names the
-  worker's crates: its limits hold the checkout's and the git
-  component's (`limits.rs`, `limits/names.rs`), its checks and
-  translation read them (`startup/checks.rs`, `translate.rs`), and it
-  takes the translation's items through `smith-protocol-channel`.
-
 - **Not yet:** 4.1, 5: `temper-service` has no `worker` feature: the
   worker's half is always built, and nothing refuses a worker's
   document in a build without it.

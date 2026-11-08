@@ -1,3 +1,5 @@
+mod link_file;
+
 use crate::commands::{Row, Table, Who};
 
 const ROWS: [Row; 2] = [

@@ -22,7 +22,7 @@ fn cross_origin_requests_and_framing_cannot_act_as_the_person() {
     let row = Find::exactly_named(Role::Button, b"Owner");
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let mut steps = vec![
-        // The printed link signs in at the welcome, whose frame holds its steps and no "Sign out".
+        // The printed link signs in at the welcome, whose frame holds its steps and the top bar's end.
         see(Find::exactly_named(Role::List, b"Steps")),
         Step::Visit { origin: 1, path: b"/framing".as_slice().into() },
         Step::Trouble { words: b"frame-ancestors".as_slice().into(), within: WITHIN },

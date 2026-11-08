@@ -384,7 +384,11 @@ replay says the same clocks (`README.md`, 5.12).
   isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
   main (skein's `ui-web.md`, 7). When the heading is drawn, the shell moves the focus from the
   main to it, unless the focus has moved meanwhile: a focus placed since keeps its
-  place, even back on the main, and a focus request ends the wait.
+  place, even back on the main, and a focus request ends the wait. A new
+  entry with no main yet, as while `me` is read (`README.md`, 5.1), waits
+  for its main alike: when the main is drawn, its heading takes the focus,
+  or the main until the heading comes, unless the focus has moved or a
+  focus request came meanwhile.
 
 ### 2.4 Signing in
 
@@ -594,7 +598,15 @@ replay says the same clocks (`README.md`, 5.12).
   words, each a link holding a numbered 24 px circle and its label, the
   current one filled ink, a done one ticked green, joined by short
   hairlines, hovered ink; below 760 px only the current label shows; at 1100 px and
-  under, temper box's line takes its own row under them. The main is
+  under, temper box's line takes its own row under them. After the
+  steps, the top bar's end as on every page outside a project, signed
+  in the person's name and "Sign out". The bar packs its rows to their
+  end (`justify-content: flex-end`) and the steps take the free space at
+  their left (`margin-left: auto`, where temper box's line took it at its
+  right), so that the steps and the end keep to the right, temper box's
+  line beside the brand, and an end the row cannot hold wraps to the
+  right of the next; an end straight after the brand, before the
+  deployment's read answers, takes the free space at its own left. The main is
   one 680 px column: the tagline (14 px) above the level-1 heading
   (32 px, 500),
   the lead (17 px), then the choices as cards side by side, white on
@@ -874,7 +886,10 @@ replay says the same clocks (`README.md`, 5.12).
   - *The glow:* small and faint, at the window's top right, over the whole
     window, as the body's ground under a transparent `#app` and main: the
     overlay's radial gradients over its fractal-noise grain, so that it draws
-    no rings.
+    no rings. The window's ground is the body's however short the page (the
+    welcome at 420 by 900 among them): at night the root's own ground, the
+    placeholder's day paper (`loading.css`), gives way, so that the body's
+    ground fills the canvas.
   - *The switch* (`README.md`, 5.3): `temper-night-switch`, 30 px square, no
     border, at the rail's right, 16 px in and 24 px over its foot, the rail
     `position: sticky`; its icon a mask of 16 px line art in the muted colour,
@@ -937,8 +952,12 @@ replay says the same clocks (`README.md`, 5.12).
     outlined on the surface; acts side by side share a row,
     `temper-outside-acts`, equally; a quiet link, `temper-outside-quiet`,
     follows them, centred, 14 px, muted and underlined. A form puts its
-    field's name above, and the field and its act on one line; its
-    alert is the forms' red.
+    field's name above, 14 px medium in `--gf-ink-2` on the page's
+    22.4 px line, and the field and its act on one line; its alert is the
+    forms' red. The name's rule outweighs skein's small label
+    (`skein-ui.css`'s `label[for^="skein-ui-label-"]:has(+ input…)`,
+    `font-size: small`), which a selector of the column's label alone
+    does not.
   - *The approval's code,* `temper-approve-code`: 30 px in the mono
     face, letter-spaced .14em, centred on the surface in a hairline box,
     so that a person compares it at a glance with the terminal's; the
@@ -2276,8 +2295,12 @@ never streaming (`../draft/first-release.md`, 5.3).
 - **Anyone, signed in or not,** sees the same pages at these addresses:
   the answers are the same for every visitor. A signed-in person's
   cookie goes with the `GET` and is never read. The top bar (2.5,
-  *Outside a project*) offers "Sign in" at its right where the deployment
-  has a way, and nothing else of a person's.
+  *Outside a project*) offers "Sign in" at its right, with or without
+  Google's way, and nothing else of a person's: a link to the page's
+  origin, `/`, whose page signed out is the sign-in page where Google's
+  way is given, and otherwise the column "Signed out" with the printed
+  link's words (`README.md`, 5.1, *The pages not about the work*). It
+  needs the page's origin alone, as the view's `Ways` give it.
 
 ### 8.3 What it shows
 
@@ -2375,8 +2398,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   separate, titles remain readable, navigation stays inset and content stays
   within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (4.6). Its landings page reads "temper" and
-  "Landings", optionally "Queue" and its one member, then "No landings to show yet."
+  hold nothing a browser alone shows (4.6). Every page includes the "temper" and
+  "Sign in" top bar (8.2), including unknown and empty pages. Its landings page
+  then reads "Landings", optionally "Queue" and its one member, then "No landings to show yet."
   or the stock queue's merge. The member reads "task " and eight lowercase hexadecimal
   digits, " · Goal " and eight such digits, then " · Ready " and "just now",
   "a minute ago" or decimal digits and " minutes ago". The merge reads
