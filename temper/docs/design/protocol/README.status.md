@@ -18,12 +18,6 @@ incident's unexplained 503 (`../domain/root.md`, section 13).
   watches as `Busy`. The sign-in line is present, but other calls can
   still claim all watches are in use while the gate is shut.
 
-- **Not yet:** 4: smith's agent modes: `main`
-  (`crates/temper/src/main.rs`) gives `--mcp-relay` to smith's relay,
-  but `--program-child` falls through to the binary's table, which
-  refuses it, so on Linux a program-backed run's status check and print
-  runs fail at their start.
-
 Section 4's `temper [ADDRESS]` command is present, including bare
 `temper` choosing the TUI only when stdin and stdout are terminals.
 The TUI's later passes and post-landing walk are the client's section
