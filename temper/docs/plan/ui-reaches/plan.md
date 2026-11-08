@@ -27,8 +27,7 @@ Released from the client's designer (its design: `temper/docs/design/client/READ
 | `client` | `tasks/needs-why.md` | `away-client`, `decided-client` | each need's reason line, both shells | 140 |
 | `client` | `tasks/stop-asking.md` | `needs-why`, `keep-asking` | Stop asking in place, applied by an owner or proposed; Keep asking for 7 days | 150 |
 | `client` | `tasks/reaches-story.md` | `decide-root`, `stop-asking` | the client world's story of N1's acceptance | 100 |
-
-Still being written: `ways-away` (kind 7's `away` member gone end to end), after `stop-asking` and `keep-asking`.
+| `client` | `tasks/ways-away.md` | `stop-asking`, `keep-asking`, `away-client` | kind 7's `away` member gone end to end: wire, store, forge, smith, tools, settings form, help, the client's Ways and Settings row, the gallery, `chat-draft`'s journey | 100 |
 
 The client's tasks run one after another, since each writes the view's `words.rs`, `look.rs`, `shared/reach.rs`, `temper.css` and the gallery's `samples.rs`, `tests.rs` and `names.txt` (the designer's call, kept: those files don't merge well across writers).
 
