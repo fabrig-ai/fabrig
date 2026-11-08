@@ -11,7 +11,9 @@ use smith_fake_claude::{Fake, Story};
 
 use crate::world::{Parent, ParentOptions, Setup};
 
+mod room;
 mod waiting;
+pub use room::child_charter as room_child_charter;
 
 mod carry;
 pub use carry::{children_chat, from_frames, resume_children, start_with_window};
@@ -39,7 +41,9 @@ pub enum Case {
     /// Record a program conversation with full content capture.
     Events,
     /// Survey children together, on programs or a direct model.
-    Burst { direct: bool },
+    SurveyBurst { direct: bool },
+    /// Full-content child bursts at this run's declared conversation room.
+    Burst { conversations: u32 },
     /// Keep an Open conversation across replies and scripted host messages.
     Open,
     /// The main endpoint does not select the configured program.
@@ -56,11 +60,19 @@ pub enum Case {
 
 impl Case {
     fn workspace(self) -> bool {
-        matches!(self, Self::Tools | Self::Events | Self::Burst { .. } | Self::Transcript | Self::Payload { .. })
+        matches!(
+            self,
+            Self::Tools
+                | Self::Events
+                | Self::SurveyBurst { .. }
+                | Self::Burst { .. }
+                | Self::Transcript
+                | Self::Payload { .. }
+        )
     }
 
     fn captures(self) -> bool {
-        matches!(self, Self::Events | Self::Burst { .. } | Self::Transcript)
+        matches!(self, Self::Events | Self::SurveyBurst { .. } | Self::Burst { .. } | Self::Transcript)
     }
 
     fn completes(self) -> bool {
@@ -73,6 +85,7 @@ impl Case {
                 | Self::Waiting
                 | Self::ParkWaiting
                 | Self::Events
+                | Self::SurveyBurst { .. }
                 | Self::Burst { .. }
                 | Self::Transcript
                 | Self::Open
@@ -123,7 +136,7 @@ impl Delegate for Proc {
     }
 }
 
-fn burst_configuration(direct: bool) -> smith_agent_service::Config {
+fn survey_configuration(direct: bool) -> smith_agent_service::Config {
     let mut profile = crate::profile();
     profile.policy.parallel_tools = 8;
     let mut declarations = crate::declarations(4096);
@@ -137,12 +150,12 @@ fn burst_configuration(direct: bool) -> smith_agent_service::Config {
     limits.llm.translation.client.request = 1_048_576;
     let mut config = crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
     if direct {
-        direct_endpoint(&mut config);
+        survey_endpoint(&mut config);
     }
     config
 }
 
-fn direct_endpoint(config: &mut smith_agent_service::Config) {
+fn survey_endpoint(config: &mut smith_agent_service::Config) {
     use smith_protocol_llm::{ConfiguredEndpoint, OversizedReasoning};
     let limits = config.limits;
     config.llm_endpoints = smith_protocol_llm::Endpoints::new(
@@ -184,7 +197,7 @@ fn direct_endpoint(config: &mut smith_agent_service::Config) {
     config.channel_endpoints = smith_protocol_translate::Endpoints::new(endpoints);
 }
 
-fn direct_peer() -> skein_fake_peers::llm::Peer {
+fn survey_peer() -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_domain::api;
     crate::fake::configured(
         (0..6)
@@ -202,9 +215,9 @@ fn direct_peer() -> skein_fake_peers::llm::Peer {
     )
 }
 
-fn burst_start(case: Case, charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
+fn survey_start(case: Case, charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = tools_start(charter, value);
-    if case != (Case::Burst { direct: true }) {
+    if case != (Case::SurveyBurst { direct: true }) {
         return frame;
     }
     crate::wire::edit_start(&frame, |start| {
@@ -253,10 +266,12 @@ fn payload_configuration(tool_payload: u32) -> smith_agent_service::Config {
 }
 
 fn configuration(case: Case) -> smith_agent_service::Config {
-    let mut config = if let Case::Burst { direct } = case {
-        burst_configuration(direct)
+    let mut config = if let Case::SurveyBurst { direct } = case {
+        survey_configuration(direct)
     } else if let Case::Payload { tool_payload } = case {
         payload_configuration(tool_payload)
+    } else if let Case::Burst { conversations } = case {
+        room::configuration(conversations)
     } else if case.captures() {
         let mut limits = crate::limits();
         limits.llm.translation.client.request = 1_048_576;
@@ -282,6 +297,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
         relay: b"/programs/smith-agent".as_slice().into(),
         entropy: Secret::new(Box::new([7; 32])),
         effective_user: 1000,
+        parent: None,
     });
     receiving(&mut config, case);
     config.limits.machine.env_bytes = 4096;
@@ -393,8 +409,8 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
             } else {
                 None
             },
-            profile: crate::profile(),
-            declarations: crate::declarations(4096),
+            profile: room::profile(case),
+            declarations: room::declarations(case),
             program: None,
             program_endpoints: std::collections::BTreeSet::new(),
         },
@@ -814,8 +830,10 @@ fn run_scenario(
     host_agent(&mut world, case);
     host_programs(&mut world, case);
     spawn_parent(&mut world, root, case, charter, value, &options);
-    if case == (Case::Burst { direct: true }) {
-        world.spawn(|| Proc::Peer(Box::new(direct_peer())));
+    if case == (Case::SurveyBurst { direct: true }) {
+        world.spawn(|| Proc::Peer(Box::new(survey_peer())));
+    } else if matches!(case, Case::Burst { .. }) {
+        world.spawn(|| Proc::Peer(Box::new(room::peer(&story))));
     }
     let mut outcome = world.run();
     let mut run = observe_run(&mut outcome, base, case, options.dumps.is_some());
@@ -876,7 +894,12 @@ fn host_programs(world: &mut ProgramWorld, case: Case) {
     // Main and each child check their login before printing.
     let factory = smith_fake_claude::hosted(b"/programs/claude");
     world.host_startup(
-        HostedProgram { program: factory.program, make: make_fake, instances: 8, operations: factory.operations },
+        HostedProgram {
+            program: factory.program,
+            make: make_fake,
+            instances: configuration(case).limits.domain.run.run_conversations * 2,
+            operations: factory.operations,
+        },
         |spawn| {
             let launch = fake_launch(spawn);
             smith_fake_claude::config_root(&launch).into_iter().chain(smith_fake_claude::mcp_root(&launch)).collect()
@@ -887,7 +910,7 @@ fn host_programs(world: &mut ProgramWorld, case: Case) {
         program: b"/programs/smith-agent".as_slice().into(),
         make: if case == Case::MissingServer { make_failed_relay } else { make_relay },
         // Main and its inspect-only children each keep a relay.
-        instances: crate::limits().domain.run.conversations,
+        instances: configuration(case).limits.domain.run.run_conversations,
         operations: smith_agent_shell::relay::operations(),
     });
 }
@@ -928,12 +951,16 @@ fn spawn_parent(
             parent.dump_to(dumps);
         }
         if case.workspace() {
-            parent.peer = if matches!(case, Case::Payload { .. } | Case::Burst { .. }) {
+            parent.peer = if matches!(case, Case::Payload { .. } | Case::SurveyBurst { .. } | Case::Burst { .. }) {
                 crate::host_with_limits(configuration(case).limits.channel)
             } else {
                 crate::host()
             };
-            parent.peer.play(burst_start(case, charter, value));
+            parent.peer.play(if matches!(case, Case::Burst { .. }) {
+                room::grant(tools_start(charter, value), case)
+            } else {
+                survey_start(case, charter, value)
+            });
             parent.program_host_answers = Some(0);
         }
         if case == Case::Open {

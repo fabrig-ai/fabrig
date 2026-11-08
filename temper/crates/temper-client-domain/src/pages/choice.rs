@@ -343,7 +343,7 @@ pub(crate) fn refresh(pages: &mut Pages, client: &Client) {
             task.llm.as_ref(),
         );
     } else if pages.chats.is_some() {
-        let template = if let Address::Ask { .. } = pages.address() {
+        let template = if let Address::Ask { .. } | Address::Home { .. } = pages.address() {
             super::chats::ASKING_TEMPLATE
         } else {
             jig_client::shapes::CHAT

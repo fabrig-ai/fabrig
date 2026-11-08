@@ -236,6 +236,27 @@ fn a_command_runs_the_pages_own_act() {
     let limits = fixtures::limits();
     let root = crate::unlinked(&limits, fixtures::SEED);
     let env = fixtures::env(&limits);
+    for (terminal, words, note, sent) in [
+        (true, b"/nope".as_slice(), Some(Note::Unknown { words: b"/nope".as_slice().into() }), false),
+        (true, b"/help", Some(Note::Help), false),
+        (true, b"/help now", None, true),
+        (false, b"/help", None, true),
+    ] {
+        let mut page = chats::Page::new(chats::asking_me(), Address::Home { project: fixtures::PROJECT });
+        page.pages.restore_look(Look { terminal, ..Look::default() });
+        page.words(words);
+        page.act(Act::StartChat);
+        assert_eq!(page.pages.notes().last(), note.as_ref(), "{terminal}: {words:?}");
+        let asks = fixtures::acts::sent(&mut page.out);
+        let expected = usize::from(sent);
+        assert_eq!(asks.len(), expected, "{terminal}: {words:?}");
+        for ask in asks.as_ref() {
+            let jig_client::contract::Ask::Create { tasks, .. } = ask else { panic!("create: {ask:?}") };
+            let [task] = tasks.as_slice() else { panic!("one task: {tasks:?}") };
+            assert_eq!(task.spec.words.bytes(), words);
+        }
+        assert!(!terminal::draws(page.pages.address()), "Home keeps the browser's frame");
+    }
     for command in Command::ALL {
         let mut pages = Pages::new();
         let mut out = Queue::uncapped();

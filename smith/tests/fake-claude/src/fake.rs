@@ -298,7 +298,7 @@ impl Fake {
                     &self.environment,
                     &mut self.io_requests,
                 ),
-                Effect::McpCall { tool, input } => self.mcp.call(tool, input),
+                Effect::McpCall { id, tool, input } => self.mcp.call(id, tool, input),
                 Effect::McpCancel => self.mcp.cancel(),
                 Effect::End(code) => self.end(code),
             }

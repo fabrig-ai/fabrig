@@ -1,0 +1,204 @@
+draft = "tui-launchpad"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-launchpad/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/docs/design/draft/chat-reading.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/ask-temper.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "screen-looks"
+title = "skein's screen draws a region framed by rules, a border title's end part, end-aligned lines and bands"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-screen.md, 5.2"
+
+[[slice]]
+id = 1
+story = "A fixture tree at 80 by 24 draws its header's title with the address at the border's end, a line flush right, a banded paragraph across its region and a field between two rules; at 30 by 12 the address goes first and the title is cut"
+parts = ["screen-looks"]
+walk = false
+
+[[part]]
+id = "screen-lists"
+title = "skein's screen lays an options menu from a focused field with its active item, and its body follows a log's end until the person pages up"
+mode = "direct"
+needs = ["screen-looks"]
+design = "skein/docs/design/ui-screen.md, 5.3"
+
+[[slice]]
+id = 2
+story = "A field with an options menu after it draws the menu one row an item with its names' column and the active item banded; Down, Enter and Tab move, press and complete it; a log with an end request shows its end as it grows, and stays put once paged up"
+parts = ["screen-lists"]
+walk = false
+
+[[part]]
+id = "journey-setup"
+title = "A TUI journey's setup, in the browser's format, walked in the signed-in browser before the TUI starts"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tui/journeys.md, 8.2"
+
+[[slice]]
+id = 3
+story = "tui_again::starting reads a TUI journey's walk and its setup after project-landing, refusing a setup with a mark; again walks the setup in the browser before it starts the TUI"
+parts = ["journey-setup"]
+walk = false
+
+[[part]]
+id = "screen-label"
+title = "skein's screen lays a text field or area with no label where its token's look says so"
+mode = "direct"
+needs = ["screen-lists"]
+design = "skein/docs/design/ui-screen.md, 5.4"
+
+[[slice]]
+id = 4
+story = "A focused field whose token's look says label false draws the focus mark, then its placeholder or value and the cursor, with no NAME: before it"
+parts = ["screen-label"]
+walk = false
+
+[[part]]
+id = "screen-entries"
+title = "skein's screen lays an item's mark, a description in its own paint, and one blank row between a spaced node's children"
+mode = "direct"
+needs = ["screen-label"]
+design = "skein/docs/design/ui-screen.md, 5.3"
+
+[[slice]]
+id = 5
+story = "A spaced log of marked items draws each entry's glyph in its own paint with its blocks hanging under it, a blank row between entries, and an options menu's names bold beside their dim words"
+parts = ["screen-entries"]
+walk = false
+
+[[part]]
+id = "view-shared"
+title = "temper-client-view's shared words and data, which the browser's terminal builds from and the TUI says alike; see's phrases in a run's line"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 6
+story = "temper_client_view::shared says the quiet line, the running line, the commands' words, a need's line, Home's headline and a run's line as the browser's tree holds them; see changes then see change 1 to 3 reads Listed changes, read 3 changes"
+parts = ["view-shared"]
+walk = false
+
+[[part]]
+id = "domain-home"
+title = "Home's composer asks Ask temper: its choice is template 5's, StartChat starts a new Ask temper chat, and command words sent there are the terminal's"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 7
+story = "On Home with the terminal look, ChatWords then StartChat creates a chat of template 5 and shows it; /help sent whole notes Help and sends nothing; the choice is template 5's"
+parts = ["domain-home"]
+walk = false
+
+[[part]]
+id = "view-lists"
+title = "temper-client-view's shared lists: the commands' lists, a confirmation, the chat's question and a card's line, as data the browser builds from"
+mode = "direct"
+needs = ["view-shared"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 8
+story = "temper_client_view::shared gives /model's models, /effort's efforts, /chats' chats, /close's confirmation and a waiting chat's question as the browser's terminal draws them, its trees unchanged"
+parts = ["view-lists"]
+walk = false
+
+[[part]]
+id = "tui-surface"
+title = "temper-client-tui's events, state, names, themes with sel, words, offered commands, and its view split into parts that still draw today's screens"
+mode = "direct"
+needs = ["screen-entries", "view-shared"]
+design = "temper/docs/design/client/README.md, 6.15"
+
+[[slice]]
+id = 9
+story = "The TUI's themes hold sel, the box framed by rules with no label, marks and spaced entries, valid in both schemes; offered gives the launchpad's and a chat's commands; every golden still draws today's screens"
+parts = ["tui-surface"]
+walk = false
+
+[[part]]
+id = "tui-foot"
+title = "The TUI's foot: the running line, the box between two rules, the quiet line, and the commands, lists, confirmation and question in its place"
+mode = "direct"
+needs = ["tui-surface", "view-lists", "screen-entries"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 10
+story = "Signed in, the foot draws the box with the focus and the quiet line; / lists the commands with the first active; a command's list, a confirmation or the chat's question takes the quiet line's place; q types"
+parts = ["tui-foot"]
+walk = false
+
+[[part]]
+id = "tui-launchpad"
+title = "The TUI's launchpad in place of the first screen: the framed header with the brief, where you left off, what needs you, and every state the request names"
+mode = "direct"
+needs = ["tui-foot"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 11
+story = "Signed in on a project, the TUI draws temper · PROJECT with the address at the border's end, the brief and its byline, where you left off and what needs you over the foot; with no project, no brief, nothing needing you, offline or narrow, as the design says"
+parts = ["tui-launchpad"]
+walk = false
+
+[[part]]
+id = "tui-chat"
+title = "The TUI's chat: its top line and its conversation read as the browser's chat terminal reads it, following its end"
+mode = "direct"
+needs = ["tui-foot", "view-lists"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 12
+story = "On a chat the TUI draws ✦ PROJECT / TITLE TN with the address, the person's words on a band after ❯, a run's line under ▸ with its time, the answer after ✦ growing whole with its end and numbered lists, and follows its end"
+parts = ["tui-chat"]
+walk = false
+
+[[part]]
+id = "host-launchpad"
+title = "The TUI's host: the terminal's look at start, the launchpad at the person's first project, the root's shows followed, and the TUI's events as the root's acts"
+mode = "direct"
+needs = ["tui-surface", "domain-home"]
+design = "temper/docs/design/client/README.md, 6.13"
+
+[[slice]]
+id = 13
+story = "In the host's world, a signed-in start gives the root the terminal's look, goes to Home of the first project, sends a question from the box as Ask temper's new chat and follows the root to it; /theme redraws in the other scheme; /exit closes"
+parts = ["host-launchpad"]
+walk = false
+
+[[part]]
+id = "joint"
+title = "The client's joint world proves the TUI's launchpad asking temper and the chat's answer drawn"
+mode = "direct"
+needs = ["host-launchpad", "tui-launchpad", "tui-chat"]
+design = "temper/docs/design/client/README.md, 10"
+
+[[slice]]
+id = 14
+story = "In the joint world, a signed-in TUI opens on its project's launchpad, a question typed and sent opens an Ask temper chat, and the chat's answer is drawn"
+parts = ["joint"]
+walk = false
+
+[[part]]
+id = "again"
+title = "sign-in-approved recorded again to the launchpad, launchpad-chat recorded on a fake box set up to Hello, and the request's account in the last commit"
+mode = "direct"
+needs = ["journey-setup", "tui-launchpad", "tui-foot", "tui-chat", "host-launchpad", "joint"]
+design = "temper/docs/design/client/tui/journeys.md, 9"
+
+[[slice]]
+id = 15
+story = "temper-client-journeys again records sign-in-approved ending on the launchpad of a box with no project, and launchpad-chat from Hello's launchpad through the commands to Ask temper's answer; the last commit carries the account"
+parts = ["again"]
+walk = false

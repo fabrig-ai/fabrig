@@ -18,6 +18,7 @@ pub mod pages;
 pub mod paths;
 pub mod public;
 mod root;
+pub mod shared;
 pub mod sign_in;
 mod views;
 pub mod words;

@@ -1,6 +1,7 @@
 use super::fixtures as f;
+use crate::words::Word;
 use crate::{Refusal, Told, Tui, View, look};
-use skein_ui::{Role, Tree};
+use skein_ui::{Role, Tree, phrases::Hole};
 
 fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     assert_eq!(skein_ui::outline::check(tree), None);
@@ -23,47 +24,90 @@ fn fits(tree: &Tree, limits: &skein_ui::Limits) {
     assert!(total <= limits.text_bytes);
     assert!(bindings <= limits.bindings);
     assert_eq!(f::count(tree, Role::Page), 1);
-    let mut regions = 0_u32;
-    for node in tree.nodes() {
-        if let Some(region) = node.region {
-            regions = regions.checked_add(1).unwrap();
-            if node.role == Role::Main {
-                assert_eq!(region, look::TOP);
-            } else {
-                assert_eq!(node.role, Role::ContentInfo);
-                assert_eq!(region, look::BOTTOM);
-            }
-        }
-    }
     assert_eq!(f::count(tree, Role::Main), 1);
     assert_eq!(f::count(tree, Role::ContentInfo), 1);
-    assert_eq!(regions, 2);
+    let mut top = false;
+    let mut bottom = false;
+    for node in tree.nodes() {
+        top |= node.region == Some(look::TOP);
+        bottom |= node.region == Some(look::BOTTOM);
+    }
+    assert!(top && bottom);
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks all own phrases and both sources of the tree bound")]
 fn the_trees_fit_their_limits() {
     let domain = f::limits();
-    let bounds = crate::limits(&domain, 512).expect("fixture limits fit");
+    let bounds = crate::limits(&domain, &skein_ui::Limits::EMPTY, 512).expect("fixture limits fit");
     assert!(skein_ui::valid(&bounds));
+    let chat = skein_ui::Limits {
+        nodes: 512,
+        depth: 64,
+        text_per_node: 1_048_576,
+        text_bytes: 2_097_152,
+        drawing_bytes: 512,
+        styles_per_node: 5,
+        patches: 4096,
+        bindings: 128,
+        slots: 32,
+        markdown_depth: 5,
+        scene_marks: 2,
+        scene_bytes: 256,
+    };
+    assert_eq!(crate::limits(&domain, &chat, 512), Some(chat));
+    let words = f::words();
+    let mut failures = skein_lib::List::with_capacity(27);
+    for (word, holes, want) in [
+        (Word::Separator, &[][..], " · "),
+        (Word::Between, &[][..], " / "),
+        (Word::Byline, &[Hole::Name(Box::from(*b"00:00"))][..], "written by the status agent 00:00"),
+        (Word::LeftOff, &[][..], "Where you left off"),
+        (Word::NeedsYou, &[][..], "Needs you"),
+        (Word::Question, &[][..], "?"),
+        (Word::OtherNeed, &[][..], "•"),
+        (
+            Word::NoProject,
+            &[Hole::Name(Box::from(f::ADDRESS))][..],
+            "Setting temper up makes your first project: open http://127.0.0.1:8367 in a browser.",
+        ),
+        (Word::Needing, &[Hole::Number(0)][..], "0 need you"),
+        (Word::Needing, &[Hole::Number(1)][..], "1 needs you"),
+        (Word::Needing, &[Hole::Number(2)][..], "2 need you"),
+        (Word::Needing, &[Hole::Number(u64::MAX)][..], "18446744073709551615 need you"),
+        (Word::NeedingCut, &[Hole::Number(3)][..], "3+ need you"),
+        (Word::AskTemper, &[][..], "Ask temper"),
+        (Word::Message, &[][..], "Message"),
+        (Word::Reply, &[][..], "Reply"),
+        (Word::Ended, &[][..], "/new starts another chat"),
+        (Word::Commands, &[][..], "Commands"),
+        (Word::Exit, &[][..], "Close temper"),
+        (Word::KeyEnter, &[][..], "Enter sends"),
+        (Word::KeyTab, &[][..], "Tab completes a command"),
+        (Word::KeyPage, &[][..], "PgUp and PgDn read back"),
+        (Word::KeyEsc, &[][..], "Esc closes a list"),
+        (Word::KeyClose, &[][..], "Ctrl+C closes temper"),
+        (Word::Else, &[][..], "Tell it something else"),
+        (Word::Dots, &[][..], "…"),
+        (Word::Numbered, &[Hole::Number(3)][..], "3. "),
+    ] {
+        let said = words.say(word, holes);
+        if said.as_ref() != want.as_bytes() {
+            failures.push(word).unwrap();
+        }
+        assert!(u32::try_from(said.len()).unwrap() <= word.capacity(&domain).unwrap(), "{word:?}");
+    }
+    assert!(failures.is_empty(), "word rows: {failures:?}");
     let name = [b'n'; 32];
     let address = *b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:65535";
-    let mut me = f::me(&[&name, &name]);
-    me.party.name = jig_client::contract::DocumentText::complete(
-        jig_client::contract::Text::new(Box::from(name), domain.client.domain.text).unwrap(),
-    );
-    assert_eq!(me.projects.len(), domain.client.domain.projects);
+    let me = f::me(&[&name]);
     let root = f::live(Some(me)).0;
     let mut tui = Tui::new(&address);
     tui.step(Told::Kept { written: false });
     let mut view = View::new(&bounds, f::words());
     f::build(&mut view, &tui, &root);
     fits(view.tree(), &bounds);
-    let projects = f::find(
-        view.tree(),
-        Role::Paragraph,
-        b"Projects: nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn \xc2\xb7 nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn",
-    );
-    assert_eq!(f::text(view.tree(), projects).len(), 78);
+    f::find(view.tree(), Role::Text, b"nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn");
     let full = f::refused(f::full());
     let approval = super::approval::asked(Some(temper_client_domain::asked::State::Asked {
         code: super::approval::code(),
@@ -94,10 +138,8 @@ fn the_trees_fit_their_limits() {
         assert_eq!(field.value.as_ref().unwrap().text.len(), 512);
         assert_eq!(view.tree().len(), if browser { 28 } else { 18 });
     }
-    assert_eq!(crate::limits(&domain, u32::MAX), None);
+    assert_eq!(crate::limits(&domain, &skein_ui::Limits::EMPTY, u32::MAX), None);
     let mut huge = domain;
     huge.client.domain.text = u32::MAX;
-    huge.client.domain.projects = u32::MAX;
-    assert_eq!(crate::words::projects_bytes(&huge), u32::MAX.checked_sub(10).unwrap());
-    assert_eq!(crate::limits(&huge, 512), None);
+    assert_eq!(crate::limits(&huge, &skein_ui::Limits::EMPTY, 512), None);
 }

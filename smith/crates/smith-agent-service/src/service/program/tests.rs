@@ -11,6 +11,7 @@ fn an_unbound_program_keeps_the_native_limits() {
         relay: Box::default(),
         entropy: Secret::new(Box::default()),
         effective_user: 1000,
+        parent: None,
     });
     let service = Service::new(configuration, 1).expect("unbound declaration needs no backend settings");
     assert!(service.stages.program.is_none());
@@ -28,6 +29,7 @@ fn program_close_reaches_io_with_pending_file_terminals() {
         relay: b"/agent".as_slice().into(),
         entropy: Secret::new(Box::new([7; 32])),
         effective_user: 1000,
+        parent: None,
     });
     let mut service = Service::new(configuration, 1).expect("bounded program service");
     let entity = Token::new(91);

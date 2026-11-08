@@ -8,6 +8,7 @@ pub(super) fn configuration() -> Config {
         relay: Box::from(b"/agent".as_slice()),
         entropy: Secret::new(Box::new([7; 32])),
         effective_user: 1000,
+        parent: None,
     });
     config
 }

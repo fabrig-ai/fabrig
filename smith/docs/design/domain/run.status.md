@@ -37,6 +37,10 @@ a silent check still has no output to report (section 15).
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
   7.3; this is a design gap, not an absent implementation.
 
+- **Not yet:** 5.3: the room. On a program backend, a message asking
+  five or six `sub_agent` calls aborted the agent on a deployment at
+  `94d1f6ce16`, its `claude` child left running; a burst past the room
+  is not yet answered call by call (plan `subagent-burst`).
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note

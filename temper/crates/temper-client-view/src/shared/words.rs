@@ -1,0 +1,91 @@
+//! Words shared by the browser and TUI (temper/docs/design/client/README.md, 6.14, Its words).
+/// A run of calls (temper/docs/design/client/README.md, 3.5, its calls).
+pub use crate::pages::chat_line::Run;
+/// The terminal's vocabulary (temper/docs/design/client/README.md, 3.5, A chat's terminal).
+pub use crate::pages::terminal::words::TerminalWord;
+use crate::words::{Times, Words};
+use alloc::boxed::Box;
+use jig_client::contract as c;
+use skein_lib::Wall;
+use temper_client_domain::{
+    Domain,
+    pages::{
+        home::Facts,
+        needs::Need,
+        terminal::{Command, Note},
+    },
+};
+
+/// A terminal phrase (temper/docs/design/client/README.md, 3.5, A chat's terminal).
+#[must_use]
+pub fn say(w: &Words, word: TerminalWord) -> Box<[u8]> {
+    crate::pages::terminal::words::say(w, word)
+}
+/// Home's headline and its next tick (temper/docs/design/client/README.md, 3.5, the headline).
+#[must_use]
+pub fn home_headline(w: &Words, name: &[u8], facts: &Facts, now: Wall) -> (Box<[u8]>, Option<Wall>) {
+    let mut times = Times::new(now);
+    let intro = crate::pages::home::intro_words(w, name, facts, &mut times);
+    (intro.headline, times.next)
+}
+/// A Home chat row's state (temper/docs/design/client/README.md, 3.5, Home, Chats).
+#[must_use]
+pub fn chat_state(line: &c::TaskLine, me: &c::Me, w: &Words) -> Box<[u8]> {
+    crate::pages::chats::status_name(line, me, w)
+}
+/// A need's kind (temper/docs/design/client/README.md, 6.14, Needs you).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NeedKind {
+    Question,
+    Other,
+}
+/// A need's line (temper/docs/design/client/README.md, 6.14, Needs you).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct NeedLine {
+    pub kind: NeedKind,
+    pub words: Box<[u8]>,
+}
+/// Home's need sentence (temper/docs/design/client/README.md, 3.5, Home, Needs you).
+#[must_use]
+pub fn need_line(need: &Need<'_>, w: &Words) -> NeedLine {
+    let (title, short, kind) = crate::pages::home::need_words(need, w);
+    NeedLine { kind, words: crate::pages::home::need_sentence(&title, &short, w) }
+}
+/// A run's line (temper/docs/design/client/README.md, 3.5, its calls).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct RunLine {
+    pub name: Box<[u8]>,
+    pub description: Option<Box<[u8]>>,
+    pub failed: u64,
+    pub running: bool,
+}
+/// The running line's words (temper/docs/design/client/README.md, 3.5, The running line).
+#[must_use]
+pub fn running(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
+    crate::pages::terminal::running_words(root, w)
+}
+/// The picker's closed line (temper/docs/design/client/README.md, 3.5, the quiet line).
+#[must_use]
+pub fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> Box<[u8]> {
+    crate::choice::closed_line(root, task, w)
+}
+/// A chat's short heading (temper/docs/design/client/README.md, 3.5, A chat's heading is short).
+#[must_use]
+pub fn heading(title: &[u8]) -> Box<[u8]> {
+    crate::pages::chat::short_title(title)
+}
+/// A command's words (temper/docs/design/client/README.md, 3.5, Commands).
+#[must_use]
+pub fn description(command: Command) -> &'static [u8] {
+    crate::pages::terminal::commands::description(command)
+}
+/// When a command is offered (temper/docs/design/client/README.md, 3.5, Commands).
+#[must_use]
+pub fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -> bool {
+    crate::pages::terminal::commands::offered(root, task, command)
+}
+/// A terminal note's words (temper/docs/design/client/README.md, 3.5, The terminal's notes).
+#[must_use]
+pub fn note(note: &Note) -> Box<[u8]> {
+    crate::pages::terminal::commands::note(note)
+}

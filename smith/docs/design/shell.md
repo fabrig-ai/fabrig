@@ -110,7 +110,10 @@ and the values a setting overrides.
   it with `skein_shell::drive`, and the worlds host the same adapter
   (testing.md, section 4).
 - **The end** is protocol/agent.md, section 6's: its answer sent, the
-  channel finished, everything it owns closed, then exit.
+  channel finished, everything it owns closed, then exit. An agent that
+  aborts runs no end, and its programs die with it: it starts each
+  through its own binary's `--program-child` mode (protocol/programs.md,
+  5.1).
 
 ### 2.3 The local shell
 

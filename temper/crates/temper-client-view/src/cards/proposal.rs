@@ -1011,6 +1011,20 @@ pub(crate) fn terminal(
     b.open(Role::Slot);
     b.style(crate::look::TERMINAL_CARD_LINE);
     crate::pages::terminal::kicker(b, words);
+    let title = crate::shared::proposal_line(card, words).expect("terminal proposal");
+    text(b, Role::Heading { level: 3 }, &title);
+    crate::confirm::card_controls(b, root, card, words, bindings);
+    b.close();
+    crate::pages::terminal::details(b, words);
+    reason(b, page);
+    crate::confirm::facts(b, page, words, rows);
+    b.close();
+}
+
+/// A proposal's terminal heading (temper/docs/design/client/README.md, 3.5).
+pub(crate) fn line(card: &temper_client_domain::pages::inbox::Card, _words: &Words) -> Option<Box<[u8]>> {
+    let page = card.page.as_ref()?;
+    let c::ReadValue::Proposal(_) = page else { return None };
     let title = if let Some(tasks) = batch(page)
         && let Some(task) = tasks.as_slice().first()
     {
@@ -1021,11 +1035,5 @@ pub(crate) fn terminal(
         b""
     };
     let end = skein_lib::bytes::find(title, b"\n").unwrap_or(title.len());
-    text(b, Role::Heading { level: 3 }, title.get(..end).expect("proposal first line"));
-    crate::confirm::card_controls(b, root, card, words, bindings);
-    b.close();
-    crate::pages::terminal::details(b, words);
-    reason(b, page);
-    crate::confirm::facts(b, page, words, rows);
-    b.close();
+    Some(title.get(..end).expect("proposal first line").into())
 }

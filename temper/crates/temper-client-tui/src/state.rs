@@ -17,6 +17,11 @@ pub struct Tui {
     openings: u64,
     revision: u64,
     written: u64,
+    columns: u16,
+    aside: Option<jig_client::contract::ObjectKey>,
+    unknown: Option<Box<[u8]>>,
+    focus: u64,
+    box_written: u64,
 }
 /// The sign-in from the engine's link (temper/docs/design/client/README.md, 6.14).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -45,6 +50,11 @@ pub enum Refusal {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    Size { columns: u16 },
+    Went,
+    Cleared,
+    Aside { object: Option<jig_client::contract::ObjectKey> },
+    Unknown { words: Option<Box<[u8]>> },
     Local { local: Local },
     Typed { value: Box<[u8]> },
     Refused { refusal: Refusal },
@@ -71,6 +81,11 @@ impl Tui {
             openings: 1,
             revision: 0,
             written: 0,
+            columns: 0,
+            aside: None,
+            unknown: None,
+            focus: 1,
+            box_written: 0,
         }
     }
     #[must_use]
@@ -116,6 +131,26 @@ impl Tui {
     pub(crate) const fn written(&self) -> u64 {
         self.written
     }
+    #[must_use]
+    pub const fn columns(&self) -> u16 {
+        self.columns
+    }
+    #[must_use]
+    pub const fn aside(&self) -> Option<jig_client::contract::ObjectKey> {
+        self.aside
+    }
+    #[must_use]
+    pub fn unknown(&self) -> Option<&[u8]> {
+        self.unknown.as_deref()
+    }
+    #[must_use]
+    pub const fn focus(&self) -> u64 {
+        self.focus
+    }
+    #[must_use]
+    pub const fn box_written(&self) -> u64 {
+        self.box_written
+    }
     fn empty(&mut self) {
         self.field = copy_of(b"");
         self.written = self.written.saturating_add(1);
@@ -123,6 +158,11 @@ impl Tui {
     fn set_local(&mut self, local: Local) -> bool {
         let mut changed = self.local != local;
         if local == Local::Ended {
+            if self.local != Local::Ended {
+                let focus = self.focus.saturating_add(1);
+                changed |= self.focus != focus;
+                self.focus = focus;
+            }
             changed |= self.signing != Signing::Idle || self.pasted || !self.field.is_empty();
             if !self.field.is_empty() {
                 self.empty();
@@ -133,8 +173,38 @@ impl Tui {
         self.local = local;
         changed
     }
+    #[expect(clippy::too_many_lines, reason = "one table applies every TUI fact and advances its revision once")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Size { columns } => {
+                let changed = self.columns != columns;
+                self.columns = columns;
+                changed
+            }
+            Told::Went => {
+                let focus = self.focus.saturating_add(1);
+                let written = self.box_written.saturating_add(1);
+                let changed = self.focus != focus || self.box_written != written;
+                self.focus = focus;
+                self.box_written = written;
+                changed
+            }
+            Told::Cleared => {
+                let written = self.box_written.saturating_add(1);
+                let changed = self.box_written != written;
+                self.box_written = written;
+                changed
+            }
+            Told::Aside { object } => {
+                let changed = self.aside != object;
+                self.aside = object;
+                changed
+            }
+            Told::Unknown { words } => {
+                let changed = self.unknown != words;
+                self.unknown = words;
+                changed
+            }
             Told::Local { local } => self.set_local(local),
             Told::Typed { value } => {
                 let signing = match self.signing {
@@ -196,6 +266,7 @@ impl Tui {
                         self.linked = false;
                         self.signed_out = true;
                         self.openings = self.openings.saturating_add(1);
+                        self.focus = self.focus.saturating_add(1);
                         true
                     } else {
                         false
@@ -205,6 +276,9 @@ impl Tui {
                 | jig_client::Link::Live
                 | jig_client::Link::Offline
                 | jig_client::Link::OutOfDate => {
+                    if !self.linked {
+                        self.focus = self.focus.saturating_add(1);
+                    }
                     let changed = self.signing != Signing::Idle
                         || !self.field.is_empty()
                         || !self.linked

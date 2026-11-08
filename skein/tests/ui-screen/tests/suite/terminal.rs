@@ -179,12 +179,13 @@ fn background_answer_and_keys_are_read_together() {
         let mut p = start_settings(OUTPUT, Settings { background: Some(INTERVAL), ..settings(SIZE) }, true, SECOND);
         assert_eq!(p.terminal.background(), Background::Waiting);
         // Input already completed at the deadline wins over expiry.
-        assert_eq!(p.sim.peer_feed(p.pid, p.input, &[b"a", answer, b"z"].concat()), answer.len() + 2);
+        assert_eq!(p.sim.peer_feed(p.pid, p.input, &[b"a", answer, b"z\x1b"].concat()), answer.len() + 3);
         p.drive(THIRD);
         assert_eq!(p.terminal.background(), expected);
         assert_eq!(p.terminal.next_deadline(), None);
         assert_eq!(p.terminal.keys().pop(), Some(Key::Char('a')));
         assert_eq!(p.terminal.keys().pop(), Some(Key::Char('z')));
+        assert_eq!(p.terminal.keys().pop(), Some(Key::Escape), "the answer ends the wait");
         assert_eq!(p.terminal.keys().pop(), None, "answers never reach keys");
         p.finish();
     }
@@ -209,12 +210,29 @@ fn background_wait_starts_at_first_iteration_and_wakes_when_due() {
 }
 
 #[test]
+fn escape_reaches_the_host_after_an_unanswered_background_wait() {
+    for (before, held) in [(b"".as_slice(), None), (b"\x1b".as_slice(), Some(Key::Escape))] {
+        let mut p = start_settings(OUTPUT, Settings { background: Some(INTERVAL), ..settings(SIZE) }, true, SECOND);
+        p.feed(before);
+        assert_eq!(p.terminal.keys().pop(), None, "a lone ESC waits for the background");
+        p.drive(THIRD);
+        assert_eq!(p.terminal.keys().pop(), held, "the wait's end releases any held Escape");
+        p.feed(b"\x1b");
+        assert_eq!(p.terminal.keys().pop(), Some(Key::Escape));
+        assert_eq!(p.terminal.keys().pop(), None);
+        p.finish();
+    }
+}
+
+#[test]
 fn input_end_while_waiting_leaves_background_unanswered() {
     let mut p = start_settings(OUTPUT, Settings { background: Some(INTERVAL), ..settings(SIZE) }, true, SECOND);
     assert_eq!(p.terminal.background(), Background::Waiting);
+    p.feed(b"\x1b");
     p.sim.peer_close(p.pid, p.input);
     p.drive(SECOND);
     assert!(p.terminal.ended());
+    assert_eq!(p.terminal.keys().pop(), Some(Key::Escape), "input ending releases the held Escape");
     assert_eq!(p.terminal.background(), Background::Unanswered);
     assert_eq!(p.terminal.next_deadline(), None);
     p.finish();

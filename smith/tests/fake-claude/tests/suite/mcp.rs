@@ -107,6 +107,45 @@ fn a_server_tool_call_returns_its_answer_to_the_model() {
 }
 
 #[test]
+fn concurrent_calls_keep_their_own_answers_and_checks() {
+    for concurrent in [false, true] {
+        let calls = vec![
+            Step::CallChecked { tool: "first".into(), input: json!({}), contains: "alpha".into() },
+            Step::CallChecked { tool: "second".into(), input: json!({}), contains: "alpha".into() },
+        ];
+        let step = if concurrent { Step::AllAtOnce(calls) } else { Step::Together(calls) };
+        let run = print::with_server(
+            story(vec![step]),
+            print::invocation(1),
+            ServerScript {
+                tools: vec![
+                    Tool { name: "first".into(), answer: Answer::Text("alpha".into()) },
+                    Tool { name: "second".into(), answer: Answer::Text("beta".into()) },
+                ],
+                ..ServerScript::default()
+            },
+        );
+        let messages = messages(&run);
+        let assistants: Vec<_> = messages.iter().filter(|message| message["type"] == "assistant").collect();
+        assert_eq!(assistants.len(), 1);
+        assert_eq!(assistants[0]["message"]["content"].as_array().expect("calls").len(), 2);
+        let results: Vec<_> = messages
+            .iter()
+            .filter(|message| message["type"] == "user")
+            .map(|message| &message["message"]["content"][0])
+            .collect();
+        assert_eq!(results.len(), 2);
+        for (id, text, error) in [("toolu_1", "alpha", false), ("toolu_2", "beta", true)] {
+            let result = results.iter().find(|result| result["tool_use_id"] == id).expect("matched answer");
+            assert_eq!(result["content"], text);
+            assert_eq!(result["is_error"], error);
+        }
+        assert_eq!(run.calls, ["first", "second"]);
+        assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
+    }
+}
+
+#[test]
 fn a_builtin_call_asks_the_prompt_tool_first() {
     let run = print::with_server(story(vec![builtin()]), print::invocation(1), ServerScript::default());
     assert_eq!(run.calls, ["prompt"]);
@@ -159,24 +198,31 @@ fn an_unreadable_prompt_answer_is_an_error_for_the_model() {
 
 #[test]
 fn an_interrupt_during_a_server_call_ends_the_turn() {
-    let invocation = print::signal(print::invocation(1), ServiceSignal::Interrupt, "call");
-    let run = print::with_server(
-        story(vec![Step::Call { tool: "finish".into(), input: json!({}) }]),
-        invocation,
-        script(Answer::Never),
-    );
-    assert!(run.signalled);
-    let messages = messages(&run);
-    assert!(!messages.iter().any(|message| message["type"] == "user"));
-    let results: Vec<_> = messages.iter().filter(|message| message["type"] == "result").collect();
-    assert_eq!(results[0]["terminal_reason"], "aborted_streaming");
-    assert_eq!(results.len(), 1);
-    assert_eq!(run.records[0].exit, Some(skein_io::kernel::Exit::Code(0)));
-    assert_eq!(run.calls, ["finish"]);
-    assert_eq!(
-        seen(run.observations.as_ref().expect("observations"))[2],
-        Seen::Called { tool: "finish".into(), error: true }
-    );
+    for count in [1, 2] {
+        let invocation = print::signal(print::invocation(1), ServiceSignal::Interrupt, "call");
+        let run = print::with_server(
+            story(vec![Step::AllAtOnce(
+                (0..count).map(|_| Step::Call { tool: "finish".into(), input: json!({}) }).collect(),
+            )]),
+            invocation,
+            script(Answer::Never),
+        );
+        assert!(run.signalled);
+        let messages = messages(&run);
+        assert!(!messages.iter().any(|message| message["type"] == "user"));
+        let results: Vec<_> = messages.iter().filter(|message| message["type"] == "result").collect();
+        assert_eq!(results[0]["terminal_reason"], "aborted_streaming");
+        assert_eq!(results.len(), 1);
+        assert_eq!(run.records[0].exit, Some(skein_io::kernel::Exit::Code(0)));
+        assert_eq!(run.calls, vec!["finish"; count]);
+        assert_eq!(
+            seen(run.observations.as_ref().expect("observations"))
+                .iter()
+                .filter(|seen| **seen == Seen::Called { tool: "finish".into(), error: true })
+                .count(),
+            count
+        );
+    }
 }
 
 #[test]

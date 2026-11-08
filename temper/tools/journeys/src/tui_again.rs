@@ -1,6 +1,9 @@
 //! Recording a TUI walk over skein's browser harness and terminal startup
 //! (temper/docs/design/client/tui/journeys.md, 8.1–8.2).
-use crate::{Refusal, again::Paths};
+use crate::{
+    Refusal,
+    again::{Paths, Prepared},
+};
 use skein_fake_person::{Doing, Face, Find, Found, Next};
 use skein_fake_person_browser::{
     BrowserFace,
@@ -20,6 +23,7 @@ use std::{
     path::Path,
 };
 use temper_client_shell_tui::journey::{self, WalkStep};
+use temper_client_shell_web::journey::SetupStep;
 
 mod terminal;
 use terminal::Terminal;
@@ -30,14 +34,38 @@ const HORIZON: Duration = Duration::from_secs(600);
 const BOUND: Duration = Duration::from_secs(30);
 const POLL: Duration = Duration::from_millis(50);
 
-/// Read the complete walk before a build, terminal, browser or box starts.
-pub fn starting(journeys: &Path, name: &str) -> Result<Vec<WalkStep>, Refusal> {
+/// A complete TUI walk and its browser setup, validated before starting children.
+#[derive(Debug)]
+pub struct Starting {
+    steps: Vec<WalkStep>,
+    setup: Option<Prepared>,
+}
+
+/// Read the complete walk and setup before a build, terminal, browser or box starts.
+pub fn starting(journeys: &Path, browser_journeys: &Path, name: &str) -> Result<Starting, Refusal> {
     if !crate::named(name) {
         return Err(Refusal::Name(name.to_owned()));
     }
     let path = journeys.join(name).join("walk");
     let bytes = fs::read(&path).map_err(|_| crate::io_refusal(&path))?;
-    journey::walk(&bytes).map_err(|unreadable| Refusal::TuiWalk { name: name.to_owned(), unreadable })
+    let steps = journey::walk(&bytes).map_err(|unreadable| Refusal::TuiWalk { name: name.to_owned(), unreadable })?;
+    let setup = crate::again::read_setup(journeys, name)?;
+    let setup = if let Some(prepared) = setup {
+        if !prepared.setup.marks.is_empty() {
+            let first = if prepared.setup.after.is_some() { 3 } else { 2 };
+            return Err(Refusal::SetupUnreadable {
+                name: name.to_owned(),
+                unreadable: temper_client_shell_web::journey::Unreadable {
+                    line: first + u32::try_from(prepared.setup.steps.len()).expect("setup fits u32") + 1,
+                    why: "a TUI setup cannot hold a mark",
+                },
+            });
+        }
+        Some(crate::again::join_setup(prepared, browser_journeys, name)?)
+    } else {
+        None
+    };
+    Ok(Starting { steps, setup })
 }
 
 /// Follow an already validated walk, check its recording and add it.
@@ -45,7 +73,7 @@ pub fn again(
     journeys: &Path,
     tui_journeys: &Path,
     name: &str,
-    steps: &[WalkStep],
+    starting: &Starting,
     paths: &Paths,
 ) -> Result<(), Refusal> {
     for attempt in 1..=3 {
@@ -57,7 +85,7 @@ pub fn again(
             chromium: paths.chromium.clone(),
             scratch,
         };
-        match record(journeys, tui_journeys, name, steps.to_vec(), &attempt_paths) {
+        match record(journeys, tui_journeys, name, starting, &attempt_paths) {
             Err(Refusal::TuiProof { refusal: journey::Refusal::Differs { .. }, .. }) if attempt < 3 => {}
             result => return result,
         }
@@ -65,13 +93,7 @@ pub fn again(
     unreachable!("the third attempt returns its result")
 }
 
-fn record(
-    journeys: &Path,
-    tui_journeys: &Path,
-    name: &str,
-    steps: Vec<WalkStep>,
-    paths: &Paths,
-) -> Result<(), Refusal> {
+fn record(journeys: &Path, tui_journeys: &Path, name: &str, starting: &Starting, paths: &Paths) -> Result<(), Refusal> {
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
     let environment = environment(&std::env::vars_os().collect::<Vec<_>>(), &paths.scratch)
         .map_err(|why| fail(format!("cannot build TUI environment: {why}")))?;
@@ -136,18 +158,7 @@ fn record(
         origins: vec![],
     })
     .horizon(HORIZON);
-    let mut walker = Walker {
-        name: name.to_owned(),
-        paths,
-        environment,
-        steps,
-        at: 0,
-        phase: Phase::Opening,
-        since: None,
-        terminal: None,
-        refusal: None,
-        recording: None,
-    };
+    let mut walker = Walker::new(name, paths, environment, starting);
     let outcome = harness.run(&mut [&mut walker]);
     // Stop and reap the TUI even when the browser or box failed before next().
     drop(walker.terminal.take());
@@ -239,6 +250,9 @@ fn key_bytes(key: &Key) -> Vec<u8> {
 }
 
 enum Phase {
+    SetupStep { at: usize },
+    SetupSee { at: usize },
+    Load,
     Opening,
     Address,
     Ready,
@@ -253,6 +267,7 @@ struct Walker<'a> {
     paths: &'a Paths,
     environment: Vec<(OsString, OsString)>,
     steps: Vec<WalkStep>,
+    setup: Option<&'a Prepared>,
     at: usize,
     phase: Phase,
     since: Option<Time>,
@@ -260,7 +275,22 @@ struct Walker<'a> {
     refusal: Option<Refusal>,
     recording: Option<Vec<u8>>,
 }
-impl Walker<'_> {
+impl<'a> Walker<'a> {
+    fn new(name: &str, paths: &'a Paths, environment: Vec<(OsString, OsString)>, starting: &'a Starting) -> Self {
+        Self {
+            name: name.to_owned(),
+            paths,
+            environment,
+            steps: starting.steps.clone(),
+            setup: starting.setup.as_ref(),
+            at: 0,
+            phase: if starting.setup.is_some() { Phase::SetupStep { at: 0 } } else { Phase::Opening },
+            since: None,
+            terminal: None,
+            refusal: None,
+            recording: None,
+        }
+    }
     fn step(&self) -> u32 {
         u32::try_from(self.at + 1).expect("walk length fits u32")
     }
@@ -286,15 +316,77 @@ impl Walker<'_> {
         Ok(())
     }
     fn deadline(&self, now: Time) -> Result<(), Refusal> {
+        if let Phase::SetupStep { at } | Phase::SetupSee { at } = &self.phase {
+            if self.since.is_some_and(|since| now >= since.saturating_add(Duration::from_secs(60))) {
+                let prepared = self.setup.expect("setup phase has a setup");
+                let (setup, line) = &prepared.sources[*at];
+                let sought = match &prepared.setup.steps[*at] {
+                    SetupStep::Act { role, name, order, .. } => Find::exactly_named(*role, name).nth(*order),
+                    SetupStep::See { text } => Find::text(text),
+                };
+                return Err(Refusal::SetupTimeout {
+                    name: self.name.clone(),
+                    setup: setup.clone(),
+                    line: *line,
+                    sought: sought.to_string(),
+                });
+            }
+            return Ok(());
+        }
         if self.since.is_some_and(|since| now >= since.saturating_add(BOUND)) {
             return Err(self.fail("step not completed within 30 s"));
         }
         Ok(())
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one phase dispatch keeps browser setup and terminal walk transitions together"
+    )]
     fn progress(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Result<Next<Box<[u8]>>, Refusal> {
         self.deadline(now)?;
-        self.since.get_or_insert(now);
+        if !matches!(self.phase, Phase::SetupStep { .. } | Phase::SetupSee { .. } | Phase::Load) {
+            self.since.get_or_insert(now);
+        }
         match std::mem::replace(&mut self.phase, Phase::Finished) {
+            Phase::SetupStep { at } => {
+                let prepared = self.setup.expect("setup phase has a setup");
+                match prepared.setup.steps.get(at) {
+                    Some(SetupStep::Act { role, name, order, act }) => {
+                        self.since.get_or_insert(now);
+                        let find = Find::exactly_named(*role, name).nth(*order);
+                        match face.find(&find) {
+                            Found::Node(node) if face.allows(node, act) => {
+                                let act = crate::again::copy_act(act);
+                                self.since = None;
+                                self.phase = Phase::SetupStep { at: at + 1 };
+                                return Ok(Next::Do(Doing::Act { node, act }));
+                            }
+                            Found::Node(_) | Found::Pending | Found::Absent => self.phase = Phase::SetupStep { at },
+                        }
+                    }
+                    Some(SetupStep::See { .. }) => self.phase = Phase::SetupSee { at },
+                    None => self.phase = Phase::Load,
+                }
+            }
+            Phase::SetupSee { at } => {
+                self.since.get_or_insert(now);
+                let SetupStep::See { text } = &self.setup.expect("setup exists").setup.steps[at] else {
+                    unreachable!("see phase")
+                };
+                match face.find(&Find::text(text)) {
+                    Found::Node(_) => {
+                        self.since = None;
+                        self.phase = Phase::SetupStep { at: at + 1 };
+                    }
+                    Found::Pending | Found::Absent => self.phase = Phase::SetupSee { at },
+                }
+            }
+            Phase::Load => {
+                let address = self.setup.expect("setup exists").setup.reload.clone();
+                self.since = None;
+                self.phase = Phase::Opening;
+                return Ok(Next::Do(Doing::Go { address }));
+            }
             Phase::Opening => {
                 // The load precedes the client's asynchronous sign-in. Its main
                 // region is the same readiness seam browser again waits for.

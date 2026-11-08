@@ -572,8 +572,22 @@ impl Joint {
             &engine_limits,
             1,
         );
-        joint.component = crate::component::Composition::with_printed_link(
-            &walking::config(seed),
+        joint.offer_printed_link(limits);
+        joint
+    }
+
+    /// Ask temper's charter and template with the TUI's pasted-link sign-in
+    /// (temper/docs/design/client/README.md, 10).
+    #[must_use]
+    pub fn with_asking_printed_link(seed: u64, limits: client::Limits) -> Self {
+        let mut joint = Self::with_asking(seed, limits, false);
+        joint.offer_printed_link(limits);
+        joint
+    }
+
+    fn offer_printed_link(&mut self, limits: client::Limits) {
+        self.component = crate::component::Composition::with_printed_link(
+            &walking::config(self.seed),
             limits.client.domain,
             jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
@@ -582,7 +596,6 @@ impl Joint {
             },
             skein_lib::Secret::new(Box::new(PRINTED)),
         );
-        joint
     }
 
     pub fn link_client(&mut self, who: ClientId, limits: jig_client::DomainLimits) {
@@ -733,10 +746,10 @@ impl Joint {
         engine_limits.tasks.message_bytes = 512;
         engine_limits.tasks.inbox_bytes = 1024;
         engine_limits.journal.result_bytes = 512;
-        // Stock charter 11's instructions and framed run policy need 9,857 bytes.
-        engine_limits.journal.run_bytes = 9_857;
-        // A stored stock charter 11 has 8,561 payload bytes on settings reads.
-        engine_limits.loads.transcript_bytes = 8_561;
+        // Stock charter 11's instructions and framed run policy need 9,861 bytes.
+        engine_limits.journal.run_bytes = 9_861;
+        // A stored stock charter 11 has 8,565 payload bytes on settings reads.
+        engine_limits.loads.transcript_bytes = 8_565;
         engine_limits.documents.text_bytes = 4096;
         let mut config = fixtures::asking_configuration(seed, member);
         let policy = config.core.seed_projects[0].policy.clone();

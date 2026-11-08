@@ -14,6 +14,9 @@ fn main() -> ExitCode {
         eprintln!("smith-agent: usage: smith-agent CONFIG.json");
         return ExitCode::FAILURE;
     };
+    if configuration == smith_agent_shell::PROGRAM_CHILD_FLAG {
+        return smith_agent_shell::program_child::main();
+    }
     if configuration == smith_agent_shell::relay::FLAG {
         return smith_agent_shell::relay::main();
     }

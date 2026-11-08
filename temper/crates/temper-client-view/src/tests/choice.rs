@@ -2014,7 +2014,7 @@ fn an_offered_display_name_is_used_on_the_line() {
     assert_eq!(using_text(&root), "Offered name");
 }
 
-fn picker_fixture(two: bool, openai: bool, hidden: bool) -> (d::Domain, Token, Token) {
+pub(super) fn picker_fixture(two: bool, openai: bool, hidden: bool) -> (d::Domain, Token, Token) {
     let (mut root, watch, _, accounts_watch) = line_fixture(None, List::with_capacity(0), None, None, None, false);
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.providers = List::from_boxed(Box::new([provider_offer(17, b"anthropic"), provider_offer(18, b"openai")]));
