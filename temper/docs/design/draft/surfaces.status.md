@@ -36,8 +36,7 @@
     launchpad as the look request `tui-launchpad` drew it, with no Where
     you left off as listed here, no Team, no Start, no design session in
     the terminal, no side pane and no talking with a role; 11.4's added
-    commands have no design. The drafter and its session on the web are
-    `../domain/agent.md`, 8.5, and `../client/README.md`, 3.5.
+    commands have no design.
   - 12: `../client/README.md`, 5.13, *The page*, keeps "What the
     project shows" at How work runs' foot as overrides of each page's
     rule, and decides How work runs' own parts by one pure function

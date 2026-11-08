@@ -2,7 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while

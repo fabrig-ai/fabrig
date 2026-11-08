@@ -78,7 +78,7 @@ or the nearest thing, and says so in that draft's status.
 | P4c | Team: areas and their owners, "Hand an area to a role" and "Talk to it" | `surfaces.md`, 6 | P4b, R2; R3 for "Talk to it" | temper/ui | nice | not started |
 | P5a | The phone, Ask, and Tell temper filing for the project's triager | `surfaces.md`, 9, 10 | P2 | temper/ui | should | not started |
 | P5b | Tell temper's routing to an area's owner | `surfaces.md`, 9 | P5a, R2 | temper/ui | nice | not started |
-| P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | in flight |
+| P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | done |
 | P7 | A change's size on its approval card: its files, additions and deletions at the head reviewed | `surfaces.md`, 4; its entry below | P2 | temper/ui | nice | not started |
 | P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | not started |
 | N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | in flight |
@@ -284,8 +284,8 @@ lands when it's ready.
 
 ## 5. Readiness
 
-As read on 2026-11-08 at 17:14Z, from the areas' work in flight, and
-P3's rows at 19:45Z, as P3a retired. Plans
+As read on 2026-11-08 at 17:14Z, from the areas' work in flight,
+P3's rows at 19:45Z, as P3a retired, and P6's at 22:21Z, as it retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -300,9 +300,9 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
 | P5a | waits | P2, by its needs |
 | P5b | waits | P5a and R2, by its needs |
-| P6 | in flight | `ui-drafter` |
+| P6 | done | |
 | P7 | waits | P2 |
-| P8 | waits | P1 and P6 |
+| P8 | waits | P1 |
 | N1 | in flight | `ui-reaches` |
 | N2 | waits | N1, by its needs |
 | N3a, N3b | wait | N1, by their needs |
@@ -314,7 +314,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | F2 | waits | F1, by its needs |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
-| T2 | waits | T1 and P6, by its needs; finding-465's repair, a chat losing its opening question |
+| T2 | waits | T1, by its needs; finding-465's repair, a chat losing its opening question |
 | T3 | waits | T1, R2 and R3, by its needs |
 | E | part by part | each part, its step's milestones |
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |

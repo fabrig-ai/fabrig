@@ -73,7 +73,10 @@ Section 9's stock removal is reflected in `welcome-set-up`,
 is current too (`tui/journeys.status.md`). `chat-draft` retains its old
 stock inventory, including template 3 and charter 3: its task numbers
 moved, so temper/ui's answer of 2026-11-08 leaves its new walk and
-recording to section 10's after-landing renewal.
+recording to section 10's after-landing renewal. Its recording also
+predates template 6: its new chat with a draft starts the project's chat
+template, where a box now starts a design session
+(`README.md`, 3.5, *A new chat*), which the same renewal records.
 
 - **Not yet:**
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
