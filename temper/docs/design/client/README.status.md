@@ -1171,12 +1171,6 @@ both shells, and the welcome's tables its end; the welcome's journeys
 are reprinted with it. temper/ui's rendered comparison follows landing
 (`browser.md`, section 5).
 
-- **Not yet:** 3.5, *Needs you*, *On a phone*: no `temper-needs-bar`; at a
-  phone's width the open card stands under the frame's top bar, its place
-  drawn as `.flow-head`'s dots and kicker, a "Next:" line under it, its
-  question at 23 px and its choices at 54 px
-  (`temper-client-view/src/pages/needs.rs`).
-
 Sections 3.5, 5.1 and 5.12 have the browser's approval page in the
 column, its root state and actions, the asked time, the signed-out
 state with Google's way back to the page and its code where that way

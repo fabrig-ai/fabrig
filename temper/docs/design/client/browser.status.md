@@ -39,9 +39,9 @@ story 11's phone Ask row (4.6), which compares the composer's and
 picker's boxes with the tabs' top at 420 px; neither adds a test
 function, and both pass in that story's runs alone (4.6, below).
 
-- **Not yet:** 2.5, *What a phone presses*: at 760 px and under, Home's,
-  Work's and Ask temper's controls keep the mock's sizes, not a 44 px
-  target each: Home's acts, Work's filters, a way's tabs and acts, Ask
+- **Not yet:** 2.5, *What a phone presses*: at 760 px and under,
+  Ask temper's controls keep the mock's sizes, not a 44 px
+  target each: a way's tabs and acts, Ask
   temper's Send and picker (`temper.css`).
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
 system preference and night placeholder separate.
