@@ -1555,6 +1555,17 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+.temper-view { margin: 1rem 0; }
+.temper-view-muted { color: var(--gf-muted); }
+.temper-view-card { border: 1px solid var(--gf-line-2); border-radius: .6rem; padding: 1rem 1.2rem; }
+.temper-view-card h3 { margin: 0 0 .25rem; }
+.temper-view-card > [role="group"] { margin: 1rem 0 0; }
+.temper-view-card > [role="group"] > div { display: grid; grid-template-columns: 5rem 1fr; gap: 1rem; padding: .5rem 0; }
+.temper-view-card [role="term"] { color: var(--gf-muted); }
+.temper-view-card [role="definition"] { margin: 0; }
+@media (max-width: 480px) {
+  .temper-view-card > [role="group"] > div { grid-template-columns: 1fr; gap: .25rem; }
+}
 /* Paths: judgement above the dotted authority boundary, code below. */
 #app .temper-ways-base { fill: none; stroke: var(--gf-line-2); stroke-width: 1.5; }
 #app .temper-ways-auth { stroke: var(--gf-line-2); stroke-width: 1; stroke-dasharray: 1.5 5; opacity: .6; }

@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 333;
+pub const N: usize = 336;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -584,6 +584,9 @@ pub fn samples() -> [Sample; N] {
             address: Address::Chat { task: 1 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
         },
+        Sample { name: "chat-view-way", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "chat-view-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "chat-view-charter", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "ask-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "ask-chat-proposal-deployment", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample {
@@ -1428,6 +1431,9 @@ fn start_domain(sample: &Sample) -> Domain {
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
     use temper_client_domain::pages::terminal::{Act as T, Command};
+    if sample.name.starts_with("chat-view-") {
+        return crate::worlds::view_world(sample.name);
+    }
     let base = match sample.name {
         "night-home" => Some("home-begin-ask-left"),
         "night-ask" => Some("configure"),
