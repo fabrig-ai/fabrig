@@ -542,10 +542,17 @@ fn give_settings_defaults(domain: &mut Domain) {
             })
             .expect("one state per forge default");
     }
+    let mut dropped = skein_lib::List::uncapped();
+    for (kind, scope, number) in domain.forge.dropped_settings_defaults() {
+        dropped
+            .push(jig_domain_core::effects::connector::DroppedDefault { kind, scope, number })
+            .expect("one name per dropped forge default");
+    }
     domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
         jig_domain_core::effects::connector::Event::SettingsDefaults {
             connector: domain.config.forge_connector,
             defaults: defaults.into_boxed(),
+            dropped: dropped.into_boxed(),
         },
     )));
 }
