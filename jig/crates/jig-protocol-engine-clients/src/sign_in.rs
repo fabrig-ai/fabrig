@@ -1,4 +1,4 @@
-//! One live link, fresh bearer tokens, and durable digest admission (client.md, 8).
+//! Independent printed and local links, fresh bearer tokens, and durable digest admission (client.md, 8).
 use crate::{Kept, SecretOwner, routes::Route};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
@@ -9,6 +9,21 @@ pub(crate) const PAST_LINKS: u32 = 8;
 pub(crate) enum Past {
     Used,
     Expired,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Which {
+    Printed,
+    Local,
+}
+#[derive(Debug)]
+pub(crate) struct Slot {
+    pub live: Option<Link>,
+    pub spending: Option<(Token, Link)>,
+}
+impl Slot {
+    pub const fn new() -> Self {
+        Self { live: None, spending: None }
+    }
 }
 #[derive(Debug)]
 pub(crate) struct Link {

@@ -3835,8 +3835,11 @@ it checks of this document:
   log; a story that reads a step's lines runs it with `--echo steps`: the sign-in
   link on its stdout, and whole on one pipe given as both its stdout and
   its stderr, as a terminal is (7.2); a port taken refused with nothing on
-  its stdout; the first link opened at once, before serve listens, waiting
-  and then signing in; a killed serve's fresh link, with the socket held
+  its stdout; the engine's link file holding its local link alone, never
+  the printed link's, and that secret on no stdout, stderr or log
+  (`../client/README.md`, 6.12); the first link opened at once, before
+  serve listens, waiting and then signing in, the link file left as it
+  was; a killed serve's fresh link, with the socket held
   across the restart; Forgejo killed and restarted, with the engine still
   serving; a stop leaving no process it started.
 - **A first run, into the playground and out,** a test of its own:

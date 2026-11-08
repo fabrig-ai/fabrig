@@ -225,7 +225,9 @@ fn no_project_reads_the_same_in_the_terminal() {
     let print = fixtures::print(view.tree());
     let text = String::from_utf8_lossy(print.text.as_slice());
     assert_eq!(text.lines().next(), Some("== No project yet == Live"));
-    assert!(text.lines().any(|line| line == "Make one from the project switcher."), "{text}");
+    assert!(text.lines().any(|line| line == "Make your first one, or ask an owner to add you to theirs."), "{text}");
+    assert!(text.contains("Project name"), "{text}");
+    assert!(text.contains("Create"), "{text}");
     assert!(!text.contains("Set up temper"), "{text}");
     assert!(!text.contains("Try the playground"), "{text}");
 }

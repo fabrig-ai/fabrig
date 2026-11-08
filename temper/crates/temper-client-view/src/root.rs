@@ -110,7 +110,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     let mut builder = view.render.builder();
     builder.open(Role::Page);
     let rail_project = crate::frame::rail_project(root, &view.forge_words, &view.sign_in);
-    let terminal = root.approval().is_none() && crate::pages::terminal::shown(root, &view.forge_words);
+    let no_project = crate::outside::no_project(root);
+    let terminal = !no_project && root.approval().is_none() && crate::pages::terminal::shown(root, &view.forge_words);
     if !terminal {
         if let Some(project) = rail_project {
             crate::frame::rail(
@@ -124,7 +125,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
                 &view.forge_sign_in,
             );
         } else {
-            crate::frame::banner(&mut builder, root, &view.forge_words, &mut view.pages, &mut view.forge);
+            crate::outside::top(&mut builder, root, &view.forge_words, &mut view.pages);
         }
         match root.pages().address() {
             temper_client_domain::Address::Welcome { .. } => {}
@@ -146,7 +147,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Goals { .. }
             | temper_client_domain::Address::Ask { .. }
             | temper_client_domain::Address::Adopt { .. } => {
-                crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
+                if !no_project {
+                    crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
+                }
             }
         }
         match root.pages().address() {
@@ -192,24 +195,22 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_sign_in,
         );
     } else if let Some(page) = root.approval() {
-        crate::approve::main(&mut builder, root, page, &view.forge_words, &mut view.pages, &mut times);
+        crate::approve::main(&mut builder, root, page, &view.forge_words, &view.sign_in, &mut view.pages, &mut times);
     } else if crate::sign_in::offered(root, &view.forge_words, &view.sign_in)
         && let Some(origin) = &view.sign_in.origin
     {
         crate::sign_in::main(&mut builder, root, &view.forge_words, origin, &view.forge_sign_in);
-    } else if crate::frame::unavailable(root).is_some() {
-        builder.open(Role::Main);
-        builder.style(crate::look::MAIN);
-        builder.open(Role::Paragraph);
-        builder.style(crate::look::UNAVAILABLE);
+    } else if let Some(heading) = crate::frame::unavailable(root) {
+        crate::outside::column(&mut builder, &view.forge_words.say(heading, &[]), &[]);
         crate::frame::unavailable_main(&mut builder, root, &view.forge_words);
-        builder.close();
         if let Some(page) = root.pages().task()
             && page.document(root.client()).is_none()
         {
             crate::pages::task::reading(&mut builder, page, &view.forge_words);
         }
         builder.close();
+    } else if no_project {
+        crate::outside::no_project_main(&mut builder, root, &view.forge_words, &mut view.pages);
     } else if let temper_client_domain::Address::Welcome { step } = root.pages().address() {
         crate::pages::welcome::main(
             &mut builder,

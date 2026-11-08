@@ -312,8 +312,25 @@ establish no rendered equality.
   `tools/gallery/src/samples.rs`) that the table does not list.
 
 Sections 2.3, 2.4 and 2.5 have `/terminal`, its parsed and canonical
-`code` query, transport sign-in by cookie, the signed-out card and the
-approval stylesheet beside the sign-in rules. Section 7.2's eleven
+`code` query, transport sign-in by cookie, the signed-out state with
+Google's way back where it is given, and the approval's code, asked
+time and field under the outside rules. Section 7.2's twelve
 `approve-*` gallery states are present, with domain, view and shell
 coverage. Section 5 keeps the rendered browser check and approval at a
 public name for later; no real-browser result is supplied here.
+
+Section 2.5's *Outside a project* has no known implementation gap: the
+top bar and the column on the eight tokens and the overlay's rules under
+`temper.css`'s outside marker, the placeholder's star in the signal with
+no dot, and the old look's tokens, rules and `files/brand.svg` gone.
+Focused tests hold every class `temper.css` selects to a `look.rs` name
+and keep `#b8664e` out of the bundle's and the server's pages' sources.
+Section 7.2's `signed-out`, `out-of-date`, `no-project` and
+`approve-signed-out-google` are present. The rendered comparison against
+the request's pages is section 5's, after landing.
+
+- **Design departs:** 2.5, from the look request `outside-pages` of
+  2026-11-08, decided by its plan's cut: `--temper-accent` and the light
+  chat terminal's `--accent` take the signal, `#c2410c`, which the
+  request does not draw, so that no source of the bundle names the old
+  mark's `#b8664e`, as its test asks.

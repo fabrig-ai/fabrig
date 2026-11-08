@@ -78,12 +78,12 @@ fn the_accounts_tabs_sign_out_is_marked_for_the_sheet() {
     }
 }
 #[test]
-fn a_project_less_accounts_page_keeps_the_banners_sign_out() {
+fn a_project_less_accounts_page_keeps_the_top_bars_sign_out() {
     let mut root = f::no_project_root();
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
     let mut view = f::browser_page_view(&root);
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::RAIL)));
-    let banner = styled(view.tree(), look::BANNER);
+    let banner = styled(view.tree(), look::TOP_END);
     let id = named(banner, Role::Button, b"Sign out").id;
     assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::SignOut)));
     assert!(f::find(view.tree(), Role::MenuItem, b"Sign out").is_none());

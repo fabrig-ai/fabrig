@@ -1314,13 +1314,19 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
-- **Choosing a project's stock way** (13.2 to 13.4;
-  `../draft/stock-ways.md`, sections 2 and 4 to 7): the three ways as
-  data, derived paths, the watched `ways` read, its settings acts and
-  Ask temper's views belong to the draft's next step. Default: the
-  per-project rule and stock draft coordinator, with a project's
-  existing policy changed only by its owner's accepted proposal. The
-  ways page follows that step and the owned-forge person link.
+- **Choosing a project's stock way on its page** (13.10;
+  `../draft/stock-ways.md`, section 7's step 4): Ask temper's opening
+  drawing the ways as tabs with their acts and a stop's card is the look
+  request `ask-temper-ways`, which follows the owned-forge person link,
+  since "Use this" on You approve is refused with no eligible owner on a
+  box until then. Default: the read, its acts and the views as 13.10 has
+  them, a project's existing policy gaining Draft first's delegation by
+  that way's act or by its owner's accepted proposal.
+- **A landing branch with another name than `main`** (13.10;
+  `../draft/stock-ways.md`, section 2): Draft first's rule 1 names
+  `main`, so over a repository whose landing branch is named otherwise
+  its rules cover no landing branch, and its path shows none of their
+  stops there. Default: later, as the draft has it.
 - **The reference's project rule in stage one** (13.9): its settings
   description must include the project's own rule 1 alongside the
   deployment's rules, so a goal's branches do not inherit the stock's

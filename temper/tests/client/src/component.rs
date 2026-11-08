@@ -13,6 +13,7 @@ use temper_engine_domain as root;
 
 pub struct Composition {
     pub(crate) latest_link: Option<Secret>,
+    pub(crate) local_link: Option<Secret>,
     component: clients::Component,
     env: Env<clients::Limits>,
     out: Queue<Request>,
@@ -173,6 +174,7 @@ impl Composition {
         let component = clients::Component::new(settings, &env, &mut out).expect("joint component configuration");
         Self {
             latest_link: secret,
+            local_link: None,
             component,
             env,
             out,
@@ -789,6 +791,7 @@ impl Composition {
                 self.event(Event::MovedTaken { exchange, record });
             }
             Request::Link { secret } => self.latest_link = Some(secret),
+            Request::LocalLink { secret } => self.local_link = Some(secret),
             Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }

@@ -54,9 +54,15 @@ struct Draw<'a> {
 }
 impl Draw<'_> {
     fn link(&mut self, b: &mut Builder, name: &[u8], page: Public) {
+        self.styled_link(b, name, page, &[]);
+    }
+    fn styled_link(&mut self, b: &mut Builder, name: &[u8], page: Public, styles: &[skein_ui::Style]) {
         let binding = Binding { owner: crate::frame::owner(), token: Token::new(u64::from(self.links.len())) };
         self.links.push(page).expect("public links within view bounds");
         b.open(Role::Link);
+        for style in styles {
+            b.style(*style);
+        }
         b.name(name);
         b.bind(binding);
         b.link(binding);
@@ -89,15 +95,18 @@ pub fn build_public(view: &mut PublicView, reader: &Reader, wall: Wall, patches:
     let mut b = view.render.builder();
     b.open(Role::Page);
     b.open(Role::Banner);
-    b.style(crate::look::BANNER);
-    d.link(&mut b, &d.words.say(Word::Brand, &[]), Public::Projects);
+    b.style(crate::look::TOP);
+    d.styled_link(&mut b, &d.words.say(Word::Brand, &[]), Public::Projects, &[crate::look::BRAND]);
     if view.ways.google
         && let Some(origin) = &view.ways.origin
     {
         let mut address = skein_lib::Writer::new(origin.len().checked_add(1).expect("bounded sign-in address"));
         address.put(origin).expect("origin");
         address.put(b"/").expect("home");
+        b.open(Role::Slot);
+        b.style(crate::look::TOP_END);
         external(&mut b, &d.words.say(Word::SignInTitle, &[]), &address.finish());
+        b.close();
     }
     b.close();
     b.open(Role::Main);

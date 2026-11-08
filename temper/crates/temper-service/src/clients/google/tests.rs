@@ -88,19 +88,52 @@ fn then_is_a_single_origin_path_after_one_decode() {
 fn endings_escape_addresses_errors_and_return_attributes() {
     let address = b"a<&\"@example.com";
     let then = b"/a?x=\"&y=<";
+    let sheet = Some(b"/bundle/a\"<&/files/pages.css".as_slice());
     for body in [
-        pages::not_member(address, then),
-        pages::another(address, then),
-        pages::unverified(Some(address), then),
-        pages::cancelled(b"<script>", then),
-        pages::expired(then),
-        pages::unreachable(then),
-        pages::busy(then),
+        pages::not_member(sheet, address, then),
+        pages::another(sheet, address, then),
+        pages::unverified(sheet, Some(address), then),
+        pages::cancelled(sheet, b"<script>", then),
+        pages::expired(sheet, then),
+        pages::unreachable(sheet, then),
+        pages::busy(sheet, then),
     ] {
         let text = core::str::from_utf8(&body).unwrap();
         assert!(!text.contains("<script>"));
+        assert!(text.contains("<link rel=\"stylesheet\" href=\"/bundle/a&quot;&lt;&amp;/files/pages.css\">"));
         assert!(!text.contains("a<&\"@"));
         assert!(text.contains("then=%2Fa%3Fx%3D%22%26y%3D%3C"));
+    }
+}
+#[test]
+fn endings_draw_the_column_and_link_the_bundles_sheet() {
+    for sheet in [Some(b"/bundle/d1/files/pages.css".as_slice()), None] {
+        for (body, choose, back) in [
+            (pages::not_member(sheet, b"member@example.com", b"/sign-in"), true, true),
+            (pages::another(sheet, b"member@example.com", b"/sign-in"), true, true),
+            (pages::unverified(sheet, Some(b"member@example.com"), b"/sign-in"), true, true),
+            (pages::unverified(sheet, None, b"/sign-in"), true, true),
+            (pages::cancelled(sheet, b"access_denied", b"/sign-in"), false, true),
+            (pages::expired(sheet, b"/sign-in"), false, true),
+            (pages::unreachable(sheet, b"/sign-in"), false, true),
+            (pages::busy(sheet, b"/sign-in"), false, false),
+        ] {
+            let text = core::str::from_utf8(&body).unwrap();
+            assert!(text.starts_with("<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\"><title>temper</title>"));
+            if sheet.is_some() {
+                assert!(text.contains("<link rel=\"stylesheet\" href=\"/bundle/d1/files/pages.css\">"));
+            } else {
+                assert!(!text.contains("<link"));
+            }
+            assert!(text.contains("<header><a href=\"/\">temper</a></header><main><h1>"));
+            let label = if choose { "Use another Google account" } else { "Continue with Google" };
+            let account = if choose { "&amp;account=choose" } else { "" };
+            assert!(text.contains(&format!(
+                "<a class=\"primary\" href=\"/sign-in/google?then=%2Fsign-in{account}\">{label}</a>"
+            )));
+            assert_eq!(text.contains("<p class=\"quiet\"><a href=\"/sign-in\">Back to sign in</a></p>"), back);
+            assert!(text.ends_with("</main></body></html>"));
+        }
     }
 }
 #[test]
@@ -151,6 +184,7 @@ fn a_members_checked_identity_binds_and_mints_twice_then_refuses_another_subject
 }
 #[test]
 fn checked_nonmembers_and_unverified_addresses_mint_nothing() {
+    let overlong = format!(r#"{{"email":"{}","email_verified":true}}"#, "a".repeat(255));
     for (payload, ending) in [
         (
             br#"{"email":"other@example.com","email_verified":true}"#.as_slice(),
@@ -158,10 +192,17 @@ fn checked_nonmembers_and_unverified_addresses_mint_nothing() {
         ),
         (br#"{"email":"sam@example.com","email_verified":false}"#, b"Google hasn&#39;t verified sam@example.com"),
         (br#"{"name":"No address","email_verified":true}"#, b"Google hasn&#39;t verified this account&#39;s address"),
+        (overlong.as_bytes(), b"Google hasn&#39;t verified this account&#39;s address"),
     ] {
         let (mut service, mut issuer) = world::world(2);
+        service.adopt_bundle(fixtures::bundle::bundle());
         let peer = finish(&mut service, &mut issuer, payload, b"first-sub", b"/sign-in/google?then=%2F%2Fevil.example");
         world::ending(&peer, b"HTTP/1.1 403", ending);
+        assert!(
+            core::str::from_utf8(peer.received())
+                .unwrap()
+                .contains("<link rel=\"stylesheet\" href=\"/bundle/0123456789abcdef/files/pages.css\">")
+        );
         assert!(!core::str::from_utf8(peer.received()).unwrap().contains("jig-sign-in="));
     }
 }

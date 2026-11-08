@@ -12,12 +12,17 @@ configuring chat's client entry points are absent. The acceptance's
 scripted stories and stage 1's assets ask Ask temper, retaining the
 settings family's own checks on a test charter. The later milestones
 below remain outside that replacement.
+M3a is built: `see ways`, the `view` block and the views `path`, `way`,
+`proposal` and `charter` drawn in a reply and the chat's document from
+the engine's one derivation, and the instructions' first step of Showing.
+The ways on Ask temper's page are the look request `ask-temper-ways`'s,
+and the walk follows landing.
 
 ## Gaps and departures
 
 - **Design lags:**
   - 4.1: `smith/docs/design/protocol/programs.md`, section 9 defers recording Claude Code's own overhead with smith's MCP server attached; the approximately 1.1 KB figure is without MCP and is outside temper's 16,384-byte bound.
-  - 5.1: `../domain/agent.md`, 8.4.1: `see` reads the settings addresses alone, through the run's own reads, and answers `me`, `project`, `goals`, `tasks`, `task N` with its tree, activity and turns, `change N`, `changes` and `inbox` not yet; its answers are today's renderers' text, not 5.1's for an agent that explains (names beside numbers, no keys or digests, money in one unit), and it has no reference page; jig's `domain/engine.md`, 7.3 and section 11: a run reads related tasks, and a party's views are a client's, so no run reads as its person; `settings landing` and `settings gates` read temper's configuration, since kinds 4 and 5 are no settings yet (`../protocol/configuration.md`, 13.2). These remain M2's work; `../domain/agent.md`, section 10 also defers revision values of temper's kinds, the project-policy address and address fuzzing.
+  - 5.1: `../domain/agent.md`, 8.4.1: `see` reads the settings addresses and `ways` alone, through the run's own reads, and answers `me`, `project`, `goals`, `tasks`, `task N` with its tree, activity and turns, `change N`, `changes` and `inbox` not yet; its answers are today's renderers' text, not 5.1's for an agent that explains (names beside numbers, no keys or digests, money in one unit), and it has no reference page; jig's `domain/engine.md`, 7.3 and section 11: a run reads related tasks, and a party's views are a client's, so no run reads as its person; `settings landing` and `settings gates` read temper's configuration, since kinds 4 and 5 are no settings yet (`../protocol/configuration.md`, 13.2). These remain M2's work; `../domain/agent.md`, section 10 also defers revision values of temper's kinds, the project-policy address and address fuzzing.
   - 5.3: `../domain/agent.md`, 8.4.3 and section 10: a document moved between a call's read and write is refused naming its section; the run calls again against the newest. Retrying within the same call needs jig to accept a section splice or leave a moved write unrecorded, because jig records the refusal today.
   - 5.4 and 7: jig's `domain/engine.md`, section 10: notes have no party scope and no kind, as jig's `draft/notes-memory.md`'s status says of its section 3; jig's `domain/engine.md`, section 9, and jig's `client/domain/contract.md`, section 6: a brief carries no person's preferences, and a turn's read shows its brief and calls whole to whoever may read the task. These remain M4's work.
   - 6.2: `../client/README.md`, 5.16 designs the `view` block and the views `path`, `way`, `proposal` and `charter`; `queue`, `task N tree` and `task N timeline`, a part of a view opening its own view, and the TUI's drawing of views are M3b's.
