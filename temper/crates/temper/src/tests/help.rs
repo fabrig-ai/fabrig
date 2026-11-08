@@ -552,7 +552,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
         .join(" ");
     for required in [
         "Offering another model",
-        "**Settings**",
+        "**Deployment**",
         "**Models**",
         "Add a model by name",
         "choose a provider",
