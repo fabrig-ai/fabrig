@@ -9,10 +9,12 @@ use alloc::boxed::Box;
 mod judgement;
 mod narrowing;
 mod pattern;
+mod record;
 mod table;
 pub use judgement::judge;
 pub use narrowing::{narrowed, offers};
 pub use pattern::{matches, well_formed};
+pub use record::{classes_from, classes_record, largest, reach_from, reach_record, subject_from, subject_record};
 #[cfg(test)]
 mod tests;
 

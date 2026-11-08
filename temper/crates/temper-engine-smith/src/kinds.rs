@@ -83,6 +83,12 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
             record.encode(&mut writer).expect("measured room");
             writer.finish()
         }
+        settings::Value::Classes(classes) => {
+            let record = temper_protocol_reaches::classes_record(classes).expect("admitted classes fit the record");
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         settings::Value::Ways(ways) => {
             let record = wire_ways(*ways);
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -100,6 +106,9 @@ pub fn size(value: &settings::Value) -> u32 {
         settings::Value::Charter(charter) => wire_charter(*charter).measure(),
         settings::Value::Questions(route) => wire_questions(*route).measure(),
         settings::Value::Ways(ways) => wire_ways(*ways).measure(),
+        settings::Value::Classes(classes) => {
+            temper_protocol_reaches::classes_record(classes).expect("admitted classes fit the record").measure()
+        }
     }
 }
 

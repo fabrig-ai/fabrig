@@ -735,7 +735,7 @@ fn forgetting_erases_replaced_rows_of_older_revisions_only() {
     assert_eq!(d.proposal_settings(2).len(), 3);
 }
 
-fn project_values() -> [(u32, SizedValue); 2] {
+fn project_values() -> [(u32, SizedValue); 3] {
     [
         (6, SizedValue { value: Value::Questions(temper_engine_domain_forge_change::Route::Foreman), size: 1 }),
         (
@@ -749,6 +749,19 @@ fn project_values() -> [(u32, SizedValue); 2] {
                     way: 0,
                 }),
                 size: 8,
+            },
+        ),
+        (
+            8,
+            SizedValue {
+                value: Value::Classes(temper_protocol_reaches::Classes::stock(
+                    temper_protocol_reaches::Way::YouApprove,
+                )),
+                size: temper_protocol_reaches::classes_record(&temper_protocol_reaches::Classes::stock(
+                    temper_protocol_reaches::Way::YouApprove,
+                ))
+                .unwrap()
+                .measure(),
             },
         ),
     ]
@@ -775,7 +788,7 @@ fn a_deleted_project_loses_its_questions_and_ways() {
         assert_eq!(d.setting(kind, 1, 1), None);
         assert_eq!(d.setting(kind, 2, 1), Some(&value));
     }
-    assert_eq!(sent.len(), 9);
+    assert_eq!(sent.len(), 13);
     assert_eq!(d.charters(), ForgeCharters { change: 2, review: 4 });
 }
 
@@ -807,10 +820,17 @@ fn project_values_keep_replace_restore_and_propose_as_rules_do() {
     let mut d = stocked();
     let mut out = Queue::uncapped();
     for (kind, value) in project_values() {
+        let stock = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
+        assert_eq!(d.project_classes(1), stock);
         let asked = item(kind, 1, 1, Edit::Set(value.clone()));
         d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
+        if let Value::Classes(classes) = &value.value {
+            assert_eq!(d.project_classes(1), *classes);
+            assert_eq!(d.project_classes(2), stock);
+        }
         assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Same]);
         d.keep_settings(&env(), 3, None, &[item(kind, 1, 1, Edit::Remove)], &mut out);
+        assert_eq!(d.project_classes(1), stock);
         assert_eq!(d.setting_rows.get(&key(&asked, SettingSlot::Replaced(3))), Some(&asked.edit));
         assert_eq!(
             d.restore_settings(

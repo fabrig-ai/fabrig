@@ -281,7 +281,7 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if (key.kind == 2 || key.kind == 6 || key.kind == 7) && key.scope == project {
+            if (key.kind == 2 || key.kind == 6 || key.kind == 7 || key.kind == 8) && key.scope == project {
                 erases.push(*key).expect("bounded project setting rows");
             }
         }
@@ -299,9 +299,25 @@ impl Domain {
         use temper_engine_domain_forge_change::Route;
         match self.setting(6, project, 1) {
             Some(settings::SizedValue { value: Value::Questions(route), .. }) => *route,
-            Some(settings::SizedValue { value: Value::Rule(_) | Value::Charter(_) | Value::Ways(_), .. }) | None => {
-                Route::None
-            }
+            Some(settings::SizedValue {
+                value: Value::Rule(_) | Value::Charter(_) | Value::Ways(_) | Value::Classes(_),
+                ..
+            })
+            | None => Route::None,
+        }
+    }
+
+    /// Kind 8 of a project, or Agents review's stock table with none held
+    /// (temper/docs/design/protocol/configuration.md, 13.2 and 13.4).
+    #[must_use]
+    pub fn project_classes(&self, project: u32) -> temper_protocol_reaches::Classes {
+        match self.setting(8, project, 1) {
+            Some(settings::SizedValue { value: Value::Classes(classes), .. }) => classes.clone(),
+            Some(settings::SizedValue {
+                value: Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_),
+                ..
+            })
+            | None => temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
         }
     }
 
@@ -470,7 +486,11 @@ impl Domain {
     fn setting_charter(&self, number: u32) -> u32 {
         match self.setting(3, 0, number) {
             Some(settings::SizedValue { value: Value::Charter(charter), .. }) => *charter,
-            Some(settings::SizedValue { value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_), .. }) | None => 0,
+            Some(settings::SizedValue {
+                value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_),
+                ..
+            })
+            | None => 0,
         }
     }
 }
@@ -505,9 +525,10 @@ fn held_for_project(held: &settings::HeldRules, project: u32) -> Box<[settings::
 fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
     match value {
         Some(settings::SizedValue { value: Value::Charter(charter), size }) => (*size, Some(*charter)),
-        Some(settings::SizedValue { value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_), size }) => {
-            (*size, None)
-        }
+        Some(settings::SizedValue {
+            value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_),
+            size,
+        }) => (*size, None),
         None => (0, None),
     }
 }

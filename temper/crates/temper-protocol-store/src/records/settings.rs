@@ -137,6 +137,15 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
     let edit = match edit {
         d::Edit::Set(d::SizedValue { value, size }) => {
             let value = match value {
+                d::Value::Classes(classes) => {
+                    let record = temper_protocol_reaches::classes_record(classes).expect(FITS);
+                    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured classes length"));
+                    record.encode(&mut writer).expect("measured classes room");
+                    w::SettingValue::Classes(
+                        w::ProjectClasses::decode(&w::CEILINGS, &mut Reader::new(&writer.finish()))
+                            .expect("matching table records"),
+                    )
+                }
                 d::Value::Rule(rule) => w::SettingValue::Rule(encode_rule(rule)),
                 d::Value::Questions(route) => w::SettingValue::Questions(
                     w::ProjectQuestions::new(
@@ -199,8 +208,17 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     d::Value::Ways(d::ProjectWays { drafts, goals, changes, away, way })
                 }
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
-                // A project's classes' value has no forge value yet (temper/docs/design/protocol/configuration.md, 13.2).
-                w::SettingValue::Classes(_) => return Err(Undecodable),
+                w::SettingValue::Classes(record) => {
+                    use temper_client_protocol_wire::v1;
+                    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
+                    record.encode(&mut writer).or(Err(Undecodable))?;
+                    let record = v1::ProjectClasses::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish()))
+                        .or(Err(Undecodable))?;
+                    let classes = temper_protocol_reaches::classes_from(&record);
+                    classes.check().or(Err(Undecodable))?;
+
+                    d::Value::Classes(classes)
+                }
             };
             d::Edit::Set(d::SizedValue { value, size })
         }
