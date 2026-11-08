@@ -3,7 +3,7 @@ id = "help"
 part = "help"
 kind = "docs"
 needs = []
-files = ["temper/docs/help/forge.md", "temper/docs/help/account.md", "temper/docs/help/repository.md", "temper/docs/help/settings.md", "temper/docs/help/deployment.md", "temper/docs/help/project.md", "temper/docs/help/chat.md"]
+files = ["temper/docs/help/forge.md", "temper/docs/help/account.md", "temper/docs/help/repository.md", "temper/docs/help/settings.md", "temper/docs/help/deployment.md", "temper/docs/help/project.md", "temper/docs/help/chat.md", "temper/crates/temper/src/tests/help.rs"]
 effort = "medium"
 minutes = 50
 +++
@@ -85,3 +85,19 @@ Pre-approved options:
 
 Follow the implementer's text. Also list each page and line changed, and each
 place you left with its reason.
+
+## Answers
+
+2026-11-08. *May this task change the required label `**Settings**` to
+`**Deployment**` in `temper/crates/temper/src/tests/help.rs:555`?* Yes: it is
+this task's. The plan's rule holds over the pre-approved option: a test's oracle
+that the change's correct behaviour trips is repaired in the same task, keeping
+what it checks for everything else. Deployment help naming **Deployment** is the
+design's (`temper/docs/design/client/README.md`, 3.5, *Settings and
+Deployment*), so the test follows it. Change that one string in
+`account_and_deployment_help_explain_offering_another_model` and nothing else in
+the file; `help.rs` is now in `files`. Run that test alone, then the direct
+dependents' focused suite again (`-p temper -p temper-client-tools -p
+temper-engine-smith -p temper-shell -p temper-client-view -p temper-service`),
+with `--no-fail-fast` so none stays unobserved. If another help test trips on
+the same kind of label, the same answer holds; anything else is a question.
