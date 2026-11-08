@@ -2953,7 +2953,6 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Sign out" },
             Part::Named { role: Role::Status, name: "Pat" },
             Part::NoStyle { style: temper_client_view::look::RAIL },
-            Part::NoStyle { style: temper_client_view::look::MENU },
             Part::NoStyle { style: temper_client_view::look::PROJECTS },
         ],
     },
@@ -3476,7 +3475,7 @@ fn print_writes_every_page_and_the_bundle() {
         }
     }
     let digest = digest.expect("digest directory");
-    for file in ["brand.svg", "menu.svg", "send.svg"] {
+    for file in ["menu.svg", "send.svg"] {
         assert!(bundle.join(&digest).join("files").join(file).is_file(), "bundled decorative image {file}");
     }
     for file in ["skein-ui.css", "temper.css", "task-pages.css"] {

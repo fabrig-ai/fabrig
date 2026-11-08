@@ -211,7 +211,7 @@ fn each_state_draws_its_column() {
         assert_eq!(tree.nodes()[main].styles.as_slice(), &[look::OUTSIDE, look::APPROVE]);
         let end = main + usize::try_from(tree.nodes()[main].size).expect("main size");
         for node in &tree.nodes()[main..end] {
-            for old in [look::MAIN, look::SIGN_IN, look::CARD, look::BRAND, look::APPROVE_ACTS, look::APPROVE_PRIMARY] {
+            for old in [look::MAIN, look::CARD, look::BRAND] {
                 assert!(!node.styles.as_slice().contains(&old), "{state:?}: absent {old:?}");
             }
         }
@@ -364,7 +364,7 @@ fn the_approval_place_draws_the_banner_alone() {
             let view = build(&root);
             let tree = view.tree();
             assert!(tree.nodes().iter().any(|n| n.role == Role::Banner));
-            for style in [look::RAIL, look::TABBAR, look::ACCOUNTS, look::UNAVAILABLE] {
+            for style in [look::RAIL, look::TABBAR, look::ACCOUNTS] {
                 assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&style)), "absent {style:?}");
             }
             assert!(f::find(tree, Role::Region, b"Playground").is_none());

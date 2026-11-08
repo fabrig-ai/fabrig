@@ -39,6 +39,35 @@ fn the_looks_names_pass_skeins_check() {
         assert_eq!(NAMES.style(token), Some(name));
     }
 }
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    reason = "ordinary tests scan the browser stylesheet as UTF-8 text"
+)]
+fn every_class_the_stylesheet_selects_is_a_look_name() {
+    let mut source = include_str!("../../../temper-client-shell-web/temper.css");
+    let mut css = String::new();
+    while let Some((before, comment)) = source.split_once("/*") {
+        css.push_str(before);
+        let (_, after) = comment.split_once("*/").expect("stylesheet comment ends");
+        source = after;
+    }
+    css.push_str(source);
+    let mut classes = alloc::collections::BTreeSet::new();
+    for block in css.split('{') {
+        let selector = block.rsplit('}').next().expect("selector before declarations");
+        for class in selector.split(".temper-").skip(1) {
+            let end = class.find(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_').unwrap_or(class.len());
+            let name = format!("temper-{}", &class[..end]);
+            assert!(!name.starts_with("temper-reserved-"), "stylesheet selects reserved slot: {name}");
+            assert!(NAMES.styles.contains(&name.as_bytes()), "stylesheet selects unknown look: {name}");
+            classes.insert(name);
+        }
+    }
+    assert!(!classes.is_empty(), "stylesheet selects look classes");
+}
 #[test]
 fn model_line_styles_name_the_reason_and_acts() {
     for (style, name) in [
@@ -177,7 +206,7 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 10] = [
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 115] = [
+    let named: [(skein_ui::Style, &[u8]); 110] = [
         (MODE_CHAT, b"temper-mode-chat"),
         (MODE_SPLIT, b"temper-mode-split"),
         (MODE_DRAFT, b"temper-mode-draft"),
@@ -204,10 +233,8 @@ fn each_style_or_region_is_named_under_temper() {
         (TOOL_FILE, b"temper-tool-file"),
         (BY_DELEGATE, b"temper-by-delegate"),
         (NAV_COUNT, b"temper-nav-count"),
-        (BANNER, b"temper-banner"),
         (NAVIGATION, b"temper-navigation"),
         (MAIN, b"temper-main"),
-        (SIGN_IN, b"temper-sign-in"),
         (CARD, b"temper-card"),
         (TURN, b"temper-turn"),
         (COMPOSER, b"temper-composer"),
@@ -226,7 +253,6 @@ fn each_style_or_region_is_named_under_temper() {
         (STATUS_QUIET, b"temper-status-quiet"),
         (TIME, b"temper-time"),
         (HINT, b"temper-hint"),
-        (CORNER, b"temper-corner"),
         (ACCOUNTS, b"temper-accounts"),
         (ACCOUNT_LINE, b"temper-account-line"),
         (AGENT_PAGE, b"temper-agent-page"),
@@ -271,7 +297,6 @@ fn each_style_or_region_is_named_under_temper() {
         (STEPS, b"temper-steps"),
         (STEP, b"temper-step"),
         (STEP_DONE, b"temper-step-done"),
-        (UNAVAILABLE, b"temper-unavailable"),
         (PLAN_SPEND, b"temper-plan-spend"),
         (DEPENDENCIES, b"temper-dependencies"),
         (STATUS_WAITING, b"temper-status-waiting"),
@@ -292,7 +317,6 @@ fn each_style_or_region_is_named_under_temper() {
         (GATE, b"temper-gate"),
         (PLAN_DONE, b"temper-plan-done"),
         (ENDED, b"temper-ended"),
-        (MENU, b"temper-menu"),
     ];
     let chats = [
         (CHATS_PAGE, b"temper-chats-page".as_slice()),
@@ -559,8 +583,8 @@ fn the_delegation_steps_keep_their_roles() {
 #[test]
 fn account_rows_and_sign_ins_have_distinct_style_names() {
     assert_eq!(NAMES.style(SETTINGS_ROW), Some(b"temper-settings-row".as_slice()));
-    assert_eq!(NAMES.style(SIGN_IN), Some(b"temper-sign-in".as_slice()));
-    assert_ne!(SETTINGS_ROW, SIGN_IN);
+    assert_eq!(NAMES.style(MODEL_SIGN_IN), Some(b"temper-model-sign-in".as_slice()));
+    assert_ne!(SETTINGS_ROW, MODEL_SIGN_IN);
 }
 
 fn agent_composer() -> crate::View {
