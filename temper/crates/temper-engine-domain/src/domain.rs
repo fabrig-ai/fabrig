@@ -99,6 +99,7 @@ pub struct Domain {
     pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
     pub(crate) playground_start: Option<crate::route::playground::Start>,
     pub(crate) revision_reads: Map<Token, crate::ForgeRead>,
+    pub(crate) view_reads: Map<Token, crate::route::ways::view::Flight>,
     pub(crate) playground_replies: Map<Token, (Option<Token>, crate::route::playground::Reply)>,
     pub(crate) next_playground_reply: u64,
     pub(crate) playground_provider: Option<u32>,
@@ -526,6 +527,7 @@ impl Domain {
             playground_contexts: Map::with_capacity(limits.forge.applications),
             playground_start: None,
             revision_reads: Map::with_capacity(limits.loads.loads),
+            view_reads: Map::with_capacity(limits.loads.loads),
             playground_replies: Map::with_capacity(limits.forge.applications),
             next_playground_reply: u64::MAX,
             playground_provider,
@@ -676,6 +678,7 @@ impl Domain {
             && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
             && self.revision_reads.is_empty()
+            && self.view_reads.is_empty()
             && self.store_answers.is_empty()
             && self.adoption_restore.is_empty()
             && self.making_replies.is_empty()

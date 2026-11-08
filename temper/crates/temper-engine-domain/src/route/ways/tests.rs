@@ -157,7 +157,7 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
                 way,
             })),
         }];
-        let got = inputs(&domain, PROJECT, READER, &items);
+        let got = inputs(&domain, PROJECT, READER, &items, None, None);
         let repository = match &got.repository {
             Some(repository) => Some(repository.name.as_ref()),
             None => None,
@@ -239,13 +239,13 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
             }]),
         },
     );
-    let got = inputs(&domain, PROJECT, READER, &[]);
+    let got = inputs(&domain, PROJECT, READER, &[], None, None);
     assert_eq!(got.rules.as_ref(), [settings::Held { scope: PROJECT, number: 1, rule: rule.clone() }]);
     let mut laid = rule.clone();
     laid.ci = true;
     let item =
         ways::Item { kind: 2, scope: PROJECT, number: 1, edit: ways::Edit::Set(settings::Value::Rule(laid.clone())) };
-    let got = inputs(&domain, PROJECT, READER, &[item]);
+    let got = inputs(&domain, PROJECT, READER, &[item], None, None);
     assert_eq!(got.rules.as_ref(), [settings::Held { scope: PROJECT, number: 1, rule: laid }]);
     let mut stock = rule;
     stock.up_to_date = true;
@@ -256,7 +256,7 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
         value: settings::SizedValue { size: RULE_BYTES, value: settings::Value::Rule(stock.clone()) },
     }]));
     let item = ways::Item { kind: 2, scope: PROJECT, number: 1, edit: ways::Edit::Remove };
-    let got = inputs(&domain, PROJECT, READER, &[item]);
+    let got = inputs(&domain, PROJECT, READER, &[item], None, None);
     assert_eq!(got.rules.as_ref(), [settings::Held { scope: PROJECT, number: 1, rule: stock }]);
 }
 

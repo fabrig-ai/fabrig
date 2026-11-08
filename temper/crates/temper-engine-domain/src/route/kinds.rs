@@ -381,13 +381,23 @@ pub(super) fn read(
         revision_begin(domain, env, decision, reply, sign_in, scope, query);
         return;
     }
+    if why.is_none() {
+        match query {
+            crate::ForgeRead::View { project, address } => {
+                super::ways::view::read(domain, env, decision, reply, sign_in, project, address);
+                return;
+            }
+            crate::ForgeRead::Setting { .. }
+            | crate::ForgeRead::RevisionSetting { .. }
+            | crate::ForgeRead::ProposalItems { .. }
+            | crate::ForgeRead::ProgramEnvironment => {}
+        }
+    }
     let delivery = match why {
         Some(why) => crate::Delivery::Read { reply, answer: Answer::None(why) },
         None => {
             let answer = match query {
-                crate::ForgeRead::View { .. } => crate::ForgeReadAnswer::View(Box::new(crate::ways::View::NotDrawn(
-                    b"not drawn yet".as_slice().into(),
-                ))),
+                crate::ForgeRead::View { .. } => unreachable!("view reads have their own answer"),
                 crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
                     crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
@@ -502,6 +512,10 @@ pub(super) fn revision_answer(
 ) {
     let token = reply.into_token();
     let reply = skein_lib::ReplyTo::new(token);
+    if domain.view_reads.contains_key(&token) {
+        super::ways::view::answered(domain, env, decision, reply, answer);
+        return;
+    }
     let Some(query) = domain.revision_reads.remove(&token) else {
         super::emit(decision, &env.limits, crate::Delivery::Read { reply, answer });
         return;
