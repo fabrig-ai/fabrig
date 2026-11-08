@@ -157,6 +157,7 @@ impl Case {
                         w::Watch::Change(_)
                         | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
+                        | w::Watch::Ways(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals
                         | w::Watch::Changes(_)

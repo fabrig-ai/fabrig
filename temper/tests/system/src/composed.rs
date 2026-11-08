@@ -1042,6 +1042,7 @@ impl World {
             | Delivery::Forges { .. }
             | Delivery::ForgeDocument { .. }
             | Delivery::Trials { .. }
+            | Delivery::Ways { .. }
             | Delivery::Approvals { .. }
             | Delivery::Panel { .. }
             | Delivery::Refuse { .. }

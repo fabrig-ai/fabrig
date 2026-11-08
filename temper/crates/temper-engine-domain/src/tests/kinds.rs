@@ -724,7 +724,7 @@ fn forge_setting_reads_follow_kept_removed_and_reset_values() {
             settings::Edit::Reset => Some(rule(true)),
         };
         assert_eq!(
-            read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query),
+            read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query.clone()),
             Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(expected) }
         );
     }
@@ -895,7 +895,7 @@ fn forge_reads_refuse_the_same_missing_membership_and_sign_in_as_settings() {
         ] {
             let (mut domain, env) = reader(role);
             assert_eq!(
-                read_forge(&mut domain, &env, sign_in, scope, query),
+                read_forge(&mut domain, &env, sign_in, scope, query.clone()),
                 Delivery::Read { reply: READ_REPLY, answer: Answer::None(why) }
             );
         }
