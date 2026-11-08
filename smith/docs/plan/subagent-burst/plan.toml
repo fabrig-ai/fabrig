@@ -1,0 +1,6 @@
+draft = "subagent-burst"
+repo = "fabrig"
+sources = ["smith/docs/plan/subagent-burst/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
