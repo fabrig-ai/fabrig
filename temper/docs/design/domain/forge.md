@@ -241,6 +241,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
   and protection the rules GitHub applies to the branch (4.4). A write
   the forge refuses narrows what temper may do there, for every later
   decision (jig's `domain/connectors.md`, 12).
+- **Its CI workflows are read once it is adopted** (4.7): the names of
+  the workflows on its landing branch, kept on its record and current
+  with its landings, which CI's card names (8.13).
 - **The project's ceiling follows** (jig's `domain/authority.md`,
   section 6) from each repository's role and what was read: on an owned
   repository, pushing under temper's prefix, opening pull requests and
@@ -785,6 +788,66 @@ bound and no restore of its own, and it goes with the forge if that's removed.
 - **A link replaced** leaves its old user a stranger, or the seed that was made
   for it before the link: a second account of a person who made one on
   purpose, which counts only if a rule asks for two people.
+
+### 4.7 Its CI workflows
+
+Neither forge's API lists the workflows a repository runs, so the forge
+reads the directory each forge runs them from, and keeps on the
+repository's record what it found there, which CI's card names (8.13,
+*CI's card*).
+
+- **The read** is the workflows' directory at a tip of the landing
+  branch, the record's `settings.default_branch`: its immediate entries,
+  one `Read::File` (skein's `forge.md`, 3.2) answered as a directory's,
+  `skein_forge::api::Answer::Directory`, within the client's
+  `answer_bytes`, as a charter document's read is
+  (`../protocol/configuration.md`, 13.7). On GitHub it is
+  `.github/workflows`; on Forgejo `.forgejo/workflows`, and where that
+  is absent `.github/workflows`, as Forgejo itself falls back. Where
+  what asks for it names no tip, a `Read::Branch` of the landing branch
+  gives it first.
+- **A workflow** is each file entry whose name ends `.yml` or `.yaml`,
+  named by its file name whole, as "ci.yml", in the forge's order; a
+  directory, a submodule and any other file are none. The first
+  `WORKFLOWS` (16) are kept, each at most `WORKFLOW_BYTES` (255) bytes,
+  a file name's bound; a longer name, or one not UTF-8, is skipped
+  whole. A listing the forge cut (`truncated`) gives what it listed.
+- **What the record keeps:** `workflows`, the names, saved with the
+  record (`../protocol/store.md`, section 2) only when they differ from
+  what it held. No directory there, on Forgejo neither, or a file where
+  the directory would be, is no workflow: the list empties. A read
+  refused or failed, or answered in another shape, keeps what the record
+  held, and the landing branch's next move reads again whatever its
+  files (below), by a mark held in memory alone: a restart forgets it,
+  and the record keeps its last list.
+- **When it is read,** at the landing branch's tip each time:
+  - once an adoption saves the repository's record (section 4; the act
+    of 4.5 alike), and once a refusal's refresh of what temper may do
+    there saves it (jig's `domain/connectors.md`, 12), whose settings
+    name the landing branch afresh. It is a read of its own, after the
+    adoption's: the adoption's answer waits for none of it, and its
+    failure refuses nothing. A context adoption that leaves another
+    project's record as it is (section 4) reads nothing;
+  - at the first tip the forge observes of the landing branch, which no
+    landing's comparison precedes;
+  - at a later move of the landing branch, at the tip it moved to, only
+    where that landing's files name a path under `.github/workflows/` or
+    `.forgejo/workflows/`, or are not known: the comparison refused, past
+    its bound, or not made. The forge reads those files
+    for every landing it publishes (7.1, the landings on a repository's
+    branch), so a landing that touches no workflow costs no read, and a
+    move by someone else is a landing as temper's own merge is (7.2).
+
+  The landing branch's tip is watched while a live task or a
+  subscription names it (5.1); a move made while none does is seen at
+  the next observation, from the tip the forge last held, and its files
+  read then, as any landing's.
+- **One read per repository at a time:** what asks for one while one is
+  in flight reads once more when it ends, at the tip then. A repository
+  released while its read is in flight keeps nothing of the answer.
+- **Every workflow there is kept,** a dispatch-only one among them: CI's
+  card leaves out those the repository's test gates and tiers dispatch
+  (8.13), since those settings change apart from the record.
 
 ## 5. What it holds, and keeping up
 
@@ -2951,13 +3014,20 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   family, as Ask temper's do (`../protocol/configuration.md`, 13.4),
   and otherwise "read the facts in its task; never merge", as the
   status agent's (5.7).
-- **CI's card** names what CI is: its fact "Checks", where the landing
-  branch's protection names required checks (8.7, the forge's
-  `contexts`), "the CI workflows' checks A, B and C, at the change's
-  head", each context as the forge holds it, joined by ", " and a last
-  " and "; with none, "every check the repository's CI workflows report,
-  at the change's head", since CI then folds every check reported there.
-  The forge reads no list of a repository's workflows (section 20).
+- **CI's card** names what CI is. Its fact "Workflows", where the forge
+  holds the repository's CI workflows (4.7), their names as the record
+  holds them, joined by ", " and a last " and ", but those a test gate
+  or a tier of the repository names: temper dispatches those on its own
+  branches, never at a change's head, so they report no check CI folds,
+  and their own stops name them (`landing.md`, 7.1; `after-landing.md`,
+  section 2); with none left, no such fact. Then its fact "Checks",
+  where the landing branch's protection names required checks (8.7,
+  the forge's `contexts`), "the CI workflows' checks A, B and C, at the
+  change's head", each context as the forge holds it, joined the same
+  way; with none, "every check the repository's CI workflows report, at
+  the change's head", since CI then folds every check reported there. A
+  name or a context not UTF-8 is left out whole. The workflows are the
+  landing branch's on every segment of the path.
 - **A rule's card,** the view `rule K/N` (`../client/README.md`, 5.16),
   for the landing rule N of kind K (1, the deployment's; 2, the
   project's), as the forge holds it then: `who` "a landing rule ·
@@ -3679,12 +3749,14 @@ whole.
 
 ## 20. Open questions
 
-- **A repository's CI workflows by name** (8.13, *CI's card*): the forge
-  reads no list of the workflows a repository runs, on GitHub or Forgejo,
-  so CI's card names the landing branch's required checks, or none.
-  Reading the workflows at adoption, and keeping them current, is a read
-  of each forge's not yet planned (the look request `ask-temper-ways`,
-  2026-11-08).
+- **A workflow that runs on no pull request** (4.7; 8.13, *CI's card*):
+  CI's card names every workflow file on the landing branch but those
+  the repository's test gates and tiers dispatch, so a release's or a
+  schedule's workflow is named though it reports nothing at a change's
+  head; and it names each by its file, not by the `name` its file gives
+  it. Telling them apart reads each file and its triggers, a read per
+  workflow at each change of the directory. Default: by file, every one
+  but the dispatched.
 
 - **Project-scoped rules on a real forge** (8.9): observe the
   every-project default, its override and reset, and branch-relative

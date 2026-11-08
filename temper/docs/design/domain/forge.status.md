@@ -35,6 +35,12 @@ stand. The workflows by name are section 20's.
   alone".
 - **Not yet:** 8.13, *The project's roles* (`roles-view`,
   `look-round-25`): no view lists the agents a project's work runs.
+- **Not yet:** 8.13, *CI's card* (`ci-card`, `look-round-25`): the card
+  has no fact "Workflows", and `ways::Repository` no `workflows`.
+- **Not yet:** 4 and 4.7 (`workflows-read`, `look-round-25`): the
+  repository's record has no `workflows`, and the forge reads no
+  workflows' directory, at adoption, at a refresh, at the landing
+  branch's first observed tip or at a landing that touches it.
 
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the
