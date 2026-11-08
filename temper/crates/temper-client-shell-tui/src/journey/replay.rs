@@ -1,7 +1,7 @@
 //! Replay and prove through the shipped host (temper/docs/design/client/tui/journeys.md, 4).
 use super::{
     Facts, Line, Streamed, Unreadable, lines,
-    record::{asked, is_ask},
+    record::{asked, duty_order, is_ask},
 };
 use crate::host::{Host, Report};
 use skein_lib::{Secret, Token};
@@ -108,6 +108,8 @@ impl Replay {
                 | Line::Seed(_)
                 | Line::Clocks { .. }
                 | Line::Screen { .. }
+                | Line::Local
+                | Line::Noted(_)
                 | Line::Address(_)
                 | Line::Stored { .. }
                 | Line::Credential(_) => {
@@ -124,12 +126,15 @@ impl Replay {
                 | Line::Saved
                 | Line::Unsaved
                 | Line::Kept { .. }
+                | Line::Found(_)
                 | Line::Opened { .. }
                 | Line::Send { .. }
                 | Line::Stream(_)
                 | Line::Unstream
                 | Line::Save { .. }
                 | Line::Erase(_)
+                | Line::Note(_)
+                | Line::Read
                 | Line::Keep(_)
                 | Line::Signed(_)
                 | Line::Browse(_)
@@ -192,11 +197,14 @@ impl Replay {
             Line::Saved => Report::Heard(jig_client::Event::Stored),
             Line::Unsaved => Report::Heard(jig_client::Event::NotStored),
             Line::Kept { written } => Report::Kept { written: *written },
+            Line::Found(bytes) => Report::Local { link: bytes.clone().map(Secret::new) },
             Line::Opened { opened } => Report::Opened { opened: *opened },
             Line::Journey { .. }
             | Line::Seed(_)
             | Line::Clocks { .. }
             | Line::Screen { .. }
+            | Line::Local
+            | Line::Noted(_)
             | Line::Address(_)
             | Line::Stored { .. }
             | Line::Credential(_)
@@ -206,6 +214,8 @@ impl Replay {
             | Line::Unstream
             | Line::Save { .. }
             | Line::Erase(_)
+            | Line::Note(_)
+            | Line::Read
             | Line::Keep(_)
             | Line::Signed(_)
             | Line::Browse(_)
@@ -260,6 +270,10 @@ fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
         return Err(error(at));
     };
     at += 1;
+    let local = lines.get(at) == Some(&Line::Local);
+    if local {
+        at += 1;
+    }
     let mut kept = Vec::new();
     while let Some(Line::Stored { key, bytes }) = lines.get(at) {
         kept.push(jig_client::Record { key: key.clone(), bytes: bytes.clone() });
@@ -271,6 +285,12 @@ fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     } else {
         None
     };
+    let note = if let Some(Line::Noted(note)) = lines.get(at) {
+        at += 1;
+        Some(*note)
+    } else {
+        None
+    };
     Ok((
         Facts {
             seed: *seed,
@@ -279,6 +299,8 @@ fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
             size: *size,
             scheme: *scheme,
             address: address.clone(),
+            local,
+            note,
             kept,
             credential,
         },
@@ -292,6 +314,7 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
     let mut kept = false;
     let mut started = false;
     let mut may_ask = false;
+    let mut duty = None;
     for (index, line) in lines.iter().enumerate().skip(at) {
         let bad = || Unreadable { line: number(index), why: "record out of place" };
         match line {
@@ -322,6 +345,7 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
                 started = true;
                 kept = true;
                 may_ask = true;
+                duty = None;
             }
             Line::Mark(_) => {
                 if !in_turn || !started {
@@ -340,18 +364,22 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Saved
             | Line::Unsaved
             | Line::Kept { .. }
+            | Line::Found(_)
             | Line::Opened { .. } => {
                 if !in_turn || !started {
                     return Err(bad());
                 }
                 kept = true;
                 may_ask = true;
+                duty = None;
             }
             Line::Send { .. }
             | Line::Stream(_)
             | Line::Unstream
             | Line::Save { .. }
             | Line::Erase(_)
+            | Line::Note(_)
+            | Line::Read
             | Line::Keep(_)
             | Line::Signed(_)
             | Line::Browse(_)
@@ -359,11 +387,18 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
                 if !in_turn || !may_ask {
                     return Err(bad());
                 }
+                let order = duty_order(line).expect("a duty record");
+                if duty.is_some_and(|prior| order < prior) {
+                    return Err(bad());
+                }
+                duty = Some(order);
             }
             Line::Journey { .. }
             | Line::Seed(_)
             | Line::Clocks { .. }
             | Line::Screen { .. }
+            | Line::Local
+            | Line::Noted(_)
             | Line::Address(_)
             | Line::Stored { .. }
             | Line::Credential(_) => return Err(bad()),
