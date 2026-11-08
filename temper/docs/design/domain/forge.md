@@ -1095,7 +1095,8 @@ connector as `Dismissed` is (5.5), and a document computed at its read.
   Each saves the row, marks the subject `status` and answers looked, the
   answer held behind the commit as `Dismiss`'s is and unknown after a
   restart. The 30 minutes are the limit `forge.sitting_ms`, `SITTING` in each
-  profile, a limit so that a box's walk reaches a second sitting in its tier.
+  profile. A story reaches a second sitting on its world's clock, never by
+  waiting (`testing.md`, 2.6).
 - **Its document:** the subject `status`, `status_subject(project)`, one
   number a project, outside the task numbers as `changes_subject`'s are,
   of the project's scope. The core's ask for a document names the

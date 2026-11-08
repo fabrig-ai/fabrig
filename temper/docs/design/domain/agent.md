@@ -1342,9 +1342,11 @@ and not its name.
   of 65536`.
 - **Its stories:** a scripted turn of the fake model that writes a document
   (`testing.md`, 2.4), proved through ctl and walked in the journey `chat-draft`
-  (`../client/journeys.md`, 9); and a walk's own script, which builds a 30 KB note
-  in calls of under 10 KB each, one line longer than a call among it, then has a
-  fresh run find the note in its brief and change it by lines.
+  (`../client/journeys.md`, 9); and the real loop's
+  `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run`
+  (`testing.md`, 2.6), whose script builds a 30 KB note in calls of under 10 KB
+  each, one line longer than a call among it, then has a fresh run find the note
+  in its brief and change it by lines.
 
 #### A goal's report
 
@@ -1374,9 +1376,12 @@ needs no record, read or wire field of its own. The client reads and draws it
   reference's charter 5 (`../protocol/configuration.md`, 13.4 and 13.9). The
   stock's authority holds the goal's scope (13.4); a charter that does not ask
   for a report writes none, and no note yet is a normal state, never an error.
-- **Its story:** the scripted fake model writes a report in its goal script, so
-  that a walk on `temper box --fake-backends` shows one
-  (`../protocol/configuration.md`, 12.1).
+- **Its stories:** the joint world's
+  `suite::task::a_chats_goal_shows_its_report_from_its_goals_row` (`testing.md`,
+  2.6): a chat's goal writes its report, and the person reaches it from Home's
+  Goals link through the goal's row. The scripted fake model writes a report in
+  its goal script, so that a person or a journey on `temper box --fake-backends`
+  meets one (`../protocol/configuration.md`, 12.1).
 
 ### 8.4 Ask temper
 
