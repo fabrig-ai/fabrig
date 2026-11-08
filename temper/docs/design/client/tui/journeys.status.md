@@ -33,6 +33,3 @@ and an unanswered background query selects dark. The recording carries
 browser's approval and keeps two frames. No work from this plan remains
 deferred in the journey machinery; section 11's manual checks and look
 refinement remain.
-
-- **Not yet:** 9: `sign-in-approved` recorded to the launchpad, and
-  `launchpad-chat`, neither recorded.
