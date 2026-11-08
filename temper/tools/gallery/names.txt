@@ -18,6 +18,7 @@ approve-expired
 approve-refused
 approve-signed-in
 approve-signed-out
+approve-signed-out-google
 approve-typing
 approve-unknown
 approve-unread
@@ -246,6 +247,7 @@ needs-second-answered
 night-ask
 night-chat-split
 night-home
+no-project
 out-of-date
 playground-resetting
 proposal-accepting

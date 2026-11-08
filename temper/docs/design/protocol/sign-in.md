@@ -365,6 +365,21 @@ paragraph, and its links; no script; stock, as the sign-in page is.
 is `/sign-in/google?then=THEN&account=choose`, "Continue with Google"
 `/sign-in/google?then=THEN`, "Back to sign in" `THEN`.
 
+- **In the client's look outside a project** (`../client/README.md`,
+  5.1; the look request `outside-pages`): `<html lang="en">` with the
+  viewport's meta; a `header` holding temper's mark, a link "temper" to
+  `/`; then a `main` column: the heading, the paragraph, the first link
+  filled (`class="primary"`: "Continue with Google" or "Use another
+  Google account"), and "Back to sign in" quiet, alone in a paragraph
+  (`class="quiet"`).
+- **Its stylesheet is the bundle's** `files/pages.css`, linked as
+  `/bundle/DIGEST/files/pages.css`, DIGEST the served bundle's, as the
+  client's page links the bundle's `loading.css`: a file of the page's
+  own origin, so `style-src 'self'` admits it. It draws the column of
+  `../client/browser.md`, 2.5 (*Outside a project*) in the day's
+  colours alone, with the bundle's IBM Plex Sans. With no bundle served,
+  no stylesheet is linked and the page reads plain.
+
 | Ending | Status | Heading | Paragraph | Links |
 |---|---|---|---|---|
 | a member, minted | `303` to `then` | | | |

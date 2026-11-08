@@ -220,14 +220,63 @@ fn the_landing_pages_show_the_turn_queues_commits_and_proofs() {
 fn projects_are_named_and_the_banner_only_offers_a_known_sign_in() {
     let mut reader = reader(Public::Projects);
     answer(&mut reader, Doc::JigProjects, Heard::Document { body: records::projects(), fresh: Duration::from_secs(5) });
-    let mut view = PublicView::new(&fixtures::tree_limits(), fixtures::browser_words(), Ways::NONE);
-    build_public(&mut view, &reader, Wall::EPOCH, &mut Queue::uncapped());
-    only_words(&view, &[b"temper", b"Public projects", b"A public project"]);
-    let project = fixtures::find(view.tree(), Role::Link, b"A public project").expect("project name");
-    assert_eq!(
-        crate::public::href(&mut view, project).as_deref(),
-        Some(b"/public/projects/3f2a9c0176543210".as_slice())
-    );
+    for (ways, sign_in) in [
+        (Ways::NONE, None),
+        (Ways::parse("unknown", b"https://temper.example"), None),
+        (Ways { google: true, origin: None }, None),
+        (Ways::parse("google", b"https://temper.example"), Some(b"https://temper.example/".as_slice())),
+    ] {
+        let mut view = PublicView::new(&fixtures::tree_limits(), fixtures::browser_words(), ways);
+        build_public(&mut view, &reader, Wall::EPOCH, &mut Queue::uncapped());
+        let mut nodes = view.tree().nodes().iter();
+        assert_eq!(nodes.next().expect("page").role, Role::Page);
+        let banner = nodes.next().expect("banner");
+        assert_eq!(banner.role, Role::Banner);
+        assert_eq!(banner.styles.as_slice(), &[crate::look::TOP]);
+        let brand = nodes.next().expect("brand link");
+        assert_eq!(brand.role, Role::Link);
+        assert_eq!(brand.name.as_deref(), Some(b"temper".as_slice()));
+        assert_eq!(brand.styles.as_slice(), &[crate::look::BRAND]);
+        let brand_id = brand.id;
+        let text = nodes.next().expect("brand words");
+        assert_eq!(text.role, Role::Text);
+        assert_eq!(text.text.get(0).expect("brand run").text.as_ref(), b"temper");
+        if let Some(address) = sign_in {
+            let slot = nodes.next().expect("sign-in slot");
+            assert_eq!(slot.role, Role::Slot);
+            assert_eq!(slot.styles.as_slice(), &[crate::look::TOP_END]);
+            let link = nodes.next().expect("sign-in link");
+            assert_eq!(link.role, Role::Link);
+            assert_eq!(link.name.as_deref(), Some(b"Sign in".as_slice()));
+            assert_eq!(link.external.as_deref(), Some(address));
+            let text = nodes.next().expect("sign-in words");
+            assert_eq!(text.role, Role::Text);
+            assert_eq!(text.text.get(0).expect("sign-in run").text.as_ref(), b"Sign in");
+            assert_eq!(slot.size, 1_u32.checked_add(link.size).expect("slot holds its link"));
+            assert_eq!(
+                banner.size,
+                1_u32
+                    .checked_add(brand.size)
+                    .expect("banner holds brand")
+                    .checked_add(slot.size)
+                    .expect("banner holds slot")
+            );
+            only_words(&view, &[b"temper", b"Sign in", b"Public projects", b"A public project"]);
+        } else {
+            assert_eq!(banner.size, 1_u32.checked_add(brand.size).expect("banner holds only its brand"));
+            assert!(fixtures::find(view.tree(), Role::Link, b"Sign in").is_none());
+            only_words(&view, &[b"temper", b"Public projects", b"A public project"]);
+        }
+        let main = nodes.next().expect("main follows banner");
+        assert_eq!(main.role, Role::Main);
+        assert_eq!(main.styles.as_slice(), &[crate::look::MAIN, crate::look::PAGE, crate::look::PUBLIC_PAGE]);
+        assert_eq!(crate::public::href(&mut view, brand_id).as_deref(), Some(b"/public".as_slice()));
+        let project = fixtures::find(view.tree(), Role::Link, b"A public project").expect("project name");
+        assert_eq!(
+            crate::public::href(&mut view, project).as_deref(),
+            Some(b"/public/projects/3f2a9c0176543210".as_slice())
+        );
+    }
 }
 
 #[test]

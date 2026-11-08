@@ -819,27 +819,10 @@ pub fn signed_in_with_project() -> crate::View {
     build(&mut view, &root_in_project(Some(PROJECT)));
     view
 }
-pub fn navigation_link_names(view: &crate::View) -> Box<[Box<[u8]>]> {
-    let mut names = List::with_capacity(view.limits().tree.nodes);
-    for (index, node) in view.tree().nodes().iter().enumerate() {
-        if node.role == skein_ui::Role::Navigation {
-            let end =
-                index.checked_add(usize::try_from(node.size).expect("navigation fits")).expect("navigation end fits");
-            for child in &view.tree().nodes()[index..end] {
-                if child.role == skein_ui::Role::Link
-                    && let Some(name) = &child.name
-                {
-                    names.push(skein_lib::bytes::copy_of(name)).expect("tree bounds link names");
-                }
-            }
-        }
-    }
-    names.into_boxed()
-}
 pub fn frame_statuses(tree: &skein_ui::Tree) -> Box<[Box<[u8]>]> {
     let mut names = List::with_capacity(tree.len());
     for (index, node) in tree.nodes().iter().enumerate() {
-        if node.role == skein_ui::Role::Banner || node.styles.as_slice().contains(&crate::look::RAIL) {
+        if node.styles.as_slice().contains(&crate::look::TOP) || node.styles.as_slice().contains(&crate::look::RAIL) {
             let end = index.checked_add(usize::try_from(node.size).expect("banner fits")).expect("banner end fits");
             for child in &tree.nodes()[index..end] {
                 if child.role == skein_ui::Role::Status
@@ -2113,13 +2096,9 @@ pub fn pair(
     roots.into_boxed()
 }
 
-/// A signed-in root with no project, for the banner's own tests.
+/// A signed-in root with no project and a deployment without the welcome.
 pub fn no_project_root() -> temper_client_domain::Domain {
-    let (mut root, watch) = root_with_watch(None);
-    let mut me = root.pages().me(root.client()).unwrap().clone();
-    me.projects.clear();
-    deliver_me(&mut root, watch, me);
-    root
+    super::chats::no_project_root(Some(false))
 }
 pub fn deliver_me(root: &mut temper_client_domain::Domain, watch: Token, me: c::Me) {
     root_event(

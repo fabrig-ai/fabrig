@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 336;
+pub const N: usize = 338;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -159,6 +159,12 @@ pub fn samples() -> [Sample; N] {
             world: Bare,
             address: Address::Inbox { filter: Filter::ALL },
             then: Shown,
+        },
+        Sample {
+            name: "approve-signed-out-google",
+            world: Bare,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Then::GoogleSignIn,
         },
         Sample { name: "approve-busy", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "ask", world: Solo, address: Address::Ask { project: 1 }, then: Shown },
@@ -945,6 +951,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "accounts-reference", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-first-run-1", world: FirstRun { step: 1 }, address: Address::Accounts, then: Shown },
         Sample { name: "google-sign-in", world: Bare, address: CHATS, then: Then::GoogleSignIn },
+        Sample { name: "no-project", world: Bare, address: CHATS, then: Shown },
         Sample { name: "signed-out", world: Bare, address: CHATS, then: SignedOut },
         Sample { name: "out-of-date", world: Bare, address: CHATS, then: OutOfDate },
         Sample { name: "chats-empty", world: Bare, address: CHATS, then: Shown },
@@ -1445,8 +1452,15 @@ pub fn domain(sample: &Sample) -> Domain {
         step(&mut root, Event::Act { action: Action::Pages(Act::Terminal(T::Night)) }, &mut Queue::uncapped());
         return root;
     }
+    if sample.name == "no-project" {
+        return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
+    }
     if sample.name.starts_with("approve-") {
-        return crate::worlds::approve_world(sample.name);
+        return crate::worlds::approve_world(if sample.name == "approve-signed-out-google" {
+            "approve-signed-out"
+        } else {
+            sample.name
+        });
     }
     if sample.name.starts_with("chat-terminal") {
         let mut root = if sample.name == "chat-terminal-question" {

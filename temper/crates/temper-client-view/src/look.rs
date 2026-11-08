@@ -282,8 +282,6 @@ pub const ASK_QUESTION: Style = Style { owner: owner(), token: 226 };
 pub const ASK_CHOICES: Style = Style { owner: owner(), token: 227 };
 /// A quiet action on the needs card (client/README.md, 3.5).
 pub const ASK_QUIET: Style = Style { owner: owner(), token: 228 };
-/// The frame's banner.
-pub const BANNER: Style = Style { owner: owner(), token: 0 };
 /// The frame's navigation.
 pub const NAVIGATION: Style = Style { owner: owner(), token: 1 };
 /// Every page's main.
@@ -324,8 +322,6 @@ pub const STATUS_QUIET: Style = Style { owner: owner(), token: 18 };
 pub const TIME: Style = Style { owner: owner(), token: 19 };
 /// The start composer's keyboard hint.
 pub const HINT: Style = Style { owner: owner(), token: 20 };
-/// The banner's corner: link state, person and sign out.
-pub const CORNER: Style = Style { owner: owner(), token: 21 };
 /// The accounts' banner: no usable account, its words and acts.
 pub const ACCOUNTS: Style = Style { owner: owner(), token: 22 };
 /// The composer's account and model line.
@@ -414,8 +410,6 @@ pub const STEP: Style = Style { owner: owner(), token: 65 };
 pub const STEP_DONE: Style = Style { owner: owner(), token: 66 };
 /// The playground's project, repository and signed-in role.
 pub const CONTEXT: Style = Style { owner: owner(), token: 67 };
-/// The existing guidance when the application is unavailable.
-pub const UNAVAILABLE: Style = Style { owner: owner(), token: 68 };
 /// A plan row's spend.
 pub const PLAN_SPEND: Style = Style { owner: owner(), token: 71 };
 /// A plan row's dependency line.
@@ -444,8 +438,6 @@ pub const TASK_AMEND: Style = Style { owner: owner(), token: 82 };
 pub const ENDED: Style = Style { owner: owner(), token: 83 };
 /// The day before a chat's turns (client/README.md, 5.12).
 pub const DAY: Style = Style { owner: owner(), token: 84 };
-/// The banner's menu, folded by the browser at phone width.
-pub const MENU: Style = Style { owner: owner(), token: 85 };
 /// A change's card on its task page (client/README.md, 5.10).
 pub const CHANGE: Style = Style { owner: owner(), token: 86 };
 /// The tag naming a change in its task page's header (5.10).
@@ -518,8 +510,6 @@ pub const FLOW_CODE: Style = Style { owner: owner(), token: 119 };
 pub const FORGES: Style = Style { owner: owner(), token: 120 };
 /// The setup strip (client/README.md, 5.1, 5.6).
 pub const SETUP_STRIP: Style = Style { owner: owner(), token: 122 };
-/// Browser sign-in page (protocol/sign-in.md, 7).
-pub const SIGN_IN: Style = Style { owner: owner(), token: 123 };
 /// A connection flow's filled primary control.
 pub const FLOW_PRIMARY: Style = Style { owner: owner(), token: 125 };
 /// A failed line in a connection flow's progress.
@@ -684,7 +674,7 @@ pub const NAMES: Names<'static> = Names {
     owner: owner(),
     prefix: b"temper",
     styles: &[
-        b"temper-banner",
+        b"temper-reserved-0",
         b"temper-navigation",
         b"temper-main",
         b"temper-card",
@@ -705,7 +695,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-status-quiet",
         b"temper-time",
         b"temper-hint",
-        b"temper-corner",
+        b"temper-reserved-21",
         b"temper-accounts",
         b"temper-account-line",
         b"temper-agent-page",
@@ -752,7 +742,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-step",
         b"temper-step-done",
         b"temper-context",
-        b"temper-unavailable",
+        b"temper-reserved-68",
         b"temper-retired-task-contract",
         b"temper-retired-task-budget",
         b"temper-plan-spend",
@@ -769,7 +759,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-task-amend",
         b"temper-ended",
         b"temper-day",
-        b"temper-menu",
+        b"temper-reserved-85",
         b"temper-change",
         b"temper-change-tag",
         b"temper-step-current",
@@ -807,7 +797,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-forges",
         b"temper-welcome-cmd-box",
         b"temper-setup-strip",
-        b"temper-sign-in",
+        b"temper-reserved-123",
         b"temper-reserved-124",
         b"temper-flow-primary",
         b"temper-flow-failed",
@@ -1184,14 +1174,14 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-497",
         b"temper-reserved-498",
         b"temper-reserved-499",
-        b"temper-reserved-500",
-        b"temper-reserved-501",
-        b"temper-reserved-502",
-        b"temper-reserved-503",
-        b"temper-reserved-504",
-        b"temper-reserved-505",
-        b"temper-reserved-506",
-        b"temper-reserved-507",
+        b"temper-top",
+        b"temper-top-end",
+        b"temper-outside",
+        b"temper-outside-primary",
+        b"temper-outside-secondary",
+        b"temper-outside-acts",
+        b"temper-outside-quiet",
+        b"temper-approve-field",
         b"temper-reserved-508",
         b"temper-reserved-509",
         b"temper-reserved-510",
@@ -1290,8 +1280,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-approve",
         b"temper-approve-code",
         b"temper-approve-asked",
-        b"temper-approve-acts",
-        b"temper-approve-primary",
+        b"temper-reserved-606",
+        b"temper-reserved-607",
         b"temper-night-switch",
         b"temper-ways-base",
         b"temper-ways-auth",
@@ -1663,11 +1653,26 @@ pub const TERMINAL_CARD: Style = Style { owner: owner(), token: 600 };
 pub const TERMINAL_CARD_LINE: Style = Style { owner: owner(), token: 601 };
 pub const TERMINAL_DETAILS: Style = Style { owner: owner(), token: 602 };
 
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const TOP: Style = Style { owner: owner(), token: 500 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const TOP_END: Style = Style { owner: owner(), token: 501 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE: Style = Style { owner: owner(), token: 502 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE_PRIMARY: Style = Style { owner: owner(), token: 503 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE_SECONDARY: Style = Style { owner: owner(), token: 504 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE_ACTS: Style = Style { owner: owner(), token: 505 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const OUTSIDE_QUIET: Style = Style { owner: owner(), token: 506 };
+/// Outside a project (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+pub const APPROVE_FIELD: Style = Style { owner: owner(), token: 507 };
+
 pub const APPROVE: Style = Style { owner: owner(), token: 603 };
 pub const APPROVE_CODE: Style = Style { owner: owner(), token: 604 };
 pub const APPROVE_ASKED: Style = Style { owner: owner(), token: 605 };
-pub const APPROVE_ACTS: Style = Style { owner: owner(), token: 606 };
-pub const APPROVE_PRIMARY: Style = Style { owner: owner(), token: 607 };
 
 // Path marks (temper/docs/design/client/README.md, 5.16).
 pub const WAYS_BASE: Style = Style { owner: owner(), token: 609 };
