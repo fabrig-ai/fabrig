@@ -351,7 +351,13 @@ down:  released and door outputs → components → io submissions
   configuration with skein's startup kit (`configuration.md`), opens the
   store on a directory, and runs the engine and one test worker in one
   process (section 10), the worker's agents smith's real agent
-  processes, run as its own `agent` command (section 6). It prints the
+  processes, run as its own `agent` command (section 6). Being its
+  agents' own executable, it serves smith's two agent modes, given as
+  its first argument before it reads a command, as `smith-agent` does:
+  `jig-test --mcp-relay 127.0.0.1:PORT`, a program's MCP relay, and
+  `jig-test --program-child PARENT PROGRAM ARGUMENTS...`, each program
+  process a program-backed agent starts (smith's
+  `protocol/programs.md`, 5.1 and 5.3). It prints the
   printed link's URL once the clients' component gives its secret,
   `http://<its listener>/jig/v1/sign-in/link?secret=…`, on a line of its
   own, by which a native client on loopback signs in (`client.md`,

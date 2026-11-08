@@ -76,6 +76,7 @@ jig-test-profile.workspace = true
 temper-client-shell-web.workspace = true
 smith-agent-world.workspace = true
 smith-domain-run.workspace = true
+smith-protocol-program.workspace = true
 temper-client-world = { path = "../../tests/client" }
 temper-engine-smith.workspace = true
 jig-protocol-engine-clients.workspace = true
