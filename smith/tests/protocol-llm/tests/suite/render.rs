@@ -503,6 +503,7 @@ fn saved_outside_choice(choice: Option<Box<[Box<[u8]>]>>) -> llm::NotRun {
         ..smith_domain::session::fixture::turn(
             b"model".as_slice().into(),
             record::Kind::First(Box::new(record::Opener {
+                system: None,
                 affinity: session::Affinity { key: [0; 16], thread: 0 },
                 account: None,
                 backend: record::Backend::Direct,

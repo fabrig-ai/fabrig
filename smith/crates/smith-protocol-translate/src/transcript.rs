@@ -19,7 +19,7 @@ pub fn decode_transcript(
     piece: &[u8],
     resume_turns: u32,
     search_hits: u32,
-    limits: &wire::v6::Limits,
+    limits: &wire::v7::Limits,
     endpoints: &Endpoints,
 ) -> Result<Option<record::Transcript>, record::Refusal> {
     if piece.is_empty() {
@@ -46,7 +46,7 @@ pub fn decode_transcript(
     for _ in 0..count {
         let length = reader.u32().ok_or(record::Refusal::Malformed)?;
         let body = reader.bytes(length).ok_or(record::Refusal::Malformed)?;
-        if body.get(..2) != Some(&[0, 6][..]) {
+        if body.get(..2) != Some(&[0, 7][..]) {
             return Err(record::Refusal::Version);
         }
         let place = match previous {
@@ -112,7 +112,7 @@ pub fn transcript_piece(bodies: &[Box<[u8]>]) -> Option<Box<[u8]>> {
 pub fn decode_turn(
     bytes: &[u8],
     number: u32,
-    limits: &wire::v6::Limits,
+    limits: &wire::v7::Limits,
     endpoints: &Endpoints,
 ) -> Result<record::Turn, record::Refusal> {
     if number == 0 {
@@ -129,8 +129,8 @@ fn saved_endpoint(endpoints: &Endpoints, name: &[u8]) -> Option<llm::Endpoint> {
     Some(llm::Endpoint(endpoint.number))
 }
 
-fn saved_turn(bytes: &[u8], number: Option<u32>, limits: &wire::v6::Limits) -> Result<wire::Turn, record::Refusal> {
-    if bytes.get(..2) != Some(&[0, 6][..]) {
+fn saved_turn(bytes: &[u8], number: Option<u32>, limits: &wire::v7::Limits) -> Result<wire::Turn, record::Refusal> {
+    if bytes.get(..2) != Some(&[0, 7][..]) {
         return Err(record::Refusal::Version);
     }
     let Ok(source) = wire::Turn::decode(limits, &mut Reader::new(bytes)) else {
@@ -150,52 +150,11 @@ fn translate_turn(
     source: wire::Turn,
     endpoint: Option<llm::Endpoint>,
     dialect: u32,
-    limits: &wire::v6::Limits,
+    limits: &wire::v7::Limits,
     search_hits: u32,
 ) -> Result<record::Turn, record::Refusal> {
-    let opening = match source.opening() {
-        Some(value) => {
-            let affinity = llm::Affinity { key: *value.affinity().key(), thread: value.affinity().thread() };
-            let backend = match value.backend() {
-                wire::Backend::Direct => record::Backend::Direct,
-                wire::Backend::Program(program) => record::Backend::Program { name: Box::from(program.name()) },
-            };
-            Some((affinity, *value.account(), backend))
-        }
-        None => None,
-    };
-    let kind = match source.kind() {
-        wire::TurnKind::Ordinary => match opening {
-            Some((affinity, account, backend)) if source.place() == 1 => {
-                record::Kind::First(Box::new(record::Opener { affinity, account, backend }))
-            }
-            None if source.place() > 1 => record::Kind::Ordinary,
-            Some(_) | None => return Err(record::Refusal::Malformed),
-        },
-        wire::TurnKind::Window => match opening {
-            Some((affinity, account, backend)) => {
-                record::Kind::Window(Box::new(record::Opener { affinity, account, backend }))
-            }
-            None => return Err(record::Refusal::Malformed),
-        },
-    };
-    let mut messages = List::with_capacity(source.messages().len());
-    for message in source.messages() {
-        let role = match message.role() {
-            wire::Role::User => llm::Role::User,
-            wire::Role::Assistant => llm::Role::Assistant,
-        };
-        let mut content = List::with_capacity(message.blocks().len());
-        for block in message.blocks() {
-            let value = decode_block(block, dialect, limits, search_hits)?;
-            if content.push(value).is_err() {
-                return Err(record::Refusal::TooLarge);
-            }
-        }
-        if messages.push(llm::Message { role, content: content.into_boxed() }).is_err() {
-            return Err(record::Refusal::TooLarge);
-        }
-    }
+    let kind = decode_kind(&source)?;
+    let messages = decode_messages(&source, dialect, limits, search_hits)?;
     Ok(record::Turn {
         version: record::VERSION,
         kind,
@@ -220,7 +179,7 @@ fn translate_turn(
 fn decode_block(
     source: &wire::Block,
     dialect: u32,
-    limits: &wire::v6::Limits,
+    limits: &wire::v7::Limits,
     search_hits: u32,
 ) -> Result<llm::Block, record::Refusal> {
     let value = match source {
@@ -265,7 +224,7 @@ fn replay(source: Option<&wire::Replay>, dialect: u32) -> Result<Option<llm::Rep
 
 fn returned(
     source: &wire::Returned,
-    limits: &wire::v6::Limits,
+    limits: &wire::v7::Limits,
     search_hits: u32,
 ) -> Result<llm::Returned, record::Refusal> {
     let value = match source {
@@ -322,7 +281,7 @@ fn problem(source: &wire::CallProblem) -> llm::Problem {
 
 fn outcome(
     source: &wire::Outcome,
-    limits: &wire::v6::Limits,
+    limits: &wire::v7::Limits,
     search_hits: u32,
 ) -> Result<tools::Outcome, record::Refusal> {
     let value = match source {
@@ -497,7 +456,7 @@ fn hit_length(bytes: &[u8]) -> Result<u32, record::Refusal> {
 
 fn found_piece(
     piece: &[u8],
-    limits: &wire::v6::Limits,
+    limits: &wire::v7::Limits,
     search_hits: u32,
 ) -> Result<Box<[tools::Hit]>, record::Refusal> {
     let mut reader = Reader::new(piece);
@@ -663,4 +622,67 @@ mod found_tests {
     fn a_found_piece_past_the_tools_hit_count_is_too_large() {
         assert_eq!(found_piece(&[0; 12], &CEILINGS, 0), Err(record::Refusal::TooLarge));
     }
+}
+
+fn decode_kind(source: &wire::Turn) -> Result<record::Kind, record::Refusal> {
+    let opening = match source.opening() {
+        Some(value) => {
+            let affinity = llm::Affinity { key: *value.affinity().key(), thread: value.affinity().thread() };
+            let backend = match value.backend() {
+                wire::Backend::Direct => record::Backend::Direct,
+                wire::Backend::Program(program) => record::Backend::Program { name: Box::from(program.name()) },
+            };
+            Some((affinity, *value.account(), backend))
+        }
+        None => None,
+    };
+    Ok(match source.kind() {
+        wire::TurnKind::Ordinary => match opening {
+            Some((affinity, account, backend)) if source.place() == 1 => {
+                record::Kind::First(Box::new(record::Opener {
+                    system: source.system().clone(),
+                    affinity,
+                    account,
+                    backend,
+                }))
+            }
+            None if source.place() > 1 && source.system().is_none() => record::Kind::Ordinary,
+            Some(_) | None => return Err(record::Refusal::Malformed),
+        },
+        wire::TurnKind::Window => match opening {
+            Some((affinity, account, backend)) => record::Kind::Window(Box::new(record::Opener {
+                system: source.system().clone(),
+                affinity,
+                account,
+                backend,
+            })),
+            None => return Err(record::Refusal::Malformed),
+        },
+    })
+}
+
+fn decode_messages(
+    source: &wire::Turn,
+    dialect: u32,
+    limits: &wire::v7::Limits,
+    search_hits: u32,
+) -> Result<List<llm::Message>, record::Refusal> {
+    let mut messages = List::with_capacity(source.messages().len());
+    for message in source.messages() {
+        let role = match message.role() {
+            wire::Role::User => llm::Role::User,
+            wire::Role::Assistant => llm::Role::Assistant,
+        };
+        let mut content = List::with_capacity(message.blocks().len());
+        for block in message.blocks() {
+            let value = decode_block(block, dialect, limits, search_hits)?;
+            if content.push(value).is_err() {
+                return Err(record::Refusal::TooLarge);
+            }
+        }
+        if messages.push(llm::Message { role, content: content.into_boxed() }).is_err() {
+            return Err(record::Refusal::TooLarge);
+        }
+    }
+    Ok(messages)
 }

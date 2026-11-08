@@ -79,7 +79,7 @@ pub const TASK: Tool = Tool {
 pub const CHAT: Tool = Tool {
     name: b"chat show",
     line: b"Read a chat's conversation from its end",
-    prints: b"The conversation, oldest line first: each turn's words including the brief supplied to the run, each run's start and end, then `read on with: chat show TASK --before CURSOR` or `no more`",
+    prints: b"The conversation, oldest line first: each turn's conversation words, each run's start and end, then `read on with: chat show TASK --before CURSOR` or `no more`",
     result: b"chat",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The chat's task number"),
@@ -87,7 +87,7 @@ pub const CHAT: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Each page is older than the one before it. A run still writing\nadds its words so far. Archived turn text includes the brief supplied to the run,\nwith charter document sections and their recorded commits.\nRead task activity TASK to find its attempt and turn as A.T, then\ntask turn TASK A.T for its parts and printed continuations.\nTool inputs, outcomes and result summaries are read with task turn TASK TURN;\nthey consume no conversation words budget. JSON leaves those payload fields null.\n",
+    notes: b"Each page is older than the one before it. A run still writing\nadds its words so far. Read the brief supplied to the run and its system text with task turn TASK A.T,\nincluding charter document sections and their recorded commits.\nRead task activity TASK to find its attempt and turn as A.T, then\ntask turn TASK A.T for its parts and printed continuations.\nTool inputs, outcomes and result summaries are read with task turn TASK TURN;\nthey consume no conversation words budget. JSON leaves those payload fields null.\n",
 };
 pub const ACTIVITY: Tool = Tool {
     name: b"task activity",
@@ -101,7 +101,7 @@ pub const ACTIVITY: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"A turn prints whole, each part cut at 16 KB with `read on with:`;\na turn past a page's bytes prints as its size and\n`read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
+    notes: b"A turn's conversation prints whole; read its supplied system text with task turn TASK TURN.\nEach part is cut at 16 KB with `read on with:`;\na turn past a page's bytes prints as its size and\n`read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
 };
 pub const TURN: Tool = Tool {
     name: b"task turn",
@@ -116,7 +116,7 @@ pub const TURN: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Read task activity TASK to find the attempt and turn as A.T, then\ntask turn TASK A.T. Archived turn text includes the brief supplied to the run,\nwith charter document sections and their recorded commits.\nA part prints at most 16384 bytes at a time. A turn past ctl's\nbound prints its size and `past the limit; report it`, and one it\ncannot decode `unreadable; report it`, both with exit 0: report\neither as a finding.\n",
+    notes: b"Read task activity TASK to find the attempt and turn as A.T, then\ntask turn TASK A.T. Archived turn text includes the brief supplied to the run,\nwith the selected charter-part instructions, charter document sections and\ntheir recorded commits. These are the retained supplied words. Older turns\nthat did not retain system text have that context unavailable; task text\nand current settings cannot recover it.\nA part prints at most 16384 bytes at a time. A turn past ctl's\nbound prints its size and `past the limit; report it`, and one it\ncannot decode `unreadable; report it`, both with exit 0: report\neither as a finding.\n",
 };
 pub const RUN: Tool = Tool {
     name: b"task run",

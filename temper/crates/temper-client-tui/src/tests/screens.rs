@@ -1,5 +1,5 @@
 use super::fixtures as f;
-use crate::{Refusal, Signing, Told, Tui, look};
+use crate::{Local, Refusal, Signing, Told, Tui, look};
 use jig_client::{Link, Up};
 use jig_client_protocol_wire::SignInAnswer as Answer;
 use skein_ui::{Role, Style};
@@ -17,33 +17,41 @@ fn signing(tui: &mut Tui, signing: &Signing) {
 }
 #[test]
 fn the_sign_in_screen_says_each_line() {
-    type Row<'a> = (Signing, Option<Answer>, Option<&'a [u8]>, Option<Style>);
+    type Row<'a> = (Signing, Option<Answer>, Local, Option<&'a [u8]>, Option<Style>);
     let rows: &[Row<'_>] = &[
-        (Signing::Idle, None, None, None),
-        (Signing::Idle, Some(Answer::Busy), None, None),
-        (Signing::Refused(Refusal::NotALink), None, Some(b"That is not a sign-in link: paste the whole link temper printed."), Some(look::REFUSED)),
-        (Signing::Refused(Refusal::OtherAddress { address: Box::from(*b"localhost:8367") }), Some(Answer::Busy), Some(b"That link is for localhost:8367. To sign in there, run temper http://localhost:8367."), Some(look::REFUSED)),
-        (Signing::Asked, None, Some("Signing in…".as_bytes()), Some(look::WAITING)),
-        (Signing::Answered { lost: true }, Some(Answer::LinkUsed), Some(b"Signing in: no answer from the engine; trying again."), Some(look::WAITING)),
-        (Signing::Answered { lost: false }, Some(Answer::Busy), Some(b"Signing in: the engine is busy; trying again."), Some(look::WAITING)),
-        (Signing::Answered { lost: false }, Some(Answer::NotReady), Some(b"Signing in: the engine is starting or stopping; trying again."), Some(look::WAITING)),
-        (Signing::Answered { lost: false }, Some(Answer::LinkUsed), Some(b"This link was already used. A fresh one is in your terminal."), Some(look::REFUSED)),
-        (Signing::Answered { lost: false }, Some(Answer::LinkExpired), Some(b"This link has expired. A fresh one is in your terminal."), Some(look::REFUSED)),
-        (Signing::Answered { lost: false }, Some(Answer::LinkUnknown), Some(b"This link isn't from this temper. Use the one its terminal printed."), Some(look::REFUSED)),
-        (Signing::Answered { lost: false }, Some(f::full()), Some(b"All 4294967295 sign-ins are in use; the earliest ends Jan 1, 00:00 UTC. This link stays usable until Jan 1, 00:00 UTC; after that, opening it has temper serve print a fresh one."), Some(look::REFUSED)),
-        (Signing::Answered { lost: false }, None, Some(b"This link was refused. Use the fresh one temper printed."), Some(look::REFUSED)),
+        (Signing::Idle, None, Local::Idle, None, None),
+        (Signing::Idle, Some(Answer::Busy), Local::Idle, None, None),
+        (Signing::Refused(Refusal::NotALink), None, Local::Idle, Some(b"That is not a sign-in link: paste the whole link temper printed."), Some(look::REFUSED)),
+        (Signing::Refused(Refusal::OtherAddress { address: Box::from(*b"localhost:8367") }), Some(Answer::Busy), Local::Idle, Some(b"That link is for localhost:8367. To sign in there, run temper http://localhost:8367."), Some(look::REFUSED)),
+        (Signing::Asked, None, Local::Idle, Some("Signing in…".as_bytes()), Some(look::WAITING)),
+        (Signing::Answered { lost: true }, Some(Answer::LinkUsed), Local::Idle, Some(b"Signing in: no answer from the engine; trying again."), Some(look::WAITING)),
+        (Signing::Answered { lost: false }, Some(Answer::Busy), Local::Idle, Some(b"Signing in: the engine is busy; trying again."), Some(look::WAITING)),
+        (Signing::Answered { lost: false }, Some(Answer::NotReady), Local::Idle, Some(b"Signing in: the engine is starting or stopping; trying again."), Some(look::WAITING)),
+        (Signing::Answered { lost: false }, Some(Answer::LinkUsed), Local::Idle, Some(b"This link was already used. A fresh one is in your terminal."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, Some(Answer::LinkExpired), Local::Idle, Some(b"This link has expired. A fresh one is in your terminal."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, Some(Answer::LinkUnknown), Local::Idle, Some(b"This link isn't from this temper. Use the one its terminal printed."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, Some(f::full()), Local::Idle, Some(b"All 4294967295 sign-ins are in use; the earliest ends Jan 1, 00:00 UTC. This link stays usable until Jan 1, 00:00 UTC; after that, opening it has temper serve print a fresh one."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, None, Local::Idle, Some(b"This link was refused. Use the fresh one temper printed."), Some(look::REFUSED)),
+        (Signing::Answered { lost: false }, Some(Answer::LinkUnknown), Local::Ended, None, None),
+        (Signing::Answered { lost: false }, Some(Answer::LinkUsed), Local::Ended, None, None),
+        (Signing::Answered { lost: false }, Some(Answer::NotReady), Local::Ended, None, None),
     ];
-    for (index, (state, answer, line, style)) in rows.iter().enumerate() {
+    let mut failures = skein_lib::List::with_capacity(16);
+    for (index, (state, answer, local, line, style)) in rows.iter().enumerate() {
         let root = match answer {
             Some(answer) => f::refused(answer.clone()),
             None => f::signed_out(),
         };
         let mut tui = Tui::new(f::ADDRESS);
         signing(&mut tui, state);
+        tui.step(Told::Local { local: *local });
         let mut view = f::view();
         f::build(&mut view, &tui, &root);
         let paragraphs = f::count(view.tree(), Role::Paragraph).checked_sub(1).unwrap();
-        assert_eq!(paragraphs, if line.is_some() { 3 } else { 2 }, "row {index}");
+        let expected = if line.is_some() { 3 } else { 2 };
+        if paragraphs != expected {
+            failures.push((index, paragraphs, expected)).unwrap();
+        }
         if let Some(line) = line {
             let node = f::find(view.tree(), Role::Paragraph, line);
             assert_eq!(node.styles.as_slice(), &[style.unwrap()], "row {index}");
@@ -56,6 +64,7 @@ fn the_sign_in_screen_says_each_line() {
         assert_eq!(f::find(view.tree(), Role::Status, "● Signed out".as_bytes()).styles.as_slice(), &[look::DOWN]);
         assert_eq!(f::count(view.tree(), Role::Button), 0);
     }
+    assert!(failures.is_empty(), "sign-in rows: {failures:?}");
     let root = f::signed_out();
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Link { link: Link::Live });
@@ -139,10 +148,17 @@ fn the_first_screen_says_the_links_state_and_me() {
             b"Connected to 127.0.0.1:8367 as Owner",
             Some("Projects: Hello · Demo".as_bytes()),
         ),
+        (Link::SignedOut, false, false, false, "● Connecting", look::WAITING, b"Connecting to 127.0.0.1:8367", None),
     ];
     for (link, has_me, has_projects, unkept, state, token, line, projects) in rows {
         let me = if has_me { Some(f::me(if has_projects { &[b"Hello", b"Demo"] } else { &[] })) } else { None };
-        let (mut root, watch) = if link == Link::Starting { f::starting() } else { f::live(me) };
+        let (mut root, watch) = if link == Link::SignedOut {
+            (f::signed_out(), skein_lib::Token::new(0))
+        } else if link == Link::Starting {
+            f::starting()
+        } else {
+            f::live(me)
+        };
         if link == Link::Offline {
             f::client(
                 &mut root,
@@ -155,6 +171,9 @@ fn the_first_screen_says_the_links_state_and_me() {
         assert_eq!(root.client().link().state, link);
         let mut tui = Tui::new(f::ADDRESS);
         tui.step(Told::Link { link });
+        if link == Link::SignedOut {
+            tui.step(Told::Local { local: Local::Signing });
+        }
         if unkept {
             tui.step(Told::Kept { written: false });
         }
@@ -179,6 +198,9 @@ fn the_first_screen_says_the_links_state_and_me() {
         }
         assert!(f::build(&mut view, &tui, &root).is_empty(), "unchanged build has no patches");
         assert_eq!(f::count(view.tree(), Role::TextField), 0);
+        for node in view.tree().nodes() {
+            assert_ne!(f::text(view.tree(), node).as_ref(), b"Sign in this terminal to 127.0.0.1:8367");
+        }
     }
     // Reuse one view through the root's visible changes and the TUI's own ones.
     let (mut root, watch) = f::starting();

@@ -12,7 +12,10 @@ use std::{
     fs,
     io::Read,
     net::SocketAddr,
-    os::{fd::AsRawFd, unix::fs::OpenOptionsExt},
+    os::{
+        fd::AsRawFd,
+        unix::fs::{DirBuilderExt, OpenOptionsExt},
+    },
     path::Path,
     process::{Command, Stdio},
 };
@@ -23,7 +26,37 @@ pub fn command(root: &Path, action: &str) -> Command {
     for name in ["config", "data", "cache"] {
         command.arg(format!("--{name}")).arg(root.join(name));
     }
+    isolate(&mut command, root);
     command
+}
+
+fn isolate(command: &mut Command, root: &Path) {
+    let runtime = root.join("runtime");
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(&runtime).expect("private runtime");
+    command.env("XDG_RUNTIME_DIR", runtime);
+    let path = command
+        .get_envs()
+        .find(|(name, _)| *name == "PATH")
+        .and_then(|(_, value)| value.map(ToOwned::to_owned))
+        .unwrap_or_else(|| std::env::var_os("PATH").unwrap_or_default());
+    let binary = skein_scratch::paths::binary("temper");
+    let paths =
+        std::iter::once(binary.parent().expect("binary directory").to_path_buf()).chain(std::env::split_paths(&path));
+    command.env("PATH", std::env::join_paths(paths).expect("fixture PATH"));
+}
+
+pub fn footer(link: &[u8]) -> Vec<u8> {
+    [FOOTER, format!("In a terminal: temper http://{}\n", address(link)).as_bytes()].concat()
+}
+
+pub fn link_path(root: &Path) -> std::path::PathBuf {
+    use std::os::unix::ffi::OsStrExt;
+    temper::link_file::path(
+        root.join("data").as_os_str().as_bytes(),
+        Some(root.join("runtime").as_os_str().as_bytes()),
+        cfg!(target_os = "linux"),
+    )
+    .expect("fixture link path")
 }
 
 pub const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
@@ -45,6 +78,7 @@ impl Boxed {
     }
     pub fn with_command(case: &str, mut command: Command) -> Self {
         let scratch = support::Scratch::startup(case);
+        isolate(&mut command, scratch.path());
         let stderr = fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -126,6 +160,7 @@ impl Boxed {
         self.stdout.read_to_end(&mut self.printed).expect("remaining stdout");
         let stderr = self.stderr();
         let log = support::boxed::box_log(&self.root().join("data"));
+        assert!(!link_path(self.root()).exists(), "serve removes its link before exiting");
         self.scratch.remove();
         (self.printed, stderr, log)
     }

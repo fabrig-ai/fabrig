@@ -1,5 +1,5 @@
 //! The TUI's arguments and startup (temper/docs/design/client/README.md, 6.11 to 6.16).
-use crate::{commands, directories, open};
+use crate::{commands, directories, link_file, open};
 use skein_io::{
     file::Expect,
     kernel::{Exit, Fd},
@@ -16,7 +16,7 @@ use temper_client_shell_tui::{
     limits,
     run::{Run, Settings},
 };
-use temper_client_tui::Scheme;
+use temper_client_tui::{Note, Scheme};
 
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
@@ -74,6 +74,29 @@ pub fn kept(bytes: &[u8]) -> Option<SocketAddr> {
     address(bytes).ok()
 }
 
+#[must_use]
+pub fn selected_address(given: Option<SocketAddr>, link: Option<&[u8]>, saved: Option<SocketAddr>) -> SocketAddr {
+    given
+        .or_else(|| match open::target(link?) {
+            Ok(open::Target::Link { engine, .. }) => Some(engine),
+            Ok(open::Target::Address { .. }) | Err(_) => None,
+        })
+        .or(saved)
+        .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 8367)))
+}
+
+#[must_use]
+pub fn link_path(environment: &[EnvironmentEntry], working: &[u8]) -> Option<PathBuf> {
+    let data = link_file::deployment(environment, working)?;
+    link_file::path(&data, lookup(environment, b"XDG_RUNTIME_DIR"), cfg!(target_os = "linux"))
+}
+
+#[must_use]
+pub fn read_note(directory: &Path, engine: SocketAddr, user: u32) -> Option<Note> {
+    let bytes = skein_shell::read_private_file(&directory.join("sign-in"), Note::MOST, user).ok()?;
+    Note::read(bytes.expose(), engine.to_string().as_bytes())
+}
+
 fn lookup<'a>(environment: &'a [EnvironmentEntry], name: &[u8]) -> Option<&'a [u8]> {
     environment.iter().find(|(key, _)| key.as_ref() == name).map(|(_, value)| value.as_ref())
 }
@@ -113,11 +136,15 @@ pub fn opener(
 }
 
 #[must_use]
-pub fn scheme(environment: &[EnvironmentEntry]) -> Scheme {
-    match lookup(environment, b"COLORFGBG").and_then(|value| value.rsplit(|byte| *byte == b';').next()) {
-        Some(b"7" | b"15") => Scheme::Light,
-        _ => Scheme::Dark,
+pub fn scheme(environment: &[EnvironmentEntry]) -> Option<Scheme> {
+    let background = lookup(environment, b"COLORFGBG")?.rsplit(|byte| *byte == b';').next()?;
+    if background.is_empty() || !background.iter().all(u8::is_ascii_digit) {
+        return None;
     }
+    Some(match std::str::from_utf8(background).ok()?.trim_start_matches('0') {
+        "7" | "15" => Scheme::Light,
+        _ => Scheme::Dark,
+    })
 }
 
 #[must_use]
@@ -156,7 +183,14 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
     let saved = skein_shell::read_private_file(&directory.join("address"), 64, user)
         .ok()
         .and_then(|bytes| kept(bytes.expose()));
-    let engine = given.or(saved).unwrap_or(SocketAddr::from(([127, 0, 0, 1], 8367)));
+    let link_file =
+        std::env::current_dir().ok().and_then(|working| link_path(&environment, working.as_os_str().as_bytes()));
+    let engine = {
+        let link =
+            if given.is_none() { link_file.as_deref().and_then(|path| link_file::read(path, user)) } else { None };
+        selected_address(given, link.as_ref().map(skein_lib::Secret::expose), saved)
+    };
+    let note = read_note(&directory, engine, user);
     let scheme = scheme(&environment);
     let depth = depth(&environment);
     let Ok(Input::Terminal { kept, size }) = skein_shell::raw_input(Fd::new(0), Keys::Pass) else {
@@ -170,8 +204,14 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             skein_shell::close_startup_fd(signals);
             Refused::Directory(format!("{}: cannot open its parent: errno {number}", directory.display()))
         })?;
+        let files = skein_shell::open_root(parent).map_err(|number| {
+            skein_shell::close_startup_fd(root);
+            skein_shell::close_startup_fd(signals);
+            Refused::Directory(format!("{}: cannot open sign-in parent: errno {number}", directory.display()))
+        })?;
         #[cfg(feature = "record")]
         let record = Some(skein_shell::open_root(parent).map_err(|number| {
+            skein_shell::close_startup_fd(files);
             skein_shell::close_startup_fd(root);
             skein_shell::close_startup_fd(signals);
             Refused::Directory(format!("{}: cannot open recording parent: errno {number}", directory.display()))
@@ -184,6 +224,9 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             directory: Box::from(b"tui".as_slice()),
             address: engine.to_string().into_bytes().into_boxed_slice(),
             scheme,
+            link_file: link_file.map(|path| path.as_os_str().as_bytes().into()),
+            note,
+            files: Some(files),
             depth,
             size: skein_ui_screen::Size { rows: size.rows, columns: size.columns },
             limits: limits::tui(),

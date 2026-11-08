@@ -569,6 +569,7 @@ pub fn concrete_turn() -> smith_host_domain::Turn {
         dialect: 3,
         sequence: 1,
         kind: record::Kind::First(Box::new(record::Opener {
+            system: None,
             affinity: llm::Affinity { key: [3; 16], thread: 1 },
             account: Some(1),
             backend: record::Backend::Direct,

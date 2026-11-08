@@ -1,6 +1,6 @@
 use super::*;
 use skein_lib::{List, Writer};
-use smith_transcript::v6 as smith;
+use smith_transcript::v7 as smith;
 
 // The golden's first text is "abc"; the second fills another three bytes.
 const FIELD_TEXT: u32 = 3;
@@ -9,7 +9,7 @@ const TEXT_BLOCKS: u32 = 2; // The golden's text followed by the added text.
 
 // The golden turn with a second text block appended.
 fn turn_with(second: &[u8]) -> Box<[u8]> {
-    let source = smith::Turn::decode(&smith::CEILINGS, &mut Reader::new(fixtures::FULL_TURN)).unwrap();
+    let source = smith_transcript::decode_archived(&smith::CEILINGS, fixtures::FULL_TURN).unwrap();
     let mut source = source.into_parts();
     let message = source.messages.get_mut(0).unwrap();
     let mut parts = message.clone().into_parts();

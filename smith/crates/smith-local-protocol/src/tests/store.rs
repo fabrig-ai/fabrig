@@ -411,6 +411,7 @@ fn numbered_turn(turn: &smith_domain::Turn, sequence: u32) -> smith_domain::Turn
     smith_domain::Turn {
         sequence,
         kind: smith_domain::session::record::Kind::Window(Box::new(smith_domain::session::record::Opener {
+            system: None,
             affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
             account: None,
             backend: smith_domain::session::record::Backend::Direct,

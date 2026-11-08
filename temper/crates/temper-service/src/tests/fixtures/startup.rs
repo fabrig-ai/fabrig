@@ -376,7 +376,7 @@ pub fn owned_worker_agent() -> settings::Agent {
                 ..smith_channel::CEILINGS
             },
             charter: smith_charter::CEILINGS,
-            transcript: smith_transcript::v6::Limits {
+            transcript: smith_transcript::v7::Limits {
                 replay_bytes: 93,
                 text_text: 400_421,
                 opaque_bytes: 262_151,

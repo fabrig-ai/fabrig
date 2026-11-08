@@ -8,7 +8,7 @@ use crate::{
 use alloc::boxed::Box;
 
 /// Concrete session transcript version emitted and accepted at the domain boundary.
-pub const VERSION: u16 = 6;
+pub const VERSION: u16 = 7;
 
 /// Session-issued position of an opener call in its concrete logical transcript.
 /// This fixed name survives ticket translation; provider ids and callback tokens
@@ -129,6 +129,8 @@ pub enum Backend {
 /// What a window's opening turn records (smith/docs/design/protocol/transcript.md, sections 2 and 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Opener {
+    /// Exact supplied system text; absent when the archived record did not retain it.
+    pub system: Option<Box<[u8]>>,
     pub affinity: Affinity,
     pub account: Option<u32>,
     pub backend: Backend,
@@ -184,12 +186,16 @@ impl Turn {
     #[must_use]
     pub fn owned_bytes(&self) -> Option<u64> {
         let backend = match &self.kind {
-            Kind::First(opener) | Kind::Window(opener) => {
-                u64::try_from(size_of::<Opener>()).ok()?.checked_add(match &opener.backend {
+            Kind::First(opener) | Kind::Window(opener) => u64::try_from(size_of::<Opener>())
+                .ok()?
+                .checked_add(match &opener.backend {
                     Backend::Direct => 0,
                     Backend::Program { name } => skein_lib::len_u64(name.len()),
                 })?
-            }
+                .checked_add(match &opener.system {
+                    Some(system) => skein_lib::len_u64(system.len()),
+                    None => 0,
+                })?,
             Kind::Ordinary => 0,
         };
         messages_bytes(&self.messages)?

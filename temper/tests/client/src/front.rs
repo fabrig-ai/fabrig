@@ -22,12 +22,16 @@ pub const PRINTED: [u8; 32] = [9; 32];
 
 #[must_use]
 pub fn printed_link() -> Box<[u8]> {
+    link_url(&PRINTED)
+}
+
+fn link_url(secret: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
     let prefix = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=";
     let encoded = base64::encoded_len(Alphabet::Url, 32).expect("printed secret size");
     let mut out = skein_lib::Writer::new(prefix.len() + usize::try_from(encoded).expect("short encoding"));
     out.put(prefix).expect("measured prefix");
-    base64::encode(Alphabet::Url, &PRINTED, &mut out).expect("measured secret");
+    base64::encode(Alphabet::Url, secret, &mut out).expect("measured secret");
     out.finish()
 }
 
@@ -557,7 +561,17 @@ impl Joint {
 
     #[must_use]
     pub fn with_printed_link(seed: u64, limits: client::Limits) -> Joint {
-        let mut joint = Self::new(seed, limits);
+        let mut engine_limits = engine_limits();
+        // Sign-outs in TUI stories must precede the host's minute of expiry slack.
+        engine_limits.people.sign_in_lifetime = Duration::from_secs(120);
+        let mut joint = Self::with_engine(
+            seed,
+            &limits,
+            Store::with_limits(&engine_limits),
+            [walking::config(seed), walking::config(seed)],
+            &engine_limits,
+            1,
+        );
         joint.component = crate::component::Composition::with_printed_link(
             &walking::config(seed),
             limits.client.domain,
@@ -575,6 +589,11 @@ impl Joint {
         self.advance(self.now);
         self.component.link_client(who, limits);
         self.linked_heard.entry(who).or_default();
+    }
+
+    #[must_use]
+    pub fn latest_link(&self) -> Option<Box<[u8]>> {
+        self.component.latest_link.as_ref().map(|secret| link_url(secret.expose()))
     }
 
     pub fn carry(&mut self, who: ClientId, now: Time, request: jig_client::Request) {

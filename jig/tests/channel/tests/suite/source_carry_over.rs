@@ -7,43 +7,7 @@ use smith_domain::{
 
 fn opening() -> record::Opening {
     let affinity = llm::Affinity { key: [7; 16], thread: 1 };
-    let transcript = record::Transcript {
-        version: record::VERSION,
-        endpoint: Some(llm::Endpoint(0)),
-        dialect: 3,
-        turns: Box::new([record::Turn {
-            version: record::VERSION,
-            kind: record::Kind::First(Box::new(record::Opener {
-                affinity,
-                account: Some(11),
-                backend: record::Backend::Direct,
-            })),
-            endpoint: Some(llm::Endpoint(0)),
-            dialect: 3,
-            model: b"fake".as_slice().into(),
-            effort: None,
-            sequence: 1,
-            usage: llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([
-                llm::Message {
-                    role: llm::Role::User,
-                    content: Box::new([llm::Block::Text { text: b"original request".as_slice().into(), replay: None }]),
-                },
-                llm::Message {
-                    role: llm::Role::Assistant,
-                    content: Box::new([
-                        llm::Block::Opaque { bytes: b"old source opaque data".as_slice().into() },
-                        llm::Block::Text {
-                            text: b"committed plain answer".as_slice().into(),
-                            replay: Some(llm::Replay { bytes: b"old source replay".as_slice().into() }),
-                        },
-                    ]),
-                },
-            ]),
-        }]),
-    };
+    let transcript = restored_transcript(affinity);
     record::Opening {
         window_llm: None,
         spec: session::Spec {
@@ -145,4 +109,45 @@ fn a_source_grant_change_carries_plain_history_and_discards_replay() {
     session::step(&mut domain, &env, session::Event::Cancelled { owner }, &mut out);
     domain.reclaim();
     assert_eq!(domain.sessions(), 0);
+}
+
+fn restored_transcript(affinity: llm::Affinity) -> record::Transcript {
+    record::Transcript {
+        version: record::VERSION,
+        endpoint: Some(llm::Endpoint(0)),
+        dialect: 3,
+        turns: Box::new([record::Turn {
+            version: record::VERSION,
+            kind: record::Kind::First(Box::new(record::Opener {
+                system: None,
+                affinity,
+                account: Some(11),
+                backend: record::Backend::Direct,
+            })),
+            endpoint: Some(llm::Endpoint(0)),
+            dialect: 3,
+            model: b"fake".as_slice().into(),
+            effort: None,
+            sequence: 1,
+            usage: llm::Usage::ZERO,
+            spent: 0,
+            jobs: 0,
+            messages: Box::new([
+                llm::Message {
+                    role: llm::Role::User,
+                    content: Box::new([llm::Block::Text { text: b"original request".as_slice().into(), replay: None }]),
+                },
+                llm::Message {
+                    role: llm::Role::Assistant,
+                    content: Box::new([
+                        llm::Block::Opaque { bytes: b"old source opaque data".as_slice().into() },
+                        llm::Block::Text {
+                            text: b"committed plain answer".as_slice().into(),
+                            replay: Some(llm::Replay { bytes: b"old source replay".as_slice().into() }),
+                        },
+                    ]),
+                },
+            ]),
+        }]),
+    }
 }
