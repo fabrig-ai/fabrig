@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-07. Where skein's code lags or departs from [testing.md](testing.md).
+2026-11-08. Where skein's code lags or departs from [testing.md](testing.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
 its documented process boundary are present, as are the row runner's
@@ -14,6 +14,11 @@ simulated-terminal world are present.
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
+  5: a starved pass in a one-process run: `Starved::pass()`
+  exits 0 under `TIERS_ONE_PROCESS` as under nextest, not unwinding;
+  `Starved::exit()`, `starved_passes()`, `pass_starved()` and `StarvedPass`
+  are not built, and the real conformance's `forward_starved` and
+  `signal_sender_fixture`'s patience key on `NEXTEST` alone.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: no complete post-repair focused-suite CPU total establishes the
