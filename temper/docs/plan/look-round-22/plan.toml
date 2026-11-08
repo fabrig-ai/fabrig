@@ -39,6 +39,13 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/client/README.md, 3.5"
 
+[[part]]
+id = "me"
+title = "While me is read, the top bar alone: no banner, no main, the terminal look waiting, the heading's focus waiting for the main"
+mode = "direct"
+needs = ["welcome"]
+design = "temper/docs/design/client/README.md, 5.1"
+
 [[slice]]
 id = 1
 story = "Every Google sign-in ending says didn’t, can’t, isn’t, hasn’t and couldn’t with the client's typographic apostrophe"
@@ -61,4 +68,10 @@ walk = false
 id = 4
 story = "Signed in, the welcome's top bar shows the person's name and Sign out at its right, after its steps, at every width"
 parts = ["welcome"]
+walk = false
+
+[[slice]]
+id = 5
+story = "Opening /chats or /chats/new on a deployment where the person has no project, the top bar alone shows until No project yet settles"
+parts = ["me"]
 walk = false

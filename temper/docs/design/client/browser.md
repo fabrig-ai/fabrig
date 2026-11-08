@@ -384,7 +384,11 @@ replay says the same clocks (`README.md`, 5.12).
   isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
   main (skein's `ui-web.md`, 7). When the heading is drawn, the shell moves the focus from the
   main to it, unless the focus has moved meanwhile: a focus placed since keeps its
-  place, even back on the main, and a focus request ends the wait.
+  place, even back on the main, and a focus request ends the wait. A new
+  entry with no main yet, as while `me` is read (`README.md`, 5.1), waits
+  for its main alike: when the main is drawn, its heading takes the focus,
+  or the main until the heading comes, unless the focus has moved or a
+  focus request came meanwhile.
 
 ### 2.4 Signing in
 
