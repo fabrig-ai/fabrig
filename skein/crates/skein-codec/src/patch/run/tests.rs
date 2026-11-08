@@ -1195,34 +1195,43 @@ fn run_held(patcher: &Patcher) -> u64 {
         .expect("held fits u64")
 }
 
+/// The rooms of the run's tables (codec.md, 11.7): what reuse keeps.
 #[derive(Debug, PartialEq, Eq)]
-struct Allocations {
-    entries: [(u32, *const ()); 2],
-    out: (u32, *const ()),
-    walk: (u32, *const ()),
-    opened: (u32, *const ()),
+struct Rooms {
+    entries: [u32; 2], // The old value's and the reserve's, sorted.
+    out: u32,
+    walk: u32,
+    opened: u32,
 }
 
-fn allocations(patcher: &Patcher) -> Allocations {
-    let mut entries = [patcher.old.value.allocation(), patcher.build.reserve.allocation()];
-    entries.sort();
-    Allocations {
+fn rooms(patcher: &Patcher) -> Rooms {
+    let mut entries = [patcher.old.value.room(), patcher.build.reserve.room()];
+    entries.sort_unstable();
+    Rooms {
         entries,
-        out: (patcher.build.out.capacity(), patcher.build.out.as_slice().as_ptr().cast()),
-        walk: (patcher.build.walk.capacity(), patcher.build.walk.as_slice().as_ptr().cast()),
-        opened: (patcher.build.opened.capacity(), patcher.build.opened.as_slice().as_ptr().cast()),
+        out: patcher.build.out.capacity(),
+        walk: patcher.build.walk.capacity(),
+        opened: patcher.build.opened.capacity(),
     }
+}
+
+/// What `call` returns, and the allocations it made on this thread (testing.md, 5).
+#[expect(clippy::disallowed_types, reason = "the test measures a synchronous call's allocations (testing.md, 5)")]
+fn counted<T>(call: impl FnOnce() -> T) -> (T, u64) {
+    let span = skein_heap::Span::start();
+    let result = call();
+    (result, span.made())
 }
 
 fn assert_run_rooms(patcher: &Patcher) {
-    let tables = allocations(patcher);
+    let tables = rooms(patcher);
     let capacity = patcher.build.tables.capacity;
-    for (room, _) in tables.entries {
+    for room in tables.entries {
         assert!(room <= capacity.nodes, "entry room stays under the node cap");
     }
-    assert!(tables.walk.0 <= capacity.nodes);
-    assert!(tables.opened.0 <= capacity.nodes);
-    assert!(tables.out.0 <= capacity.bytes);
+    assert!(tables.walk <= capacity.nodes);
+    assert!(tables.opened <= capacity.nodes);
+    assert!(tables.out <= capacity.bytes);
 }
 
 fn list_bytes(items: u32) -> Box<[u8]> {
@@ -1253,13 +1262,15 @@ fn small_records_hold_at_most_twice_their_run_price() {
         assert_eq!(patcher.next(), Ok(Step::Done));
         assert!(run_held(&patcher) <= bound);
         patcher.finish().expect("finish");
-        let before = allocations(&patcher);
-        patcher.start(plan, D, list_bytes(items)).expect("reuse");
-        assert_eq!(allocations(&patcher), before);
-        assert_eq!(patcher.next(), Ok(Step::Done));
-        assert_eq!(allocations(&patcher), before);
-        patcher.finish().expect("finish");
-        assert_eq!(allocations(&patcher), before);
+        let before = rooms(&patcher);
+        let wire = list_bytes(items);
+        let ((), made) = counted(|| {
+            patcher.start(plan, D, wire).expect("reuse");
+            assert_eq!(patcher.next(), Ok(Step::Done));
+            patcher.finish().expect("finish");
+        });
+        assert_eq!(made, 0, "a small record reuses its run tables");
+        assert_eq!(rooms(&patcher), before);
     }
 }
 
@@ -1281,9 +1292,11 @@ fn tiny_ceilings_allocate_only_their_configured_room() {
     patcher.start(plan, D, Box::from([7])).expect("tiny start");
     assert_eq!(patcher.next(), Ok(Step::Done));
     assert_eq!(run_held(&patcher), run_price(TINY.nodes, TINY.bytes));
-    let before = allocations(&patcher);
-    patcher.start(plan, D, Box::from([7])).expect("tiny reuse");
-    assert_eq!(allocations(&patcher), before);
+    let before = rooms(&patcher);
+    let wire = Box::from([7]);
+    let ((), made) = counted(|| patcher.start(plan, D, wire).expect("tiny reuse"));
+    assert_eq!(made, 0, "a tiny start reuses its configured room");
+    assert_eq!(rooms(&patcher), before);
 }
 
 #[test]
@@ -1293,15 +1306,27 @@ fn nested_walks_grow_both_stacks_and_reuse_them() {
     const WIRE: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 7];
     let (mut patcher, plan) = planned_at(NODE_CEILING, NESTED, NESTED, "written D.f\n");
     patcher.start(plan, D, WIRE.into()).expect("nested old");
-    let before = allocations(&patcher);
-    let at = stopped(&mut patcher);
+    let reserved = rooms(&patcher);
+    carry_nested(&mut patcher, WIRE);
+    assert_eq!(rooms(&patcher), reserved, "the nested walk stays in the rooms its start reserved");
+    assert!(patcher.build.walk.capacity() > 2);
+    assert!(patcher.build.opened.capacity() > 2);
+    // The first walk grew the stacks' buffers as it deepened; one as deep reuses them.
+    let wire: Box<[u8]> = WIRE.into();
+    let ((), made) = counted(|| {
+        patcher.start(plan, D, wire).expect("nested again");
+        carry_nested(&mut patcher, WIRE);
+    });
+    assert_eq!(made, 0, "a nested walk as deep as the last reuses its stacks");
+    assert_eq!(rooms(&patcher), reserved);
+}
+
+fn carry_nested(patcher: &mut Patcher, wire: &[u8]) {
+    let at = stopped(patcher);
     let (old, build) = patcher.parts();
     build.carry(old, old.field(at, F).expect("list")).expect("nested carry");
     assert_eq!(patcher.next(), Ok(Step::Done));
-    assert_eq!(patcher.finish().expect("finish"), WIRE);
-    assert_eq!(allocations(&patcher), before, "nested walk reuses reserved stacks");
-    assert!(patcher.build.walk.capacity() > 2);
-    assert!(patcher.build.opened.capacity() > 2);
+    assert_eq!(patcher.finish().expect("finish"), wire);
 }
 
 #[test]
@@ -1328,24 +1353,27 @@ fn written_nesting_grows_live_stacks_and_reuses_grown_old_entries() {
     assert_eq!(patcher.finish().expect("finish"), WIRE);
     assert!(patcher.build.opened.capacity() >= DEPTH);
     assert!(patcher.build.walk.capacity() >= DEPTH);
-    let before = allocations(&patcher);
+    let before = rooms(&patcher);
     // Decoding the larger old shape fills its replacement entries for the first time.
     let identity = patcher.identity(2).expect("identity");
     patcher.start(identity, D, WIRE.into()).expect("larger old record");
-    let grown = allocations(&patcher);
+    let grown = rooms(&patcher);
     assert_eq!(grown.walk, before.walk);
     assert_eq!(grown.opened, before.opened);
     assert_eq!(grown.out, before.out);
     assert_run_rooms(&patcher);
     assert_eq!(patcher.next(), Ok(Step::Done));
     assert_eq!(patcher.finish().expect("finish"), WIRE);
-    let before = allocations(&patcher);
+    let before = rooms(&patcher);
     for wire in [WIRE, &[0][..]] {
-        patcher.start(identity, D, wire.into()).expect("reuse grown entries");
-        assert_eq!(allocations(&patcher), before);
-        assert_eq!(patcher.next(), Ok(Step::Done));
-        assert_eq!(patcher.finish().expect("finish"), wire);
-        assert_eq!(allocations(&patcher), before);
+        let bytes: Box<[u8]> = wire.into();
+        let ((), made) = counted(|| {
+            patcher.start(identity, D, bytes).expect("reuse grown entries");
+            assert_eq!(patcher.next(), Ok(Step::Done));
+            assert_eq!(patcher.finish().expect("finish"), wire);
+        });
+        assert_eq!(made, 0, "a written record reuses its grown entries and stacks");
+        assert_eq!(rooms(&patcher), before);
     }
 }
 
@@ -1371,13 +1399,16 @@ fn a_larger_next_pass_grows_tables_and_smaller_passes_reuse_them() {
     assert_eq!(patcher.next(), Ok(Step::Done));
     assert_eq!(patcher.finish().expect("last finish"), LAST);
     assert_run_rooms(&patcher);
-    let before = allocations(&patcher);
+    let before = rooms(&patcher);
     for wire in [FIRST, &[0, 2, 7, 0][..]] {
-        patcher.start(second, D, wire.into()).expect("same or smaller old record");
-        assert_eq!(allocations(&patcher), before);
-        assert_eq!(patcher.next(), Ok(Step::Done));
-        patcher.finish().expect("finish");
-        assert_eq!(allocations(&patcher), before);
+        let wire: Box<[u8]> = wire.into();
+        let ((), made) = counted(|| {
+            patcher.start(second, D, wire).expect("same or smaller old record");
+            assert_eq!(patcher.next(), Ok(Step::Done));
+            patcher.finish().expect("finish");
+        });
+        assert_eq!(made, 0, "a same or smaller pass reuses the larger pass's tables");
+        assert_eq!(rooms(&patcher), before);
     }
 }
 
@@ -1398,21 +1429,24 @@ fn refused_growth_keeps_its_room_for_smaller_records() {
             reason: Reason::Trailing,
         })))
     );
-    let old_entries = patcher.old.value.allocation();
+    let old_entries = patcher.old.value.room();
     patcher.start(plan, D, list_bytes(ITEMS - 1)).expect("smaller record after refusal");
-    assert_eq!(patcher.old.value.allocation(), old_entries, "refused decode's entries are reused");
+    assert_eq!(patcher.old.value.room(), old_entries, "refused decode's entries are reused");
     assert_run_rooms(&patcher);
     // The refused decode did not run the walk; let that table fill once.
     assert_eq!(patcher.next(), Ok(Step::Done));
     patcher.finish().expect("finish");
     assert_run_rooms(&patcher);
-    let before = allocations(&patcher);
+    let before = rooms(&patcher);
     for items in [ITEMS - 1, ITEMS - 2] {
-        patcher.start(plan, D, list_bytes(items)).expect("reuse after refusal");
-        assert_eq!(allocations(&patcher), before);
-        assert_eq!(patcher.next(), Ok(Step::Done));
-        patcher.finish().expect("finish");
-        assert_eq!(allocations(&patcher), before);
+        let wire = list_bytes(items);
+        let ((), made) = counted(|| {
+            patcher.start(plan, D, wire).expect("reuse after refusal");
+            assert_eq!(patcher.next(), Ok(Step::Done));
+            patcher.finish().expect("finish");
+        });
+        assert_eq!(made, 0, "a smaller record reuses the tables kept after refusal");
+        assert_eq!(rooms(&patcher), before);
     }
 }
 
