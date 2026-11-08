@@ -2,6 +2,12 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 6.12, *The engine's link, kept at rest*, and 7: serve
+  keeps the printed link in the file, and the box's first secret at its
+  start; the local link, written at each `LocalLink` and never printed,
+  the printed link printed alone, is `tui-native-secret`'s task
+  `serve-file`.
+
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while
@@ -953,3 +959,9 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
+
+- **Not yet:** 6.14 and 10: the joint world's file is the printed link;
+  a TUI signed in from the local link, the printed link signing a
+  browser in before and after it, and a second TUI by the link drawn
+  when the first spent its own, are `tui-native-secret`'s task
+  `world-file`.

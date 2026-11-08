@@ -502,7 +502,7 @@ in the lower world that owns it, never here.
   - **Signed in by the printed link,** as `temper open DIRECTORY LINK`
     is (../client/README.md, 6.1), on a DIRECTORY of its own in the
     scratch directory, never one of `temper ctl`'s
-    (../client/tools.md, section 15). One link is live at a time: where
+    (../client/tools.md, section 15). One printed link is live at a time: where
     `ctl` spent it first, the terminal's sign-in is refused, the service
     prints a fresh link (jig's `protocol/client.md`, section 8), and the
     harness opens the terminal again with it, as `ctl` signs in a second

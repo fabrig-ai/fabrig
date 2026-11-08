@@ -1,0 +1,45 @@
+draft = "tui-native-secret"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-native-secret/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "jig-local"
+title = "jig's clients' component keeps a local link live beside the printed link, said as LocalLink, spent apart"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 8"
+
+[[part]]
+id = "serve-local"
+title = "temper serve keeps the local link in the engine's link file and prints the printed link alone"
+mode = "direct"
+needs = ["jig-local"]
+design = "temper/docs/design/client/README.md, 6.12"
+
+[[part]]
+id = "world-local"
+title = "The joint world's link file is the local link: a TUI and a browser each sign in, in either order"
+mode = "direct"
+needs = ["jig-local"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 1
+story = "jig's component holds the printed link and a local link live together, each spent once, the local one drawn again at once, and a native client's try never prints a link"
+parts = ["jig-local"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A fresh temper signs in from the engine's link file and the box's printed link still signs a browser in, in either order; the file holds the file's own secret alone"
+parts = ["serve-local", "world-local"]
+walk = false

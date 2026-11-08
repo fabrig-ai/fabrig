@@ -20,15 +20,22 @@
   browser's redaction and last scan (its sections 3 and 5).
 - **Design departs:**
   - 4.1: a local box signs the TUI in with nothing to paste. The running
-    engine keeps its printed link at rest in a private file, under an
-    absolute `$XDG_RUNTIME_DIR` on Linux and the data directory on macOS,
-    keyed by the deployment's data directory; with no absolute runtime
-    directory on Linux there is no file. A fresh `temper`, or one whose
-    sign-in expired, signs in by it with no key pressed, and bare
+    engine keeps a one-time link of its own at rest in a private file,
+    under an absolute `$XDG_RUNTIME_DIR` on Linux and the data directory
+    on macOS, keyed by the deployment's data directory; with no absolute
+    runtime directory on Linux there is no file. A fresh `temper`, or one
+    whose sign-in expired, signs in by it with no key pressed, and bare
     `temper`'s address is that file's before the one its directory keeps.
     The risk of a live owner link at rest is recorded as accepted, with
     its way back (`../client/README.md`, 6.11, 6.12 and 6.14): the user's
-    decision of 2026-11-07.
+    decision of 2026-11-07. The file's link is never the printed link:
+    the engine keeps two one-time links live, the printed link and the
+    file's, each spent once and expiring as the printed link does, and
+    draws the file's next when a TUI spends it, so the TUI never spends
+    the link the person opens in a browser (jig's `protocol/client.md`,
+    section 8, *The local link*; `../client/README.md`, 6.12): the
+    user's decision of 2026-11-08, `tui-native-secret`, which set aside
+    a reusable link and no link on loopback.
   - 4.1: the local sign-in's expiry/revocation distinction uses a note,
     because the engine answers both as signed out (`../client/README.md`,
     6.14 and section 11). The design chosen by `tui-link-colours` notes
