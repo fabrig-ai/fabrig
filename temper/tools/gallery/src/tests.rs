@@ -186,7 +186,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
             Part::Text { text: "temper can change its code now." },
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
             Part::Text { text: "work/hello is in Hello" },
@@ -198,9 +198,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Pressed { name: "Night mode" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
@@ -594,18 +594,13 @@ static HOLDS: [Holds; samples::N] = [
         name: "rail-new-menu",
         heading: "tally",
         parts: &[
-            Part::Named { role: Role::Menu, name: "More ways to start work" },
+            Part::Named { role: Role::Menu, name: "New draft or change" },
             Part::Described {
                 role: Role::MenuItem,
-                name: "Chat",
-                description: "Ask about the code or ask for a change.",
+                name: "Draft",
+                description: "A design session that ends in a goal, best had in the terminal.",
             },
-            Part::Described {
-                role: Role::MenuItem,
-                name: "Goal",
-                description: "Agents plan a larger change and land it.",
-            },
-            Part::Named { role: Role::MenuItem, name: "All ways to start work" },
+            Part::Described { role: Role::MenuItem, name: "Change", description: "Ask for one change." },
         ],
     },
     Holds {
@@ -1221,7 +1216,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
             Part::Text { text: "temper can change its code now." },
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Named { role: Role::Link, name: "Ask temper" },
             Part::Text { text: "work/hello is in Hello" },
@@ -1265,7 +1260,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "home-with-goals",
         heading: "One thing needs you.",
         parts: &[
-            Part::Named { role: Role::Link, name: "Goals" },
+            Part::Named { role: Role::Link, name: "Work" },
             Part::Named { role: Role::Region, name: "Goals" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Goals" },
             Part::Named { role: Role::Link, name: "All 8" },
@@ -2192,9 +2187,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
             Part::Named { role: Role::Group, name: "Agents review" },
@@ -2365,9 +2360,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
@@ -2381,9 +2376,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
@@ -2397,9 +2392,9 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
-            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
-            Part::Absent { role: Role::Menu, name: "More ways to start work" },
+            Part::Absent { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
@@ -3784,7 +3779,7 @@ fn print_writes_every_page_and_the_bundle() {
                 assert!(!page.contains(&format!("class=\"{class}\"")), "{}: no {class}", sample.name);
             }
         } else if page.contains("class=\"temper-rail\"") {
-            assert!(page.contains("class=\"temper-tabbar\""), "{}: project sections", sample.name);
+            assert!(page.contains("class=\"temper-tabbar"), "{}: project sections", sample.name);
         } else {
             assert!(page.contains("class=\"temper-top\""), "{}: top bar", sample.name);
             assert!(!page.contains("temper-menu"), "{}: no menu", sample.name);
@@ -4189,8 +4184,8 @@ fn the_rail_menu_sample_opens_the_menu() {
     assert!(html.contains("aria-expanded=\"true\""));
     let menu = html.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
     assert!(!menu.contains("hidden"), "{menu}");
-    assert!(html.contains("Ask about the code or ask for a change."));
-    assert!(html.contains("Agents plan a larger change and land it."));
+    assert!(html.contains("Ask for one change."));
+    assert!(html.contains("A design session that ends in a goal, best had in the terminal."));
 }
 
 #[test]

@@ -273,7 +273,7 @@ fn the_tab_has_no_act() {
         assert!(main(view.tree()).iter().all(|n| n.role != Role::Button));
         let rail = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&look::RAIL)).unwrap();
         assert!(view.tree().nodes().iter().any(|n| n.role == Role::Link
-            && n.name.as_deref() == Some(b"Settings")
+            && n.name.as_deref() == Some(b"Deployment")
             && n.states.as_slice().contains(&State::Current)));
         assert_eq!(rail.role, Role::Navigation);
     }
