@@ -192,7 +192,8 @@ forge, temper adds:
   its frame, how it is served, bounded and tested.
 - **`release.md`:** the download: the one Linux binary of a release,
   its identity and floors, what the machine must have, how a release
-  is made, and its walk on a fresh machine.
+  is made, Apple Silicon's file for the site, and its walk on a fresh
+  machine.
 - **`draft/`:** the drafts, the vision this design is written from
   (the repository's `AGENTS.md`, section 6).
 - **Status files:** beside each document, `<name>.status.md`, where

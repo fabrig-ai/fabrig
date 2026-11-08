@@ -1592,8 +1592,10 @@ section 8; testing-strategy.md, 2.9).
 ### 2.8 macOS
 
 macOS is a person's own machine and Linux the platform of record
-(`../draft/macos.md`). What macOS runs is one workflow; the gate never
-reads it, and whatever is Linux's may be degraded there.
+(`../draft/macos.md`). What macOS tests is one workflow; the gate never
+reads it, and whatever is Linux's may be degraded there. Apple
+Silicon's file for the site is built by a workflow of its own, which
+tests nothing (`../release.md`, 5.1).
 
 - **The workflow,** `.github/workflows/macos.yml`, on GitHub's `macos-26`,
   arm64: on the newest `main` four times a day by a schedule, and by
