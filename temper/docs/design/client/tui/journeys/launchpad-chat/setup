@@ -1,3 +1,4 @@
 setup 1
 after "project-landing"
 see "work/hello is in Hello"
+reload "/projects/1"
