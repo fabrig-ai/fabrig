@@ -3,7 +3,7 @@ use crate::Key;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes, usize_of};
 use skein_ui::{Act, Limits, Modifier, Node, NodeId, Role, Shortcut, State, Tree};
-use skein_ui_screen::Focus;
+use skein_ui_screen::{Focus, options};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Command {
@@ -36,21 +36,27 @@ impl Clone for Command {
     }
 }
 
-// Focus has no frame rows; ui-screen.md, 6.2 uses ten rows less one here.
-const PAGE: u32 = 9;
-
 #[must_use]
 pub fn command(key: &Key, tree: &Tree, focus: &mut Focus, limits: &Limits) -> Command {
     let node = match focus.node {
         Some(id) => tree.find(id),
         None => None,
     };
+    if let Some(command) = option_command(key, tree, focus, limits) {
+        return command;
+    }
+    let page = u32::from(focus.rows.saturating_sub(1).max(1));
     match key {
         Key::Control(b'c') => Command::Close,
         Key::Tab | Key::Down => move_focus(tree, focus, true),
         Key::BackTab | Key::Up => move_focus(tree, focus, false),
-        Key::PageUp => scroll(focus, focus.scroll.saturating_sub(PAGE)),
-        Key::PageDown => scroll(focus, focus.scroll.saturating_add(PAGE)),
+        Key::PageUp => {
+            let followed = focus.follow;
+            focus.follow = false;
+            let moved = scroll(focus, focus.scroll.saturating_sub(page));
+            if followed { Command::Moved } else { moved }
+        }
+        Key::PageDown => scroll(focus, focus.scroll.saturating_add(page)),
         Key::Escape => escape(tree, focus.node),
         Key::Control(letter) => shortcut(tree, char::from(*letter), Modifier::Primary),
         Key::Alt(letter) => shortcut(tree, *letter, Modifier::Alt),
@@ -96,6 +102,83 @@ pub fn command(key: &Key, tree: &Tree, focus: &mut Focus, limits: &Limits) -> Co
             let Some(node) = node else { return Command::Nothing };
             caret(key, tree, node, focus)
         }
+    }
+}
+
+fn option_command(key: &Key, tree: &Tree, focus: &mut Focus, limits: &Limits) -> Option<Command> {
+    let menu = options::menu(tree, focus.node);
+    focus.active = match menu {
+        Some(menu) => options::active(tree, menu.id, focus.active),
+        None => None,
+    };
+    let active = tree.find(focus.active?)?;
+    let menu = menu?;
+    match key {
+        Key::Down => Some(move_active(tree, menu, focus, true)),
+        Key::Up => Some(move_active(tree, menu, focus, false)),
+        Key::Enter => Some(act_on(tree, active, Act::Press)),
+        Key::Tab => {
+            let field = tree.find(focus.node?)?;
+            let name = active.name.as_deref()?;
+            if !name.starts_with(value(field)) {
+                return None;
+            }
+            let other = usize_of(field.text_bytes()).saturating_sub(value(field).len());
+            if name.len().saturating_add(other) > usize_of(limits.text_per_node) {
+                return Some(Command::Nothing);
+            }
+            focus.caret = u32::try_from(name.len()).expect("item name fits node text bound");
+            Some(Command::Act { node: field.id, act: Act::Input { value: bytes::copy_of(name) } })
+        }
+        Key::Char(_)
+        | Key::Control(_)
+        | Key::Alt(_)
+        | Key::Paste(_)
+        | Key::BackTab
+        | Key::Backspace
+        | Key::Delete
+        | Key::Left
+        | Key::Right
+        | Key::Home
+        | Key::End
+        | Key::PageUp
+        | Key::PageDown
+        | Key::Escape => None,
+    }
+}
+
+fn move_active(tree: &Tree, menu: &Node, focus: &mut Focus, forward: bool) -> Command {
+    let mut left = 0;
+    let mut before = None;
+    let mut after = None;
+    let mut seen = false;
+    for node in tree.nodes() {
+        if node.id == menu.id {
+            left = menu.size.saturating_sub(1);
+            continue;
+        }
+        if left == 0 {
+            continue;
+        }
+        left = left.saturating_sub(1);
+        if node.role != Role::MenuItem || tree.disabled(node.id) {
+            continue;
+        }
+        if Some(node.id) == focus.active {
+            seen = true;
+        } else if seen {
+            after = Some(node.id);
+            break;
+        } else {
+            before = Some(node.id);
+        }
+    }
+    let next = if forward { after } else { before };
+    if let Some(next) = next {
+        focus.active = Some(next);
+        Command::Moved
+    } else {
+        Command::Nothing
     }
 }
 
@@ -148,6 +231,7 @@ fn move_focus(tree: &Tree, focus: &mut Focus, forward: bool) -> Command {
     if focus.node == Some(next.id) && focus.caret == caret {
         return Command::Nothing;
     }
+    focus.active = None;
     focus.node = Some(next.id);
     focus.caret = caret;
     Command::Moved

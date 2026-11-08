@@ -48,7 +48,7 @@ pub(crate) fn main(
     if let Some(chat) = root.pages().chat()
         && let Some(task) = chat.task(root.client())
     {
-        let short = short_title(task.chip.title.bytes());
+        let short = crate::shared::heading(task.chip.title.bytes());
         let whole = words.say(
             Word::ChatTitle,
             &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
@@ -494,12 +494,7 @@ fn session_composer(
         super::session::foot_row(b, root, Some(task), words, bindings, hint);
     }
     super::session::over(b, words, over);
-    if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
-        && let Some(outcome) = &chat.outcome
-        && !super::chats::accepted(outcome)
-    {
-        super::chats::outcome_text(b, words, outcome, 0);
-    }
+    super::session::refusals(b, root, words);
     b.close();
 }
 fn closed_status(b: &mut Builder, words: &Words) {
@@ -1720,7 +1715,16 @@ fn committed<'a>(
                     b.close();
                     b.open(Role::Slot);
                     b.style(look::SAYS);
-                    skein_ui::markdown::read(value.bytes(), 2, b);
+                    crate::views::read(
+                        b,
+                        value.bytes(),
+                        2,
+                        match drawing.delegations {
+                            Some((chat, _)) => Some(chat),
+                            None => None,
+                        },
+                        words,
+                    );
                     b.close();
                     b.close();
                     b.close();

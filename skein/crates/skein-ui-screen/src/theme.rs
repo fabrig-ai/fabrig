@@ -63,6 +63,7 @@ pub struct Border {
     pub down: char,
     pub paint: Paint,
     pub title: bool,
+    pub sides: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -76,9 +77,27 @@ pub struct RegionLook {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Align {
+    Start,
+    End,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Mark {
+    pub glyph: char,
+    pub paint: Paint,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StyleLook {
     pub style: Style,
     pub paint: Paint,
+    pub align: Align,
+    pub band: bool,
+    pub label: bool,
+    pub mark: Option<Mark>,
+    pub described: Option<Paint>,
+    pub spaced: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -92,6 +111,8 @@ pub struct Theme {
     pub base: Paint,
     pub focus: Paint,
     pub placeholder: Paint,
+    /// A band across an options menu's active item, beneath the focus paint.
+    pub active: Paint,
     pub regions: Box<[RegionLook]>,
     pub styles: Box<[StyleLook]>,
     pub glyphs: Glyphs,
@@ -118,6 +139,11 @@ impl Theme {
             }
         }
         for (at, look) in self.styles.iter().enumerate() {
+            if let Some(mark) = look.mark
+                && !valid_glyph(mark.glyph)
+            {
+                return false;
+            }
             for earlier in self.styles.iter().take(at) {
                 if earlier.style == look.style {
                     return false;

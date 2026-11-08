@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-04. Where smith's code lags or departs from [shell.md](shell.md).
+2026-11-08. Where smith's code lags or departs from [shell.md](shell.md).
 
 - **Not yet:**
   - 4, 5.2: the `--account` flag and the `account` setting.

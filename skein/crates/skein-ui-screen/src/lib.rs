@@ -10,6 +10,7 @@ extern crate alloc;
 
 mod focus;
 mod frame;
+pub mod options;
 mod render;
 mod theme;
 mod width;
@@ -17,7 +18,7 @@ mod width;
 pub use focus::Focus;
 pub use frame::{Cell, Frame, Position, Size};
 pub use render::render;
-pub use theme::{Arrange, Border, Glyphs, Paint, Place, RegionLook, Rgb, StyleLook, Theme};
+pub use theme::{Align, Arrange, Border, Glyphs, Mark, Paint, Place, RegionLook, Rgb, StyleLook, Theme};
 pub use width::width;
 
 #[cfg(test)]

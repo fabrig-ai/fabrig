@@ -168,6 +168,7 @@ pub(crate) struct Print {
     directory: std::path::PathBuf,
     next_tool: u64,
     expected_reply: Option<String>,
+    concurrent: BTreeMap<String, (ToolCall, Option<String>)>,
     together: std::collections::VecDeque<(ToolCall, Effect, Option<String>)>,
 }
 
@@ -178,7 +179,10 @@ impl Print {
     }
 
     pub(crate) fn pending_tool(&self) -> Option<&str> {
-        self.pending.as_ref().map(|call| call.tool.as_str())
+        self.pending
+            .as_ref()
+            .or_else(|| self.concurrent.values().next().map(|(call, _)| call))
+            .map(|call| call.tool.as_str())
     }
 
     pub fn start(
@@ -219,6 +223,7 @@ impl Print {
             directory: directory.to_path_buf(),
             next_tool: 0,
             expected_reply: None,
+            concurrent: BTreeMap::new(),
             together: std::collections::VecDeque::new(),
         };
         let effects = match config.root {
@@ -533,6 +538,7 @@ impl Print {
                             | Step::Builtin { .. }
                             | Step::Act { .. }
                             | Step::Together(_)
+                            | Step::AllAtOnce(_)
                     ) {
                         return error("Think requires a text or tool message", 1);
                     }
@@ -613,7 +619,11 @@ impl Print {
                     return effects;
                 }
                 Step::Together(steps) => {
-                    effects.extend(self.together(steps, thinking));
+                    effects.extend(self.together(steps, thinking, false));
+                    return effects;
+                }
+                Step::AllAtOnce(steps) => {
+                    effects.extend(self.together(steps, thinking, true));
                     return effects;
                 }
                 Step::Deaf => {
@@ -711,14 +721,14 @@ impl Print {
         } else {
             (bare.clone(), input.clone())
         };
-        self.pending = Some(ToolCall { id, tool: if builtin { tool } else { bare }, input, action });
+        self.pending = Some(ToolCall { id: id.clone(), tool: if builtin { tool } else { bare }, input, action });
         self.state = State::Calling;
         let mut effects = Vec::new();
         if self.texts > 1 {
             effects.push(self.emit(stream::status()));
         }
         effects.extend(self.message(assistant, thinking));
-        effects.extend([Effect::McpCall { tool: call, input: arguments }, Effect::ReadCode]);
+        effects.extend([Effect::McpCall { id, tool: call, input: arguments }, Effect::ReadCode]);
         effects
     }
 
@@ -761,8 +771,15 @@ impl Print {
                 });
                 effects
             }
-            crate::mcp::Notice::Reply(reply) => {
-                let Some(pending) = self.pending.take() else { return Vec::new() };
+            crate::mcp::Notice::Reply { id, reply } => {
+                let pending = if let Some((pending, expected)) = self.concurrent.remove(&id) {
+                    self.expected_reply = expected;
+                    pending
+                } else if self.pending.as_ref().is_some_and(|pending| pending.id == id) {
+                    self.pending.take().expect("matching call")
+                } else {
+                    return Vec::new();
+                };
                 let (text, mut failed) = match reply {
                     Ok(reply) => match reply["content"].as_array().and_then(|blocks| {
                         blocks.iter().map(|block| block["text"].as_str()).collect::<Option<Vec<_>>>()
@@ -841,6 +858,9 @@ impl Print {
 
     fn tool_result(&mut self, id: String, text: String, failed: bool) -> Vec<Effect> {
         let mut effects = vec![self.emit(json!({"type":"user", "message":{"role":"user", "content":[{"type":"tool_result", "tool_use_id":id, "content":text, "is_error":failed}]}}))];
+        if !self.concurrent.is_empty() {
+            return effects;
+        }
         if let Some((pending, call, contains)) = self.together.pop_front() {
             self.pending = Some(pending);
             self.expected_reply = contains;
@@ -852,9 +872,12 @@ impl Print {
         effects
     }
 
-    fn together(&mut self, steps: Vec<Step>, thinking: Option<u64>) -> Vec<Effect> {
+    fn together(&mut self, steps: Vec<Step>, thinking: Option<u64>, concurrent: bool) -> Vec<Effect> {
         let mut blocks = Vec::new();
         for step in steps {
+            if concurrent && !matches!(step, Step::Call { .. } | Step::CallChecked { .. }) {
+                return error("AllAtOnce requires Call or CallChecked", 1);
+            }
             let mut contains = None;
             let effects = match step {
                 Step::Call { tool, input } => self.tool(tool, input, ToolAction::Server, None),
@@ -908,7 +931,16 @@ impl Print {
             effects.push(self.emit(stream::status()));
         }
         effects.extend(self.message(assistant, thinking));
-        effects.extend([call, Effect::ReadCode]);
+        effects.push(call);
+        if concurrent {
+            let pending = self.pending.take().expect("first concurrent call");
+            self.concurrent.insert(pending.id.clone(), (pending, self.expected_reply.take()));
+            for (pending, call, contains) in self.together.drain(..) {
+                self.concurrent.insert(pending.id.clone(), (pending, contains));
+                effects.push(call);
+            }
+        }
+        effects.push(Effect::ReadCode);
         effects
     }
 
@@ -927,6 +959,7 @@ impl Print {
     fn interrupt_result(&mut self) -> Vec<Effect> {
         self.interrupted = false;
         self.together.clear();
+        self.concurrent.clear();
         self.expected_reply = None;
         let mut result = stream::failure(None, Some("aborted_streaming".into()), Vec::new());
         result["stop_reason"] = Value::Null;
@@ -939,6 +972,15 @@ impl Print {
     }
 
     pub fn stop(&mut self) -> Vec<Effect> {
+        let mut effects: Vec<_> = std::mem::take(&mut self.concurrent)
+            .into_values()
+            .map(|(pending, _)| Effect::Seen(Seen::Called { tool: pending.tool, error: true }))
+            .collect();
+        effects.extend(self.stop_pending());
+        effects
+    }
+
+    fn stop_pending(&mut self) -> Vec<Effect> {
         match self.pending.take() {
             Some(pending) => {
                 if let Some(act) = self.acting.take() {

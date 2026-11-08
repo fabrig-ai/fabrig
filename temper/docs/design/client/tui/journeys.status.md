@@ -2,7 +2,7 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-No known implementation gap. Section 3.1's mark and save keys accept
+Section 3.1's mark and save keys accept
 Alt+m and Alt+s beside the Shift forms; without a recording, all four
 reach the host. The recorder's table covers both forms, and the run's
 unit table covers their passage without a recording. Sections 2 to 8 have

@@ -43,7 +43,7 @@ fn palette_colours_and_each_attribute_have_classes() {
                 back: Some(Rgb { red: 0xf4, green: 0xf0, blue: 0xe9 }),
                 ..Paint::NONE
             },
-            "<span class=\"f-accent\" style=\"background:#F4F0E9\">",
+            "<span class=\"f-accent b-sel\">",
         ),
         (Paint { bold: true, ..Paint::NONE }, "<span class=\"bold\">"),
         (Paint { dim: true, ..Paint::NONE }, "<span class=\"dim\">"),

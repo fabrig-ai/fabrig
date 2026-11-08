@@ -1,6 +1,7 @@
 //! A goal's delivery lands by a change while its run keeps writing
-//! (temper/docs/design/domain/forge.md, 8.1, 8.5 and 11.1;
-//! temper/docs/design/domain/agent.md, 4.3 and 4.3.1).
+//! (temper/docs/design/domain/forge.md, 8.1, 8.5, 8.11 and 11.1;
+//! temper/docs/design/domain/agent.md, 4.3 and 4.3.1;
+//! temper/docs/design/protocol/configuration.md, 13.9).
 use super::goal_branch::{branch_tip, forge_hold, goal_request, writer};
 use super::goal_landing::{assert_goal_holds, ended, finish_run, land_into_goal, row, status};
 use super::*;
@@ -110,9 +111,7 @@ fn assert_design_first_recipe() {
     }
     let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
     assert!(ask.contains("Use after only for live prerequisites"), "Ask temper must propose live dependencies");
-    assert!(ask.contains(
-        "once design has landed into g, cite its path and section in words and omit its ended task from after"
-    ));
+    assert!(ask.contains("cite design's repository path and section in words; omit its ended task from after"));
 }
 
 fn assert_ended_design_refused(world: &mut World, goal: &engine::Assignment, design: u64, words: &str) {
@@ -128,30 +127,40 @@ fn assert_ended_design_refused(world: &mut World, goal: &engine::Assignment, des
     assert_eq!(world.assigned.len(), assigned, "refusal starts no producer");
 }
 
+fn pending_design_delivery(world: &mut World, goal: &engine::Assignment, branch: &[u8]) -> (u64, u64, u64) {
+    let base = branch_tip(world, branch);
+    let head = deliver(world, goal, base, b"docs/design/input.md");
+    let design = make_delivery(world, goal, DELIVERY_CALL);
+    (base, head, design)
+}
+
 #[test]
 fn a_design_first_recipe_cites_landed_design_without_an_ended_dependency() {
     let (mut world, goal, branch) = running_goal();
-    let base = branch_tip(&mut world, &branch);
-    let design_head = deliver(&mut world, &goal, base, b"docs/design/input.md");
-    let design = make_delivery(&mut world, &goal, DELIVERY_CALL);
+    let (_, design_head, design) = pending_design_delivery(&mut world, &goal, &branch);
     land_delivery(&mut world, design, design_head);
     assert!(matches!(ended(&world, design).expect("design ended").phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
     assert_file(&mut world, &branch, b"docs/design/input.md");
     read_news(&mut world, &goal);
 
+    coding_from_landed_design(world, &goal, &branch, design);
+    assert_design_first_recipe();
+}
+
+fn coding_from_landed_design(mut world: World, goal: &engine::Assignment, branch: &[u8], design: u64) {
     let words = "Implement docs/design/input.md, section 1, landed into g";
-    assert_ended_design_refused(&mut world, &goal, design, words);
+    assert_ended_design_refused(&mut world, goal, design, words);
     let assigned = world.assigned.len();
     let input = serde_json::json!({"words": words, "landing": "goal"}).to_string();
-    let answer = mine(&mut world, &goal, DEPENDENT_CALL + 1, input.as_bytes());
+    let answer = mine(&mut world, goal, DEPENDENT_CALL + 1, input.as_bytes());
     let engine::CallAnswer::Delegated(made) = answer else { panic!("citing change admitted: {answer:?}") };
     let coding = made[0].task;
     assert!(live_task(&world, coding).dependencies.is_empty());
     let producer = reviews::next_assignment(&mut world, assigned);
     assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(coding));
-    assert_eq!(producer.workspace.repositories[0].start, engine::ForgeStart::Base(branch.clone()));
-    let start = branch_tip(&mut world, &branch);
-    assert_file(&mut world, &branch, b"docs/design/input.md");
+    assert_eq!(producer.workspace.repositories[0].start, engine::ForgeStart::Base(branch.into()));
+    let start = branch_tip(&mut world, branch);
+    assert_file(&mut world, branch, b"docs/design/input.md");
     let head = early_start::push(&mut world, &producer, start, b"implementation");
     world.tick();
     status(&mut world, head, raw::Check::Passed);
@@ -167,10 +176,81 @@ fn a_design_first_recipe_cites_landed_design_without_an_ended_dependency() {
         },
     );
     land_delivery(&mut world, coding, head);
-    assert_file(&mut world, &branch, b"docs/design/input.md");
-    assert_file(&mut world, &branch, b"implementation");
+    assert_file(&mut world, branch, b"docs/design/input.md");
+    assert_file(&mut world, branch, b"implementation");
+    early_start::stop(&mut world, goal);
+}
+
+fn assert_confirmed_design_recipe() {
+    let settings: serde_json::Value =
+        serde_json::from_str(include_str!("../../../../../../docs/examples/reference/settings.json"))
+            .expect("reference settings");
+    let coordinator = &settings["items"][0]["set"];
+    for (place, words) in [
+        ("shared", coordinator["instructions"].as_str().expect("shared instructions")),
+        ("first-run batch", coordinator["parts"][0]["instructions"].as_str().expect("first instructions")),
+        ("designer result", coordinator["parts"][2]["instructions"].as_str().expect("result instructions")),
+    ] {
+        assert!(
+            words.contains("Do not issue dependent coding until all required design is confirmed landed into g"),
+            "{place}: coding dispatch must wait for confirmed design landing"
+        );
+        assert!(
+            words.contains("A push, delivery or designer report is insufficient"),
+            "{place}: production evidence must not stand in for landing confirmation"
+        );
+    }
+    let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
+    assert!(ask.contains("confirm all required design landed into g before dispatching coding"));
+    assert!(ask.contains("A push, delivery or designer report is insufficient"));
+    let first = coordinator["parts"][0]["instructions"].as_str().expect("first instructions");
+    assert!(first.contains("Keep coding that uses pending design out of the first batch"));
+    assert!(!first.contains("and the changes the design already specifies, after S where they use its shapes"));
+}
+
+fn live_design_allows_early_coding() {
+    let (mut world, goal, branch) = running_goal();
+    let (base, head, design) = pending_design_delivery(&mut world, &goal, &branch);
+    let assigned = world.assigned.len();
+    let input = serde_json::json!({"words": "Build on pending design", "landing": "goal", "after": [design]});
+    let answer = mine(&mut world, &goal, DEPENDENT_CALL, input.to_string().as_bytes());
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("early coding admitted: {answer:?}") };
+    let coding = made[0].task;
+    let producer = reviews::next_assignment(&mut world, assigned);
+    assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(coding));
+    assert_eq!(
+        producer.workspace.repositories[0].start,
+        engine::ForgeStart::Merged { branch: branch.clone(), heads: Box::new([translate::commit(head)]) }
+    );
+    assert_eq!(live_task(&world, coding).started_from.as_ref(), &[design]);
+    assert!(ended(&world, design).is_none(), "dispatch and producer start precede design landing");
+    assert_eq!(branch_tip(&mut world, &branch), base);
+    assert_eq!(world.merges, 0);
+    // This reproduces dispatch and run-start order; it makes no coding edit before landing.
+    land_delivery(&mut world, design, head);
     early_start::stop(&mut world, &goal);
-    assert_design_first_recipe();
+}
+
+#[test]
+fn design_first_waits_for_confirmed_landing_before_coding() {
+    live_design_allows_early_coding();
+    let (mut world, goal, branch) = running_goal();
+    let (base, head, design) = pending_design_delivery(&mut world, &goal, &branch);
+    let changes = change_keys(&world);
+    let assigned = world.assigned.len();
+    for _ in 0..WAIT_TICKS {
+        world.tick();
+    }
+    assert!(ended(&world, design).is_none(), "a pushed delivery is not a confirmed landing");
+    assert_eq!(branch_tip(&mut world, &branch), base);
+    assert_eq!(change_keys(&world), changes, "the scripted lead waits without dispatching coding");
+    assert_eq!(world.assigned.len(), assigned, "waiting starts no coding producer");
+    land_delivery(&mut world, design, head);
+    assert_file(&mut world, &branch, b"docs/design/input.md");
+    read_news(&mut world, &goal);
+    coding_from_landed_design(world, &goal, &branch, design);
+    // The world exercises the recipe; these checks pin the model-facing rule, not model compliance.
+    assert_confirmed_design_recipe();
 }
 
 #[test]

@@ -114,6 +114,7 @@ pub(crate) fn configuration() -> smith_agent_service::Config {
         relay: b"/private/programs/relay".as_slice().into(),
         entropy: Secret::new(Box::new([7; 32])),
         effective_user: 1000,
+        parent: None,
     });
     service
 }

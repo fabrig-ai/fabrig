@@ -1,7 +1,11 @@
 mod approval;
+mod chat;
+mod commands;
 mod event;
 mod fixtures;
+mod foot;
 mod goldens;
+mod launchpad;
 mod limits;
 mod note;
 mod screens;

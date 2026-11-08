@@ -341,6 +341,7 @@ impl Terminal {
         };
         if self.background != Background::Waiting {
             self.background_deadline = None;
+            self.intake.decoder.end_background_wait(&mut self.intake.keys);
         }
     }
     fn output(&mut self, now: Time) {

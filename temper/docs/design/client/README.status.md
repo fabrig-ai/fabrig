@@ -51,10 +51,11 @@ and mixed calls and failures after two or eight reads, with failure
 descriptions and rows retained. No known gap remains in that wording.
 
 Sections 2, 6.11 to 6.16 and 7.1 have no known implementation gap in the
-TUI's command, private link file and sign-in note, host seam, automatic
-local sign-in, quiet fallback, bounded rereads, expiry renewal and
-suppression after a noted sign-out. The expiry is noted once the link
-is live with a party. The base uses the terminal's default colours,
+TUI's crates, command, private directory, link file and sign-in note,
+host seam, pasted-link sign-in, launchpad, commands, chats, themes,
+closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
+renewal and suppression after a noted sign-out. The expiry is noted once
+the link is live with a party. The base uses the terminal's default colours,
 focus uses the accent, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
@@ -941,6 +942,4 @@ the first screen and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
 - **Not yet:** 4.6: the records `BranchPath`, `WaysPanel` and `ViewAnswer`, the
-  subject `ways` and the read `View`. 5.16:
-  a `view` block shows as code, the chat page reads no view, and no path is
-  drawn.
+  subject `ways` and the read `View`.

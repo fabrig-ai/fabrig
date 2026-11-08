@@ -3,7 +3,7 @@ id = "ways-view"
 part = "read"
 kind = "feature"
 needs = ["ways-read", "ways-derive"]
-files = ["temper/crates/temper-engine-domain/src/route/ways.rs", "temper/crates/temper-engine-domain/src/route/ways/**", "temper/crates/temper-engine-domain/src/route/kinds.rs", "temper/tests/engine/domain/tests/suite/ways.rs"]
+files = ["temper/crates/temper-engine-domain/src/route/ways.rs", "temper/crates/temper-engine-domain/src/route/ways/**", "temper/crates/temper-engine-domain/src/route/kinds.rs", "temper/crates/temper-engine-domain/src/domain.rs", "temper/tests/engine/domain/tests/suite/ways.rs", "jig/crates/jig-domain-core/src/reads.rs", "jig/crates/jig-domain-core/src/reads/settings.rs"]
 effort = "high"
 minutes = 180
 +++
@@ -112,3 +112,61 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+2026-11-08. *`NamedAction::ReadProposal` needs a run's claim and the party
+read refuses a member a task's settings proposal: add a project-scoped
+proposal read to jig, or make proposal views owners' only?* Add the read to
+jig; the member acceptance stands. A project's reader seeing a proposal of
+settings that touches the project is the design's
+(`jig/docs/design/domain/engine.md`, 17.6, *It belongs to the projects its
+items touch*: "project-filtered reads show it in each of its projects"), and
+`reads::settings::revision_metadata` is the precedent for an application's
+member-scoped read. The missing mechanism is jig's, so it goes there first,
+in this task (its files widened to `jig-domain-core`'s `reads.rs` and
+`reads/settings.rs`, and `temper-engine-domain`'s `domain.rs` for the
+flight's map). The view does not go through `NamedAction::ReadProposal`:
+it calls the new read, as `revision_begin` calls `revision_metadata`.
+
+- In `jig/crates/jig-domain-core/src/reads/settings.rs`, beside
+  `revision_metadata`:
+
+  ```rust
+  /// A project's member reads a proposal of settings that touches the project, for the application's own reads
+  /// (jig/docs/design/domain/engine.md, 17.6). Other scopes' items and core values stay as the run's read gives them.
+  pub fn project_proposal(
+      core: &mut Core,
+      env: &Env<Limits>,
+      reply: ReplyTo,
+      sign_in: u64,
+      project: u32,
+      proposer: people::Proposer,
+      number: u64,
+  ) -> Queue<Request>
+  ```
+
+  Admitted as `metadata_allowed` admits (signed in, an open project other
+  than the deployment, a role in it), and checked again when a load
+  returns, as `metadata_loaded` does. The proposal must touch the project:
+  a task's, its task's project; a party's, `project` among its `projects`;
+  otherwise `None(Unknown)`, never "not allowed", so a non-member learns
+  nothing. Waiting, it is built as the run's read builds it
+  (`documents::run_proposal`, no party, so no owner check) and answered
+  `Answer::Document(Proposal)`, its settings review and key as there;
+  decided, withdrawn or replaced, loaded as `run_proposal` loads it (a new
+  `Destination`, `reads.rs`, and `proposal_from_store` with `project`)
+  and answered `Answer::Ended`; none, `None(Unknown)`; signed out,
+  `None(SignedOut)`; no load room, `None(Busy)`. Its answer is terminal,
+  as `revision_metadata`'s is. Tests in that module beside the metadata
+  ones: a member reads a task's waiting settings proposal of its project;
+  an owner's read equals it; a party with no role in the project, another
+  project's proposal and a signed-out sign-in each get none; the
+  membership is rechecked when a load returns.
+- In temper, the pre-approved option: a flight beside `revision_reads`
+  (`domain.rs`), answered in `route/kinds.rs` as `revision_answer` answers
+  a revision read, the items of temper's kinds then read through
+  `Domain::proposal_settings` of the review's key and those of other
+  projects left out. A proposal with no review key or whose items are
+  gone is the decided line, as the options already say.
+

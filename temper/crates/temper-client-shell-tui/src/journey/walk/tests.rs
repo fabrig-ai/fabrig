@@ -6,7 +6,7 @@ use skein_lib::{Time, Token, Wall};
 use skein_ui_screen::Size;
 use temper_client_tui::Scheme;
 
-const APPROVAL: &[u8] = b"walk 1\nsee \"then press Approve.\"\nmark\napprove\nsee \"Connected to\"\nend\n";
+const APPROVAL: &[u8] = b"walk 1\nsee \"then press Approve.\"\nmark\napprove\nsee \"/ for commands\"\nend\n";
 
 #[test]
 fn reads_each_walk_record_with_recording_fields() {
@@ -219,13 +219,13 @@ fn follows_keys_in_order_and_browse_at_each_approval() {
 #[test]
 fn saves_show_only_the_final_replayed_text_and_last_browse() {
     let [initial, waiting, approved] = approval_saves();
-    for (save, waiting_shown, connected_shown, address) in [
+    for (save, waiting_shown, launchpad_shown, address) in [
         (&initial, false, false, None),
         (&waiting, true, false, Some(b"http://127.0.0.1:8367/terminal?code=BCDF-GHJK".as_slice())),
         (&approved, false, true, Some(b"http://127.0.0.1:8367/terminal?code=BCDF-GHJK".as_slice())),
     ] {
         assert_eq!(shows(save, b"then press Approve."), Ok(waiting_shown));
-        assert_eq!(shows(save, b"Connected to"), Ok(connected_shown));
+        assert_eq!(shows(save, b"/ for commands"), Ok(launchpad_shown));
         assert_eq!(browsed(save).expect("save's last browse").as_deref(), address);
     }
     assert_eq!(shows(&initial, b""), Ok(true));

@@ -1300,6 +1300,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-code",
         b"temper-ways-bar",
         b"temper-ways-words",
+        b"temper-view",
+        b"temper-view-muted",
+        b"temper-view-card",
     ],
     regions: &[b"temper-link"],
 };
@@ -1674,6 +1677,11 @@ pub const WAYS_AGENT: Style = Style { owner: owner(), token: 612 };
 pub const WAYS_CODE: Style = Style { owner: owner(), token: 613 };
 pub const WAYS_BAR: Style = Style { owner: owner(), token: 614 };
 pub const WAYS_WORDS: Style = Style { owner: owner(), token: 615 };
+
+/// Reply views (temper/docs/design/client/README.md, 5.16).
+pub const VIEW: Style = Style { owner: owner(), token: 616 };
+pub const VIEW_MUTED: Style = Style { owner: owner(), token: 617 };
+pub const VIEW_CARD: Style = Style { owner: owner(), token: 618 };
 
 #[cfg(test)]
 mod tests {

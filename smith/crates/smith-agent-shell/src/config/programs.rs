@@ -102,6 +102,7 @@ pub(super) fn backend(
         relay: Box::default(),
         entropy: skein_lib::Secret::new(Box::new([0; 32])),
         effective_user: skein_shell::effective_user(),
+        parent: None,
     })
 }
 

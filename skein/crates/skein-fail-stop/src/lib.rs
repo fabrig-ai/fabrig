@@ -3,9 +3,12 @@
 //! The release profile aborts on a panic. The dev profile unwinds, as the
 //! test harness needs, so that a binary and its tests share one build of
 //! each dependency. Every binary's `main` therefore calls [`install`] before
-//! anything else: from then on a panic on any thread reports its message
-//! and a forced backtrace once, whatever `RUST_BACKTRACE` says, then aborts
-//! the process before anything unwinds. The header follows the default
+//! anything else: from then on a panic on any thread reports its thread's
+//! `panicked at` line with the panic's location, its message, and a forced
+//! backtrace once, whatever `RUST_BACKTRACE` says. The report closes with
+//! that line and message again, so a supervisor keeping the last bytes
+//! retains them after a long backtrace (skein/docs/design/shell.md, 6).
+//! The process then aborts before anything unwinds. The header follows the default
 //! hook's without the thread id: std's OS thread id is private, and a new
 //! platform call is not worth a log line when the backtrace says where the
 //! panic was. No destructor runs, nothing catches the panic, and the process
@@ -43,7 +46,8 @@ pub fn install() {
         let location = panic.location().expect("std supplies the panic's location");
         let message = panic.payload_as_str().unwrap_or("Box<dyn Any>");
         let backtrace = std::backtrace::Backtrace::force_capture();
-        let report = format!("\nthread '{name}' panicked at {location}:\n{message}\nstack backtrace:\n{backtrace}");
+        let line = format!("thread '{name}' panicked at {location}:\n{message}\n");
+        let report = format!("\n{line}stack backtrace:\n{backtrace}\n{line}");
         // Hold stderr through the abort so concurrent panic reports cannot
         // interleave. A failed write must still end the process.
         let mut stderr = std::io::stderr().lock();
