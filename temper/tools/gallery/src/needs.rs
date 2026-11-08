@@ -174,6 +174,51 @@ pub fn domain(name: &str) -> Domain {
                     &mut out,
                 );
             }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
+                if list(name)
+                    && matches!(
+                        temper_client_protocol_wire::decode_watching(
+                            &record.bytes,
+                            &temper_client_protocol_wire::v1::CEILINGS
+                        )
+                        .expect("Needs you watch")
+                        .watch(),
+                        temper_client_protocol_wire::v1::Watch::Decided(_)
+                    ) =>
+            {
+                let watching = temper_client_protocol_wire::decode_watching(
+                    &record.bytes,
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .expect("Needs you decisions");
+                let temper_client_protocol_wire::v1::Watch::Decided(project) = watching.watch() else {
+                    unreachable!("decisions watch")
+                };
+                driver::step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: temper_client_protocol_wire::FORGE,
+                                    version: temper_client_protocol_wire::CLIENT_VERSION,
+                                    bytes: worlds::whole_story::needs_decisions(project.project()),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) } if list(name) => {
+                driver::answer(
+                    &mut root,
+                    read,
+                    c::ReadValue::Task(Box::new(worlds::whole_story::needs_task(task))),
+                    &mut out,
+                );
+            }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
                 let rows = if group == c::InboxReadGroup::Needs { entries(name) } else { List::with_capacity(0) };
                 driver::answer(
