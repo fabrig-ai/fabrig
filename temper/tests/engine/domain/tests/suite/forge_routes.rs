@@ -2148,14 +2148,22 @@ fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
 }
 
 #[test]
-fn an_asking_charter_gets_no_workspace_and_every_family_keeps_the_home_and_context() {
+fn an_asking_or_readless_charter_gets_no_workspace_and_every_family_keeps_the_home_and_context() {
     use jig_domain_core::settings as s;
 
-    for (tools, empty) in [(engine::RunPolicy::EVERY_FAMILY, false), (tasks::Tools(3072), true)] {
+    let policy = walking::charter().policy;
+    for (tools, inspect, modify, shell, empty) in [
+        (engine::RunPolicy::EVERY_FAMILY, policy.inspect, policy.modify, policy.shell, false),
+        (tasks::Tools(3072), policy.inspect, policy.modify, policy.shell, true),
+        (engine::RunPolicy::EVERY_FAMILY, false, false, false, true),
+    ] {
         let mut world = World::configured(true, false);
         world.adopt();
         let mut charter = walking::charter();
         charter.policy.tools = tools;
+        charter.policy.inspect = inspect;
+        charter.policy.modify = modify;
+        charter.policy.shell = shell;
         world.send(engine::Event::Party(engine::PartyInput::ChangeSettings {
             reply_to: ReplyTo::new(Token::new(300)),
             sign_in: world.signed_in.expect("deployment owner"),
@@ -2223,7 +2231,10 @@ fn an_asking_charter_gets_no_workspace_and_every_family_keeps_the_home_and_conte
         let assignment = assigned_chat(&mut world, 92, ask);
         assert_eq!(assignment.run.policy.tools, tools, "the run uses the world's changed charter");
         if empty {
-            assert!(assignment.workspace.repositories.is_empty(), "an asking charter selects no repository");
+            assert!(
+                assignment.workspace.repositories.is_empty(),
+                "an asking or readless charter selects no repository"
+            );
         } else {
             assert_eq!(assignment.workspace.repositories.len(), 2);
             assert!(
