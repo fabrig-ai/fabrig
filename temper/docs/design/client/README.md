@@ -7100,7 +7100,7 @@ rest*), with nothing pasted and no key pressed:
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
  Where you left off
-   Away mode · Waiting for you
+   Away mode · waiting on you
 
  Needs you
    ? csv-export: comma or semicolon?
@@ -7179,7 +7179,7 @@ chat, the running line above them.
 
 - **The running line,** the region `tui-working`: on a chat, while the
   browser's terminal draws its running line (3.5, *The running line*;
-  `shared::running`), "✦" and its words, "working", "waiting on 1
+  `shared::running`), "✦" and its words, "Working", "waiting on 1
   delegate", "Waiting for an account" (`tui-running`), with no clock and
   no pulse.
 - **The box,** the region `tui-box`, framed by two rules across the
@@ -7332,7 +7332,7 @@ chat, the running line above them.
   csv-export's last task waits on you: whether the file separates its
   values with a comma or a▌
 
-✦ working
+✦ Working
 ────────────────────────────────────────────────────────────────────────────────
 ❯ Reply
 ────────────────────────────────────────────────────────────────────────────────
@@ -7383,8 +7383,8 @@ chat, the running line above them.
     and its state (`shared::delegation_line`); a proposal in the chat's
     subtree (`Chat::cards`) "✦", "Proposal" (`tui-signal`) and its title
     (`shared::proposal_line`). A card carries no act: a proposal is
-    accepted on the web. Placing each at the call that made it is the
-    browser's walk (section 11);
+    accepted on the web. Placing each at the call that made it is later
+    TUI work (section 11);
   - *not drawn,* as in the browser's terminal: the speakers' names, the
     turns' times, a turn's opaque blocks, a run's beginning and end;
     and, the TUI's, a document's write, since drafting is not the
@@ -8498,8 +8498,8 @@ own tests:
   section 10); a card at the call that made it, and its acts, Accept
   among them; a close that asks its delegates' fates; a new line in the
   box, which a terminal's Shift+Enter cannot ask; a paste into the box
-  past the link's 512 bytes; a theme kept across runs. Default: each when the user asks for it on a recorded frame;
-  until then the web does what the TUI leaves out.
+  past the link's 512 bytes; a theme kept across runs. Owner: temper/tui.
+  Default: each when the user asks for it on a recorded frame; until then the web does what the TUI leaves out.
 - **The TUI's command-line flags** (6.11 and 6.12): choosing another
   deployment and overriding local sign-in or the scheme wait for the
   user's command-line design. The environment names the local deployment.
@@ -9103,9 +9103,11 @@ own tests:
   Default: as printed; a terminal shell that says every time as its
   moment, with no wake, is the candidate.
 - **A delivery beside a long conversation** (5.15;
-  `../draft/chat-reading.md`, 3): retaining parsed closed blocks or a conversation
-  subtree needs invalidation rules and proofs; reducing page bookkeeping and
-  away-reader anchor scans needs the same. Default: rebuild and diff, keeping
+  `../draft/chat-reading.md`, 3): retaining parsed closed blocks for the
+  browser and TUI, or a conversation subtree, needs invalidation rules
+  and proofs; reducing page bookkeeping and
+  away-reader anchor scans needs the same. Owner: temper/ui for the shared
+  reader. Default: rebuild and diff, keeping
   DOM identities. The measured whole-bound delivery cost is in
   `temper/docs/development/browser-budget.md`; the away-reader scan's share
   remains untimed. The browser tier's smaller window leaves a person's cost

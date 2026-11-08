@@ -545,8 +545,9 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
 - **Grapheme clusters:** a combining mark joined to the cell before it,
   and an emoji sequence as one glyph, in place of marks not drawn.
 - **A log's edge near** (ui.md, section 6): the renderer measures which
-  bound log's edge is in view and the shell reports `Near`; until an
-  application draws a log, a log is laid whole.
+  bound log's edge is in view and the shell reports `Near`; until those
+  reports exist, a log is laid whole and the body shows the rows its
+  scroll selects (5.2).
 - **A text area's rows:** `Up` and `Down` moving the caret by rows in a
   text area, in place of the focus.
 - **The pointer:** a mouse's press on a node and its wheel on the body.

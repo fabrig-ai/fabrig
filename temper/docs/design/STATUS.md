@@ -3,7 +3,7 @@
 2026-11-08. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
-pasted-link sign-in and a live first screen, with golden frames,
+pasted-link sign-in and a live launchpad, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
 launchpad, the browser terminal's commands and a chat, from the look
 request `tui-launchpad`, are built, with golden frames and the joint-world
@@ -26,9 +26,15 @@ colours, accent focus and scheme selection from COLORFGBG or a bounded
 OSC 11 query are built (`client/README.md`, 6.11 to 6.16).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
-`sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
-That journey uses a runtime directory apart from the box's and no
-COLORFGBG, so it exercises approval and the dark fallback; its pages
+`sign-in-approved`'s two frames and `launchpad-chat`'s four frames
+committed: approval to the no-project launchpad, and Hello's launchpad
+through commands and a question to the committed fake answer
+(`client/tui/journeys.md`). The latter catches no growing answer. The
+newest goal, call details, earlier-page loading, cards at their calls
+and the shared reader's read-once gap remain explicit
+(`client/README.md`, section 11; `draft/chat-reading.status.md`, 3).
+Both journeys use a runtime directory apart from the box's and no
+COLORFGBG, so they exercise approval and the dark fallback; their pages
 use the theme's stand-ins for terminal-default colours.
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
@@ -160,9 +166,9 @@ Fresh projects offer drafts;
 Ask temper chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar once To begin is gone. To begin has two
 steps, repository first, and cuts Home and Ask temper's navigation to
-Home, Ask temper and Settings. Home still draws nonempty Needs you and
-Chats under that card, contrary to `to-begin-two-steps`; the required
-suppression remains in `client/README.status.md`, 3.5. The night switch,
+Home, Ask temper and Settings. Home leaves Needs you and Chats out
+while either step remains; the populated and skipped states are covered
+(`client/README.status.md`, 3.5). The night switch,
 kept browser look, day/night tokens and three night gallery states are
 built, with a day first visit and a separate chat-terminal palette.
 Temper/ui's rendered comparisons and browser reload row follow landing;
