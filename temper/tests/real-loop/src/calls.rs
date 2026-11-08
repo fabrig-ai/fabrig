@@ -5,6 +5,7 @@ pub use temper_fixtures::browse::Browsed;
 use temper_fixtures::browse::Browser;
 const BROWSER: usize = usize::MAX - 1;
 const SIGN_IN_HTTP: usize = usize::MAX - 2;
+const ISSUER_CLOSE: usize = usize::MAX - 3;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Signal, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Host;
@@ -59,6 +60,12 @@ pub enum Step {
     /// Approve the terminal's last sign-in address at the fake issuer, keeping
     /// its Location unfollowed and secret in the world's memory.
     Authorize,
+    /// Authorize without asking the issuer to close; keep the browser's socket.
+    AuthorizeHeld,
+    /// Open an idle issuer socket and retain it until the caller drains.
+    HoldIssuerSocket,
+    /// Wait for the issuer's own admission counter before releasing held sockets.
+    IssuerRejected,
     /// GET the kept redirect on the real loopback listener; keep it for later acts.
     Return,
     /// A person at the hosted terminal.
@@ -491,6 +498,9 @@ pub(crate) struct Caller {
     pub(crate) browsed: Vec<Browsed>,
     browser: Option<Browser>,
     visit: Option<crate::issuer::Visit>,
+    held_issuer: Vec<Fd>,
+    pub(crate) issuer_accepted: Cell<usize>,
+    pub(crate) issuer_rejected: Cell<u64>,
     kept: Option<skein_lib::Secret>,
     pub(crate) returned: Vec<crate::issuer::Returned>,
     pub(crate) released: bool,
@@ -589,7 +599,10 @@ impl Caller {
                 writeln!(out, "caller waits_for=kill call {call}").expect("string writer");
             }
             Some(Step::Terminal(_)) => out.push_str("caller waits_for=terminal act (input omitted)\n"),
-            Some(Step::Authorize | Step::Return) => out.push_str("caller waits_for=issuer visit\n"),
+            Some(Step::Authorize | Step::AuthorizeHeld | Step::HoldIssuerSocket | Step::Return) => {
+                out.push_str("caller waits_for=issuer visit\n");
+            }
+            Some(Step::IssuerRejected) => out.push_str("caller waits_for=issuer connection rejection\n"),
             Some(Step::Probe { .. } | Step::Release { .. }) => out.push_str("caller waits_for=directory lock\n"),
             Some(Step::Advance | Step::Push { .. }) => out.push_str("caller waits_for=forge advance\n"),
             Some(Step::FixtureReady) => out.push_str("caller waits_for=fixture provisioning\n"),
@@ -683,6 +696,9 @@ impl Caller {
             Step::Browse { .. }
             | Step::ClaudeTurn { .. }
             | Step::Authorize
+            | Step::AuthorizeHeld
+            | Step::HoldIssuerSocket
+            | Step::IssuerRejected
             | Step::Return
             | Step::FixtureReady
             | Step::EndsLeaving(_)
@@ -766,6 +782,9 @@ impl Caller {
             browsed: Vec::with_capacity(browsers),
             browser: None,
             visit: None,
+            held_issuer: Vec::new(),
+            issuer_accepted: Cell::new(0),
+            issuer_rejected: Cell::new(0),
             kept: None,
             returned: Vec::with_capacity(visits),
             released: false,
@@ -799,7 +818,7 @@ impl Caller {
     }
     fn submit(&mut self, call: usize, kind: Op) {
         self.serial += 1;
-        if call < SIGN_IN_HTTP {
+        if call < ISSUER_CLOSE {
             self.running[call].as_mut().expect("running command").pending += 1;
         }
         self.owners.insert(Token::new(self.serial), call);
@@ -821,6 +840,9 @@ impl Caller {
             Step::Browse { .. }
             | Step::ClaudeTurn { .. }
             | Step::Authorize
+            | Step::AuthorizeHeld
+            | Step::HoldIssuerSocket
+            | Step::IssuerRejected
             | Step::Return
             | Step::FixtureReady
             | Step::EndsLeaving(_)
@@ -959,6 +981,13 @@ impl Caller {
             return;
         }
         let index = self.owners.remove(&complete.op).expect("operation owner");
+        if index == ISSUER_CLOSE {
+            assert!(
+                matches!((complete.kind, complete.result), (Op::Close { .. }, Ok(Done::Nothing))),
+                "held issuer socket closed"
+            );
+            return;
+        }
         if index == SIGN_IN_HTTP {
             if let Some(op) = self.visit.as_mut().expect("sign-in GET").complete(complete) {
                 self.submit(SIGN_IN_HTTP, op);
@@ -1092,6 +1121,9 @@ impl Caller {
         true
     }
     fn finish(&mut self) {
+        while let Some(fd) = self.held_issuer.pop() {
+            self.submit(ISSUER_CLOSE, Op::Close { fd });
+        }
         if !self.terminal.finish(&mut self.submissions) {
             return;
         }
@@ -1148,7 +1180,10 @@ impl Caller {
         true
     }
     fn interactive_act(&mut self) -> bool {
-        if matches!(self.steps[self.next], Step::Authorize | Step::Return) {
+        if matches!(
+            self.steps[self.next],
+            Step::Authorize | Step::AuthorizeHeld | Step::HoldIssuerSocket | Step::Return
+        ) {
             return self.sign_in_http();
         }
         if let Step::Browse { call } = self.steps[self.next] {
@@ -1175,14 +1210,19 @@ impl Caller {
         true
     }
     fn sign_in_http(&mut self) -> bool {
-        let authorize = matches!(self.steps[self.next], Step::Authorize);
+        let authorize = matches!(self.steps[self.next], Step::Authorize | Step::AuthorizeHeld);
+        let idle = matches!(self.steps[self.next], Step::HoldIssuerSocket);
         if self.visit.is_none() {
-            let url = if authorize {
+            let url = if authorize || idle {
                 self.terminal.sign_in_address()
             } else {
                 self.kept.as_ref().expect("kept redirect before Return").expose()
             };
-            let visit = crate::issuer::Visit::new(url, authorize);
+            let visit = if matches!(self.steps[self.next], Step::AuthorizeHeld | Step::HoldIssuerSocket) {
+                crate::issuer::Visit::held(url, idle)
+            } else {
+                crate::issuer::Visit::new(url, authorize)
+            };
             let op = visit.start();
             self.visit = Some(visit);
             self.submit(SIGN_IN_HTTP, op);
@@ -1191,10 +1231,16 @@ impl Caller {
         if !self.visit.as_ref().expect("sign-in GET").done {
             return false;
         }
+        if idle && self.issuer_accepted.get() < self.held_issuer.len() + 1 {
+            return false;
+        }
         let visit = self.visit.take().expect("settled sign-in GET");
+        if let Some(fd) = visit.held {
+            self.held_issuer.push(fd);
+        }
         if authorize {
             self.kept = Some(visit.redirect.expect("unfollowed issuer redirect"));
-        } else {
+        } else if !idle {
             self.returned.push(visit.answer);
         }
         true
@@ -1307,11 +1353,17 @@ impl Caller {
                     return;
                 }
             }
-            Step::Browse { .. } | Step::Authorize | Step::Return | Step::Terminal(_) => {
+            Step::Browse { .. }
+            | Step::Authorize
+            | Step::AuthorizeHeld
+            | Step::HoldIssuerSocket
+            | Step::Return
+            | Step::Terminal(_) => {
                 if !self.interactive_act() {
                     return;
                 }
             }
+            Step::IssuerRejected if self.issuer_rejected.get() == 0 => return,
             Step::FixtureReady if self.running.iter().any(Option::is_some) => return,
             Step::FixtureReady => self.fixture_ready(),
             Step::EndsLeaving(_) => unreachable!("ending declaration was skipped"),
@@ -1322,6 +1374,7 @@ impl Caller {
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
             | Step::Advance
+            | Step::IssuerRejected
             | Step::Push { .. } => {}
             Step::ReleaseHold { .. } => {
                 if !self.hold_released.replace(false) {
@@ -1374,7 +1427,14 @@ impl Caller {
     fn can_advance(&self) -> bool {
         match self.steps.get(self.next) {
             Some(Step::ClaudeTurn { source }) => crate::claude::turn_started(&self.scratch, source),
-            Some(Step::Authorize | Step::Return) => self.visit.as_ref().is_none_or(|visit| visit.done),
+            Some(Step::Authorize | Step::AuthorizeHeld | Step::Return) => {
+                self.visit.as_ref().is_none_or(|visit| visit.done)
+            }
+            Some(Step::HoldIssuerSocket) => self
+                .visit
+                .as_ref()
+                .is_none_or(|visit| visit.done && self.issuer_accepted.get() > self.held_issuer.len()),
+            Some(Step::IssuerRejected) => self.issuer_rejected.get() > 0,
             Some(Step::Browse { .. }) => self.browser.as_ref().is_none_or(|browser| browser.done),
             Some(Step::Terminal(act)) => self.terminal.ready(act, self.links.get()),
             Some(Step::EndsLeaving(_)) | None => self.can_finish(),
@@ -1433,6 +1493,7 @@ impl Host for Caller {
             && self.owners.is_empty()
             && self.browser.is_none()
             && self.visit.is_none()
+            && self.held_issuer.is_empty()
             && self.terminal.is_empty()
     }
     fn operations(&self) -> u32 {

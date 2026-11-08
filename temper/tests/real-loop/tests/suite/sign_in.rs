@@ -1,8 +1,8 @@
 //! The person's sign-in returns to the real listener.
 use temper_real_loop_world::{
-    Exit, argv,
+    Exit, Ran, argv,
     calls::{D1, Step, call, sign_in},
-    run_sign_in, terminal,
+    run_production_sign_in, run_sign_in, terminal,
 };
 
 /// The ctl calls each story reads: `me` after the sign-in, the accounts at its end.
@@ -33,6 +33,38 @@ fn a_terminal_sign_in_returns_to_the_real_listener() {
             terminal::close(),
         ]
     });
+    assert_signed_in(&ran, "owner@example.com");
+}
+
+#[test]
+fn a_sign_in_beside_a_browsers_idle_issuer_sockets_completes_and_past_the_cap_is_turned_away() {
+    let ran = run_production_sign_in(|| {
+        let mut steps = vec![
+            sign_in(D1),
+            call(D1, argv!["me", "--json"]),
+            terminal::open(),
+            terminal::type_on(b"Settings", b""),
+            terminal::type_on(b"Accounts", b""),
+            terminal::see(b"Connect a model"),
+            terminal::type_on(b"Connect a model", b""),
+            terminal::see(b"Continue with ChatGPT"),
+            terminal::type_on(b"Continue with ChatGPT", b""),
+            terminal::see(b"Open the sign-in page <http://"),
+            Step::AuthorizeHeld,
+            Step::HoldIssuerSocket,
+            Step::Return,
+            terminal::see(b"Signed in to ChatGPT as sam@example.com"),
+            call(D1, argv!["account", "list", "--json"]),
+        ];
+        steps.extend((0..=temper_fake::oauth::CONNECTIONS).map(|_| Step::HoldIssuerSocket));
+        steps.extend([Step::IssuerRejected, terminal::close()]);
+        steps
+    });
+    assert_signed_in(&ran, "sam@example.com");
+    assert!(ran.issuer_rejected() > 0, "the production issuer turns away sockets past its cap");
+}
+
+fn assert_signed_in(ran: &Ran, email: &str) {
     assert!(ran.calls().iter().all(|call| call.exit == Some(Exit::Code(0))), "ctl calls succeeded");
     assert_eq!(ran.terminal().exit, Some(Exit::Code(0)), "terminal drained");
     let [answer] = ran.returned() else { panic!("one native listener answer") };
@@ -47,7 +79,7 @@ fn a_terminal_sign_in_returns_to_the_real_listener() {
     assert_eq!(rows.len(), ONE_ACCOUNT, "one account for the person");
     let account = &rows[0];
     assert_eq!(account["provider"], 1);
-    assert_eq!(account["email"], "owner@example.com");
+    assert_eq!(account["email"], email);
     assert_eq!(account["plan"], true);
     assert_eq!(account["holder"]["party"], person);
     let sources = account["sources"].as_array().expect("account's sources");

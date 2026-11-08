@@ -34,6 +34,8 @@ const OTHER_PARTY: u64 = 4;
 const OTHER_SUBJECT: u64 = 8;
 const WATCH: Handle = Handle { asker: Owner::Forge.asker(), number: 2202 };
 const OFFLINE: Duration = Duration::from_millis(30);
+// temper/docs/design/domain/forge.md, 5.7: the root's status procedure.
+const STATUS_PROCEDURE: u32 = 5;
 
 struct Probe {
     root: Root,
@@ -199,6 +201,24 @@ impl Story {
         )
     }
 
+    fn view(&self) -> temper_client_world::app::View {
+        let (_, mut view) = Temper::new(fixtures::SEED);
+        let temper_client_world::app::View::Person(person) = &mut view else { panic!("person view") };
+        temper_client_view::build(person, self.probes[CLIENT.0].root.person(), self.env.wall, &mut Queue::uncapped());
+        view
+    }
+
+    fn words(&self) -> String {
+        let view = self.view();
+        let text: Vec<u8> = Temper::tree(&view)
+            .nodes()
+            .iter()
+            .flat_map(|node| node.text.iter())
+            .flat_map(|run| run.text.iter().copied())
+            .collect();
+        String::from_utf8(text).expect("Home words")
+    }
+
     fn rows(&self) -> Vec<(StoreKey, Record)> {
         self.front
             .engine
@@ -257,6 +277,163 @@ impl Story {
             .into(),
         );
     }
+}
+
+fn assert_only_plan(story: &Story) {
+    use jig_client::contract as c;
+    let document = temper_client_domain::pages::accounts::document(story.probes[CLIENT.0].root.person().client())
+        .expect("person's account facts");
+    assert_eq!(document.accounts.len(), 1, "only the person's plan can pay");
+    let account = document.accounts.get(0).expect("the person's only account");
+    assert_eq!(account.holder, c::AccountHolder::Party(fixtures::PARTY));
+    assert_eq!(account.provider, Some(1));
+    assert!(account.plan);
+    assert_eq!(account.sources.len(), 1);
+    let source = account.sources.get(0).expect("the plan's only source");
+    assert_eq!(source.kind, c::AccountKind::SignIn);
+    assert!(source.usable, "the plan stays usable");
+    assert!(
+        story.front.engine.store.rows.values().all(|record| !matches!(
+            record,
+            Record::Core(jig_domain_core::Record::Accounts(jig_domain_accounts::Stored::Account {
+                holder: jig_domain_accounts::Holder::Deployment,
+                ..
+            }))
+        )),
+        "the engine keeps no deployment account"
+    );
+}
+
+fn sign_in_plan(story: &mut Story) -> u32 {
+    use jig_domain_accounts as a;
+    use temper_client_domain::pages::{accounts, connect_model};
+    story.client(fixtures::PARTY, Address::ConnectModel { way: None });
+    story.event(
+        CLIENT,
+        Event::Act {
+            action: Action::Pages(Act::ConnectModel(connect_model::Act::SignIn {
+                name: [114; 16],
+                way: accounts::Way::SignIn { provider: 1, plan: true },
+            })),
+        }
+        .into(),
+    );
+    let source = temper_client_world::front::account_acts::signing(&story.front);
+    story.front.engine.protocol.sign_in_sources.insert(source);
+    for event in [
+        a::Event::Visited { source, address: b"https://issuer/visit".as_slice().into() },
+        a::Event::SignedIn {
+            source,
+            subject: b"plan-holder".as_slice().into(),
+            display: b"Plan holder".as_slice().into(),
+            declined: false,
+            said: a::Said::default(),
+        },
+        // The scripted issuer's grant spans both sittings, as the person's session does.
+        a::Event::Component(a::FromComponent::Granted {
+            account: source,
+            generation: 2,
+            valid: Duration::from_secs(2 * 60 * 60),
+            form: jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer),
+        }),
+    ] {
+        story.front.engine.send(temper_engine_domain::Event::Account(event));
+        story.pump();
+    }
+    temper_client_world::front::account_acts::answer_trial(&mut story.front, &mut story.probes[CLIENT.0].root);
+    story.pump();
+    source
+}
+
+#[test]
+fn a_plans_project_has_its_brief_on_a_return_past_the_sitting() {
+    use jig_domain_tasks as tasks;
+    const REPORT: &[u8] = b"1 change landed on the local forge.\n\nThe README now records the local status change.";
+    let mut story = Story::new();
+    // The stock's creation offers use the ordinary client's document envelope.
+    story.env.limits.client = temper_client_tools::limits::client().client;
+    story.front = Joint::with_plan_status(fixtures::SEED, story.env.limits);
+    story.front.engine.forge.as_mut().expect("fake forge").grant(
+        b"acme/shop",
+        2,
+        skein_fake_forge_domain::api::Permission::None,
+    );
+    fixtures::adopt_change_repository(&mut story.front);
+    let source = sign_in_plan(&mut story);
+    assert_only_plan(&story);
+    let holdings = story
+        .front
+        .engine
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            if let Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::Roles {
+                project: PROJECT,
+                holdings,
+            })) = record
+            {
+                Some(holdings)
+            } else {
+                None
+            }
+        })
+        .expect("project membership");
+    assert_eq!(
+        holdings.as_ref(),
+        &[jig_domain_people::Holding { person: fixtures::PARTY, role: jig_domain_people::Role::Owner }]
+    );
+    story.go(CLIENT, Address::Home { project: PROJECT });
+    story.event(CLIENT, Event::Act { action: Action::Pages(Act::SkipToBegin) }.into());
+    assert_eq!(story.shown().previous(), &None);
+    assert_eq!(story.facts().brief(), None);
+    assert!(!story.words().contains("Written by the status agent"));
+    story.go(CLIENT, fixtures::inbox());
+    story.land();
+    story.after(Duration::from_secs(29 * 60));
+    story.go(CLIENT, Address::Home { project: PROJECT });
+    assert_eq!(story.facts().brief(), None);
+    assert!(!story.words().contains("Written by the status agent"));
+    assert!(story.front.assignments.iter().all(|run| run.charter != 9), "no status run within the sitting");
+    story.go(CLIENT, fixtures::inbox());
+    story.after(Duration::from_secs(31 * 60));
+    story.go(CLIENT, Address::Home { project: PROJECT });
+    let run = story
+        .front
+        .assignments
+        .iter()
+        .find(|run| run.charter == 9)
+        .expect("the stock period funds the status worker beyond the owner's open pool")
+        .clone();
+    assert_eq!(story.front.hosted_attempt(run.task), Some(run.attempt), "the worker received its assignment");
+    assert!(run.grants.iter().any(|grant| grant.account == source), "the status worker borrows the person's plan");
+    let task = story.front.engine.task(run.task).expect("admitted status task");
+    let tasks::Party::Task(parent) = task.requester else { panic!("status procedure parent") };
+    assert_eq!(
+        story.front.engine.task(parent).expect("status procedure").executor,
+        tasks::Executor::Procedure { connector: fixtures::FORGE, code: STATUS_PROCEDURE }
+    );
+    story.front.engine.answer(
+        fixtures::QUESTION_WORKER,
+        run.task,
+        run.attempt,
+        0,
+        tasks::End::Finished { result: tasks::TaskResult::Report { words: REPORT.into() }, cancel_delegates: false },
+        temper_engine_domain::Parts::none(),
+    );
+    story.pump();
+    let brief = story.facts().brief().expect("production procedure published the brief").clone();
+    assert_eq!(brief.sentence(), b"1 change landed on the local forge.");
+    assert_eq!(brief.lede(), b"The README now records the local status change.");
+    let words = story.words();
+    for expected in [
+        "1 change landed on the local forge.",
+        "The README now records the local status change.",
+        "Written by the status agent",
+    ] {
+        assert!(words.contains(expected), "Home shows {expected}: {words}");
+    }
+    assert_only_plan(&story);
 }
 
 #[test]
@@ -393,7 +570,8 @@ fn a_look_reaches_another_device_of_the_party() {
 #[test]
 fn a_restart_keeps_the_rows() {
     let mut story = Story::with_landing();
-    story.enter();
+    story.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    story.event(CLIENT, Event::Act { action: Action::Pages(Act::SkipToBegin) }.into());
     story.go(CLIENT, fixtures::inbox());
     story.land();
     story.after(Duration::from_secs(31 * 60));
@@ -413,6 +591,19 @@ fn a_restart_keeps_the_rows() {
     story.event(CLIENT, Temper::start(fixtures::inbox(), Vec::new(), 0));
     story.after(OFFLINE);
     story.go(CLIENT, Address::Home { project: PROJECT });
+    assert!(!story.facts().to_begin(), "the Skip dismissal survives the engine and client restarts");
+    let view = story.view();
+    assert!(
+        !Temper::tree(&view)
+            .nodes()
+            .iter()
+            .any(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Skip")),
+        "a fresh Home has no Skip button"
+    );
+    let words = story.words();
+    assert!(words.contains("One change landed since you last looked. Nothing needs you."), "{words}");
+    assert!(words.contains("Landing: "), "{words}");
+    assert!(!words.contains("nothing has landed yet"), "{words}");
     assert_eq!(story.shown(), document, "a fresh Home reads the restored rows");
     assert_eq!(story.facts().landed_since(), 1);
     let after = story.looked(fixtures::PARTY).expect("look after restart");

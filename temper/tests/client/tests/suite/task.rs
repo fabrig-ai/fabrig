@@ -433,6 +433,341 @@ fn a_finished_goals_page_shows_its_report() {
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
 }
 
+// A chat's goal and its report, reached through Home and Goals
+// (temper/docs/design/domain/testing.md, 2.6 and 6.3;
+// temper/docs/design/client/README.md, 5.3, 5.8 and 5.13;
+// temper/docs/design/domain/agent.md, 8.3).
+#[test]
+fn a_chats_goal_shows_its_report_from_its_goals_row() {
+    use smith_domain_session::llm::{Block, Message, Role as Speaker};
+    use temper_client_domain::{Address, GoalsFilter};
+
+    let mut world = fixtures::world(fixtures::SEED);
+    *world.front() = report_front();
+    fixtures::adopt_change_repository(world.front());
+    let chat = report_chat(world.front());
+    world.front().next_client_limits(report_limits());
+    let person = world.client_with(fixtures::PARTY, fixtures::chat_page(chat.task), report_limits(), report_root);
+    let mut messages = report_host_call(
+        world.front(),
+        &chat,
+        1,
+        b"goal",
+        br#"{"words":"Write a report for this local demonstration."}"#,
+    );
+    messages.push(Message {
+        role: Speaker::Assistant,
+        content: Box::new([Block::Text {
+            text: b"I started a goal to write its report.".as_slice().into(),
+            replay: None,
+        }]),
+    });
+    report_turn(world.front(), &chat, 1, messages);
+    goal_route_steps(
+        &mut world,
+        person,
+        vec![Step::See {
+            find: conversation(Find::text(b"I started a goal to write its report.")),
+            within: fixtures::WITHIN,
+        }],
+    );
+    assert!(world.root(person).person().forge().ways(1).expect("project ways").goals);
+
+    let goal = world
+        .front()
+        .assignments
+        .iter()
+        .find(|run| run.task != chat.task)
+        .expect("the chat's goal was assigned")
+        .clone();
+    report_goal(world.front(), &goal);
+
+    goal_route_steps(
+        &mut world,
+        person,
+        vec![
+            Step::Go { address: Address::Home { project: 1 } },
+            Step::See { find: Find::exactly_named(Role::Link, b"Goals"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"Goals") },
+        ],
+    );
+    assert_eq!(world.root(person).person().pages().address(), &Address::Goals { project: 1, filter: GoalsFilter::All });
+    goal_route_steps(
+        &mut world,
+        person,
+        vec![
+            Step::See {
+                find: Find::exactly_named(Role::Heading { level: 1 }, b"1 goal, 0 under way."),
+                within: fixtures::WITHIN,
+            },
+            Step::See {
+                find: Find::exactly_named(Role::Paragraph, b"The local goal wrote its report."),
+                within: fixtures::WITHIN,
+            },
+        ],
+    );
+    let row = world
+        .tree(person)
+        .nodes()
+        .iter()
+        .find(|node| {
+            node.role == Role::Link
+                && node.name.as_deref().is_some_and(|name| {
+                    name.starts_with(b"Write a report for this local demonstration.")
+                        && name.windows(b"landed".len()).any(|part| part == b"landed")
+                })
+        })
+        .expect("the goal row names its brief and landed state")
+        .id;
+    world.act(person, row, skein_ui::Act::Press);
+    goal_route_steps(
+        &mut world,
+        person,
+        vec![
+            Step::See {
+                find: Find::exactly_named(Role::Heading { level: 1 }, b"The local goal wrote its report."),
+                within: fixtures::WITHIN,
+            },
+            Step::See { find: report_text(b"I wrote this report on the local fake box."), within: fixtures::WITHIN },
+            Step::See { find: report_text(b"Nothing remains in this demonstration."), within: fixtures::WITHIN },
+            Step::See {
+                find: report_text(b"This scripted model does not change a repository."),
+                within: fixtures::WITHIN,
+            },
+            Step::See { find: Find::exactly_named(Role::Heading { level: 2 }, b"Landing"), within: fixtures::WITHIN },
+        ],
+    );
+    assert_eq!(world.root(person).person().pages().address(), &fixtures::task_page(goal.task));
+}
+
+fn report_text(words: &[u8]) -> Find {
+    Find::text(words).within(Box::new([Target::ExactRole { role: Role::Region, name: b"Report".as_slice().into() }]))
+}
+
+fn report_goal(front: &mut Joint, goal: &temper_engine_domain::Assignment) {
+    use smith_domain_session::llm::{Block, Decoded, Message, Role, ToolCall};
+    let input = format!(
+        r#"{{"scope":{{"kind":"goal","project":1,"goal":{}}},"description":"report: The local goal wrote its report.","body":"I wrote this report on the local fake box.\n\nLeft: Nothing remains in this demonstration.\nRisk: This scripted model does not change a repository."}}"#,
+        goal.task,
+    );
+    let messages = report_host_call(front, goal, 1, b"note", input.as_bytes());
+    report_turn(front, goal, 1, messages);
+    // Finish is local to the agent; its transcript and terminal cross the worker link.
+    report_turn(
+        front,
+        goal,
+        2,
+        vec![Message {
+            role: Role::Assistant,
+            content: Box::new([Block::ToolCall(ToolCall {
+                id: b"finish-2".as_slice().into(),
+                name: b"finish".as_slice().into(),
+                input: br#"{"form":"report","text":"The local goal wrote its report.","fields":{}}"#.as_slice().into(),
+                call: Decoded::Historical,
+                replay: None,
+            })]),
+        }],
+    );
+    front.engine.answer(
+        skein_lib::Token::new(7),
+        goal.task,
+        goal.attempt,
+        0,
+        jig_domain_tasks::End::Finished {
+            result: jig_domain_tasks::TaskResult::Report {
+                words: b"The local goal wrote its report.".as_slice().into(),
+            },
+            cancel_delegates: false,
+        },
+        temper_engine_domain::Parts::none(),
+    );
+    front.engine.settle();
+}
+
+fn goal_route_steps(
+    world: &mut jig_client_kit::harness::World<Temper, Joint>,
+    person: jig_client_kit::harness::ClientId,
+    steps: Vec<Step<temper_client_domain::Address>>,
+) {
+    world.person(person, steps);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+}
+
+fn report_chat(front: &mut Joint) -> temper_engine_domain::Assignment {
+    let jig_domain_people::Ask::Create { project, mut batch } =
+        front.engine.chat_ask(1, b"Start a local goal and write its report.")
+    else {
+        panic!("chat creation");
+    };
+    // The chat reserves 100 for its run and can grant 100 to its goal.
+    batch[0].budget = jig_domain_people::Budget::Named;
+    batch[0].authority.spend = 300;
+    front.engine.send(temper_engine_domain::Event::Party(temper_engine_domain::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(901)),
+        sign_in: front.engine.session(),
+        key: [57; 16],
+        ask: jig_domain_people::Ask::Create { project, batch },
+    }));
+    front.engine.settle();
+    assert!(
+        front.engine.delivered.iter().any(|delivery| matches!(
+            delivery,
+            temper_engine_domain::Delivery::WebReply {
+                reply: jig_domain_people::Reply::Outcome(jig_domain_people::Outcome::Created { .. }),
+                ..
+            }
+        )),
+        "chat creation: {:?}",
+        front.engine.delivered
+    );
+    front.engine.last_assignment()
+}
+
+fn report_front() -> Joint {
+    use jig_domain_authority::{Executor, Scopes};
+    use temper_engine_domain_forge::settings::{ProjectWays, SizedValue, Stock, Value};
+    use temper_engine_domain_world::{store::Store, walking};
+
+    // The chat-draft profile's two slots and report room, with project ways declared.
+    let mut limits = temper_client_world::front::engine_limits();
+    limits.fleet.slots = 2;
+    limits.tasks.tasks = 3;
+    limits.tasks.project_tasks = 3;
+    limits.tasks.depth = 2;
+    limits.tasks.tree_tasks = 3;
+    limits.people.inbox_tasks = 6;
+    limits.authority.executors = 2;
+    limits.tasks.executor_kinds = 2;
+    limits.documents.executors = 2;
+    limits.tasks.result_bytes = 4096;
+    limits.forge.client.op_bytes = limits.forge.client.op_bytes.max(limits.tasks.result_bytes);
+    limits.journal.result_bytes = limits.tasks.result_bytes;
+    limits.journal.transcript_bytes = 32768;
+    limits.tasks.spec_bytes = 1024;
+    limits.people.words = 1024;
+    limits.tasks.message_bytes = limits.people.words;
+    limits.tasks.inbox_bytes = limits.tasks.result_bytes + limits.tasks.message_bytes;
+    limits.watermark = temper_engine_domain::default_watermark(&limits.journal);
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(fixtures::SEED);
+        config.core.connectors = Box::new([fixtures::FORGE]);
+        for permission in &mut config.core.seed_projects[0].policy.permissions {
+            permission.connector = fixtures::FORGE;
+        }
+        let kinds: Box<[Executor]> = Box::new([Executor::Charter(1), Executor::Role(0)]);
+        let ceiling = &mut config.core.defaults.rules.ceiling;
+        ceiling.delegation.kinds.clone_from(&kinds);
+        ceiling.delegation.depth = 3;
+        ceiling.delegation.tasks = 3;
+        ceiling.notes = Scopes(1);
+        let policy = &mut config.core.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.kinds.clone_from(&kinds);
+        policy.roles[0].authority.delegation.kinds = kinds;
+        policy.ceiling.delegation.depth = 3;
+        policy.roles[0].authority.delegation.depth = 3;
+        policy.ceiling.delegation.tasks = 3;
+        policy.roles[0].authority.delegation.tasks = 3;
+        policy.ceiling.notes = Scopes(1);
+        policy.roles[0].authority.notes = Scopes(1);
+        for template in &mut config.core.defaults.templates {
+            if template.tracked.is_some() {
+                template.deadline = jig_domain_people::TemplateDeadline::None;
+            }
+        }
+        let value = Value::Ways(ProjectWays { drafts: false, goals: true, changes: false, away: false, way: 0 });
+        let mut stock = config.kinds_stock.into_vec();
+        stock.push(Stock {
+            kind: 7,
+            scope: 1,
+            number: 1,
+            value: SizedValue { size: temper_engine_smith::kinds::size(&value), value },
+        });
+        config.kinds_stock = stock.into_boxed_slice();
+        config
+    });
+    Joint::with_engine(fixtures::SEED, &report_limits(), Store::with_limits(&limits), configs, &limits, 2)
+}
+
+fn report_limits() -> temper_client_domain::Limits {
+    let mut limits = fixtures::domain_limits();
+    // Closing chat and Home watches overlap the session's and Goals' watches.
+    limits.client.domain.watches = 24;
+    limits.client.domain.handles = 24;
+    limits
+}
+
+fn report_root(seed: u64) -> (temper_client_world::app::Root, temper_client_world::app::View) {
+    let limits = report_limits();
+    let words = fixtures::phrasebooks(&limits);
+    let bounds = fixtures::view_bounds(&limits, &words);
+    (
+        temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        temper_client_world::app::View::Person(Box::new(temper_client_view::View::new(
+            &bounds,
+            &limits,
+            words,
+            fixtures::FORGE,
+        ))),
+    )
+}
+
+fn report_host_call(
+    front: &mut Joint,
+    run: &temper_engine_domain::Assignment,
+    sequence: u32,
+    tool: &[u8],
+    input: &[u8],
+) -> Vec<smith_domain_session::llm::Message> {
+    use smith_domain_session::llm::{Block, Decoded, Message, Returned, Role, ToolCall};
+    let (text, error) = temper_engine_domain_world::host_tool::host_tool(&mut front.engine, run, sequence, tool, input);
+    assert!(!error, "{}: {}", String::from_utf8_lossy(tool), String::from_utf8_lossy(&text));
+    let id = format!("{}-{sequence}", String::from_utf8_lossy(tool)).into_bytes().into_boxed_slice();
+    vec![
+        Message {
+            role: Role::Assistant,
+            content: Box::new([Block::ToolCall(ToolCall {
+                id: id.clone(),
+                name: tool.into(),
+                input: input.into(),
+                call: Decoded::Historical,
+                replay: None,
+            })]),
+        },
+        Message {
+            role: Role::User,
+            content: Box::new([Block::ToolResult { id, result: Returned::Text { text, error: false, replay: None } }]),
+        },
+    ]
+}
+
+fn report_turn(
+    front: &mut Joint,
+    run: &temper_engine_domain::Assignment,
+    sequence: u32,
+    messages: Vec<smith_domain_session::llm::Message>,
+) {
+    let mut turn = temper_worker_domain_world::protocol::session_turn(sequence, 0, 0, sequence == 1);
+    turn.messages = messages.into_boxed_slice();
+    let body = smith_protocol_channel::encode_turn(
+        &turn,
+        &smith_transcript::CEILINGS,
+        &temper_worker_domain_world::protocol::endpoints(),
+    )
+    .expect("scripted report turn encodes");
+    front.engine.send(temper_engine_domain_world::protocol::turn(
+        skein_lib::Token::new(7),
+        run.task,
+        run.attempt,
+        sequence,
+        0,
+        None,
+        &body,
+    ));
+    front.engine.settle();
+}
+
 #[test]
 fn a_goals_page_shows_its_plan_with_the_held_task_marked() {
     let mut world = fixtures::world(fixtures::SEED);
