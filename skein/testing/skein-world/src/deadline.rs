@@ -108,18 +108,54 @@ pub struct Starved {
     tree_kind: &'static str,
 }
 
+/// The unwind payload of a starved pass in a one-process run.
+#[derive(Debug)]
+pub struct StarvedPass;
+
+/// Whether a starved wait ends its test as a pass here: `TIERS_ONE_PROCESS` or
+/// `NEXTEST` is set.
+#[must_use]
+pub fn starved_passes() -> bool {
+    std::env::var_os("TIERS_ONE_PROCESS").is_some() || std::env::var_os("NEXTEST").is_some()
+}
+
+/// Ends the running test with a `skein-world: starved:` line a helper wrote,
+/// as `Starved::pass` ends it; elsewhere fails with the line.
+#[expect(clippy::exit, reason = "testing.md, 5 ends a nextest starved pass with exit 0")]
+#[expect(clippy::print_stderr, reason = "testing.md, 5 requires one starvation verdict on stderr")]
+pub fn pass_starved(line: &str) -> ! {
+    if std::env::var_os("TIERS_ONE_PROCESS").is_some() {
+        eprintln!("{line}");
+        std::panic::resume_unwind(Box::new(StarvedPass));
+    }
+    if std::env::var_os("NEXTEST").is_some() {
+        eprintln!("{line}");
+        std::process::exit(0);
+    }
+    crate::fail(line);
+}
+
 impl Starved {
     #[must_use]
     pub fn figures(&self) -> &Figures {
         &self.figures
     }
 
-    /// Ends a nextest test as a starved pass, writing one line to stderr.
-    /// Elsewhere fails with the figures. The caller ends what it owns first:
-    /// exiting skips destructors.
-    #[expect(clippy::print_stderr, reason = "testing.md, 5 requires one starvation verdict on stderr")]
+    /// Ends a test as a starved pass: unwinds in a one-process run, exits 0
+    /// under nextest, and elsewhere fails with the figures. The caller ends
+    /// what it owns first; the unwind drops what remains, the exit skips it.
     pub fn pass(self) -> ! {
-        if std::env::var_os("NEXTEST").is_none() {
+        if !starved_passes() {
+            crate::fail(&format!("skein-world: starved: {}", self.figures));
+        }
+        pass_starved(&self.line());
+    }
+
+    /// Ends a helper process whose test reads its stderr: the line and exit 0
+    /// where `starved_passes()`; elsewhere fails with the figures.
+    #[expect(clippy::print_stderr, reason = "testing.md, 5 requires one starvation verdict on stderr")]
+    pub fn exit(self) -> ! {
+        if !starved_passes() {
             crate::fail(&format!("skein-world: starved: {}", self.figures));
         }
         eprintln!("{}", self.line());

@@ -72,6 +72,7 @@ impl CheckoutRead for Checkout {
 /// A scratch directory holding durable settings, tokens, chat and a checkout.
 pub struct Scratch {
     files: Files,
+    _loopback: smith_agent_process_world::fake::RealLoopback,
 }
 
 impl Scratch {
@@ -80,7 +81,7 @@ impl Scratch {
         for (tool, path) in [("git", "/usr/bin/git"), ("rg", "/usr/bin/rg"), ("sh", "/bin/sh")] {
             assert!(Path::new(path).is_file(), "real world requires {tool} at {path}");
         }
-        smith_agent_process_world::fake::real_loopback();
+        let loopback = smith_agent_process_world::fake::real_loopback();
         let files = Files::new();
         let repo = files.path().join("repo");
         std::fs::create_dir(&repo).expect("scratch repository");
@@ -109,7 +110,7 @@ printf 'checked\n' > checks-ran.txt
             .expect("fixture commit identity");
         git(&repo, &["add", "."]);
         git(&repo, &["commit", "-q", "-m", "Initial checkout"]);
-        Self { files }
+        Self { files, _loopback: loopback }
     }
 
     /// The repository face observed independently by higher tiers.
