@@ -25,6 +25,13 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/client/README.md, 5.16"
 
+[[part]]
+id = "roles"
+title = "Roles on How work runs: every agent the project's work runs, from the view roles"
+mode = "direct"
+needs = ["stops"]
+design = "temper/docs/design/domain/forge.md, 8.13"
+
 [[slice]]
 id = 1
 story = "Every client is given the amended path: conflict and resolve where a change takes main at the front of its queue, catch up where a goal's branch takes main, each stop made only when needed marked so, a repair saying what it answers, and an agent that never merges"
@@ -35,4 +42,10 @@ walk = false
 id = 2
 story = "On Ask temper's ways, an open stop's card stands under the path as the look request's does at 1000 and on a phone, and four tabs stand two by two on a phone"
 parts = ["look"]
+walk = false
+
+[[slice]]
+id = 3
+story = "How work runs lists every agent the project's work runs, the foreman and the status agent among them, each with when it runs, its model, what it can and what it is asked"
+parts = ["roles"]
 walk = false

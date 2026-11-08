@@ -21,7 +21,7 @@ Design: `temper/docs/design/domain/forge.md`, 8.13, as this cut wrote it.
 
 Design: `temper/docs/design/client/README.md`, 4.6 and 5.16; `temper/docs/design/domain/forge.md`, 8.13, *The project's roles*.
 
-- Engine: `ways::View::Roles(Box<[(u32, Card)]>)`, each a charter's number and its role's card: `who` the line of when it runs ("For each chat"), `name` the role's name ("Chat"), `facts` "Model", "Can" and "Asked to", in that order, "Model" left out where no model is usable.
+- Engine: `ways::View::Roles(Box<[(u32, Card)]>)`, each a charter's number and its role's card: `who` the line of when it runs ("For each chat"), `name` the role's name ("Chat"), `facts` "Model", "Can" and "Asked to", as an agent's stop's card has them: the ways crate exports `pub fn role_card(agent: &Agent, who: &[u8], name: &[u8]) -> Card`, which `agent_card` calls for a stop.
 - Wire: `record RolesView { roles: list 16 CharterView }`; `View` gains `roles: RolesView` after `rule`.
 - The client reads it as it reads `charter N` (the `View` read in the project's scope, again when the session's `settings` watch names a newer revision); a reply draws each role as `charter N` draws its card.
 
