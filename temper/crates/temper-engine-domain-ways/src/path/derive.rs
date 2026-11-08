@@ -101,7 +101,7 @@ impl Drawing {
                 (inputs.reviewer, Step::Review, b"review".as_slice(), who.as_bytes().into(), b"the reviewer".as_slice())
             };
             let card = agent_card(inputs, charter, &who, name);
-            self.push(stop(Actor::Agent, step, words, Opens::Gate(gate.number), card));
+            self.push(stop(Actor::Agent, step, words, Opens::Gate { number: gate.number, charter }, card));
         }
         if (ci.is_some() || !gates.is_empty())
             && self.repair(inputs)

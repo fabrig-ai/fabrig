@@ -1017,7 +1017,6 @@ TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
-- **Not yet:** 4.6: `Fact.value` is at most 128; `OpensGate` names no charter; `View` has no `rule` (`look-round-24`, `ways-wire`).
 
 - **Not yet:** 3.5, *A role's or a rule's page*, and its two rows of the pages' table: no `Role` or `Rule` address, page or read (`look-round-24`, `role-pages`).
 

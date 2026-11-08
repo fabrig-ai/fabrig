@@ -14,7 +14,7 @@ pub(super) fn draw(domain: &Domain, project: u32, party: u64, number: u32) -> wa
     for stop in &path.stops {
         let named = match stop.opens {
             ways::Opens::Charter(charter) => charter == number,
-            ways::Opens::Gate(_) => stop.step == ways::Step::Review && inputs.reviewer == number,
+            ways::Opens::Gate { .. } => stop.step == ways::Step::Review && inputs.reviewer == number,
             ways::Opens::Nothing
             | ways::Opens::Rule { .. }
             | ways::Opens::Tier(_)

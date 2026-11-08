@@ -485,6 +485,7 @@ fn drawn(view: ways::View) -> Picture {
             name: text(card.name),
             facts: card.facts.into_iter().map(|fact| (text(fact.label), text(fact.value))).collect(),
         },
+        ways::View::Rule { .. } => unreachable!("rule views are not produced yet"),
         ways::View::NotDrawn(words) => Picture::NotDrawn(text(words)),
     }
 }

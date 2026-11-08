@@ -45,7 +45,10 @@ pub enum Opens {
         scope: u32,
         number: u32,
     },
-    Gate(u32),
+    Gate {
+        number: u32,
+        charter: u32,
+    },
     Tier(Box<[u8]>),
     Queue,
     Turn,
@@ -88,7 +91,8 @@ pub const WORDS: usize = 64; // a stop's words' most bytes
 pub const WHO: usize = 128; // a card's `who`
 pub const NAME: usize = 64; // a card's `name`
 pub const LABEL: usize = 32; // a fact's label
-pub const VALUE: usize = 128; // a fact's value
+pub const VALUE: usize = 128; // a fact's value, but an agent's "Asked to"
+pub const ASKED: usize = 184; // an agent's "Asked to", its quotes included
 
 impl Stop {
     /// Compare the drawn stop, ignoring its card.

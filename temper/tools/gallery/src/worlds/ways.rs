@@ -262,7 +262,9 @@ fn stop(step: w::PathStep) -> w::Stop {
         Review => (
             Agent,
             "review",
-            w::Opens::Gate(w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1 }).expect("review gate")),
+            w::Opens::Gate(
+                w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1, charter: 4 }).expect("review gate"),
+            ),
             agent(
                 "an agent · holds a change until it approves",
                 "the reviewer",
