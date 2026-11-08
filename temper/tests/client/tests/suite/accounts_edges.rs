@@ -76,18 +76,22 @@ fn accounts_connect_link_opens_choose() {
     );
 }
 
-// client/README.md 5.3: the connection flow reaches Accounts through Settings.
+// client/README.md 5.3: Deployment opens its current Accounts tab.
 #[test]
-fn accounts_navigation_from_connect_model_walks_settings() {
+fn accounts_navigation_from_connect_model_walks_deployment() {
     let mut world = world();
     let client = open(&mut world, b"/accounts/connect");
-    follow(&mut world, client, vec![see(Role::Link, b"Settings"), press(Role::Link, b"Settings")]);
+    follow(&mut world, client, vec![see(Role::Link, b"Deployment"), press(Role::Link, b"Deployment")]);
     let settings = world
         .tree(client)
         .nodes()
         .iter()
-        .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings"))
-        .expect("settings navigation");
+        .find(|n| {
+            n.role == Role::Link
+                && n.name.as_deref() == Some(b"Deployment")
+                && n.states.as_slice().contains(&State::Current)
+        })
+        .expect("current deployment navigation");
     assert!(settings.states.as_slice().contains(&State::Current));
     follow(&mut world, client, vec![see(Role::Link, b"Accounts")]);
     let entry = world
@@ -96,7 +100,7 @@ fn accounts_navigation_from_connect_model_walks_settings() {
         .iter()
         .find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Accounts"))
         .expect("accounts navigation");
-    assert!(!entry.states.as_slice().contains(&State::Current));
+    assert!(entry.states.as_slice().contains(&State::Current));
     follow(
         &mut world,
         client,

@@ -111,7 +111,8 @@ fn key_history_steps() -> Vec<Step> {
             find: Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key"),
             within: WITHIN,
         }),
-        press(b"Chats", Role::Link),
+        // No chat has started work, so Work has no Chats filter.
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         see(chats()),
         Step::Back,
         see(Find::named(Role::Heading { level: 2 }, "Your accounts · ".as_bytes())),
@@ -123,7 +124,8 @@ fn key_history_steps() -> Vec<Step> {
         see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
         // The browser kit refuses typing into a nonempty field: this proves re-entry after clearing.
         input(b"Key (pasted once)", b"another-private-key"),
-        press(b"Chats", Role::Link),
+        // No chat has started work, so Work has no Chats filter.
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         see(chats()),
         Step::Back,
         see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
