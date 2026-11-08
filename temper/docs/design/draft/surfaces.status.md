@@ -38,7 +38,9 @@
     11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
     left off and Needs you are the project's until Home reads every
     project (3). No design holds 11.2's design session, the drafter in
-    the terminal or the side pane, or 11.3's talking with a role.
+    the terminal or the side pane, or 11.3's talking with a role. The
+    drafter and its session on the web are `../domain/agent.md`, 8.5,
+    and `../client/README.md`, 3.5.
   - 12: `../client/README.md`, 5.13, *The page*, keeps "What the
     project shows" at How work runs' foot as overrides of each page's
     rule, and decides How work runs' own parts by one pure function
@@ -63,7 +65,8 @@
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
   - 7 and 15: Repositories at How work runs' foot, or in Deployment.
   - 2 and 15: `Chats` kept at its address, or folded away.
-  - 11.2 and 15: the drafter on the web as well as in the terminal.
+  - 11.2 and 15: the drafter on the web as well as in the terminal. The
+    design takes the default, both (`../domain/agent.md`, 8.5).
   - 3 and 15: one brief across projects, written per person: which
     project's period funds it, which project its task belongs to, whether
     it may read other projects' Nows. Default: one brief a project, joined

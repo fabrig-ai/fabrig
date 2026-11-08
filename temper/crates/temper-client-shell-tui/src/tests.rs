@@ -520,6 +520,7 @@ enum LocalWant {
     Ask,
     Send,
     SendHeld,
+    Connecting,
     Wait,
     Keep,
     Pasted,
@@ -542,7 +543,7 @@ struct LocalRow {
 #[expect(clippy::too_many_lines, reason = "one table holds the engine-link outcomes and sign-out judgements")]
 fn the_engines_link_signs_in_and_falls_back() {
     use LocalAct::{Answer, Approve, Connect, Due, End, Found, Lost, Paste};
-    use LocalWant::{Ask, Ended, Keep, Pasted, Quiet, Read, Send, SendHeld, Taking, Until, Wait};
+    use LocalWant::{Ask, Connecting, Ended, Keep, Pasted, Quiet, Read, Send, SendHeld, Taking, Until, Wait};
     let found = || Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET)));
     let fresh = || Found(Some(local_link("127.0.0.1:8367", FRESH_SECRET)));
     let row = |name, steps| LocalRow { front: false, name, local: true, note: None, held: false, first: Read, steps };
@@ -627,6 +628,23 @@ fn the_engines_link_signs_in_and_falls_back() {
         rows.push(row(name, vec![(found(), Send), (Answer(answer), Ask)]));
     }
     rows.push(row("lost", vec![(found(), Send), (Lost, Ask)]));
+    for (name, answer) in [("front not ready", w::SignInAnswer::NotReady), ("front busy", w::SignInAnswer::Busy)] {
+        rows.push(LocalRow {
+            front: true,
+            name,
+            local: true,
+            note: None,
+            held: false,
+            first: Read,
+            steps: vec![
+                (found(), Send),
+                (Answer(answer), Connecting),
+                (Due(SECOND), Send),
+                (Answer(signed_in_answer()), Keep),
+                (Connect, Until),
+            ],
+        });
+    }
     for (name, wall, want) in [
         ("before slack", 239_999_999_999, Ended),
         ("at slack", 240_000_000_000, Read),
@@ -883,7 +901,7 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
         LocalWant::Read => (true, 0, 0, None, None),
         LocalWant::Ask => (false, 1, 0, None, None),
         LocalWant::Send | LocalWant::SendHeld | LocalWant::Pasted => (false, 0, 1, None, None),
-        LocalWant::Wait | LocalWant::Quiet | LocalWant::Taking => (false, 0, 0, None, None),
+        LocalWant::Connecting | LocalWant::Wait | LocalWant::Quiet | LocalWant::Taking => (false, 0, 0, None, None),
         LocalWant::Keep => (false, 0, 0, None, Some(Some(Secret::new(Box::new([7; 40]))))),
         LocalWant::Until => (false, 0, 0, Some(Note::Until(Wall::from_nanos(UNTIL))), None),
         LocalWant::Ended => (false, 1, 0, Some(Note::SignedOut), Some(None)),
@@ -904,12 +922,17 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
     if (keep.is_some() || matches!(want, LocalWant::Quiet | LocalWant::SendHeld)) && duties.keep != keep {
         failures.push(format!("{name}: credential duty"));
     }
-    if matches!(want, LocalWant::Read | LocalWant::Wait) && host.state().local() != Local::Signing {
+    if matches!(want, LocalWant::Read | LocalWant::Wait | LocalWant::Connecting)
+        && host.state().local() != Local::Signing
+    {
         failures.push(format!("{name}: local signing screen"));
     }
     let frame = host.frame();
     let print = frame.print();
     let text = String::from_utf8(frame.text().into_vec()).expect("UTF-8 frame");
+    if matches!(want, LocalWant::Connecting) && !text.contains("Connecting") {
+        failures.push(format!("{name}: connecting text"));
+    }
     if matches!(want, LocalWant::Read) && !host.state().front() && !text.contains("Connecting to 127.0.0.1:8367") {
         failures.push(format!("{name}: connecting text"));
     }
