@@ -4,21 +4,19 @@
 
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
-Ask temper in both shells. The browser adds the night switch after the
-rail's foot; the four-byte look record restores night, accepts the old
+Ask temper in both shells. Home leaves Needs you and Chats out while
+To begin shows, even with delivered needs and chats; the existing section
+table covers populated and skipped states in both shells.
+Ask temper keeps its three phone tabs and room for the composer above
+them. The browser's night switch remains at the folded rail's foot and
+at a phone chat bar's right, including when the folded rail is open.
+No known implementation gap remains in these rules.
+The four-byte look record restores night, accepts the old
 three-byte record as day, and drives `html[data-night]` before drawing.
 A first visit is day; the terminal shells have no night switch.
 Domain, view and host tables cover these paths. The browser reload row
 is written and compiled, with no supplied runtime result; render checks
 and refinement remain section 11's after-landing work.
-
-- **Not yet:** 3.5, *To begin*: nonempty Needs you and Chats still draw
-  under the card, contrary to `to-begin-two-steps` and the plan's request.
-  `temper-client-view`'s `pages/home.rs`, `needs` and `chats`, return only
-  when their count is zero and To begin shows. The task's account retained
-  and checked the empty-section behaviour alone; `home-needs-under-begin`
-  still draws a question and chat. Temper/ui owns the missing suppression
-  in both shells; this is required behaviour, not deferred design.
 
 Section 5.9's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
@@ -54,11 +52,10 @@ descriptions and rows retained. No known gap remains in that wording.
 
 Sections 2, 6.11 to 6.16 and 7.1 have no known implementation gap in the
 TUI's crates, command, private directory, link file and sign-in note,
-host seam, pasted-link sign-in, themes, closing, automatic
-local sign-in, quiet fallback, bounded rereads, expiry renewal and
-suppression after a noted sign-out, beyond the **Not yet** entries of
-the launchpad, its commands and a chat below. The expiry is noted once the link
-is live with a party. The base uses the terminal's default colours,
+host seam, pasted-link sign-in, launchpad, commands, chats, themes,
+closing, automatic local sign-in, quiet fallback, bounded rereads, expiry
+renewal and suppression after a noted sign-out. The expiry is noted once
+the link is live with a party. The base uses the terminal's default colours,
 focus uses the accent, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
@@ -133,14 +130,6 @@ remains intentional: `>_` and the status words leave the path less than
 its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
-
-
-
-
-
-
-- **Not yet:** 10, *The TUI in the joint world*: no story asks temper
-  from the launchpad and reads the chat it starts.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
