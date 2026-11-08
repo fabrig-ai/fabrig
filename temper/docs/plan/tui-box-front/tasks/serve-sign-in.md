@@ -135,3 +135,14 @@ Options, each decided:
 
 As the implementer's text says, with each test added or extended and the
 rule broken by hand for it, and where the forges document is marked.
+
+## Rebase (2026-11-08, step merge, foreman tui-box-front/serve-sign-in/foreman-1)
+
+Resolve setup.status.md by retaining both adjacent completed-task deletions.
+The merge conflicts in `temper/docs/design/protocol/setup.status.md`.
+Task commit `dade69f4c9` deletes the 7.1 `serve-sign-in` **Not yet** bullet.
+Integration commit `6ed0cf48b1`, merged by `d0aa6ad42c`, deletes the immediately following 7.6 `box-lines` bullet.
+Rebase onto the current integration tip and resolve by deleting both bullets.
+Preserve all remaining status entries, including the `box-front` bullet and main’s 13.4 `serve.log` coverage gap from `25aa7cea1b`.
+Keep this task’s deletion of the `serve-sign-in` bullet in `temper/docs/design/client/README.status.md`, which auto-merged.
+The refusal identifies no code or test failure; this resolution requires no implementation change.
