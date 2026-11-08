@@ -201,6 +201,8 @@ pub(crate) fn route_forge(
                     Address::Inbox { .. }
                     | Address::Chats { .. }
                     | Address::NewChat { .. }
+                    | Address::Members
+                    | Address::Limits
                     | Address::Accounts
                     | Address::Forges
                     | Address::ConnectForge { .. }
@@ -214,6 +216,7 @@ pub(crate) fn route_forge(
                     | Address::Models { .. }
                     | Address::Builders { .. }
                     | Address::Repositories { .. }
+                    | Address::Work { .. }
                     | Address::Goals { .. }
                     | Address::Ask { .. }
                     | Address::Adopt { .. } => continue,
@@ -517,7 +520,8 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
     let mut child = Queue::uncapped();
     let on_tab = match root.pages.address() {
         Address::Settings { .. } => true,
-        Address::Goals { .. }
+        Address::Work { .. }
+        | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Home { .. }
         | Address::Inbox { .. }
@@ -525,6 +529,8 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::NewChat { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges

@@ -595,12 +595,14 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     Address::Inbox { .. } => Some(needs),
                     Address::Chats { .. } | Address::NewChat { .. } | Address::Chat { .. } => Some(b"Chats".as_slice()),
                     Address::Changes { .. } => Some(b"Changes".as_slice()),
-                    Address::Goals { .. } => Some(b"Goals".as_slice()),
+                    Address::Work { .. } | Address::Goals { .. } => Some(b"Goals".as_slice()),
                     Address::Settings { .. }
                     | Address::Models { .. }
                     | Address::Builders { .. }
                     | Address::Repositories { .. }
                     | Address::Ask { .. }
+                    | Address::Members
+                    | Address::Limits
                     | Address::Accounts
                     | Address::ConnectModel { .. }
                     | Address::Forges
@@ -621,7 +623,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 }
                 for style in styles {
                     let links = children(styled(view.tree(), style));
-                    let goals = root.pages().goals().is_some();
+                    let goals = address == (Address::Goals { project: f::PROJECT, filter: GoalsFilter::All });
                     let expected = if goals {
                         vec![b"Home".as_slice(), needs, b"Goals", b"Chats"]
                     } else if style == look::TABBAR {

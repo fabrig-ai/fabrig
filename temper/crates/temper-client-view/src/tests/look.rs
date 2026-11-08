@@ -35,6 +35,8 @@ fn the_looks_names_pass_skeins_check() {
         (CONFIRM_FATES, b"temper-confirm-fates"),
         (CONFIRM_ACTS, b"temper-confirm-acts"),
         (CONFIRM_DO, b"temper-confirm-do"),
+        (skein_ui::Style { owner: crate::frame::owner(), token: 646 }, b"temper-reserved-646"),
+        (skein_ui::Style { owner: crate::frame::owner(), token: 675 }, b"temper-reserved-675"),
     ] {
         assert_eq!(NAMES.style(token), Some(name));
     }

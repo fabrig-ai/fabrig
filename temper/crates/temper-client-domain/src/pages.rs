@@ -57,12 +57,11 @@ pub(crate) enum PlaygroundChoice {
     Idle,
     Waiting,
 }
-// A page reserves its rail reads until me offers Ask temper.
+// The rail waits for me to offer Ask temper.
 #[derive(Clone, Copy, Debug)]
 enum RailHandles {
     None,
     Pending,
-    Reserved(u64),
 }
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent session and page-open flags")]
@@ -915,6 +914,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::Project { project } } => {
             choose_project(pages, client, project);
             match &pages.address {
+                Address::Work { filter, .. } => {
+                    out.push(Request::Show { address: Address::Work { project, filter: *filter } });
+                }
                 Address::Goals { .. } => {
                     out.push(Request::Show { address: Address::Goals { project, filter: crate::GoalsFilter::All } });
                 }
@@ -928,6 +930,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Inbox { .. }
                 | Address::Chats { .. }
                 | Address::NewChat { .. }
+                | Address::Members
+                | Address::Limits
                 | Address::Accounts
                 | Address::Forges
                 | Address::ConnectForge { .. }
@@ -1004,6 +1008,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         && match pages.address {
             Address::Welcome { .. } => false,
             Address::Home { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
             | Address::Inbox { .. }
@@ -1011,6 +1016,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::NewChat { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -1050,13 +1057,17 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         && chats_offered
     {
         chats.configure(me, project, &env.limits, out);
-        if let Address::Chats { .. } = pages.address
+        if let Address::Chats { .. } | Address::Work { .. } | Address::Goals { .. } | Address::Changes { .. } =
+            pages.address
             && let Some(project) = project
         {
             chats.open_documents(project, env.limits.client.domain.rows, out);
         }
     }
-    if let Address::Goals { project, .. } | Address::Home { project } = pages.address
+    if let Address::Work { project, .. }
+    | Address::Goals { project, .. }
+    | Address::Changes { project }
+    | Address::Home { project } = pages.address
         && let Some(goals) = &mut pages.goals
     {
         goals.configure(me, project, client, &env.limits, out);
@@ -1216,11 +1227,10 @@ fn conversation_project(pages: &Pages) -> Option<u32> {
 
 // The rail waits for Ask's offer and keeps the page's existing handles.
 fn prepare_rail_chats(pages: &mut Pages, client: &Client) {
-    let reserved = match pages.rail_handles {
+    match pages.rail_handles {
         RailHandles::None => return,
-        RailHandles::Pending => None,
-        RailHandles::Reserved(first) => Some(first),
-    };
+        RailHandles::Pending => {}
+    }
     if pages.chats.is_some() {
         return;
     }
@@ -1228,20 +1238,18 @@ fn prepare_rail_chats(pages: &mut Pages, client: &Client) {
     if jig_client::shapes::template(me, project, chats::ASKING_TEMPLATE).is_none() {
         return;
     }
-    let mut first = reserved.unwrap_or(pages.next);
-    if reserved.is_none() {
-        if let Some(chat) = &pages.chat {
-            first = first.max(chat.next);
-        }
-        if let Some(task) = &pages.task {
-            first = first.max(task.next);
-        }
-        if let Some(inbox) = &pages.inbox {
-            first = first.max(inbox.next);
-        }
-        if let Some(goals) = &pages.goals {
-            first = first.max(goals.report.number.checked_add(1).expect("goal handles fit"));
-        }
+    let mut first = pages.next;
+    if let Some(chat) = &pages.chat {
+        first = first.max(chat.next);
+    }
+    if let Some(task) = &pages.task {
+        first = first.max(task.next);
+    }
+    if let Some(inbox) = &pages.inbox {
+        first = first.max(inbox.next);
+    }
+    if let Some(goals) = &pages.goals {
+        first = first.max(goals.report.number.checked_add(1).expect("goal handles fit"));
     }
     let next = first.checked_add(4).expect("rail chat handles fit");
     if let Some(chat) = &mut pages.chat {
@@ -1265,16 +1273,19 @@ fn rail_chats(address: &Address) -> bool {
         | Address::Ask { .. }
         | Address::NewChat { .. }
         | Address::Chats { .. }
+        | Address::Work { .. }
+        | Address::Goals { .. }
+        | Address::Changes { .. }
         | Address::Welcome { .. } => false,
         Address::Inbox { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
-        | Address::Goals { .. }
-        | Address::Changes { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
@@ -1327,11 +1338,13 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         pages.address = address;
         return;
     }
-    if let (Address::Goals { project: current, .. }, Address::Goals { project, filter }, Some(page)) =
-        (&pages.address, &address, &mut pages.goals)
+    if let (Some(current), Some(project)) = (work_project(&pages.address), work_project(&address))
         && current == project
+        && let Some(page) = &mut pages.goals
     {
-        page.filter = *filter;
+        if let Address::Goals { filter, .. } = address {
+            page.filter = filter;
+        }
         pages.address = address;
         return;
     }
@@ -1365,6 +1378,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -1372,6 +1387,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Welcome { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Home { .. }
             | Address::Changes { .. }
@@ -1426,15 +1442,17 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         leave_conversations(pages, out);
         pages.rail_handles = if rail_chats(&address) { RailHandles::Pending } else { RailHandles::None };
-        if let Address::Changes { .. } = address {
-            // Changes owns a growing range; the rail reserves the preceding handles.
-            pages.rail_handles = RailHandles::Reserved(pages.next);
-            pages.next = pages.next.checked_add(4).expect("rail chat handles fit");
-        }
-        if let Address::Goals { filter, .. } = address {
+        if let Some(project) = work_project(&address) {
+            // Goals and chats precede Changes' growing range, including the rail's chats.
             let mut page = goals::Goals::new(pages.next);
-            page.filter = filter;
+            if let Address::Goals { filter, .. } = address {
+                page.filter = filter;
+            }
             pages.goals = Some(page);
+            pages.next = pages.next.checked_add(4).expect("goal handles fit");
+            pages.chats = Some(chats::Chats::new(pages.next));
+            pages.next = pages.next.checked_add(4).expect("rail chat handles fit");
+            pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
         }
         if let Address::Task { task } = address {
             pages.task = Some(task::Task::new(task, pages.next, &env.limits, out));
@@ -1449,9 +1467,6 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Address::Ask { project } = address {
             pages.stock_ways =
                 Some(crate::forge::stock_ways::StockWays::new(project, &mut pages.next, env.limits.forge, out));
-        }
-        if let Address::Changes { project } = address {
-            pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
         }
         if let Address::Home { project } = address {
             pages.home = Some(home::Home::new(project, pages.next, env.limits.forge, out));
@@ -1490,6 +1505,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -1497,6 +1514,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Welcome { .. }
             | Address::Chat { .. }
             | Address::Task { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Home { .. }
             | Address::Changes { .. }
@@ -1965,9 +1983,19 @@ fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contra
     }
 }
 
+// Work's filters keep the three page reads together (temper/docs/design/client/README.md, 3.5).
+fn work_project(address: &Address) -> Option<u32> {
+    if let Address::Work { project, .. } | Address::Goals { project, .. } | Address::Changes { project } = address {
+        Some(*project)
+    } else {
+        None
+    }
+}
+
 fn address_project(address: &Address) -> Option<u32> {
     match address {
         Address::Home { project }
+        | Address::Work { project, .. }
         | Address::Goals { project, .. }
         | Address::Changes { project }
         | Address::Settings { project }
@@ -1978,6 +2006,8 @@ fn address_project(address: &Address) -> Option<u32> {
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -2179,6 +2209,8 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -2186,6 +2218,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Home { .. }
         | Address::Changes { .. }

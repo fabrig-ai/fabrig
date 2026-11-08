@@ -1299,13 +1299,14 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::Inbox { .. } => ("inbox", None),
-        Address::Accounts => ("accounts", None),
+        Address::Members | Address::Limits | Address::Accounts => ("accounts", None),
         Address::ConnectModel { .. } => ("connect-model", None),
         Address::Welcome { .. } => ("welcome", None),
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Goals { .. }
+        Address::Work { .. }
+        | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
@@ -1328,6 +1329,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
@@ -1350,6 +1353,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => String::new(),

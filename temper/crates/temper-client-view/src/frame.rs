@@ -721,6 +721,8 @@ fn shown(root: &Domain, project: u32) -> Shown {
         Address::Chats { .. } | Address::NewChat { .. } => (false, false, true),
         Address::Chat { .. } => (false, false, !crate::pages::chat::asking(root)),
         Address::Task { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
@@ -731,6 +733,7 @@ fn shown(root: &Domain, project: u32) -> Shown {
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Welcome { .. } => (false, false, false),
@@ -848,6 +851,8 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
@@ -855,6 +860,7 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::Adopt { .. } => true,
         Address::Chat { .. }
         | Address::Ask { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Home { .. }
