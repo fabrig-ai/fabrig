@@ -221,10 +221,15 @@ pub fn answer(answer: &Answered, limits: &super::Limits) -> Option<SetUpAnswer> 
 /// Invalid documents are refused by the watch's owner, which unwatches its handle.
 #[must_use]
 pub fn rows(record: &Family, limits: &super::Limits) -> Option<Box<[Row]>> {
+    let (rows, _) = decoded(record, *limits)?;
+    Some(rows)
+}
+
+fn decoded(record: &Family, limits: super::Limits) -> Option<(Box<[Row]>, bool)> {
     if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
         return None;
     }
-    family::forges(&record.bytes, &wire_limits(limits)?)
+    family::forges_document(&record.bytes, &wire_limits(&limits)?)
 }
 
 /// The session keeps an ended watch until the next sign-in (client/README.md, 4.6).
@@ -735,6 +740,7 @@ pub(crate) fn configure(side: &mut super::Side, limits: super::Limits, out: &mut
             out.push(super::Request::Client { asked: jig_client::Event::Unwatch { handle: handle() } });
         }
         side.forges = State::Unknown;
+        side.linked = None;
         if side.link == Link::SignedOut {
             side.set_up = None;
             side.setup_form.making = None;
@@ -884,7 +890,7 @@ pub(crate) fn told(
     limits: super::Limits,
     out: &mut skein_lib::Queue<super::Request>,
 ) -> bool {
-    use jig_client::{Latest, Outcome, Progress, Told};
+    use jig_client::{Outcome, Progress, Told};
     if super::replace::told(side, client, value, limits) {
         return true;
     }
@@ -897,24 +903,11 @@ pub(crate) fn told(
     }
     match value {
         Told::Changed { handle: changed } if *changed == handle() => {
-            side.forges = match client.document(*changed) {
-                Some(document) if document.state == jig_client::State::Ended => State::Ended,
-                Some(document) => match document.latest {
-                    Some(Latest::Family(record)) => match rows(record, &limits) {
-                        Some(rows) => State::Rows(rows),
-                        None => State::Ended,
-                    },
-                    Some(Latest::Jig(_)) => State::Ended,
-                    None => State::Unknown,
-                },
-                None => State::Unknown,
-            };
-            if let State::Ended = side.forges {
-                end(side, out);
-            }
+            delivered(side, client, *changed, limits, out);
         }
         Told::Ended { handle: ended, .. } if *ended == handle() => {
             side.forges = State::Ended;
+            side.linked = None;
             end(side, out);
         }
         Told::Pending { key } if setup_key(side, *key) => {
@@ -977,6 +970,55 @@ pub(crate) fn told(
     super::replace::stopped(side);
     side.changed();
     true
+}
+fn delivered(
+    side: &mut super::Side,
+    client: &jig_client::Client,
+    handle: jig_client::Handle,
+    limits: super::Limits,
+    out: &mut skein_lib::Queue<super::Request>,
+) {
+    use jig_client::Latest;
+    let before = fake_row(&side.forges);
+    side.linked = None;
+    side.forges = match client.document(handle) {
+        Some(document) if document.state == jig_client::State::Ended => State::Ended,
+        Some(document) => match document.latest {
+            Some(Latest::Family(record)) => match decoded(record, limits) {
+                Some((rows, linked)) => {
+                    side.linked = Some(linked);
+                    State::Rows(rows)
+                }
+                None => State::Ended,
+            },
+            Some(Latest::Jig(_)) => State::Ended,
+            None => State::Unknown,
+        },
+        None => State::Unknown,
+    };
+    if let Some(before) = before
+        && let Some(after) = fake_row(&side.forges)
+        && before != after
+    {
+        super::playground::read(side, out);
+    }
+    if let State::Ended = side.forges {
+        end(side, out);
+    }
+}
+/// Only two delivered documents can reveal a gained or lost fake row (client/README.md, 4.8).
+fn fake_row(state: &State) -> Option<bool> {
+    match state {
+        State::Unknown | State::Ended => None,
+        State::Rows(rows) => {
+            for row in rows {
+                if row.mode == Mode::Fake {
+                    return Some(true);
+                }
+            }
+            Some(false)
+        }
+    }
 }
 fn setup_key(side: &super::Side, key: jig_client::Key) -> bool {
     let Some(last) = &side.set_up else { return false };
