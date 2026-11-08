@@ -73,7 +73,7 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
         text_per_node: field.max(line),
         text_bytes: signing
             .max(launchpad.checked_add(own)?.checked_add(foot_text)?.checked_add(line.checked_mul(note_lines)?)?),
-        styles_per_node: 1,
+        styles_per_node: 2,
         patches: nodes.checked_mul(4)?,
         bindings: 14,
         ..skein_ui::Limits::EMPTY

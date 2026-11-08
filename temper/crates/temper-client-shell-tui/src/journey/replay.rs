@@ -108,6 +108,8 @@ impl Replay {
                 | Line::Seed(_)
                 | Line::Clocks { .. }
                 | Line::Screen { .. }
+                | Line::Background(_)
+                | Line::Box
                 | Line::Local
                 | Line::Noted(_)
                 | Line::Address(_)
@@ -203,6 +205,8 @@ impl Replay {
             | Line::Seed(_)
             | Line::Clocks { .. }
             | Line::Screen { .. }
+            | Line::Background(_)
+            | Line::Box
             | Line::Local
             | Line::Noted(_)
             | Line::Address(_)
@@ -247,7 +251,7 @@ fn text(line: &Line) -> Box<[u8]> {
     bytes.into()
 }
 
-fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
+pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2" };
     let mut at = 0;
     if lines.get(at) != Some(&Line::Journey { version: 2 }) {
@@ -266,12 +270,22 @@ fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
         return Err(error(at));
     };
     at += 1;
+    let background = if let Some(Line::Background(rgb)) = lines.get(at) {
+        at += 1;
+        Some(*rgb)
+    } else {
+        None
+    };
     let Some(Line::Address(address)) = lines.get(at) else {
         return Err(error(at));
     };
     at += 1;
     let local = lines.get(at) == Some(&Line::Local);
     if local {
+        at += 1;
+    }
+    let boxed = lines.get(at) == Some(&Line::Box);
+    if boxed {
         at += 1;
     }
     let mut kept = Vec::new();
@@ -298,6 +312,8 @@ fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
             wall: *wall,
             size: *size,
             scheme: *scheme,
+            background,
+            boxed,
             address: address.clone(),
             local,
             note,
@@ -397,6 +413,8 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Seed(_)
             | Line::Clocks { .. }
             | Line::Screen { .. }
+            | Line::Background(_)
+            | Line::Box
             | Line::Local
             | Line::Noted(_)
             | Line::Address(_)

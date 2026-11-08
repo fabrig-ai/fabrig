@@ -3,7 +3,7 @@ use crate::limits::{self, Limits};
 use jig_client::{Link, Message, With};
 use skein_lib::{Duration, Env, List, Queue, Secret, Set, Time, Token, Wall};
 use skein_ui::Patch;
-use skein_ui_screen::{Cell, Focus, Frame, Size, Theme};
+use skein_ui_screen::{Cell, Focus, Frame, Rgb, Size, Theme};
 use skein_ui_screen_terminal::{Command, Key, command};
 use temper_client_domain::{
     self as root, Address, Event, Place,
@@ -36,8 +36,10 @@ enum Phase {
 pub struct Start {
     pub size: Size,
     pub scheme: tui::Scheme,
+    pub background: Option<Rgb>,
     pub address: Box<[u8]>,
     pub local: bool,
+    pub boxed: bool,
     pub kept: Vec<jig_client::Record>,
     pub credential: Option<Secret>,
     pub note: Option<tui::Note>,
@@ -83,6 +85,8 @@ pub struct Host {
     bounds: skein_ui::Limits,
     theme: Theme,
     size: Size,
+    background: Option<Rgb>,
+    boxed: bool,
     focus: Focus,
     frame: Frame,
     mapping: jig_client_protocol_http::Mapping,
@@ -114,8 +118,10 @@ impl Host {
             out: Queue::uncapped(),
             patches: Queue::with_capacity(limits.view.patches),
             bounds: limits.view,
-            theme: tui::theme(tui::Scheme::Dark),
+            theme: tui::theme(tui::Scheme::Dark, None),
             size: Size { rows: 0, columns: 0 },
+            background: None,
+            boxed: false,
             focus: Focus::default(),
             frame: Frame::new(limits.most),
             mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
@@ -137,6 +143,7 @@ impl Host {
         self.env.wall = wall;
     }
 
+    #[expect(clippy::too_many_lines, reason = "one report follows the host seam through its ordered duties")]
     pub fn report(&mut self, report: Report) -> Duties {
         if self.state.is_none() {
             assert!(matches!(report, Report::Start(_)), "a report before the TUI's start");
@@ -159,20 +166,26 @@ impl Host {
                     duties.local = true;
                 }
             }
-            Report::Key(key) => match command(&key, self.view.tree(), &mut self.focus, &self.bounds) {
-                Command::Act { node, act } => {
-                    if let Some(event) = tui::event(&self.view, node, act) {
-                        self.event(event, &mut duties);
+            Report::Key(key) => {
+                if let Some(event) = self.arrow(&key) {
+                    self.event(event, &mut duties);
+                } else {
+                    match command(&key, self.view.tree(), &mut self.focus, &self.bounds) {
+                        Command::Act { node, act } => {
+                            if let Some(event) = tui::event(&self.view, node, act) {
+                                self.event(event, &mut duties);
+                            }
+                        }
+                        Command::Close => self.close(&mut duties),
+                        Command::Nothing if key == Key::Escape => {
+                            if let Some(event) = tui::escape(&self.view) {
+                                self.event(event, &mut duties);
+                            }
+                        }
+                        Command::Moved | Command::Nothing => {}
                     }
                 }
-                Command::Close => self.close(&mut duties),
-                Command::Nothing if key == Key::Escape => {
-                    if let Some(event) = tui::escape(&self.view) {
-                        self.event(event, &mut duties);
-                    }
-                }
-                Command::Moved | Command::Nothing => {}
-            },
+            }
             Report::Resize(size) => {
                 self.size = size;
                 self.tell(Told::Size { columns: size.columns });
@@ -191,10 +204,13 @@ impl Host {
         {
             self.tell(Told::Aside { object: None });
         }
-        self.theme = tui::theme(match self.root.pages().look().theme {
-            terminal::Theme::Dark => tui::Scheme::Dark,
-            terminal::Theme::Light => tui::Scheme::Light,
-        });
+        self.theme = tui::theme(
+            match self.root.pages().look().theme {
+                terminal::Theme::Dark => tui::Scheme::Dark,
+                terminal::Theme::Light => tui::Scheme::Light,
+            },
+            self.background,
+        );
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
@@ -242,6 +258,11 @@ impl Host {
         assert!(self.state.is_none(), "the TUI starts once");
         self.state = Some(tui::Tui::new(&start.address));
         self.size = start.size;
+        self.background = start.background;
+        self.boxed = start.boxed;
+        if self.boxed {
+            self.tell(Told::Boxed);
+        }
         self.tell(Told::Size { columns: start.size.columns });
         self.credential.clone_from(&start.credential);
         self.local = start.local;
@@ -357,6 +378,7 @@ impl Host {
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
         } else if self.root.pages().chats().is_some() {
+            self.tell(Told::LeftOff { task: None });
             self.act(Act::ChatWords { words: value });
         } else {
             self.tell(Told::CommandWords { value });
@@ -366,6 +388,7 @@ impl Host {
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
         match event {
             tui::Event::Typed { value } => self.typed(value),
+            tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
                 self.ask();
             }
@@ -643,11 +666,24 @@ impl Host {
 
     #[must_use]
     pub fn event_of(&self, key: &Key) -> Option<tui::Event> {
+        if let Some(event) = self.arrow(key) {
+            return Some(event);
+        }
         let mut focus = self.focus;
         match command(key, self.view.tree(), &mut focus, &self.bounds) {
             Command::Act { node, act } => tui::event(&self.view, node, act),
             Command::Nothing if *key == Key::Escape => tui::escape(&self.view),
             Command::Moved | Command::Close | Command::Nothing => None,
+        }
+    }
+
+    fn arrow(&self, key: &Key) -> Option<tui::Event> {
+        if *key == Key::Up {
+            tui::arrow(&self.view, tui::Arrow::Up)
+        } else if *key == Key::Down {
+            tui::arrow(&self.view, tui::Arrow::Down)
+        } else {
+            None
         }
     }
 

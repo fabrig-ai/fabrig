@@ -3,7 +3,7 @@ use super::*;
 use crate::host::{Duties, Host, Report};
 use jig_client::{Message, Request};
 use skein_lib::{Secret, Time, Token, Wall};
-use skein_ui_screen::Size;
+use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
 use temper_client_tui::Scheme;
 
@@ -14,6 +14,8 @@ fn facts() -> Facts {
         wall: Wall::EPOCH,
         size: Size { rows: 12, columns: 48 },
         scheme: Scheme::Dark,
+        background: None,
+        boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
         local: false,
         note: None,
@@ -302,30 +304,57 @@ fn signed_in() -> Box<[u8]> {
 
 #[test]
 fn facts_and_only_kept_turns_have_ordered_lines() {
-    let mut facts = facts();
-    facts.scheme = Scheme::Light;
-    facts
-        .kept
-        .push(jig_client::Record { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() });
-    facts.credential = Some(credential());
-    let (mut host, _) = facts.start();
-    let mut recorder = Recorder::new(&facts);
-    recorder.turn(Time::from_nanos(10), Wall::from_nanos(20));
-    recorder.deadline(None);
-    let file = recorder.save(&mut host);
-    let records = lines(&file).expect("facts");
-    let expected = vec![
-        Line::Journey { version: 2 },
-        Line::Seed(7),
-        Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
-        Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Scheme::Light },
-        Line::Address(b"127.0.0.1:8367".as_slice().into()),
-        Line::Stored { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() },
-        Line::Credential(credential().into_exposed()),
-        Line::End(Some(host.frame().print())),
-    ];
-    assert!(records == expected, "facts ordered, idle turn omitted");
-    assert!(prove(&file).is_ok());
+    for (background, boxed, local) in [
+        (None, false, false),
+        (None, true, false),
+        (Some(Rgb { red: 0, green: 43, blue: 54 }), false, false),
+        (Some(Rgb { red: 0, green: 43, blue: 54 }), true, true),
+        (Some(Rgb { red: 255, green: 246, blue: 227 }), true, false),
+    ] {
+        let mut facts = facts();
+        facts.background = background;
+        facts.boxed = boxed;
+        facts.local = local;
+        facts.scheme = Scheme::Light;
+        facts
+            .kept
+            .push(jig_client::Record { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() });
+        facts.credential = Some(credential());
+        let (mut host, _) = facts.start();
+        let mut recorder = Recorder::new(&facts);
+        recorder.turn(Time::from_nanos(10), Wall::from_nanos(20));
+        recorder.deadline(None);
+        let file = recorder.save(&mut host);
+        let records = lines(&file).expect("facts");
+        let mut expected = vec![
+            Line::Journey { version: 2 },
+            Line::Seed(7),
+            Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
+            Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Scheme::Light },
+            Line::Address(b"127.0.0.1:8367".as_slice().into()),
+            Line::Stored { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() },
+            Line::Credential(credential().into_exposed()),
+            Line::End(Some(host.frame().print())),
+        ];
+        if let Some(rgb) = background {
+            expected.insert(4, Line::Background(rgb));
+        }
+        let mut at = if background.is_some() { 6 } else { 5 };
+        if local {
+            expected.insert(at, Line::Local);
+            at += 1;
+        }
+        if boxed {
+            expected.insert(at, Line::Box);
+        }
+        assert!(records == expected, "facts ordered, idle turn omitted");
+        let (read, _) = replay::facts(&records).expect("read start facts");
+        let (_, Report::Start(start)) = read.start() else { panic!("start report") };
+        assert_eq!(start.background, background);
+        assert_eq!(start.boxed, boxed);
+        assert_eq!(start.local, local);
+        assert!(prove(&file).is_ok());
+    }
 }
 
 #[test]
@@ -603,6 +632,10 @@ fn local_records_are_refused_outside_their_places() {
         [head, vec![Line::Local, Line::Credential(Box::new([])), Line::Noted(Note::SignedOut)], tail].concat();
     assert!(Replay::new(&written(&canonical)).is_ok(), "ordered optional facts and duties");
     let rows = [
+        ("background after address", 5, Line::Background(Rgb { red: 0, green: 43, blue: 54 })),
+        ("background among reports", 10, Line::Background(Rgb { red: 0, green: 43, blue: 54 })),
+        ("box before local", 5, Line::Box),
+        ("box among reports", 10, Line::Box),
         ("local before address", 4, Line::Local),
         ("local after credential", 7, Line::Local),
         ("noted before credential", 6, Line::Noted(Note::SignedOut)),

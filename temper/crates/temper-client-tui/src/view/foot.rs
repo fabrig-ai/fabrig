@@ -1,12 +1,15 @@
 //! The composer, quiet line and lists (temper/docs/design/client/README.md, 6.14, The foot).
-use super::{Binds, text};
+use super::{Binds, chat as conversation, text};
 use crate::{
     Event, Local, Tui, look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
 use jig_client::Link;
-use skein_lib::{Wall, bytes::copy_of};
+use skein_lib::{
+    Wall,
+    bytes::{concat, copy_of},
+};
 use skein_ui::{Binding, Builder, Role, State, Style, phrases::Hole};
 use temper_client_domain::{
     Domain,
@@ -23,6 +26,7 @@ pub(crate) use notes::{Notes, draw_notes, read_notes};
 
 #[derive(Debug)]
 pub(crate) struct Foot {
+    pub rule: Option<Rule>,
     pub state: Box<[u8]>,
     pub style: Style,
     pub composer: Option<Composer>,
@@ -32,6 +36,13 @@ pub(crate) struct Foot {
     pub closed: Option<Box<[u8]>>,
     pub columns: u16,
     pub list: Option<Options>,
+}
+#[derive(Debug)]
+pub(crate) struct Rule {
+    pub project: Box<[u8]>,
+    pub title: Box<[u8]>,
+    pub task: u64,
+    pub place: Box<[u8]>,
 }
 #[derive(Debug)]
 pub(crate) struct Composer {
@@ -113,7 +124,28 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
     };
     let signing_in = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
     let list = if signing_in { None } else { lists::read(root, tui, words, &value) };
+    let rule = match (chat, task) {
+        (Some(chat), Some(task)) => {
+            let mut project = Box::default();
+            if let Some(me) = root.pages().me(root.client()) {
+                for item in &me.projects {
+                    if item.project == task.project {
+                        project = copy_of(item.name.bytes());
+                        break;
+                    }
+                }
+            }
+            Some(Rule {
+                project,
+                title: conversation::cut(&shared::heading(task.chip.title.bytes()), words),
+                task: chat.task,
+                place: crate::place(tui.address(), tui.boxed()),
+            })
+        }
+        (Some(_), None) | (None, Some(_) | None) => None,
+    };
     Foot {
+        rule,
         state: words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))]),
         style,
         composer: if signing_in {
@@ -151,6 +183,36 @@ fn width(bytes: &[u8]) -> u32 {
         columns = columns.saturating_add(u32::from(skein_ui_screen::width(character)));
     }
     columns
+}
+fn rule(b: &mut Builder, part: &Foot, words: &Words) {
+    let Some(rule) = &part.rule else { return };
+    let number = concat(&[b" ", &words.view().say(Shared::Chat, &[Hole::Number(rule.task)])]);
+    let between = words.say(Word::Between, &[]);
+    let on = words.say(Word::On, &[]);
+    let title_width = width(&rule.title).saturating_add(width(&number)).saturating_add(6);
+    let project_width = title_width.saturating_add(width(&rule.project)).saturating_add(width(&between));
+    let full_width = project_width.saturating_add(width(&on)).saturating_add(width(&rule.place));
+    let place = part.columns == 0 || full_width <= u32::from(part.columns);
+    let project = part.columns == 0 || project_width <= u32::from(part.columns);
+    b.open(Role::Heading { level: 1 });
+    if project {
+        rule_part(b, &rule.project, look::NAME);
+        rule_part(b, &between, look::FAINT);
+    }
+    rule_part(b, &rule.title, look::NAME);
+    rule_part(b, &number, look::HINT);
+    if place {
+        rule_part(b, &on, look::HINT);
+        rule_part(b, &rule.place, look::ADDRESS);
+    }
+    b.close();
+}
+fn rule_part(b: &mut Builder, bytes: &[u8], paint: Style) {
+    b.open(Role::Text);
+    b.style(paint);
+    b.style(look::RULE_TITLE);
+    b.text(skein_ui::Run::Plain, bytes);
+    b.close();
 }
 fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     let separator = words.say(Word::Separator, &[]);
@@ -217,6 +279,7 @@ pub(crate) fn draw(b: &mut Builder, part: &Foot, words: &Words, binds: &mut Bind
     b.open(Role::Form);
     b.open(Role::Region);
     b.region(look::BOX);
+    rule(b, part, words);
     b.open(Role::TextArea);
     b.style(look::FIELD);
     b.name(&composer.name);
