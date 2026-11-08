@@ -249,19 +249,20 @@ impl Home {
     pub(super) fn keep_copy(&mut self, key: Key) {
         self.copies.push(key).expect("internal copy keys");
     }
-    fn configured(&self, client: &Client) -> bool {
-        let Some(document) = client.document(self.settings) else { return false };
-        if document.state == jig_client::State::Ended {
-            return false;
-        }
-        let Some(Latest::Jig(c::Delivery::Settings(settings))) = document.latest else { return false };
-        for line in &settings.settings {
-            if line.follows == c::SettingFollows::Change {
-                return true;
-            }
-        }
-        false
+}
+
+fn configured(client: &Client) -> bool {
+    let Some(document) = client.document(forge::ways::handle()) else { return false };
+    if document.state == jig_client::State::Ended {
+        return false;
     }
+    let Some(Latest::Jig(c::Delivery::Settings(settings))) = document.latest else { return false };
+    for line in &settings.settings {
+        if line.follows == c::SettingFollows::Change {
+            return true;
+        }
+    }
+    false
 }
 
 /// Home's away intro and decision rows (client/README.md, 3.5, Away).
@@ -592,11 +593,9 @@ pub enum Skip {
 
 /// The facts Home draws (temper/docs/design/client/README.md, 3.5, Home).
 #[derive(Debug, PartialEq, Eq)]
-#[expect(clippy::struct_excessive_bools, reason = "Home exposes the independent facts of To begin's contract")]
 pub struct Facts {
     pub configured: bool,
     pub repository: Repository,
-    pub chat_asked: bool,
     pub needs: Needs,
     pub delivered: bool,
     pub skip: Skip,
@@ -704,7 +703,7 @@ impl Facts {
         self.delivered && self.skip == Skip::NotSkipped && self.left() > 0
     }
 
-    /// The steps left: step 2 counts unless its repositories are in.
+    /// The two steps left: step 1 counts unless its repositories are in.
     #[must_use]
     pub fn left(&self) -> u8 {
         let repository = match self.repository {
@@ -718,35 +717,32 @@ impl Facts {
             | Repository::Add { .. }
             | Repository::None => true,
         };
-        u8::from(!self.configured)
-            .checked_add(u8::from(repository))
-            .expect("three steps fit")
-            .checked_add(u8::from(!self.chat_asked))
-            .expect("three steps fit")
+        u8::from(!self.configured).checked_add(u8::from(repository)).expect("two steps fit")
     }
+}
+/// Whether To begin shows for the rail: on Home and on Ask temper's page alone
+/// (temper/docs/design/client/README.md, 5.3, *While To begin shows*).
+#[must_use]
+pub fn beginning(root: &Domain, project: u32, wall: Wall) -> bool {
+    (root.pages().address() == &(crate::Address::Home { project })
+        || root.pages().address() == &(crate::Address::Ask { project }))
+        && facts(root, project, wall).to_begin()
 }
 #[must_use]
 pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
     let home = if root.pages().address() == &(crate::Address::Home { project }) { root.pages().home() } else { None };
-    let (configuring, chat_asked) = match root.pages().chats() {
+    let configuring = match root.pages().chats() {
         Some(chats) => chats.chat_counts(root.client(), root.pages().me(root.client()), project),
-        None => (false, false),
+        None => false,
     };
-    let configured = configuring
-        || match home {
-            Some(home) => home.configured(root.client()),
-            None => false,
-        };
+    let configured = configuring || configured(root.client());
     let repository = repository(root, project);
     let delivered = repository != Repository::Unknown
         && match root.forges() {
             forge::forges::State::Unknown => false,
             forge::forges::State::Rows(_) | forge::forges::State::Ended => true,
         }
-        && match home {
-            Some(home) => forge::ways::ended(root.forge()) || delivered(root.client(), home.settings),
-            None => false,
-        }
+        && (forge::ways::ended(root.forge()) || delivered(root.client(), forge::ways::handle()))
         && match root.pages().chats() {
             Some(chats) => chats.delivered(root.client(), project),
             None => false,
@@ -775,8 +771,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         Some(home) => home.shown_status(),
         None => Status::Unknown,
     };
-    let mut facts =
-        Facts { configured, repository, chat_asked, needs, delivered, skip, skip_refused, status, away: None };
+    let mut facts = Facts { configured, repository, needs, delivered, skip, skip_refused, status, away: None };
     if !facts.to_begin()
         && let Some(home) = home
     {

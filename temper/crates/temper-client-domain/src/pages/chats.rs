@@ -538,31 +538,28 @@ impl Chats {
         let Some(query) = self.query else { return false };
         query.project == Some(project) && self.page_delivered && super::home::delivered(client, self.live)
     }
-    pub(super) fn chat_counts(&self, client: &Client, me: Option<&Me>, project: u32) -> (bool, bool) {
-        let Some(query) = self.query else { return (false, false) };
+    pub(super) fn chat_counts(&self, client: &Client, me: Option<&Me>, project: u32) -> bool {
+        let Some(query) = self.query else { return false };
         if query.project != Some(project) {
-            return (false, false);
+            return false;
         }
-        let mut counts = (false, false);
+        let mut configuring = false;
         if let Some(document) = client.document(self.live)
             && document.state != jig_client::State::Ended
             && let Some(Latest::Jig(Delivery::Tasks(live))) = document.latest
         {
-            count_rows(&live.rows, me, project, &mut counts);
-            counts.1 |= live.more;
+            count_rows(&live.rows, me, project, &mut configuring);
         }
         if let Some(page) = &self.page {
-            count_rows(&page.live, me, project, &mut counts);
-            counts.1 |= page.live_after.is_some();
+            count_rows(&page.live, me, project, &mut configuring);
             match &page.ended {
-                EndedGroup::Rows { rows, after, .. } => {
-                    count_rows(rows, me, project, &mut counts);
-                    counts.1 |= after.is_some();
+                EndedGroup::Rows { rows, .. } => {
+                    count_rows(rows, me, project, &mut configuring);
                 }
                 EndedGroup::None => {}
             }
         }
-        counts
+        configuring
     }
     /// The person's newest Ask temper chat in the project, not closed
     /// (temper/docs/design/client/README.md, 3.5, Settings).
@@ -609,15 +606,14 @@ pub fn asking(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
     }
 }
 
-fn count_rows(rows: &List<c::TaskLine>, me: Option<&Me>, project: u32, counts: &mut (bool, bool)) {
+fn count_rows(rows: &List<c::TaskLine>, me: Option<&Me>, project: u32, found: &mut bool) {
     for row in rows {
         if row.project == project {
             let configuring = match me {
                 Some(me) => asking(me, project, &row.chip.executor),
                 None => false,
             };
-            counts.0 |= configuring;
-            counts.1 |= !configuring;
+            *found |= configuring;
         }
     }
 }

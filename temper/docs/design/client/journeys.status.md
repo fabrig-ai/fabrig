@@ -44,7 +44,7 @@ a real-box recording remains the person's later work (section 10).
 
 - **Not yet:**
   - 9: the look request `ask-temper-start`'s account is not committed; the plan `look-round-19`'s task `start-account` writes it.
-  - 9: `project-landing`'s `01.html` draws To begin's three steps and the rail's every row, and no print draws the night switch; the plan `look-round-19`'s tasks `two-steps` and `night-switch` reprint them.
+  - 9: no print draws the night switch; the plan `look-round-19`'s task `night-switch` reprints them.
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
   - 3.6: `welcome-set-up` was added before the redaction and keeps its fake box's link secret (3.5), until it is next added, because that request left the journey's files to its owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.

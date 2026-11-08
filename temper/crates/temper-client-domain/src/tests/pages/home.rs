@@ -26,8 +26,7 @@ const INBOX_QUERIES: usize = 2;
 const HOME_HANDLES: u32 = 5;
 // The ordered repository fixture holds three adoptions on its lower forge.
 const REPOSITORIES: u32 = 3;
-// Home has three independently completed steps (client/README.md, 3.5).
-const THREE_STEPS: u8 = 3;
+// Home has two independently completed steps (client/README.md, 3.5).
 const TWO_STEPS: u8 = 2;
 const ONE_STEP: u8 = 1;
 const NO_STEPS: u8 = 0;
@@ -241,24 +240,23 @@ fn refusal() -> jig_client::Outcome {
     }))
 }
 #[test]
-fn the_three_steps_count_only_what_is_left() {
-    for (configured, repository, chat_asked, left) in [
-        (false, Repository::None, false, THREE_STEPS),
-        (true, Repository::None, false, TWO_STEPS),
-        (true, Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() }, false, ONE_STEP),
-        (true, Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() }, true, NO_STEPS),
-        (true, Repository::Unknown, true, ONE_STEP),
-        (true, Repository::Add { forge: FORGE }, true, ONE_STEP),
-        (true, Repository::Adopting(first()), true, ONE_STEP),
-        (true, Repository::Offer { first: first(), refused: None }, true, ONE_STEP),
-        (true, Repository::GitHub { account: None }, true, ONE_STEP),
+fn the_two_steps_count_only_what_is_left() {
+    for (configured, repository, left) in [
+        (false, Repository::None, TWO_STEPS),
+        (true, Repository::None, ONE_STEP),
+        (false, Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() }, ONE_STEP),
+        (true, Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() }, NO_STEPS),
+        (true, Repository::Unknown, ONE_STEP),
+        (true, Repository::Add { forge: FORGE }, ONE_STEP),
+        (true, Repository::Adopting(first()), ONE_STEP),
+        (true, Repository::Offer { first: first(), refused: None }, ONE_STEP),
+        (true, Repository::GitHub { account: None }, ONE_STEP),
     ] {
         assert_eq!(
             Facts {
                 away: None,
                 configured,
                 repository,
-                chat_asked,
                 needs: Needs::Unknown,
                 delivered: true,
                 skip: Skip::NotSkipped,
@@ -474,30 +472,6 @@ fn chat_rows() -> List<c::TaskLine> {
     rows
 }
 #[test]
-fn home_counts_live_and_ended_chats_as_asked() {
-    for ended in [false, true] {
-        let mut f = fixture();
-        assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).chat_asked, "undelivered");
-        if ended {
-            up(
-                &mut f.root,
-                Up::ReadDone {
-                    read: f.closed,
-                    result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
-                        live: List::with_capacity(EMPTY),
-                        live_after: None,
-                        ended: c::EndedGroup::Rows { rows: chat_rows(), after: None, cut: false },
-                    })))),
-                },
-            );
-        } else {
-            deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows: chat_rows(), more: false })));
-        }
-        assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).chat_asked, "ended={ended}");
-        assert!(!home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).chat_asked, "another project's facts");
-    }
-}
-#[test]
 fn another_persons_project_cannot_start_a_configuring_chat() {
     let mut f = fixture();
     event(&mut f.root, Event::Went { place: Place::Address(Address::Ask { project: OTHER_PROJECT }) });
@@ -513,7 +487,6 @@ fn another_persons_project_cannot_start_a_configuring_chat() {
         }
     }
     assert!(!sent, "Configure's address never falls back to another project");
-    assert!(!home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).chat_asked);
 }
 
 #[test]
@@ -704,7 +677,6 @@ fn home_hears_its_chats_and_its_inbox_alike() {
             }
             assert!(pages::shown(f.root.pages()) > before, "both pages redraw Home");
         }
-        assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).chat_asked);
         assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: 0, cut: true });
     }
 }
@@ -793,7 +765,7 @@ fn family_answer(outcome: w::Outcome) -> jig_client::Outcome {
     }))
 }
 #[test]
-fn a_configuring_chat_marks_the_first_step_and_not_the_third() {
+fn a_configuring_chat_marks_the_way_of_working_done() {
     for source in 0..CHAT_SOURCES {
         let mut f = fixture_with_me(configuring_me());
         let mut row = super::chats::chat_line();
@@ -807,12 +779,11 @@ fn a_configuring_chat_marks_the_first_step_and_not_the_third() {
         }
         let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(facts.configured, "source={source}");
-        assert!(!facts.chat_asked, "configuring alone source={source}");
         assert!(!home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).configured);
     }
 }
 #[test]
-fn a_stock_chat_marks_the_third_step_alone() {
+fn a_stock_chat_marks_no_step() {
     for me in [f::chats::me(), configuring_me()] {
         for source in 0..CHAT_SOURCES {
             let mut f = fixture_with_me(me.clone());
@@ -823,7 +794,7 @@ fn a_stock_chat_marks_the_third_step_alone() {
             }
             let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
             assert!(!facts.configured);
-            assert!(facts.chat_asked);
+            assert_eq!(facts.left(), TWO_STEPS);
         }
     }
     let mut chosen = configuring_me();
@@ -847,7 +818,6 @@ fn a_stock_chat_marks_the_third_step_alone() {
         }
         let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(!facts.configured, "a configuring chat past the cut isn't seen");
-        assert!(facts.chat_asked, "a cut counts as another chat");
     }
 }
 #[test]
@@ -874,7 +844,7 @@ fn to_begin_waits_for_every_fact() {
         dismissal_rows(&mut f, &[]);
         let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert!(facts.delivered);
-        assert_eq!(facts.left(), THREE_STEPS);
+        assert_eq!(facts.left(), TWO_STEPS);
         assert!(facts.to_begin());
         up(&mut f.root, Up::WatchEnded { watch: f.dismissed, end: ended });
         assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).skip, Skip::Unknown);
@@ -882,17 +852,62 @@ fn to_begin_waits_for_every_fact() {
     }
     let mut f = fixture_with_me(configuring_me());
     ready(&mut f);
-    let mut rows = chat_rows();
-    rows.get_mut(0).unwrap().chip.executor = c::ChipExecutor::Agent { charter: CONFIGURING };
-    deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false })));
+    let mut chat_lines = chat_rows();
+    chat_lines.get_mut(0).unwrap().chip.executor = c::ChipExecutor::Agent { charter: CONFIGURING };
+    deliver(&mut f.root, f.live, c::Delivery::Tasks(Box::new(c::Tasks { rows: chat_lines, more: false })));
     assert!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured);
     up(&mut f.root, Up::WatchEnded { watch: f.live, end: c::WatchEnd::SubjectEnded });
     assert!(!home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, "ended live read leaves its step");
     let mut facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
     facts.configured = true;
-    facts.chat_asked = true;
     facts.repository = Repository::In { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() };
     assert!(!facts.to_begin(), "nothing left");
+    for (address, skipped, changed, repository_in, beginning) in [
+        (Address::Home { project: f::PROJECT }, false, false, false, true),
+        (Address::Ask { project: f::PROJECT }, false, false, true, true),
+        (Address::Ask { project: f::PROJECT }, true, false, true, false),
+        (Address::Chats { filter: crate::ChatsFilter::All }, false, false, false, false),
+        (Address::Ask { project: f::PROJECT }, false, true, false, true),
+        (Address::Ask { project: f::PROJECT }, false, true, true, false),
+    ] {
+        let mut f = fixture();
+        ready(&mut f);
+        let mut out = event(&mut f.root, Event::Went { place: Place::Address(address.clone()) });
+        while let Some(request) = out.pop() {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
+                match down {
+                    Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { .. }) } => f.live = watch,
+                    Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => f.closed = read,
+                    Down::Close { watch } => {
+                        let mut closed = up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
+                        while let Some(next) = closed.pop() {
+                            out.push(next);
+                        }
+                    }
+                    Down::Save { .. }
+                    | Down::Erase { .. }
+                    | Down::Send { .. }
+                    | Down::Open { .. }
+                    | Down::Continue { .. }
+                    | Down::Read { .. } => {}
+                }
+            }
+        }
+        ready(&mut f);
+        if skipped {
+            dismissal_rows(&mut f, &[f::PROJECT]);
+        }
+        if repository_in {
+            rows(&mut f.root, f.forges, Box::new([adopted(row(FORGE), f::PROJECT, b"hello")]));
+        }
+        settings(&mut f, if changed { c::SettingFollows::Change } else { c::SettingFollows::Default });
+        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).configured, changed, "{address:?}");
+        assert_eq!(
+            home::beginning(&f.root, f::PROJECT, Wall::EPOCH),
+            beginning,
+            "{address:?}, skipped={skipped}, changed={changed}"
+        );
+    }
 }
 fn deliver_fact(f: &mut Fixture, fact: u32) {
     match fact {
@@ -1586,7 +1601,7 @@ fn copy_states_follow_the_intent_before_repository_and_forge_key_order() {
         rows(&mut f.root, f.forges, Box::new([row]));
         let facts = home::facts(&f.root, f::PROJECT, Wall::EPOCH);
         assert_eq!(facts.repository, expected, "{label}");
-        assert_eq!(facts.left(), if label == "all in" { TWO_STEPS } else { THREE_STEPS }, "{label}");
+        assert_eq!(facts.left(), if label == "all in" { ONE_STEP } else { TWO_STEPS }, "{label}");
     }
 }
 #[test]
