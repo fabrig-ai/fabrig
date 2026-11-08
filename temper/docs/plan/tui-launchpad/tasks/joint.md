@@ -3,7 +3,7 @@ id = "joint"
 part = "joint"
 kind = "feature"
 needs = ["host-launchpad", "tui-launchpad", "tui-chat"]
-files = ["temper/tests/client/tests/suite/tui.rs", "temper/tests/client/src/tui.rs", "temper/tests/client/src/front.rs", "temper/tests/client/src/fixtures.rs", "temper/docs/design/client/README.status.md", "temper/docs/design/STATUS.md"]
+files = ["temper/tests/client/tests/suite/tui.rs", "temper/tests/client/src/tui.rs", "temper/tests/client/src/front.rs", "temper/tests/client/src/fixtures.rs", "temper/docs/design/client/README.status.md", "temper/docs/design/STATUS.md", "temper/crates/temper-client-view/src/pages/terminal.rs", "temper/crates/temper-client-view/src/pages/chats.rs", "temper/crates/temper-client-view/src/tests/terminal.rs"]
 effort = "high"
 minutes = 150
 +++
@@ -89,3 +89,22 @@ Acceptance:
 
 As the implementer's text says; the story's steps and what each frame held; any entry of
 the plan left in the status file.
+
+## Answers
+
+2026-11-08. *Should the running line stand while the reply's words stream, and who
+repairs `shared::running`?* Yes, and this task does. The request's frame 03 draws the
+growing answer and "✦ working" together; `temper/docs/design/client/README.md`, 3.5,
+*The running line*, now says so: the line stands while the chat's status is one the
+browser draws working dots for, whether or not the dots stand, so the words being written
+and a call under way keep it. The fix: `pages/terminal.rs`'s `running_words` asks the
+chat's status alone, not `chats::working`, which goes on deciding the browser's dots
+unchanged; split the status test out of `chats::working` in `pages/chats.rs` (a
+`pub(crate) fn active`, `working` its `&& words_not_begun`) rather than copy it. In
+`tests/terminal.rs`, a test beside the running-line one: on a chat at the terminal whose
+last line is provisional text holding words, the running line stands with the bar's
+status words, and the browser's dots do not. Run it by name with `-p temper-client-view
+--lib`, then the view's terminal and chat tests (`-E 'test(/terminal::|chat::/)'`) and
+`shared::`'s, then resume from the pushed commit: the story by name, the TUI stories, the
+mutation check, the status entries. No browser tier: its `chat-terminal-working` page is
+read after landing.
