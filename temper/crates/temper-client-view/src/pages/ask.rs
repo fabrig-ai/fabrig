@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::contract::{InboxGroup, ReadValue, Requester};
-use skein_ui::{Builder, Role, Run, State, phrases::Hole};
+use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     pages::{
@@ -253,38 +253,6 @@ fn when(card: &Card, kind: Word, w: &Words, times: &mut Times) -> Box<[u8]> {
         None => kind,
     }
 }
-pub(crate) fn meta(
-    b: &mut Builder,
-    asked: &Asked<'_>,
-    project: Option<&[u8]>,
-    later: bool,
-    w: &Words,
-    bindings: &mut Bindings,
-    times: &mut Times,
-) {
-    let sep = w.say(Word::ToolSeparator, &[]);
-    let when = match asked.kind {
-        Kind::Funds { .. } => when(asked.card, Word::NeedsKindFunds, w, times),
-        Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => need_when(asked.card, w, times),
-    };
-    let later = if later { w.say(Word::NeedsLaterMeta, &[]) } else { Box::default() };
-    let prefix = match project {
-        Some(project) => crate::accounts::words::join(&[project, &sep]),
-        None => Box::default(),
-    };
-    let suffix = crate::accounts::words::join(&[&sep, &when, &later]);
-    b.open(Role::Paragraph);
-    b.style(look::ASK_META);
-    b.name(&crate::accounts::words::join(&[&prefix, &asked.title, &suffix]));
-    b.text(Run::Plain, &prefix);
-    if let Some(task) = asked.source {
-        link(b, bindings, &asked.title, Address::Task { task });
-    } else {
-        b.text(Run::Plain, &asked.title);
-    }
-    b.text(Run::Plain, &suffix);
-    b.close();
-}
 pub(crate) fn answered_label(w: &Words, label: &needs::Label) -> Box<[u8]> {
     match label {
         needs::Label::Choice(words) => words.clone(),
@@ -336,52 +304,6 @@ pub(crate) fn answered_lines(
         b.close();
     }
 }
-pub(crate) fn reply_form(b: &mut Builder, root: &Domain, asked: &Asked<'_>, w: &Words, bindings: &mut Bindings) {
-    let object = asked.card.object;
-    if !root.pages().needs().replying(object) {
-        return;
-    }
-    let over = match root.pages().me(root.client()) {
-        Some(me) => temper_client_domain::pages::composer::over(
-            match &asked.card.words {
-                Some(words) => words.bytes(),
-                None => b"",
-            },
-            root.pages().needs().reply_beyond,
-            me.words_bytes,
-        ),
-        None => 0,
-    };
-    b.open(Role::Slot);
-    b.style(look::ASK_REPLY);
-    b.open(Role::TextArea);
-    b.name(&w.say(Word::NeedsYourReply, &[]));
-    b.placeholder(&w.say(Word::NeedsPlaceholder, &[Hole::Name(asked.title.clone())]));
-    b.bind(bindings.insert(Act::CardWords { object, words: Box::default() }));
-    b.value(
-        match &asked.card.words {
-            Some(words) => words.bytes(),
-            None => b"",
-        },
-        temper_client_domain::pages::shown(root.pages()),
-    );
-    b.focus(0);
-    b.close();
-    b.open(Role::Slot);
-    b.style(look::ASK_REPLY_ACTS);
-    b.open(Role::Button);
-    b.style(look::RECOMMENDED);
-    b.name(&w.say(Word::NeedsSendReply, &[]));
-    if over != 0 {
-        b.state(State::Disabled);
-    }
-    b.bind(bindings.insert(Act::Needs(needs::Act::SendReply { object })));
-    b.close();
-    button(b, bindings, &w.say(Word::Cancel, &[]), Act::Needs(needs::Act::CancelReply), look::ASK_QUIET);
-    b.close();
-    super::session::over(b, w, over);
-    b.close();
-}
 pub(crate) fn text(b: &mut Builder, role: Role, words: &[u8], style: skein_ui::Style) {
     b.open(role);
     b.style(style);
@@ -428,101 +350,4 @@ fn first_sentence(words: &[u8], fallback: &[u8]) -> Box<[u8]> {
         }
     }
     fallback.into()
-}
-
-/// Home's parsed card and in-place controls (client/README.md, 3.5).
-pub(crate) fn home_body(
-    b: &mut Builder,
-    root: &Domain,
-    asked: &Asked<'_>,
-    w: &Words,
-    bindings: &mut Bindings,
-    rows: u32,
-) {
-    let card = asked.card;
-    let question = match asked.kind {
-        Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
-        Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => asked.short.clone(),
-    };
-    text(b, Role::Paragraph, &question, look::ASK_QUESTION);
-    super::needs::why_line(b, root, w, bindings, needs::Need::Card(card));
-    whole_parts(b, asked, w, bindings);
-    if asked.parsed.is_none()
-        && let Some(page) = &card.page
-    {
-        b.open(Role::Slot);
-        b.style(look::ASK_CONTEXT);
-        if let ReadValue::Escalation(held) = page {
-            crate::cards::specification(b, &held.task.spec, w);
-        }
-        if let ReadValue::PersonTask(task) = page {
-            crate::cards::specification(b, &task.spec, w);
-        }
-        match asked.kind {
-            Kind::Proposal | Kind::Held | Kind::Funds { .. } => {
-                crate::confirm::facts_at(b, page, w, rows, crate::cards::Place::Inbox);
-            }
-            Kind::Question | Kind::PersonTask => {}
-        }
-        b.close();
-    }
-    if let Some(outcome) = root.pages().needs().refused(card.object) {
-        crate::confirm::outcome_words(b, w, outcome);
-    }
-    if card.key.is_some() || card.outcome.is_some() {
-        crate::confirm::card_controls(b, root, card, w, bindings);
-        return;
-    }
-    b.open(Role::Slot);
-    b.style(look::ASK_CHOICES);
-    if let Some(parsed) = &asked.parsed {
-        for (i, choice) in parsed.choices.iter().enumerate() {
-            b.open(Role::Button);
-            b.name(&choice.words);
-            b.bind(
-                bindings.insert(Act::Needs(needs::Act::Choose { object: card.object, words: choice.words.clone() })),
-            );
-            if parsed.primary() == Some(i) {
-                b.style(look::RECOMMENDED);
-            }
-            if choice.recommended {
-                if w.shell == Shell::Terminal {
-                    b.text(Run::Plain, &choice.words);
-                    b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
-                }
-                text(b, Role::Text, &w.say(Word::NeedsRecommended, &[]), look::REC);
-            }
-            b.close();
-        }
-    }
-    match asked.kind {
-        Kind::Question => button(
-            b,
-            bindings,
-            &w.say(Word::Reply, &[]),
-            Act::Needs(needs::Act::OpenReply { object: card.object }),
-            look::ASK_QUIET,
-        ),
-        Kind::Proposal | Kind::Held | Kind::Funds { .. } | Kind::PersonTask => {
-            crate::confirm::needs_controls(b, root, card, w, bindings);
-            if let Some(task) = super::inbox::source_task(card.object) {
-                button(
-                    b,
-                    bindings,
-                    &w.say(Word::HomeOpen, &[]),
-                    Act::Go { address: Address::Task { task } },
-                    look::ASK_QUIET,
-                );
-            }
-        }
-    }
-    button(
-        b,
-        bindings,
-        &w.say(Word::NeedsLater, &[]),
-        Act::Needs(needs::Act::Later { object: card.object }),
-        look::ASK_QUIET,
-    );
-    b.close();
-    reply_form(b, root, asked, w, bindings);
 }

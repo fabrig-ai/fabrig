@@ -65,7 +65,7 @@ or the nearest thing, and says so in that draft's status.
 | | Milestone | Executes | Needs | Owner | Rank | State |
 |---|---|---|---|---|---|---|
 | M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | must | done |
-| P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | must | in flight |
+| P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | must | landed; its repair waits (section 5) |
 | P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | must | in flight |
 | P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `stock-ways.md`, 4 | M0 | temper/ui | must | landed; its repair starts (section 5) |
 | P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | nice | not started |
@@ -78,7 +78,7 @@ or the nearest thing, and says so in that draft's status.
 | P4c | Team: areas and their owners, "Hand an area to a role" and "Talk to it" | `surfaces.md`, 6 | P4b, R2; R3 for "Talk to it" | temper/ui | nice | not started |
 | P5a | The phone, Ask, and Tell temper filing for the project's triager | `surfaces.md`, 9, 10 | P2 | temper/ui | should | not started |
 | P5b | Tell temper's routing to an area's owner | `surfaces.md`, 9 | P5a, R2 | temper/ui | nice | not started |
-| P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | in flight |
+| P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | done |
 | P7 | A change's size on its approval card: its files, additions and deletions at the head reviewed | `surfaces.md`, 4; its entry below | P2 | temper/ui | nice | not started |
 | P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | not started |
 | N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | in flight: `ui-reaches` (`../../plan/ui-reaches/plan.md`) |
@@ -94,7 +94,7 @@ or the nearest thing, and says so in that draft's status.
 | F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | in flight |
 | F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | not started |
 | G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | later | low priority, not for v0.1.0 |
-| T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | not started |
+| T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | landed; its walk follows (`../client/README.md`, 11) |
 | T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | must | not started |
 | T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | nice | not started |
 | E | The whole story on a box, a part for each step (section 4) | `whole-story.md`, 11 | each part, its step's milestones | each owner writes its part of the story | must | not started |
@@ -284,14 +284,15 @@ lands when it's ready.
 
 ## 5. Readiness
 
-As read on 2026-11-08 at 17:14Z, from the areas' work in flight, and
-P3's rows at 19:45Z, as P3a retired. Plans
+As read on 2026-11-08 at 17:14Z, from the areas' work in flight,
+P3's rows at 19:45Z, as P3a retired, P6's at 22:21Z, as it retired, and
+P1's and P8's at 22:55Z, as P1 retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
 |---|---|---|
 | M0 | done | |
-| P1 | in flight | `ui-p1-rail` |
+| P1 | landed; its repair waits | `ui-p1-rail` drew the rail as this draft stood at its cut; a repair draws To begin's rail with its hairline and "How work runs", turns the words that still send a person to Settings, and takes the phone's "Needs" and Away across projects (`surfaces.status.md`, 2 and 10); Team in the rail waits for a read of a project's members or roles (P4a), and Needs you's count across projects for P2 |
 | P2 | in flight | `ui-p2-home` |
 | P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes; its repair draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles (`surfaces.status.md`, 7 and 13) |
 | P3b, P3c, P3d | wait | N1, N2 or F1 and R1, by their needs |
@@ -300,9 +301,9 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
 | P5a | waits | P2, by its needs |
 | P5b | waits | P5a and R2, by its needs |
-| P6 | in flight | `ui-drafter` |
+| P6 | done | |
 | P7 | waits | P2 |
-| P8 | waits | P1 and P6 |
+| P8 | starts | |
 | N1 | in flight | `ui-reaches` |
 | N2 | waits | N1, by its needs |
 | N3a, N3b | wait | N1, by their needs |
@@ -314,11 +315,12 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | F2 | waits | F1, by its needs |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
-| T2 | waits | T1 and P6, by its needs; finding-465's repair, a chat losing its opening question |
+| T2 | waits | T1, by its needs; finding-465's repair, a chat losing its opening question |
 | T3 | waits | T1, R2 and R3, by its needs |
 | E | part by part | each part, its step's milestones |
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
 - **Next to start:** P4a now, as temper/ui's places allow; P3a's
-  repair, P3e and P3f; T1 when `tui-box-front` does.
+  repair, P3e and P3f; T2, whose needs have landed: T1 by
+  `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair.

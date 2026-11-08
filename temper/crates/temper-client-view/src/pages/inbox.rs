@@ -122,6 +122,7 @@ pub(crate) fn main(
             b.close();
         }
     }
+    super::needs::decided(b, root, words, bindings, times);
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
 }

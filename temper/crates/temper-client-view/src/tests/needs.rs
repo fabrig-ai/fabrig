@@ -28,7 +28,7 @@ fn object(message: u64) -> c::ObjectKey {
 fn event(root: &mut d::Domain, event: Event, out: &mut Queue<d::Request>) {
     d::step(root, &Env { now: Time::ZERO, wall: f::NOW, limits: limits() }, event, out);
 }
-fn fixture(words: &str, cut: bool, count: u32, more: bool, filter: d::address::Filter) -> d::Domain {
+pub(super) fn fixture(words: &str, cut: bool, count: u32, more: bool, filter: d::address::Filter) -> d::Domain {
     fixture_title(words, cut, count, more, filter, None)
 }
 fn fixture_title(
@@ -120,9 +120,19 @@ fn fixture_classes_role(
             decided = Some(*watch);
         }
     }
+    for request in &opening {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = request
+            && Some(subject) == d::forge::decided::watch(f::SECOND_PROJECT, &limits().forge).as_ref()
+        {
+            deliver_asked_for(&mut root, *watch, f::SECOND_PROJECT, None);
+        }
+    }
     let mut entries = List::with_capacity(count);
     for message in 1..=u64::from(count) {
-        entries.push(documents::entry(object(message), f::PROJECT, message, Wall::EPOCH, None)).unwrap();
+        let project = if filter.project.is_none() && message == 2 { f::SECOND_PROJECT } else { f::PROJECT };
+        entries.push(documents::entry(object(message), project, message, Wall::EPOCH, None)).unwrap();
     }
     let mut out = Queue::uncapped();
     event(
@@ -218,6 +228,14 @@ fn fixture_classes_role(
     (root, watch, decided.unwrap())
 }
 fn deliver_asked(root: &mut d::Domain, watch: skein_lib::Token, reach: Option<temper_protocol_reaches::Reach>) {
+    deliver_asked_for(root, watch, f::PROJECT, reach);
+}
+fn deliver_asked_for(
+    root: &mut d::Domain,
+    watch: skein_lib::Token,
+    project: u32,
+    reach: Option<temper_protocol_reaches::Reach>,
+) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let mut asked = List::with_capacity(1);
     if let Some(reach) = reach {
@@ -236,11 +254,9 @@ fn deliver_asked(root: &mut d::Domain, watch: skein_lib::Token, reach: Option<te
             )
             .unwrap();
     }
-    let document = w::Decisions::new(
-        &w::CEILINGS,
-        w::DecisionsParts { project: f::PROJECT, rows: List::with_capacity(0), asked, cut: false },
-    )
-    .unwrap();
+    let document =
+        w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows: List::with_capacity(0), asked, cut: false })
+            .unwrap();
     event(
         root,
         Event::Client {
@@ -326,7 +342,12 @@ fn main(view: &crate::View) -> &[skein_ui::Node] {
     &nodes[i..i.checked_add(usize::try_from(nodes[i].size).unwrap()).unwrap()]
 }
 fn styled(view: &crate::View, style: skein_ui::Style) -> &skein_ui::Node {
-    main(view).iter().find(|n| n.styles.as_slice().contains(&style)).expect("styled part")
+    let nodes = main(view);
+    if style == look::ASK_META {
+        let start = nodes.iter().position(|n| n.styles.as_slice().contains(&look::ASK)).unwrap();
+        return nodes[start..].iter().find(|n| n.styles.as_slice().contains(&style)).expect("card part");
+    }
+    nodes.iter().find(|n| n.styles.as_slice().contains(&style)).expect("styled part")
 }
 fn press(view: &mut crate::View, name: &[u8]) -> d::Action {
     let node = f::find(view.tree(), Role::Button, name).expect("button");
@@ -346,16 +367,23 @@ fn home_parts(root: &d::Domain, object: c::ObjectKey) {
     };
     assert_eq!(crate::pages::ask::card_kind(card), crate::words::Word::HomeQuestion);
     let words = f::browser_words();
-    let asked = crate::pages::ask::read(card, &words);
     let mut builder = skein_ui::Builder::new(&f::tree_limits());
     let mut bindings = crate::frame::Bindings::new(128);
-    crate::pages::ask::home_body(&mut builder, root, &asked, &words, &mut bindings, 4);
+    crate::pages::home_cards::cards(
+        &mut builder,
+        root,
+        &[needs::Need::Card(card)],
+        false,
+        &words,
+        &mut bindings,
+        &mut crate::words::Times::new(f::NOW),
+    );
     let home = builder.finish();
     let text = f::text(&home);
     for words in [b"MakeProject answers".as_slice(), b"The box test reproduces"] {
-        assert!(skein_lib::bytes::find(&text, words).is_some());
+        assert!(skein_lib::bytes::find(&text, words).is_none());
     }
-    for name in ["In jig’s store".as_bytes(), b"In temper serve", b"Reply", b"Later"] {
+    for name in ["In jig’s store".as_bytes(), b"In temper serve", b"Tell it something else"] {
         assert!(f::find(&home, Role::Button, name).is_some());
     }
     let choice = home
@@ -403,7 +431,7 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             look::ASK_CONTEXT,
             look::ASK_SAW,
             look::ASK_CHOICES,
-            look::PAIR,
+            look::NEED_TELL,
             look::NEXT_UP,
         ];
         let order: Vec<_> =
@@ -448,8 +476,10 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             press(&mut view, b"In temper serve"),
             expected(needs::Act::Choose { object, words: b"In temper serve".as_slice().into() })
         );
-        assert_eq!(press(&mut view, "Reply…".as_bytes()), expected(needs::Act::OpenReply { object }));
-        assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+        for name in ["Reply…".as_bytes(), b"Later"] {
+            assert!(f::find(view.tree(), Role::Button, name).is_none());
+        }
+        assert!(f::find(view.tree(), Role::TextArea, b"Or tell it something else").is_some());
         home_parts(&root, object);
     }
 }
@@ -533,30 +563,41 @@ fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_re
     }
 }
 #[test]
-fn reply_form_focus_placeholder_value_and_all_acts() {
-    let mut root = root();
-    act(&mut root, needs::Act::OpenReply { object: object(1) });
-    f::root_event(
-        &mut root,
-        Event::Act {
-            action: d::Action::Pages(pages::Act::CardWords { object: object(1), words: b"My reply".as_slice().into() }),
-        },
-    );
-    let mut view = f::browser_page_view(&root);
-    assert_eq!(styled(&view, look::ASK_REPLY).role, Role::Slot);
-    let id = f::find(view.tree(), Role::TextArea, b"Your reply").unwrap();
-    let node = view.tree().nodes().iter().find(|n| n.id == id).unwrap();
-    assert_eq!(node.placeholder.as_deref(), Some("Your words go to welcome-stall’s agent".as_bytes()));
-    assert!(node.focus.is_some());
-    assert_eq!(node.value.as_ref().unwrap().text.as_ref(), b"My reply");
-    assert_eq!(
-        crate::act(&mut view, id, Act::Input { value: b"Changed".as_slice().into() }),
-        Some(d::Action::Pages(pages::Act::CardWords { object: object(1), words: b"Changed".as_slice().into() }))
-    );
-    assert_eq!(press(&mut view, b"Send reply"), expected(needs::Act::SendReply { object: object(1) }));
-    assert_eq!(press(&mut view, b"Cancel"), expected(needs::Act::CancelReply));
-    act(&mut root, needs::Act::CancelReply);
-    assert!(!main(&f::browser_page_view(&root)).iter().any(|n| n.styles.as_slice().contains(&look::ASK_REPLY)));
+fn tell_field_keeps_words_and_sends_only_a_nonblank_reply() {
+    for (words, send) in
+        [("", false), ("  ", false), ("My reply", true), ("A reply longer than the ordinary card text bound.", true)]
+    {
+        let mut root = root();
+        let mut view = f::browser_page_view(&root);
+        let field = f::find(view.tree(), Role::TextArea, b"Or tell it something else").unwrap();
+        let input = crate::act(&mut view, field, Act::Input { value: words.as_bytes().into() }).unwrap();
+        assert_eq!(
+            input,
+            d::Action::Pages(pages::Act::CardWords { object: object(1), words: words.as_bytes().into() })
+        );
+        event(&mut root, Event::Act { action: input }, &mut Queue::uncapped());
+        let mut view = f::browser_page_view(&root);
+        assert_eq!(styled(&view, look::NEED_TELL).role, Role::Slot);
+        let field = f::find(view.tree(), Role::TextArea, b"Or tell it something else").unwrap();
+        let node = view.tree().find(field).unwrap();
+        assert_eq!(node.placeholder.as_deref(), Some(b"Or tell it something else".as_slice()));
+        assert!(node.focus.is_none());
+        assert_eq!(node.value.as_ref().unwrap().text.as_ref(), words.as_bytes());
+        assert_eq!(f::find(view.tree(), Role::Button, b"Send").is_some(), send);
+        assert!(f::find(view.tree(), Role::Button, b"Cancel").is_none());
+        if send {
+            let action = press(&mut view, b"Send");
+            assert_eq!(action, expected(needs::Act::SendReply { object: object(1) }));
+            event(&mut root, Event::Act { action }, &mut Queue::uncapped());
+            let lines = root.pages().needs().answered(f::NOW, needs::ANSWERED_ON_NEEDS, None);
+            assert_eq!(lines[0].label, needs::Label::Reply(words.as_bytes().into()));
+            assert_eq!(lines[0].object, object(1));
+            assert_eq!(
+                root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap().object(),
+                object(2)
+            );
+        }
+    }
 }
 #[test]
 fn plain_and_cut_words_have_no_choices_or_saw() {
@@ -584,7 +625,7 @@ fn plain_and_cut_words_have_no_choices_or_saw() {
                 !main(&view).iter().any(|n| n.styles.as_slice().contains(&look::ASK_CHOICES)
                     || n.styles.as_slice().contains(&look::ASK_SAW))
             );
-            assert!(f::find(view.tree(), Role::Button, "Reply…".as_bytes()).is_some());
+            assert!(f::find(view.tree(), Role::TextArea, b"Or tell it something else").is_some());
             assert!(has(&view, b"Some context.") || has(&view, b"Choice:"));
             let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
             let message = card.group == c::InboxGroup::Questions;
@@ -658,12 +699,12 @@ fn next_line_last_at_and_later_order() {
     assert!(has(&view, b"The last one"));
     assert!(has(&view, b"later"));
     assert!(has(&view, "Decided for you · 1".as_bytes()));
-    assert!(f::find(view.tree(), Role::Button, b"Limits").is_some());
+    assert!(has(&view, b"for 24 hours, then in each task's history"));
     let nodes = main(&view);
     let answered = nodes.iter().position(|node| node.styles.as_slice().contains(&look::ANSWERED_SECTION)).unwrap();
     let decided = nodes
         .iter()
-        .position(|node| node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes()))
+        .position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Decided for you"))
         .unwrap();
     assert!(answered < decided);
 }
@@ -708,7 +749,168 @@ fn answered_lines_have_links_labels_and_undo_only_during_hold() {
     }
 }
 
+fn decisions_delivered(
+    root: &mut d::Domain,
+    project: u32,
+    watch: skein_lib::Token,
+    count: u32,
+    out: &mut Queue<d::Request>,
+) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows = List::with_capacity(count);
+    for number in 1..=count {
+        if (number % 2 == 1) != (project == f::PROJECT) {
+            continue;
+        }
+        rows.push(
+            w::Decision::new(
+                &w::CEILINGS,
+                w::DecisionParts {
+                    number,
+                    task: 90 + u64::from(number),
+                    at: 3_900_000_000_000,
+                    question: b"Which approach?".as_slice().into(),
+                    took: b"Fixed the harness.".as_slice().into(),
+                    why: b"Tests are its area.".as_slice().into(),
+                    overturned: false,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: w::ReachKind::Tests,
+                            class: w::ReachClass::Decide,
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: false,
+                        },
+                    )
+                    .expect("decision reach"),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    }
+    let bytes = wire::decisions(
+        &w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
+        )
+        .unwrap(),
+    );
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes },
+                },
+            },
+        },
+        out,
+    );
+}
+fn empty_decided_inbox(root: &mut d::Domain, watch: skein_lib::Token, out: &mut Queue<d::Request>) {
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(documents::inbox(
+                        List::with_capacity(0),
+                        0,
+                        c::Count { value: 0, limited: false },
+                        0,
+                        false,
+                    )))),
+                },
+            },
+        },
+        out,
+    );
+}
+fn decided_fixture(filter: d::address::Filter, count: u32, open: bool) -> d::Domain {
+    let (mut root, _, initial) = f::root_at(Address::Inbox { filter }, &limits());
+    let mut out = Queue::uncapped();
+    event(&mut root, Event::Went { place: d::Place::Address(Address::Accounts) }, &mut out);
+    event(&mut root, Event::Went { place: d::Place::Address(Address::Inbox { filter }) }, &mut out);
+    if let Some(watch) = initial {
+        empty_decided_inbox(&mut root, watch, &mut out);
+    }
+    while let Some(request) = out.pop() {
+        let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
+        match down {
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
+                empty_decided_inbox(&mut root, watch, &mut out);
+            }
+            jig_client::Down::Open { watch, subject } => {
+                for project in [f::PROJECT, f::SECOND_PROJECT] {
+                    if Some(subject.clone()) != d::forge::decided::watch(project, &limits().forge) {
+                        continue;
+                    }
+                    decisions_delivered(&mut root, project, watch, count, &mut out);
+                }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { .. }) } => {
+                event(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read,
+                                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
+                                    c::InboxPage {
+                                        selection: None,
+                                        before: None,
+                                        rows: List::with_capacity(0),
+                                        after: None,
+                                        cut: false,
+                                    },
+                                )))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) } => {
+                let mut document = f::task::document();
+                document.chip.task = task;
+                document.chip.title = f::task::document_words(b"Decided task");
+                event(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read,
+                                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(
+                                    document,
+                                )))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+            jig_client::Down::Save { .. }
+            | jig_client::Down::Erase { .. }
+            | jig_client::Down::Send { .. }
+            | jig_client::Down::Continue { .. }
+            | jig_client::Down::Close { .. }
+            | jig_client::Down::Read { .. } => {}
+        }
+    }
+    assert!(root.pages().inbox().unwrap().known(), "decided fixture has an answered inbox");
+    if open {
+        approvals(&mut root, &[approval_row()], 0);
+    }
+    root
+}
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the table formats expected counts and project labels in both shells")]
 fn done_with_and_without_lines_and_home_project() {
     for (answered, decided_rows) in [(false, false), (true, false), (false, true), (true, true)] {
         let (mut root, _, decided) =
@@ -731,28 +933,165 @@ fn done_with_and_without_lines_and_home_project() {
             let nodes = main(&view);
             let region = nodes
                 .iter()
-                .position(|node| {
-                    node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes())
-                })
+                .position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Decided for you"))
                 .unwrap();
             let home =
                 nodes.iter().position(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Home")).unwrap();
-            assert!(region < home);
+            assert!(region > home);
         }
         let home = main(&view).iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Home")).unwrap().id;
         assert_eq!(
             crate::act(&mut view, home, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go { address: Address::Home { project: f::PROJECT } }))
+            Some(d::Action::Pages(pages::Act::Go { address: Address::AllHome }))
         );
+    }
+    for (open, count, project, showing) in [
+        (false, 0, None, 0),
+        (true, 0, None, 0),
+        (false, 4, None, 4),
+        (true, 4, None, 4),
+        (true, 1, None, 1),
+        (true, 4, Some(f::PROJECT), 2),
+        (false, 4, Some(f::SECOND_PROJECT), 2),
+    ] {
+        let root = decided_fixture(d::address::Filter { project, ..d::address::Filter::ALL }, count, open);
+        for (mut view, browser) in [(f::browser_page_view(&root), true), (f::page_view(&root), false)] {
+            let nodes = main(&view);
+            assert_eq!(nodes.iter().filter(|n| n.styles.as_slice().contains(&look::DECISION)).count(), showing);
+            assert_eq!(f::find(view.tree(), Role::Region, b"Decided for you").is_some(), showing > 0);
+            if showing == 0 {
+                assert!(!has(&view, b"were decided for you"));
+                continue;
+            }
+            assert!(
+                f::find(view.tree(), Role::Heading { level: 2 }, format!("Decided for you · {showing}").as_bytes())
+                    .is_some()
+            );
+            assert!(has(&view, b"for 24 hours, then in each task's history"));
+            assert!(has(&view, b"Which approach?"));
+            assert!(has(&view, b"Fixed the harness."));
+            assert!(has(&view, b"Allowed: test-only changes are decided and listed."));
+            assert!(has(&view, b"Tests are its area."));
+            let name = if project == Some(f::SECOND_PROJECT) { "Second" } else { "Shop" };
+            assert!(has(&view, format!("{name} · Decided task · 01:05").as_bytes()));
+            if project.is_some() {
+                let other = if project == Some(f::PROJECT) { "Second ·".as_bytes() } else { "Shop ·".as_bytes() };
+                assert!(!has(&view, other));
+            }
+            if open && browser {
+                let sentence = match showing {
+                    1 => "One",
+                    2 => "Two",
+                    4 => "Four",
+                    _ => unreachable!(),
+                };
+                let suffix = if showing == 1 { "was" } else { "were" };
+                let heading = format!("One thing needs you. {sentence} {suffix} decided for you.");
+                assert!(f::find(view.tree(), Role::Heading { level: 1 }, heading.as_bytes()).is_some());
+            }
+            let region = nodes
+                .iter()
+                .position(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Decided for you"))
+                .unwrap();
+            let done_or_list = nodes.iter().position(|n| n.role == Role::Heading { level: 1 }).unwrap();
+            assert!(region > done_or_list);
+            let over = f::find(view.tree(), Role::Button, b"Overturn").unwrap();
+            assert_eq!(
+                crate::act(&mut view, over, Act::Press),
+                Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Overturn {
+                    project: project.unwrap_or(f::PROJECT),
+                    number: if project == Some(f::SECOND_PROJECT) { 2 } else { 1 }
+                })))
+            );
+        }
     }
 }
 #[test]
-fn unfiltered_meta_puts_project_first() {
-    let root = fixture(QUESTION, false, 1, false, d::address::Filter::ALL);
-    assert_eq!(
-        styled(&f::browser_page_view(&root), look::ASK_META).name.as_deref(),
-        Some(b"Shop \xc2\xb7 welcome-stall \xc2\xb7 a question \xc2\xb7 under 1 min".as_slice())
-    );
+fn list_keeps_one_card_and_opens_rows_in_place() {
+    for (filter, kicker, chips) in [
+        (d::address::Filter::ALL, "Needs you · all projects", &["Shop", "Second", "Shop"][..]),
+        (d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL }, "Needs you · Shop", &[][..]),
+    ] {
+        let mut root = fixture(QUESTION, false, 3, false, filter);
+        let address = root.pages().address().clone();
+        let mut view = f::browser_page_view(&root);
+        assert!(f::find(view.tree(), Role::Paragraph, kicker.as_bytes()).is_some());
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Three things need you.").is_some());
+        assert!(f::find(view.tree(), Role::Heading { level: 2 }, "Needs you · 3".as_bytes()).is_some());
+        assert!(f::find(view.tree(), Role::Text, b"oldest first").is_some());
+        let actual: Vec<_> = main(&view)
+            .iter()
+            .filter(|n| n.styles.as_slice().contains(&look::CHIP))
+            .map(|n| core::str::from_utf8(n.name.as_deref().unwrap()).unwrap())
+            .collect();
+        assert_eq!(actual, chips);
+        let shapes: Vec<_> = main(&view)
+            .iter()
+            .filter_map(|n| {
+                if n.styles.as_slice().contains(&look::ASK) {
+                    Some("open")
+                } else if n.styles.as_slice().contains(&look::NEED_ROW) {
+                    Some("closed")
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(shapes, ["open", "closed", "closed"]);
+        let closed: Vec<_> =
+            main(&view).iter().filter(|n| n.styles.as_slice().contains(&look::NEED_ROW)).map(|n| n.id).collect();
+        for (id, message, name, project) in [
+            (closed[0], 2, "forge-cards", if chips.is_empty() { "" } else { "Second" }),
+            (closed[1], 3, "third", if chips.is_empty() { "" } else { "Shop" }),
+        ] {
+            let index = view.tree().nodes().iter().position(|n| n.id == id).unwrap();
+            let text = f::node_text(view.tree(), index);
+            assert!(skein_lib::bytes::find(&text, name.as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&text, project.as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&text, b"a question").is_some());
+            assert!(skein_lib::bytes::find(&text, QUESTION.lines().next().unwrap().as_bytes()).is_some());
+            assert_eq!(
+                crate::act(&mut view, id, Act::Press),
+                Some(expected(needs::Act::Open { object: object(message) }))
+            );
+        }
+        let action = crate::act(&mut view, closed[0], Act::Press).unwrap();
+        let mut out = Queue::uncapped();
+        event(&mut root, Event::Act { action }, &mut out);
+        for request in &out {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { .. } },
+            } = request
+            {
+                panic!("opening a card sends no operation");
+            }
+        }
+        assert_eq!(root.pages().address(), &address);
+        let view = f::browser_page_view(&root);
+        assert!(
+            styled(&view, look::ASK_META)
+                .name
+                .as_deref()
+                .unwrap()
+                .windows(b"forge-cards".len())
+                .any(|w| w == b"forge-cards")
+        );
+        let shapes: Vec<_> = main(&view)
+            .iter()
+            .filter_map(|n| {
+                if n.styles.as_slice().contains(&look::ASK) {
+                    Some("open")
+                } else if n.styles.as_slice().contains(&look::NEED_ROW) {
+                    Some("closed")
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(shapes, ["closed", "open", "closed"]);
+        assert_eq!(styled(&view, look::DOTS).name.as_deref(), Some(b"1 of 3".as_slice()));
+        assert!(has(&view, "Next: welcome-stall · Fix the dropped watch".as_bytes()));
+    }
 }
 #[test]
 fn empty_column_until_delivered_and_terminal_keeps_its_list() {
@@ -1123,11 +1462,10 @@ fn held_row(h: c::Escalation) -> (c::ObjectKey, c::Read, c::ReadValue) {
     )
 }
 fn ordered(view: &crate::View) {
-    let positions: Vec<_> =
-        [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES, look::PAIR, look::NEXT_UP]
-            .iter()
-            .map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)).unwrap())
-            .collect();
+    let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES, look::NEXT_UP]
+        .iter()
+        .map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)).unwrap())
+        .collect();
     assert!(positions.windows(2).all(|pair| pair[0] < pair[1]));
 }
 #[test]
@@ -1169,7 +1507,7 @@ fn proposal_parts_accept_reject_and_task_open() {
                 c::Proposer::Party(_) => false,
             }
         );
-        assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+        assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
     }
 }
 #[test]
@@ -1301,7 +1639,7 @@ fn person_spec_and_plain_acts() {
         );
     }
     assert!(f::find(view.tree(), Role::Button, b"Open").is_some());
-    assert_eq!(press(&mut view, b"Later"), expected(needs::Act::Later { object }));
+    assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
 }
 #[test]
 fn mixed_kinds_next_line_uses_each_short() {
@@ -1754,10 +2092,14 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             press(&mut view, b"Open"),
             d::Action::Pages(pages::Act::Go { address: Address::Task { task: row.task } })
         );
-        assert_eq!(
-            press(&mut view, b"Later"),
-            d::Action::Pages(pages::Act::Needs(needs::Act::Later { object: c::ObjectKey::Task(row.task) }))
-        );
+        assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
+        if let Some(primary) = primary {
+            let open = f::find(view.tree(), Role::Button, b"Open").unwrap();
+            let nodes = main(&view);
+            assert!(
+                nodes.iter().position(|n| n.id == primary).unwrap() < nodes.iter().position(|n| n.id == open).unwrap()
+            );
+        }
         assert_eq!(styled(&view, look::FLOW_HEAD).role, Role::Slot);
         assert!(has(&view, b"1 of 1"));
         assert!(has(&view, b"The last one"));

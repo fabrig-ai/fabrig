@@ -393,7 +393,7 @@ impl Session {
             self.reply_beyond = 0;
         }
         match after {
-            Address::Inbox { .. } => {}
+            Address::AllHome | Address::Inbox { .. } => {}
             Address::NewChat { .. }
             | Address::Work { .. }
             | Address::Goals { .. }
@@ -541,6 +541,12 @@ pub(crate) fn write_reply(pages: &mut Pages, object: ObjectKey, words: Box<[u8]>
     if let Some(card) = card_mut(pages, object) {
         card.words = Some(words);
         pages.needs.reply_beyond = beyond;
+    }
+}
+pub(crate) fn open_reply(pages: &mut Pages, object: ObjectKey) {
+    if answerable(pages, object).is_some() && pages.needs.reply != Some(object) {
+        pages.needs.reply = Some(object);
+        pages.needs.reply_beyond = 0;
     }
 }
 fn words_title(page: &ReadValue) -> Option<&contract::DocumentText> {
@@ -734,12 +740,7 @@ pub(crate) fn act(
     }
     match act {
         Act::Choose { object, words } => answer(pages, env, client, object, words, false),
-        Act::OpenReply { object } => {
-            if answerable(pages, object).is_some() && pages.needs.reply != Some(object) {
-                pages.needs.reply = Some(object);
-                pages.needs.reply_beyond = 0;
-            }
-        }
+        Act::OpenReply { object } => open_reply(pages, object),
         Act::Dismiss => pages.needs.toast = None,
         Act::CancelReply => {
             if let Some(object) = pages.needs.reply.take()
@@ -820,9 +821,37 @@ pub(crate) fn act(
         }
         Act::Open { object } => {
             pages.needs.at = Some(object);
+            match pages.address {
+                Address::Inbox { .. } => return,
+                Address::Home { .. }
+                | Address::AllHome
+                | Address::NewChat { .. }
+                | Address::Goals { .. }
+                | Address::Chats { .. }
+                | Address::Changes { .. }
+                | Address::Work { .. }
+                | Address::Members
+                | Address::Limits
+                | Address::Accounts
+                | Address::Forges
+                | Address::ConnectForge { .. }
+                | Address::ConnectModel { .. }
+                | Address::Welcome { .. }
+                | Address::Chat { .. }
+                | Address::Task { .. }
+                | Address::Models { .. }
+                | Address::Builders { .. }
+                | Address::Role { .. }
+                | Address::Rule { .. }
+                | Address::Repositories { .. }
+                | Address::Settings { .. }
+                | Address::Ask { .. }
+                | Address::Adopt { .. } => {}
+            }
             let project = match pages.address {
                 Address::Home { project } => Some(project),
-                Address::Inbox { .. }
+                Address::AllHome
+                | Address::Inbox { .. }
                 | Address::NewChat { .. }
                 | Address::Work { .. }
                 | Address::Goals { .. }

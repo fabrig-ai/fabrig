@@ -1,12 +1,19 @@
 # channel: status
 
-2026-11-07. Where jig's code lags or departs from [channel.md](channel.md).
+2026-11-08. Where jig's code lags or departs from [channel.md](channel.md).
 
 Section 5.1's hello carries endpoint bounds, not a model list; no known
 implementation gap remains in that declaration or its fleet checks.
 Its logins rows also carry usable program statuses' optional email,
 which reaches the accounts child through the fleet's accepted inventory;
 there is no known gap in that path.
+
+Sections 5.1 and 5.3 have no known gap in the `draining` notice: worker
+wire version 9's empty record, kind `0x010b`, which both sides'
+translations carry (the translation tests of `jig-protocol-worker-link`
+and `jig-protocol-engine-workers`), sent before
+the answers of the runs a shutdown cancels (`../domain/hosts.status.md`,
+6.7).
 
 Sections 5.1, 5.2 and 8 have no known implementation gap in `read list`
 and `list read`, their bounded rows and failures, or retaining a key

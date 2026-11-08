@@ -468,6 +468,8 @@ impl Task {
             | Act::SignOut
             | Act::Accounts(_)
             | Act::ConnectModel(_)
+            | Act::AskLine { .. }
+            | Act::AskWith { .. }
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::WayTab { .. }
@@ -605,6 +607,8 @@ impl Task {
             | Act::SignOut
             | Act::Accounts(_)
             | Act::ConnectModel(_)
+            | Act::AskLine { .. }
+            | Act::AskWith { .. }
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::WayTab { .. }

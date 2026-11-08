@@ -128,6 +128,7 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
                 }
             }
             Address::Chat { .. }
+            | Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::Members

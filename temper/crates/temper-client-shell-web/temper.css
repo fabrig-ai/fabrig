@@ -1391,6 +1391,40 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-project-rename-form > [role=status] { flex: 0 0 100%; order: 1; }
 
 /* ==== ui: home ==== */
+#app > .temper-home .temper-home-needs .temper-home-head { padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-home .temper-home-needs { display: flex; flex-direction: column; gap: 14px; }
+#app > .temper-home .temper-ask-line { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--gf-line-2); border-radius: 10px; background: var(--gf-surface); color: var(--gf-muted); }
+#app > .temper-home .temper-ask-line input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; color: var(--gf-ink); }
+#app > .temper-home .temper-ask-line button { min-height: 40px; border: 0; background: none; font: inherit; color: var(--gf-muted); cursor: pointer; }
+
+#app > .temper-home:has(.temper-home-wide) { padding: 56px 40px 80px; gap: 48px; }
+#app > .temper-home:has(.temper-home-wide) > * { max-width: 760px; }
+
+#app > .temper-home .temper-home-phone, #app > .temper-home .temper-need-more { display: none; }
+#app > .temper-home:has(.temper-home-wide) > .temper-home-intro { gap: 14px; }
+#app > .temper-home .temper-need-card { display: flex; flex-direction: column; gap: 12px; padding: 20px; border: 1px solid var(--gf-signal-line); border-radius: 12px; background: var(--gf-surface); }
+#app > .temper-home .temper-need-from { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; font: 400 13px/1.6 var(--gf-mono); color: var(--gf-muted); }
+#app > .temper-home .temper-need-card .temper-ask-question { margin: 0; font-size: 17px; line-height: 1.55; }
+#app > .temper-home .temper-need-acts, #app > .temper-home .temper-need-acts .temper-ask-choices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#app > .temper-home .temper-need-acts :is(a, button), #app > .temper-home .temper-need-more { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; min-height: 40px; padding: 9px 14px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: 400 14px/1.5 var(--gf-sans); color: var(--gf-ink); text-decoration: none; }
+#app > .temper-home .temper-need-acts .temper-recommended { background: var(--gf-ink); border-color: var(--gf-ink); color: var(--gf-surface); order: -1; }
+#app > .temper-home .temper-need-acts .temper-ask-quiet { border-color: transparent; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); }
+#app > .temper-home .temper-need-card > .temper-need-more { display: none; }
+#app > .temper-home .temper-rec { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
+#app > .temper-home .temper-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border: 1px solid var(--gf-line); border-radius: 999px; font: 400 12px/1.6 var(--gf-sans); color: var(--gf-ink-2); background: var(--gf-surface); white-space: nowrap; }
+#app > .temper-home .temper-chip-good::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--gf-good); }
+#app > .temper-home .temper-chip-signal { border-color: var(--gf-signal-line); background: var(--gf-signal-pale); color: var(--gf-signal); }
+#app > .temper-home .temper-projects { margin: 0; padding: 0; list-style: none; }
+#app > .temper-home .temper-projects > li { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 12px 10px; border-bottom: 1px solid var(--gf-line); font-size: 14px; }
+#app > .temper-home .temper-projects > li > a { font-weight: 600; }
+#app > .temper-home .temper-decided-head, #app > .temper-home:has(.temper-home-wide) div.temper-home-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
+#app > .temper-home .temper-decided-head > h2, #app > .temper-home:has(.temper-home-wide) > section > h2, #app > .temper-home:has(.temper-home-wide) .temper-home-head > h2 { margin: 0; font: 600 15px/1.6 var(--gf-sans); letter-spacing: normal; text-transform: none; color: var(--gf-ink); }
+#app > .temper-home .temper-decided-head > a { font-size: 13px; color: var(--gf-muted); }
+#app > .temper-home:has(.temper-home-wide) .temper-decision { display: grid; padding: 12px 0; align-items: start; font-size: 14px; grid-template-columns: 160px minmax(0, 1fr) auto; }
+#app > .temper-home:has(.temper-home-wide) .temper-decision > :first-child { font: 400 12px/1.6 var(--gf-mono); color: var(--gf-muted); }
+#app > .temper-home:has(.temper-home-wide) .temper-decision > div > :first-child { color: var(--gf-muted); }
+#app > .temper-home:has(.temper-home-wide) .temper-decision > div > .temper-decision-took { color: var(--gf-ink); }
+
 /* Navigation focuses page targets without drawing a control ring. */
 #app :is(main, h1)[tabindex="-1"]:focus { outline: none; }
 #app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
@@ -1449,9 +1483,6 @@ a.temper-repository-link:hover { text-decoration: underline; }
   #app > .temper-home > .temper-home-intro { gap: 10px; }
   #app > .temper-home h1 { font-size: 25px; line-height: 1.3; letter-spacing: -.015em; }
   #app > .temper-home .temper-home-lede { font-size: 15.5px; }
-  #app > .temper-home .temper-home-in-a-row { display: none; }
-  #app > .temper-home .temper-home-cta { display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 14px; background: var(--gf-signal-pale); color: var(--gf-ink); }
-  #app > .temper-home .temper-home-cta-go { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 10px; background: var(--gf-primary); color: var(--gf-primary-ink); font-weight: 500; }
 }
 
 /* project-home-onboarding: To begin as a card of its own, marked "Optional", with "Skip" a button at its top right; one line a step, its act at the right. */
@@ -2187,48 +2218,24 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-needs > section:has(> .temper-decided) > .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #app > .temper-needs > section:has(> .temper-decided) > .temper-home-head > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 #app .temper-decision-allowed { font-size: 13.5px; color: var(--gf-muted); }
+.temper-needs > section[aria-label] { display: flex; flex-direction: column; gap: 14px; }
+.temper-needs .temper-decided-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
+.temper-needs .temper-decided-head > h2 { margin: 0; font: 600 15px/1.6 var(--gf-sans); color: var(--gf-ink); }
+.temper-needs .temper-decided-head > span { font-size: 13px; color: var(--gf-muted); }
+.temper-needs .temper-decided { display: flex; flex-direction: column; }
+.temper-needs .temper-decision { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; align-items: start; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); font-size: 14px; }
+.temper-needs .temper-decision > :first-child { font: 400 12px/1.6 var(--gf-mono); color: var(--gf-muted); }
+.temper-needs .temper-decision > div { display: flex; flex-direction: column; gap: 3px; }
+.temper-needs .temper-decision > div > :first-child { color: var(--gf-muted); }
+.temper-needs .temper-decision-took { font-weight: 500; }
+.temper-needs .temper-decision-why { font-size: 13px; color: var(--gf-muted); }
+.temper-needs .temper-decision-late { font-size: 12.5px; color: var(--gf-faint); }
+.temper-needs .temper-decision-overturned .temper-decision-took { text-decoration: line-through; color: var(--gf-faint); }
+.temper-needs .temper-decision > button { min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13px/1.6 var(--gf-sans); }
+
 
 #app :is(.temper-ask-choices, .temper-goal-band) a:is(.temper-recommended, .temper-goal-primary) { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-primary); border-radius: 8px; background: var(--gf-primary); color: var(--gf-primary-ink); font-weight: 500; text-decoration: none; }
 #app .temper-needs .temper-ask-choices a.temper-recommended { min-height: 54px; padding: 10px 18px; border-radius: 12px; font-size: 16px; }
-
-
-/* A question that needs the person, answered in place. */
-#app > .temper-home .temper-ask { display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px var(--gf-shadow-soft), 0 0 0 1px var(--gf-home-edge); }
-#app > .temper-home .temper-ask > p { margin: 0; }
-#app > .temper-home .temper-ask-meta { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
-#app > .temper-home .temper-ask-meta > a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
-#app > .temper-home .temper-ask-meta > a:hover { text-decoration-color: var(--gf-ink); }
-#app > .temper-home .temper-ask-question { font-size: 17px; line-height: 1.55; color: var(--gf-ink); }
-#app > .temper-home .temper-ask-context { color: var(--gf-ink-2); }
-#app > .temper-home .temper-ask-choices { display: flex; flex-wrap: wrap; gap: 8px; }
-#app > .temper-home .temper-ask-choices button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 14.5px/1.6 var(--gf-sans); text-align: left; }
-#app > .temper-home .temper-ask-choices > button:hover { border-color: var(--gf-control-hover-line); }
-#app > .temper-home .temper-ask-choices > .temper-recommended { border-color: var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); font-weight: 500; }
-#app > .temper-home .temper-ask-choices > .temper-recommended:hover { background: var(--gf-primary-hover); }
-#app > .temper-home .temper-rec { margin-left: auto; padding-left: 6px; font-size: 12px; font-weight: 400; opacity: .72; }
-#app > .temper-home .temper-ask-choices > .temper-ask-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
-#app > .temper-home .temper-ask-choices > .temper-ask-quiet:hover { background: var(--gf-hover); color: var(--gf-ink); }
-/* On a phone, the question gives way to one line and "Answer". */
-#app > .temper-home .temper-home-cta { display: none; }
-@media (max-width: 760px) {
-  #app > .temper-home .temper-home-cta { display: flex; }
-}
-
-#app > .temper-home .temper-ask button { font: 400 14.5px/1.6 var(--gf-sans); }
-#app > .temper-home .temper-ask-reply-acts > button { font: 400 13.5px/1.6 var(--gf-sans); padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); }
-#app > .temper-home .temper-ask-reply-acts > .temper-ask-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
-#app > .temper-home .temper-ask-reply-acts > .temper-recommended { background: var(--gf-primary); border-color: var(--gf-primary); color: var(--gf-primary-ink); }
-#app > .temper-home .temper-ask-choices > details { border: 0; padding: 0; }
-#app > .temper-home .temper-ask-choices > details > summary { display: flex; align-items: center; min-height: 40px; padding: 8px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; cursor: pointer; }
-#app > .temper-home .temper-ask-choices > details[open] { display: flex; flex-direction: column; gap: 8px; }
-#app > .temper-home .temper-home-cta { text-decoration: none; }
-@media (max-width: 760px) {
-  #app > .temper-home .temper-home-needs:has(.temper-home-cta) > :is(.temper-ask, .temper-home-rows) { display: none; }
-  #app > .temper-home .temper-ask { padding: 18px; }
-  #app > .temper-home .temper-ask-choices { flex-direction: column; align-items: stretch; }
-  #app > .temper-home .temper-ask-choices > button { min-height: 48px; font-size: 15.5px; }
-  #app > .temper-home .temper-ask-choices > .temper-ask-quiet { min-height: 44px; }
-}
 
 
 :root:has(#app > .temper-needs) {
@@ -2241,17 +2248,17 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 .temper-needs .temper-needs-intro { display: flex; flex-direction: column; gap: 16px; }
 .temper-needs .temper-needs-intro h1 { margin: 0; font-size: 32px; line-height: 1.25; font-weight: 500; letter-spacing: -.02em; }
 #app > .temper-needs { width: auto; min-width: 0; margin: 0; padding: 64px 48px 96px; display: flex; flex-direction: column; align-items: center; gap: 32px; font: 15px/1.6 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
-#app > .temper-needs > * { width: 100%; max-width: 600px; margin: 0; }
+#app > .temper-needs > * { width: 100%; max-width: 720px; margin: 0; }
 .temper-needs p { margin: 0; }
 .temper-needs .temper-home-kicker { font-size: 13px; font-weight: 400; letter-spacing: normal; text-transform: none; color: var(--gf-muted); }
 .temper-needs .temper-home-lede { font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
-.temper-needs .temper-flow-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.temper-needs .temper-flow-head { display: none; align-items: center; justify-content: space-between; gap: 12px; }
 .temper-needs .temper-dots { display: flex; gap: 6px; margin: 0; }
 .temper-needs .temper-dot { width: 22px; height: 4px; border-radius: 2px; background: var(--gf-line-2); }
 .temper-needs .temper-dot-done { background: var(--gf-ink); }
 .temper-needs .temper-flow-q { margin: 0; font-size: 26px; line-height: 1.35; font-weight: 500; letter-spacing: -.01em; }
-.temper-needs .temper-ask { display: flex; flex-direction: column; gap: 16px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
-.temper-needs .temper-ask-meta { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+.temper-needs .temper-ask { display: flex; flex-direction: column; gap: 16px; padding: 18px 20px; box-sizing: border-box; border: 1px solid var(--gf-signal-line); border-radius: 12px; background: var(--gf-surface); box-shadow: none; }
+.temper-needs .temper-ask-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-family: var(--gf-mono); font-size: 13px; color: var(--gf-muted); }
 .temper-needs a { color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 .temper-needs a:hover { text-decoration-color: var(--gf-ink); }
 :is(.temper-needs, .temper-home) .temper-ask-context { color: var(--gf-ink-2); white-space: pre-line; }
@@ -2277,19 +2284,29 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 .temper-needs .temper-ask-choices > details[open] { display: flex; flex-direction: column; gap: 8px; }
 .temper-needs .temper-ask-choices > details textarea { width: 100%; margin-top: 8px; box-sizing: border-box; }
 .temper-needs .temper-ask-choices button { min-height: 54px; padding: 10px 18px; border-radius: 12px; font-size: 16px; }
-.temper-needs .temper-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.temper-needs .temper-pair button { justify-content: center; min-height: 46px; border: 0; border-radius: 12px; background: var(--gf-hover); color: var(--gf-ink); }
 :is(.temper-needs, .temper-home) .temper-ask-reply { display: flex; flex-direction: column; gap: 8px; }
 :is(.temper-needs, .temper-home) textarea { min-height: 72px; padding: 10px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; resize: vertical; background: var(--gf-paper); color: inherit; font: inherit; }
 :is(.temper-needs, .temper-home) .temper-ask-reply-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 :is(.temper-needs, .temper-home) .temper-ask-reply-acts button { min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
-.temper-needs .temper-next-up { font-size: 13px; color: var(--gf-faint); text-align: center; }
+.temper-needs .temper-next-up { display: none; font-size: 13px; color: var(--gf-faint); text-align: center; }
 .temper-needs .temper-answered-section { display: flex; flex-direction: column; gap: 14px; }
 .temper-needs .temper-answered-section h2 { margin: 0; font-size: 13px; line-height: 1.6; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 :is(.temper-needs, .temper-home) .temper-answered { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 12px 16px; border-radius: 10px; background: var(--gf-good-pale); font-size: 14px; color: var(--gf-ink-2); }
 :is(.temper-needs, .temper-home) .temper-answered::before { content: '✓'; color: var(--gf-good); font-weight: 600; }
 :is(.temper-needs, .temper-home) .temper-answered-label { font-weight: 500; color: var(--gf-ink); }
 :is(.temper-needs, .temper-home) .temper-answered button { min-height: 0; margin-left: auto; padding: 0; border: 0; background: none; color: var(--gf-muted); text-decoration: underline; font-size: 13px; }
+
+.temper-needs .temper-needs-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
+.temper-needs .temper-needs-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.temper-needs .temper-needs-head h2 strong { font-weight: inherit; color: var(--gf-signal); }
+.temper-needs .temper-needs-head > span { font-size: 13px; color: var(--gf-muted); }
+.temper-needs .temper-chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font: 12px/1.6 var(--gf-sans); border: 1px solid var(--gf-line); background: var(--gf-surface); color: var(--gf-ink-2); white-space: nowrap; }
+.temper-needs .temper-need-row { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 12px 0; border: 0; border-bottom: 1px solid var(--gf-line); border-radius: 0; background: none; }
+.temper-needs .temper-need-row:hover { background: var(--gf-hover); }
+.temper-needs .temper-need-row .temper-ask-question { font-size: 16px; font-weight: 500; line-height: 1.45; }
+.temper-needs .temper-need-tell { display: flex; flex-direction: column; gap: 8px; }
+.temper-needs .temper-need-tell textarea { box-sizing: border-box; width: 100%; }
+.temper-needs .temper-need-tell button { align-self: flex-start; min-height: 34px; padding: 5px 12px; font-size: 13.5px; }
 
 @media (max-width: 760px) {
   #app > .temper-main.temper-needs { padding: 8px 20px 112px; }
@@ -3213,6 +3230,33 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
 
 /* ==== ui: phone ==== */
 @media (max-width: 760px) {
+  #app > .temper-home .temper-ask-line { display: none; }
+  .temper-needs .temper-decision { grid-template-columns: minmax(0, 1fr) auto; }
+  .temper-needs .temper-decision > :first-child { grid-column: 1 / -1; }
+
+  #app > .temper-home:has(.temper-home-phone) { padding: 20px 16px 112px; gap: 20px; }
+  #app > .temper-home:has(.temper-home-phone) h1 { font-size: 24px; }
+  #app > .temper-home .temper-home-wide { display: none; }
+  #app > .temper-home .temper-home-needs .temper-home-head > a { display: none; }
+  #app > .temper-home .temper-home-phone { display: block; }
+  #app > .temper-home .temper-home-phone.temper-home-byline { font-size: 12px; color: var(--gf-faint); }
+  #app > .temper-home > .temper-home-phone > a { box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 12px; background: var(--gf-surface); text-decoration: none; }
+  #app > .temper-home:has(.temper-home-phone) > .temper-home-intro { gap: 10px; }
+  #app > .temper-home .temper-need-card { padding: 14px; gap: 10px; }
+  #app > .temper-home .temper-need-card .temper-ask-question { font-size: 15.5px; }
+  #app > .temper-home .temper-need-acts, #app > .temper-home .temper-need-acts .temper-ask-choices { display: contents; }
+  #app > .temper-home .temper-need-acts :is(a, button, details, textarea) { display: none; }
+  #app > .temper-home .temper-need-acts .temper-recommended { display: flex; width: 100%; min-height: 44px; }
+  #app > .temper-home .temper-need-card > .temper-need-more { display: flex; min-height: 44px; border-color: transparent; background: none; color: var(--gf-muted); text-decoration: underline; }
+
+  #app > .temper-needs > * { max-width: 600px; }
+  #app > .temper-needs:has(.temper-ask) > .temper-needs-intro,
+  .temper-needs .temper-needs-head,
+  .temper-needs .temper-need-row { display: none; }
+  .temper-needs .temper-ask { padding: 0; border: 0; border-radius: 0; background: none; }
+  .temper-needs .temper-flow-head { display: flex; }
+  .temper-needs .temper-next-up { display: block; }
+
 
   /* Ask's three tabs keep the composer above them; the rail's switch belongs to the chat's bar. */
   #app:has(> .temper-session) > .temper-rail,

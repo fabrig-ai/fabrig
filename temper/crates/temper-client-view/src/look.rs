@@ -1409,6 +1409,20 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-allowed",
         b"temper-why",
         b"temper-why-offers",
+        b"temper-need-row",
+        b"temper-need-tell",
+        b"temper-needs-head",
+        b"temper-chip",
+        b"temper-need-card",
+        b"temper-need-from",
+        b"temper-need-acts",
+        b"temper-need-more",
+        b"temper-chip-good",
+        b"temper-chip-signal",
+        b"temper-decided-head",
+        b"temper-home-phone",
+        b"temper-home-wide",
+        b"temper-ask-line",
     ],
     regions: &[b"temper-link"],
 };
@@ -1843,6 +1857,25 @@ pub const HOW_CODE: Style = Style { owner: owner(), token: 684 };
 pub const HOW_BAR: Style = Style { owner: owner(), token: 685 };
 pub const HOW_LINE: Style = Style { owner: owner(), token: 686 };
 pub const HOW_ROW: Style = Style { owner: owner(), token: 687 };
+/// Needs you's list, reply and project identity (client/README.md, 3.5).
+pub const NEED_ROW: Style = Style { owner: owner(), token: 691 };
+pub const NEED_TELL: Style = Style { owner: owner(), token: 692 };
+pub const NEEDS_HEAD: Style = Style { owner: owner(), token: 693 };
+pub const CHIP: Style = Style { owner: owner(), token: 694 };
+
+/// Home on All projects and its phone form (client/README.md, 3.5).
+pub const NEED_CARD: Style = Style { owner: owner(), token: 695 };
+pub const NEED_FROM: Style = Style { owner: owner(), token: 696 };
+pub const NEED_ACTS: Style = Style { owner: owner(), token: 697 };
+pub const NEED_MORE: Style = Style { owner: owner(), token: 698 };
+pub const CHIP_GOOD: Style = Style { owner: owner(), token: 699 };
+pub const CHIP_SIGNAL: Style = Style { owner: owner(), token: 700 };
+pub const DECIDED_HEAD: Style = Style { owner: owner(), token: 701 };
+pub const HOME_PHONE: Style = Style { owner: owner(), token: 702 };
+pub const HOME_WIDE: Style = Style { owner: owner(), token: 703 };
+
+/// The wide Homes' question field (client/README.md, 3.5).
+pub const ASK_LINE: Style = Style { owner: owner(), token: 704 };
 
 #[cfg(test)]
 mod tests {

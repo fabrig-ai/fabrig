@@ -151,6 +151,7 @@ pub(super) fn told(
 fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out: &mut Queue<Request>) {
     let shown = match root.pages.address {
         Address::Home { project: home } if home == project => super::home::facts(root, project, env.wall).decided,
+        Address::AllHome => root.pages.decided(None, env.wall),
         Address::Inbox { filter } if filter.project.is_none() || filter.project == Some(project) => {
             root.pages.decided(filter.project, env.wall)
         }
