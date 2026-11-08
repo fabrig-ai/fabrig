@@ -166,20 +166,26 @@ impl Host {
                     duties.local = true;
                 }
             }
-            Report::Key(key) => match command(&key, self.view.tree(), &mut self.focus, &self.bounds) {
-                Command::Act { node, act } => {
-                    if let Some(event) = tui::event(&self.view, node, act) {
-                        self.event(event, &mut duties);
+            Report::Key(key) => {
+                if let Some(event) = self.arrow(&key) {
+                    self.event(event, &mut duties);
+                } else {
+                    match command(&key, self.view.tree(), &mut self.focus, &self.bounds) {
+                        Command::Act { node, act } => {
+                            if let Some(event) = tui::event(&self.view, node, act) {
+                                self.event(event, &mut duties);
+                            }
+                        }
+                        Command::Close => self.close(&mut duties),
+                        Command::Nothing if key == Key::Escape => {
+                            if let Some(event) = tui::escape(&self.view) {
+                                self.event(event, &mut duties);
+                            }
+                        }
+                        Command::Moved | Command::Nothing => {}
                     }
                 }
-                Command::Close => self.close(&mut duties),
-                Command::Nothing if key == Key::Escape => {
-                    if let Some(event) = tui::escape(&self.view) {
-                        self.event(event, &mut duties);
-                    }
-                }
-                Command::Moved | Command::Nothing => {}
-            },
+            }
             Report::Resize(size) => {
                 self.size = size;
                 self.tell(Told::Size { columns: size.columns });
@@ -203,7 +209,7 @@ impl Host {
                 terminal::Theme::Dark => tui::Scheme::Dark,
                 terminal::Theme::Light => tui::Scheme::Light,
             },
-            None,
+            self.background,
         );
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
@@ -254,6 +260,9 @@ impl Host {
         self.size = start.size;
         self.background = start.background;
         self.boxed = start.boxed;
+        if self.boxed {
+            self.tell(Told::Boxed);
+        }
         self.tell(Told::Size { columns: start.size.columns });
         self.credential.clone_from(&start.credential);
         self.local = start.local;
@@ -369,6 +378,7 @@ impl Host {
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
         } else if self.root.pages().chats().is_some() {
+            self.tell(Told::LeftOff { task: None });
             self.act(Act::ChatWords { words: value });
         } else {
             self.tell(Told::CommandWords { value });
@@ -656,11 +666,24 @@ impl Host {
 
     #[must_use]
     pub fn event_of(&self, key: &Key) -> Option<tui::Event> {
+        if let Some(event) = self.arrow(key) {
+            return Some(event);
+        }
         let mut focus = self.focus;
         match command(key, self.view.tree(), &mut focus, &self.bounds) {
             Command::Act { node, act } => tui::event(&self.view, node, act),
             Command::Nothing if *key == Key::Escape => tui::escape(&self.view),
             Command::Moved | Command::Close | Command::Nothing => None,
+        }
+    }
+
+    fn arrow(&self, key: &Key) -> Option<tui::Event> {
+        if *key == Key::Up {
+            tui::arrow(&self.view, tui::Arrow::Up)
+        } else if *key == Key::Down {
+            tui::arrow(&self.view, tui::Arrow::Down)
+        } else {
+            None
         }
     }
 
