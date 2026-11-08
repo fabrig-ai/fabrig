@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-07. Where temper's code lags or departs from [README.md](README.md).
+2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
 Sections 2 and 6.11 to 6.16 have no known implementation gap in the
 TUI's crates, command, private directory, host seam, pasted-link sign-in,
@@ -138,8 +138,8 @@ later work; the phone keeps its hidden byline.
   field and wire change; neither the fallback nor `caught_up` proves the
   latest run's model. Section 11 keeps the remaining work explicit.
 
-Sections 3.5, 5.3 and 5.13 have no known implementation gap in the
-configuring chat's draft offer regardless of kind 7, drafts on for a
+Sections 3.5, 5.3 and 5.13 have no known implementation gap in an
+Ask temper chat's draft offer regardless of kind 7, drafts on for a
 fresh project, or Goals in the bar while `Domain::has_goals` holds. The
 draft offer follows the first message and retains its document and end
 conditions. The view tables cover the draft offer and its act in both shells, and Goals in
@@ -183,7 +183,7 @@ geometry, with no passing runtime result supplied here (`browser.status.md`,
   four-line box by rule; its rendered height remains section 11's
   after-landing comparison.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
-  the offer, effort choice, configuring chat's chooser and connected-account
+  the offer, effort choice, Ask temper's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
   geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
   with the stored choice surviving a reload. It supplies no real-provider walk.
@@ -225,7 +225,7 @@ section 11 keeps that observation and the page comparison after landing.
   than 07's hand-made `claude-haiku-5-5`, since the selected provider can differ.
   The final line keeps `.temper-settings-facts` with `.temper-models-ask`,
   rather than 07's `.temper-settings-detail`, as the design specifies; its
-  Configure temper link includes the final period, where 07 leaves it outside.
+  link, "ask temper.", includes the final period, where 07's leaves it outside.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
@@ -341,14 +341,15 @@ read's head explicit.
   decided by the answer that day to `goal-sheet-state`: `drafts_offered` reads kind
   7's `drafts`, true in the stock (5.13), where the request has it true while `me`
   lists a tracked template with no conversation flag. So a project can turn the offer off.
-- **Design departs:** 3.5, *Ask temper's page*, and 5.13, *Ask temper*, from
-  the mock (`greenfield/`), which draws neither Configure temper nor Ask
-  temper on Settings: Ask temper stands beside Configure temper until the
-  user, having tried both, says otherwise. The user's word, 2026-11-07
-  (`../draft/ask-temper.md`, section 9; the request `ui-ask-m1`).
+- **Not yet:** 10, the joint world's Ask temper chat: `temper/tests/client`'s
+  `Joint::with_configuring` and `fixtures::configuring_world` load stock charter 3 and
+  template 3, not template 5, so `tests/suite/configuring_chat.rs`'s
+  `the_page_starts_the_asking_chat` and `start_over_closes_and_opens_a_fresh_ask` find no
+  template 5 in `me` and return having checked nothing; the same file's proposal stories,
+  through `propose_in`, start `chat start --template 3` and run charter 3.
 - **Design departs:** 3.5, *A chat's document*, 5.13, from the mock (`greenfield/`), whose
   fresh projects have `drafts` false (`data.js`) and whose "+ Draft" follows it on every
-  chat (`app.js`): a fresh project's chats write drafts, and a configuring chat offers
+  chat (`app.js`): a fresh project's chats write drafts, and an Ask temper chat offers
   "+ Draft" whatever `drafts` says. The user's word, 2026-11-07 (the request
   `ui-drafts-default`).
 - **Design departs:** 3.5, *A chat's conversation*, from the look request `chat-work` of
@@ -382,7 +383,7 @@ read's head explicit.
   menu open with the focus on its summary, where the mock draws the menu closed,
   since a disclosure's fold is skein's page part's (`ui-web.md`, 7). The field does
   not select its name on opening, and no toast says "Renamed": the request names
-  neither, and section 11 holds them. On a new chat or Configure the closed form
+  neither, and section 11 holds them. On a new chat or Ask temper's page the closed form
   leaves the focus on the page's own field, where the request has the opener or the
   summary, because that plan's cut keeps a page's own request. The field's hidden
   label says "Rename", where the mock's says "Project name": no one sees it, and
@@ -391,8 +392,8 @@ read's head explicit.
   the switcher keeps its inline new-project form; a chat keeps its status,
   Pause or Resume, and Close, and offers the picker only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
-  mock's budget field nor its earlier reports. Settings adds Configure
-  temper and keeps unsupported status, funds and notification controls
+  mock's budget field nor its earlier reports. Settings keeps unsupported
+  status, funds and notification controls
   disabled with their explanation. The welcome's Claude card says
   "a config of its own" rather than the mock's "an environment of its
   own" (3.5). Home and Changes omit the mock's "main green at" time:
@@ -426,22 +427,23 @@ read's head explicit.
   the sheet.
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
   on a fake box pressed Close, Start over, a goal's Close, a Release both ways, a goal's Pause,
-  and Accept and Reject on a configuring chat's proposal from *Needs you* and *Home*,
+  and Accept and Reject on a chat's proposal of settings from *Needs you* and *Home*,
   and Accept from the chat itself; Reject from *Needs you* included a reason. Escape and
   the keeping act on Close, Start over, a goal's Close, Accept and Reject were also pressed
   by hand at each width, which no test keeps; a press while the page updates, on a Release
   alone. The client's world holds the chat's Accept and Reject's ask, with no browser
-  (`a_configuring_chat_accepts_its_own_proposal`, `a_configuring_chat_rejects_its_own_proposal`).
+  (`temper/tests/client/tests/suite/chat_accept.rs`, a chat accepting and rejecting its own
+  proposal).
   An agent's task's Close is drawn at each width by its gallery state, the walk of the
   request `ui-walk-3` of 2026-11-06 having tried the fake box for it first, and no walk
   on record presses it.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
   or "Start from it", and no test presses them on a box: the view's tests and the gallery's
-  `configure-reference` and `configure-reference-draft` alone draw them. The walk of the request
+  `ask-reference` and `ask-reference-draft` alone draw them. The walk of the request
   `ui-walk-3` pressed both at each width, on a first project and a fresh one, by hand. The fake model
-  answers their words with its fallback, so no walk on record has a configuring run
+  answers their words with its fallback, so no walk on record has an Ask temper run
   follow them.
-- **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
+- **Design departs:** 3.5, *Ask temper's page* and *temper's own way, beside the page*,
   from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
   request's plan's cut. The picture and the table's Workers and QA stand in
   `../draft/own-way.status.md`. Beside them:
@@ -484,7 +486,7 @@ read's head explicit.
   delegates, so it can show no planning and no delegate task: the journey
   `chat-draft` walks a chat's sheet to that goal's page and back to the chat alone.
   The request `ui-final-walk` of 2026-11-05 walked a live report, Pause, Resume and
-  Close there by hand, which no test keeps. Of a configuring agent, that model scripts
+  Close there by hand, which no test keeps. Of Ask temper, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
 - **Design departs:** 5.13, *The card in a chat*, from the greenfield target's `mock.css`, by the
@@ -659,12 +661,13 @@ read's head explicit.
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
-- **Departs:** 3.5, Settings: "Configure temper" chooses among the rows
-  `temper-client-domain`'s `Chats::open_configuring` is delivered, whose
+- **Departs:** 3.5, *The first chat*, and 5.3: the rail's "Ask temper", the
+  tab bar's "Ask" and To begin's "Start" choose among the rows
+  `temper-client-domain`'s `Chats::open_asking` is delivered, whose
   live watch holds a window of `limits.client.domain.rows` by latest
-  activity, so a configuring chat not closed but past that window isn't
-  seen and the link opens `Configure { project }`; `configure-temper-name`'s
-  landing accepted it, raising no bound for one link.
+  activity, so an Ask temper chat not closed but past that window isn't
+  seen and they open `Ask { project }`; the landings of `configure-temper-name`
+  and `ask-temper-place` accepted it, raising no bound for one link.
   3.5, With no project yet, and 5.3: where the document
   shows the welcome, with no project, the banner's place for it reads "No project yet" followed by the new
   project's form, "New project" and "Create" (`temper-client-view`'s
@@ -817,8 +820,8 @@ read's head explicit.
     alone has no row of it (jig's `domain/engine.md`, 17.6, and its status).
   - 10: that request's browser walk was made by hand, at 1440 and 420 on fresh fake
     boxes, its driver thrown away as that plan's cut has it, so no test keeps it. The
-    client's world holds the card, count and Accept
-    (`a_configuring_proposal_of_a_projects_ways_reaches_its_needs_and_its_rail`), and
+    client's world holds the card, count and Accept (its story of Ask temper's
+    proposal of a project's ways reaching its Needs you and its rail), and
     the process tier a person's plan's return
     (`a_plans_project_has_its_brief_on_a_return_past_the_sitting`), past a sitting a
     test's `forge.sitting_ms` sets to seconds, where that request's return is past 31

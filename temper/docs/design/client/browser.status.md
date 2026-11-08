@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
@@ -107,6 +107,9 @@ establish no rendered equality.
   menu also has no mousemove selection handler, so hovering an option
   leaves the active keyboard choice where it is, unlike the request's
   handler. Temper/ui owns these differences from the request.
+- **Not yet:** 7.2: `temper/tools/gallery`'s `names.txt` and `src/samples.rs` name
+  `configure` the sample the table names `ask-first-run`, and each of their seventeen
+  `configure-X` samples the table's `ask-X` (`configure-chats-tag` is `ask-chats-tag`).
 - **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples

@@ -2478,8 +2478,8 @@ each behaviour in the lowest world that owns it, and one smoke above:
 
 Stage 1 of configuring temper by talking to it
 (`../draft/configuring.md`, 8.1) is a walk, never in the gate: a pass
-of QA, playing a person on a box with the stock settings, has the
-configuring agent (`agent.md`, 8.1) propose the reference's
+of QA, playing a person on a box with the stock settings, has Ask
+temper (`agent.md`, 8.1 and 8.4) propose the reference's
 configuration from the person's documents alone, accepts it, and checks
 what was accepted twice, by code and by a judge. What it is checked
 against is the golden: `../draft/reference-code-production.md`,
@@ -2611,7 +2611,7 @@ the forge's API as an observer, the limits against the box's document):
 - **the models:** Opus 5.5 on Claude Code for the coordinator and
   designers; gpt-6.1-sol on smith's direct backend, on an OpenAI
   account's key, for producers, foremen and the triage; a real model
-  for the configuring chat;
+  for Ask temper, charter 11's;
 - **the document's members the profile sets** over `temper init`'s:
   `docs/examples/reference/limits.json`'s overrides, and `landing.json`, the project's merge job and its two
   tiers (13.9); a change's question bound,
@@ -2633,7 +2633,7 @@ the box, never the agent.
 The walk's bounds, the user's (2026-11-04): the box's limits are the
 reference's profile whole, as above, its spends and times the box's; the
 pass takes at most 3 hours of wall time from the box's start to the
-stage's verdict, the configuring chat at most 40 of the person's
+stage's verdict, the Ask temper chat at most 40 of the person's
 messages, and the judge one session at Opus 5.5, high, within 30
 minutes.
 

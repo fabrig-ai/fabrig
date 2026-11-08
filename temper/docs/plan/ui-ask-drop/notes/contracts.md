@@ -71,3 +71,7 @@ The run's binding calls. A task builds to these; a task that finds one wrong ask
   agent, Configure or Configure temper. Its tag in Chats is "Ask temper".
 - Code names: a type, function, module, file or test named for the configuring chat
   or `Configure` that now serves Ask temper is named `ask`/`asking` as its spec says.
+- Gallery samples (`temper/tools/gallery/names.txt`): `configure` (the first run's
+  world, step 7, on `Ask`) is `ask-first-run`; every `configure-X` is `ask-X`
+  (`configure-chats-tag` → `ask-chats-tag`, `configure-model-open` → `ask-model-open`);
+  `ask` (the solo world) stays.

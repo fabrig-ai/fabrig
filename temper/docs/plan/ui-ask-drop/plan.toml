@@ -60,3 +60,42 @@ id = 4
 story = "Stage 1's golden names Ask temper's model as the box's prerequisite, and its judge's brief says so"
 parts = ["stage-one"]
 walk = false
+
+[[part]]
+id = "help"
+title = "temper's help pages, their generated reference and ctl's tests say Ask temper, template 5 and charter 11"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/documentation.md, 5"
+
+[[slice]]
+id = 5
+story = "temper help chat, template, charter and settings tell a person to start Ask temper with chat start --template 5, and name the stock's charters 1, 2, 4, 6, 9, 10 and 11"
+parts = ["help"]
+walk = false
+
+[[part]]
+id = "stock"
+title = "Template 3, charter 3 and configuring.txt leave the stock, with charter 3 in its delegation and every count and figure naming them; the journeys are recorded again"
+mode = "direct"
+needs = ["domain-runs", "joined"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[slice]]
+id = 6
+story = "A fresh deployment offers templates 1, 2 and 5 and charters 1, 2, 4, 6, 9, 10 and 11, its stock policy delegating to charters 1, 2, 4, 6, 9 and 11, and Ask temper configures it"
+parts = ["stock"]
+walk = false
+
+[[part]]
+id = "close"
+title = "The design's records say the configuring chat is gone"
+mode = "direct"
+needs = ["domain-runs", "joined", "client", "stage-one", "help", "stock"]
+design = "temper/docs/design/draft/ask-temper.execution.md, 3"
+
+[[slice]]
+id = 7
+story = "STATUS.md and ask-temper.execution.md's M1 say charter 3, template 3 and Configure are gone, and no Not yet of this plan is left"
+parts = ["close"]
+walk = false
