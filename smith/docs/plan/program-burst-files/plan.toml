@@ -4,3 +4,22 @@ sources = ["smith/docs/plan/program-burst-files/inputs/request.md", "AGENTS.md",
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "unasked"
+title = "A program backend fails its run on a private file answer it did not ask for, never aborting the agent"
+mode = "direct"
+needs = []
+design = "smith/docs/design/protocol/programs.md, 5.1"
+
+[[slice]]
+id = 1
+story = "A file answer delivered to a starting, running or child program backend with nothing outstanding fails that run with its reason; one delivered while it ends is dropped; the agent goes on"
+parts = ["unasked"]
+walk = false
