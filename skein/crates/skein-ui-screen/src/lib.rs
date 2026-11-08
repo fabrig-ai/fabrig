@@ -10,6 +10,7 @@ extern crate alloc;
 
 mod focus;
 mod frame;
+pub mod options;
 mod render;
 mod theme;
 mod width;

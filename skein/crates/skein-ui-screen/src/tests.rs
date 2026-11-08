@@ -131,6 +131,7 @@ fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
             base: BASE,
             focus: INK,
             placeholder: PAPER,
+            active: Paint::NONE,
             regions: Box::from(regions),
             styles: Box::from(styles),
             glyphs,
