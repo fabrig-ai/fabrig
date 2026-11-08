@@ -17,22 +17,15 @@ and gate-share measurement outside the runner deferred.
   even with a caller's filter, so a default filter outside the supported
   subset refuses the run even when its agreement check would be skipped.
   No reason is recorded.
-- **Departs:** 11.2: a joined `-EEXPR` is forwarded to the listing but
-  `arguments` does not recognise it as a caller's filter. The default-filter
-  agreement check can refuse that selection. No reason is recorded.
+- **Departs:** 11.2: a joined `-EEXPR` or `--filterset=EXPR` is forwarded to
+  the listing but `arguments` does not recognise it as a caller's filter. The
+  default-filter agreement check can refuse that selection. No reason is
+  recorded.
 - **Departs:** 11.2: an empty selection with `--no-tests=warn` returns 0
   without the warning. No reason is recorded.
-- **Departs:** 11.4 and 11.8: each process's second pipe is a FIFO in a
-  private temporary directory outside the run directory, not an inherited
-  writer at `/dev/fd/N`. The lanes create and remove it on settlement;
-  there is no on-disk log content. The code comment and commit `1fc591a986`
-  give the reason: libtest opens its logfile close-on-exec, keeping the
-  writer out of spawned fixtures that require descriptor isolation.
-- **Departs:** 11.4: `split_jobs` also caps the split count by the binary's
-  selected test count. Its comment gives the reason: leave a test per part.
-  Fresh processes after a crash are prepended to waiting jobs without
-  ordering them by their remaining tests' priority and estimate; no reason
-  is recorded for that ordering.
+- **Departs:** 11.4: fresh processes after a crash are prepended to waiting
+  jobs without ordering them by their remaining tests' priority and
+  estimate. No reason is recorded.
 - **Departs:** 11.6 and 11.7: `BinaryProcess.completed` uses libtest's
   result even after the process has been marked cancelled. A test that
   handles SIGTERM and reports a result can be passed or failed, and later
@@ -62,3 +55,4 @@ and gate-share measurement outside the runner deferred.
   - 7.3, 10.2: in a starved run, an attempt with a record and a JUnit abort by SIGTERM or SIGKILL is starved, not failed, where the request names only a pending attempt and an abort with no record, because SIGTERM first makes such an abort the usual end of an overrun, and failing it would return 100 for a run that only starved. Its cost: a test that died of either signal by itself in a starved run reads as starved.
   - 10.3: `run.json` keeps `cancel_code`, always null, though the request's bound lets only the output file's name change, because cancellation is signals, with no exit status of its own, and section 10 keeps its keys.
   - 7, 10: from section 7 on the setting is named `TIERS_WRAPPER`, and section 10 speaks of the caller's build command, where the request has sections 1 to 3, 5 to 7 and 10 say "the wrapper", because from section 7 on a bare "wrapper" is the CPU wrapper (section 3).
+- **Design departs:** from the inproc-fixes request (`temper/docs/plan/inproc-fixes/inputs/request.md`, 1), decided by its cut. 11.7: a process a forced kill left without its record keeps the outcomes libtest had reported (passed, failed, starved), with no process, where the request has that process's tests unobserved, because a failure reported before the kill stays red, as 7.3 keeps an attempt that has its record; its running test, the tests after it and a crashed or cancelled one are unobserved, as asked.
