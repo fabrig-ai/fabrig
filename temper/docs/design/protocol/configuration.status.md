@@ -176,3 +176,7 @@ Sections 3 and 10 have `engine.clients.approval` enabled beside `link`
 in both init templates and the owned example, with the listener's member
 line naming approvals. The service table checks an ask enabled, disabled
 and absent; standalone's loopback admission remains in force.
+
+- **Not yet:** 13.10: the stock module holds no ways, the engine is given
+  none at a start, and no `ways` read gives a way's items, its path or the
+  way the project runs.

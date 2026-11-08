@@ -411,3 +411,6 @@ table admits 32 changes and refuses 33 at an authority batch bound of 32.
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+- **Not yet:** 8.13: no path is derived: the root gathers no path's
+  inputs and makes no `ways` document, and no client or `see` read draws
+  one.
