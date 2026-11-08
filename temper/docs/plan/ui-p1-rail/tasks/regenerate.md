@@ -133,3 +133,18 @@ Then `again chat-draft` (moving-mark retries as before), the other stale
 journeys, and acceptance 4. The later "+ Draft" step skips the menu's
 "Draft" the same way; if the Chats page then shows no control giving
 `NewChat { draft: true }`, that is a question with its log.
+
+## Rebase (2026-11-08, step merge, foreman ui-p1-rail/regenerate/foreman-3)
+
+reconcile the journey sources and regenerate their recordings and pages on the combined trunk.
+The merge conflicts in `temper/docs/design/client/journeys/chat-draft/{01..20}.html`, `chat-draft/recording`, and `welcome-playground/02.html`.
+Main refreshed chat-draft in `711b3a7906` for How work runs and opening history; integration merge `20714f54e5` combined those prints with the new rail.
+Task commit `9b6094d37f` independently regenerated these artifacts from the authorized Chats start.
+Preserve this task’s `chat-draft/setup` reload of `/chats`, its “+ New chat” press, and its README’s Chats start and rail description.
+Preserve the menu-skipping `control` repair in `temper-client-shell-web/src/journey.rs`, its test in `tests/suite/host.rs`, and the corresponding status removal.
+Resolve generated conflicts by running `heavy cargo run -p temper-client-journeys -- again chat-draft` against the combined code; commit the recording and all generated pages together.
+Regenerate `welcome-playground` likewise; its conflicting page differs in generated control IDs, so choosing an HTML side alone does not establish consistency.
+Check `project-landing` and `welcome-set-up` with the focused replay tests and regenerate either if stale.
+Follow the existing moving-mark retry limit and report each regeneration and any widened mark.
+Run acceptance 4’s replay tests and the terminal shell’s focused tests through heavy, with `TEMPER_BUNDLE=none`.
+Keep changes within the task’s allowed files and leave TUI journeys untouched.
