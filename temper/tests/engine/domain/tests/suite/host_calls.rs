@@ -849,6 +849,100 @@ fn close_out_requires_acceptance_specific_regression_evidence() {
     world.close();
 }
 
+// temper/docs/design/protocol/configuration.md, 13.9: scripted replacement records
+// exercise delivered charters and report handoffs, without real-model compliance.
+#[test]
+fn help_trimming_requires_existing_fact_preservation_evidence() {
+    for retained in [false, true] {
+        let (mut world, mut goal) = reference_person_world("none");
+        assert_help_preservation_instructions(&goal);
+        let spec = "Trim change help to add the early-start explanation and resolving pointer. \
+                    Existing facts at risk: read_task supplies the answer number. Require a \
+                    before/after fact mapping and named retention assertion alongside addition checks.";
+        let (change, producer) = close_out_change(&mut world, &goal, 5, spec, 2);
+        assert_help_preservation_instructions(&producer);
+        let report = help_trimming_report(retained);
+        close_out_land(&mut world, change, &producer, report.as_bytes());
+        let (read, pieces) = close_out_report(&mut world, &goal, producer.task);
+        assert_eq!(read, report, "preservation evidence survives bounded report reads");
+        assert!(pieces > 1, "preservation evidence follows report continuations");
+        let disposition = if retained {
+            "Acceptance: early-start explanation, resolving pointer and answer-number hint retained; \
+             all three facts map to named assertions."
+        } else {
+            "Unresolved acceptance: answer-number hint deleted; preservation evidence missing. \
+             Passing addition tests and page bounds cannot settle it; repair before built."
+        };
+        let handoff = format!(
+            "Close out help trimming. Change task {change}; producer task {}:\n{read}\n{disposition}\n",
+            producer.task
+        );
+        person_park(&mut world, &goal);
+        goal = person_assignment(&mut world, 5, Some(&goal));
+        assert_help_preservation_instructions(&goal);
+        assert!(
+            String::from_utf8_lossy(&goal.run.policy.instructions)
+                .contains("carry the fact mapping and missing preservation evidence in the close-out change's words"),
+            "coordinator results review retains preservation gaps"
+        );
+        let (_, close_out) = close_out_change(&mut world, &goal, 8, &handoff, 7);
+        assert_close_out_reports(&close_out, &handoff, &[]);
+        assert_help_preservation_instructions(&close_out);
+        // The restart oracle must observe the fake landing on the watched branch.
+        world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll_max);
+        world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+        world.close();
+    }
+}
+
+fn help_trimming_report(retained: bool) -> String {
+    let hint = "read_task supplies the answer number.";
+    let replacement = "A cancelled early start ends the old producer; its replacement continues. \
+                       For resolving, see task help.";
+    let (after, evidence) = if retained {
+        (
+            format!("{replacement} {hint}"),
+            "Retention assertion: answer_number_hint checks read_task and answer number together. \
+          Before/after fact mapping: answer-number lookup retained; early-start explanation and \
+          resolving pointer added. Left: none.",
+        )
+    } else {
+        (
+            replacement.to_owned(),
+            "Preservation evidence missing: replacement deletes the answer-number lookup guidance. \
+          Left: none. Unresolved acceptance: restore the hint and supply retention evidence.",
+        )
+    };
+    assert_eq!(after.contains(hint), retained, "scripted replacement retains or deletes the reported fact");
+    format!(
+        "Explicitly scripted record of the reported deletion; no recovered seed patch or model transcript.\n\
+         Before: {hint}\nReplacement: {after}\n\
+         Addition assertions: early_start_explanation and resolving_pointer pass.\n\
+         Page bounds: 8190/8192 bytes; link validity and CI pass (scripted).\n{evidence}\n"
+    )
+}
+
+fn assert_help_preservation_instructions(run: &engine::Assignment) {
+    let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
+    for rule in [
+        "existing facts at risk",
+        "before/after fact mapping",
+        "named retention assertions",
+        "read_task supplies the answer number",
+        "Passing addition tests and page bounds cannot settle missing preservation evidence",
+        "unresolved acceptance",
+    ] {
+        assert!(instructions.contains(rule), "charter {} help preservation requires: {rule}", run.charter);
+    }
+    let rule = match run.charter {
+        2 => "report missing preservation evidence as unresolved acceptance",
+        5 => "identify existing facts at risk and require a before/after fact mapping",
+        7 => "retain the fact mapping and missing preservation evidence in your report",
+        other => panic!("help preservation charter {other}"),
+    };
+    assert!(instructions.contains(rule), "charter {} help preservation requires: {rule}", run.charter);
+}
+
 // temper/docs/design/protocol/configuration.md, 13.9: scripted choices check
 // instruction delivery and evidence retention, not real-model compliance.
 #[test]
