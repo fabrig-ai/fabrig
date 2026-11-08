@@ -68,19 +68,35 @@ pub struct Answered {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Toasted {
-    AwayOn { project: u32, until: Option<Wall> },
+    /// A way's act answered: its name and revision (client/README.md, 5.13).
+    Way {
+        name: Box<[u8]>,
+        revision: u32,
+        kept: bool,
+    },
+    AwayOn {
+        project: u32,
+        until: Option<Wall>,
+    },
     AwayOff,
     AwayRefused,
     Overturned,
     OverturnEnded,
     OverturnAlready,
-    Answered { object: ObjectKey, label: Label },
+    Answered {
+        object: ObjectKey,
+        label: Label,
+    },
     Later,
     NotSent,
     Paused,
     Resumed,
-    Proposed { to: contract::Recipient },
-    Refused { outcome: Outcome },
+    Proposed {
+        to: contract::Recipient,
+    },
+    Refused {
+        outcome: Outcome,
+    },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Count {
@@ -666,7 +682,8 @@ pub(crate) fn act(
                             pages.needs.toast = None;
                         }
                     }
-                    Toasted::AwayOn { .. }
+                    Toasted::Way { .. }
+                    | Toasted::AwayOn { .. }
                     | Toasted::AwayOff
                     | Toasted::AwayRefused
                     | Toasted::Overturned

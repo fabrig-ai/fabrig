@@ -332,6 +332,11 @@ fn a_flat_forge_read_error_names_its_missing_member() {
         (b"read_branch".as_slice(), b"{}".as_slice(), b"host call member missing: branch".as_slice()),
         (b"read_branch", br#"{"branch":1}"#, b"host call member of wrong type: branch"),
         (b"read_reviews", br#"{"number":1,"page":0}"#, b"host call out of range: page"),
+        (
+            b"change",
+            br#"{"landing":"goal","changes":[{"words":"a"}]}"#,
+            b"host call member belongs in each change, not beside changes: landing",
+        ),
     ] {
         let event = crate::tools::decode(TO, 3, 7, &call(7, tool, input));
         let root::Event::Worker(root::WorkerInput::RenderedHostCall { answer, .. }) = event else {

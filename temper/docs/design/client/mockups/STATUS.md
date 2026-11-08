@@ -142,7 +142,7 @@ Where the client does otherwise:
 
   | Page | Where the client does otherwise, or what is left |
   |---|---|
-  | Ask temper's page (`chat.html?id=new&configure=1`) | In the project's frame, through no Settings, at `/projects/<project>/ask` (`../browser.md`, 2.3), the rail's "Ask temper" and the tab bar's "Ask" current (the look request `ask-temper-place`); an Ask temper chat keeps that layout at `/chats/<task>` (`../README.md`, 3.5). The rail stays on a wide page; on a phone it and the tabs go so the composer keeps the foot. The page is named "Ask temper": its opening is a page in a column at most 720 px wide, the project's question, lede, what it sets, three starter cards and the fourth starter as a link in the section’s head, then the card "At scale, as temper builds itself", its steps and its two buttons, above the focused composer. "See how it works" opens the stock reference "How temper builds temper" beside the page in Split, with the rail folded; Chat keeps the mode group and folds the reference. On a phone the reference stands alone as Draft, above the composer. The opening, turns and composer share their edges, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. The rail's "Ask temper", the tab bar's "Ask" and To begin's "Start" open the newest Ask temper chat not closed in their delivered rows, or this opening; Settings offers none. Chats tags it "Ask temper"; To begin keeps "Tell temper how you work". |
+  | Ask temper's page (`chat.html?id=new&configure=1`) | In the project's frame, through no Settings, at `/projects/<project>/ask` (`../browser.md`, 2.3), the rail's "Ask temper" and the tab bar's "Ask" current (the look request `ask-temper-place`); an Ask temper chat keeps that layout at `/chats/<task>` (`../README.md`, 3.5). The opening draws the lede "Pick a way for PROJECT, or ask temper to build your own.", the ways' tabs and axis, the shown way's line and path from the `ways` read, a pressed stop's card, the legend and "Use this" or "Keep it" where offered (the look request `ask-temper-ways`). It has no heading, starters or temper's own way's card, and no reference beside the page. On a phone the path runs down the page; while To begin is left, its three tabs stay under the composer. The opening, turns and composer share a column at most 720 px wide, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. The rail's "Ask temper", the tab bar's "Ask" and To begin's "Start" open the newest Ask temper chat not closed in their delivered rows, or this opening; Settings offers none. Chats tags it "Ask temper"; To begin keeps "Tell temper how you work". Render comparison follows landing, owned by temper/ui (`../README.md`, section 11). |
 
   The model line names the first usable account's kind and the first
   model `me` serves for the project (`../README.md`, 3.5), rather than
@@ -173,8 +173,10 @@ Where the client does otherwise:
   The mockups are not edited.
 - **The welcome's greenfield pass** (the client README's 3.5 and 5.6;
   `../browser.md`, 2.5, The welcome's look; the user, 2026-11-04): the
-  frame holds temper box's line and the steps, and no person's name or
-  "Sign out"; "Set up temper" is the first card and the default;
+  frame holds temper box's line and the steps, then, signed in, the
+  person's name and "Sign out", as every page outside a project has
+  them (the look request `outside-pages`; `look-round-22`), where the
+  mock draws no end; "Set up temper" is the first card and the default;
   Forge's Forgejo card comes first with "Run on this machine" alone,
   no "Or connect your deployment", which opens Forgejo's sheet, what
   it starts with, an empty repository by default, as the user's

@@ -1,6 +1,6 @@
 # per-wake: status
 
-2026-11-07. Where the design lags or departs from [per-wake.md](per-wake.md).
+2026-11-08. Where the design lags or departs from [per-wake.md](per-wake.md).
 
 Sections 2 to 9 have no remaining design gap beyond the lags and
 departures below. Temper's settings form and ctl carry parts and later;
@@ -10,6 +10,9 @@ worker and stored-policy checks. `../domain/root.md`, section 10 and
 `../client/tools.md`, 5.3 carry section 8's stored-policy size refusal,
 including the charter, supplied bytes and bound. The combined
 cut-and-answer domain story is unignored, including its restart oracle.
+Section 4's entry its run covered, waiting for a change, and every
+reason waiting at a run's claim, a due result among them, are jig's
+`domain/tasks.md`, 8.6 and `domain/engine.md`, 7.1 and 7.4.
 
 - **Design lags:**
   - 6: `reference-code-production.md`, sections 13 and 14: the reference's charter 5 is one text, and template 4 takes one LLM choice. Tests and stage one's judge read that draft, so it stays as it is; `../protocol/configuration.md`, 13.9 carries the parts and the later choice.

@@ -113,8 +113,10 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `seed` | the host's seed | the start's facts, in this order (shared) |
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
 | `screen` | rows, columns, `dark` or `light` | the start's size and scheme |
+| `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`../README.md`, 6.13, `Start.background`) |
 | `address` | `HOST:PORT` as bytes | the start's address |
 | `local` | none | when the start has an engine's link file to read (`../README.md`, 6.13, `Start.local`) |
+| `box` | none | when the start is on a box (`../README.md`, 6.12, *On a box*; `Start.boxed`) |
 | `stored` | a small-store record's key and bytes | one per record loaded (shared) |
 | `credential` | the credential's bytes | when the start held one |
 | `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`../README.md`, 6.12) |
@@ -162,10 +164,12 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **The duties' order:** each request of `asked` in order, then `keep`,
   `note`, `signed`, `read`, `browse` and `quit`, each when the duty holds
   it.
-- **The start's facts** are in the table's order, `local` after
-  `address` and `noted` after `credential`. A recording with neither
-  reads as a start with no engine's link file and no note, so one made
-  before them replays as it stands; the version stays `2`.
+- **The start's facts** are in the table's order, `background` after
+  `screen`, `local` after `address`, `box` after `local` and `noted`
+  after `credential`. A recording with none of them reads as a start
+  with no background answered, no engine's link file, not on a box and
+  no note, so one made before them replays as it stands; the version
+  stays `2`.
 - **Unreadable:** another version, a record out of its place, an unknown
   kind or word, a field missing or over, a number out of its type's
   range; it names the line.
@@ -460,10 +464,12 @@ ordinary Rust over skein's harness:
   box's address, with `XDG_STATE_HOME` and `HOME` in the scratch
   directory, `XDG_RUNTIME_DIR` a directory of its own there,
   `tui-runtime`, apart from the box's, so that it finds no engine's link
-  file and the journey walks the approval (`../README.md`, 6.12), no
+  file and the journey walks the approval (`../README.md`, 6.12), and,
+  reading none at start, is not on a box: the rule above a chat's box
+  names the engine's place by its `HOST:PORT` (`../README.md`, 6.14), no
   `COLORFGBG`, so that it asks the terminal its background, which the
-  pseudo-terminal leaves unanswered, and draws dark (`../README.md`,
-  6.15), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
+  pseudo-terminal leaves unanswered, and draws dark with no band
+  (`../README.md`, 6.15, *The band*), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
   `again`'s or `:0`, and `PATH` led by a scratch directory whose
   `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
   0, and leaves the tab to `again`. Its output is read and dropped.
@@ -521,7 +527,8 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 - **The frames' refinement:** the user refines `sign-in-approved` and
   `launchpad-chat` on their frames (sections 9 and 10), with later
   surfaces refined before they are designed (`../../draft/tui.md`,
-  section 3). The look request `tui-launchpad` has its render check and
+  section 3). The look requests `tui-launchpad` and
+  `tui-chat-title-below` have their render check and
   walk after landing, owned by temper/tui's after-landing check; differences
   return as repairs carrying its trailer (`../../draft/look-requests.md`,
   sections 4 and 5). A replay and byte-equal print establish no real
@@ -539,6 +546,13 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 - **A real box's TUI journey:** none in the first pass; it would be
   recorded by hand and redacted as the browser's real journeys are
   (`../journeys.md`, 3.5).
+- **The place "box" in a journey:** `again` keeps the TUI apart from the
+  box's link file so that it walks the approval (8.2), so no journey
+  draws "box" in the rule above a chat's box (`../README.md`, 6.14, *The
+  rule above the box*), and `launchpad-chat/04` has `127.0.0.1:PORT`
+  where the look request `tui-chat-title-below` drew "box:40691"; the
+  view's rows hold "box". Default: so, until a journey signs in by the
+  engine's link file.
 - **A resize in a walk:** recorded and replayed as a report; `walk` has
   no step for it until a journey needs one.
 - **A new recording's noise:** a fake box's port and the clocks change

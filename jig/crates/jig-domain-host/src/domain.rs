@@ -309,6 +309,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             }
         }
         Event::Agent(crate::FromAgent::Started { owner, agent }) => hosted::started(domain, env, owner, agent, out),
+        Event::Agent(crate::FromAgent::StartBusy { owner }) => hosted::start_busy(domain, env, owner, out),
         Event::Agent(crate::FromAgent::StartRefused { owner, why, cause }) => {
             hosted::start_refused(domain, env, owner, why, cause, out);
         }

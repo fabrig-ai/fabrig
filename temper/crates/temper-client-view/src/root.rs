@@ -111,7 +111,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     builder.open(Role::Page);
     let rail_project = crate::frame::rail_project(root, &view.forge_words, &view.sign_in);
     let no_project = crate::outside::no_project(root);
-    let terminal = !no_project && root.approval().is_none() && crate::pages::terminal::shown(root, &view.forge_words);
+    let reading = crate::outside::reading_me(root, &view.forge_words, &view.sign_in);
+    let terminal =
+        !reading && !no_project && root.approval().is_none() && crate::pages::terminal::shown(root, &view.forge_words);
     if !terminal {
         if let Some(project) = rail_project {
             crate::frame::rail(
@@ -147,14 +149,14 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Goals { .. }
             | temper_client_domain::Address::Ask { .. }
             | temper_client_domain::Address::Adopt { .. } => {
-                if !no_project {
+                if !reading && !no_project {
                     crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
                 }
             }
         }
         match root.pages().address() {
             temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat { .. } => {
-                if root.approval().is_none() {
+                if !reading && root.approval().is_none() {
                     crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
                 }
             }
@@ -178,7 +180,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
                 // Outside Chats and NewChat the line shows only while the
                 // playground is leaving; while it runs, the frame's "Set up
                 // temper" is the way out (temper/docs/design/client/README.md, 5.1).
-                if root.approval().is_none() && root.forge().leaving() {
+                if !reading && root.approval().is_none() && root.forge().leaving() {
                     crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
                 }
             }
@@ -208,6 +210,10 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         {
             crate::pages::task::reading(&mut builder, page, &view.forge_words);
         }
+        builder.close();
+    } else if reading {
+        builder.open(Role::Main);
+        builder.state(skein_ui::State::Busy);
         builder.close();
     } else if no_project {
         crate::outside::no_project_main(&mut builder, root, &view.forge_words, &mut view.pages);

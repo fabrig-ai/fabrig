@@ -133,7 +133,6 @@ fn finish_claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claiming: C
     task.record.run_spent = 0;
     task.record.invalid_result = None;
     task.record.turn = 0;
-    task.read_escalations = Box::new([]);
     task.record.refused = Box::new([]);
     task.record.phase = Phase::Active(Active::Claimed { attempt });
     let why = task.record.due_reason;
@@ -483,6 +482,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         }
         End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => None,
     };
+    let parked = invalid.is_none() && kept.run_parks(&end);
     let end = match end {
         End::Finished { result, cancel_delegates } => {
             if invalid.is_none() {
@@ -500,7 +500,6 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         }
         End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => end,
     };
-    let parked = kept.run_parks(&end);
     let end = if parked { End::Parked } else { end };
     let refuses_live = match &end {
         End::Finished { cancel_delegates, .. } => !cancel_delegates && !result_followups,

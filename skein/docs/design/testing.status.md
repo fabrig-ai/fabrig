@@ -23,23 +23,27 @@ path. Section 9 leaves caller adoption and suite CPU measurement separate.
   and the programs for trees.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
-  7: no complete post-repair focused-suite CPU total establishes the
-  30 CPU s budget. `skein/docs/development/skein-limits-heavy.md` estimates
-  5.311441 CPU s saved from selected instruction ratios, short of the
-  request's at-least-6 aim; neither that aim nor the suite budget is
-  established. The process-world row has no complete instruction pair,
-  other tests have unknown individual counts, and the row ratios come
-  from different baselines. Shared-helper measurements in
+  7: the focused cost repairs' at-least-6 CPU s saving is unproved.
+  `skein/docs/development/skein-limits-heavy.md` estimates 5.311441 CPU s
+  saved from selected instruction ratios, short of that request's aim.
+  The process-world row has no complete instruction pair, other tests
+  have unknown individual counts, and the row ratios come from different
+  baselines. Shared-helper measurements in
   `skein/docs/development/world-costs.md` establish no suite total either.
-  7: the requested margin of at least 2.5 CPU s below the 30 CPU s
-  focused limit is unproved. Callgrind pairs for the two checking-signature
+  The suite's total is the merge gate's: its full reads of 11-08 put it
+  at 28.5 CPU s (the user's word of 11-08, which set the 40 CPU s
+  budget), and no measurement in this repository records it.
+  7: the skein-limits-rows request asked a margin of at least 2.5 CPU s
+  below a 30 CPU s limit; the gate's 28.5 CPU s leaves 1.5 below that,
+  and 11.5 below the 40 CPU s budget that replaced it, the user's of
+  11-08. The rows' own repairs establish no margin:
+  Callgrind pairs for the two checking-signature
   paths fell from 28,168,371 to 17,682,754 instructions in the forge
   machine world's measured hand test, 126,199,178 to 58,107,517 in
   `skein-fake-forge-github`'s, and 61,539,809 to 51,804,727 in
   `github-conformance`'s; folds removed 397 existing test processes and
   added eight row-kit tests of their own. These floor estimates and
-  individual instruction counts establish no whole-suite margin; that
-  requires the gate's post-landing measurement.
+  individual instruction counts establish no whole-suite saving.
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no

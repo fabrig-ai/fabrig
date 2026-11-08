@@ -117,13 +117,42 @@ fn document(f: &mut Fixture, newest: u32, configured: bool) {
 fn path(branch: &[u8]) -> w::BranchPath {
     w::BranchPath::new(
         &w::CEILINGS,
-        w::BranchPathParts {
-            repository: Some(b"owner/repo".as_slice().into()),
-            branch: branch.into(),
-            stops: List::with_capacity(STOPS),
-        },
+        w::BranchPathParts { repository: Some(b"owner/repo".as_slice().into()), branch: branch.into(), stops: stops() },
     )
     .unwrap()
+}
+fn stops() -> List<w::Stop> {
+    let mut stops = List::with_capacity(STOPS);
+    for (actor, step, words) in [
+        (w::Actor::Agent, w::PathStep::Produce, b"produce".as_slice()),
+        (w::Actor::Person, w::PathStep::Review, b"review".as_slice()),
+        (w::Actor::Bar, w::PathStep::Branch, b"main".as_slice()),
+    ] {
+        stops
+            .push(
+                w::Stop::new(
+                    &w::CEILINGS,
+                    w::StopParts {
+                        actor,
+                        step,
+                        words: words.into(),
+                        opens: w::Opens::Nothing,
+                        card: w::Card::new(
+                            &w::CEILINGS,
+                            w::CardParts {
+                                who: b"The actor".as_slice().into(),
+                                name: Box::default(),
+                                facts: List::with_capacity(0),
+                            },
+                        )
+                        .unwrap(),
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    stops
 }
 fn panel(project: u32, current: Option<u32>, may_change: bool) -> w::WaysPanel {
     panel_delegation(project, current, may_change, false)
@@ -314,6 +343,7 @@ fn ways_watch_has_project_scope_and_the_pages_lifetime() {
     ] {
         let mut f = fixture();
         assert_eq!(f.root.pages().stock_ways().unwrap().state(), &State::Loading);
+        assert_eq!(f.root.pages().stock_ways().unwrap().shown(), None);
         let out = event(&mut f.root, input);
         assert!(closed(&out, f.watch));
     }
@@ -324,9 +354,13 @@ fn ways_watch_has_project_scope_and_the_pages_lifetime() {
 
 #[test]
 fn tabs_preserve_the_reads_order_and_append_yours() {
-    for (current, expected) in [(Some(1), [false, true].as_slice()), (None, [false, false, true].as_slice())] {
+    for (current, expected, shown) in
+        [(Some(1), [false, true].as_slice(), 1), (None, [false, false, true].as_slice(), 2)]
+    {
         let mut f = fixture();
         show(&mut f, &panel(f::PROJECT, current, true));
+        assert_eq!(f.root.pages().stock_ways().unwrap().shown(), Some(shown));
+        assert_eq!(f.root.pages().stock_ways().unwrap().open(), None);
         let tabs = f.root.pages().stock_ways().unwrap().tabs();
         let mut current_tabs = List::with_capacity(TABS);
         for tab in &tabs {
@@ -355,7 +389,7 @@ fn acts_follow_current_step_permission_and_pending_state() {
         ("step done", Some(0), true, true, false, [None, Some(WayAct::Use), None]),
         ("Yours", None, false, true, false, [Some(WayAct::Use), Some(WayAct::Use), None]),
         ("read only", Some(0), false, false, false, [None, None, None]),
-        ("act out", Some(0), false, true, true, [None, None, None]),
+        ("act out", Some(0), false, true, true, [Some(WayAct::Keep), Some(WayAct::Use), None]),
     ] {
         let mut f = fixture();
         document(&mut f, NEWEST, configured);
@@ -365,14 +399,15 @@ fn acts_follow_current_step_permission_and_pending_state() {
         }
         let page = f.root.pages().stock_ways().unwrap();
         assert_eq!([page.act(0), page.act(1), page.act(2)], expected, "{name}");
+        assert_eq!(page.sending(), pending, "{name}");
     }
 }
 
 #[test]
 fn use_and_keep_send_one_ordered_decision_at_newest() {
-    for (current, action) in [
-        (Some(0), pages::Act::UseWay { project: f::PROJECT, way: 1 }),
-        (Some(1), pages::Act::KeepWay { project: f::PROJECT }),
+    for (current, action, kept) in [
+        (Some(0), pages::Act::UseWay { project: f::PROJECT, way: 1 }, false),
+        (Some(1), pages::Act::KeepWay { project: f::PROJECT }, true),
     ] {
         let mut f = fixture();
         show(&mut f, &panel(f::PROJECT, current, true));
@@ -384,6 +419,26 @@ fn use_and_keep_send_one_ordered_decision_at_newest() {
         let change = &sent.first().unwrap().1;
         assert_eq!((change.against, &change.running), (NEXT, &c::Running::Stays));
         assert_eq!(change.items, way_items(None));
+        assert!(f.root.pages().stock_ways().unwrap().sending());
+        let retried = sends(answer(&mut f, sent.first().unwrap().0, refused(stale())));
+        let key = retried.first().unwrap().0;
+        assert!(f.root.pages().stock_ways().unwrap().sending());
+        let mut refreshed = panel(f::PROJECT, None, true).into_parts();
+        let mut renamed = refreshed.ways.get(1).unwrap().clone().into_parts();
+        renamed.name = b"A newer name".as_slice().into();
+        *refreshed.ways.get_mut(1).unwrap() = w::StockWay::new(&w::CEILINGS, renamed).unwrap();
+        show(&mut f, &w::WaysPanel::new(&w::CEILINGS, refreshed).unwrap());
+        answer(&mut f, key, c::Answer::Done(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: NEXT })));
+        assert!(!f.root.pages().stock_ways().unwrap().sending());
+        assert_eq!(
+            f.root.pages().needs().toast(),
+            Some(&pages::needs::Toasted::Way { name: b"Agents review".as_slice().into(), revision: NEXT, kept })
+        );
+        act(&mut f, pages::Act::Needs(pages::needs::Act::Dismiss));
+        answer(&mut f, key, c::Answer::Done(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: NEXT })));
+        assert_eq!(f.root.pages().needs().toast(), None, "an old answer is ignored");
+        show(&mut f, &panel(f::PROJECT, None, true));
+        assert_eq!(f.root.pages().needs().toast(), None, "a toast is handed over once");
     }
     for (current, configured, may_change, action) in [
         (Some(0), false, true, pages::Act::UseWay { project: f::PROJECT, way: 0 }),
@@ -434,8 +489,11 @@ fn delegation_reads_policy_then_sends_only_missing_executors() {
                 })
             );
             assert!(sends(out).is_empty(), "the policy must arrive before sending");
-            assert_eq!(f.root.pages().stock_ways().unwrap().act(0), None);
-            assert_eq!(f.root.pages().stock_ways().unwrap().act(1), None);
+            assert!(f.root.pages().stock_ways().unwrap().sending());
+            assert_eq!(
+                f.root.pages().stock_ways().unwrap().act(1),
+                Some(if current == Some(1) { WayAct::Keep } else { WayAct::Use })
+            );
             let sent = sends(read_answer(&mut f, *handle, policy_page(policy(ceiling, owner))));
             let expected_policy = match expected {
                 Some((ceiling, owner)) => Some(policy(ceiling, owner)),
@@ -478,6 +536,8 @@ fn policy_read_failure_keeps_refusal_and_sends_nothing() {
             why: c::Text::new(why.into(), 128).unwrap(),
         };
         assert_eq!(f.root.pages().stock_ways().unwrap().refused(), Some(&refusal));
+        assert!(!f.root.pages().stock_ways().unwrap().sending());
+        assert_eq!(f.root.pages().needs().toast(), None);
         document(&mut f, NEXT, false);
         assert_eq!(f.root.pages().stock_ways().unwrap().refused(), Some(&refusal));
         assert_eq!(f.root.pages().stock_ways().unwrap().act(1), Some(WayAct::Use));
@@ -509,6 +569,8 @@ fn stale_retries_once_and_refusals_last_until_an_act_or_document() {
         assert_eq!((retry.against, &retry.items, &retry.running), (NEXT, &first.items, &c::Running::Stays));
         assert!(sends(answer(&mut f, *key, refused(refusal.clone()))).is_empty());
         assert_eq!(f.root.pages().stock_ways().unwrap().refused(), Some(&refusal));
+        assert!(!f.root.pages().stock_ways().unwrap().sending());
+        assert_eq!(f.root.pages().needs().toast(), None);
         document(&mut f, NEXT, false);
         assert_eq!(f.root.pages().stock_ways().unwrap().refused(), Some(&refusal));
         let (key, _) = use_way(&mut f);
@@ -516,6 +578,16 @@ fn stale_retries_once_and_refusals_last_until_an_act_or_document() {
         answer(&mut f, key, refused(c::Refusal::Provider));
         show(&mut f, &panel(f::PROJECT, Some(1), true));
         assert_eq!(f.root.pages().stock_ways().unwrap().refused(), None);
+    }
+    for answer_value in
+        [c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Stopped { task: 9 })), refused(c::Refusal::Provider)]
+    {
+        let mut f = fixture();
+        show(&mut f, &panel(f::PROJECT, Some(0), true));
+        let (key, _) = use_way(&mut f);
+        answer(&mut f, key, answer_value);
+        assert!(!f.root.pages().stock_ways().unwrap().sending());
+        assert_eq!(f.root.pages().needs().toast(), None);
     }
     let mut f = fixture();
     show(&mut f, &panel(f::PROJECT, Some(0), true));
@@ -550,9 +622,136 @@ fn wrong_project_invalid_or_ended_documents_end_the_watch() {
         let page = f.root.pages().stock_ways().unwrap();
         assert_eq!(page.state(), &State::Ended);
         assert!(page.tabs().is_empty());
+        assert_eq!((page.shown(), page.open()), (None, None));
         assert_eq!(page.act(0), None);
     }
     let mut f = fixture();
     up(&mut f.root, Up::WatchEnded { watch: f.watch, end: c::WatchEnd::SubjectEnded });
     assert_eq!(f.root.pages().stock_ways().unwrap().state(), &State::Ended);
+}
+
+#[test]
+fn tabs_and_stop_cards_switch_in_place() {
+    use pages::Act::{WayStop, WayTab};
+    for (name, actions, shown, open) in [
+        ("switch tab", [WayTab { project: f::PROJECT, tab: 1 }].as_slice(), 1, None),
+        ("same tab closes", [WayTab { project: f::PROJECT, tab: 0 }].as_slice(), 0, None),
+        ("past tabs", [WayTab { project: f::PROJECT, tab: WAYS }].as_slice(), 0, Some(0)),
+        ("other project's tab", [WayTab { project: OTHER, tab: 1 }].as_slice(), 0, Some(0)),
+        ("close stop", [WayStop { project: f::PROJECT, stop: 0 }].as_slice(), 0, None),
+        ("move stop", [WayStop { project: f::PROJECT, stop: 1 }].as_slice(), 0, Some(1)),
+        ("bar", [WayStop { project: f::PROJECT, stop: 2 }].as_slice(), 0, Some(0)),
+        ("past path", [WayStop { project: f::PROJECT, stop: 3 }].as_slice(), 0, Some(0)),
+        ("other project's stop", [WayStop { project: OTHER, stop: 1 }].as_slice(), 0, Some(0)),
+    ] {
+        let mut f = fixture();
+        assert!(act(&mut f, WayStop { project: f::PROJECT, stop: 0 }).is_empty());
+        assert!(act(&mut f, WayTab { project: f::PROJECT, tab: 0 }).is_empty());
+        show(&mut f, &panel(f::PROJECT, Some(0), true));
+        assert!(act(&mut f, WayStop { project: f::PROJECT, stop: 0 }).is_empty());
+        assert_eq!(f.root.pages().stock_ways().unwrap().open(), Some(0), "opens: {name}");
+        for action in actions {
+            assert!(act(&mut f, action.clone()).is_empty(), "{name}");
+        }
+        let page = f.root.pages().stock_ways().unwrap();
+        assert_eq!((page.shown(), page.open()), (Some(shown), open), "{name}");
+        assert_eq!(f.root.pages().address(), &Address::Ask { project: f::PROJECT });
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Refresh {
+    Same,
+    MoreWays,
+    WayKept,
+    YoursGone,
+    WayGone,
+    Words,
+    Actor,
+    Card,
+    Branch,
+    FewerStops,
+    OtherPath,
+}
+#[test]
+fn later_documents_keep_the_tab_key_and_only_the_same_stops_card() {
+    for (change, shown, open) in [
+        (Refresh::Same, 2, Some(0)),
+        (Refresh::MoreWays, 3, Some(0)),
+        (Refresh::WayKept, 1, Some(0)),
+        (Refresh::YoursGone, 1, None),
+        (Refresh::WayGone, 0, None),
+        (Refresh::Words, 2, None),
+        (Refresh::Actor, 2, None),
+        (Refresh::Card, 2, Some(0)),
+        (Refresh::Branch, 2, Some(0)),
+        (Refresh::FewerStops, 2, None),
+        (Refresh::OtherPath, 2, Some(0)),
+    ] {
+        let mut f = fixture();
+        let first = panel(f::PROJECT, None, true);
+        show(&mut f, &first);
+        let tab = if let Refresh::WayGone | Refresh::WayKept = change { 1 } else { 2 };
+        act(&mut f, pages::Act::WayTab { project: f::PROJECT, tab });
+        act(&mut f, pages::Act::WayStop { project: f::PROJECT, stop: 0 });
+        let mut next = first.into_parts();
+        let mut path = next.own.into_parts();
+        match change {
+            Refresh::Same => {}
+            Refresh::MoreWays => {
+                let mut ways = List::with_capacity(TABS);
+                for way in &next.ways {
+                    ways.push(way.clone()).unwrap();
+                }
+                ways.push(next.ways.get(0).unwrap().clone()).unwrap();
+                next.ways = ways;
+            }
+            Refresh::WayKept => next.current = Some(0),
+            Refresh::YoursGone => next.current = Some(1),
+            Refresh::WayGone => {
+                next.ways = List::from_boxed(Box::new([next.ways.get(0).unwrap().clone()]));
+                next.current = Some(0);
+            }
+            Refresh::Words | Refresh::Actor | Refresh::Card => {
+                let mut stop = path.stops.get(1).unwrap().clone().into_parts();
+                match change {
+                    Refresh::Words => stop.words = b"changed words".as_slice().into(),
+                    Refresh::Actor => stop.actor = w::Actor::Code,
+                    Refresh::Card => {
+                        let mut card = stop.card.into_parts();
+                        card.who = b"New details".as_slice().into();
+                        stop.card = w::Card::new(&w::CEILINGS, card).unwrap();
+                    }
+                    Refresh::Same
+                    | Refresh::MoreWays
+                    | Refresh::WayKept
+                    | Refresh::YoursGone
+                    | Refresh::WayGone
+                    | Refresh::Branch
+                    | Refresh::FewerStops
+                    | Refresh::OtherPath => unreachable!(),
+                }
+                *path.stops.get_mut(1).unwrap() = w::Stop::new(&w::CEILINGS, stop).unwrap();
+            }
+            Refresh::Branch => path.branch = b"new branch".as_slice().into(),
+            Refresh::FewerStops => path.stops = List::from_boxed(Box::new([path.stops.get(0).unwrap().clone()])),
+            Refresh::OtherPath => {
+                let mut way = next.ways.get(0).unwrap().clone().into_parts();
+                way.path = w::BranchPath::new(
+                    &w::CEILINGS,
+                    w::BranchPathParts {
+                        repository: None,
+                        branch: b"elsewhere".as_slice().into(),
+                        stops: List::with_capacity(0),
+                    },
+                )
+                .unwrap();
+                *next.ways.get_mut(0).unwrap() = w::StockWay::new(&w::CEILINGS, way).unwrap();
+            }
+        }
+        next.own = w::BranchPath::new(&w::CEILINGS, path).unwrap();
+        show(&mut f, &w::WaysPanel::new(&w::CEILINGS, next).unwrap());
+        let page = f.root.pages().stock_ways().unwrap();
+        assert_eq!((page.shown(), page.open()), (Some(shown), open), "{change:?}");
+    }
 }

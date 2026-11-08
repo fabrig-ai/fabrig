@@ -1,4 +1,4 @@
-//! Kept facts and requester authority (domain/tasks.md, 5.7 and 5.8).
+//! Kept facts and requester authority (domain/tasks.md, 5.6–5.8).
 use super::revisions::{Harness, LIMITS, task};
 use crate::{Domain, Event, Party, Stored};
 use alloc::boxed::Box;
@@ -75,5 +75,100 @@ fn requester_ending_restores_without_rejudging_earlier_authority() {
         let out = cold.send(Event::Restore { record: Stored::Live(Box::new(broken)) });
         assert!(out.is_empty());
         assert_eq!(cold.domain.task(1).unwrap().requester, requester);
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::match_like_matches_macro,
+    reason = "unit test inspects selected terminal and activity events with explicit patterns"
+)]
+fn an_agent_finish_waits_for_live_delegates_unless_it_cancels_them() {
+    use super::revisions::to;
+    use crate::{Accepted, Active, Cause, End, EndKind, Key, Line, Phase, Request, SavedResource, TaskResult, Tries};
+    for cancel_delegates in [false, true] {
+        let mut h = Harness::new();
+        h.make([task(1, &[])].into());
+        let made = h.send(Event::Make { reply_to: to(), creator: Party::Task(1), batch: Box::new([task(2, &[])]) });
+        assert!(made.iter().any(|request| if let Request::Made { .. } = request { true } else { false }));
+        h.send(Event::Prepare { reply_to: to(), task: 1 });
+        h.send(Event::Claim {
+            reply_to: to(),
+            task: 1,
+            attempt: 1,
+            resumed: false,
+            budget: 10,
+            account: None,
+            writes: Box::new([]),
+            offered: crate::Reasons::ALL,
+            reasons: crate::Reasons::FIRST,
+        });
+        h.send(Event::Started { task: 1, attempt: 1 });
+        let turn = h.send(Event::Turn {
+            reply_to: to(),
+            task: 1,
+            attempt: 1,
+            turn: 1,
+            read: None,
+            offered: None,
+            refused: Box::new([]),
+            outstanding: Box::new([]),
+            cumulative: 1,
+        });
+        assert!(turn.iter().any(|request| if let Request::TurnAcknowledged { .. } = request { true } else { false }));
+        let saved = Box::new([SavedResource { connector: 1, path: Box::new([b"work".as_slice().into()]) }]);
+        let out = h.send(Event::Activation {
+            reply_to: to(),
+            task: 1,
+            attempt: 1,
+            cause: Cause::Priced { cumulative: 2 },
+            end: End::Finished { result: TaskResult::Report { words: b"ready".as_slice().into() }, cancel_delegates },
+            saved: Some(saved.clone()),
+        });
+        assert!(
+            out.iter().any(|request| {
+                if let Request::Acknowledged { accepted: Accepted::New, parked, .. } = request {
+                    *parked != cancel_delegates
+                } else {
+                    false
+                }
+            }),
+            "{out:?}"
+        );
+        let row = h.domain.task(1).expect("parent still live");
+        assert_eq!(row.tries, Tries::NONE);
+        assert_eq!(row.turn, 1);
+        assert_eq!(row.saved.as_ref(), saved.as_ref());
+        assert_eq!(row.numbers.spent, 2);
+        assert_eq!(row.run_reserved, 0);
+        assert_eq!(row.last_answer, Some(1));
+        assert_eq!(row.reasons, crate::Reasons::EMPTY);
+        assert!(!h.stored.contains_key(&Key::Ended(1)));
+        let end_kind = if cancel_delegates {
+            let Phase::Closing(closing) = &row.phase else { unreachable!("cancelling finish closes") };
+            assert_eq!(closing.ending, crate::Ending::Done(TaskResult::Report { words: b"ready".as_slice().into() }));
+            assert!(if let Phase::Closing(_) = h.domain.task(2).expect("delegate closing").phase {
+                true
+            } else {
+                false
+            });
+            EndKind::Finished
+        } else {
+            assert_eq!(row.phase, Phase::Active(Active::Idle));
+            assert_eq!(row.delegates.as_ref(), [2]);
+            assert_eq!(h.domain.task(2).expect("delegate live").phase, Phase::Active(Active::Due));
+            EndKind::Parked
+        };
+        assert!(h.stored.values().any(|stored| {
+            if let Stored::Activity(activity) = stored
+                && activity.task == 1
+                && let Line::RunEnded { attempt: 1, end, .. } = activity.line
+            {
+                end == end_kind
+            } else {
+                false
+            }
+        }));
     }
 }

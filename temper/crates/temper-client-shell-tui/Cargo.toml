@@ -10,6 +10,8 @@ publish.workspace = true
 record = ["dep:temper-client-shell-web", "dep:jig-client-protocol-wire"]
 
 [dependencies]
+skein-fail-stop.workspace = true
+temper-shell.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 skein-ui.workspace = true
@@ -26,6 +28,7 @@ temper-client-tui.workspace = true
 temper-client-shell-terminal.workspace = true
 temper-client-shell-web = { workspace = true, optional = true }
 [dev-dependencies]
+skein-scratch.workspace = true
 jig-client-test-records.workspace = true
 skein-codec.workspace = true
 temper-client-shell-web.workspace = true

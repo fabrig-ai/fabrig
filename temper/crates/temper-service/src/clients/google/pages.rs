@@ -70,13 +70,14 @@ pub(super) fn page(
     ])
 }
 pub(super) fn not_member(sheet: Option<&[u8]>, address: &[u8], then: &[u8]) -> Box<[u8]> {
-    page(sheet, &join(&[address, b" can't sign in here"]), b"Google signed you in, but no one here signs in with this address. Ask an owner to add it, or use the Google account they added.", then, true, true)
+    page(sheet, &join(&[address, " can’t sign in here".as_bytes()]), b"Google signed you in, but no one here signs in with this address. Ask an owner to add it, or use the Google account they added.", then, true, true)
 }
 pub(super) fn another(sheet: Option<&[u8]>, address: &[u8], then: &[u8]) -> Box<[u8]> {
     page(
         sheet,
         &join(&[address, b" signs in here with another Google account"]),
-        b"This isn't the Google account that first signed in with this address. Use that one, or ask an owner.",
+        "This isn’t the Google account that first signed in with this address. Use that one, or ask an owner."
+            .as_bytes(),
         then,
         true,
         true,
@@ -85,7 +86,7 @@ pub(super) fn another(sheet: Option<&[u8]>, address: &[u8], then: &[u8]) -> Box<
 pub(super) fn unverified(sheet: Option<&[u8]>, address: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
     page(
         sheet,
-        &join(&[b"Google hasn't verified ", address.unwrap_or(b"this account's address")]),
+        &join(&["Google hasn’t verified ".as_bytes(), address.unwrap_or("this account’s address".as_bytes())]),
         b"temper signs in only an address Google has verified. Verify it with Google, or use another account.",
         then,
         true,
@@ -98,12 +99,12 @@ pub(super) fn cancelled(sheet: Option<&[u8]>, error: &[u8], then: &[u8]) -> Box<
     } else {
         join(&[b"Google answered ", error.get(..error.len().min(64)).expect("bounded error"), b". Nothing was kept."])
     };
-    page(sheet, b"The sign-in didn't finish", &paragraph, then, false, true)
+    page(sheet, "The sign-in didn’t finish".as_bytes(), &paragraph, then, false, true)
 }
 pub(super) fn expired(sheet: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
     page(
         sheet,
-        b"The sign-in didn't finish",
+        "The sign-in didn’t finish".as_bytes(),
         b"It took too long, or temper restarted while you were at Google. Nothing was kept.",
         then,
         false,
@@ -113,8 +114,8 @@ pub(super) fn expired(sheet: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
 pub(super) fn unreachable(sheet: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
     page(
         sheet,
-        b"The sign-in didn't finish",
-        b"temper couldn't reach Google. Nothing was kept: try again in a moment.",
+        "The sign-in didn’t finish".as_bytes(),
+        "temper couldn’t reach Google. Nothing was kept: try again in a moment.".as_bytes(),
         then,
         false,
         true,
@@ -123,7 +124,7 @@ pub(super) fn unreachable(sheet: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
 pub(super) fn busy(sheet: Option<&[u8]>, then: &[u8]) -> Box<[u8]> {
     page(
         sheet,
-        b"temper couldn't sign you in just now",
+        "temper couldn’t sign you in just now".as_bytes(),
         b"It is starting or stopping, or signing many people in at once. Nothing was kept: try again in a moment.",
         then,
         false,

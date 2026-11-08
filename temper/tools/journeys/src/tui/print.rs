@@ -63,7 +63,7 @@ fn scheme_name(scheme: Scheme) -> &'static str {
 }
 
 fn frame(html: &mut String, frame: &Frame, scheme: Scheme) {
-    let base = theme(scheme).base;
+    let base = theme(scheme, None).base;
     for row in 0..frame.size().rows {
         let cells = frame.row(row).expect("row in frame");
         let mut start = 0;

@@ -1,4 +1,4 @@
-# Markdown inputs compiled into, or read by, tests.
+# Inputs under docs/ (any format) or elsewhere that tests compile in or read; every non-Markdown input under docs/ must be listed, since the queue takes the rest as docs.
 temper/docs/help/**
 temper/docs/design/draft/reference-code-production.md
 temper/docs/examples/reference/README.md
@@ -12,4 +12,5 @@ smith/benchmarks/tests/recorded/**
 skein/crates/skein-ui/src/tests/markdown/**
 skein/docs/design/forge-github.md
 skein/docs/design/draft/diagrams/**
+temper/docs/design/client/journeys/**
 temper/docs/design/client/tui/journeys/**

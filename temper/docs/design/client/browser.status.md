@@ -31,7 +31,7 @@ and the phone's three tabs. No known implementation gap remains in
 these repairs. The existing history story has the night reload row and
 story 11's phone Ask row (4.6), which compares the composer's and
 picker's boxes with the tabs' top at 420 px; neither adds a test
-function, and no passing run of either is supplied here.
+function, and both pass in that story's runs alone (4.6, below).
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
 system preference and night placeholder separate.
 
@@ -42,14 +42,32 @@ gallery worlds offer templates 1, 2 and 5; the reference world's other
 ways use 2, 4, 6 and 7, leaving 5 to Ask temper. The rendered comparison and
 the Ask page's later look round remain section 5's work.
 
+Sections 2.5 and 7.2 have no known implementation gap in Ask temper's
+ways: `temper.css` holds `ask-temper-ways`'s rules, the opening's under
+the settings marker and a path's under the chats marker, each selector
+naming what skein draws where it differs from the request's page, and
+`configure-temper-own-way`'s rules for the old opening and the
+reference's pane are gone. `ask-first-run` draws the ways and the eight
+`ask-ways-*` states stand; `ask-reference` and `ask-reference-draft` are
+gone. Story 11's phone Ask row (4.6) shows the tabs and presses "Draft
+first" to its "Use this", in the existing history story; it checks
+neither Agents review's "now" nor the line and the path. The rendered
+comparison follows landing (`README.md`, section 11).
+
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
 the address, visibility, focus and call-line checks. No implementation
 gap remains in those reads. The client takes its filter from the address;
 Drafts arriving before Closed is section 5's deferred row movement, not
-a loss of the selected filter. The runtime and whole-tier budget gaps
-below remain; the supplied evidence contains no browser-run results for
-this repair.
+a loss of the selected filter. After each new load of `/` and of an
+address that is no page, the story awaits the rail's "New chat" link,
+drawn with the page once `me` is read (`README.md`, 5.1), before its
+unchanged main and Needs checks, so the empty busy main meets none of
+them. The whole story, its phone Ask, call-line and night rows with it,
+passed ten runs in a row by name and alone, unloaded, at `0320c6fcd6`;
+main has changed neither the story nor the browser's client since. No
+whole-tier run on record holds it, and the runtime and whole-tier budget
+gaps below remain.
 
 Sections 2.5 and 7.2 have the Models tab's shipped view and gallery states.
 Every Settings select has the chevron rule above its scoped backgrounds
@@ -173,7 +191,10 @@ establish no rendered equality.
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
   `browser_pages`'s `enter_starts_one_chat_and_the_composer_keeps_the_focus` holds the
-  heading taking it from the main, and that module has no test of its own.
+  heading taking it from the main, and that module has no test of its own. No test
+  opens an address while `me` is read and sees the page's heading take the focus from
+  the empty busy main, nor reaches the wait for a main not yet drawn: `focus.rs`
+  compiles for wasm32, and no browser story walks either.
 - **Not yet:** 2.5: the answer of 2026-11-06 to the `ui-rename-focus` task
   `rename-row` asks a test that a long chat's document never exceeds its window at
   1280x720 and 1000x600 with "Older", since gone (`README.md`, 5.15), pressed twice. What holds it is the sheet's
@@ -193,12 +214,6 @@ establish no rendered equality.
   a numbered list takes the browser's margins and padding. Both are seen by reading
   the sheet: no browser test draws a numbered list, the request `chat-reading-d`
   having the user read one on a real chat and leaving the sheet to the look's owner.
-- **Not yet:** 2.5, *temper's own way*: no render has checked the picture as an `ol`: the walk
-  of the request `ui-walk-3` opened the reference at each width and read its title, flow and
-  line, and names nothing of the list's margins. `configure-temper-own-way`'s render check read the numbers as a `ul` item's words, and numbered lists reached skein's
-  reader after it, so the `ol` takes `.temper-doc-flow ol`'s padding and the browser's margins, and
-  `.temper-doc-flow ul` now matches nothing, left for whoever next edits that rule. Seen by
-  reading; the view's tests read the terminal's print, which says `1. Design draft` either way.
 - **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;
@@ -250,10 +265,10 @@ establish no rendered equality.
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
   re-entry), 14 (short, Latest, unanchored and long), and 16 (sheet scroll
-  and phone geometry) retain story labels for failed steps. No supplied
-  passing run proves all these current merged stories in Chromium. The call line's
-  retained open node, the picker's 420 px, one-press model and effort,
-  outside and Escape checks, a step changing and restoring anchoring on a
+  and phone geometry) retain story labels for failed steps. Test 2 alone
+  has passing runs on record in Chromium, run alone (4.6, above); none
+  proves the other current merged stories. The picker's 420 px, one-press
+  model and effort, outside and Escape checks, a step changing and restoring anchoring on a
   live page (4.3), and both sign-ins in one browser (4.2) await after-landing
   proof (section 5). The picker's separate render and fake-box proof at
   `1d82a937df` establishes no passing run of the merged story. Whether
@@ -329,6 +344,29 @@ and keep `#b8664e` out of the bundle's and the server's pages' sources.
 Section 7.2's `signed-out`, `out-of-date`, `no-project` and
 `approve-signed-out-google` are present. The rendered comparison against
 the request's pages is section 5's, after landing.
+
+Sections 2.5 and 8.2 have no known implementation gap in `look-round-22`'s
+repairs: the column's field-name rule, `.temper-outside form >
+label[for]:has(+ input)`, outweighing skein's small label; at night the
+root's ground, `:root[data-night]:has(body #app)`, giving way to the
+body's; the welcome's top bar, under the welcome's main, packed to its
+end, its steps taking the free space and an end straight after the brand
+its own; and "Sign in"
+on the public pages wherever the view's `Ways` give the origin, Google's
+way or not. The view's public table has the no-way and unknown-way rows,
+and the browser tier's public story expects "temper" and "Sign in" on
+every page (8.4), with no passing run supplied here. No focused test
+reads the rules, whose effect is rendered; that comparison is section
+5's, after landing.
+
+- **Not yet:** 2.5, *The welcome's look*: while `me` is read at
+  `/welcome`, once the deployment's read has answered, the top bar draws
+  temper box's line and the steps (`README.md`, 5.1) without the
+  welcome's look: its rules select `#app:has(> .temper-welcome)`, the
+  welcome's main, and the main is then empty, with no class, so the
+  steps take the flows' list rule (`.temper-flow-steps`, a grid) and the
+  bar the outside pages' row. Seen by reading `temper.css`; no render
+  shows how long it lasts.
 
 - **Design departs:** 2.5, from the look request `outside-pages` of
   2026-11-08, decided by its plan's cut: `--temper-accent` and the light

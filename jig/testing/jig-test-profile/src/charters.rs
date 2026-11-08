@@ -14,10 +14,11 @@ pub fn per_wake_charter() -> core::Charter {
     charter.policy.instructions = b"S".as_slice().into();
     charter.policy.alternatives = Box::new([charter.policy.model.clone()]);
     charter.policy.model = crate::scripted_model();
-    charter.parts = [(Reasons::FIRST, b"F"), (Reasons::QUESTION, b"Q"), (Reasons::ESCALATION, b"H")]
-        .into_iter()
-        .map(|(on, instructions)| core::CharterPart { on, instructions: instructions.as_slice().into() })
-        .collect();
+    charter.parts =
+        [(Reasons::FIRST, b"F"), (Reasons::QUESTION, b"Q"), (Reasons::ESCALATION, b"H"), (Reasons::RESULT, b"R")]
+            .into_iter()
+            .map(|(on, instructions)| core::CharterPart { on, instructions: instructions.as_slice().into() })
+            .collect();
     charter
 }
 

@@ -56,6 +56,7 @@ impl Bindings {
         self.entries.push((token, act)).expect("pages bindings fit");
         Binding { owner: owner(), token }
     }
+    #[expect(clippy::too_many_lines, reason = "one dispatch decodes the page bindings and drawing payloads")]
     pub fn decode(&self, token: Token, act: skein_ui::Act) -> Option<temper_client_domain::Action> {
         for (key, meaning) in &self.entries {
             if *key == token {
@@ -150,6 +151,9 @@ impl Bindings {
                     (PageAct::DefaultName { .. }, skein_ui::Act::Submit) => PageAct::MakeDefault,
                     (PageAct::ChatWords { .. }, skein_ui::Act::Submit) => PageAct::StartChat,
                     (PageAct::MessageWords { .. }, skein_ui::Act::Submit) => PageAct::Send,
+                    (PageAct::WayStop { project, .. }, skein_ui::Act::Drawing { data }) => {
+                        PageAct::WayStop { project: *project, stop: crate::paths::pressed_stop(&data)? }
+                    }
                     (meaning, skein_ui::Act::Press) => meaning.clone(),
                     _ => return None,
                 };
@@ -489,9 +493,7 @@ pub(crate) fn rail(
     w.text(b, Word::Brand, &[]);
     b.close();
     if w.shell == Shell::Browser
-        && (root.pages().chat().is_some()
-            || root.pages().address() == &(Address::NewChat { draft: true })
-            || crate::pages::ask_page::reference(root).is_some())
+        && (root.pages().chat().is_some() || root.pages().address() == &(Address::NewChat { draft: true }))
     {
         b.open(Role::Disclosure);
         b.name(&w.say(Word::RailUnfold, &[]));
@@ -940,6 +942,7 @@ pub(crate) fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::
 }
 
 /// The session's transient status and held answer's Undo (client/README.md, 3.5).
+#[expect(clippy::too_many_lines, reason = "the session toast draws every answered act in one exhaustive dispatch")]
 pub(crate) fn toast(
     b: &mut Builder,
     root: &Domain,
@@ -957,6 +960,19 @@ pub(crate) fn toast(
         Toasted::Answered { object, label } => {
             let label = crate::pages::ask::answered_label(w, label);
             (w.say(Word::ToastAnswered, &[skein_ui::phrases::Hole::Name(label)]), Some(*object))
+        }
+        Toasted::Way { name, revision, kept } => {
+            let word = if *kept { Word::ToastWayKept } else { Word::ToastWayUsed };
+            (
+                w.say(
+                    word,
+                    &[
+                        skein_ui::phrases::Hole::Name(name.clone()),
+                        skein_ui::phrases::Hole::Number(u64::from(*revision)),
+                    ],
+                ),
+                None,
+            )
         }
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
         Toasted::NotSent => (w.say(Word::ToastNotSent, &[]), None),
@@ -1007,7 +1023,8 @@ pub(crate) fn toast(
                 );
             }
         }
-        Toasted::AwayOn { .. }
+        Toasted::Way { .. }
+        | Toasted::AwayOn { .. }
         | Toasted::AwayOff
         | Toasted::AwayRefused
         | Toasted::Overturned

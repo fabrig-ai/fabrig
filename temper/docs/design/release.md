@@ -177,8 +177,8 @@ release's: no tag names it, and the workflow writes no checksum.
   `temper-Darwin-arm64`, kept 7 days, holding two files at its root:
   `temper`, the stripped and signed binary, and `commit`, the full SHA
   of the commit built, one line. GitHub's artifact is a zip, which
-  keeps no file mode. Until section 3's `--version`, `commit` is the
-  file's only identity.
+  keeps no file mode. `commit` names the build beside the file, as
+  section 3's `--version` does within it.
 - **Where it goes is the site's:** the host that serves fabrig.ai
   fetches the artifact and serves `temper` at `/temper/Darwin-arm64`,
   gzipped and with its checksum, both made there, and starts the

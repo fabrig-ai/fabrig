@@ -23,7 +23,15 @@ tests keeping them out. The design departs from the request in the top
 bar's link region, which the terminal prints, the GitHub App's setup
 pages' fonts and the stylesheets' accent; temper/ui's rendered comparison
 follows landing (`client/README.status.md`, 5.1; `client/forge.status.md`,
-9.1; `client/browser.status.md`, 2.5). The TUI's approval ask, locally
+9.1; `client/browser.status.md`, 2.5). Its render check's six misses are
+repaired by `look-round-22`: the welcome's top bar ends with the person's
+name and "Sign out"; while `me` is read the top bar stands over an empty
+busy main; the public pages offer "Sign in" with or without Google; the
+column's field names are 14 px; the night ground fills the window; and
+the Google endings take the typographic apostrophe. The welcome's bar
+before `me` lacks the welcome's look, and no test walks the heading's
+focus from that main (`client/browser.status.md`, 2.3 and 2.5;
+`protocol/sign-in.status.md`, 4.3). The TUI's approval ask, locally
 constructed address, opener, fallback lines and Enter retry are built,
 with joint-world approval and refusal stories (`client/README.md`, 7.1).
 The local box's private link file, holding the engine's local link
@@ -36,7 +44,13 @@ uses a minute's slack: a revocation near expiry or a missing note can
 still renew, so unconditional refusal after sign-out remains a departure
 from the request (`draft/tui.status.md`, 4.1). Terminal-default base
 colours, accent focus and scheme selection from COLORFGBG or a bounded
-OSC 11 query are built (`client/README.md`, 6.11 to 6.16).
+OSC 11 query are built (`client/README.md`, 6.11 to 6.16). The user's
+requests of 2026-11-08 and the look request `tui-chat-title-below` are
+built: the band from the terminal's answered background, else dim words
+after an accent "❯"; up to three left-off chats reached by Up and Down;
+`/effort` on the launchpad; a Markdown bullet's "•"; and a chat's title,
+number and place ("box" from the engine's link file) in the rule above
+the box (`client/README.md`, 6.12 to 6.15; `draft/tui.status.md`).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames and `launchpad-chat`'s four frames
@@ -47,8 +61,11 @@ newest goal, call details, earlier-page loading, cards at their calls
 and the shared reader's read-once gap remain explicit
 (`client/README.md`, section 11; `draft/chat-reading.status.md`, 3).
 Both journeys use a runtime directory apart from the box's and no
-COLORFGBG, so they exercise approval and the dark fallback; their pages
-use the theme's stand-ins for terminal-default colours.
+COLORFGBG, so they exercise approval and the dark fallback with no band,
+and a chat's place is its address; their pages use the theme's
+stand-ins for terminal-default colours. `launchpad-chat`'s answered chat
+lacks the person's opening question until finding-465's repair
+(`client/tui/journeys.status.md`, 9).
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
 remains later work (`client/tui/journeys.md`, 3.1 and 11).
@@ -95,11 +112,16 @@ it. The three stock ways are data given at each start, one derivation
 draws a branch's path, and the watched `ways` read, `see ways`, the
 `View` read and the views `way`, `path`, `proposal` and `charter` in a
 reply are built, with "Use this", "Keep it" and "Yours" in the client's
-domain; Ask temper's page draws none of them until the look request
-`ask-temper-ways` (`domain/forge.md`, 8.13; `protocol/configuration.md`,
-11 and 13.2 to 13.10; `client/README.md`, 5.13, 5.16 and 11;
-`draft/stock-ways.status.md`). Ask temper's first milestone
-stands in the code, with its own project page, rail entry and phone tab
+domain and drawn on Ask temper's opening, with its lede, tabs, axis,
+path, stop's card, legend and acts from the `ways` read. The old starters,
+own way's card and reference pane are gone; responsive paths share their
+look with replies. The design departs from the request `ask-temper-ways`
+in one drawing laid out by its width, the line's two tones, the scene's
+caret and stops with no ARIA; temper/ui's rendered comparison follows
+landing (`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and
+13.2 to 13.10; `client/README.md`, 3.5, 5.13, 5.16 and 11;
+`client/README.status.md`; `draft/stock-ways.status.md`). Ask temper's
+first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
 and Settings' offer are gone by plan `ui-ask-drop`. Its walks follow
@@ -111,9 +133,9 @@ rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10). On a phone, Ask temper's composer and
 model picker stand above its three tabs by a selector browsers accept,
 and the five first-run Ask gallery states draw To begin's restricted rail
-and tabs; the history story's phone row has no supplied passing run, and
-the gallery's tests exceed their 1 CPU s budget until a cost repair
-(`client/browser.status.md`, 2.5 and 7.3).
+and tabs, and the history story, with its phone row, passes its runs
+alone; the gallery's tests exceed their 1 CPU s budget until a cost
+repair (`client/browser.status.md`, 2.5, 4.6 and 7.3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
 landing (`client/journeys.md`, section 10).
@@ -378,7 +400,8 @@ work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
-(`domain/root.md`). A live delegate counts no stall and a stall's hold reaches its
+(`domain/root.md`); how the engine is to learn its workers' reply bound is the
+design owner's decision (`domain/agent.md`, section 10). A live delegate counts no stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
@@ -395,6 +418,11 @@ its staged files. The parked producer's proof uses fake git and disk, with a del
 as its first commit; the `resume-told` request's real-checkout proof and deployment
 replay are not on record. Parking with markers still loses that run's own edits,
 while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+A start smith refuses as busy spends no try, but `temper help task` still
+says an "invalid results" hold may mean a start refused before any turn,
+which spends a permanent try (`domain/worker.md`). Template 4's report
+reaches its run as at most 1,024 bytes, jig's contract text bound, where
+the reference gives it 63,738 (`protocol/configuration.md`).
 Saved work in the task's saved set
 is deleted through its release, and a clean update's repair names its failed
 check and carries its output before the base's contents; their real-deployment
@@ -587,17 +615,14 @@ and on `ConnectModel`, where a paste finishing also keeps the note's waiting wor
 `ui-owner-menu` in a press outside that took the focus, which keeps it, "Sign out"
 with no project, which is the top bar's, and the tab's whole row leaving
 over 760 px, the login with it (`client/README.md`). A chat started by sending opens on its
-composer and a send leaves the focus there, but a starter's press asks the same on a phone,
+composer and a send leaves the focus there, but a suggested request's press asks the same on a phone,
 and no run on record shows what a real phone's keyboard does (`client/README.md`), and no test
 moves the focus while a heading drawn after its page waits (`client/browser.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). temper's own way stands on
-Configure, departing from the request `configure-temper-own-way` in its reference's
-words and look (`client/README.md`), but no journey records its acts and no
-render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
+takes the browser's margins (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
 mark is a glyph that does not blink (`client/README.md`). The long-message
 read's decoder and retry chain is repaired and covered through the real engine;
@@ -747,6 +772,17 @@ for key and sign-in refusals remains deferred because their not-offered
 answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
 `client/README.md`, 5.5 and section 11).
 
+The deployment's client, `temper-client`, is built (M1 of
+`draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
+and `ctl`, run by the box's code from the shells both binaries link, its
+help, refusals and `--version`, on `temper-shell`, which the box's `temper`
+prints its table from. Its ctl story runs the box's `temper serve` as the
+engine until `temper-engine` is built, and runs after landing. It links jig's
+accounts protocol and engine-side crates through an unused line of ctl's
+manifest, and no test yet holds its closure: the boundary test is M5's
+(`protocol/README.status.md`, 4; `client/README.status.md`, 2). The `commands`
+page names no command's binary (`draft/deployment-binaries.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`playground.md`](playground.status.md)
@@ -793,6 +829,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
+- [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
 - [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
@@ -815,3 +852,8 @@ Drafts:
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)
+- [`draft/follows.md`](draft/follows.status.md)
+- [`draft/standing-roles.md`](draft/standing-roles.status.md)
+- [`draft/surfaces.md`](draft/surfaces.status.md)
+- [`draft/what-reaches-you.md`](draft/what-reaches-you.status.md)
+- [`draft/whole-story.md`](draft/whole-story.status.md)

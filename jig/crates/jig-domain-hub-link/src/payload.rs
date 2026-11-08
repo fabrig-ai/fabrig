@@ -161,7 +161,7 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
         host::Ending::Refused(host::Refusal::Invalid(
             host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
         )) => tasks::End::Failed(tasks::Class::Transient),
-        host::Ending::Refused(host::Refusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Invalid),
+        host::Ending::Refused(host::Refusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::Ending::Parked { .. } => tasks::End::Parked,
         host::Ending::Failed { failure, .. } => match failure {
             host::Failure::Run(host::RunFailure::Exceeded(value)) => tasks::End::Exceeded(tasks::Exceeded {

@@ -345,6 +345,7 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v19::StreamEvent)
     host.heard(Heard::Piece { bytes: piece.into_boxed_slice() });
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one wire story delivers sign-in, task activity and me before drawing")]
 fn the_first_task_activity_answer_survives_transport_sign_in() {
     use jig_client_protocol_wire::{VERSION, v19 as w};
     use skein_lib::{Duration, Reader};
@@ -381,19 +382,23 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
                 .expect("hello"),
         ),
     );
-    let watch = host
-        .requests()
-        .into_iter()
-        .find_map(|request| {
-            let Asked::Exchange { call, .. } = request else { return None };
-            if call.path.as_ref() != b"/jig/v1/watch" {
-                return None;
-            }
-            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
-            if matches!(subject, w::Subject::Task(_)) { Some(open.watch()) } else { None }
-        })
-        .expect("task watch");
+    let mut watch = None;
+    let mut me = None;
+    for request in host.requests() {
+        let Asked::Exchange { call, .. } = request else { continue };
+        if call.path.as_ref() != b"/jig/v1/watch" {
+            continue;
+        }
+        let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
+        let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+        if matches!(subject, w::Subject::Task(_)) {
+            watch = Some(open.watch());
+        }
+        if subject == w::Subject::Me {
+            me = Some(open.watch());
+        }
+    }
+    let watch = watch.expect("task watch");
     let mut task = jig_client_test_records::task_record().into_parts();
     task.chip = jig_client_test_records::owner_waiting_chip_record();
     let document = w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).expect("agent task")));
@@ -430,6 +435,20 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
         headers: Vec::new(),
     });
+    let document = w::DeliveryValue::Me(jig_client_test_records::frame_two_projects_record());
+    streamed(
+        &mut host,
+        &w::StreamEvent::Delivery(
+            w::Delivery::new(
+                &w::CEILINGS,
+                w::DeliveryParts {
+                    watch: me.expect("me watch"),
+                    document: owned(encoded(document.measure(), |writer| document.encode(writer))),
+                },
+            )
+            .expect("me delivery"),
+        ),
+    );
     build(&mut host);
     let shown = host
         .view
@@ -500,7 +519,7 @@ fn a_flow_or_path_draws_on_temper_page_and_keeps_its_fallback() {
         if flow {
             skein_ui::markdown::read(CASE, 1, &mut builder);
         } else {
-            paths::path(&mut builder, b"The way a change goes", &stops).expect("bounded path");
+            paths::path(&mut builder, b"The way a change goes", &stops, None).expect("bounded path");
         }
         builder.close();
         builder.close();
@@ -518,8 +537,8 @@ fn a_flow_or_path_draws_on_temper_page_and_keeps_its_fallback() {
         for width in [640, 240, 640] {
             page.resized(drawing, width, 0, &mut ops);
             let html = page.html();
-            assert_eq!(html.contains("<svg"), width == 640, "flow {flow}, width {width}");
-            assert_eq!(html.contains("data-drawn="), width == 640);
+            assert_eq!(html.contains("<svg"), !flow || width == 640, "flow {flow}, width {width}");
+            assert_eq!(html.contains("data-drawn="), !flow || width == 640);
             if flow {
                 if width == 640 {
                     assert!(html.contains(SVG.strip_suffix('\n').expect("case's final newline")), "{html}");
@@ -533,7 +552,7 @@ fn a_flow_or_path_draws_on_temper_page_and_keeps_its_fallback() {
                     assert!(html.contains(words), "path fallback at width {width}: {html}");
                 }
                 if width == 640 {
-                    for name in ["base", "auth", "person", "agent", "code", "bar", "words"] {
+                    for name in ["main", "rise"] {
                         assert!(html.contains(&format!("class=\"temper-ways-{name}\"")), "{html}");
                     }
                 }
