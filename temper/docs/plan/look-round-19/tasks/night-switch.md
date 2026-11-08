@@ -83,3 +83,14 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: the button's markup as printed, the tests and each rule broken by hand, the gallery's states and print, the prints that moved, the story's row and its compile, the options taken, the runs' counts, and the account as committed.
+
+## Rebase (2026-11-08, step merge, foreman look-round-19/night-switch/foreman-1)
+
+reconcile words.rs vocabulary additions and regenerate the combined English counts
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Main’s `63832d7fd8` adds `WorkProposalFailed` and `WorkProposalFailedCount`, with IDs 4181 and 4182, and updates the same declaration counts as this branch.
+Preserve both additions throughout the enum, `ALL`, `Word::id` and `english`, alongside this branch’s `NightMode` and its “Night mode” phrase.
+Preserve the vocabulary removals from dependency commit `161303c14c`; its removal of `HomeNoteAskChats` frees ID 4180 for `NightMode`.
+Reconcile `ALL`’s length against the combined entries; the inspected versions yield 1415.
+Regenerate `PHRASES`, `SEGMENTS` and `ENGLISH_BYTES` using `SKEIN_CODEGEN_WRITE=1` through heavy on `english_phrase_declarations_match_the_vocabulary` in `temper-client-view`.
+Run that focused test again without generation, then the package’s focused tests and clippy. Report the regenerated counts and test results.
