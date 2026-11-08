@@ -2,7 +2,10 @@
 //! A page's parts; temper/docs/design/draft/surfaces.md, 12 and 14).
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{Duration, Env, List, Queue, RequestEnvelope, Rng, Time, Token, Wall, Writer};
-use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::{
+    collections::BTreeSet,
+    panic::{AssertUnwindSafe, catch_unwind},
+};
 use temper_client_domain::{
     self as client, Action, Address, Domain, Event, Limits, Place, Request,
     address::{Filter, Kind},
@@ -30,17 +33,19 @@ struct World {
     pending: Vec<Up>,
     entries: Vec<c::InboxEntry>,
     approvals: Vec<w::ApprovalRow>,
+    decision_rows: Vec<(Token, u32, Vec<u64>)>,
     answered: Vec<c::ObjectKey>,
     ways: Vec<u32>,
     revision: u32,
     step: usize,
+    observed: BTreeSet<&'static str>,
 }
 
 impl World {
     fn event(&mut self, event: Event) {
         let mut out = Queue::uncapped();
         client::step(&mut self.root, &self.env, event, &mut out);
-        self.outputs(out);
+        self.outputs(&out);
         client::take(&mut self.root, &self.env, &mut Queue::uncapped());
         self.check();
     }
@@ -49,8 +54,8 @@ impl World {
         self.event(Event::Client { event: jig_client::Event::Up { up } });
     }
 
-    fn outputs(&mut self, out: Queue<Request>) {
-        for request in &out {
+    fn outputs(&mut self, out: &Queue<Request>) {
+        for request in out {
             let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
                 continue;
             };
@@ -68,7 +73,10 @@ impl World {
                         });
                     }
                 }
-                Down::Close { watch } => self.watches.retain(|(held, _)| held != watch),
+                Down::Close { watch } => {
+                    self.watches.retain(|(held, _)| held != watch);
+                    self.decision_rows.retain(|(held, _, _)| held != watch);
+                }
                 Down::Read { read, what } => {
                     if let Some(result) = self.read(what) {
                         self.pending.push(Up::ReadDone { read: *read, result });
@@ -76,8 +84,10 @@ impl World {
                 }
                 Down::Send { attempt, request, .. } => {
                     if let jig_client::Ask::Family { record, .. } = request
-                        && let w::Request::Looked(_) =
-                            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                        && let w::Request::Looked(_) = wire::decode_requesting(&record.bytes, &w::CEILINGS)
+                            .expect("bounded density fixture")
+                            .into_parts()
+                            .request
                     {
                         self.pending.push(Up::Answer {
                             attempt: *attempt,
@@ -88,7 +98,7 @@ impl World {
                                 version: wire::CLIENT_VERSION,
                                 bytes: wire::answer(
                                     &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked })
-                                        .unwrap(),
+                                        .expect("bounded density fixture"),
                                 ),
                             })),
                         });
@@ -97,6 +107,7 @@ impl World {
                         && let c::Ask::Answer { on: c::AnswerOn::Question { task, message, .. }, .. } = ask.as_ref()
                     {
                         let object = c::ObjectKey::Question { task: *task, message: *message };
+                        self.observed.insert("sent answer");
                         assert!(self.answered.contains(&object), "only an answered card sends");
                         assert!(!self.root.pages().needs().held(object), "the held deadline fired");
                         self.pending.push(Up::Answer {
@@ -118,8 +129,8 @@ impl World {
         self.watches.iter().rev().find_map(|(watch, held)| (held == subject).then_some(*watch))
     }
 
-    fn deliver(&mut self, subject: Watchable, delivery: c::Delivery) {
-        if let Some(watch) = self.watch(&subject) {
+    fn deliver(&mut self, subject: &Watchable, delivery: c::Delivery) {
+        if let Some(watch) = self.watch(subject) {
             self.up(Up::Watched { watch, event: c::WatchEvent::Delivered(delivery) });
         }
     }
@@ -135,7 +146,9 @@ impl World {
 
     fn drain(&mut self) {
         while !self.pending.is_empty() {
-            let at = usize::try_from(self.rng.below(u64::try_from(self.pending.len()).unwrap())).unwrap();
+            let at =
+                usize::try_from(self.rng.below(u64::try_from(self.pending.len()).expect("bounded density fixture")))
+                    .expect("bounded density fixture");
             let up = self.pending.swap_remove(at);
             self.up(up);
         }
@@ -153,7 +166,9 @@ impl World {
     fn inbox(&mut self) {
         let entries = List::from_boxed(self.entries.clone().into_boxed_slice());
         self.deliver(
-            Watchable::Jig(c::Subject::Inbox { window: self.root.pages().inbox().unwrap().window }),
+            &Watchable::Jig(c::Subject::Inbox {
+                window: self.root.pages().inbox().expect("Home or Needs you owns an inbox").window,
+            }),
             c::Delivery::Inbox(Box::new(c::Inbox {
                 party: 1,
                 cached_needs: entries.len(),
@@ -170,32 +185,7 @@ impl World {
     }
 
     fn read(&self, what: &Readable) -> Option<Readout> {
-        let Readable::Jig(read) = what else {
-            if let Readable::Family { scope: c::Scope::Project(project), record, .. } = what
-                && let w::Read::Setting(setting) =
-                    wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().into_parts().read
-                && setting.kind() == 7
-            {
-                let value = w::ProjectWays::new(
-                    &w::CEILINGS,
-                    w::ProjectWaysParts {
-                        skein_bools: [true, false, true, true],
-                        way: self.ways[usize::try_from(project - 1).unwrap()],
-                    },
-                )
-                .unwrap();
-                let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-                value.encode(&mut writer).unwrap();
-                return Some(Readout::Family {
-                    family: wire::FORGE,
-                    record: Some(wire::setting_answer(
-                        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
-                            .unwrap(),
-                    )),
-                });
-            }
-            return None;
-        };
+        let Readable::Jig(read) = what else { return self.setting_read(what) };
         let value = match read {
             c::Read::Inbox { group, project, kind, .. } => {
                 let rows = self
@@ -256,7 +246,7 @@ impl World {
                     hold_wait_since: None,
                 };
                 task.chip.phase = c::Phase::Held;
-                task.chip.details.phase = c::ChipPhase::Held { reason: hold.reason.clone(), revision: 1 };
+                task.chip.details.phase = c::ChipPhase::Held { reason: hold.reason, revision: 1 };
                 task.chip.details.details.hold = Some(hold.clone());
                 task.hold = Some(Box::new(hold));
                 c::ReadValue::Escalation(Box::new(c::Escalation {
@@ -275,8 +265,35 @@ impl World {
         Some(Readout::Jig(c::ReadResult::Value(value)))
     }
 
+    fn setting_read(&self, what: &Readable) -> Option<Readout> {
+        if let Readable::Family { scope: c::Scope::Project(project), record, .. } = what
+            && let w::Read::Setting(setting) =
+                wire::decode_reading(&record.bytes, &w::CEILINGS).expect("bounded density fixture").into_parts().read
+            && setting.kind() == 7
+        {
+            let value = w::ProjectWays::new(
+                &w::CEILINGS,
+                w::ProjectWaysParts {
+                    skein_bools: [true, false, true, true],
+                    way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
+                },
+            )
+            .expect("bounded density fixture");
+            let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded density fixture"));
+            value.encode(&mut writer).expect("bounded density fixture");
+            return Some(Readout::Family {
+                family: wire::FORGE,
+                record: Some(wire::setting_answer(
+                    &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
+                        .expect("bounded density fixture"),
+                )),
+            });
+        }
+        None
+    }
+
     fn project_of(&self, task: u64) -> u32 {
-        1 + u32::try_from(task % u64::from(self.projects)).unwrap()
+        1 + u32::try_from(task % u64::from(self.projects)).expect("bounded density fixture")
     }
 
     fn status(&mut self, project: u32) {
@@ -293,7 +310,7 @@ impl World {
                     landed,
                 },
             )
-            .unwrap()
+            .expect("bounded density fixture")
         });
         let document = w::ProjectStatus::new(
             &w::CEILINGS,
@@ -309,47 +326,63 @@ impl World {
                 branch: b"main".as_slice().into(),
             },
         )
-        .unwrap();
+        .expect("bounded density fixture");
         self.family(forge::status::watch(project, &self.env.limits.forge), wire::project_status(&document));
     }
 
     fn decisions(&mut self, project: u32) {
-        let mut rows = List::uncapped();
+        let mut rows = List::with_capacity(3);
         for number in 1..=self.rng.below(4) {
             rows.push(
                 w::Decision::new(
                     &w::CEILINGS,
                     w::DecisionParts {
-                        number: u32::try_from(number).unwrap(),
+                        number: u32::try_from(number).expect("bounded density fixture"),
                         task: 100 + number,
-                        at: self.env.wall.as_nanos().saturating_sub(if self.rng.below(2) == 0 { DAY } else { SECOND }),
+                        at: self.env.wall.as_nanos().saturating_sub(match self.rng.below(3) {
+                            0 => DAY,
+                            1 => DAY + SECOND,
+                            2 => SECOND,
+                            _ => unreachable!("three decision ages"),
+                        }),
                         question: b"Which approach?".as_slice().into(),
                         took: b"Small".as_slice().into(),
                         why: b"Within the landing rule.".as_slice().into(),
                         overturned: false,
                     },
                 )
-                .unwrap(),
+                .expect("bounded density fixture"),
             )
-            .unwrap();
+            .expect("bounded density fixture");
         }
-        let document = w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows }).unwrap();
+        if let Some(watch) =
+            self.watch(&forge::decided::watch(project, &self.env.limits.forge).expect("decision subject fits"))
+        {
+            self.decision_rows.retain(|(held, _, _)| *held != watch);
+            self.decision_rows.push((watch, project, rows.iter().map(w::Decision::at).collect()));
+        }
+        let document =
+            w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows }).expect("bounded density fixture");
         self.family(forge::decided::watch(project, &self.env.limits.forge), wire::decisions(&document));
         self.drain();
     }
 
     fn dismissals(&mut self) {
-        let mut dismissed = List::uncapped();
+        let mut dismissed = List::with_capacity(self.projects);
         for project in 1..=self.projects {
             if self.rng.below(2) == 0 {
                 dismissed
-                    .push(w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project }).unwrap()))
-                    .unwrap();
+                    .push(w::PersonFact::ToBegin(
+                        w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project }).expect("bounded density fixture"),
+                    ))
+                    .expect("bounded density fixture");
             }
         }
         self.family(
             forge::dismissed::watch(&self.env.limits.forge),
-            wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+            wire::dismissals(
+                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).expect("bounded density fixture"),
+            ),
         );
     }
 
@@ -358,21 +391,24 @@ impl World {
             &w::CEILINGS,
             w::ApprovalsParts { rows: List::from_boxed(self.approvals.clone().into_boxed_slice()), more: 0 },
         )
-        .unwrap();
+        .expect("bounded density fixture");
         self.family(forge::approvals::watch(&self.env.limits.forge), wire::approvals(&document));
     }
 
     fn settings(&mut self, project: u32) {
         let before = self.open();
+        if before.iter().any(|object| self.approvals.iter().any(|row| *object == c::ObjectKey::Task(row.task()))) {
+            self.observed.insert("settings with approval");
+        }
         self.revision += 1;
-        let way = &mut self.ways[usize::try_from(project - 1).unwrap()];
+        let way = &mut self.ways[usize::try_from(project - 1).expect("bounded density fixture")];
         *way = 1 - *way;
         let mut settings = List::uncapped();
         for project in 1..=self.projects {
             settings
                 .push(c::SettingLine {
-                    setting: c::Setting::Application { kind: 7, scope: project, number: 1 },
-                    name: Some(text(if self.ways[usize::try_from(project - 1).unwrap()] == 0 {
+                    setting: c::Setting::Application { kind: 2, scope: project, number: 1 },
+                    name: Some(text(if self.ways[usize::try_from(project - 1).expect("generated project")] == 0 {
                         b"You approve"
                     } else {
                         b"Agents review"
@@ -381,10 +417,26 @@ impl World {
                     last: Some(self.revision),
                     application: None,
                 })
-                .unwrap();
+                .expect("uncapped setting lines");
+            settings
+                .push(c::SettingLine {
+                    setting: c::Setting::Application { kind: 7, scope: project, number: 1 },
+                    name: Some(text(
+                        if self.ways[usize::try_from(project - 1).expect("bounded density fixture")] == 0 {
+                            b"You approve"
+                        } else {
+                            b"Agents review"
+                        },
+                    )),
+                    follows: c::SettingFollows::Change,
+                    last: Some(self.revision),
+                    application: None,
+                })
+                .expect("bounded density fixture");
         }
+        assert!(self.watch(&Watchable::Jig(c::Subject::Settings)).is_some(), "the settings revision is delivered");
         self.deliver(
-            Watchable::Jig(c::Subject::Settings),
+            &Watchable::Jig(c::Subject::Settings),
             c::Delivery::Settings(Box::new(c::SettingsDocument {
                 newest: self.revision,
                 settings,
@@ -393,22 +445,50 @@ impl World {
             })),
         );
         self.drain();
+        if let Some(project) = self.root.pages().project() {
+            assert_eq!(
+                self.root.forge().ways(project).expect("the revised project ways were read").way,
+                self.ways[usize::try_from(project - 1).expect("generated project")],
+                "the client consumed the settings revision"
+            );
+        }
         check_settings(&before, &self.open(), &self.approvals);
     }
 
     fn open(&self) -> Vec<c::ObjectKey> {
-        let inbox = self.root.pages().inbox().unwrap();
+        let inbox = self.root.pages().inbox().expect("Home or Needs you owns an inbox");
         self.root.pages().needs().needs(inbox, self.root.forge().approvals()).iter().map(|need| need.object()).collect()
     }
 
-    fn check(&self) {
+    fn showing(&self, project: Option<u32>) -> usize {
+        self.decision_rows
+            .iter()
+            .filter(|(_, found, _)| project.is_none_or(|project| project == *found))
+            .flat_map(|(_, _, rows)| rows)
+            .filter(|at| self.env.wall.as_nanos() - **at < DAY)
+            .count()
+    }
+
+    fn check(&mut self) {
         let Some(inbox) = self.root.pages().inbox() else { return };
         let open = self.open();
         let needs_facts = parts::needs_facts(&self.root, self.env.wall);
-        assert_eq!(usize::try_from(needs_facts.open).unwrap(), open.len(), "Needs you's open count");
+        if self.decision_rows.iter().any(|(_, _, rows)| rows.iter().any(|at| self.env.wall.as_nanos() - at >= DAY)) {
+            self.observed.insert("expired decisions");
+        }
+        assert_eq!(
+            usize::try_from(needs_facts.open).expect("bounded density fixture"),
+            open.len(),
+            "Needs you's open count"
+        );
         let (facts, brief_lines, decisions, projects) = match *self.root.pages().address() {
             Address::AllHome => {
                 let page = all_home::facts(&self.root, self.env.wall);
+                assert_eq!(
+                    usize::try_from(page.showing).expect("small decision count"),
+                    self.showing(None),
+                    "decisions within their day across projects"
+                );
                 let fresh_projects = page.projects.iter().filter(|project| fresh(&project.status)).count();
                 let brief_lines = all_home::brief(&page).map_or(0, |brief| {
                     assert!(brief.lines.iter().all(|line| !line.sentence.is_empty()), "every joined brief has words");
@@ -420,6 +500,12 @@ impl World {
             Address::Home { project } => {
                 let page = home::facts(&self.root, project, self.env.wall);
                 let decisions = page.away.as_ref().map_or(0, |away| away.rows.len());
+                let showing = page.away.as_ref().map_or(0, |away| away.showing);
+                assert_eq!(
+                    usize::try_from(showing).expect("small decision count"),
+                    if page.to_begin() { 0 } else { self.showing(Some(project)) },
+                    "project decisions within their day"
+                );
                 let brief_lines = page.brief().map_or(0, |brief| {
                     assert!(!brief.lede().is_empty(), "the brief has words");
                     1
@@ -428,6 +514,11 @@ impl World {
                 (page.parts_facts(), brief_lines, decisions, 0)
             }
             Address::Inbox { .. } => {
+                assert_eq!(
+                    usize::try_from(needs_facts.showing).expect("small decision count"),
+                    self.showing(inbox.filter.project),
+                    "Needs you decisions within their day"
+                );
                 check_rules(None, &needs_facts);
                 check_content(None, &needs_facts, 0, all_home::decided(&self.root, self.env.wall).len(), 0, open.len());
                 check_cards(self, &open, needs_facts.open);
@@ -435,6 +526,10 @@ impl World {
             }
             _ => unreachable!("density walks Home and Needs you"),
         };
+        self.observed.insert(if facts.to_begin { "To begin" } else { "everyday Home" });
+        self.observed.insert(if facts.open > 3 { "N more" } else { "at most three cards" });
+        self.observed.insert(if facts.showing > 0 { "decisions showing" } else { "no decisions" });
+        self.observed.insert(if facts.brief { "new brief" } else { "no new brief" });
         assert_eq!(facts.brief, brief_lines > 0, "fresh brief facts, step {}", self.step);
         assert_eq!(needs_facts.known, inbox.known());
         check_rules(Some(&facts), &needs_facts);
@@ -500,7 +595,7 @@ fn check_content(
 }
 
 fn check_cards(world: &World, open: &[c::ObjectKey], count: u32) {
-    let inbox = world.root.pages().inbox().unwrap();
+    let inbox = world.root.pages().inbox().expect("Home or Needs you owns an inbox");
     let mut expected = Vec::new();
     if inbox.known() {
         for card in &inbox.cards {
@@ -528,11 +623,11 @@ fn check_cards(world: &World, open: &[c::ObjectKey], count: u32) {
     for object in &expected {
         assert_eq!(open.iter().filter(|found| *found == object).count(), 1, "open object {object:?} occurs once");
     }
-    assert_eq!(usize::try_from(count).unwrap(), open.len(), "parts' open count");
+    assert_eq!(usize::try_from(count).expect("bounded density fixture"), open.len(), "parts' open count");
     if !matches!(world.root.pages().address(), Address::Inbox { .. }) {
         let cards = open.iter().take(3).count();
-        let more = open.iter().skip(3).count();
-        assert_eq!(cards + more, usize::try_from(count).unwrap(), "Home's three cards and N more");
+        let more = usize::try_from(count.saturating_sub(3)).expect("small more count");
+        assert_eq!(cards + more, expected.len(), "Home's three cards and N more count every open object");
     }
 }
 
@@ -548,7 +643,7 @@ fn check_settings(before: &[c::ObjectKey], after: &[c::ObjectKey], approvals: &[
 
 fn generate(seed: u64) -> World {
     let mut rng = Rng::new(seed);
-    let projects = u32::try_from(rng.between(1, 4)).unwrap();
+    let projects = u32::try_from(rng.between(1, 4)).expect("bounded density fixture");
     let mut limits = fixtures::domain_limits();
     limits.client.domain.handles = READS;
     limits.client.domain.reads = READS;
@@ -566,10 +661,12 @@ fn generate(seed: u64) -> World {
         pending: Vec::new(),
         entries: Vec::new(),
         approvals: Vec::new(),
+        decision_rows: Vec::new(),
         answered: Vec::new(),
-        ways: vec![0; usize::try_from(projects).unwrap()],
+        ways: vec![0; usize::try_from(projects).expect("bounded density fixture")],
         revision: 0,
         step: 0,
+        observed: BTreeSet::new(),
     };
     // Start and frame follow the domain's fixtures::start and Across fixture.
     for event in [
@@ -589,28 +686,60 @@ fn generate(seed: u64) -> World {
         world.event(event);
     }
     world.drain();
-    world.deliver(Watchable::Jig(c::Subject::Me), c::Delivery::Me(Box::new(frame(projects))));
+    world.deliver(&Watchable::Jig(c::Subject::Me), c::Delivery::Me(Box::new(frame(projects))));
     world.drain();
     world.family(
         forge::forges::watch(&limits.forge),
-        wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0) }).unwrap()),
+        wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0) })
+                .expect("bounded density fixture"),
+        ),
     );
     world.dismissals();
+    world.entries = (10..=13).map(|task| entry(task, world.project_of(task))).collect();
+    world.inbox();
+    world.approvals = vec![approval(1)];
+    world.approval_rows();
+    assert!(world.open().contains(&c::ObjectKey::Task(201)), "approval asked under You approve is open");
     world.settings(1);
+    world.settings(1);
+    for project in 1..=projects {
+        world.status(project);
+        world.decisions(project);
+    }
     world.drain();
     world
 }
 
-fn sweep(seed: u64) {
+fn sweep(seed: u64) -> BTreeSet<&'static str> {
     let mut world = generate(seed);
+    world.observed.insert(match world.projects {
+        1 => "one project",
+        2 => "two projects",
+        3 => "three projects",
+        4 => "four projects",
+        _ => unreachable!("one to four projects"),
+    });
     for step in 0..STEPS {
         world.step = step;
-        let project = u32::try_from(world.rng.between(1, u64::from(world.projects))).unwrap();
+        let project = u32::try_from(world.rng.between(1, u64::from(world.projects))).expect("bounded density fixture");
         match world.rng.below(14) {
-            0 => world.go(Address::AllHome),
-            1 => world.go(Address::Home { project }),
-            2 => world.go(Address::Inbox { filter: Filter::ALL }),
-            3 => world.go(Address::Inbox { filter: Filter { project: Some(project), ..Filter::ALL } }),
+            0 => {
+                world.observed.insert("All projects Home");
+                world.go(Address::AllHome);
+            }
+            1 => {
+                world.observed.insert("project Home");
+                world.go(Address::Home { project });
+            }
+            2 => {
+                world.observed.insert("unfiltered Needs you");
+                world.go(Address::Inbox { filter: Filter::ALL });
+            }
+            3 => {
+                world.observed.insert("filtered Needs you");
+                world.go(Address::Inbox { filter: Filter { project: Some(project), ..Filter::ALL } });
+            }
             4 => world.status(project),
             5 => world.decisions(project),
             6 => {
@@ -629,6 +758,7 @@ fn sweep(seed: u64) {
             8 => world.settings(project),
             9 => {
                 if world.open().contains(&QUESTION) && !world.answered.contains(&QUESTION) {
+                    world.observed.insert("held answer");
                     world.answered.push(QUESTION);
                     world.act(needs::Act::Choose { object: QUESTION, words: b"Small".as_slice().into() });
                     assert!(world.root.pages().needs().held(QUESTION), "choice is held before sending");
@@ -636,17 +766,19 @@ fn sweep(seed: u64) {
             }
             10 => {
                 if world.root.pages().needs().held(QUESTION) {
+                    world.observed.insert("undone answer");
                     world.answered.retain(|object| *object != QUESTION);
                     world.act(needs::Act::Undo { object: QUESTION });
                 }
             }
             11 => {
-                let elapsed = [SECOND, needs::HOLD.as_nanos(), DAY][usize::try_from(world.rng.below(3)).unwrap()];
+                let elapsed = [SECOND, needs::HOLD.as_nanos(), DAY]
+                    [usize::try_from(world.rng.below(3)).expect("bounded density fixture")];
                 world.env.now = world.env.now.saturating_add(Duration::from_nanos(elapsed));
                 world.env.wall = Wall::from_nanos(world.env.wall.as_nanos() + elapsed);
                 let mut out = Queue::uncapped();
                 client::fire(&mut world.root, &world.env, &mut out);
-                world.outputs(out);
+                world.outputs(&out);
                 world.check();
             }
             12 => world.dismissals(),
@@ -655,20 +787,48 @@ fn sweep(seed: u64) {
         }
         world.drain();
     }
+    world.observed
 }
 
 #[test]
 fn random_facts_and_settings_keep_each_part_and_card() {
+    let mut observed = BTreeSet::new();
     for seed in REPLAY.map_or(1..=SEEDS, |seed| seed..=seed) {
-        assert!(
-            catch_unwind(AssertUnwindSafe(|| sweep(seed))).is_ok(),
-            "density seed {seed}; replay with REPLAY = Some({seed})"
-        );
+        let outcome = catch_unwind(AssertUnwindSafe(|| sweep(seed)));
+        assert!(outcome.is_ok(), "density seed {seed}; replay with REPLAY = Some({seed})");
+        observed.extend(outcome.expect("seed completed"));
+    }
+    if REPLAY.is_none() {
+        for state in [
+            "one project",
+            "two projects",
+            "three projects",
+            "four projects",
+            "All projects Home",
+            "project Home",
+            "unfiltered Needs you",
+            "filtered Needs you",
+            "To begin",
+            "everyday Home",
+            "N more",
+            "at most three cards",
+            "decisions showing",
+            "no decisions",
+            "new brief",
+            "no new brief",
+            "held answer",
+            "undone answer",
+            "sent answer",
+            "settings with approval",
+            "expired decisions",
+        ] {
+            assert!(observed.contains(state), "density sweep did not reach {state}");
+        }
     }
 }
 
 fn text(words: &[u8]) -> c::DocumentText {
-    c::DocumentText::complete(c::Text::new(words.into(), 512).unwrap())
+    c::DocumentText::complete(c::Text::new(words.into(), 512).expect("bounded density fixture"))
 }
 fn offers(act: c::ActKind) -> List<c::Offered> {
     List::from_boxed(Box::new([c::Offered { act, admission: c::Admission::Allowed, effect: None }]))
@@ -680,7 +840,7 @@ fn frame(projects: u32) -> c::Me {
             name: text(format!("Project {project}").as_bytes()),
             role: c::HeldRole::Owner,
             pool: None,
-            templates: List::with_capacity(0),
+            templates: List::from_boxed(Box::new([chat_template()])),
             creating: None,
             models: List::with_capacity(0),
             left_out: 0,
@@ -703,6 +863,29 @@ fn frame(projects: u32) -> c::Me {
         cut: false,
         retention: Duration::from_secs(1000),
         deployment_role: Some(c::HeldRole::Owner),
+    }
+}
+// The chat template follows the domain's fixtures::chats::me, so Home's task reads settle.
+fn chat_template() -> c::Template {
+    c::Template {
+        resources: List::with_capacity(0),
+        number: 1,
+        name: text(b"Chat"),
+        executor: c::TemplateExecutor::Charter(1),
+        contract: c::TaskContractDocument::Report { words: 512 },
+        shallower: 1,
+        budget: c::TemplateBudget::AsAllowed { cap: None },
+        deadline: c::TemplateDeadline::None,
+        tracked: None,
+        flags: c::TaskFlags {
+            ended_by: c::EndedBy::Result,
+            conversation: true,
+            listed: false,
+            retention: c::Retention::Kept,
+        },
+        label: 7,
+        grace: Some(Duration::from_secs(5)),
+        llm: None,
     }
 }
 fn entry(task: u64, project: u32) -> c::InboxEntry {
@@ -749,7 +932,7 @@ fn approval(project: u32) -> w::ApprovalRow {
             yours: w::ApprovalYours::Counts,
         },
     )
-    .unwrap()
+    .expect("bounded density fixture")
 }
 fn budget() -> c::Budget {
     c::Budget {
@@ -827,7 +1010,7 @@ fn task_document(task: u64, project: u32) -> c::Task {
         lineage: List::with_capacity(0),
         spec: c::SpecificationDocument::complete(c::Specification {
             asks: false,
-            words: c::Text::new(b"Make a change".as_slice().into(), 512).unwrap(),
+            words: c::Text::new(b"Make a change".as_slice().into(), 512).expect("bounded density fixture"),
             parameters: List::with_capacity(0),
             inputs: List::with_capacity(0),
         }),
