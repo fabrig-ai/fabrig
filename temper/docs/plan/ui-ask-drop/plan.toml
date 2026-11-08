@@ -1,0 +1,62 @@
+draft = "ui-ask-drop"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-ask-drop/inputs/request.md", "temper/docs/design/draft/ask-temper.md", "temper/docs/design/draft/configuring.md", "temper/docs/design/draft/configuring.execution.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "domain-runs"
+title = "The engine's domain world's configuring, settings and approval stories run charter 11 from template 5, and the settings family's own tools a charter of the world's own"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 6.4"
+
+[[slice]]
+id = 1
+story = "In the engine's domain world, an owner's Ask temper chat reads the settings through see, proposes, and hears its acceptance; no story there runs stock charter 3"
+parts = ["domain-runs"]
+walk = false
+
+[[part]]
+id = "joined"
+title = "The joined client world starts Ask temper through ctl with --template 5, its run proposing through see and the asking propose_settings"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 6.3"
+
+[[slice]]
+id = 2
+story = "In the joined client world, chat start --template 5 starts Ask temper, whose run of charter 11 proposes, and an owner accepts it through ctl"
+parts = ["joined"]
+walk = false
+
+[[part]]
+id = "client"
+title = "The client's code and gallery name Ask temper where they named the configuring chat and Configure"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/ask-temper.md, 9"
+
+[[slice]]
+id = 3
+story = "The client draws Ask temper as before, its code, tests and fixtures naming no configuring chat and no template 3"
+parts = ["client"]
+walk = false
+
+[[part]]
+id = "stage-one"
+title = "Configuring's stage 1 asks Ask temper: its box brings a real model for charter 11"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 6.5"
+
+[[slice]]
+id = 4
+story = "Stage 1's golden names Ask temper's model as the box's prerequisite, and its judge's brief says so"
+parts = ["stage-one"]
+walk = false
