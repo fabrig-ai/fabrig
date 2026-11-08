@@ -2,10 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [agent.md](agent.md).
 
-- **Not yet:** 4.3: `decided` takes five kinds and no `paths` or
-  `under`, its Ask names no reason, and the charters tell goals alone to
-  call it (`ui-reaches/decide-root`).
-
 - **Not yet:** 4.3, 8.1, 8.4.1: no run's `settings`, `propose_settings`
   or `see` names `project-classes` (`ui-reaches/classes-kind`).
 
@@ -200,8 +196,8 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   plan's cut: `decided` is declared to every run, where the request has it charter
   1's, because the host part declares its fixed tools whatever a charter says
   (`temper-engine-smith/src/calls.rs`, `tools_for`). So a coding agent's run spends
-  its room on it too; a call from anything but a goal answers ask, or is refused
-  for want of the control family (`forge.status.md`, 5.9).
+  its room on it too; a call from a task whose question reaches no person
+  answers ask, or is refused for want of the control family (`forge.status.md`, 5.9).
 - **Departs:** 8.3: the scripted fake model's goal script names literal
   numbers, project 1 and goal 2 (`temper-fake/src/backends.rs`,
   `model_document`), because its scripts are static, so on `temper box

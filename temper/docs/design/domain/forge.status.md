@@ -346,16 +346,9 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
   - 5.9: the caller's person is found through its chat, where the request has
     `domain.core.tasks.delegation`: a chat's goal has the chat as its requester, so
     the root takes jig's `served_chat`, then the chat's person.
-  - 5.9: "Only goals call it" is held by the root, where the request leaves it to
-    charter 1's words: goals and chats share that charter, so a chat's call answers
-    ask (`agent.status.md`, 4.3).
 
 - **Not yet:** 5.5: no person's fact `KeepAsking`
   (`ui-reaches/keep-asking`).
-
-- **Not yet:** 5.9: the root finds a person for a goal alone, a tracked
-  task, and answers a goal whose words say `Asks: always` itself, handing
-  the forge no `always` (`ui-reaches/decide-root`).
 
 - **Design departs:** 8.4, from the request `repair-green` of 2026-11-05, each
   decided by its plan's cut, for the user to see:

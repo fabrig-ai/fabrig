@@ -1,4 +1,4 @@
-//! A goal's live decision for its person (temper/docs/design/domain/forge.md, 5.9).
+//! A task's live decision for its person (temper/docs/design/domain/forge.md, 5.9).
 use super::{CallAnswer, CallKey, Decision, Domain, Env, Limits, ReplyTo, Work, decide_call, forge};
 use jig_domain_tasks as tasks;
 
@@ -19,7 +19,7 @@ pub(crate) fn call(
             party,
             project: context.project,
             task: key.task,
-            always: false,
+            always: always(domain, key.task),
             call,
         }));
     } else {
@@ -29,15 +29,6 @@ pub(crate) fn call(
 
 fn person(domain: &Domain, task: u64) -> Option<u64> {
     let row = domain.core.tasks.task(task)?;
-    row.tracked?;
-    let words = row.spec.words.as_ref();
-    if words == b"Asks: always"
-        || words.starts_with(b"Asks: always\n")
-        || words.ends_with(b"\nAsks: always")
-        || skein_lib::bytes::find(words, b"\nAsks: always\n").is_some()
-    {
-        return None;
-    }
     match row.requester {
         tasks::Party::Person(person) => Some(person),
         tasks::Party::Deployment { .. } => None,
@@ -49,4 +40,13 @@ fn person(domain: &Domain, task: u64) -> Option<u64> {
             }
         }
     }
+}
+
+fn always(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let words = row.spec.words.as_ref();
+    words == b"Asks: always"
+        || words.starts_with(b"Asks: always\n")
+        || words.ends_with(b"\nAsks: always")
+        || skein_lib::bytes::find(words, b"\nAsks: always\n").is_some()
 }

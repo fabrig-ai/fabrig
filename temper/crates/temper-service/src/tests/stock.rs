@@ -430,7 +430,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    assert_eq!(run, (13_123, Setting::Charter(5)));
+    assert_eq!(run, (12_883, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         (b"core.policy_bytes", 5886, Setting::Policy(1), "the stock's policy 1 needs 5886 bytes"),
@@ -620,35 +620,54 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
 // temper/docs/design/protocol/configuration.md, 13.4; domain/agent.md, 4.3.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
-    let words = include_str!("../stock/chat.txt");
-    let goal = words
+    for (words, prefixes) in [
+        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (include_str!("../stock/coordinator.md"), &["Where the draft leaves a choice:"][..]),
+    ] {
+        for prefix in prefixes {
+            let paragraph =
+                words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
+            assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says. Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
+        }
+    }
+    let coordinator = include_str!("../stock/coordinator.md");
+    let question = coordinator
         .split("\n\n")
-        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
-        .expect("goal paragraph");
-    assert!(goal.contains("Otherwise do the work without asking. Before you ask your requester anything, call decided with the question, its options, the one you'd take, why, and its kind; on Decided carry on with it and ask no one; on Ask, ask them with message, as a question."), "the goal calls decided before asking and follows its answer");
+        .find(|paragraph| paragraph.starts_with("On a question a change relays"))
+        .expect("question part");
+    for words in [
+        "before asking the person call `decided`",
+        "question, options, the one you'd take, why, kind, paths, and `under`",
+        "see settings project-classes",
+        "on Decided carry on and ask no one; on Ask, ask as the answer says",
+    ] {
+        assert!(question.contains(words));
+    }
+
     assert!(
-        goal.contains("Funds, sign-ins, machines, a plan's go-ahead and anything hard to reverse are kind other."),
-        "these decisions wait for the person"
-    );
-    assert!(
-        goal.contains("If they tell you a decision was overturned, ask it with message, as a question, and wait."),
-        "an overturned decision waits for the person's answer"
+        include_str!("../stock/chat.txt")
+            .contains("If they tell you a decision was overturned, ask it with message, as a question, and wait.")
     );
 }
 
 #[test]
-fn asks_always_is_told_never_to_call_it() {
-    let words = include_str!("../stock/chat.txt");
-    let goal = words
-        .split("\n\n")
-        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
-        .expect("goal paragraph");
-    assert!(
-        goal.contains(
-            "If your words hold the line Asks: always, never call decided: ask them with message, as a question."
+fn asks_always_is_told_every_answer_is_ask() {
+    for (words, prefixes) in [
+        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (
+            include_str!("../stock/coordinator.md"),
+            &["Where the draft leaves a choice:", "On a question a change relays"][..],
         ),
-        "Asks: always bypasses decided and asks the person"
-    );
+    ] {
+        for prefix in prefixes {
+            let paragraph =
+                words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
+            assert!(
+                paragraph.contains("If your words hold the line Asks: always, every answer is Ask."),
+                "Asks: always calls decided and records why it asks"
+            );
+        }
+    }
 }
 
 #[test]
@@ -1236,8 +1255,8 @@ mod brief;
 #[test]
 fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("When they ask for a change to a repository, first read the code it touches with the forge's reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe code you have not read."));
-    assert!(words.contains("When they ask you to fix something and what they call broken is not there, change nothing and tell them so in words, saying what the code has."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
 }
 
 #[test]
