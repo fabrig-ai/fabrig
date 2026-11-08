@@ -12,6 +12,27 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    WhyReach,
+    WhyWording,
+    WhyRetry,
+    WhyImplementation,
+    WhyTests,
+    WhyDependency,
+    WhyDeparture,
+    WhyMoney,
+    WhyIrreversible,
+    WhyRules,
+    WhyOther,
+    WhySet,
+    WhyPathSet,
+    WhyAsk,
+    WhyAskAway,
+    WhyWait,
+    WhyAlways,
+    WhyDirect,
+    WhyProposal,
+    WhyHeld,
+    WhyFunds,
     DecidedCountMore,
     AllowedDecide,
     AllowedAway,
@@ -1644,7 +1665,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2196;
+const PHRASES: u32 = 2217;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1671,10 +1692,31 @@ const PHRASES: u32 = 2196;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3901;
+const SEGMENTS: u32 = 3930;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 53158;
-const ALL: [Word; 1514] = [
+const ENGLISH_BYTES: u32 = 53852;
+const ALL: [Word; 1535] = [
+    Word::WhyReach,
+    Word::WhyWording,
+    Word::WhyRetry,
+    Word::WhyImplementation,
+    Word::WhyTests,
+    Word::WhyDependency,
+    Word::WhyDeparture,
+    Word::WhyMoney,
+    Word::WhyIrreversible,
+    Word::WhyRules,
+    Word::WhyOther,
+    Word::WhySet,
+    Word::WhyPathSet,
+    Word::WhyAsk,
+    Word::WhyAskAway,
+    Word::WhyWait,
+    Word::WhyAlways,
+    Word::WhyDirect,
+    Word::WhyProposal,
+    Word::WhyHeld,
+    Word::WhyFunds,
     Word::DecidedCountMore,
     Word::AllowedDecide,
     Word::AllowedAway,
@@ -3367,6 +3409,27 @@ impl Word {
             Self::ReachSet => 4331,
             Self::ReachPathSet => 4332,
             Self::ReachUnder => 4333,
+            Self::WhyReach => 4334,
+            Self::WhyWording => 4335,
+            Self::WhyRetry => 4336,
+            Self::WhyImplementation => 4337,
+            Self::WhyTests => 4338,
+            Self::WhyDependency => 4339,
+            Self::WhyDeparture => 4340,
+            Self::WhyMoney => 4341,
+            Self::WhyIrreversible => 4342,
+            Self::WhyRules => 4343,
+            Self::WhyOther => 4344,
+            Self::WhySet => 4345,
+            Self::WhyPathSet => 4346,
+            Self::WhyAsk => 4347,
+            Self::WhyAskAway => 4348,
+            Self::WhyWait => 4349,
+            Self::WhyAlways => 4350,
+            Self::WhyDirect => 4351,
+            Self::WhyProposal => 4352,
+            Self::WhyHeld => 4353,
+            Self::WhyFunds => 4354,
 
             Self::ToastWayUsed => 4300,
             Self::ToastWayKept => 4301,
@@ -6242,6 +6305,27 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ReachPathSet => (&[b"changes to a path set"], &[]),
         Word::DecidedCountMore => (&[b"Decided for you \xc2\xb7 ", b"+"], &[Number]),
         Word::AllowedDecide => (&[b"Allowed: ", b" are decided and listed."], &[Name]),
+        Word::WhyReach => (&[b"Reached you because ", b", which ", b"."], &[Name, Name]),
+        Word::WhyWording => (&[b"it is a wording choice"], &[]),
+        Word::WhyRetry => (&[b"it retries or splits a failing task"], &[]),
+        Word::WhyImplementation => (&[b"it is an implementation choice"], &[]),
+        Word::WhyTests => (&[b"it changes only tests"], &[]),
+        Word::WhyDependency => (&[b"it adds a dependency"], &[]),
+        Word::WhyDeparture => (&[b"it departs from a landed design"], &[]),
+        Word::WhyMoney => (&[b"it spends money past a budget"], &[]),
+        Word::WhyIrreversible => (&[b"it can\xe2\x80\x99t be undone"], &[]),
+        Word::WhyRules => (&[b"it changes what reaches you"], &[]),
+        Word::WhyOther => (&[b"no kind of decision names it"], &[]),
+        Word::WhySet => (&[b"it changes ", b""], &[Name]),
+        Word::WhyPathSet => (&[b"one of ", b"\xe2\x80\x99s path sets"], &[Name]),
+        Word::WhyAsk => (&[b"asks you unless you\xe2\x80\x99re away"], &[]),
+        Word::WhyAskAway => (&[b"asks you, even when away"], &[]),
+        Word::WhyWait => (&[b"always waits for you"], &[]),
+        Word::WhyAlways => (&[b"Reached you because its goal always asks you."], &[]),
+        Word::WhyDirect => (&[b"Reached you because it was asked of you directly."], &[]),
+        Word::WhyProposal => (&[b"Reached you because a proposal always waits for whoever may accept it."], &[]),
+        Word::WhyHeld => (&[b"Reached you because a held task always waits for whoever may release it."], &[]),
+        Word::WhyFunds => (&[b"Reached you because money past a budget always waits for you."], &[]),
         Word::AllowedAway => (&[b"Allowed: ", b" are decided while you\xe2\x80\x99re away."], &[Name]),
         Word::ReachSet => (&[b"changes to ", b""], &[Name]),
         Word::ReachUnder => (&[b"", b" under \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name, Name]),

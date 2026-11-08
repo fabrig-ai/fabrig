@@ -64,6 +64,8 @@ pub(super) struct State {
     ways: Slot,
     questions: Slot,
     classes: Slot,
+    shown_project: Option<u32>,
+    shown_classes: Slot,
 }
 #[derive(Debug)]
 struct ProposalRead {
@@ -132,6 +134,8 @@ impl State {
             ways: Slot::new(),
             questions: Slot::new(),
             classes: Slot::new(),
+            shown_project: None,
+            shown_classes: Slot::new(),
         }
     }
     fn slot(&self, control: Control) -> &Slot {
@@ -147,6 +151,15 @@ impl State {
             Control::Questions => &mut self.questions,
             Control::Classes => &mut self.classes,
         }
+    }
+    fn reading_slot(&self, control: Control, shown: bool) -> &Slot {
+        if shown { &self.shown_classes } else { self.slot(control) }
+    }
+    fn reading_slot_mut(&mut self, control: Control, shown: bool) -> &mut Slot {
+        if shown { &mut self.shown_classes } else { self.slot_mut(control) }
+    }
+    const fn reading_project(&self, shown: bool) -> Option<u32> {
+        if shown { self.shown_project } else { self.project }
     }
 }
 impl Side {
@@ -192,13 +205,17 @@ impl Side {
             Some(Asked::Ways(_) | Asked::Classes(_)) | None => None,
         }
     }
-    /// The open project's classes (client/README.md, 5.13): stock with no value; None until read or refused.
+    /// The open or shown need's project's classes (client/README.md, 5.13): stock with no value; None until read or refused.
     #[must_use]
     pub fn classes(&self, project: u32) -> Option<&Classes> {
-        if self.ways.project != Some(project) {
+        let slot = if self.ways.project == Some(project) {
+            &self.ways.classes
+        } else if self.ways.shown_project == Some(project) {
+            &self.ways.shown_classes
+        } else {
             return None;
-        }
-        match &self.ways.classes.value {
+        };
+        match &slot.value {
             Some(Asked::Classes(value)) => Some(value),
             Some(Asked::Ways(_) | Asked::Questions(_)) | None => None,
         }
@@ -254,6 +271,7 @@ pub(crate) fn progress(
     side: &mut Side,
     now: Time,
     open: Option<u32>,
+    shown: Option<u32>,
     on_tab: bool,
     limits: Limits,
     out: &mut Queue<Request>,
@@ -265,6 +283,20 @@ pub(crate) fn progress(
         side.ways.questions.forget();
         side.ways.classes.forget();
         side.changed();
+    }
+    let shown = if side.party.is_some() && shown != open { shown } else { None };
+    if side.ways.shown_project != shown {
+        side.ways.shown_project = shown;
+        side.ways.shown_classes.forget();
+        side.changed();
+    }
+    if let Some(project) = shown {
+        let line = line(side.ways.document.as_deref(), project, Control::Classes);
+        if side.ways.shown_classes.line != line {
+            side.ways.shown_classes.line = line;
+            side.ways.shown_classes.again = true;
+        }
+        read_slot(side, now, Control::Classes, true, limits, out);
     }
     if on_tab && !side.ways.on_tab {
         side.ways.questions.again = true;
@@ -300,11 +332,14 @@ fn line(
     None
 }
 fn read(side: &mut Side, now: Time, control: Control, limits: Limits, out: &mut Queue<Request>) {
-    let Some(project) = side.ways.project else { return };
+    read_slot(side, now, control, false, limits, out);
+}
+fn read_slot(side: &mut Side, now: Time, control: Control, shown: bool, limits: Limits, out: &mut Queue<Request>) {
+    let Some(project) = side.ways.reading_project(shown) else { return };
     if control == Control::Questions && !side.ways.on_tab {
         return;
     }
-    let slot = side.ways.slot(control);
+    let slot = side.ways.reading_slot(control, shown);
     if !slot.again || slot.pending.is_some() || side.party.is_none() {
         return;
     }
@@ -320,7 +355,7 @@ fn read(side: &mut Side, now: Time, control: Control, limits: Limits, out: &mut 
         w::Reading::new(&bounds, w::ReadingParts { read: w::Read::Setting(value) }).expect("setting read fits");
     side.serial = side.serial.checked_add(1).expect("forge handles fit");
     let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
-    let slot = side.ways.slot_mut(control);
+    let slot = side.ways.reading_slot_mut(control, shown);
     slot.pending = Some(Reading { handle, project, publish: true });
     slot.again = false;
     slot.retry_at = None;
@@ -339,6 +374,7 @@ fn read(side: &mut Side, now: Time, control: Control, limits: Limits, out: &mut 
         },
     });
 }
+#[expect(clippy::too_many_lines, reason = "settings deliveries reconcile the open and shown project slots together")]
 pub(crate) fn told(
     side: &mut Side,
     now: Time,
@@ -357,6 +393,7 @@ pub(crate) fn told(
                 side.ways.ways.again = true;
                 side.ways.questions.again = true;
                 side.ways.classes.again = true;
+                side.ways.shown_classes.again = true;
             }
             side.ways.live = *link == Link::Live;
             false
@@ -401,12 +438,17 @@ pub(crate) fn told(
                     return true;
                 }
             }
-            for control in [Control::Ways, Control::Questions, Control::Classes] {
-                if let Some(pending) = side.ways.slot(control).pending
+            for (control, shown) in [
+                (Control::Ways, false),
+                (Control::Questions, false),
+                (Control::Classes, false),
+                (Control::Classes, true),
+            ] {
+                if let Some(pending) = side.ways.reading_slot(control, shown).pending
                     && pending.handle == *handle
                 {
-                    let current = side.ways.project == Some(pending.project) && pending.publish;
-                    let slot = side.ways.slot_mut(control);
+                    let current = side.ways.reading_project(shown) == Some(pending.project) && pending.publish;
+                    let slot = side.ways.reading_slot_mut(control, shown);
                     slot.pending = None;
                     if current {
                         if transient(client, page) {
@@ -420,7 +462,7 @@ pub(crate) fn told(
                         }
                     }
                     side.changed();
-                    read(side, now, control, limits, out);
+                    read_slot(side, now, control, shown, limits, out);
                     return true;
                 }
             }
@@ -447,7 +489,10 @@ pub(crate) fn told(
     }
 }
 pub(crate) const fn next_deadline(side: &Side) -> Option<Time> {
-    earlier(earlier(side.ways.ways.retry_at, side.ways.questions.retry_at), side.ways.classes.retry_at)
+    earlier(
+        earlier(side.ways.ways.retry_at, side.ways.questions.retry_at),
+        earlier(side.ways.classes.retry_at, side.ways.shown_classes.retry_at),
+    )
 }
 const fn earlier(left: Option<Time>, right: Option<Time>) -> Option<Time> {
     match (left, right) {
