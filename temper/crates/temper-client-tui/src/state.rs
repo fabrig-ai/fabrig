@@ -1,10 +1,14 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/README.md, 6.14, 6.17 and 7.1).
 use crate::{BoxLine, limits};
 use alloc::boxed::Box;
-use skein_lib::{Queue, Secret, bytes::copy_of};
+use jig_client::contract::ObjectKey;
+use skein_lib::{List, Queue, Secret, bytes::copy_of};
 
 #[derive(Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "the TUI holds independent sign-in, credential and front facts")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the TUI holds independent sign-in, credential, front and note facts"
+)]
 pub struct Tui {
     address: Box<[u8]>,
     field: Box<[u8]>,
@@ -20,7 +24,7 @@ pub struct Tui {
     revision: u64,
     written: u64,
     columns: u16,
-    aside: Option<jig_client::contract::ObjectKey>,
+    aside: Option<ObjectKey>,
     unknown: Option<Box<[u8]>>,
     focus: u64,
     box_written: u64,
@@ -33,6 +37,9 @@ pub struct Tui {
     gave_up: Option<Box<[u8]>>,
     quitting: bool,
     log_shown: bool,
+    walk: Option<Walk>,
+    brief_shown: bool,
+    not_opened: Option<Box<[u8]>>,
 }
 /// The box's state, given up winning (temper/docs/design/client/README.md, 6.17).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -68,6 +75,17 @@ pub enum Refusal {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    Walk {
+        by_key: bool,
+    },
+    Walked {
+        object: ObjectKey,
+    },
+    EndWalk,
+    Brief,
+    NotOpened {
+        address: Option<Box<[u8]>>,
+    },
     Size {
         columns: u16,
     },
@@ -78,7 +96,7 @@ pub enum Told {
     Boxed,
     Cleared,
     Aside {
-        object: Option<jig_client::contract::ObjectKey>,
+        object: Option<ObjectKey>,
     },
     Unknown {
         words: Option<Box<[u8]>>,
@@ -147,6 +165,9 @@ impl Tui {
             gave_up: None,
             quitting: false,
             log_shown: false,
+            walk: None,
+            brief_shown: false,
+            not_opened: None,
             left_off: None,
             boxed: false,
         }
@@ -204,7 +225,7 @@ impl Tui {
         self.columns
     }
     #[must_use]
-    pub const fn aside(&self) -> Option<jig_client::contract::ObjectKey> {
+    pub const fn aside(&self) -> Option<ObjectKey> {
         self.aside
     }
     #[must_use]
@@ -248,6 +269,25 @@ impl Tui {
     #[must_use]
     pub const fn log_shown(&self) -> bool {
         self.log_shown
+    }
+    #[must_use]
+    pub fn walk(&self) -> Option<&Walk> {
+        self.walk.as_ref()
+    }
+    #[must_use]
+    pub const fn brief_shown(&self) -> bool {
+        self.brief_shown
+    }
+    #[must_use]
+    pub fn not_opened(&self) -> Option<&[u8]> {
+        self.not_opened.as_deref()
+    }
+    fn clear_launchpad(&mut self) -> bool {
+        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some();
+        self.walk = None;
+        self.brief_shown = false;
+        self.not_opened = None;
+        changed
     }
     fn box_line(&mut self, line: BoxLine) -> bool {
         match line {
@@ -367,6 +407,37 @@ impl Tui {
     #[expect(clippy::too_many_lines, reason = "one dispatch updates the TUI's independent surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Walk { by_key } => {
+                let changed = match &self.walk {
+                    Some(walk) => walk.by_key != by_key || walk.taken,
+                    None => true,
+                };
+                self.walk = Some(Walk { by_key, shown: List::with_capacity(limits::WALK), taken: false });
+                changed
+            }
+            Told::Walked { object } => match &mut self.walk {
+                Some(walk) => {
+                    let mut changed = !walk.taken;
+                    walk.taken = true;
+                    if !walk.shown(&object) && walk.shown.room() > 0 {
+                        walk.shown.push(object).expect("room for a shown object");
+                        changed = true;
+                    }
+                    changed
+                }
+                None => false,
+            },
+            Told::EndWalk => self.walk.take().is_some(),
+            Told::Brief => {
+                let changed = !self.brief_shown;
+                self.brief_shown = true;
+                changed
+            }
+            Told::NotOpened { address } => {
+                let changed = self.not_opened != address;
+                self.not_opened = address;
+                changed
+            }
             Told::Front => {
                 let changed = !self.front;
                 self.front = true;
@@ -398,12 +469,13 @@ impl Tui {
                 let written = self.box_written.saturating_add(1);
                 let changed =
                     self.focus != focus || self.box_written != written || self.log_shown || self.left_off.is_some();
+                let cleared = self.clear_launchpad();
                 self.log_shown = false;
                 self.left_off = None;
                 self.focus = focus;
                 self.command_words = Box::default();
                 self.box_written = written;
-                changed
+                changed || cleared
             }
             Told::LeftOff { task } => {
                 let changed = self.left_off != task;
@@ -421,11 +493,12 @@ impl Tui {
                 changed
             }
             Told::Cleared => {
+                let cleared = self.clear_launchpad();
                 self.command_words = Box::default();
                 let written = self.box_written.saturating_add(1);
                 let changed = self.box_written != written;
                 self.box_written = written;
-                changed
+                changed || cleared
             }
             Told::Aside { object } => {
                 let changed = self.aside != object;
@@ -444,7 +517,8 @@ impl Tui {
                     Signing::Refused(..) | Signing::Answered { .. } | Signing::Idle => Signing::Idle,
                     Signing::Asked => Signing::Asked,
                 };
-                let changed = self.field != value || self.signing != signing;
+                let ended = !value.is_empty() && self.walk.take().is_some();
+                let changed = self.field != value || self.signing != signing || ended;
                 self.field = value;
                 self.signing = signing;
                 changed
@@ -499,5 +573,27 @@ impl Tui {
         if changed {
             self.revision = self.revision.saturating_add(1);
         }
+    }
+}
+
+/// The needs already shown during this walk (temper/docs/design/client/README.md, 6.14).
+#[derive(Debug)]
+pub struct Walk {
+    shown: List<ObjectKey>,
+    by_key: bool,
+    taken: bool,
+}
+impl Walk {
+    #[must_use]
+    pub fn shown(&self, object: &ObjectKey) -> bool {
+        self.shown.as_slice().contains(object)
+    }
+    #[must_use]
+    pub const fn by_key(&self) -> bool {
+        self.by_key
+    }
+    #[must_use]
+    pub const fn taken(&self) -> bool {
+        self.taken
     }
 }

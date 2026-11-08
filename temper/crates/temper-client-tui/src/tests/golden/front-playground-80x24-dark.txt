@@ -2,9 +2,9 @@
 │ This is the playground: a scripted model and in-memory forge. Set temper up  │
 │ in your browser when you're ready to leave it.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-
-
-
+ Start
+   /change   one change, run as Demo's way says
+   /ask      Ask temper
 
 
 
@@ -19,17 +19,17 @@
 
 
 ────────────────────────────────────────────────────────────────────────────────
-❯ Ask temper
+❯ Ask for a change, or ask temper.  / for commands
 ────────────────────────────────────────────────────────────────────────────────
- / for commands · playground                            Scripted model · ● Live
+ Demo · Scripted model · ● Live                                      playground
 --
 aaabbbbbbaaaccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddaaaeeeaaa
 a..............................................................................a
 a..............................................................................a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-................................................................................
-................................................................................
-................................................................................
+.ccccc..........................................................................
+...cccccccccceeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee.................................
+...cccccccccceeeeeeeeee.........................................................
 ................................................................................
 ................................................................................
 ................................................................................
@@ -44,9 +44,9 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
 ................................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-ddaaaaaaaaaa....................................................................
+ddaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..............................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.eeeeeeeeeeeeeeeeeeeeeeeeeee............................eeeeeeeeeeeeeeeeeffffff.
+.eeeeaaaeeeeeeeeeeeeeeaaaffffff......................................eeeeeeeeee.
 --
 a: fore #6A655C
 b: fore #E08A68 bold

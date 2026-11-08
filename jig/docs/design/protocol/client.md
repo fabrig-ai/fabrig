@@ -382,6 +382,7 @@ in, from the transport:
   StreamOpen { stream, credential }            a client opened its stream
   StreamTaken { stream }                       the transport took the last message streamed
   StreamGone { stream }                        the stream's connection ended
+  ExchangeGone { exchange }                    an exchange's connection ended before its reply: a keyed request's, a read's, a public read's
 in, from the application's server code (never from a client):
   Mint { exchange, identity }                  an identity the application verified: a provider's number, a subject, a login, a name
 out, to the transport:
@@ -409,6 +410,16 @@ out, to the application's startup:
 - **One reply per exchange,** made once the core has answered and, for a
   keyed request or a read, once that answer is durable. A transport that
   has lost its client drops the reply.
+- **A caller gone lets its exchange go.** The transport says
+  `ExchangeGone` when an exchange it handed the component ends before
+  the component's reply reaches it, its connection ended or failed
+  (17.4). The component lets go of that caller at once and keeps what
+  the exchange started: the core's or the application's answer, when it
+  comes, settles as it would have (a link spent, a carried value used or
+  erased, a committed effect kept), and its reply goes nowhere. A close
+  waits for the replies owed to callers still there, never for a caller
+  gone, so a request admitted before its caller left never holds the
+  engine's drain (`service.md`, section 5).
 - **One streamed message in flight per stream.** The component hands the
   transport the next only after `StreamTaken`, which the transport says
   once it has written the message to its connection, or into a bounded
@@ -1202,7 +1213,11 @@ Each within jig's suites' budgets.
   service signing in, a key added, sent again under its key with the
   same value and with another; an account moved out, its record in the
   first answer alone and empty in the kept answer sent again, and a
-  moved file moved in under its key. Its referee: one reply per exchange; one
+  moved file moved in under its key; a family's request admitted and
+  its caller gone before the stop, between the stop and the close, and
+  after the close, the component closed with the request's answer still
+  out, and an answer that comes once its caller has gone settling with
+  no reply. Its referee: one reply per exchange; one
   streamed message in flight per stream; no credential reaches a
   domain; no key and no moved record is in the small store, a
   committed request or an answer kept.
@@ -1210,7 +1225,9 @@ Each within jig's suites' budgets.
   every route, the stream's events cut at random, the credential as a
   cookie and as a bearer, the printed link's route (a browser's link
   sign-in with its live cookie answered with no `Set-Cookie`, and one
-  answered busy or full with none), and the
+  answered busy or full with none), a call ended before its reply said
+  gone once, as `ExchangeGone`, and a call answered or never handed
+  over said gone never, and the
   example guards' stories (`browser.md`, section 15).
 - **The protocol world,** `jig-client-protocol-world`: the client's
   world's stories (`../client/domain/testing.md`, section 4) run through
@@ -1503,10 +1520,12 @@ prefix; jig's test application mounts it at `/jig`.
   below skein's server, ends a connection whose peer ends while a call
   it handed the engine end is unfinished, and tells the engine end the
   call's connection closed, as it does when a connection fails. The
-  engine end takes that as the call's end, and a stream's as its
-  connection's end, `StreamGone` (4.2): section 4's "until the engine
-  sees the stream's connection end" is then the moment the peer's end
-  is read, not a heartbeat's failed write later.
+  engine end takes that as the call's end and tells the component: a
+  stream's as its connection's end, `StreamGone`, and an exchange's or a
+  public read's whose reply it has not had, `ExchangeGone` (4.2).
+  Section 4's "until the engine sees the stream's connection end" is
+  then the moment the peer's end is read, not a heartbeat's failed write
+  later.
 - **Example guards,** in the engine end, which an application uses,
   wraps, or replaces with its own: a `Host` allow-list; the browser's
   required header and the POSTs' content type, which force a preflight,
