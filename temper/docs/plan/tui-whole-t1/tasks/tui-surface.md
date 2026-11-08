@@ -143,3 +143,11 @@ Options, each decided:
 As the implementer's text says, with each row and the rule broken by hand
 for it, where the focus is computed, and any name that departs from the
 contract (none should).
+
+## Rebase (2026-11-08, step merge, foreman tui-whole-t1/tui-surface/foreman-1)
+
+Resolve the status-file conflict by preserving both completed tasks’ bullet deletions.
+Rebase onto the landing’s updated integration tip.
+The conflict is confined to `temper/docs/design/client/README.status.md`.
+Integration commit `96bb3b203e` removes the `view-needs` **Not yet** bullet; this branch’s `0bdfc29f0c` removes the adjacent `tui-surface` bullet.
+Resolve with both bullets absent. Preserve all other status text and the task’s implementation unchanged.
