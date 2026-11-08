@@ -130,13 +130,22 @@ before it (jig's `domain/hosts.md`, 6.4; jig's `domain/engine.md`, 7.2), so a
 message kept back would go with the next one read. A turn takes only the offered
 messages up to its fence instead. A message a pace keeps back from a live run
 needs the same rule (jig's `domain/tasks.md`, 8.3). A message that arrives
-between a run's preparation and its claim is offered or kept the same way,
-against the parts prepared.
+between a run's preparation and its claim and would add to its reasons
+prepares the run again, so that a run starts with every reason waiting for
+it, a due result among them, and the parts they choose; any other is offered
+or kept the same way, against the parts prepared.
 
-**An entry left undecided wakes the next run.** Entries aren't inbox messages,
-so nothing re-judges one when a run ends. So when a run ends with an entry
-still waiting for the task's decision, the task is woken again for it, its
-reasons that entry's kind, as an unread message would wake it.
+**An entry left undecided wakes the next run, unless the run covered it.**
+Entries aren't inbox messages, so nothing re-judges one when a run ends. So
+when a run ends with an entry still waiting for the task's decision, and no
+part of the run covered the entry's kind, the task is woken again for it, its
+reasons that entry's kind, as an unread message would wake it. If a part of the
+run covered its kind (a charter with no parts covers every kind), the run had
+the entry and left it undecided: the entry doesn't wake the task again by
+itself. It's offered at the next wake, whatever wakes it, and wakes the task
+only when it changes, by a new revision or a message about it. So a goal that
+passed a held repair's question to its person and parked isn't woken for that
+escalation again until the person answers or the hold changes.
 
 So a question that reaches the goal during its cut waits for the run after it,
 which reads the questions part, as the pipeline's cut never answers one. A

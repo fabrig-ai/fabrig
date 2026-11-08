@@ -50,6 +50,7 @@ pub enum Stdin {
 pub struct Call {
     arguments: Vec<Box<[u8]>>,
     program: Option<PathBuf>,
+    ctl_program: Option<PathBuf>,
     stdin: Stdin,
     directory: bool,
     client: Option<Box<[u8]>>,
@@ -60,6 +61,7 @@ impl Call {
         Self {
             arguments: arguments.iter().map(|word| word.as_bytes().into()).collect(),
             program: None,
+            ctl_program: None,
             stdin: Stdin::Nothing,
             directory: true,
             client: None,
@@ -69,6 +71,12 @@ impl Call {
     #[must_use]
     pub fn command(program: &Path, arguments: &[&str]) -> Self {
         Self { program: Some(program.into()), directory: false, ..Self::new(arguments) }
+    }
+    /// Run the call by another binary's `ctl`, as the deployment's client runs it
+    /// (protocol/README.md, section 4).
+    #[must_use]
+    pub fn by(self, program: &Path) -> Self {
+        Self { ctl_program: Some(program.into()), ..self }
     }
     #[must_use]
     pub fn json(mut self) -> Self {
@@ -682,7 +690,7 @@ impl Calls {
                 bytes
             }
         };
-        let program = call.program.unwrap_or_else(|| skein_scratch::paths::binary("temper"));
+        let program = call.program.or(call.ctl_program).unwrap_or_else(|| skein_scratch::paths::binary("temper"));
         self.spawn(program.as_os_str().as_bytes().into(), args, input, started);
         if started {
             self.started.as_mut().expect("started call").0.kind = kind;

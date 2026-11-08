@@ -1,6 +1,9 @@
 //! Ask temper's stock ways and immediate acts (temper/docs/design/client/README.md, 4.6 and 5.13).
 use super::{Limits, wire_limits};
-use crate::{owner::Owner, pages::Request};
+use crate::{
+    owner::Owner,
+    pages::{Request, needs::Toasted},
+};
 use alloc::boxed::Box;
 use jig_client::{Client, Family, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Queue};
@@ -32,12 +35,15 @@ pub struct StockWays {
     policy: Handle,
     state: State,
     configured: bool,
+    shown: Option<u32>,
+    open: Option<u32>,
+    toast: Option<Toasted>,
     pending: Option<Pending>,
     refused: Option<c::Refusal>,
 }
 #[derive(Debug)]
 enum Pending {
-    Policy { against: u32, items: List<c::SettingItem> },
+    Policy { against: u32, items: List<c::SettingItem>, receipt: Receipt },
     Change(Change),
 }
 #[derive(Debug)]
@@ -45,6 +51,12 @@ struct Change {
     key: Key,
     items: List<c::SettingItem>,
     retried: bool,
+    receipt: Receipt,
+}
+#[derive(Debug)]
+struct Receipt {
+    name: Box<[u8]>,
+    kept: bool,
 }
 #[must_use]
 pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
@@ -67,6 +79,9 @@ impl StockWays {
             policy,
             state: State::Ended,
             configured: false,
+            shown: None,
+            open: None,
+            toast: None,
             pending: None,
             refused: None,
         };
@@ -95,6 +110,94 @@ impl StockWays {
     #[must_use]
     pub const fn refused(&self) -> Option<&c::Refusal> {
         self.refused.as_ref()
+    }
+    /// The index into tabs of the tab shown (client/README.md, 5.13).
+    #[must_use]
+    pub fn shown(&self) -> Option<u32> {
+        let panel = self.panel()?;
+        match self.shown {
+            Some(index) => {
+                panel.ways().get(index)?;
+                Some(index)
+            }
+            None => {
+                if panel.current().is_none() {
+                    Some(panel.ways().len())
+                } else {
+                    None
+                }
+            }
+        }
+    }
+    /// The stop of the shown tab's path whose card is open.
+    #[must_use]
+    pub fn open(&self) -> Option<u32> {
+        self.open
+    }
+    /// Whether a way's act is out: the act shows, disabled.
+    #[must_use]
+    pub const fn sending(&self) -> bool {
+        self.pending.is_some()
+    }
+    pub(crate) fn toasted(&mut self) -> Option<Toasted> {
+        self.toast.take()
+    }
+    pub(crate) fn show_tab(&mut self, project: u32, index: u32) {
+        if project == self.project
+            && let Some(tab) = self.tabs().get(index)
+        {
+            self.shown = tab.index;
+            self.open = None;
+        }
+    }
+    pub(crate) fn show_stop(&mut self, project: u32, index: u32) {
+        if project != self.project {
+            return;
+        }
+        let Some(shown) = self.shown() else { return };
+        let tabs = self.tabs();
+        let Some(tab) = tabs.get(shown) else { return };
+        let Some(stop) = tab.path.stops().get(index) else { return };
+        match stop.actor() {
+            w::Actor::Bar => {}
+            w::Actor::Person | w::Actor::Agent | w::Actor::Code => {
+                self.open = if self.open == Some(index) { None } else { Some(index) };
+            }
+        }
+    }
+    fn show(&mut self, panel: w::WaysPanel) {
+        let old_tabs = self.tabs();
+        let old = match self.shown() {
+            Some(index) => old_tabs.get(index),
+            None => None,
+        };
+        self.state = State::Shown(Box::new(panel));
+        let tabs = self.tabs();
+        let mut shown = None;
+        for tab in &tabs {
+            if tab.current {
+                shown = Some(tab);
+            }
+        }
+        if let Some(old) = old {
+            for tab in &tabs {
+                if tab.index == old.index {
+                    shown = Some(tab);
+                    break;
+                }
+            }
+        }
+        self.shown = match shown {
+            Some(tab) => tab.index,
+            None => None,
+        };
+        let same = match (old, shown) {
+            (Some(old), Some(shown)) => same_stops(old, shown),
+            (Some(_) | None, None) | (None, Some(_)) => false,
+        };
+        if !same {
+            self.open = None;
+        }
     }
     fn panel(&self) -> Option<&w::WaysPanel> {
         match &self.state {
@@ -134,7 +237,7 @@ impl StockWays {
     pub fn act(&self, index: u32) -> Option<WayAct> {
         let panel = self.panel()?;
         panel.ways().get(index)?;
-        if !panel.may_change() || self.pending.is_some() {
+        if !panel.may_change() {
             return None;
         }
         if *panel.current() != Some(index) {
@@ -151,7 +254,7 @@ impl StockWays {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
-        if project != self.project {
+        if project != self.project || self.sending() {
             return;
         }
         let Some(panel) = self.panel() else { return };
@@ -181,10 +284,11 @@ impl StockWays {
                 })
                 .expect("wire bounds way items");
         }
+        let receipt = Receipt { name: way.name().into(), kept: act == WayAct::Keep };
         let delegation = way.delegation();
         self.refused = None;
         if delegation {
-            self.pending = Some(Pending::Policy { against: settings.newest, items });
+            self.pending = Some(Pending::Policy { against: settings.newest, items, receipt });
             out.push(Request::Client(jig_client::Event::Read {
                 handle: self.policy,
                 read: Readable::Jig(c::Read::Setting(c::ReadSetting {
@@ -194,12 +298,19 @@ impl StockWays {
                 })),
             }));
         } else {
-            self.send_items(items, settings.newest, serial, out);
+            self.send_items(items, settings.newest, receipt, serial, out);
         }
     }
-    fn send_items(&mut self, items: List<c::SettingItem>, against: u32, serial: &mut u64, out: &mut Queue<Request>) {
+    fn send_items(
+        &mut self,
+        items: List<c::SettingItem>,
+        against: u32,
+        receipt: Receipt,
+        serial: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
         self.send(
-            Change { key: Key { asker: Owner::Pages.asker(), number: 0 }, items, retried: false },
+            Change { key: Key { asker: Owner::Pages.asker(), number: 0 }, items, retried: false, receipt },
             against,
             serial,
             out,
@@ -244,7 +355,7 @@ impl StockWays {
                 match panel {
                     Some(panel) if panel.project() == self.project => {
                         self.refused = None;
-                        self.state = State::Shown(Box::new(panel));
+                        self.show(panel);
                     }
                     Some(_) | None => self.end(out),
                 }
@@ -279,8 +390,8 @@ impl StockWays {
         }
     }
     fn policy_read(&mut self, page: &Readout, serial: &mut u64, out: &mut Queue<Request>) {
-        let (against, mut items) = match self.pending.take() {
-            Some(Pending::Policy { against, items }) => (against, items),
+        let (against, mut items, receipt) = match self.pending.take() {
+            Some(Pending::Policy { against, items, receipt }) => (against, items, receipt),
             pending @ (Some(Pending::Change(_)) | None) => {
                 self.pending = pending;
                 return;
@@ -296,7 +407,7 @@ impl StockWays {
                     })
                     .expect("one policy joins the way items");
             }
-            self.send_items(items, against, serial, out);
+            self.send_items(items, against, receipt, serial, out);
         } else {
             let why: &[u8] = match page {
                 Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) => b"The project policy read was refused.",
@@ -325,6 +436,16 @@ impl StockWays {
             pending.retried = true;
             self.send(pending, stale.newest, serial, out);
         } else {
+            if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                c::Outcome::SettingsChanged(changed),
+            ))) = outcome
+            {
+                self.toast = Some(Toasted::Way {
+                    name: pending.receipt.name,
+                    revision: changed.revision,
+                    kept: pending.receipt.kept,
+                });
+            }
             self.refused = match outcome {
                 jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, .. })) => {
                     Some(refusal.clone())
@@ -347,6 +468,7 @@ impl StockWays {
         self.leave(out);
         self.handle = None;
         self.state = State::Ended;
+        self.open = None;
     }
 }
 
@@ -404,4 +526,16 @@ fn panel(record: &Family, limits: Limits) -> Option<w::WaysPanel> {
         return None;
     }
     wire::decode_ways_panel(&record.bytes, &wire_limits(&limits)?)
+}
+
+fn same_stops(old: &Tab, shown: &Tab) -> bool {
+    if old.index != shown.index || old.path.stops().len() != shown.path.stops().len() {
+        return false;
+    }
+    for (old, shown) in old.path.stops().iter().zip(shown.path.stops()) {
+        if old.actor() != shown.actor() || old.words() != shown.words() {
+            return false;
+        }
+    }
+    true
 }

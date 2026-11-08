@@ -787,7 +787,6 @@ const STORY_OWNER_ENDED: usize = 36;
 const DIRECTION_ENDED: usize = 38;
 const STORY_OWNER_EARLIER: usize = 39;
 const STORY_OWNER_FIRST: usize = 40;
-const STORY_OWNER_INITIAL: usize = 41;
 pub const READS_5_4: &[(Read, usize)] = &[
     (Read::X3Open, 7),
     (Read::X3Produced, 8),
@@ -806,7 +805,6 @@ pub const READS_5_4: &[(Read, usize)] = &[
     (Read::DirectionEnded, DIRECTION_ENDED),
     (Read::StoryOwnerEarlier, STORY_OWNER_EARLIER),
     (Read::StoryOwnerFirst, STORY_OWNER_FIRST),
-    (Read::StoryOwnerInitial, STORY_OWNER_INITIAL),
 ];
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "the reference story keeps its ordered ctl acts together")]
@@ -939,20 +937,6 @@ pub fn step_5_4() -> Vec<calls::Step> {
                 "--json"
             ],
         ),
-        // A placed stop creates no escalation notice for the director; its
-        // complete journal, including the initial delegation, fits one page.
-        // A's additional current-head CI wake adds an earlier parked run.
-        call(
-            D1,
-            argv![
-                "task",
-                "activity",
-                number(STORY_OWNER),
-                "--before",
-                calls::activity_before(STORY_OWNER_FIRST),
-                "--json"
-            ],
-        ),
     ]
 }
 
@@ -1058,7 +1042,6 @@ pub const READS_6_4: &[(Read, usize)] = &[
     (Read::RedRepairReviewEnded, 24),
     (Read::RedUpdatedReviewEnded, 25),
     (Read::RedRootsEnded, 26),
-    (Read::RedOwnerEarlier, 27),
 ];
 #[must_use]
 pub fn step_6_4() -> Vec<calls::Step> {
@@ -1142,11 +1125,6 @@ pub fn step_6_4() -> Vec<calls::Step> {
         steps.push(call(D1, argv!["task", "show", number(task), "--activity", "32", "--json"]));
     }
     steps.push(call(D1, argv!["task", "list", "--project", number(PROJECT), "--ended", "--json"]));
-    // Current-head CI news adds parked runs to the tracked owner's journal.
-    steps.push(call(
-        D1,
-        argv!["task", "activity", number(RED_OWNER), "--before", calls::activity_before(RED_OWNER_ENDED), "--json"],
-    ));
     steps
 }
 

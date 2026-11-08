@@ -519,14 +519,51 @@ fn core_now_translates_the_links_six_outputs_without_changing_fields() {
 }
 
 #[test]
-fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
+fn a_refused_start_is_transient_permanent_or_busy() {
     let endings = [
-        (host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)), fleet::Answer::Invalid),
+        (host::Ending::Refused(host::Refusal::Busy), tasks::End::Refused, fleet::Answer::Busy),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)),
+            tasks::End::Failed(tasks::Class::Transient),
+            fleet::Answer::Invalid,
+        ),
         (
             host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
                 cause: host::StartCause::Transcript,
                 why: b"saved history".as_slice().into(),
             })),
+            tasks::End::Failed(tasks::Class::Transient),
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                cause: host::StartCause::Other,
+                why: b"invalid assignment".as_slice().into(),
+            })),
+            tasks::End::Failed(tasks::Class::Permanent),
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+                cause: host::StartCause::Grants,
+                why: b"invalid grants".as_slice().into(),
+            })),
+            tasks::End::Failed(tasks::Class::Permanent),
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Charter)),
+            tasks::End::Failed(tasks::Class::Permanent),
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Grants)),
+            tasks::End::Failed(tasks::Class::Permanent),
+            fleet::Answer::Invalid,
+        ),
+        (
+            host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Messages)),
+            tasks::End::Failed(tasks::Class::Permanent),
             fleet::Answer::Invalid,
         ),
         (
@@ -535,11 +572,12 @@ fn unusable_transcripts_are_transient_at_admission_and_at_the_terminal() {
                 detail: Box::new([]),
                 work: host::Work { left: None, saved: None },
             },
+            tasks::End::Failed(tasks::Class::Transient),
             fleet::Answer::Failed { turned: None },
         ),
     ];
-    for (ending, expected) in endings {
-        assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Transient));
+    for (ending, expected_end, expected) in endings {
+        assert_eq!(payload::ending(&ending), expected_end, "{ending:?}");
         let mut link = link();
         let event = up(
             &mut link,

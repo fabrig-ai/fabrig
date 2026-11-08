@@ -4803,34 +4803,6 @@ fn within_the_bound_nothing_changes() {
     }
 }
 #[test]
-fn no_me_no_line() {
-    let limits = composer_limits();
-    let mut root = temper_client_domain::unlinked(&limits, 1);
-    fixtures::root_event(
-        &mut root,
-        temper_client_domain::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::uncapped() } },
-    );
-    fixtures::root_event(
-        &mut root,
-        temper_client_domain::Event::Start {
-            address: temper_client_domain::Address::NewChat { draft: false },
-            kept: List::uncapped(),
-            with: Some(jig_client::With::Transport),
-        },
-    );
-    fixtures::root_event(
-        &mut root,
-        temper_client_domain::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
-        },
-    );
-    let view = composer_view(&root, true);
-    assert!(composer_node(view.tree(), Role::TextArea).value.is_some());
-    assert!(root.pages().me(root.client()).is_none());
-    assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"over what one message holds").is_none());
-}
-
-#[test]
 fn a_whole_request_draws_whole() {
     let request = c::SpecificationDocument::complete(c::Specification {
         asks: false,

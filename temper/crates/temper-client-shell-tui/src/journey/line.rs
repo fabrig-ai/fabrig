@@ -1,7 +1,7 @@
 //! The strict byte codec (temper/docs/design/client/tui/journeys.md, 3.2 and 3.3;
 //! temper/docs/design/client/journeys.md, 3.2).
 use skein_lib::{Time, Wall};
-use skein_ui_screen::Size;
+use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
 use temper_client_tui::{Note, Scheme};
 
@@ -11,8 +11,10 @@ pub enum Line {
     Seed(u64),
     Clocks { now: Time, wall: Wall },
     Screen { size: Size, scheme: Scheme },
+    Background(Rgb),
     Address(Box<[u8]>),
     Local,
+    Box,
     Stored { key: Box<[u8]>, bytes: Box<[u8]> },
     Credential(Box<[u8]>),
     Noted(Note),
@@ -137,6 +139,11 @@ impl Line {
                     Scheme::Light => b"light",
                 });
             }
+            Self::Background(rgb) => {
+                w.number(u64::from(rgb.red));
+                w.number(u64::from(rgb.green));
+                w.number(u64::from(rgb.blue));
+            }
             Self::Address(bytes)
             | Self::Credential(bytes)
             | Self::Erase(bytes)
@@ -147,6 +154,7 @@ impl Line {
                 w.bytes(bytes);
             }
             Self::Local
+            | Self::Box
             | Self::Read
             | Self::Start
             | Self::Due
@@ -214,6 +222,8 @@ impl Line {
             Self::Screen { .. } => "screen",
             Self::Address(_) => "address",
             Self::Local => "local",
+            Self::Box => "box",
+            Self::Background(_) => "background",
             Self::Noted(_) => "noted",
             Self::Found(_) => "found",
             Self::Note(_) => "note",
@@ -555,7 +565,13 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
                 _ => return Err("unknown scheme"),
             },
         },
+        b"background" => Line::Background(Rgb {
+            red: u8::try_from(r.number()?).map_err(|_| "number overflow")?,
+            green: u8::try_from(r.number()?).map_err(|_| "number overflow")?,
+            blue: u8::try_from(r.number()?).map_err(|_| "number overflow")?,
+        }),
         b"local" => Line::Local,
+        b"box" => Line::Box,
         b"noted" => Line::Noted(r.note()?),
         b"found" => Line::Found(r.optional()?),
         b"note" => Line::Note(r.note()?),

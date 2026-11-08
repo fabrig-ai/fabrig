@@ -23,6 +23,7 @@ pub const RED: Style = Style { owner: OWNER, token: 1 };
 pub const BLUE: Style = Style { owner: OWNER, token: 2 };
 pub const LOOKS_TOP: Region = Region { owner: OWNER, number: 3 };
 pub const RULES: Region = Region { owner: OWNER, number: 4 };
+pub const TITLED_RULES: Region = Region { owner: OWNER, number: 5 };
 pub const END: Style = Style { owner: OWNER, token: 3 };
 pub const BAND: Style = Style { owner: OWNER, token: 4 };
 pub const NO_LABEL: Style = Style { owner: OWNER, token: 5 };
@@ -98,6 +99,21 @@ pub fn theme() -> Theme {
                 }),
                 pad: 0,
                 paint: Paint::NONE,
+            },
+            RegionLook {
+                region: TITLED_RULES,
+                place: Place::Top,
+                arrange: Arrange::Lines,
+                border: Some(Border {
+                    corners: ['╭', '╮', '╰', '╯'],
+                    across: '─',
+                    down: '│',
+                    paint: Paint { bold: true, ..Paint::NONE },
+                    title: true,
+                    sides: false,
+                }),
+                pad: 1,
+                paint: REGION_PAINT,
             },
         ]),
         styles: Box::new([
@@ -730,6 +746,28 @@ pub fn end_title() -> Tree {
     b.style(END);
     b.text(Run::Plain, b"long end");
     b.close();
+    b.close();
+    b.close();
+    b.close();
+    finish(b)
+}
+
+pub fn title_parts(region: Region, start: &[u8], end: &[u8]) -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Banner);
+    b.region(region);
+    b.open(Role::Heading { level: 1 });
+    b.style(RED);
+    if !start.is_empty() {
+        leaf(&mut b, Role::Text, start);
+    }
+    if !end.is_empty() {
+        b.open(Role::Text);
+        b.style(END);
+        b.text(Run::Plain, end);
+        b.close();
+    }
     b.close();
     b.close();
     b.close();

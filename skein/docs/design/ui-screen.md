@@ -203,7 +203,13 @@ the tree's nodes and the frame's cells.
   glyph across above it and one below it, across the frame's width, in
   the border's paint; no corners and no glyph down, so its content takes
   the frame's width less its padding. A title it draws is laid in its
-  top rule after one glyph across, as a box's is.
+  top rule after one glyph across, as a box's is, and its end's part
+  before two glyphs across, where a box has one and its last corner:
+  `──── Hello / Ask T2 on box ──`.
+- **A title with no start:** a heading whose children all align `End`
+  lays nothing at the border's start but its glyphs across, and its
+  end's part needs the room for it alone, as one with a start does: its
+  width and six more columns, within the border's inner span.
 - **The body** is every node that is not in a placed region, in preorder,
   laid as lines at the frame's width. It scrolls: `Focus::scroll` is its
   first row shown. The renderer keeps the focused node's lines in view,

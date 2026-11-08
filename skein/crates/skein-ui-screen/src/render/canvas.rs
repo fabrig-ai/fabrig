@@ -601,27 +601,29 @@ impl Canvas {
         let row = self.viewport.origin.saturating_add(
             u16::try_from(title_row.saturating_sub(self.viewport.first)).expect("visible row fits u16"),
         );
-        if column < limit {
-            frame.put(Position { row, column }, Cell { glyph: ' ', paint });
-            column = column.saturating_add(1);
-        }
-        for ink in title.first.iter().take(usize::from(title.first_len)) {
-            if column >= limit {
-                break;
+        if title.first_len > 0 {
+            if column < limit {
+                frame.put(Position { row, column }, Cell { glyph: ' ', paint });
+                column = column.saturating_add(1);
             }
-            if width(ink.cell.glyph) == 2 && column.saturating_add(1) >= limit {
-                break;
+            for ink in title.first.iter().take(usize::from(title.first_len)) {
+                if column >= limit {
+                    break;
+                }
+                if width(ink.cell.glyph) == 2 && column.saturating_add(1) >= limit {
+                    break;
+                }
+                frame.put(Position { row, column }, ink.cell);
+                column = column.saturating_add(1);
             }
-            frame.put(Position { row, column }, ink.cell);
-            column = column.saturating_add(1);
+            if column < limit {
+                frame.put(Position { row, column }, Cell { glyph: ' ', paint });
+            }
         }
-        if column < limit {
-            frame.put(Position { row, column }, Cell { glyph: ' ', paint });
-        }
-        // Each part keeps its two spaces and the end keeps one across glyph.
+        // Each part keeps its two spaces; two border cells follow the end's space.
         let needed = u32::from(title.first_len).saturating_add(u32::from(end.first_len)).saturating_add(6);
         if end.first_len > 0 && needed <= u32::from(limit.saturating_sub(edge.left.saturating_add(side))) {
-            let mut column = limit.saturating_sub(2).saturating_sub(end.first_len);
+            let mut column = edge.right.saturating_sub(3).saturating_sub(end.first_len);
             frame.put(Position { row, column: column.saturating_sub(1) }, Cell { glyph: ' ', paint });
             for ink in end.first.iter().take(usize::from(end.first_len)) {
                 frame.put(Position { row, column }, ink.cell);

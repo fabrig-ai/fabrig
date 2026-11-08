@@ -173,7 +173,7 @@ const ASK_PROPOSE_SETTINGS: Spec = Spec {
     effect: run::HostEffect::Write,
 };
 
-const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; run: your own run branch, what you delivered, landed as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."}}}"#, effect: run::HostEffect::Write };
+const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#, effect: run::HostEffect::Write };
 
 pub(crate) const SPECS: [Spec; 43] = [
     Spec { name: b"decided", description: b"Ask whether your goal may decide while its person is away. Carry on only if decided; otherwise ask with message, as a question.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"question":{"type":"string","description":"The question, at most 400 bytes."},"options":{"type":"array","minItems":2,"maxItems":6,"items":{"type":"string"},"description":"Two to six options, each at most 120 bytes."},"took":{"type":"integer","minimum":0,"maximum":5,"description":"The chosen option's index, starting at zero."},"why":{"type":"string","description":"Why you chose it, at most 400 bytes."},"kind":{"type":"string","enum":["implementation","retry","wording","dependency","other"]}},"required":["question","options","took","why","kind"]}"#, effect: run::HostEffect::Write },
@@ -400,29 +400,7 @@ pub fn call_in(
                 agree: optional_bool(&value, b"agree", false)?,
             }
         }
-        b"change" => {
-            let changes = match value.field(b"changes")? {
-                Some(changes) => {
-                    if value.field(b"words")?.is_some() {
-                        return Err(Problem::Range(b"changes"));
-                    }
-                    let items = changes.array(b"changes")?;
-                    if items.is_empty() {
-                        return Err(Problem::Range(b"changes"));
-                    }
-                    let Ok(capacity) = u32::try_from(items.len()) else { return Err(Problem::TooLarge) };
-                    let mut changes = List::with_capacity(capacity);
-                    for item in items {
-                        if changes.push(change(item.object(b"changes")?, models)?).is_err() {
-                            return Err(Problem::TooLarge);
-                        }
-                    }
-                    changes.into_boxed()
-                }
-                None => Box::new([change(&value, models)?]),
-            };
-            engine::Tool::Change { changes }
-        }
+        b"change" => engine::Tool::Change { changes: change_calls(&value, models)? },
         b"delegate" => engine::Tool::Delegate { batch: nested::delegates(value.required(b"batch")?)? },
         b"amend" => amend(&value)?,
         b"message" => {
@@ -603,6 +581,46 @@ fn optional_bool(value: &Value, field: &'static [u8], default: bool) -> Result<b
         Some(value) => value.boolean(field),
         None => Ok(default),
     }
+}
+
+fn change_calls(value: &Value, models: &[engine::Model]) -> Result<Box<[engine::ChangeCall]>, Problem> {
+    let Some(batch) = value.field(b"changes")? else { return Ok(Box::new([change(value, models)?])) };
+    change_batch_options(value)?;
+    let items = batch.array(b"changes")?;
+    if items.is_empty() {
+        return Err(Problem::Range(b"changes"));
+    }
+    let capacity = u32::try_from(items.len()).or(Err(Problem::TooLarge))?;
+    let mut changes = List::with_capacity(capacity);
+    for item in items {
+        if changes.push(change(item.object(b"changes")?, models)?).is_err() {
+            return Err(Problem::TooLarge);
+        }
+    }
+    Ok(changes.into_boxed())
+}
+
+fn change_batch_options(value: &Value) -> Result<(), Problem> {
+    if value.field(b"words")?.is_some() {
+        return Err(Problem::Range(b"changes"));
+    }
+    for member in [
+        b"repository".as_slice(),
+        b"name",
+        b"landing",
+        b"branch",
+        b"merge",
+        b"after",
+        b"producer",
+        b"llm",
+        b"repairs",
+        b"questions",
+    ] {
+        if value.field(member)?.is_some() {
+            return Err(Problem::Beside(member));
+        }
+    }
+    Ok(())
 }
 
 #[expect(clippy::too_many_lines, reason = "each change member is decoded together at the host-tool boundary")]

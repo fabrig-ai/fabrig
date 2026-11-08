@@ -282,9 +282,9 @@ fn a_signed_member_mints_twice_and_keeps_the_binding_against_another_subject() {
 #[test]
 fn signed_nonmembers_missing_email_and_unverified_email_mint_nothing() {
     for (address, verified, text) in [
-        (Some(b"other@example.com".as_slice()), true, b"other@example.com can&#39;t sign in here".as_slice()),
-        (None, true, b"Google hasn&#39;t verified this account&#39;s address"),
-        (Some(b"sam@example.com".as_slice()), false, b"Google hasn&#39;t verified sam@example.com"),
+        (Some(b"other@example.com".as_slice()), true, "other@example.com can’t sign in here".as_bytes()),
+        (None, true, "Google hasn’t verified this account’s address".as_bytes()),
+        (Some(b"sam@example.com".as_slice()), false, "Google hasn’t verified sam@example.com".as_bytes()),
     ] {
         let (mut service, mut issuer) = world(2);
         account(&mut issuer, b"first-sub", address, verified);
@@ -303,7 +303,7 @@ fn a_signed_member_with_a_bad_then_returns_home_and_mint_refused_is_busy() {
         assert_eq!(header(&peer, "location"), b"/");
     }
     let peer = signed_return(&mut service, &mut issuer, b"/sign-in/google");
-    ending(&peer, b"HTTP/1.1 503", b"temper couldn&#39;t sign you in just now");
+    ending(&peer, b"HTTP/1.1 503", "temper couldn’t sign you in just now".as_bytes());
     assert!(!core::str::from_utf8(peer.received()).unwrap().contains("jig-sign-in="));
 }
 #[test]
@@ -447,7 +447,7 @@ fn fuzzy_route_endings_replay_from_the_seed() {
         };
         let mut peer = peer(&mut service, callback, Some(&cookie));
         pump(&mut service, &mut peer);
-        ending(&peer, b"HTTP/1.1 400", b"The sign-in didn&#39;t finish");
+        ending(&peer, b"HTTP/1.1 400", "The sign-in didn’t finish".as_bytes());
         assert!(!core::str::from_utf8(peer.received()).unwrap().contains("<script>"), "seed {seed}");
         let mut replayed = self::peer(&mut service, callback, Some(&cookie));
         pump(&mut service, &mut replayed);

@@ -4,6 +4,142 @@ use jig_core_world::{fixtures::live_row, stories::per_wake as story};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
+const LANDING_BASE: &[u8] = b"BASE: complete the goal.";
+const LANDING_FIRST: &[u8] = b"FIRST: delegate the work and await its results.";
+const LANDING_RESULT: &[u8] = b"RESULT: when landed, create producer-7 close-out; pass all landed reports and Left lists; retire the draft and its ten citation allowances through main CI; name the close-out and main-CI selection in the final report.";
+
+fn landing_goal(seed: u64) -> (World, (u64, u64)) {
+    let mut setup = story::setup(seed, true);
+    let charter = &mut setup.configuration.as_mut().expect("per-wake configuration").core.defaults.charters[1];
+    charter.policy.instructions = LANDING_BASE.into();
+    charter.parts = [(tasks::Reasons::FIRST, LANDING_FIRST), (tasks::Reasons::RESULT, LANDING_RESULT)]
+        .into_iter()
+        .map(|(on, instructions)| jig_domain_core::CharterPart { on, instructions: instructions.into() })
+        .collect();
+    let mut world = World::new(setup);
+    let caller = fixtures::run(&world);
+    let mut member = fixtures::member(&world, tasks::Executor::Agent { charter: 2 }, b"complete the goal");
+    member.authority.budget.spend = 60;
+    member.authority.delegation.tasks = 2;
+    let task = fixtures::delegate(&mut world, caller, 1, member);
+    let run = (task, live_row(&world, task).attempt);
+    assert_assignment(&world, task, &landing_instructions(LANDING_FIRST), story::M1, &[]);
+    assert!(live_row(&world, task).instructions.is_none(), "the charter supplies the instructions");
+    assert_eq!(live_row(&world, task).reasons, tasks::Reasons::FIRST);
+    assert_eq!(live_row(&world, task).offered, tasks::Reasons::EMPTY);
+    story::park(&mut world, caller, None);
+    (world, run)
+}
+
+fn landing_instructions(part: &[u8]) -> Vec<u8> {
+    [LANDING_BASE, b"\n\n", part].concat()
+}
+
+fn landing_delegates(world: &mut World, goal: (u64, u64)) -> [(u64, u64); 2] {
+    let mut member = fixtures::member(world, tasks::Executor::Agent { charter: 1 }, b"complete the landing");
+    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    [1, 2].map(|completion| {
+        let task = fixtures::delegate(world, goal, completion, member.clone());
+        (task, live_row(world, task).attempt)
+    })
+}
+
+fn landed(world: &mut World, run: (u64, u64), report: &[u8]) {
+    world.send(jig_test_domain::Event::Answer {
+        channel: skein_lib::Token::new(7),
+        task: run.0,
+        attempt: run.1,
+        cumulative: 0,
+        end: tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: report.into() },
+            cancel_delegates: false,
+        },
+        read: None,
+        refused: Box::new([]),
+    });
+}
+
+fn assert_landing_result(world: &World, goal: u64, reports: &[tasks::Word]) {
+    assert_assignment(world, goal, &landing_instructions(LANDING_RESULT), story::M1, reports);
+    let row = live_row(world, goal);
+    assert_eq!(row.reasons, tasks::Reasons::RESULT);
+    assert_eq!(row.offered, tasks::Reasons::RESULT);
+    assert_eq!(row.inbox.as_ref(), reports);
+    assert!(row.delegates.is_empty());
+}
+
+#[test]
+fn a_final_landing_result_supplies_the_result_part() {
+    let (mut world, goal) = landing_goal(868);
+    let delegates = landing_delegates(&mut world, goal);
+    story::turn(&mut world, goal, None);
+    story::park(&mut world, goal, None);
+    let assignments = world.assignments.len();
+    landed(&mut world, delegates[0], b"landed 75; Left: retire the draft");
+    assert_eq!(world.assignments.len(), assignments, "a non-last success does not wake the goal");
+    assert_eq!(live_row(&world, goal.0).phase, tasks::Phase::Active(tasks::Active::Idle));
+    landed(&mut world, delegates[1], b"landed 77; Left: remove ten citation allowances");
+    assert_eq!(world.assignments.len(), assignments + 1);
+    let reports = live_row(&world, goal.0).inbox.clone();
+    assert_eq!(reports.len(), 2);
+    for (word, (delegate, report)) in reports.iter().zip(delegates.iter().zip([
+        b"landed 75; Left: retire the draft".as_slice(),
+        b"landed 77; Left: remove ten citation allowances".as_slice(),
+    ])) {
+        assert_eq!(word.from, tasks::Party::Task(delegate.0));
+        assert_eq!(word.kind, tasks::MessageKind::Result(tasks::ResultKind::Report));
+        assert_eq!(word.words.as_ref(), report);
+    }
+    assert!(reports[0].number < reports[1].number);
+    assert_landing_result(&world, goal.0, &reports);
+    let final_run = fixtures::run(&world);
+    assert!(final_run.1 > goal.1);
+    story::turn(&mut world, final_run, Some(reports[1].number));
+    landed(&mut world, final_run, b"close-out and main CI selected");
+    world.close();
+}
+
+#[test]
+fn an_unoffered_landing_result_keeps_its_place_until_the_next_run() {
+    let (mut world, goal) = landing_goal(869);
+    let child = story::child(&mut world, goal);
+    story::turn(&mut world, goal, None);
+    story::park(&mut world, goal, None);
+    fixtures::ask(
+        &mut world,
+        85,
+        people::Ask::Say { project: 1, task: goal.0, words: b"review progress".as_slice().into() },
+    );
+    let words = live_row(&world, goal.0).inbox[0].clone();
+    let review = fixtures::run(&world);
+    assert_assignment(&world, goal.0, LANDING_BASE, story::M1, std::slice::from_ref(&words));
+    assert_eq!(live_row(&world, goal.0).reasons, tasks::Reasons::WORDS);
+    assert_eq!(live_row(&world, goal.0).offered, tasks::Reasons::EMPTY);
+    let assignments = world.assignments.len();
+    let relayed = world.inbound.clone();
+    landed(&mut world, child, b"landed; Left: retire the draft");
+    let report = live_row(&world, goal.0).inbox[1].clone();
+    assert_eq!(report.kind, tasks::MessageKind::Result(tasks::ResultKind::Report));
+    assert_eq!(report.from, tasks::Party::Task(child.0));
+    assert!(report.number > words.number);
+    assert_eq!(world.inbound, relayed, "the live run is not offered RESULT");
+    assert_eq!(world.assignments.len(), assignments);
+    fixtures::ask(
+        &mut world,
+        86,
+        people::Ask::Say { project: 1, task: goal.0, words: b"finish reviewing".as_slice().into() },
+    );
+    let fence = live_row(&world, goal.0).inbox[2].number;
+    assert!(fence > report.number);
+    story::turn(&mut world, review, Some(fence));
+    assert_eq!(live_row(&world, goal.0).inbox.as_ref(), std::slice::from_ref(&report), "no fence takes a kept result");
+    story::park(&mut world, review, Some(fence));
+    assert_eq!(world.assignments.len(), assignments + 1);
+    assert_landing_result(&world, goal.0, std::slice::from_ref(&report));
+    assert!(fixtures::run(&world).1 > review.1);
+    world.close();
+}
+
 fn assert_assignment(
     world: &World,
     task: u64,
@@ -171,8 +307,14 @@ fn first_run() {
     world.close();
 }
 
-fn a_question_arriving_after_preparation_waits_for_the_next_run() {
-    let (mut world, run) = first(866, true, true);
+#[derive(Clone, Copy)]
+enum Arriving {
+    Question,
+    Result,
+}
+
+fn arriving_after_preparation(seed: u64, kind: Arriving) {
+    let (mut world, run) = first(seed, true, true);
     let child = story::child(&mut world, run);
     story::turn(&mut world, run, None);
     story::park(&mut world, run, None);
@@ -189,41 +331,39 @@ fn a_question_arriving_after_preparation_waits_for_the_next_run() {
     assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Preparing));
     let words = live_row(&world, run.0).inbox[0].clone();
     let relayed = world.inbound.clone();
-    let question = story::question_from(&mut world, child, run.0);
-    assert_eq!(world.inbound, relayed, "no run has claimed the question");
-    assert_eq!(live_row(&world, run.0).inbox.as_ref(), [words.clone(), question.clone()]);
+    let (arriving, instructions, reason) = match kind {
+        Arriving::Question => (story::question_from(&mut world, child, run.0), b"S\n\nQ", tasks::Reasons::QUESTION),
+        Arriving::Result => (story::result_from(&mut world, child), b"S\n\nR", tasks::Reasons::RESULT),
+    };
+    assert_eq!(world.inbound, relayed, "no run has claimed the arriving word");
+    assert_eq!(live_row(&world, run.0).inbox.as_ref(), [words.clone(), arriving.clone()]);
+    world.retry_due();
+    let refreshed = world.domain.take_workspace();
     world.send(jig_test_domain::Event::Core(prepared));
-    if let Some(refreshed) = world.domain.take_workspace() {
+    if let Some(refreshed) = refreshed {
         world.send(jig_test_domain::Event::Core(refreshed));
     }
     assert_eq!(
         world.assignments.len(),
         assignments + 1,
-        "a question arriving after preparation must leave the prepared run claimable; phase: {:?}, refusals: {}",
+        "an arriving kind must join the claimed run; phase: {:?}, refusals: {}",
         live_row(&world, run.0).phase,
         live_row(&world, run.0).refusals
     );
-    assert_assignment(&world, run.0, b"S", story::M2, std::slice::from_ref(&words));
+    assert_assignment(&world, run.0, instructions, story::M2, &[words, arriving.clone()]);
     let second = world.assigned.as_ref().expect("prepared run claimed");
     let second = (second.task, second.attempt);
-    assert_eq!(live_row(&world, run.0).offered, tasks::Reasons::EMPTY);
+    let row = live_row(&world, run.0);
+    assert_eq!(row.reasons, tasks::Reasons::WORDS.union(reason));
+    assert_eq!(row.offered, reason);
     assert_eq!(world.inbound, relayed);
-    story::turn(&mut world, second, Some(words.number));
-    assert_eq!(live_row(&world, run.0).inbox.as_ref(), std::slice::from_ref(&question));
+    story::turn(&mut world, second, Some(arriving.number));
+    assert!(live_row(&world, run.0).inbox.is_empty());
     let assignments = world.assignments.len();
-    story::park(&mut world, second, Some(words.number));
-    let prepared = world.domain.take_workspace().expect("question's workspace completion held before claim");
-    world.send(jig_test_domain::Event::Core(prepared));
-    if let Some(refreshed) = world.domain.take_workspace() {
-        world.send(jig_test_domain::Event::Core(refreshed));
-    }
-    assert_eq!(world.assignments.len(), assignments + 1, "the kept question claims a new run");
-    let next = world.assigned.as_ref().expect("question wakes next run");
-    assert_eq!(next.task, run.0);
-    assert!(next.attempt > second.1);
-    assert_assignment(&world, run.0, b"S\n\nQ", story::M2, std::slice::from_ref(&question));
-    assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::QUESTION);
-    assert_eq!(live_row(&world, run.0).offered, tasks::Reasons::QUESTION);
+    story::park(&mut world, second, Some(arriving.number));
+    assert_eq!(world.assignments.len(), assignments, "the arriving kind needs no later run");
+    assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert!(world.domain.take_workspace().is_none());
     world.close();
 }
 
@@ -282,6 +422,77 @@ fn a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice() {
     world.close();
 }
 
+fn covered_escalation(seed: u64) -> (World, (u64, u64), u64, tasks::Word) {
+    let (mut world, first) = first(seed, true, true);
+    let child = story::escalation(&mut world, first);
+    let entry = world.inbound.last().expect("escalation relayed").clone();
+    story::turn(&mut world, first, Some(entry.number));
+    story::park(&mut world, first, Some(entry.number));
+    assert_assignment(&world, first.0, b"S\n\nH", story::M2, std::slice::from_ref(&entry));
+    assert_eq!(live_row(&world, first.0).offered, tasks::Reasons::ESCALATION);
+    let second = (first.0, live_row(&world, first.0).attempt);
+    story::turn(&mut world, second, Some(entry.number));
+    park_with_entry(&mut world, second, child, &entry);
+    (world, second, child, entry)
+}
+
+fn park_with_entry(world: &mut World, run: (u64, u64), child: u64, entry: &tasks::Word) {
+    let assignments = world.assignments.len();
+    story::park(world, run, Some(entry.number));
+    assert_eq!(world.assignments.len(), assignments, "a covered undecided entry must not assign another run");
+    assert_waiting_entry(world, run.0, child, entry);
+}
+
+fn assert_waiting_entry(world: &World, holder: u64, child: u64, entry: &tasks::Word) {
+    assert_eq!(live_row(world, holder).phase, tasks::Phase::Active(tasks::Active::Idle));
+    let row = live_row(world, child);
+    assert!(matches!(row.phase, tasks::Phase::Held { .. }));
+    assert!(matches!(row.escalation,
+        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(task), entry: number, .. }
+            if task == holder && number == entry.number));
+}
+
+fn an_escalation_its_part_left_waits_for_a_change() {
+    let (mut world, run, child, entry) = covered_escalation(868);
+    fixtures::ask(
+        &mut world,
+        85,
+        people::Ask::Say { project: 1, task: run.0, words: b"Please check".as_slice().into() },
+    );
+    let words = live_row(&world, run.0).inbox[0].clone();
+    assert_eq!(words.kind, tasks::MessageKind::Words);
+    assert_assignment(&world, run.0, b"S\n\nH", story::M2, &[entry.clone(), words.clone()]);
+    assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::WORDS.union(tasks::Reasons::ESCALATION));
+    let next = (run.0, live_row(&world, run.0).attempt);
+    story::turn(&mut world, next, Some(words.number));
+    park_with_entry(&mut world, next, child, &entry);
+    let revision = live_row(&world, child).revisions.hold;
+    story::rehold(&mut world, child);
+    let new_revision = live_row(&world, child).revisions.hold;
+    assert!(new_revision > revision);
+    let changed = world.assigned.as_ref().expect("changed entry wakes holder");
+    assert_eq!(changed.task, run.0);
+    assert!(changed.attempt > next.1);
+    let [new_entry] = changed.messages.as_ref() else { panic!("new entry at start") };
+    assert!(new_entry.number > entry.number);
+    assert_eq!(new_entry.kind, tasks::MessageKind::Escalation { task: child, revision: new_revision });
+    assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::ESCALATION);
+    world.close();
+}
+
+fn a_covered_escalation_stays_parked_across_a_restart() {
+    const SEED: u64 = 869;
+    let (mut world, run, child, entry) = covered_escalation(SEED);
+    let caller = fixtures::run(&world);
+    story::park(&mut world, caller, None);
+    world.stop();
+    let assignments = world.assignments.len();
+    world.restart_with(story::setup(SEED, true).configuration.expect("same configuration"));
+    assert_eq!(world.assignments.len(), assignments, "restoring a covered entry must not assign a run");
+    assert_waiting_entry(&world, run.0, child, &entry);
+    world.close();
+}
+
 #[test]
 fn per_wake_scenarios() {
     let mut bundle = super::bundle::Bundle::default();
@@ -290,7 +501,10 @@ fn per_wake_scenarios() {
     crate::bundle::case!(bundle, 863, an_undecided_escalation_wakes_its_part);
     crate::bundle::case!(bundle, 864, words_and_an_amendment_are_always_relayed);
     crate::bundle::case!(bundle, 865, a_charter_without_parts_relays_the_question_and_keeps_its_model);
-    crate::bundle::case!(bundle, 866, a_question_arriving_after_preparation_waits_for_the_next_run);
+    bundle.case("arriving_after_preparation_question", 866, || arriving_after_preparation(866, Arriving::Question));
+    bundle.case("arriving_after_preparation_result", 870, || arriving_after_preparation(870, Arriving::Result));
     crate::bundle::case!(bundle, 867, a_goal_interrupted_in_its_first_cut_keeps_its_parts_and_choice);
+    crate::bundle::case!(bundle, 868, an_escalation_its_part_left_waits_for_a_change);
+    crate::bundle::case!(bundle, 869, a_covered_escalation_stays_parked_across_a_restart);
     bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }

@@ -239,8 +239,7 @@ fn worker_document(
     let mut roots = skein_lib::List::with_capacity(1);
     roots.push(root).expect("one worker root");
     let programs = matches!(backend, Backend::Program);
-    let mut agent =
-        if programs { fixtures::agent_with_limits(&crate::program_runs::limits()) } else { fixtures::agent() };
+    let mut agent = if programs { crate::program_runs::worker_agent() } else { fixtures::agent() };
     if programs {
         agent.bounds.endpoints[0].window = 272_000;
     }

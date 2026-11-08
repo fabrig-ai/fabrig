@@ -37,6 +37,7 @@ impl Referee {
                 | FromAgent::AccountRefused { .. }
                 | FromAgent::Finished { .. }
                 | FromAgent::StartRefused { .. }
+                | FromAgent::StartBusy { .. }
                 | FromAgent::Yielded { .. }
                 | FromAgent::Faulted { .. }
                 | FromAgent::Gone { .. },

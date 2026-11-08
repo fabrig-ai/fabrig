@@ -454,6 +454,16 @@ The reasons behind `per-wake.md`, from the user, 2026-11-07.
   must make it, and no batch holds a person's words (jig's `domain/tasks.md`,
   8.3). An entry left undecided wakes the next run, as entries aren't inbox
   messages and nothing would judge one again.
+- **A covered entry waits for a change** (the user, 2026-11-08). A goal that
+  passed a held repair's question to its person and parked was woken 19 times
+  in three minutes by that escalation, each run inspecting it, deciding nothing
+  and parking again, a run's cost each time. A run whose part covered the entry
+  already chose to leave it, so only the entry's change, or another wake, brings
+  it back. An entry the run had no part for still wakes the run that has.
+- **Every reason waiting at the claim** (the user, 2026-11-08). A goal run woke
+  as its landing's result came due, read only the shared instructions, and
+  ended without the work the results part asks: the result arrived between
+  its preparation and its claim and was kept back against the parts prepared.
 - **Fresh runs only.** A conversation's instructions can't change under it
   without losing its cache and its turns' reading.
 - **A later choice, not one per kind** (revises N11's one choice per task). One
@@ -566,3 +576,51 @@ The reasons behind `ask-temper.md`, from the user, 2026-11-07.
   works, what knobs are there), the goal execution (their roles, their
   prompt)". Views drawn by code can't be wrong and cost the model a line;
   sketches cover what doesn't exist yet. The look is temper/ui's.
+
+## 11. The deployment's binaries
+
+The reasons behind `deployment-binaries.md`, from the user, 2026-11-08.
+
+- **Two sets, two jobs:** "The current one at https://fabrig.ai/temper/... would be the "try temper via a box" one, stripped and gzipped (I'll update the site accordingly), always pointing to the latest release (main for now). The new set would be the "real deployment" one, under https://fabrig.ai/temper/v{MAJOR}/..., comprised of these binaries (gizip'ed, but not stripped): "temper" just the TUI, "temper-engine" engine plus web, "temper-worker" worker process, "temper-agent" smith. I think that'd be it for a full deployment, unless I'm missing something."
+- **Not stripped:** the draft reads it as keeping a deployment's crash reports readable, while a trial download's size matters more. That reading is the draft's, not the user's words.
+- **No new CI:** "Our development process stays unchanged for now, no special build jobs for these binaries for now, build-level breakages would be caught when I ask for the one-off release build."
+- **The name `temper`** in both sets is the user's to settle (section 5 of the draft).
+- **`ctl` beside the TUI:** the user asked for "just the TUI". The draft puts `temper ctl` in the same binary, since it's a client too and a deployment needs one. That's the draft's reading.
+
+## 12. The whole story
+
+The reasons behind `whole-story.md` and the four drafts written with it,
+from the user, 2026-11-08.
+
+- **One front end.** "I'll be the first user of temper and ideally
+  temper would be my only frontend, replacing most of the things we now
+  run by hand." The pieces were there, the dogfooding, the web becoming
+  an overview of where things stand and what needs the person, the TUI
+  for focused sessions, but not one story joining them.
+- **Some things stay outside.** A deployment's operations and the care
+  of its logins have no equivalent in temper; they belong to fabrig.ai's
+  later Run.
+- **A middle ground between sessions.** "Very long running sessions
+  should be probably avoided, but maybe we need a middle ground between
+  function call-like sessions like the ones producing the code and long
+  running ones." Offered standing roles with short sessions that end by
+  writing their state, the user: "yes". The measure behind it: on the
+  long sessions we run by hand, 74% of their own spend on 2026-11-07 went
+  on wakes after the prompt cache had expired.
+- **Room for every point of the spectrum.** The vision must also fit
+  "other ways of using temper, perhaps at smaller scale", so the pages
+  fill as a person hands over more, rather than being drawn for the
+  largest case, and two more profiles were drawn: Pair and Team.
+- **A pilot that isn't temper.** The user's first: cowsql's vsr, a
+  solid C implementation of Viewstamped Replication replacing cowsql's
+  raft layer, ported to Rust line by line, continuously, "unsafe is
+  fine, guarantees would come from C tests and QA, also replayed on the
+  Rust version"; the port, in a repository of its own, will replicate
+  skein-kv. On the same deployment, as a new project: a brand new
+  deployment would show the same pages, deployment-wide settings aside.
+- **Greenfield pages.** "Take it as greenfield, doesn't matter what we
+  have now, let's design optimizing for the vision", the rail, Chats and
+  Settings included. Shown the sketches, the user asked for them in the
+  design whole, and for all of it by v0.1.0: "we have resources (hw and
+  subscriptions), so let's try to move fast and parallelize when
+  possible", hence the tracks of `whole-story.execution.md`.

@@ -769,8 +769,14 @@ drawn by the gallery (`browser.md`, 7.2). Its drawing and figure are a flow
 (`skein/docs/design/ui.md`, 10.1), drawn in the client; the gallery measures
 no box, so a print shows its fallback.
 The `configure-temper-own-way` request's hand-made `configure-own-way/`
-pages are not journeys to reprint or land either; the gallery draws those
-states, including the card and the stock reference beside the page.
+pages are not journeys to reprint or land either; what they draw, the
+card and the stock reference beside the page, the request
+`ask-temper-ways` replaces.
+
+The `ask-temper-ways` request's hand-made `ask-temper-ways/01.html`
+through `04.html` are not journeys to reprint or land (section 7): no
+journey reaches the ways, and the gallery draws them and the states its
+message names in words (`browser.md`, 7.2, the `ask-ways-*` states).
 
 The `bundle-loading` request's hand-made `bundle-loading/01.html` through
 `04.html` are not journeys to reprint or land (section 7): they draw the
