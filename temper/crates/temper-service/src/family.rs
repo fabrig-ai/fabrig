@@ -1052,12 +1052,12 @@ fn protection(value: forge::Protection, limits: &w::Limits) -> Option<w::Protect
 
 /// Encode the connector's whole document without adding policy from settings.
 #[must_use]
-pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
+pub fn forges(value: forge::Forges, linked: bool, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut forges = List::with_capacity(limits.forges_forges);
     for row in value.rows {
         forges.push(forge_row(row, limits)?).ok()?;
     }
-    Some(wire::forges(&w::Forges::new(limits, w::ForgesParts { forges, linked: false }).ok()?))
+    Some(wire::forges(&w::Forges::new(limits, w::ForgesParts { forges, linked }).ok()?))
 }
 fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
     let ended = match row.ended {

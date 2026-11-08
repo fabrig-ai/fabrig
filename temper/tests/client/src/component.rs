@@ -233,7 +233,7 @@ impl Composition {
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
                     family: temper_client_protocol_wire::FORGE,
-                    record: temper_service::family::forges(forges, &temper_client_protocol_wire::v1::CEILINGS)
+                    record: temper_service::family::forges(forges, false, &temper_client_protocol_wire::v1::CEILINGS)
                         .expect("forge document"),
                 }))
             }
