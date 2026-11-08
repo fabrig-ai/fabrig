@@ -335,7 +335,9 @@ fn path(index: usize) -> w::BranchPath {
                     opens: if let Some((opens, ..)) = &code {
                         opens.clone()
                     } else if *step == S::Review {
-                        w::Opens::Gate(w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1 }).unwrap())
+                        w::Opens::Gate(
+                            w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1, charter: 4 }).unwrap(),
+                        )
                     } else {
                         w::Opens::Nothing
                     },

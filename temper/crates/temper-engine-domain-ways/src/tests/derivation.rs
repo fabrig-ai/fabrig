@@ -422,7 +422,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         (
             &review,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · holds a change until it approves",
             "the reviewer",
             facts(&[
@@ -459,7 +459,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         (
             &advisory,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · advises; holds nothing",
             "the reviewer",
             facts(&[
@@ -471,7 +471,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         (
             &duplicate,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · holds a change until it approves",
             "the reviewer",
             facts(&[
@@ -483,7 +483,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         (
             &missing,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · holds a change until it approves",
             "the reviewer",
             facts(&[("Charter", "charter 2")]),
@@ -491,7 +491,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
         (
             &no_account,
             Step::Review,
-            Opens::Gate(1),
+            Opens::Gate { number: 1, charter: review.reviewer },
             "an agent · holds a change until it approves",
             "the reviewer",
             facts(&[
