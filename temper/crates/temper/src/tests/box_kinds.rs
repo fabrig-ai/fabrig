@@ -35,6 +35,61 @@ fn first_link_draws_a_secret_and_uses_serves_url() {
 }
 
 #[test]
+fn the_front_runs_only_in_a_terminal_with_echo_none_and_a_first_link() {
+    use temper_box::host::Echo;
+    for (no_tui, echo, terminals, first_link, expected) in [
+        (false, Echo::None, true, true, true),
+        (true, Echo::None, true, true, false),
+        (false, Echo::Steps, true, true, false),
+        (false, Echo::None, false, true, false),
+        (false, Echo::None, true, false, false),
+    ] {
+        assert_eq!(
+            crate::box_command::front_wanted(no_tui, echo, terminals, first_link),
+            expected,
+            "no_tui={no_tui}, echo={echo:?}, terminals={terminals}, first_link={first_link}"
+        );
+    }
+}
+
+#[test]
+fn the_front_hands_a_local_link_at_the_clients_listener() {
+    let mut named = first_link_named();
+    let public = named.public.take();
+    for (listener, origin) in [("127.0.0.1:8367", None), ("[::1]:8367", None), ("127.0.0.1:8367", public)] {
+        let listener: std::net::SocketAddr = listener.parse().expect("fixture listener");
+        named.clients = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(listener));
+        named.public = origin;
+        let mut first = crate::box_command::first_link(&named, &first_link_steps()).expect("draw link").expect("link");
+        let front = crate::box_command::front(&named, &mut first).expect("local front");
+        let local = first.local.as_ref().expect("local secret");
+        assert!(local.expose() != first.secret.expose(), "local and printed secrets differ");
+        assert!(
+            front.link.expose() == temper_service::clients::first_link_url(listener, None, local).as_ref(),
+            "the front's link uses the listener without a public origin"
+        );
+        let address = format!("http://{listener}");
+        assert_eq!(
+            front.arguments.as_ref(),
+            [
+                b"internal".as_slice().into(),
+                b"tui".as_slice().into(),
+                b"--box".as_slice().into(),
+                address.as_bytes().into()
+            ]
+        );
+        assert!(
+            front.link.expose().starts_with(format!("{address}/").as_bytes()),
+            "the link's host is the front's address"
+        );
+        assert!(
+            first.url == temper_service::clients::first_link_url(listener, named.public.as_ref(), &first.secret),
+            "the printed link keeps its public origin"
+        );
+    }
+}
+
+#[test]
 fn first_link_draws_none_when_disabled() {
     let mut named = first_link_named();
     named.link = false;

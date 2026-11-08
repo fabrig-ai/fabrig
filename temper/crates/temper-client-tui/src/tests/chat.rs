@@ -246,7 +246,7 @@ fn draw(part: Chat, list: Option<foot::Options>, columns: u16) -> crate::View {
     view
 }
 fn data(entries: Box<[Entry]>) -> Chat {
-    Chat { to_end: 1, entries, notes: foot::Notes { lines: Box::default() } }
+    Chat { to_end: 1, entries, notes: foot::Notes { lines: Box::default(), gave_up: None, log: None } }
 }
 struct Row {
     name: &'static str,

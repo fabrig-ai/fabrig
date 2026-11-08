@@ -209,6 +209,10 @@ fn fake_backends_is_an_additive_box_only_switch() {
     let environment = [(Box::<[u8]>::from(b"HOME".as_slice()), Box::<[u8]>::from(b"/fixture/home".as_slice()))];
     for (words, expected) in [
         (vec!["box", "--fake-backends"], true),
+        (vec!["box", "--no-tui", "--fake-backends", "--bundle", "/bundle"], true),
+        (vec!["box", "--fake-backends", "--no-tui", "--bundle", "/bundle"], true),
+        (vec!["box", "--fake-backends", "--bundle", "/bundle", "--no-tui"], true),
+        (vec!["box", "--no-tui", "--fake-backends", "--no-tui"], false),
         (vec!["box", "--fake-backends", "--config", "/c", "--data", "/d", "--cache", "/k"], true),
         (vec!["box", "--fake-backends", "--fake-backends"], false),
         (vec!["box", "--fake-backends", "extra"], false),

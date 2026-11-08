@@ -10,6 +10,11 @@ The TUI has no sign-out action. Closing it keeps its sign-in for the
 next start. To end it, use the line client with the same directory
 and engine.
 
+`temper box` in a terminal runs this TUI in front (temper help box),
+signed in with nothing pasted. Its welcome shows the box's link for a
+browser on this machine. In front, Ctrl+C or `/exit` stops the box too,
+asking first while work runs. `temper box --no-tui` runs the box without it.
+
 - `DIR`: your existing TUI directory, `$XDG_STATE_HOME/temper/tui`
   when `XDG_STATE_HOME` is absolute, else `$HOME/.local/state/temper/tui`.
 - `HOST`, `PORT`: the engine's loopback HTTP address and port that

@@ -258,6 +258,7 @@ fn tui_fixture(frame: bool) -> Vec<u8> {
         boxed: false,
         address: address.into(),
         local: false,
+        front: false,
         note: None,
         kept: Vec::new(),
         credential: None,
