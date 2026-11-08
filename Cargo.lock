@@ -5106,9 +5106,11 @@ dependencies = [
  "jig-client-shell-native",
  "jig-client-test-records",
  "skein-codec",
+ "skein-fail-stop",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-ui",
@@ -5119,6 +5121,7 @@ dependencies = [
  "temper-client-shell-web",
  "temper-client-tui",
  "temper-client-view",
+ "temper-shell",
 ]
 
 [[package]]
