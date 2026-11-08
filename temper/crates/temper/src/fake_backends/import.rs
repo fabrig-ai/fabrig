@@ -47,45 +47,7 @@ impl Source {
         let agent_bytes = public(&config.join("agent.json"))?;
         let mut temper = Json::decode(&temper_bytes)?;
         let mut agent = Json::decode(&agent_bytes)?;
-        let binary = std::env::current_exe().map_err(|why| why.to_string())?;
-        let git = match temper.at("application/workers/0/git")? {
-            Json::Null => None,
-            Json::String(path) => Some(current_executable(b"git", path, "application/workers/0/git")?),
-            Json::Object(_) | Json::Array(_) | Json::Number(_) | Json::Bool(_) => {
-                return Err("application/workers/0/git: expected init's executable or null".into());
-            }
-        };
-        let claude = if agent.at("programs/claude_code").is_ok() {
-            let name = agent.string("programs/claude_code/path")?;
-            let path = crate::path(name);
-            if name == temper_init::FETCHED {
-                None
-            } else {
-                if !path.is_absolute() || name.len() > 4096 || name.contains(&0) {
-                    return Err("agent.json/programs/claude_code/path: expected a bounded absolute adapter path".into());
-                }
-                Some(path.to_path_buf())
-            }
-        } else {
-            None
-        };
-        let ports = ports(&temper)?;
-        let login = temper.string("application/machine/owned/person/login")?;
-        let generated = temper_init::files(
-            &temper_init::Facts {
-                sign_in: false,
-                binary: binary.as_os_str().as_bytes(),
-                git: git.as_ref().map(|path| path.as_os_str().as_bytes()),
-                claude: claude.as_ref().map(|path| path.as_os_str().as_bytes()),
-                ports,
-                login: Some(login),
-            },
-            &temper_init::Directories { config: &dirs.config, data: &dirs.data },
-            &[0; 32],
-            &[0; 32],
-        )
-        .map_err(|why| format!("source init shape: {why:?}"))?;
-        let (mut expected, expected_agent) = documents(generated)?;
+        let (mut expected, expected_agent) = expected_documents(dirs, &temper, &agent)?;
         let bundle = match temper.at("application/clients/bundle")? {
             Json::Null => None,
             Json::String(path) => Some(resolved(config, path)?),
@@ -95,24 +57,7 @@ impl Source {
         };
         // Bundle is an admitted public override. Its directory is checked before sandbox creation.
         expected.set("application/clients/bundle", temper.at("application/clients/bundle")?.clone())?;
-        for &(pointer, configuration, name) in RESOURCES {
-            equivalent(
-                &mut temper,
-                &expected,
-                pointer,
-                crate::path(if configuration { &dirs.config } else { &dirs.data }),
-                name,
-            )?;
-        }
-        if agent.at("programs/claude_code").is_ok() {
-            equivalent(
-                &mut agent,
-                &expected_agent,
-                "programs/claude_code/directory",
-                crate::path(&dirs.data),
-                "programs",
-            )?;
-        }
+        normalize_resources(dirs, &mut temper, &mut agent, &expected, &expected_agent)?;
         temper.same(&expected, "temper.json")?;
         agent.same(&expected_agent, "agent.json")?;
         let checked = crate::setup::check(&temper.encode()?, &dirs.jig())?;
@@ -138,6 +83,69 @@ impl Source {
         Ok(Some((temper.encode()?, agent.encode()?)))
     }
 }
+fn expected_documents(dirs: &Directories, temper: &Json, agent: &Json) -> Result<(Json, Json), String> {
+    let binary = std::env::current_exe().map_err(|why| why.to_string())?;
+    let git = match temper.at("application/workers/0/git")? {
+        Json::Null => None,
+        Json::String(path) => Some(current_executable(b"git", path, "application/workers/0/git")?),
+        Json::Object(_) | Json::Array(_) | Json::Number(_) | Json::Bool(_) => {
+            return Err("application/workers/0/git: expected init's executable or null".into());
+        }
+    };
+    let claude = if agent.at("programs/claude_code").is_ok() {
+        let name = agent.string("programs/claude_code/path")?;
+        let path = crate::path(name);
+        if name == temper_init::FETCHED {
+            None
+        } else {
+            if !path.is_absolute() || name.len() > 4096 || name.contains(&0) {
+                return Err("agent.json/programs/claude_code/path: expected a bounded absolute adapter path".into());
+            }
+            Some(path.to_path_buf())
+        }
+    } else {
+        None
+    };
+    let ports = ports(temper)?;
+    let login = temper.string("application/machine/owned/person/login")?;
+    let generated = temper_init::files(
+        &temper_init::Facts {
+            sign_in: temper.at("engine/clients/provider")? != &Json::Null,
+            binary: binary.as_os_str().as_bytes(),
+            git: git.as_ref().map(|path| path.as_os_str().as_bytes()),
+            claude: claude.as_ref().map(|path| path.as_os_str().as_bytes()),
+            ports,
+            login: Some(login),
+        },
+        &temper_init::Directories { config: &dirs.config, data: &dirs.data },
+        &[0; 32],
+        &[0; 32],
+    )
+    .map_err(|why| format!("source init shape: {why:?}"))?;
+    documents(generated)
+}
+fn normalize_resources(
+    dirs: &Directories,
+    temper: &mut Json,
+    agent: &mut Json,
+    expected: &Json,
+    expected_agent: &Json,
+) -> Result<(), String> {
+    for &(pointer, configuration, name) in RESOURCES {
+        equivalent(
+            temper,
+            expected,
+            pointer,
+            crate::path(if configuration { &dirs.config } else { &dirs.data }),
+            name,
+        )?;
+    }
+    if agent.at("programs/claude_code").is_ok() {
+        equivalent(agent, expected_agent, "programs/claude_code/directory", crate::path(&dirs.data), "programs")?;
+    }
+    Ok(())
+}
+
 fn equivalent(value: &mut Json, expected: &Json, pointer: &str, root: &Path, name: &str) -> Result<(), String> {
     if resolved(root, value.string(pointer)?)? != resolved(root, name.as_bytes())? {
         return Err(format!("{pointer}: only init's {name} resource is supported"));
