@@ -215,7 +215,7 @@ pub(crate) fn route_forge(
                     | Address::Builders { .. }
                     | Address::Repositories { .. }
                     | Address::Goals { .. }
-                    | Address::Configure { .. }
+                    | Address::Ask { .. }
                     | Address::Adopt { .. } => continue,
                 };
                 out.push(Request::Show { address, replace: true });
@@ -533,7 +533,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Repositories { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Welcome { .. } => false,
     };
     forge::ways::progress(&mut root.forge, env.now, root.pages.project(), on_tab, env.limits.forge, &mut child);

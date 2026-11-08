@@ -404,7 +404,6 @@ pub(super) fn settings_run_with_limits(
     history: Option<u32>,
     mut limits: root::Limits,
 ) -> (World, u64, u64) {
-    use skein_lib::{Duration, Token};
     let config = run_configuration().0;
     if let Some(history) = history {
         limits.core.settings.history = history;
@@ -430,19 +429,25 @@ pub(super) fn settings_run_with_limits(
             hosting: Box::new([]),
         },
     })));
-    let mut goal = fixtures::chat(&world, 1, b"Review the settings".as_slice().into());
-    let people::Ask::Create { batch, .. } = &mut goal else { panic!("goal creation") };
+    let first = settings_goal(&mut world, signed, 1, 101, settings_family);
+    (world, signed, first)
+}
+pub(super) fn settings_goal(world: &mut World, signed: u64, project: u32, key: u8, settings_family: bool) -> u64 {
+    let mut goal = fixtures::chat(world, 1, b"Review the settings".as_slice().into());
+    let people::Ask::Create { project: goal_project, batch } = &mut goal else { panic!("goal creation") };
+    *goal_project = project;
     batch[0].flags.conversation = false;
     batch[0].flags.listed = true;
     batch[0].budget = people::Budget::Named;
     batch[0].authority.spend = 40;
     batch[0].authority.tools = if settings_family { 2047 } else { 1023 };
-    let people::Reply::Outcome(people::Outcome::Created { first, .. }) = ask(&mut world, signed, 101, goal) else {
+    let people::Reply::Outcome(people::Outcome::Created { first, .. }) = ask(world, signed, key, goal) else {
         panic!("goal admitted")
     };
     assert_eq!(world.assigned.as_ref().expect("assigned proposing goal").task, first);
-    (world, signed, first)
+    first
 }
+
 pub(super) fn run_charter(world: &World, instructions: &[u8]) -> settings::Item {
     let mut charter = world.domain.settings().charter(1).expect("fixture charter").clone();
     charter.policy.instructions = instructions.into();
@@ -671,4 +676,51 @@ fn change_event(signed: u64, key: [u8; 16], against: u32, items: Box<[settings::
         digest: [key, key].concat().try_into().expect("digest width"),
         change: Box::new(settings::Change { against, items, running: settings::Running::Stays }),
     })
+}
+
+pub(super) fn run_propose(world: &mut World, against: u32, items: Box<[settings::Item]>) -> core::CallPart {
+    run_propose_reason(world, against, items, "Please review these settings")
+}
+pub(super) fn run_propose_reason(
+    world: &mut World,
+    against: u32,
+    items: Box<[settings::Item]>,
+    reason: &str,
+) -> core::CallPart {
+    use std::fmt::Write as _;
+    let (config, mut limits) = run_configuration();
+    // The fake transport carries names up to its schema ceiling; admission is the core's.
+    limits.core.authority.segments = jig_protocol_store::settings_v1::CEILINGS.document_name;
+    limits.core.authority.segment_bytes = jig_protocol_store::settings_v1::CEILINGS.segment_bytes;
+    let models = settings::model_names(&config.core.settings.models);
+    let bytes = jig_protocol_store::codec::settings::encode(
+        &settings::Record::Proposal {
+            proposer: people::Proposer::Task(1),
+            proposal: 1,
+            value: settings::Proposal { key: None, applications: Box::default(), against, items },
+        },
+        &jig_protocol_store::codec::settings::limits(&limits.core).expect("settings codec limits"),
+        &models,
+    )
+    .expect("encoded whole settings set");
+    let mut encoded = String::new();
+    for byte in &bytes {
+        write!(&mut encoded, "{byte:02x}").expect("hex string");
+    }
+    let input = format!("{{\"against\":{against},\"set\":\"{encoded}\",\"reason\":\"{reason}\"}}");
+    world.tool_call(b"propose_settings", input.as_bytes(), true);
+    world
+        .answers
+        .last()
+        .unwrap_or_else(|| {
+            panic!(
+                "typed tool answer; input bytes {}; host answers {:?}; host calls {:?}; busy {:?}",
+                input.len(),
+                world.host_answers,
+                world.host_calls,
+                world.busy_calls
+            )
+        })
+        .2
+        .clone()
 }

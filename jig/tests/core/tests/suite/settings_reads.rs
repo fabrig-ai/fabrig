@@ -96,6 +96,7 @@ fn a_run_without_the_settings_family_is_denied_its_read() {
     let rows = world.store.rows.clone();
     for input in [
         br#"{"kind":"inventory"}"#.as_slice(),
+        br#"{"kind":"proposal","party":1,"number":1}"#,
         br#"{"kind":"setting","setting":"rules","revision":1}"#,
         br#"{"kind":"revision","number":1}"#,
         br#"{"kind":"revisions"}"#,
@@ -104,6 +105,7 @@ fn a_run_without_the_settings_family_is_denied_its_read() {
         assert!(matches!(world.answers.last().expect("denied read").2, core::CallPart::ToolDenied { .. }));
     }
     assert!(world.settings_answers.is_empty());
+    assert!(world.proposal_reads.is_empty());
     assert_eq!(world.store.rows, rows);
     // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
@@ -191,9 +193,12 @@ fn a_settings_read_is_busy_when_the_shared_load_slots_are_full() {
     for number in 1..=slots {
         jig_core_world::reads::ask(&mut world, u64::from(number), reads::Read::Revision { number: 1 });
     }
-    world.tool_call(b"settings", br#"{"kind":"revision","number":1}"#, false);
-    assert!(matches!(world.answers.last().expect("settings read fixture").2, core::CallPart::Unavailable));
+    for input in [br#"{"kind":"revision","number":1}"#.as_slice(), br#"{"kind":"proposal","party":1,"number":99}"#] {
+        world.tool_call(b"settings", input, false);
+        assert!(matches!(world.answers.last().expect("settings read fixture").2, core::CallPart::Unavailable));
+    }
     assert!(world.settings_answers.is_empty());
+    assert!(world.proposal_reads.is_empty());
     jig_core_world::reads::complete(&mut world);
     world.reads = None;
     assert!(matches!(
@@ -201,5 +206,142 @@ fn a_settings_read_is_busy_when_the_shared_load_slots_are_full() {
         core::SettingsAnswer::Revision(reads::RevisionAnswer::Revision { .. })
     ));
     // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
+    world.broken();
+}
+
+fn run_proposal_read(world: &mut World, proposer: people::Proposer, number: u64) -> core::ProposalRead {
+    // Reusing one name must read the current state without keeping a call record.
+    const READ_NAME: u32 = 500;
+    let (kind, proposer) = match proposer {
+        people::Proposer::Task(task) => ("task", task),
+        people::Proposer::Party(party) => ("party", party),
+    };
+    let input = format!(r#"{{"kind":"proposal","{kind}":{proposer},"number":{number}}}"#);
+    let rows = world.store.rows.clone();
+    let applied = world.store.applied;
+    world.tool_call_at(READ_NAME, b"settings", input.as_bytes(), false);
+    assert_eq!(world.store.rows, rows);
+    assert_eq!(world.store.applied, applied);
+    let answer = world.proposal_reads.pop().expect("proposal read answer").2;
+    let (text, error): (&[u8], bool) = match &answer {
+        core::ProposalRead::Waiting(_) => (b"Proposal waiting", false),
+        core::ProposalRead::Decided(_) => (b"Proposal decided", false),
+        core::ProposalRead::Unknown => (b"Unknown proposal", true),
+    };
+    let core::SettledAnswer::Host { body, error: rendered_error } =
+        &world.host_answers.last().expect("rendered proposal").1.answer
+    else {
+        panic!("host answer")
+    };
+    assert_eq!((body.as_ref(), *rendered_error), (text, error));
+    answer
+}
+
+fn assert_waiting_matches_party(world: &mut World, signed: u64, proposer: people::Proposer, proposal: u64) {
+    let reads::Answer::Document(document) = read(world, signed, reads::Read::Proposal { proposer, proposal }) else {
+        panic!("waiting party proposal")
+    };
+    let documents::Document::Proposal(mut value) = *document else { panic!("proposal document") };
+    value.acts = skein_lib::List::with_capacity(0);
+    assert_eq!(run_proposal_read(world, proposer, proposal), core::ProposalRead::Waiting(*value));
+}
+
+fn assert_decided_matches_party(world: &mut World, signed: u64, proposer: people::Proposer, proposal: u64) {
+    let reads::Answer::Ended(value) = read(world, signed, reads::Read::Proposal { proposer, proposal }) else {
+        panic!("decided party proposal")
+    };
+    assert_eq!(run_proposal_read(world, proposer, proposal), core::ProposalRead::Decided(*value));
+}
+
+#[test]
+fn a_run_reads_a_proposal_waiting_and_decided() {
+    let (mut world, signed, task) = proposing_run(true);
+    let item = template_edit(&world, 7);
+    let party_proposal = proposed(&propose(&mut world, signed, 1, 1, Box::new([item])));
+    assert_waiting_matches_party(&mut world, signed, people::Proposer::Party(OWNER), party_proposal);
+    decide(
+        &mut world,
+        signed,
+        2,
+        OWNER,
+        party_proposal,
+        people::ProposalDecision::Reject { reason: b"Keep current settings".as_slice().into() },
+        None,
+    );
+    assert_decided_matches_party(&mut world, signed, people::Proposer::Party(OWNER), party_proposal);
+    let item = run_charter(&world, b"Review these instructions");
+    let core::CallPart::Proposed { proposal, .. } = run_propose(&mut world, 1, Box::new([item])) else {
+        panic!("task proposal")
+    };
+    let proposer = people::Proposer::Task(task);
+    assert_waiting_matches_party(&mut world, signed, proposer, proposal);
+    let rejected = ask(
+        &mut world,
+        signed,
+        102,
+        people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer,
+            proposal,
+            decision: people::ProposalDecision::Reject { reason: b"Keep current settings".as_slice().into() },
+            running: None,
+        },
+    );
+    assert!(matches!(
+        rejected,
+        people::Reply::Outcome(people::Outcome::ProposalDecided { choice: people::ProposalChoice::Rejected, .. })
+    ));
+    assert_decided_matches_party(&mut world, signed, proposer, proposal);
+    assert_eq!(run_proposal_read(&mut world, proposer, u64::MAX), core::ProposalRead::Unknown);
+    assert_eq!(run_proposal_read(&mut world, people::Proposer::Party(OWNER), u64::MAX), core::ProposalRead::Unknown);
+    // A party's ordinary proposal is outside the settings family, live and retained.
+    let people::Ask::Create { project, mut batch } = fixtures::chat(&world, 1, b"Ordinary proposal".as_slice().into())
+    else {
+        panic!("chat batch")
+    };
+    batch[0].budget = people::Budget::Named;
+    batch[0].authority.spend = 20;
+    let ordinary = proposed(&ask(
+        &mut world,
+        signed,
+        103,
+        people::Ask::Propose { project, action: people::Action::Batch(batch), reason: b"Review".as_slice().into() },
+    ));
+    assert_eq!(run_proposal_read(&mut world, people::Proposer::Party(OWNER), ordinary), core::ProposalRead::Unknown);
+    ask(
+        &mut world,
+        signed,
+        104,
+        people::Ask::DecideProposal {
+            project,
+            proposer: people::Proposer::Party(OWNER),
+            proposal: ordinary,
+            decision: people::ProposalDecision::Reject { reason: b"Keep it".as_slice().into() },
+            running: None,
+        },
+    );
+    assert_eq!(run_proposal_read(&mut world, people::Proposer::Party(OWNER), ordinary), core::ProposalRead::Unknown);
+
+    // A run in another project sees neither a live proposal nor its retained decision.
+    let people::Reply::Outcome(people::Outcome::ProjectMade { project: other_project }) =
+        ask(&mut world, signed, 105, people::Ask::MakeProject { name: "Other".into(), policy: 1 })
+    else {
+        panic!("other project")
+    };
+    world.send(jig_test_domain::Event::Core(core::Event::Period {
+        project: other_project,
+        period: 1,
+        budget: 100,
+        next: None,
+    }));
+    let read = fixtures::live_row(&world, task).inbox.last().map(|word| word.number);
+    world.turn(1, 0, read, b"Reviewed the decisions");
+    let item = run_charter(&world, b"A fresh proposal");
+    let part = run_propose(&mut world, 1, Box::new([item]));
+    let core::CallPart::Proposed { proposal: waiting, .. } = part else { panic!("fresh proposal: {part:?}") };
+    world.park_for_message(0);
+    settings_goal(&mut world, signed, other_project, 106, true);
+    assert_eq!(run_proposal_read(&mut world, proposer, waiting), core::ProposalRead::Unknown);
+    assert_eq!(run_proposal_read(&mut world, proposer, proposal), core::ProposalRead::Unknown);
     world.broken();
 }

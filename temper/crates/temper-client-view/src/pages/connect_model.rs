@@ -462,7 +462,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => false,
     }
 }

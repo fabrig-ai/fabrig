@@ -520,6 +520,7 @@ fn route_now(
         | core::Now::Call { .. }
         | core::Now::EffectAnswer { .. }
         | core::Now::TaskRead { .. }
+        | core::Now::ProposalRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SignInRefused { .. }
         | core::Now::WatchRefused { .. }

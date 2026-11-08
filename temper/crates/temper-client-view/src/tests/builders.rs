@@ -151,11 +151,8 @@ fn each_host_is_a_line_with_its_slots_and_state() {
             );
         }
         assert!(lines.next().is_none());
-        let facts = named(
-            tree,
-            Role::Paragraph,
-            "Each agent’s role names which builders it runs on. Tell Configure temper to change it.",
-        );
+        let facts =
+            named(tree, Role::Paragraph, "Each agent’s role names which builders it runs on. Ask temper to change it.");
         assert!(facts.styles.as_slice().contains(&look::SETTINGS_FACTS));
     }
 }
@@ -311,7 +308,7 @@ fn a_full_document_fits_the_tree_bound() {
         named(
             view.tree(),
             Role::Paragraph,
-            "Each agent’s role names which builders it runs on. Tell Configure temper to change it.",
+            "Each agent’s role names which builders it runs on. Ask temper to change it.",
         );
     }
 }

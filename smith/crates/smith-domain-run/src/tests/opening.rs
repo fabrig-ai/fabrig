@@ -29,14 +29,27 @@ const BRIEF: &[u8] =
 const OFFER: &[u8] = b"person: first\n\nperson: second";
 
 fn opened(mode: Mode, resumed: bool, messages: Box<[crate::Message]>) -> Opening {
-    let mut start = carried_start(policy(mode), messages, None);
+    opened_workspace(mode, resumed, messages, None)
+}
+
+fn opened_workspace(mode: Mode, resumed: bool, messages: Box<[crate::Message]>, mounted: Option<Workspace>) -> Opening {
+    let mut start = carried_start(policy(mode), messages, mounted);
     let Event::Start { resumed: selected, transcript, .. } = &mut start else { panic!("Start fixture") };
     *selected = resumed;
     *transcript = resumed.then_some(Token::new(77));
-    let emitted = Harness::new(LIMITS).step(start);
+    let mut harness = Harness::new(LIMITS);
+    let emitted = harness.step(start);
     let Ok(emitted) = Box::<[Request; 2]>::try_from(emitted) else { panic!("two requests") };
-    let [Request::Admitted { .. }, Request::Open { opening, .. }] = *emitted else { panic!("main opens") };
-    opening
+    match *emitted {
+        [Request::Admitted { .. }, Request::Open { opening, .. }] => opening,
+        [Request::Admitted { .. }, Request::Read { owner, .. }] => {
+            let emitted = harness.step(Event::Read { owner, read: Read::Missing });
+            let Ok(emitted) = Box::<[Request; 1]>::try_from(emitted) else { panic!("one request after discovery") };
+            let [Request::Open { opening, .. }] = *emitted else { panic!("main opens after discovery") };
+            opening
+        }
+        _ => panic!("main opens or discovers its workspace"),
+    }
 }
 
 fn messages() -> Box<[crate::Message]> {
@@ -53,19 +66,26 @@ fn messages() -> Box<[crate::Message]> {
 
 #[test]
 fn open_first_user_message_is_the_whole_literal_brief() {
-    // Pre-change Open system 821 bytes less its 90-byte rendered brief.
-    const SYSTEM_BYTES: usize = 731;
+    // Instructions and Open mechanics, with no workspace sections.
+    const SYSTEM_BYTES: usize = 640;
     let opening = opened(Mode::Open, false, Box::default());
     assert_eq!(opening.prompt.as_ref(), BRIEF);
     let system = core::str::from_utf8(&opening.system).unwrap();
-    assert!(system.starts_with("Host instructions.\n\n## Tools\n\n"));
-    for absent in ["## Request", "Read café", "Preserve this final line.", "Begin the work"] {
+    assert!(system.starts_with("Host instructions.\n\nCall `wait`"));
+    for absent in ["## Tools", "## Checkout", "## Request", "Read café", "Preserve this final line.", "Begin the work"]
+    {
         assert!(!system.contains(absent));
     }
-    for retained in ["## Checkout", "Call `wait`", "## Replying", "## Budget"] {
+    for retained in ["Call `wait`", "## Replying", "## Budget"] {
         assert!(system.contains(retained));
     }
     assert_eq!(opening.system.len(), SYSTEM_BYTES);
+    let mounted = opened_workspace(Mode::Open, false, Box::default(), Some(workspace()));
+    assert_eq!(mounted.prompt.as_ref(), BRIEF);
+    let mounted = core::str::from_utf8(&mounted.system).unwrap();
+    for heading in ["## Tools", "## Checkout"] {
+        assert!(mounted.contains(heading));
+    }
 }
 
 #[test]
@@ -76,10 +96,16 @@ fn open_pre_turn_messages_follow_the_whole_brief() {
 }
 
 #[test]
-fn finite_opening_keeps_the_pre_change_bytes() {
+fn finite_opening_keeps_the_literal_system_and_begin_instruction() {
     let opening = opened(Mode::Finite, false, messages());
     assert_eq!(opening.system.as_ref(), include_bytes!("finite_system.txt"));
     assert_eq!(opening.prompt.as_ref(), b"Begin the work your brief describes.\n\nperson: first\n\nperson: second");
+    let mounted = opened_workspace(Mode::Finite, false, messages(), Some(workspace()));
+    assert_eq!(mounted.prompt, opening.prompt);
+    for heading in [b"## Tools".as_slice(), b"## Checkout"] {
+        assert!(skein_lib::bytes::find(&opening.system, heading).is_none());
+        assert!(skein_lib::bytes::find(&mounted.system, heading).is_some());
+    }
 }
 
 #[test]
@@ -99,6 +125,11 @@ fn resumed_windows_supersede_exhaustion_and_keep_waking_words() {
             assert_eq!(opening.transcript, Some(Token::new(77)));
             if mode == Mode::Open {
                 assert_eq!(opening.system.as_ref(), include_bytes!("open_system.txt"));
+                let mounted = opened_workspace(mode, true, Box::default(), Some(workspace()));
+                for heading in [b"## Tools".as_slice(), b"## Checkout"] {
+                    assert!(skein_lib::bytes::find(&opening.system, heading).is_none());
+                    assert!(skein_lib::bytes::find(&mounted.system, heading).is_some());
+                }
             }
         }
     }

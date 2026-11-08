@@ -644,7 +644,7 @@ pub(crate) fn rail(
     }
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project, shown(root, project));
+    entries(b, root, w, bindings, project, shown(root, project), false);
     b.close();
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NEW);
@@ -795,7 +795,7 @@ pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bi
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) });
+    entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) }, true);
     if !goals_shown(root, project) {
         settings_link(b, root, w, bindings, project);
     }
@@ -848,7 +848,7 @@ fn shown(root: &Domain, project: u32) -> Shown {
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Welcome { .. } => (false, false, false),
     };
     let changes = match root.forge().ways(project) {
@@ -864,6 +864,7 @@ fn entries(
     bindings: &mut Bindings,
     project: u32,
     shown: Shown,
+    tab: bool,
 ) {
     use crate::words::Word;
     let Shown { home, inbox, chats, changes } = shown;
@@ -927,6 +928,17 @@ fn entries(
         chats,
         bindings,
     );
+    if let Some(me) = root.pages().me(root.client())
+        && jig_client::shapes::template(me, project, temper_client_domain::pages::chats::ASKING_TEMPLATE).is_some()
+    {
+        let name = w.say(Word::ConfigureTitle, &[]);
+        crate::link(b, &name, bindings.insert(PageAct::Go { address: ask_address(root, project) }));
+        b.text(Run::Plain, &w.say(if tab { Word::AskTab } else { Word::ConfigureTitle }, &[]));
+        if root.pages().address() == &(Address::Ask { project }) || crate::pages::chat::configuring(root) {
+            b.state(skein_ui::State::Current);
+        }
+        b.close();
+    }
     if changes {
         action(
             b,
@@ -948,14 +960,14 @@ fn settings_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindin
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
-        | Address::Configure { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
         | Address::ConnectForge { .. }
         | Address::Adopt { .. } => true,
-        Address::Chat { .. } => crate::pages::chat::configuring(root),
-        Address::Goals { .. }
+        Address::Chat { .. }
+        | Address::Ask { .. }
+        | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Home { .. }
         | Address::Inbox { .. }
@@ -986,7 +998,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::ConnectForge { .. }
         | Address::Forges
         | Address::Welcome { .. }
@@ -1050,7 +1062,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }
-            | Address::Configure { .. }
+            | Address::Ask { .. }
             | Address::Adopt { .. }
             | Address::ConnectModel { .. }
             | Address::Accounts => false,
@@ -1124,7 +1136,7 @@ pub(crate) fn forges_link(builder: &mut Builder, root: &Domain, words: &crate::w
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => false,
     };
     if current {
@@ -1162,7 +1174,7 @@ pub(crate) fn accounts_link(
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => false,
     } {
         builder.state(skein_ui::State::Current);
@@ -1344,6 +1356,18 @@ fn proposed(b: &mut Builder, w: &crate::words::Words, to: &jig_client::contract:
         }
     }
     w.text(b, Word::ToastProposedEnd, &[]);
+}
+
+/// Ask opens the person's newest open conversation, or its first-message page.
+pub(crate) fn ask_address(root: &Domain, project: u32) -> Address {
+    let task = match root.pages().chats() {
+        Some(chats) => chats.open_asking(root.client(), root.pages().me(root.client()), project),
+        None => None,
+    };
+    match task {
+        Some(task) => Address::Chat { task },
+        None => Address::Ask { project },
+    }
 }
 
 #[cfg(test)]

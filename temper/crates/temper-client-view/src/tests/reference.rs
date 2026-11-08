@@ -29,7 +29,7 @@ const MUTED_NOTES: usize = 1;
 const SUMMARY: &str = "How fabrig builds temper, with temper: one way among many. Start from it, from something smaller, or from your own words.";
 
 fn root() -> d::Domain {
-    f::playground_root(Address::Configure { project: f::PROJECT }, f::PROJECT, true)
+    f::playground_root(Address::Ask { project: f::PROJECT }, f::PROJECT, true)
 }
 fn input(root: &mut d::Domain, act: Act) {
     f::root_event(root, d::Event::Act { action: d::Action::Pages(act) });
@@ -206,7 +206,7 @@ fn stock_project_ways_keep_the_reference_available() {
         d::forge::ways::Ways::STOCK,
         d::forge::ways::Ways { drafts: true, goals: true, way: 2, ..d::forge::ways::Ways::STOCK },
     ] {
-        let mut root = f::root_with_ways(Address::Configure { project: f::PROJECT }, Some(ways));
+        let mut root = f::root_with_ways(Address::Ask { project: f::PROJECT }, Some(ways));
         input(&mut root, Act::ShowReference);
         for view in [view(&root, Shell::Terminal), view(&root, Shell::Browser)] {
             assert_eq!(pane(view.tree()).styles.as_slice(), [look::DOC]);
@@ -226,7 +226,7 @@ fn terminal_prints_reference_after_composer_in_section_order() {
     let printed = printed.split_whitespace().collect::<Vec<_>>().join(" ");
     let mut rest = printed.as_str();
     for words in [
-        "Describe how you work, or what to change",
+        "Ask temper, or tell it how you work",
         "How temper builds temper",
         "temper’s own way · a reference · changes nothing",
         SUMMARY,
@@ -260,7 +260,7 @@ fn reference_keeps_send_and_starter_acts() {
             let id = named(view.tree(), Role::Button, name).id;
             assert_eq!(crate::act(&mut view, id, skein_ui::Act::Press), Some(d::Action::Pages(act)));
         }
-        let id = named(view.tree(), Role::TextArea, b"Describe how you work, or what to change").id;
+        let id = named(view.tree(), Role::TextArea, b"Ask temper, or tell it how you work").id;
         assert_eq!(crate::act(&mut view, id, skein_ui::Act::Submit), Some(d::Action::Pages(Act::StartChat)));
     }
 }

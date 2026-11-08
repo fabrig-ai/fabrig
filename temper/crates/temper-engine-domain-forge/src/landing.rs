@@ -239,6 +239,23 @@ impl Domain {
         *command = Some(merge_job);
         true
     }
+    /// A project's landing way: queue where its configuration gives none (domain/landing.md, 13.1).
+    #[must_use]
+    pub fn landing_way(&self, project: u32) -> change::Way {
+        self.landing.way(project)
+    }
+    /// A repository's configured gates and tiers in its project, if it has any.
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "the step subset searches without iterator closures")]
+    pub fn repository_gates(&self, project: u32, repository: api::Repository) -> Option<&RepositoryGates> {
+        let (_, repositories, _, _) = self.landing.projects.get(&project)?;
+        for row in repositories {
+            if row.repository == repository {
+                return Some(row);
+            }
+        }
+        None
+    }
     /// The project's optional merge command (temper/docs/design/protocol/configuration.md, 3).
     #[must_use]
     pub fn merge_job(&self, project: u32) -> Option<&[u8]> {

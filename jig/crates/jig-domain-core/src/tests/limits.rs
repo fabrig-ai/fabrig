@@ -21,3 +21,15 @@ fn document_roles_cover_authority_roles() {
         assert_eq!(crate::valid(&limits), valid, "documents.roles = {roles}");
     }
 }
+
+#[test]
+fn asking_has_one_distinct_family_bit() {
+    use crate::{ToolFamilies, authority};
+
+    assert_eq!(ToolFamilies::JIG.ask, authority::Tools(2048));
+    assert!(ToolFamilies::JIG.valid());
+    for (ask, valid) in [(2048, true), (1024, false), (0, false), (3072, false)] {
+        let tools = ToolFamilies { ask: authority::Tools(ask), ..ToolFamilies::JIG };
+        assert_eq!(tools.valid(), valid, "ask = {ask}");
+    }
+}

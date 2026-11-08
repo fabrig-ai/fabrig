@@ -401,7 +401,7 @@ pub fn run(
             instances: factory.instances,
             operations: factory.operations,
         },
-        |spawn| smith_fake_claude::config_root(spawn).into_iter().collect(),
+        |spawn| smith_fake_claude::config_root(spawn).into_iter().chain(smith_fake_claude::mcp_root(spawn)).collect(),
         |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
     );
     world.spawn_root(root, |fd| Process::Parent(Box::new(Parent::new(fd, asks, &environment, missing))));

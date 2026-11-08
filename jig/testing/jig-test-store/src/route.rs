@@ -178,6 +178,7 @@ fn window(now: core::Now) -> Option<(u64, u64, u32)> {
         | core::Now::CallBusy { .. }
         | core::Now::Link(_)
         | core::Now::EffectAnswer { .. }
+        | core::Now::ProposalRead { .. }
         | core::Now::SettingsAnswer { .. }
         | core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }

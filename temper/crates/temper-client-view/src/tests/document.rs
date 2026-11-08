@@ -258,7 +258,7 @@ fn configuring_me(source: &d::Domain) -> c::Me {
     let mut me = source.pages().me(source.client()).unwrap().clone();
     let member = me.projects.get_mut(0).unwrap();
     let mut template = member.templates.get(0).unwrap().clone();
-    template.number = 3;
+    template.number = 5;
     let mut templates = List::with_capacity(2);
     templates.push(member.templates.get(0).unwrap().clone()).unwrap();
     templates.push(template).unwrap();
@@ -532,7 +532,7 @@ fn start_over_has_its_own_dialog_words() {
         assert!(f::find(after.tree(), Role::Dialog, b"Start over?").is_some());
         assert!(
             String::from_utf8_lossy(&f::text(after.tree()))
-                .contains("A new configuring chat starts. This one stays in Chats.")
+                .contains("A new Ask temper chat starts. This one stays in Chats.")
         );
     }
 }
@@ -764,5 +764,26 @@ fn an_empty_thread_names_its_draft() {
                 b"A chat that writes a draft. Say what it should hold."
             }
         );
+    }
+}
+
+#[test]
+fn a_document_call_draws_its_tool_line() {
+    let outcome = "Note 1 revision 1 written · 12 lines\ndocument: \"How Shop works\" written, 12 lines.";
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let root = activity_root(
+            Some(BODY),
+            Mode::Split,
+            mixed_activity(b"document", false, outcome),
+            ProposalState::Ordinary,
+        );
+        let view = view(&root, shell);
+        assert!(
+            String::from_utf8_lossy(&section_words(view.tree(), look::TURN_TOOL))
+                .contains("Wrotehow-shop-works.md12 lines")
+        );
+        assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 2);
+        assert!(f::find(view.tree(), Role::Disclosure, b"document").is_none());
+        assert_eq!(styled(view.tree(), look::DOC_CHANGED).len(), 1);
     }
 }

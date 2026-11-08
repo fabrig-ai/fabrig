@@ -993,12 +993,13 @@ amended task's choice whole, leaving it none.
 | `withdraw` | its own pending proposal (tasks.md, section 9) | withdrawn; already decided, and how |
 | `move`, `succeed` | moves a task below it, or that it was introduced to and may amend, under another live task it may amend; names a live task the successor of an ended task below it (tasks.md, section 7) | moved; named; refused, and why |
 | `hold`, `lift` | places a hold of its own, stop or drain, over the subtree of a task below it, with a reason, and optionally the event that lifts it: a connector's event its topic offers, a task's end, or a time (tasks.md, 5.9); lifts a hold it may lift, naming its revision | the hold's number and revision; lifted; refused, naming its owner, and whether a proposal could be accepted |
-| `settings`, when its charter gives the family | reads the settings, or one setting whole, as a party's read does (`../client/domain/contract.md`, 5.1); proposes a change of settings against the revision it read, with a reason (17.6) | the settings; proposed, and to whom; stale, naming the newest; refused, when nobody may accept it |
+| `settings`, when its charter gives the family | reads the settings, or one setting whole, as a party's read does (`../client/domain/contract.md`, 5.1), or one proposal of settings, a task's of its own project or a party's, as a party's proposal read gives it (below); proposes a change of settings against the revision it read, with a reason (17.6) | the settings; the proposal, with its review and its outcome; proposed, and to whom; stale, naming the newest; refused, when nobody may accept it |
 | `introduce` | two tasks it references, each given a reference to the other, within their limits (tasks.md, 8.5) | done; no reference; refused, and why |
 | `subscribe`, `unsubscribe` | a topic a connector offers to agents (connectors.md, 5.3), under a read grant on the resources the connector says it concerns (authority.md, 8.5); a referenced task's state; a timer (tasks.md, 8.4) | done; refused, and why |
 | `effect` | one of a connector's kinds of effect offered to agents (connectors.md, 4.5) | made, with what it made; committed and pending, past the call's deadline; waiting for a verdict; failed; refused, naming them, for a kind that waits for dependencies while its task is kept (tasks.md, 5.7) |
 | `note`, `recall` | writes a note in a scope, whole or by a line range; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
+| an application's asking tools, when its charter gives the family | what the application declares to a run that explains to its person: the reads it serves and the document it keeps for that run, each call decided by the asking family alone, whatever it reads or writes (authority.md, section 3); the application answers it | the application's answer; beyond authority, naming the family |
 
 **A run's reads are not recorded.** A connector's read, `read_task`, and the
 `settings` family's reads decide nothing: checked against the task's
@@ -1007,6 +1008,23 @@ the journal's door for outputs that decide nothing (root.md, section
 3), and no call record keeps it. A read asked again under its name is
 read again, and may see what changed since. A proposal of settings is a
 decided call, as every other is.
+
+**A run's proposal read** reads one proposal of settings by its proposer
+and number, a task's, `t` its task and its proposal's number, or a
+party's, `p` (tasks.md, section 9), and answers what a party's proposal read
+answers (`../client/domain/contract.md`, section 6): a proposal waiting,
+from the core's state, with its reason, its items and its review against
+the newest settings (17.6), a value past the review's bound by its size; a
+proposal decided, withdrawn or replaced, from its history row in the
+store, with its reason, its items' heads, its state, who decided it and the
+revision it made. It is checked as the family's other reads are, by the
+`settings` family of the run's task, which already reads every waiting
+proposal's head in the inventory, and no party's visibility stands in for
+it: a run has none. A task's proposal is read only where that task is of
+the reading task's project, and only a proposal whose action is settings
+is read; any other, or none, answers unknown, as a setting that is not
+there does. A stored read is checked again when its row loads: the
+family, the project and the run's current attempt, as `read_task`'s is.
 
 Task reads authorize against the run's own task relationships, not a person's
 project visibility. A stored delegate's owner row proves its immediate requester.

@@ -99,6 +99,12 @@ impl Stand {
         Some(root::Event::CallAnswered { to: ReplyTo::new(to), call })
     }
 
+    pub fn proposal_read(&mut self, to: Token, key: core::CallKey, answer: &core::ProposalRead) -> Option<root::Event> {
+        let (_, tool) = self.calls.remove(&key)?;
+        let call = jig_conformance::core::peers::settled_answer(tool, tools::proposal_read(answer));
+        Some(root::Event::CallAnswered { to: ReplyTo::new(to), call })
+    }
+
     pub fn answer(
         &mut self,
         to: Token,

@@ -11,7 +11,26 @@ use temper_engine_domain::room::HostPart;
 pub fn host_part(limits: &run::Limits) -> HostPart {
     let mut declared = 0_u64;
     let mut settings = 0_u64;
-    let mut tools = crate::calls::tools(Duration::from_secs(1));
+    let mut asking = 0_u64;
+    let mut asking_settings = 0_u64;
+    for tool in
+        crate::calls::tools_for(Duration::from_secs(1), jig_domain_tasks::Tools(3_072), jig_domain_tasks::Tools(3_072))
+    {
+        let mut bytes = 0_u64;
+        for text in [&tool.name, &tool.description, &tool.schema] {
+            bytes = bytes.checked_add(skein_lib::len_u64(text.len())).expect("bounded asking declaration");
+        }
+        if tool.name.as_ref() == b"propose_settings" {
+            asking_settings = bytes;
+        } else {
+            asking = asking.checked_add(bytes).expect("bounded asking declarations");
+        }
+    }
+    let mut tools = crate::calls::tools_for(
+        Duration::from_secs(1),
+        temper_engine_domain::RunPolicy::EVERY_FAMILY,
+        temper_engine_domain::RunPolicy::EVERY_FAMILY,
+    );
     for tool in &mut tools {
         let mut bytes = 0_u64;
         for text in [&tool.name, &tool.description, &tool.schema] {
@@ -30,7 +49,7 @@ pub fn host_part(limits: &run::Limits) -> HostPart {
     // Count independently of the receiving bound, including a profile too small for this offer.
     let measuring = run::Limits { host_part: u64::from(u32::MAX), ..*limits };
     let room = run::brief_room(&charter, None, &measuring).expect("bounded largest host offer");
-    let fixed = measuring
+    let offered_fixed = measuring
         .host_part
         .checked_sub(u64::from(room))
         .expect("measured host room")
@@ -38,9 +57,28 @@ pub fn host_part(limits: &run::Limits) -> HostPart {
         .expect("declarations counted by smith")
         .checked_sub(settings)
         .expect("settings counted by smith");
+    charter.grants.host_tools = Box::new([]);
+    let room = run::brief_room(&charter, None, &measuring).expect("bounded host mechanics");
+    let fixed = measuring.host_part.checked_sub(u64::from(room)).expect("measured host mechanics");
+    // A reserved host tool adds wind-down words. They belong to the ordinary
+    // offer, whose message declaration an asking charter does not carry.
+    declared = declared
+        .checked_add(offered_fixed.checked_sub(fixed).expect("host offer adds mechanics"))
+        .expect("bounded declared host part");
     // Smith's built-in tools and mechanics are outside its host part. Alternative-model
     // text is policy-dependent and is counted by HostPart::non_brief.
-    HostPart { bound: limits.host_part, fixed, declared, settings, inspect: 0, modify: 0, shell: 0, agents: 0 }
+    HostPart {
+        bound: limits.host_part,
+        fixed,
+        declared,
+        settings,
+        asking,
+        asking_settings,
+        inspect: 0,
+        modify: 0,
+        shell: 0,
+        agents: 0,
+    }
 }
 
 /// Measure the largest translated Change contract, including mid-run delivery.

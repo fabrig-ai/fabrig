@@ -7,6 +7,8 @@ const TABLE: HostPart = HostPart {
     fixed: 100,
     declared: 200,
     settings: 300,
+    asking: 0,
+    asking_settings: 0,
     inspect: 10,
     modify: 20,
     shell: 30,
