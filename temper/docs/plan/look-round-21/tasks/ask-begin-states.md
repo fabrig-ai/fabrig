@@ -84,3 +84,15 @@ The implementer's report: the facts each state lacked and how they're delivered,
 ## Answers
 
 2026-11-08. **The gallery's tests over their 1 s (`browser.md`, 7.3): a follow-up cost repair, or widen this task to optimize the whole gallery?** A follow-up; this task is not widened. The overrun is inherited (pristine base 2.909 CPU s, this change 2.644 s, `heavy cargo test -p temper-client-gallery --lib`, serial): the change lowers the cost, and acceptance 7's budget clause is met for this task by not raising it. Its cause lies in the all-state table and the print, beyond the five states this task owns. The commit `28bcd334e2` stands as pushed; keep its account row "differs: inherited overrun". In addition, so the overrun is carried by the design status and not by this request (`temper/docs/design/draft/look-requests.md`, 5), add one **Departs** entry to `temper/docs/design/client/browser.status.md`: 7.3's cost, the two measurements above with the command, the two costly tests (`each_state_holds_what_its_name_says`, the print check), and its owner, a gallery cost repair (testing-strategy 8.1, question 2: find and fix the cause; only failing that, measurements to the user). This entry is the one design line the task adds besides the deletion of acceptance 6. Rerun nothing but `python3 -I -B tools/citations/citations.py --base origin/main`; commit with the trailer and push.
+
+## Rebase (2026-11-08, step merge, foreman look-round-21/ask-begin-states/foreman-2)
+
+resolve browser.status.md by keeping both tasks’ completed-entry deletions and the gallery cost departure.
+The merge conflicts only in `temper/docs/design/client/browser.status.md`.
+Integration `f98a1d0a62` includes `tab-room` commit `85db8975cf`, which removes its **Not yet** entry.
+Rebase onto the landing’s current integration base; preserve that deletion.
+Also preserve `28bcd334e2`’s deletion of the `ask-begin-states` **Not yet** entry.
+Keep `c1383ae592`’s **Departs:** 7.3 paragraph intact, including both CPU measurements, command, costly tests and gallery cost repair owner.
+The resolved opening should contain neither task’s **Not yet** entry, followed by the gallery cost departure and the existing status prose.
+Keep all other status text and gallery code unchanged.
+Run `python3 -I -B tools/citations/citations.py --base origin/main`; the answer requires no other reruns.
