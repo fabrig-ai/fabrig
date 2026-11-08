@@ -16,7 +16,7 @@
     <span class="switcher">shop <small>1 project</small></span>
     <div class="nav">
       <a class="on" href="home.html">Home</a>
-      <a href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="needs.html">Needs you <span class="count">3</span></a>
       <a href="work.html">Work</a>
       <a href="team.html">Team</a>
       <a href="#">Ask temper</a>
@@ -36,21 +36,30 @@
     <div class="col">
       <header class="intro">
         <p class="kicker">Monday 08:40 · you last looked Friday 17:55</p>
-        <h1 class="headline">9 changes landed since Friday. Two sign-offs wait on you; one waits on Kit.</h1>
-        <p class="lede">Agents reviewed every change. Sam signed off five on Saturday, including the refund rounding fix, so payments has one change waiting for its second sign-off: yours. The coupon goal is two of three changes in. Nothing failed after landing.</p>
+        <h1 class="headline">9 changes landed since Friday. Three wait for one of you to sign off.</h1>
+        <p class="lede">Agents reviewed every change. Sam signed off five on Saturday, including the refund rounding fix, so payments has one change waiting for its second sign-off: yours or Kit's. The coupon goal is two of three changes in. Nothing failed after landing.</p>
         <p class="byline">Written by the status agent at 08:31</p>
       </header>
 
       <section class="section">
-        <div class="shead"><h2>Your sign-offs · 2</h2><a href="needs.html">All needs</a></div>
+        <div class="shead"><h2>Sign-offs · 3</h2><a href="needs.html">All needs</a></div>
         <div class="card need">
           <p class="from"><span class="chip">payments/</span> Retry a declined card once, after 2 s · asked by Sam · reviewed by an agent</p>
-          <p class="q">Sign off "Retry a declined card once"? 1 of 2 signed: Sam.</p>
+          <p class="q">Sign off "Retry a declined card once"? 1 of 2 signed: Sam; you or Kit can give the second.</p>
           <p class="why">payments/ needs two of you. +38 −6 in payments/retry.go, its tests green.</p>
           <div class="choices">
             <a class="choice rec" href="#">Sign off on Forgejo ↗</a>
             <a class="choice" href="#">See the change</a>
-            <a class="choice quiet" href="#">Ask for a change</a>
+            <a class="choice quiet" href="#">Ask for changes on Forgejo ↗</a>
+          </div>
+        </div>
+        <div class="card need">
+          <p class="from"><span class="chip">storefront/</span> Product page shows stock per size · asked by Kit · reviewed by an agent</p>
+          <p class="q">Sign off "Product page shows stock per size"?</p>
+          <p class="why">Every change needs one of you. Waiting 2 days.</p>
+          <div class="choices">
+            <a class="choice rec" href="#">Sign off on Forgejo ↗</a>
+            <a class="choice" href="#">See the change</a>
           </div>
         </div>
         <div class="card need">
@@ -65,18 +74,8 @@
       </section>
 
       <section class="section">
-        <div class="shead"><h2>The team's queue</h2><span>whose turn it is</span></div>
+        <div class="shead"><h2>Agents' work</h2><span>what needs no one</span></div>
         <div class="rows">
-          <div class="row">
-            <span class="mono">Kit's turn · 1</span>
-            <div><p>Storefront: product page shows stock per size.</p><p class="small muted">Reviewed by an agent Saturday; storefront is Kit's area.</p></div>
-            <span class="r">waiting 2 d</span>
-          </div>
-          <div class="row">
-            <span class="mono">Sam's turn · 0</span>
-            <div><p class="muted">Nothing waits on Sam.</p></div>
-            <span class="r"></span>
-          </div>
           <div class="row">
             <span class="mono">Agents · 3</span>
             <div><p>One change in review, one being repaired after its CI failed, one being made.</p></div>
@@ -99,8 +98,8 @@
         <div class="shead"><h2>Decided for you · 1</h2><a href="how.html">What reaches you</a></div>
         <div class="rows">
           <div class="row">
-            <span class="mono">shop · CI · Sat 09:12</span>
-            <div><p>A checkout test timed out once.</p><p class="took">Reran it.</p><p class="small muted">Retries are decided and listed, as Agents review allows.</p></div>
+            <span class="mono">shop · coupons goal · Sat 09:12</span>
+            <div><p>A task ran out of turns on the coupon rules.</p><p class="took">Split it in two.</p><p class="small muted">Retrying or splitting a task is decided and listed, as shop's rules allow.</p></div>
             <a class="r" href="#">Overturn</a>
           </div>
         </div>
