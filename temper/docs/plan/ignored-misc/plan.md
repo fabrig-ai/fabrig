@@ -62,6 +62,14 @@ implementer-minutes, with all four started together.
   follows any further cause, with a pre-approved fallback: a cause that
   needs a design section that doesn't exist keeps both tests ignored,
   their reasons naming it (the request's rule).
+- **Story A's memory: ignored for a missing skein mechanism.** The
+  walk lands; its memory test fails skein's exact release check because
+  the world's observer, inside the service's span, fills the referee's
+  shared store. skein keeps harness storage outside process spans
+  (`skein/docs/design/testing.md`, 5) but gives a service world's
+  observer no way to do so, and no design section names one: larger
+  than this task, so the memory test keeps its `#[ignore]`, its reason
+  naming that, until a skein plan adds it (answer of 2026-11-08).
 - **No-DNS: held at start, not resolved at use.** skein's accounts
   driver takes addresses resolved before its loop and resolves nothing
   while it runs (skein's `oauth.md`, 6.2); io has no DNS client. So

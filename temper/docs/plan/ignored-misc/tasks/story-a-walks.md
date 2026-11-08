@@ -174,3 +174,39 @@ any option taken.
   move or ignore it for its cost. Continue from the pushed branch
   (`97e4acf6d3`) with the outstanding acceptance: both `#[ignore]`s,
   the memory bounds, the doc and the status lines.
+- 2026-11-08. *Story A walks, but the memory test fails skein's exact
+  release check at process 0 (frees 1,200,446 B of 1,828,886 B held):
+  add a skein accounting mechanism for shared harness storage, or
+  rewrite the world's observer ownership in temper?* Neither, in this
+  task. The world's `ServiceObserver` runs inside the service's span
+  and decodes into the referee's shared store, which skein says stays
+  outside process spans (`skein/testing/skein-world/src/heap.rs`;
+  `skein/docs/design/testing.md`, 5), yet skein gives a service world's
+  observer no way to keep its storage there; a temper-only rewrite
+  would still need one for the store, the person's history and the
+  peers made before admission. That is a missing skein mechanism with
+  no design section, larger than this task: the spec's pre-approved
+  fallback applies to the memory test alone. So:
+  - `story_a.rs` stays un-ignored, as pushed (`fc649e33ac`); its walk
+    lands.
+  - `memory.rs` keeps its `#[ignore]`, its reason naming what is
+    missing: `a service world's observer has no way to keep its storage
+    outside the process's span (skein/docs/design/testing.md, 5): process
+    0's exact release check fails (playground.status.md, 9)`. Keep the
+    printing by name. No process count, table, bounds or broken-bound
+    check.
+  - `playground-memory.md`: keep the run's paragraph; add that the
+    figure needs skein's mechanism first, citing
+    `skein/docs/design/testing.md`, 5. The command keeps
+    `--run-ignored only`.
+  - `playground.status.md`: the 9 walk entry removed, as pushed; the 9
+    high-water entry stays, worded as the ignore's reason; the 8 entry
+    unchanged (its new words would claim a bound that does not exist);
+    the date line today.
+  - Your report says first that the memory test stays ignored and why.
+    The plan's decision is recorded in `plan.md` (*Story A's memory*).
+  - The walk's 4.278 s against the 2 s guide does not block landing:
+    your 8.1, question 2 examination stands (the caching experiment,
+    and the trace-off memory run's 4.454 s, show neither parsing nor
+    trace is the cost). Report the times again; change no guide, budget
+    or tier. The numbers go to the user from your report.
