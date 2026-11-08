@@ -11,7 +11,8 @@
   7.1's path printed for both widths adds to it: the print test alone took
   1.483 s of wall time before the second drawing and 4.069 s after
   (`look-round-24`'s `gallery-narrow`, at `436533537a`); no CPU figure is
-  on record.
+  on record. How work runs' six states, `how` to `night-how`, add to it,
+  with no CPU figure on record either.
 
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
@@ -56,6 +57,17 @@ reference's pane are gone. `ask-first-run` draws the ways and the eight
 gone. Story 11's phone Ask row (4.6) shows the tabs and presses "Draft
 first" to its "Use this", in the existing history story; it checks
 neither Agents review's "now" nor the line and the path. The rendered
+comparison follows landing (`README.md`, section 11).
+
+Sections 2.5, *How work runs' look*, and 7.2 have no known
+implementation gap: `temper.css`'s `/* ==== ui: how ==== */`, after the
+ways' rules, holds the wide column, the section's head and "the way:
+NAME", the path's table scrolling sideways in its box, its lanes' pills
+in who acts' colours on `--gf-agent`, `--gf-agent-pale`, `--gf-code` and
+`--gf-code-pale`, by day and by night, the bar, the authority row and
+Budgets' row, and `look.rs` names each `temper-how-*` class. The gallery
+prints `how`, `how-approve`, `how-draft`, `how-yours`, `how-card` and
+`night-how` at both widths, and its table checks each. The rendered
 comparison follows landing (`README.md`, section 11).
 
 Sections 2.3, 2.5 and 7.1 have no known implementation gap in

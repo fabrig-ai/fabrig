@@ -9667,11 +9667,15 @@ own tests:
   `../draft/whole-story.execution.md`, section 3): What reaches you (P3b), Rules
   by path and the path's stops for a path set (P3c), What follows a landing and
   a role's budget (P3d), each drawn by its milestone from the engine's reads;
+  the heading's chief departure, "Draft first, with the protocol core asking
+  you", once a rule by path can be one (P3c); the heading's and the lede's
+  words saved with the settings, a person's or Ask temper's (P3e);
   "History · N changes" beside "Ask temper to change this", once a page lists
   the settings' revisions (*Later: the fuller page*); the next step suggested
   when the facts earn it; and the project's repositories at the page's foot
   rather than its frame's second tab. Default: none of them is drawn until it
-  is built, and Repositories stays the second tab.
+  is built, the heading names the way alone and the lede is its line, and
+  Repositories stays the second tab.
 - **How many goals take a way** (5.13): " Used by N." and " Used by none yet."
   need a goal's template, and jig's `TaskLine`, what a client is given of a goal,
   records none. Default: the sentence is left out.
