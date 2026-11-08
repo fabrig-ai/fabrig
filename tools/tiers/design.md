@@ -864,7 +864,7 @@ run the mode. Its body is `tools/tiers/one_process.py`, loaded with
 `runpy.run_path` as `cpu.py` is and no importable module:
 `run(command, env, directory, profile, limits, config=Path('.config/nextest.toml'))`
 runs one suite into a fresh, private `directory` (mode 0700, refused when it
-holds anything) and writes 11.7's files; `execute_one_process` adds the
+holds anything) and writes 11.8's files; `execute_one_process` adds the
 summary and the exit status.
 
 `command` is the caller's nextest command, as it would pass it to `execute`
@@ -887,15 +887,20 @@ refuses, raising `ValueError` before anything runs, what it cannot hold:
 - `--no-run`, stress (`--stress-count`, `--stress-duration`), `--debugger`,
   `--config-file`, `--tool-config-file`; a `--profile` or `-P` other than
   `profile`;
-- an override filter outside 11.3's filtersets;
+- an override filter outside 11.3's filtersets, and the profile's
+  `default-filter` outside them where the caller gives no filter of its own
+  (11.2);
 - a `limits` table for the profile with `cpu_test_s`: no test's CPU is measured.
 
 ### 11.2 Selecting
 
 The listing is the prefix, then `cargo nextest list --message-format json
---profile PROFILE` and the run command's arguments that `list` takes: package
+--profile PROFILE --config-file CONFIG`, CONFIG `run`'s `config` as an absolute
+path, and the run command's arguments that `list` takes: package
 and target selection, features and build options, filters (`-E`, test-name
-filters, `--ignore-default-filter`), `--run-ignored` and `--partition`. Run-only
+filters, `--ignore-default-filter`), `--run-ignored` and `--partition`. Nextest
+therefore selects with the configuration the mode reads, a caller's private one
+(a gate's, with its own wall cap) as well as the checkout's. Run-only
 arguments (`--no-fail-fast`, `--fail-fast`, `--max-fail`, `--no-capture`, the
 output and status levels, `--hide-progress-bar`) are dropped, and `--no-tests`
 is the mode's own. The listing builds, as `run` would; its output is forwarded,
@@ -907,13 +912,19 @@ Each entry gives the binary's `binary-path`, `cwd`, `binary-id`,
 `package-id`, `kind` and `binary-name`.
 
 An empty selection ends the run as nextest would: `--no-tests=fail`, the
-default, exit 4; `warn`, a warning and 0; `pass`, 0.
+default, exit 4; `warn`, nextest's warning, `warning: no tests to run`, in the
+output, and 0; `pass`, 0.
 
-Where the caller gives no filter of its own, the mode also evaluates the
+A caller's own filter is a filterset in any of nextest's spellings (`-E EXPR`,
+`-EEXPR`, `-E=EXPR`, `--filterset EXPR`, `--filterset=EXPR`, and
+`--filter-expr` as `--filterset`), a test-name filter, `--ignore-default-filter`
+or `--partition`. Where the caller gives none, the mode also evaluates the
 profile's `default-filter` over the listing with 11.3's filtersets, and a test
 where its reading and nextest's `filter-match` disagree (a test nextest
 excluded by its default filter, or matched) refuses the run: the proof that
-its reading of the overrides is nextest's.
+its reading of the overrides is nextest's. Where the caller gives one, the
+mode never compiles the default filter, so one outside 11.3's subset refuses
+nothing.
 
 ### 11.3 Overrides and test groups
 
@@ -941,11 +952,18 @@ and each such override says why beside it.
 ### 11.4 Processes and lanes
 
 A process runs one binary's tests:
-`BINARY --exact --nocapture --test-threads=1 --include-ignored --color never --logfile /dev/fd/N NAME...`,
+`BINARY --exact --nocapture --test-threads=1 --include-ignored --color never --logfile LOG NAME...`,
 in the suite's `cwd` with 11.5's environment, its stdin `/dev/null`, its
-stdout and stderr one pipe, and libtest's results in a second pipe whose write
-end is its descriptor `N`, so that no file is written per test or during the
-run. Libtest runs the names in its own order. `--include-ignored` runs a
+stdout and stderr one pipe, and libtest's results in a second pipe: `LOG` is a
+named pipe (mode 0600) in a private temporary directory the lanes make for the
+process, outside the run directory, and remove when they settle it. Libtest
+opens its logfile close-on-exec, so the pipe's writer is libtest's alone: an
+inherited writer, a `/dev/fd/N`, would reach every child a test spawns, against
+the descriptor isolation its fixtures check, and keep the pipe open past the
+process. The lanes hold a writer of their own until libtest's first
+announcement, so that the reader sees no end of file before libtest has opened
+the pipe. No file content is written per test or during the run. Libtest runs
+the names in its own order. `--include-ignored` runs a
 selected ignored test; the names already hold the selection. Each process
 leads a process group of its own.
 
@@ -958,7 +976,8 @@ priorities, groups and kept times, the test groups' `max-threads` and the
 profile's `global-timeout`. The lanes start, read, reap and stop the
 processes, and report each event as one line of their stdout beginning
 `tiers-one-process: ` and a JSON object; any other line is the prefix's own
-and is forwarded. The lanes write no file.
+and is forwarded. The lanes write no file but those named pipes, which hold
+nothing.
 
 - **As many lanes as CPUs:** `len(os.sched_getaffinity(0))` where the lanes
   run, which is nextest's default number of test threads.
@@ -966,12 +985,16 @@ and is forwarded. The lanes write no file.
   times (11.8); a test with none counts the mean kept time per test of the
   selection, and with none kept anywhere every test counts 1, so binaries
   start by test count. Processes start by priority, the highest of their
-  tests', then by estimate, longest first.
+  tests', then by estimate, longest first. A fresh process (11.6) takes its
+  place among those waiting by the same order, its tests' priority and
+  estimate; an alone diagnostic goes before them all (11.6).
 - **A long binary is split.** Where a binary's estimate is more than the
   total over the lanes (the selection's estimate divided by the lanes), its
-  tests in libtest's order are dealt into `min(lanes, ceil(estimate / share))`
-  contiguous runs of about equal estimate, a process each. A process's names
-  stay within 256 KiB of arguments; more splits it further.
+  tests in libtest's order are dealt into
+  `min(lanes, ceil(estimate / share), tests)` contiguous runs of about equal
+  estimate, a process each, and each run keeps at least one test: a process
+  given no names would run every test of its binary. A process's names stay
+  within 256 KiB of arguments; more splits it further.
 - **Test groups.** A process counts once against each test group any of its
   tests is in, and starts only while each such group's processes stay within
   its `max-threads` (an integer, or `num-cpus`: the lanes). A lane free and the
@@ -1034,7 +1057,9 @@ announcement's arrival to its result's. Its outcome is one of:
   101 with one failed) after reporting every test fails the last test it ran,
   with its status. A name libtest never announced in a process that ended as
   libtest ends fails as not run by its binary;
-- **cancelled:** running when the run was cancelled (11.7): a known timeout
+- **cancelled:** running when its process was marked cancelled (11.7),
+  whatever libtest reports after: a result read after the mark counts for
+  nothing, and a test announced after it is unobserved. A known timeout
   termination, starved under testing-strategy.md, 8.1, as nextest's cancelled
   tests are (7.3).
 
@@ -1051,10 +1076,14 @@ stopped labels nothing. A starved test is not rerun.
 ### 11.7 Cancellation
 
 The profile's `global-timeout` holds as under nextest, from the first
-process's start: at expiry the lanes start nothing more, send `SIGTERM` to
-each running process's group and, after nextest's 10-second grace, `SIGKILL`.
-Running tests are cancelled, the rest unobserved, and the run is starved. No
-per-test bound is added: one would be a policy, the user's.
+process's start: at expiry the lanes start nothing more and drop the processes
+still waiting, whose tests are unobserved. They mark each process not yet
+reaped cancelled, send `SIGTERM` to its group and, after nextest's 10-second
+grace, `SIGKILL`. Each such process's running test is cancelled and its later
+tests unobserved (11.6); a process reaped before the mark keeps what libtest
+and its exit gave. The lanes end once they have settled the last process, and
+the run is starved. No per-test bound is added: one would be a policy, the
+user's.
 
 `limits`' `wall_hard_s` for the profile holds as `execute` holds it (7.3),
 from the first process's start while a test runs: crossing it prints the
@@ -1064,40 +1093,60 @@ grace, `SIGKILL` goes to every process left in the session. An interruption of
 the process running `run`, or a fault in it, stops the lanes the same way and
 is raised again.
 
+**A forced kill.** A process that this `SIGKILL` left without its final event
+has no record, and `run` invents no rusage for it; the run still finishes,
+starved. Its tests that libtest had reported passed, failed or starved keep
+those outcomes, with no process, as 7.3 keeps an attempt that has its record,
+so that a failure stays red; its running test, the tests after it and a test
+whose outcome rests on its end (crashed, cancelled) are unobserved. Its CPU is
+unknown and in no total: the suite's CPU is the sum over the processes with a
+record, as 10.2 gives it, and so a lower bound, as a nextest run's is without
+its unobserved attempts (7.3). A CPU budget that bound passes is passed; one it
+stays under is unproven, and the run is starved. A process left without its
+final event otherwise, or lanes that exit with a status other than 0 without
+this kill, make an invalid run (`ValueError`).
+
 ### 11.8 The run directory
 
 In the directory `run` made, once it has returned:
 
 - `run.json`: section 10.3's keys (`profile`, `finished`, `starved`, `wall_s`
   from the first process's start to the last one's end or the cancellation's,
-  `returncode`, the lanes' exit status, and `cancel_code`, null) and
+  the forced kill's where one came (11.7), `returncode`, the lanes' exit status
+  as `Popen` gives it, `-9` after a forced kill, and `cancel_code`, null) and
   `mode`, `"one-process"`, and `lanes`, their number;
 - `command-output.txt`: the forwarded output: the listing's, then a status line
   for each test as it ends (`PASS`, `FAIL`, `CRASH`, `STARVED`, `CANCEL`, with
-  its wall time, binary ID and name), each failure's output and its alone
-  diagnostic after its line, and the summary;
+  its wall time, binary ID and name) and each failure's output after its line;
+  for each alone diagnostic that ended, a line,
+  `BINARY_ID NAME: may depend on an earlier test: BEFORE, ...` where it passed
+  and `BINARY_ID NAME: failed alone too` where it did not, then the
+  diagnostic's output where it did not pass; and the summary;
 - `junit.xml` in nextest's shape, so that a caller's JUnit reading holds: a
   `testsuite` for each binary ID, a `testcase` (`name` the test, `classname` the
   binary ID, `time` its wall) for each test that ran; a failed one has a
   `failure` of type `test failure`, a crashed one `test failure` with its exit
   code or `test abort` with `process aborted with signal N (NAME)`, a
-  cancelled one `test abort` with SIGTERM's or SIGKILL's message, as nextest's
-  cancellation gives (7.3); a starved one has none, as nextest gives a starved
-  pass, and every one but a passed one carries its output in `system-out`. An
-  unobserved test has no case;
-- `results.json`, written once after the lanes end: each process (binary ID,
-  kind, its tests in the order they ran, user and system seconds, wall,
-  exit status or signal, leaked) and each test (outcome, wall, its process, the
-  tests before it and its alone result where it failed, its output where it did
-  not pass), the unobserved tests, the selection's count and the cancellation;
-  `summary` reads it;
+  cancelled one `test abort` with the message of the signal that ended its
+  process, SIGTERM's where the process handled SIGTERM and exited with a code,
+  as nextest's cancellation gives (7.3); a starved one has none, as nextest
+  gives a starved pass, and every one but a passed one carries its output in
+  `system-out`. An unobserved test has no case;
+- `results.json`, written once after the lanes end: each process with a record
+  (binary ID, kind, its tests in the order they ran, user and system seconds,
+  wall, exit status or signal, leaked) and each test (outcome, wall, its
+  process, none where a forced kill left that process without a record (11.7),
+  the tests before it and its alone result where it failed, its output where it
+  did not pass), the unobserved tests, the selection's count and the
+  cancellation; `summary` reads it;
 - `plan.json`, the lanes' input, no result; `starved.json` as in 10.3.
 
 **Kept times.** After the lanes end, the mode writes each test's wall time into
 `TARGET/tiers-one-process/times.json` (Cargo's target directory, from the
 listing), by profile, binary ID and test, keeping the entries of tests this
 run did not run: the next run's estimates (11.4). It is the only file the mode
-writes outside the run's directory, and nothing reads it as a result.
+writes outside the run's directory but 11.4's named pipes, which hold nothing,
+and nothing reads it as a result.
 
 ### 11.9 By hand
 
@@ -1120,7 +1169,10 @@ directory, once per suite run, and never reads `target/`; a missing `rustc`
 fails the suite with a clear error. A fake `cargo` among the fixtures answers
 the listing and `cargo metadata` for them, over a fixture checkout's
 `.config/nextest.toml`. Its fixtures cover a crash and the fresh process after
-it, a hang past the global timeout, a starved pass, a failure that passes
-alone, a split binary, test groups and priorities, the environment, the
-refusals and the run directory's files. `test_cpu.py` covers `summary`'s
-reading of a one-process directory and the exit statuses.
+it, a hang past the global timeout with processes still waiting, a test that
+handles `SIGTERM` and reports a result, one that ignores it until the forced
+kill, a starved pass, a failure that passes alone and one that fails alone, a
+split binary, test groups and priorities, the environment, the refusals, the
+caller's filters and configuration, and the run directory's files.
+`test_cpu.py` covers `summary`'s reading of a one-process directory, a forced
+kill's included, and the exit statuses.
