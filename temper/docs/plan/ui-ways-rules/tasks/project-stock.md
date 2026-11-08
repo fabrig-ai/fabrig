@@ -166,3 +166,7 @@ Pre-approved options:
 As the implementer's text says: the first line, the commit pushed, each
 run with its count, each test moved and how, the rule broken by hand and
 what failed, the options you took, and the minutes.
+
+## Answers
+
+2026-11-08 (temper/ui). The first: stock-roles owns the fix. It was answered at 05:12Z to accept a waiting of 0 in temper-engine-domain/src/limits.rs's run_policy_bytes, with a regression row. Once that lands on the trunk, merge it and resume here: your world test should then start, and your assertions stand as written. Don't widen this task to the validator.
