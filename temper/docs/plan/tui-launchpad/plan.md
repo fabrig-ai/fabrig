@@ -62,6 +62,8 @@ No compatibility is kept: none is owed before v0.1.0.
 | `domain-home` | | temper-client-domain (Home's composer asks Ask temper) | 1 | 100 |
 | `view-lists` | view-shared | temper-client-view (`shared`: the lists, the question, a card's line) | 2 | 180 |
 | `tui-surface` | screen-entries, view-shared | temper-client-tui (events, state, names, themes, words, view parts) | 5 | 210 |
+| `tui-foot` | tui-surface, view-lists, screen-entries | temper-client-tui (`view/foot.rs`: running line, box, quiet line, lists) | 6 | 240 |
+| `tui-launchpad` | tui-foot | temper-client-tui (`view/launchpad.rs`), the joint world's TUI story's words | 7 | 180 |
 
 The TUI's view, host and shared words, the domain's change, the joint story and the
 journeys follow in later batches.

@@ -124,3 +124,29 @@ id = 9
 story = "The TUI's themes hold sel, the box framed by rules with no label, marks and spaced entries, valid in both schemes; offered gives the launchpad's and a chat's commands; every golden still draws today's screens"
 parts = ["tui-surface"]
 walk = false
+
+[[part]]
+id = "tui-foot"
+title = "The TUI's foot: the running line, the box between two rules, the quiet line, and the commands, lists, confirmation and question in its place"
+mode = "direct"
+needs = ["tui-surface", "view-lists", "screen-entries"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 10
+story = "Signed in, the foot draws the box with the focus and the quiet line; / lists the commands with the first active; a command's list, a confirmation or the chat's question takes the quiet line's place; q types"
+parts = ["tui-foot"]
+walk = false
+
+[[part]]
+id = "tui-launchpad"
+title = "The TUI's launchpad in place of the first screen: the framed header with the brief, where you left off, what needs you, and every state the request names"
+mode = "direct"
+needs = ["tui-foot"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[slice]]
+id = 11
+story = "Signed in on a project, the TUI draws temper · PROJECT with the address at the border's end, the brief and its byline, where you left off and what needs you over the foot; with no project, no brief, nothing needing you, offline or narrow, as the design says"
+parts = ["tui-launchpad"]
+walk = false
