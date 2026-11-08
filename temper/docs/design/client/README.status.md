@@ -218,8 +218,8 @@ bullet "•"; and a chat's title, cut to 20 characters, its number and the
 place lie in the rule above the box, the top line, `tui-chat-top` and
 `tui-star` gone. View, theme, place, host and golden rows cover each, in
 both schemes and with and without a band. `launchpad-chat` shows the rule
-with its address as the place and lacks its opening question until
-finding-465's repair (`tui/journeys.status.md`, 9). The real-terminal look
+with its address as the place, under the person's opening question
+(`tui/journeys.md`, section 9). The real-terminal look
 of each, "box" among them, is section 11's after-landing check, owned by
 temper/tui.
 
@@ -254,14 +254,51 @@ The focused view test holds a Writing observation before the first answer,
 through provisional words and commitment: the shared running line and the
 browser terminal say "Working", the chat bar says "Writing", and completion
 removes the running line.
-The generated journeys cover the no-project launchpad and Hello through
-a committed fake answer (`tui/journeys.md`, section 9). The newest goal,
-opened call rows, earlier-page loading, Latest, cards at their calls and
-the remaining TUI controls stay in section 11, owned by temper/tui.
+The generated journeys cover the no-project launchpad, Hello through
+a committed fake answer, and the launchpad as drawn with its walk
+(`tui/journeys.md`, section 9). Opened call rows, earlier-page loading,
+Latest, cards at their calls and the remaining TUI controls stay in
+section 11, owned by temper/tui.
 The shared reader still reparses closed blocks; the gap from the user's
 read-once requirement remains section 11's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
+
+Sections 6.13 to 6.15 and 10 have no known implementation gap in the
+launchpad as drawn and views printed (`../draft/surfaces.md`, 11.1,
+11.4 and 11.5, less T2's and T3's parts), by the plan `tui-whole-t1`:
+the TUI's events `Own`, `Open`, `Walk` and `EndWalk`; the header's
+brief sentence, byline and " · /brief", else Home's headline; *Where
+you left off*'s rows, each its project, what it is, when and its state,
+the person's newest goal among them and "/chats N" on a chat's; Needs
+you's rows marked "?", "$", "✓" or "•" by the view's
+`shared::need_prompts`, and "n walks them"; Start's `/change` and
+`/ask`; the box's "Ask for a change, or ask temper.  / for commands"
+and the quiet line's count with "n to walk"; the walk by `n` or
+`/needs`, a question's choices, "Tell it something else" and "Next", a
+sign-off's "Review on FORGE ↗" and another kind's "Open it on the
+web", ending in "Nothing else needs you."; the TUI's own commands in
+the list and in `/help`'s note, `/change WORDS` starting the project's
+chat, `/ask WORDS`, `/brief`'s note, `/chats N`, and `/open` handing
+the opener the page's address alone, else noting it; and a reply's
+`view` blocks printed by `view::printed`, a stop a line after its
+actor's mark, code's stops and a branch's bar four columns in, a way's
+name and line, a proposal's "Before" and "After", a card's terms, a
+`not_drawn`'s words, and asking or failed. The view's `shared` tables,
+the TUI's state, launchpad, foot, commands, printed and limits rows, the
+host's rows, the goldens of the launchpad, the walk and printed views at
+80 by 24, dark and light, and 110 by 32, dark, and the joint world's
+`a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered` and
+`a_change_asked_from_the_launchpad_starts_a_chat` hold them. The walk
+of each screen in a real terminal against its mockup follows landing
+(section 11), owned by temper/tui; where the design departs from the
+mockups is `../draft/surfaces.status.md`.
+
+- **Not yet:** 6.14, *The launchpad*: the blank row between the header
+  and the first section, which its illustration and the mockups draw;
+  the first section stands on the row under the header's frame (the
+  launchpad's goldens and `launchpad-drawn`), as the look request
+  `tui-launchpad`'s build left it (`../draft/tui.status.md`).
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,

@@ -62,21 +62,36 @@ pseudo-terminal; `--no-tui` and a box off a terminal run as before
 for `again` to start the box in the pseudo-terminal
 (`client/tui/journeys.status.md`, 8.3), and its real-terminal check
 follows landing (`client/README.md`, section 11).
+The launchpad as drawn and views printed, the whole story's T1, are
+built by plan `tui-whole-t1`: the brief and `/brief`, Where you left off
+with each row's project and the person's newest goal, Needs you marked
+"?", "$", "✓" or "•" and walked by `n` or `/needs`, Start's `/change` and
+`/ask`, `/chats N`, `/open` through the opener, the quiet line's count,
+and a reply's views printed a stop a line, with goldens at 80 by 24 in
+both themes and at 110 by 32, joint-world stories of a need walked and answered and of
+`/change` starting a chat, and the journey `launchpad-drawn`
+(`client/README.md`, 6.13 to 6.15; `client/tui/journeys.md`, 9). The
+team lines, `/draft`, `/talk` and `/tell` are T2's and T3's, the brief
+and rows across projects wait for Home across them, and the design
+departs from the mockups in "/chats N" and two of Pair's words
+(`draft/surfaces.status.md`, 11); the blank row under the header is not
+yet drawn (`client/README.status.md`, 6.14), and the walk follows
+landing.
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
-`sign-in-approved`'s two frames and `launchpad-chat`'s four frames
-committed: approval to the no-project launchpad, and Hello's launchpad
-through commands and a question to the committed fake answer
-(`client/tui/journeys.md`). The latter catches no growing answer. The
-newest goal, call details, earlier-page loading, cards at their calls
-and the shared reader's read-once gap remain explicit
+`sign-in-approved`'s two frames, `launchpad-chat`'s four and
+`launchpad-drawn`'s seven committed: approval to the no-project
+launchpad, Hello's launchpad through commands and a question to the
+committed fake answer, and a change asked, its goal's question walked
+from the launchpad and answered (`client/tui/journeys.md`).
+`launchpad-chat` catches no growing answer. Call details, earlier-page
+loading, cards at their calls and the shared reader's read-once gap
+remain explicit
 (`client/README.md`, section 11; `draft/chat-reading.status.md`, 3).
-Both journeys use a runtime directory apart from the box's and no
+The three journeys use a runtime directory apart from the box's and no
 COLORFGBG, so they exercise approval and the dark fallback with no band,
 and a chat's place is its address; their pages use the theme's
-stand-ins for terminal-default colours. `launchpad-chat`'s answered chat
-lacks the person's opening question until finding-465's repair
-(`client/tui/journeys.status.md`, 9).
+stand-ins for terminal-default colours.
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
 remains later work (`client/tui/journeys.md`, 3.1 and 11).
@@ -337,10 +352,10 @@ step short of message room loses a foreman's verdict
 (`domain/forge.md`), and the foremen's
 charter is not a setting. A
 project's policy in a change of settings and a revision restored are
-built through ctl, and the domain world's restore stories run but
-one, which, with the joined client world's, stays ignored: a setting
-reset to a default the forge does not report to jig loses its state at
-restart (`protocol/configuration.md`, `client/tools.md`). Ask temper, charter 11 from template 5, configures
+built through ctl, and the domain world's restore stories and the
+joined client world's run, a setting reset to a default the forge does
+not report to jig keeping its state at restart (`protocol/configuration.md`,
+`client/tools.md`). Ask temper, charter 11 from template 5, configures
 through `see`, `document` and the asking `propose_settings`; its reference
 pages are built, but no walk on record has run a real model on its words
 as they stand. No address of `see` reads workers' slots, so it sizes by
@@ -760,7 +775,12 @@ than the test; the six tests that need a person name what in their
 reasons, and the playground's heap at start and the forge's two-change
 hint profile are bound in the focused suite, the heap on figures past a
 quarter above 11-03's (`domain/testing.md`, 2.6, 2.7 and 11;
-`playground.md`, 9). The copy stories' world and the
+`playground.md`, 9). Story A walks in the one-process world, but its
+memory test stays ignored, since skein gives a service world's observer
+no way to keep its storage outside the process's span, and the cluster's
+4.6 process story stays ignored for a fixture that expects models in the
+startup configuration, so ws's drain stands on jig's tests alone
+(`playground.md`, 9; `domain/testing.md`, 2.6 and 5.3). The copy stories' world and the
 issuer's log story depart from the request `walks-lower`, and polling past a
 hook that delivers nothing stands on the forge's world alone
 (`domain/testing.md`, 2.6 and 11; `protocol/setup.md`, 5.6). Reusable listener ports come from
