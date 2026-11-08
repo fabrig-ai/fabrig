@@ -174,9 +174,9 @@ fn card(who: &str, name: &str, facts: &[(&str, &str)]) -> w::Card {
         .expect("stop card")
 }
 fn agent(who: &str, name: &str, can: &str, asked: &str) -> w::Card {
-    // The derivation reserves both quotation marks inside the fact's 128 bytes.
+    // The derivation keeps the sentence whole within 184 bytes, both quotation marks included.
     let asked =
-        bytes::concat(&["“".as_bytes(), bytes::utf8_prefix(asked.as_bytes(), 128 - "“”".len()), "”".as_bytes()]);
+        bytes::concat(&["“".as_bytes(), bytes::utf8_prefix(asked.as_bytes(), 184 - "“”".len()), "”".as_bytes()]);
     card(
         who,
         name,

@@ -307,21 +307,23 @@ fn current_returns_the_first_equal_path_or_none() {
 }
 
 #[test]
-fn sentence_stops_trims_and_cuts_at_a_character_end() {
+fn sentence_stops_trims_and_cuts_at_a_word_end() {
+    let reviewer = "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.";
     let long = "x".repeat(VALUE.checked_sub(1).expect("value bound")) + "érest";
-    let at_bound = "x".repeat(VALUE);
-    let past_bound = "x".repeat(VALUE.checked_add(1).expect("value bound"));
-    for (input, expected) in [
-        (b"  First. Next. ".as_slice(), b"First.".as_slice()),
-        (b" First.\nNext", b"First."),
-        (b"  No stop\n ", b"No stop"),
-        (b"v1.2 stays", b"v1.2 stays"),
-        (b"", b""),
-        (long.as_bytes(), "x".repeat(VALUE.checked_sub(1).expect("value bound")).as_bytes()),
-        (at_bound.as_bytes(), at_bound.as_bytes()),
-        (past_bound.as_bytes(), at_bound.as_bytes()),
+    let word = "x".repeat(200);
+    for (input, bound, expected) in [
+        (b"  First. Next. ".as_slice(), VALUE, b"First.".as_slice()),
+        (b" First.\nNext", VALUE, b"First."),
+        (b"  No stop\n ", VALUE, b"No stop"),
+        (b"v1.2 stays", VALUE, b"v1.2 stays"),
+        (b"", VALUE, b""),
+        (reviewer.as_bytes(), ASKED.checked_sub("“”".len()).expect("quote room"), reviewer.as_bytes()),
+        (reviewer.as_bytes(), 64, "Review the change at the named head: read its pull request,…".as_bytes()),
+        (word.as_bytes(), ASKED, ("x".repeat(181) + "…").as_bytes()),
+        (long.as_bytes(), VALUE, ("x".repeat(125) + "…").as_bytes()),
+        (b"long", 2, b""),
     ] {
-        assert_eq!(first_sentence(input), expected);
+        assert_eq!(first_sentence(input, bound).as_ref(), expected);
     }
 }
 
