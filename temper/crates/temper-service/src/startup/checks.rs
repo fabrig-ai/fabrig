@@ -261,7 +261,13 @@ pub fn webhooks(members: &super::application::Members, problems: &mut Problems) 
     }
 }
 /// Every git rule is checked independently, so one start reports them all.
-pub fn limits(limits: &limits::Limits, git: &limits::GitComponent, problems: &mut Problems) {
+pub fn limits(
+    limits: &limits::Limits,
+    #[cfg(feature = "worker")] git: &limits::GitComponent,
+    #[cfg(not(feature = "worker"))] _: &limits::GitComponent,
+    problems: &mut Problems,
+) {
+    #[cfg(feature = "worker")]
     super::worker::git_limits(limits, git, problems);
     let sign_in = limits.sign_in;
     for (name, value) in [
@@ -424,6 +430,7 @@ pub fn channel(
 }
 
 /// Each sender's credential fits the receiving table and smith's bodies.
+#[cfg(feature = "worker")]
 pub fn grants(engine: &config::Engine, worker: &config::Limits, agent: &settings::Agent, problems: &mut Problems) {
     let credential = crate::values::token_credential_bytes(worker.token);
     if crate::values::credential_bytes(engine) > credential {
@@ -440,6 +447,7 @@ pub fn grants(engine: &config::Engine, worker: &config::Limits, agent: &settings
         problems.push(worker_limit(b"accounts.token"), What::Against { other: b"the agent's credential_value_bytes" });
     }
 }
+#[cfg(feature = "worker")]
 pub(super) fn worker_limit(member: &[u8]) -> Path {
     at(0, Path::root().member(b"workers")).member(b"limits").member(b"overrides").member(member)
 }
@@ -480,7 +488,7 @@ pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
             .member(b"profile")
             .member(b"declared")
             .member(b"tool_payload"),
-        u64::from(agent.tool_payload),
+        u64::from(agent.tool_payload()),
         b"temper's documentation answer (read_docs)",
         Some(u64::from(temper_engine_smith::DOC_ANSWER)),
     );
@@ -499,14 +507,14 @@ pub fn turns(
         forge_result(own_limits.forge.client.op_bytes, engine.core.tasks.result_bytes, problems);
     }
     if let Some(agent) = agent {
-        let turn = u64::from(agent.limits.bodies.turn_body);
+        let turn = u64::from(agent.turn_body());
         if let Some(engine) = engine {
             short(
                 problems,
                 engine_path.member(b"hub.outcome_bytes"),
                 engine.hub.outcome_bytes,
                 b"the agent's outcome (agent.json profile.declared.tool_payload)",
-                Some(agent.host_limits.outcome_bytes),
+                Some(agent.outcome_bytes()),
             );
             short(
                 problems,
@@ -545,7 +553,7 @@ pub fn turns(
                 path.member(b"hub.outcome_bytes"),
                 worker.limits.hub.outcome_bytes,
                 b"the agent's outcome (agent.json profile.declared.tool_payload)",
-                Some(agent.host_limits.outcome_bytes),
+                Some(agent.outcome_bytes()),
             );
             short(
                 problems,
@@ -577,6 +585,7 @@ pub fn turns(
         }
     }
 }
+#[cfg(feature = "worker")]
 pub use super::worker::worker;
 /// The landing rules' limits, one of which a refused rule breaks.
 const LANDING: &[u8] =
@@ -712,7 +721,7 @@ pub fn root(
 /// Endpoint names, and every charter model, agree with the agent.
 pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Problems) {
     for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
-        let agrees = agent.endpoints.resolve(&endpoint.name).is_some();
+        let agrees = agent.resolves_endpoint(&endpoint.name);
         if !agrees {
             problems.push(at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")), What::Agent);
         }
@@ -720,7 +729,7 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
     for (index, provider) in engine.llm.providers.iter().enumerate() {
         for (offered, name) in provider.programs.iter().enumerate() {
             let mut declared = false;
-            for program in &agent.programs {
+            for program in agent.programs() {
                 declared |= program.adapter.name() == name.as_ref();
             }
             if !declared {
@@ -743,9 +752,9 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
         else {
             continue;
         };
-        model(&charter.policy.model, &agent.bounds, path.member(b"model"), problems);
+        model(&charter.policy.model, agent.bounds(), path.member(b"model"), problems);
         for (index, alternative) in charter.policy.alternatives.iter().enumerate() {
-            model(alternative, &agent.bounds, at(index, path.member(b"alternatives")), problems);
+            model(alternative, agent.bounds(), at(index, path.member(b"alternatives")), problems);
         }
     }
 }
@@ -767,7 +776,7 @@ pub fn admission(
 ) {
     use fleet::AgentShortfall;
     let needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
-    let bounds = agent.bounds.clone();
+    let bounds = agent.bounds().clone();
     let Some(why) = fleet::shortfall(&needs, &bounds, fleet::HostKind::Worker) else { return };
     let engine_path = Path::root().member(b"engine");
     let path = match why {

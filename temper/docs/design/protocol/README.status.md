@@ -59,10 +59,6 @@ deferred failure accounting.
 The deployment's binaries (4.1 and 4.2), from `../draft/deployment-binaries.md`,
 are designed and not yet built:
 
-- **Not yet:** 4.1, 5: `temper-service` has no `worker` feature: the
-  worker's half is always built, and nothing refuses a worker's
-  document in a build without it.
-
 - **Not yet:** 4.1, 5: `temper-engine-shell`, the forge's commands:
   they are `crates/temper`'s (`forge.rs`, `forge_sign_in.rs`,
   `setup.rs`), and no row is a constant two tables share.

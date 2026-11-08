@@ -1,19 +1,13 @@
 //! Worker construction and compatibility checks (protocol/README.md, 7 and 15.1).
 use super::checks::{against, at, own, short, worker_limit};
-use super::{CallAnswer, Problems, Shape, What, application, call_input_path, checks, indexed, member, problem, shape};
+use super::{
+    CallAnswer, NamedWorker, Problems, Shape, What, application, call_input_path, checks, indexed, member, problem,
+    shape,
+};
 use crate::{Service, Worker, WorkerRuntime, limits, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, read};
 use temper_worker_domain as worker_domain;
-
-#[derive(Debug)]
-pub struct NamedWorker {
-    pub root: Box<[u8]>,
-    pub agent: Box<[u8]>,
-}
-pub(super) fn named(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
-    NamedWorker { root: own.root.clone(), agent: worker.agent.configuration.clone() }
-}
 
 pub(super) fn checked(
     workers: Box<[config::Worker]>,

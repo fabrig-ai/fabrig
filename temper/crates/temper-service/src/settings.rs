@@ -141,6 +141,9 @@ pub struct Program {
     pub path: Box<[u8]>,
     pub directory: Box<[u8]>,
 }
+#[cfg(not(feature = "worker"))]
+pub use crate::unbuilt::Agent;
+#[cfg(feature = "worker")]
 pub use crate::worker_settings::Agent;
 
 /// A worker's settings: jig's part and temper's (protocol/configuration.md,

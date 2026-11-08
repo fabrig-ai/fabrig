@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 temper-protocol-records = { workspace = true, features = ["forge"] }
 temper-protocol-store.workspace = true
-temper-service.workspace = true
+temper-service = { workspace = true, features = ["worker"] }
 jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true
 jig-domain-core.workspace = true
