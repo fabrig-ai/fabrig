@@ -1332,6 +1332,15 @@ pub const NAMES: Names<'static> = Names {
         b"temper-need-tell",
         b"temper-needs-head",
         b"temper-chip",
+        b"temper-need-card",
+        b"temper-need-from",
+        b"temper-need-acts",
+        b"temper-need-more",
+        b"temper-chip-good",
+        b"temper-chip-signal",
+        b"temper-decided-head",
+        b"temper-home-phone",
+        b"temper-home-wide",
     ],
     regions: &[b"temper-link"],
 };
@@ -1764,6 +1773,17 @@ pub const NEED_ROW: Style = Style { owner: owner(), token: 658 };
 pub const NEED_TELL: Style = Style { owner: owner(), token: 659 };
 pub const NEEDS_HEAD: Style = Style { owner: owner(), token: 660 };
 pub const CHIP: Style = Style { owner: owner(), token: 661 };
+
+/// Home on All projects and its phone form (client/README.md, 3.5).
+pub const NEED_CARD: Style = Style { owner: owner(), token: 662 };
+pub const NEED_FROM: Style = Style { owner: owner(), token: 663 };
+pub const NEED_ACTS: Style = Style { owner: owner(), token: 664 };
+pub const NEED_MORE: Style = Style { owner: owner(), token: 665 };
+pub const CHIP_GOOD: Style = Style { owner: owner(), token: 666 };
+pub const CHIP_SIGNAL: Style = Style { owner: owner(), token: 667 };
+pub const DECIDED_HEAD: Style = Style { owner: owner(), token: 668 };
+pub const HOME_PHONE: Style = Style { owner: owner(), token: 669 };
+pub const HOME_WIDE: Style = Style { owner: owner(), token: 670 };
 
 #[cfg(test)]
 mod tests {
