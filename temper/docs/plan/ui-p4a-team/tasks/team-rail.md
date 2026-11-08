@@ -153,3 +153,10 @@ yet (`origin/main` 30f6c3e70d has no `pages/rail.rs`). Don't build on
 unlanded work. Rerun only once ui-p1-rail has landed and this trunk has taken
 main; then do the base check again first, as the Goal says, and go on if it
 passes.
+
+2026-11-08. *Run team-rail-3 again found no `pages/rail.rs` on its base: what
+now?* Same answer: the stop was right; change nothing. At 19:36Z `origin/main`
+(2220ad96a1) still has no `pages/rail.rs`, so ui-p1-rail hasn't landed. Wait
+for it to land and for this trunk to take main. Then do the base check first and
+go on only if it passes; until then each run ends with the same `Failed:` line,
+and that is not a question.
