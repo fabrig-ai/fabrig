@@ -187,7 +187,7 @@ Ask temper chat's draft offer regardless of kind 7, drafts on for a
 fresh project, or Goals in the bar while `Domain::has_goals` holds. The
 draft offer follows the first message and retains its document and end
 conditions. The view tables cover the draft offer and its act in both shells, and Goals in
-the rail and phone tab bar while To begin keeps Home's Chats section.
+the rail and phone tab bar once To begin is gone.
 Stored drafts-off values still govern other chats. The fake-model journey
 is `chat-draft`; the after-landing check is section 11's later work.
 

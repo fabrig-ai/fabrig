@@ -649,6 +649,8 @@ pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
 pub const RAIL_NEW_ALL: Style = Style { owner: owner(), token: 437 };
 /// The rail's status, settings and person.
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
+/// The browser’s night switch (temper/docs/design/client/README.md, 5.3).
+pub const NIGHT_SWITCH: Style = Style { owner: owner(), token: 608 };
 /// The browser's phone navigation.
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
 /// Forge status in the welcome's column (client/README.md, 3.5).
@@ -1290,6 +1292,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-approve-asked",
         b"temper-approve-acts",
         b"temper-approve-primary",
+        b"temper-night-switch",
     ],
     regions: &[b"temper-link"],
 };

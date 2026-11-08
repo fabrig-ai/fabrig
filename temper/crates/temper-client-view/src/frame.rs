@@ -608,6 +608,7 @@ pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: 
 
 /// The rail (temper/docs/design/client/README.md, 5.3).
 #[expect(clippy::too_many_arguments, reason = "the rail carries page-owned forge facts beside its frame bindings")]
+#[expect(clippy::too_many_lines, reason = "one rail keeps its navigation, foot and browser night switch in order")]
 pub(crate) fn rail(
     b: &mut Builder,
     root: &Domain,
@@ -644,39 +645,42 @@ pub(crate) fn rail(
     }
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project, shown(root, project), false);
+    let beginning = temper_client_domain::pages::home::beginning(root, project, times.now);
+    entries(b, root, w, bindings, project, shown(root, project), false, beginning);
     b.close();
-    b.open(Role::Slot);
-    b.style(crate::look::RAIL_NEW);
-    crate::link(
-        b,
-        &w.say(Word::NewChat, &[]),
-        bindings.insert(PageAct::Go { address: Address::NewChat { draft: false } }),
-    );
-    w.text(b, Word::NewChatLink, &[]);
-    b.close();
-    b.open(Role::Menu);
-    b.name(&w.say(Word::RailNewMenu, &[]));
-    for (name, description, draft) in [
-        (Word::RailNewChat, Word::RailNewChatDescription, false),
-        (Word::RailNewGoal, Word::RailNewGoalDescription, true),
-    ] {
-        if draft && !temper_client_domain::pages::drafts_offered(root, project) {
-            continue;
+    if !beginning {
+        b.open(Role::Slot);
+        b.style(crate::look::RAIL_NEW);
+        crate::link(
+            b,
+            &w.say(Word::NewChat, &[]),
+            bindings.insert(PageAct::Go { address: Address::NewChat { draft: false } }),
+        );
+        w.text(b, Word::NewChatLink, &[]);
+        b.close();
+        b.open(Role::Menu);
+        b.name(&w.say(Word::RailNewMenu, &[]));
+        for (name, description, draft) in [
+            (Word::RailNewChat, Word::RailNewChatDescription, false),
+            (Word::RailNewGoal, Word::RailNewGoalDescription, true),
+        ] {
+            if draft && !temper_client_domain::pages::drafts_offered(root, project) {
+                continue;
+            }
+            b.open(Role::MenuItem);
+            b.name(&w.say(name, &[]));
+            b.description(&w.say(description, &[]));
+            b.bind(bindings.insert(PageAct::Go { address: Address::NewChat { draft } }));
+            b.close();
         }
         b.open(Role::MenuItem);
-        b.name(&w.say(name, &[]));
-        b.description(&w.say(description, &[]));
-        b.bind(bindings.insert(PageAct::Go { address: Address::NewChat { draft } }));
+        b.style(crate::look::RAIL_NEW_ALL);
+        b.name(&w.say(Word::RailNewAll, &[]));
+        b.bind(bindings.insert(PageAct::Go { address: Address::Settings { project } }));
+        b.close();
+        b.close();
         b.close();
     }
-    b.open(Role::MenuItem);
-    b.style(crate::look::RAIL_NEW_ALL);
-    b.name(&w.say(Word::RailNewAll, &[]));
-    b.bind(bindings.insert(PageAct::Go { address: Address::Settings { project } }));
-    b.close();
-    b.close();
-    b.close();
     b.open(Role::Slot);
     b.style(crate::look::RAIL_FOOT);
     if root.forge().playground_running() && !root.forge().leaving() {
@@ -711,6 +715,16 @@ pub(crate) fn rail(
         text(b, Role::Alert, &w.say(Word::SignOutLost, &[]), None);
     }
     b.close();
+    if w.shell == Shell::Browser {
+        b.open(Role::Button);
+        b.style(crate::look::NIGHT_SWITCH);
+        b.name(&w.say(Word::NightMode, &[]));
+        if root.pages().look().night {
+            b.state(skein_ui::State::Pressed);
+        }
+        b.bind(bindings.insert(PageAct::Terminal(temper_client_domain::pages::terminal::Act::Night)));
+        b.close();
+    }
     b.close();
 }
 
@@ -791,12 +805,20 @@ fn away(
 }
 
 /// A phone's tab bar, the browser's alone (temper/docs/design/client/README.md, 5.3).
-pub(crate) fn tabbar(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings, project: u32) {
+pub(crate) fn tabbar(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    wall: skein_lib::Wall,
+) {
+    let beginning = temper_client_domain::pages::home::beginning(root, project, wall);
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
     b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) }, true);
-    if !goals_shown(root, project) {
+    entries(b, root, w, bindings, project, Shown { changes: false, ..shown(root, project) }, true, beginning);
+    if beginning || !goals_shown(root, project) {
         settings_link(b, root, w, bindings, project);
     }
     b.close();
@@ -857,6 +879,7 @@ fn shown(root: &Domain, project: u32) -> Shown {
     } || root.pages().address() == &(Address::Changes { project });
     Shown { home, inbox, chats, changes }
 }
+#[expect(clippy::too_many_arguments, reason = "navigation receives its shell and To begin filter independently")]
 fn entries(
     b: &mut Builder,
     root: &Domain,
@@ -865,6 +888,7 @@ fn entries(
     project: u32,
     shown: Shown,
     tab: bool,
+    beginning: bool,
 ) {
     use crate::words::Word;
     let Shown { home, inbox, chats, changes } = shown;
@@ -876,58 +900,60 @@ fn entries(
         home,
         bindings,
     );
-    let count = root.pages().needs().count(root.client(), root.forge().approvals(), project);
-    let name = if count.count == 0 {
-        w.say(Word::NeedsYou, &[])
-    } else {
-        w.say(
-            if count.cut { Word::NeedsYouCountCut } else { Word::NeedsYouCount },
-            &[skein_ui::phrases::Hole::Number(u64::from(count.count))],
-        )
-    };
-    crate::link(
-        b,
-        &name,
-        bindings.insert(PageAct::Go {
-            address: Address::Inbox {
-                filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None },
-            },
-        }),
-    );
-    if inbox {
-        b.state(skein_ui::State::Current);
-    }
-    if count.count == 0 {
-        b.text(Run::Plain, &name);
-    } else {
-        let number = skein_lib::Decimal::of(u64::from(count.count));
-        let suffix = number.as_bytes().len().checked_add(usize::from(count.cut)).expect("count suffix fits");
-        let prefix = name.len().checked_sub(suffix).expect("count is the phrase suffix");
-        b.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
-        b.open(Role::Text);
-        b.style(crate::look::NAV_COUNT);
-        b.run(Run::Plain, name.get(prefix..).expect("count suffix fits"));
+    if !beginning {
+        let count = root.pages().needs().count(root.client(), root.forge().approvals(), project);
+        let name = if count.count == 0 {
+            w.say(Word::NeedsYou, &[])
+        } else {
+            w.say(
+                if count.cut { Word::NeedsYouCountCut } else { Word::NeedsYouCount },
+                &[skein_ui::phrases::Hole::Number(u64::from(count.count))],
+            )
+        };
+        crate::link(
+            b,
+            &name,
+            bindings.insert(PageAct::Go {
+                address: Address::Inbox {
+                    filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None },
+                },
+            }),
+        );
+        if inbox {
+            b.state(skein_ui::State::Current);
+        }
+        if count.count == 0 {
+            b.text(Run::Plain, &name);
+        } else {
+            let number = skein_lib::Decimal::of(u64::from(count.count));
+            let suffix = number.as_bytes().len().checked_add(usize::from(count.cut)).expect("count suffix fits");
+            let prefix = name.len().checked_sub(suffix).expect("count is the phrase suffix");
+            b.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
+            b.open(Role::Text);
+            b.style(crate::look::NAV_COUNT);
+            b.run(Run::Plain, name.get(prefix..).expect("count suffix fits"));
+            b.close();
+        }
         b.close();
-    }
-    b.close();
-    if goals_shown(root, project) {
+        if goals_shown(root, project) {
+            action(
+                b,
+                Role::Link,
+                &w.say(Word::Goals, &[]),
+                PageAct::Go { address: Address::Goals { project, filter: GoalsFilter::All } },
+                goals_current(root),
+                bindings,
+            );
+        }
         action(
             b,
             Role::Link,
-            &w.say(Word::Goals, &[]),
-            PageAct::Go { address: Address::Goals { project, filter: GoalsFilter::All } },
-            goals_current(root),
+            &w.say(Word::Chats, &[]),
+            PageAct::Go { address: Address::Chats { filter: ChatsFilter::All } },
+            chats,
             bindings,
         );
     }
-    action(
-        b,
-        Role::Link,
-        &w.say(Word::Chats, &[]),
-        PageAct::Go { address: Address::Chats { filter: ChatsFilter::All } },
-        chats,
-        bindings,
-    );
     if let Some(me) = root.pages().me(root.client())
         && jig_client::shapes::template(me, project, temper_client_domain::pages::chats::ASKING_TEMPLATE).is_some()
     {
@@ -939,7 +965,7 @@ fn entries(
         }
         b.close();
     }
-    if changes {
+    if changes && !beginning {
         action(
             b,
             Role::Link,
