@@ -155,6 +155,7 @@ fn configured() -> [Configured; 2] {
 }
 fn adopted() -> Repository {
     Repository {
+        workflows: Box::default(),
         project: 5,
         home: true,
         provider: REPO,

@@ -11,6 +11,7 @@ publish.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+skein-heap.workspace = true
 skein-rows.workspace = true
 
 [lints]
