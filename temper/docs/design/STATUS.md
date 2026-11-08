@@ -88,7 +88,12 @@ landing. The remaining reads, views and preferences belong to M2 to M4
 Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;
-`client/journeys.md`, section 10).
+`client/journeys.md`, section 10). On a phone, Ask temper's composer and
+model picker stand above its three tabs by a selector browsers accept,
+and the five first-run Ask gallery states draw To begin's restricted rail
+and tabs; the history story's phone row has no supplied passing run, and
+the gallery's tests exceed their 1 CPU s budget until a cost repair
+(`client/browser.status.md`, 2.5 and 7.3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
 landing (`client/journeys.md`, section 10).

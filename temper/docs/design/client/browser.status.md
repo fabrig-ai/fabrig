@@ -4,8 +4,7 @@
 
 - **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
-  2.909 CPU s on the pristine base and 2.644 CPU s with the first-run Ask
-  repair. The inherited overrun lies in `each_state_holds_what_its_name_says`
+  2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`
   and `print_writes_every_page_and_the_bundle`. A gallery cost repair owns
   finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
   8.1, question 2); only if that fails do measurements go to the user.
@@ -18,14 +17,21 @@ root overrides them. Embedded images and the independent terminal
 palettes retain the literals permitted by the token task. No known
 implementation gap remains in these rules. Shadows keep their day
 colour tokens at night; the night ring tokens retain their own values.
-Ask temper keeps its three equal phone tabs,
+Ask temper keeps its three equal phone tabs, its composer and model
+picker raised above them by a selector browsers accept (2.5, *A selector
+a browser accepts*: neither stylesheet nests `:has()` in `:has()`),
 and the switch stays at the folded rail's foot or a phone chat bar's
 right, with the folded rail open or closed. The `home-begin-*` states
 cover two steps and the cut navigation; `home-begin-with-needs` and
 `home-begin-settings-left` draw neither Needs you nor Chats under
-To begin. No known implementation gap remains in these repairs.
-The existing history story has
-the night reload row, compiled but not run; it adds no test function.
+To begin. `ask-first-run`, `ask-typing`, `ask-sending`, `ask-refused`
+and `night-ask`, on `ask-first-run`, have To begin unfinished with its
+way of working left, so they draw the rail's Home and Ask temper alone
+and the phone's three tabs. No known implementation gap remains in
+these repairs. The existing history story has the night reload row and
+story 11's phone Ask row (4.6), which compares the composer's and
+picker's boxes with the tabs' top at 420 px; neither adds a test
+function, and no passing run of either is supplied here.
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
 system preference and night placeholder separate.
 
