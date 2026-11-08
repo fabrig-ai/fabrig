@@ -133,3 +133,15 @@ Acceptance, as `temper/docs/design/client/README.md`, 6.14, *A chat* says, every
 
 As the implementer's text says; each row's failure seen; the golden lines that differ
 from 03 and 04, and why.
+
+## Rebase (2026-11-08, step merge, foreman tui-launchpad/tui-chat/foreman-1)
+
+reconcile the duplicated foot commits and preserve both branches’ status updates.
+The merge conflicts in `temper/crates/temper-client-tui/src/view/foot.rs`, `src/view/foot/notes.rs` (add/add), and `temper/docs/design/client/README.status.md`.
+The integration branch carries foot commits `d73256fd3e` and `89e207ef35`; this branch imported their equivalents `0329779575` and `b032c00fad`, then removed temporary lint expectations in `abec6c49be`.
+Resolve `foot.rs` and `foot/notes.rs` with the shared implementation and this branch’s removal of the three future-consumer expectations: the notes re-export’s `unused_imports`, and `read_notes`/`draw_notes`’s `dead_code`.
+`chat::read` and `chat::draw` now consume those functions; the plan’s `notes/common.md` requires removing those expectations when consumed. No further foot behavior change is needed.
+Resolve `README.status.md` by retaining integration’s unrelated updates and its removal of the 6.13/6.16 host gap, retaining both sides’ removal of the foot/commands gap, and applying this task’s deletion of the chat/question gap.
+Keep the launchpad and joint-world gaps.
+Preserve integration’s newer sign-in focus assertion in the automatically merged `src/tests/screens.rs`; retain this task’s chat golden changes.
+After rebasing, run the prescribed focused chat/shared checks and clippy through heavy.
