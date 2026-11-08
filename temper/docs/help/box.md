@@ -18,7 +18,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 - **Host delivery checks:** `.temper/pre-pr` tools inherit the
   box process's `PATH` captured at startup: the box unit's `PATH` in a
   service. Install tools there before step 2.
-  For fabrig, install `cargo` with rustfmt (`cargo fmt`) and `python3`.
+  For fabrig: `cargo`, rustfmt (`cargo fmt` and `rustfmt`), `python3`.
   Kit PATH: `W/bin:/usr/local/bin:/usr/bin:/bin`.
   Unit example:
   `PATH=/home/box/.cargo/bin:W/bin:/usr/local/bin:/usr/bin:/bin`;
