@@ -6097,6 +6097,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "temper-client-protocol-wire",
+ "temper-protocol-reaches",
 ]
 
 [[package]]

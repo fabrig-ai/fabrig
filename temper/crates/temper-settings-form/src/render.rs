@@ -24,11 +24,12 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(number));
             return;
         }
-        c::Setting::Application { kind: 6 | 7, scope, .. } => {
-            out.put(if let c::Setting::Application { kind: 6, .. } = setting {
-                b"project-questions "
-            } else {
-                b"project-ways "
+        c::Setting::Application { kind: kind @ 6..=8, scope, .. } => {
+            out.put(match kind {
+                6 => b"project-questions ",
+                7 => b"project-ways ",
+                8 => b"project-classes ",
+                _ => unreachable!("project kind selected"),
             });
             out.number(u64::from(scope));
             return;
@@ -54,7 +55,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
 /// Mark a project's fallback value when its inventory has no explicit change.
 pub fn stock_text(value: &c::ReadValue, out: &mut Text) {
     if let c::ReadValue::Setting(document) = value
-        && let c::Setting::Application { kind: 6 | 7, .. } = document.setting
+        && let c::Setting::Application { kind: 6..=8, .. } = document.setting
     {
         let stock = match &document.application {
             None => true,
@@ -82,16 +83,17 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 3 => out.string(b"forge-charter"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
+                8 => out.string(b"project-classes"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2 || kind == 6 || kind == 7 {
+            if kind == 2 || kind == 6 || kind == 7 || kind == 8 {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
             } else if kind != 1 && kind != 3 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 {
+            if kind != 6 && kind != 7 && kind != 8 {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }
