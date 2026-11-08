@@ -33,6 +33,35 @@ fn a_given_secret_signs_in_as_the_first_link_and_no_link_is_said() {
     finish_given_sign_in(&mut peer, &local);
 }
 #[test]
+fn a_given_local_secret_signs_in_as_the_first_local_link_and_no_local_link_is_said() {
+    let settings = Settings { local_secret: Some(Secret::new(Box::new([8; 32]))), ..given_settings() };
+    let local = fixtures::printed(settings.local_secret.as_ref().expect("given local link"));
+    let printed = given_link();
+    let mut peer = Peer::started(&settings);
+    assert_eq!(peer.local_link_count(), 0);
+    assert_eq!(peer.link_count(), 0);
+    let answer = finish_given_sign_in(&mut peer, &local);
+    assert_eq!(answer.party(), fixtures::FIRST_PERSON);
+    assert_eq!(peer.local_link_count(), 1);
+    let next = peer.local_link();
+    assert!(next != local && next != printed, "the next local link differs from both given links");
+    finish_given_sign_in(&mut peer, &printed);
+    let exchange = peer.post_link(&local);
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkUsed);
+    assert_eq!(peer.link_count(), 0, "a used local link never prints");
+    peer.advance_time(fixtures::limits().link_span);
+    peer.restart(&settings);
+    peer.advance_time(before_link_expiry());
+    peer.post_link(&local);
+    let to = pending_reply(&mut peer);
+    peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::NotReady));
+    peer.advance_time(Duration::from_nanos(1));
+    let exchange = peer.post_link(&local);
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkExpired);
+    assert!(peer.take_core().is_none());
+    assert_eq!(peer.local_link_count(), 2, "the expired local link is replaced");
+}
+#[test]
 fn a_given_secret_spent_draws_a_fresh_link() {
     let mut peer = Peer::started(&given_settings());
     let link = given_link();
@@ -82,24 +111,46 @@ fn a_given_secret_answered_not_ready_is_not_spent() {
 }
 #[test]
 fn a_given_secret_of_another_length_is_refused_at_start() {
-    for length in [0, LINK_SECRET_BYTES - 1, LINK_SECRET_BYTES + 1] {
-        let settings =
-            Settings { link_secret: Some(Secret::new(vec![9; length].into_boxed_slice())), ..fixtures::settings() };
+    for (length, local, equal, expected) in [
+        (0, false, false, Unusable::LinkSecret),
+        (LINK_SECRET_BYTES - 1, false, false, Unusable::LinkSecret),
+        (LINK_SECRET_BYTES + 1, false, false, Unusable::LinkSecret),
+        (0, true, false, Unusable::LocalSecret),
+        (LINK_SECRET_BYTES - 1, true, false, Unusable::LocalSecret),
+        (LINK_SECRET_BYTES + 1, true, false, Unusable::LocalSecret),
+        (LINK_SECRET_BYTES, true, true, Unusable::LocalSecret),
+    ] {
+        let secret = Some(Secret::new(vec![9; length].into_boxed_slice()));
+        let settings = Settings {
+            link_secret: if local { given_settings().link_secret } else { secret.clone() },
+            local_secret: if local { secret } else { None },
+            ..fixtures::settings()
+        };
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::limits() };
         let mut out = Queue::uncapped();
-        assert_eq!(Component::new(settings, &env, &mut out).err(), Some(Unusable::LinkSecret));
+        assert_eq!(
+            Component::new(settings, &env, &mut out).err(),
+            Some(expected),
+            "length {length}, local {local}, equal {equal}"
+        );
         assert!(out.is_empty());
     }
 }
 #[test]
 fn a_given_secret_without_the_printed_link_is_no_link() {
-    let settings = Settings { link: None, ..given_settings() };
+    let settings = Settings { link: None, local_secret: Some(Secret::new(Box::new([8; 32]))), ..given_settings() };
     let mut peer = Peer::started(&settings);
     let exchange = peer.post_link(&given_link());
+    assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
+    let local = fixtures::printed(settings.local_secret.as_ref().expect("given local link"));
+    let exchange = peer.post_link(&local);
     assert_eq!(decoded(&peer, exchange), w::SignInAnswer::Refused);
     assert!(peer.take_core().is_none());
     assert_eq!(peer.link_count(), 0);
     assert_eq!(peer.local_link_count(), 0);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::limits() };
+    let component = Component::new(settings, &env, &mut Queue::uncapped()).expect("disabled links");
+    assert_eq!(component.next_deadline(), None, "disabled links have no live secret");
 }
 fn peer() -> Peer {
     Peer::started(&fixtures::settings())
@@ -129,7 +180,8 @@ fn a_spent_link_is_used_and_a_fresh_one_printed() {
     complete_sign_in(&mut peer);
     let exchange = peer.post_link(&link);
     assert_eq!(decoded(&peer, exchange), w::SignInAnswer::LinkUsed);
-    assert_ne!(peer.printed_link(), link);
+    assert!(peer.printed_link() != link, "the replacement printed link differs");
+    assert_eq!(peer.link_signed_in_count(), 1, "a used link says nothing more");
 }
 #[test]
 fn a_link_answered_not_ready_is_not_spent() {
@@ -217,6 +269,7 @@ fn a_mint_for_an_application_provider_signs_in_as_the_link_does() {
     assert_eq!(u64::from_be_bytes(credential.expose()[..8].try_into().expect("number")), fixtures::FIRST_SIGN_IN);
     assert_eq!(expires, fixtures::expires());
     assert_eq!(credential.expose().len(), 40);
+    assert_eq!(peer.link_signed_in_count(), 0, "a mint never says the printed link signed in");
 }
 fn assert_mint_refused(identity: jig_domain_people::Identity, why: MintRefusal) {
     let mut peer = peer();
@@ -271,6 +324,8 @@ fn a_live_credential_keeps_the_sign_in_without_minting_and_spends_the_link() {
     let first = complete_sign_in(&mut peer);
     let bearer = bearer(first.token().as_ref().expect("credential").expose());
     let link = fresh_link(&mut peer);
+    let count = peer.link_signed_in_count();
+    assert_eq!(count, 1);
     let exchange = peer.post(b"/jig/v1/sign-in/link", peer.link_body(&link), Some(&bearer));
     let Some(jig_domain_core::Event::SignIn { reply_to, identity, held }) = peer.take_core() else { panic!("sign-in") };
     assert_eq!(held, Some(fixtures::FIRST_SIGN_IN));
@@ -288,6 +343,7 @@ fn a_live_credential_keeps_the_sign_in_without_minting_and_spends_the_link() {
     assert_eq!((answer.party(), answer.expires()), (first.party(), first.expires()));
     assert_eq!(peer.digest_kept(), None);
     assert!(peer.has_digest(fixtures::FIRST_SIGN_IN));
+    assert_eq!(peer.link_signed_in_count(), count + 1, "a kept printed sign-in is said once");
     assert_ne!(fresh_link(&mut peer), link);
 }
 
@@ -702,12 +758,14 @@ fn the_printed_and_the_local_link_each_sign_in_once_and_leave_the_other() {
         let local = peer.local_link();
         assert!(printed != local, "the links differ");
         let mut locals = vec![local.clone()];
+        assert_eq!(peer.link_signed_in_count(), 0);
         if case == "crossing" {
             let exchange = peer.post_link(&printed);
             let to = pending_reply(&mut peer);
             let retry = peer.post_link(&printed);
             assert_eq!(decoded(&peer, retry), w::SignInAnswer::Busy);
             finish_given_sign_in(&mut peer, &local);
+            assert_eq!(peer.link_signed_in_count(), 0);
             peer.answer_request(
                 to,
                 jig_domain_people::Reply::SignedIn {
@@ -716,15 +774,18 @@ fn the_printed_and_the_local_link_each_sign_in_once_and_leave_the_other() {
                     expires: fixtures::expires(),
                 },
             );
+            assert_eq!(peer.link_signed_in_count(), 1);
             peer.answer_kept(fixtures::FIRST_SIGN_IN + 1);
             assert_eq!(peer.sign_in_answer(exchange).party(), fixtures::FIRST_PERSON);
         } else {
             let (first, second) = if case == "printed first" { (&printed, &local) } else { (&local, &printed) };
             let local_count = peer.local_link_count();
             finish_given_sign_in(&mut peer, first);
+            assert_eq!(peer.link_signed_in_count(), usize::from(case == "printed first"));
             assert_eq!(peer.local_link_count(), local_count + usize::from(case == "local first"));
             let local_count = peer.local_link_count();
             finish_given_sign_in(&mut peer, second);
+            assert_eq!(peer.link_signed_in_count(), 1);
             assert_eq!(peer.local_link_count(), local_count + usize::from(case == "printed first"));
         }
         assert_eq!(peer.link_count(), 1, "spending either link never prints");
@@ -734,6 +795,7 @@ fn the_printed_and_the_local_link_each_sign_in_once_and_leave_the_other() {
         locals.push(next.clone());
         finish_given_sign_in(&mut peer, &next);
         locals.push(peer.local_link());
+        assert_eq!(peer.link_signed_in_count(), 1, "local sign-ins say nothing");
         assert_eq!(peer.link_count(), 1);
         for link in [&printed, &local] {
             let exchange = peer.post_link(link);

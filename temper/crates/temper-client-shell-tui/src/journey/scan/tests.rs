@@ -3,7 +3,7 @@ use crate::{
     host::Report,
     journey::{
         Sent,
-        redact::tests::{World, written},
+        redact::tests::{World, printed_link, written},
     },
 };
 use skein_ui_screen::Size;
@@ -106,9 +106,14 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
             failures.push("invalid browse query admitted".to_owned());
         }
     }
+    sign_in_fields(&key, &mut failures);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn sign_in_fields(key: &[u8], failures: &mut Vec<String>) {
     // A wire-refused sign-in body is no original: a matching shape remains a refusal.
     for message in [Sent::SignInApproval, Sent::SignInLink] {
-        let records = [Line::Send { exchange: 1, message: message(key.clone().into()), credential: None }];
+        let records = [Line::Send { exchange: 1, message: message(key.into()), credential: None }];
         let originals = crate::journey::originals(&records, &[]);
         if !originals.sought().is_empty()
             || scan(&written(&records), &originals).expect("shape in refused body").is_none()
@@ -116,5 +121,16 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
             failures.push("wire-refused body hidden".to_owned());
         }
     }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    let source = Line::BoxLine([b"link ".as_slice(), &printed_link()].concat().into());
+    let originals = crate::journey::originals(&[source], &[]);
+    for (name, field) in [
+        ("box-line printed link", Line::BoxLine([b"log ".as_slice(), &printed_link()].concat().into())),
+        ("box-line raw secret", Line::Signed(Box::new([0; 32]))),
+        ("box-line decimal secret", Line::Signed(format!("[{}]", ["65"; 43].join(", ")).into_bytes().into())),
+    ] {
+        let expected = Found { line: 1, record: field.kind(), place: Place::Field, what: What::Original };
+        if scan(&written(&[field]), &originals).ok().flatten() != Some(expected) {
+            failures.push(format!("{name}: original not refused in {} field", expected.record));
+        }
+    }
 }

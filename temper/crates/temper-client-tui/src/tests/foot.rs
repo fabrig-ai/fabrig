@@ -65,7 +65,14 @@ pub(super) fn template(number: u32) -> c::Template {
     clippy::too_many_lines,
     reason = "one fixture supplies the chat owner and its draft through their public events"
 )]
-fn root_state(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool, state: TaskState) -> Domain {
+pub(super) fn root_state(
+    project: bool,
+    picker: bool,
+    chat: bool,
+    delegate: bool,
+    draft: bool,
+    state: TaskState,
+) -> Domain {
     let mut me = f::me(if project { &[b"Demo"] } else { &[] });
     if let Some(project) = me.projects.get_mut(0) {
         project.templates = List::from_boxed(Box::new([template(1), template(5)]));
@@ -219,7 +226,7 @@ fn root_state(project: bool, picker: bool, chat: bool, delegate: bool, draft: bo
 }
 
 #[derive(Clone, Copy)]
-enum TaskState {
+pub(super) enum TaskState {
     Idle,
     Ended,
     Result,
@@ -283,7 +290,7 @@ fn draw(part: foot::Foot) -> crate::View {
         view::Body::Chat(view::chat::Chat {
             to_end: 0,
             entries: Box::default(),
-            notes: foot::Notes { lines: Box::default() },
+            notes: foot::read_notes(&root, &Tui::new(f::ADDRESS), &f::words()),
         })
     } else {
         view::Body::Launchpad(view::launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW))
@@ -629,6 +636,7 @@ fn quiet_states() {
         }
         assert_eq!(children, 2, "{name}");
     }
+    front_quiet(&root, &words);
     let no_picker = root_state(true, false, false, false, false, TaskState::Idle);
     assert_eq!(
         foot::read(&no_picker, &tui, &words, f::NOW).closed.is_some(),
@@ -774,11 +782,44 @@ fn question_states() {
         }
         assert_eq!(crate::escape(&view), Some(TuiEvent::Aside { object: c::ObjectKey::Task(9) }));
     }
+    for (count, prefix, head) in [
+        (0, "", "Stop the box?"),
+        (1, "/", "Stop the box? csv-export's running task stops with it."),
+        (2, "", "Stop the box? 2 running tasks stop with it."),
+    ] {
+        let mut rows = List::with_capacity(2);
+        for task in 0..count {
+            rows.push(super::front::working(9_u64.checked_add(task).unwrap(), b"csv-export", task)).unwrap();
+        }
+        let mut root = super::launchpad::home(None, rows.as_slice());
+        act(&mut root, d::pages::Act::ChatWords { words: prefix.as_bytes().into() });
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Front);
+        tui.step(Told::Quitting);
+        let part = foot::read(&root, &tui, &words, f::NOW);
+        let list = part.list.as_ref().expect("quit question stands before every other list");
+        assert_eq!(list.head.as_deref(), Some(head.as_bytes()));
+        assert_eq!(list.escape, TuiEvent::Stay);
+        let view = draw(part);
+        for (name, event) in [(b"1. Stop the box".as_slice(), TuiEvent::Stop), (b"2. Don't quit", TuiEvent::Stay)] {
+            let item = f::find(view.tree(), Role::MenuItem, name);
+            assert_eq!(item.styles.as_slice(), &[look::OPTION]);
+            assert_eq!(crate::event(&view, item.id, Act::Press), Some(event));
+        }
+        assert_eq!(crate::escape(&view), Some(TuiEvent::Stay));
+        let size = skein_ui_screen::Size { columns: 80, rows: 24 };
+        let mut focus = skein_ui_screen::Focus::default();
+        let mut frame = skein_ui_screen::Frame::new(size);
+        skein_ui_screen::render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut focus, &mut frame);
+        assert_eq!(focus.active, Some(f::find(view.tree(), Role::MenuItem, b"1. Stop the box").id));
+    }
+    quit_priority();
     assert!(foot::lists::question_list(question(Some(1), false), Some(c::ObjectKey::Task(9)), &words).is_none());
     assert!(foot::lists::question_list(question(Some(1), false), Some(c::ObjectKey::Task(10)), &words).is_some());
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions filter the rendered note paragraphs")]
 fn note_states() {
+    front_notes();
     let mut root = root(true, true, false, false, false);
     let words = f::words();
     let mut tui = Tui::new(f::ADDRESS);
@@ -817,6 +858,21 @@ fn note_states() {
         assert_eq!(node.styles.as_slice(), &[look::NOTE]);
         assert_eq!(f::text(render.tree(), node).as_ref(), want.as_bytes());
     }
+    tui.step(Told::Front);
+    let notes = foot::read_notes(&root, &tui, &words);
+    let mut log = None;
+    let mut exit = None;
+    for (index, line) in notes.lines.iter().enumerate() {
+        if line.as_ref() == b"/log     The box's recent log" {
+            log = Some(index);
+        }
+        if line.as_ref() == b"/exit    Close temper and stop the box" {
+            exit = Some(index);
+        }
+    }
+    assert_eq!(log, Some(6));
+    assert_eq!(exit, Some(7));
+    assert!(notes.lines.iter().any(|line| line.as_ref() == b"Ctrl+C closes temper and stops the box"));
 }
 
 #[test]
@@ -912,4 +968,235 @@ fn the_launchpad_effort_list_changes_homes_choice() {
     let me = root.pages().me(root.client()).unwrap();
     assert_eq!(root.pages().choice().chosen(me).unwrap().main.effort.as_ref().unwrap().bytes(), b"low");
     assert!(root.pages().chat().is_none());
+}
+
+#[expect(clippy::disallowed_methods, reason = "note rows inspect their semantic log and paragraphs")]
+#[expect(clippy::disallowed_types, reason = "note assertions collect the log paragraphs")]
+fn front_notes() {
+    // Section 6.17's log-line boundary and an overlong incoming line.
+    const LOG_BYTES: usize = 512;
+    const LONG_LINE: usize = 600;
+    type Lines = Box<[Box<[u8]>]>;
+    type NoteCase = (&'static str, bool, bool, bool, Lines, Lines);
+    let root = root(true, true, false, false, false);
+    let words = f::words();
+    let rows: [NoteCase; 7] = [
+        (
+            "three lines",
+            true,
+            true,
+            false,
+            Box::new([b"one".as_slice().into(), b"two".as_slice().into(), b"three".as_slice().into()]),
+            Box::new([b"one".as_slice().into(), b"two".as_slice().into(), b"three".as_slice().into()]),
+        ),
+        ("empty", true, true, false, Box::default(), Box::new([b"Nothing yet.".as_slice().into()])),
+        ("cut", true, true, false, Box::new([Box::new([b'x'; LONG_LINE])]), Box::new([Box::new([b'x'; LOG_BYTES])])),
+        (
+            "invalid UTF-8",
+            true,
+            true,
+            false,
+            Box::new([Box::from(*b"bad \xff line")]),
+            Box::new(["bad � line".as_bytes().into()]),
+        ),
+        (
+            "UTF-8 boundary",
+            true,
+            true,
+            false,
+            Box::new([skein_lib::bytes::concat(&[&[b'x'; 511], "界".as_bytes()])]),
+            Box::new([Box::new([b'x'; 511])]),
+        ),
+        ("given up", true, false, true, Box::default(), Box::default()),
+        ("out of front", false, true, false, Box::new([b"hidden".as_slice().into()]), Box::default()),
+    ];
+    for (name, front, log, gave_up, lines, expected) in rows {
+        let mut tui = Tui::new(f::ADDRESS);
+        if front {
+            tui.step(Told::Front);
+        }
+        for line in lines {
+            tui.step(Told::BoxLine { line: crate::BoxLine::Log { line } });
+        }
+        if log {
+            tui.step(Told::Log);
+        }
+        if gave_up {
+            tui.step(Told::BoxLine { line: crate::BoxLine::GaveUp { step: b"forgejo-3".as_slice().into() } });
+        }
+        let notes = foot::read_notes(&root, &tui, &words);
+        let bounds = crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap();
+        let mut render = skein_ui::View::new(&bounds);
+        let mut b = render.builder();
+        b.open(Role::Page);
+        foot::draw_notes(&mut b, &notes, &words);
+        b.close();
+        render.finish(b, 1, &mut Queue::uncapped());
+        let tree = render.tree();
+        let log = tree.nodes().iter().find(|node| node.role == Role::Log);
+        assert_eq!(log.is_some(), front && !expected.is_empty(), "{name}");
+        if let Some(log) = log {
+            assert_eq!(log.end_request, Some(tui.revision()));
+            assert!(has(tree, look::HEAD, b"/log"));
+            let start = f::index(tree, log.id);
+            let end = start.checked_add(usize::try_from(log.size).unwrap()).unwrap();
+            let paragraphs: Vec<_> =
+                tree.nodes()[start..end].iter().filter(|node| node.role == Role::Paragraph).collect();
+            assert_eq!(paragraphs.len(), expected.len(), "{name}");
+            for (node, expected) in paragraphs.iter().zip(expected) {
+                assert_eq!(f::text(tree, node).len(), expected.len(), "{name}: bounded line");
+                assert_eq!(f::text(tree, node), expected, "{name}");
+                assert_eq!(node.styles.as_slice(), &[look::NOTE]);
+            }
+        }
+        assert_eq!(
+            has(tree, look::REFUSED, b"The box gave up: forgejo-3. /log shows why; Ctrl+C closes."),
+            gave_up,
+            "{name}"
+        );
+    }
+}
+
+fn quit_priority() {
+    #[derive(Debug)]
+    enum Standing {
+        Commands,
+        Models,
+        Confirmation,
+        Question,
+    }
+    for standing in [Standing::Commands, Standing::Models, Standing::Confirmation, Standing::Question] {
+        let mut root = match standing {
+            Standing::Commands | Standing::Models => root(true, true, false, false, false),
+            Standing::Confirmation => root(true, true, true, false, false),
+            Standing::Question => super::launchpad::question_root(),
+        };
+        match standing {
+            Standing::Commands => act(&mut root, d::pages::Act::ChatWords { words: b"/".as_slice().into() }),
+            Standing::Models => {
+                act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Model }));
+            }
+            Standing::Confirmation => {
+                act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Close }));
+            }
+            Standing::Question => {}
+        }
+        let words = f::words();
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Front);
+        let before = foot::read(&root, &tui, &words, f::NOW);
+        assert!(before.list.is_some(), "the other list stands before quitting: {standing:?}");
+        tui.step(Told::Quitting);
+        let part = foot::read(&root, &tui, &words, f::NOW);
+        let list = part.list.as_ref().unwrap();
+        assert_eq!(list.escape, TuiEvent::Stay);
+        assert_eq!(list.items[0].event, TuiEvent::Stop);
+        assert_eq!(list.items[1].event, TuiEvent::Stay);
+    }
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "quiet-line rows find the bottom paragraph and make UTF-8 boundary inputs"
+)]
+fn front_quiet(root: &Domain, words: &crate::words::Words) {
+    // The design's step boundary and the first scalar that crosses it.
+    const STEP_BYTES: usize = 64;
+    const PAST_STEP: usize = 65;
+    type StepCase = (Box<[u8]>, Box<[u8]>);
+    for (name, step, playground, count, columns, expected, closed) in [
+        ("restarting", Some(false), false, 0, 0, "/ for commands · forgejo-3 restarting", true),
+        ("gave up", Some(true), false, 0, 0, "/ for commands · forgejo-3 gave up", true),
+        ("playground", None, true, 0, 0, "/ for commands · playground", true),
+        (
+            "restarting with needs",
+            Some(false),
+            false,
+            1,
+            0,
+            "/ for commands · forgejo-3 restarting · 1 needs you",
+            true,
+        ),
+        ("gave up with needs", Some(true), false, 1, 0, "/ for commands · forgejo-3 gave up · 1 needs you", true),
+        ("playground with needs", None, true, 1, 0, "/ for commands · playground · 1 needs you", true),
+        (
+            "all in order",
+            Some(false),
+            true,
+            1,
+            0,
+            "/ for commands · forgejo-3 restarting · playground · 1 needs you",
+            true,
+        ),
+        ("narrow with state", Some(false), false, 0, 65, "/ for commands · forgejo-3 restarting", false),
+    ] {
+        let root = super::launchpad::home_read(
+            None,
+            &[],
+            false,
+            if playground { Some((Some(1), temper_client_protocol_wire::v1::PlaygroundState::Running)) } else { None },
+        );
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Front);
+        if let Some(gave_up) = step {
+            tui.step(Told::BoxLine {
+                line: if gave_up {
+                    crate::BoxLine::GaveUp { step: b"forgejo-3".as_slice().into() }
+                } else {
+                    crate::BoxLine::Restarting { step: b"forgejo-3".as_slice().into() }
+                },
+            });
+        }
+        let mut part = foot::read(&root, &tui, words, f::NOW);
+        part.needs = d::pages::needs::Count { count, cut: false };
+        part.columns = columns;
+        part.closed = Some("Claude Opus 5.5 · high".as_bytes().into());
+        let view = draw(part);
+        let bottom = view.tree().nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+        let paragraph = &view.tree().nodes()[f::index(view.tree(), bottom.id).checked_add(1).unwrap()];
+        assert_eq!(f::text(view.tree(), paragraph).as_ref(), expected.as_bytes(), "{name}");
+        assert_eq!(has(view.tree(), look::HINT, "Claude Opus 5.5 · high".as_bytes()), closed, "{name}");
+        if let Some(gave_up) = step {
+            assert!(
+                has(
+                    view.tree(),
+                    if gave_up { look::DOWN } else { look::SIGNAL },
+                    if gave_up { b"forgejo-3 gave up" } else { b"forgejo-3 restarting" }
+                ),
+                "{name}"
+            );
+        }
+    }
+    let steps: [StepCase; 4] = [
+        (Box::new([b'x'; STEP_BYTES]), Box::new([b'x'; STEP_BYTES])),
+        (Box::new([b'x'; PAST_STEP]), Box::new([b'x'; STEP_BYTES])),
+        ("界".repeat(22).as_bytes().into(), "界".repeat(21).as_bytes().into()),
+        (Box::from(*b"bad \xff"), "bad �".as_bytes().into()),
+    ];
+    for (raw, expected) in steps {
+        for gave_up in [false, true] {
+            let mut tui = Tui::new(f::ADDRESS);
+            tui.step(Told::Front);
+            tui.step(Told::BoxLine {
+                line: if gave_up {
+                    crate::BoxLine::GaveUp { step: raw.clone() }
+                } else {
+                    crate::BoxLine::Restarting { step: raw.clone() }
+                },
+            });
+            let part = foot::read(root, &tui, words, f::NOW);
+            let (state, style) = part.box_state.unwrap();
+            assert_eq!(
+                state,
+                skein_lib::bytes::concat(&[&expected, if gave_up { b" gave up" } else { b" restarting" }])
+            );
+            assert_eq!(style, if gave_up { look::DOWN } else { look::SIGNAL });
+            if gave_up {
+                assert_eq!(
+                    foot::read_notes(root, &tui, words).gave_up.unwrap(),
+                    skein_lib::bytes::concat(&[b"The box gave up: ", &expected, b". /log shows why; Ctrl+C closes."])
+                );
+            }
+        }
+    }
 }

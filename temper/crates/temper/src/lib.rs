@@ -56,6 +56,7 @@ pub mod open;
 mod program_login;
 pub use temper_engine_shell::setup;
 mod tui;
+mod tui_front;
 mod worker_alone;
 mod worker_half;
 use json::CONFIG_BYTES;
@@ -68,12 +69,13 @@ pub enum Command {
     Usage(&'static commands::Row),
     Init { directories: Directories, boxed: bool },
     Serve { directories: Directories, boxed: bool },
-    Box { directories: Directories, echo: temper_box::host::Echo },
-    BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo },
+    Box { directories: Directories, echo: temper_box::host::Echo, no_tui: bool },
+    BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo, no_tui: bool },
     ProgramLogin { directories: Directories, name: OsString },
     Agent { configuration: PathBuf },
     AgentList { configuration: PathBuf },
     Tui { address: Option<Box<[u8]>> },
+    TuiFront { address: Box<[u8]> },
     Open { arguments: Vec<OsString> },
     Ctl { arguments: Vec<OsString> },
     Help { request: help::Request },
@@ -150,6 +152,12 @@ fn configure_row(
                 _ => Err(invalid()),
             };
         }
+        ["internal", "tui"] => {
+            return match arguments {
+                [flag, address] if flag.as_ref() == b"--box" => Ok(Command::TuiFront { address: address.clone() }),
+                _ => Err(invalid()),
+            };
+        }
         ["forge", _] | ["internal", "forge-child"] => {
             return temper_engine_shell::forge::configure(row, arguments, environment, working).map(|command| {
                 match command {
@@ -165,6 +173,15 @@ fn configure_row(
         _ => {}
     }
     let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
+    let no_tui = row.words == ["box"] && rest.iter().any(|word| word.as_ref() == b"--no-tui");
+    let rest = if no_tui {
+        if rest.iter().filter(|word| word.as_ref() == b"--no-tui").count() != 1 {
+            return Err(invalid());
+        }
+        rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--no-tui").collect()
+    } else {
+        rest
+    };
     let (echo, rest) = if row.words == ["box"] {
         if rest.iter().any(|word| word.as_ref() == b"--fake-backends") {
             let (echo, _) = box_command::echo(&[], environment)?;
@@ -181,10 +198,10 @@ fn configure_row(
         ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
         ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false }),
         ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
-        ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo }),
+        ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo, no_tui }),
         ["box"] => {
             let bundle = fake_backends::configure(&rest, working)?;
-            Ok(Command::BoxFakeBackends { directories, bundle, echo })
+            Ok(Command::BoxFakeBackends { directories, bundle, echo, no_tui })
         }
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         _ => Err(invalid()),
@@ -201,11 +218,12 @@ pub fn run(command: Command) -> Result<u8, String> {
             return init::run(&directories, boxed).map_err(|why| prefixed("temper init", &why));
         }
         Command::Serve { directories, boxed } => serve::run("temper", &directories, boxed, Some(&worker_half::Half))?,
-        Command::BoxFakeBackends { directories, bundle, echo } => {
-            fake_backends::run(&directories, bundle.as_deref(), echo).map_err(|why| prefixed("temper box", &why))?
+        Command::BoxFakeBackends { directories, bundle, echo, no_tui } => {
+            fake_backends::run(&directories, bundle.as_deref(), echo, no_tui)
+                .map_err(|why| prefixed("temper box", &why))?
         }
-        Command::Box { directories, echo } => {
-            box_command::run(&directories, echo).map_err(|why| prefixed("temper box", &why))?
+        Command::Box { directories, echo, no_tui } => {
+            box_command::run(&directories, echo, no_tui).map_err(|why| prefixed("temper box", &why))?
         }
         Command::Agent { configuration } => agent::decoded(&configuration)
             .inspect_err(|why| {
@@ -249,6 +267,7 @@ pub fn run(command: Command) -> Result<u8, String> {
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
         Command::Tui { address } => return Ok(tui::run(address, &Clock::new())),
+        Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(match exit {

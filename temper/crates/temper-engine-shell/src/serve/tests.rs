@@ -82,21 +82,27 @@ fn a_boxed_serve_reads_none_or_a_whole_secret() {
     use temper_service::clients::LINK_SECRET_BYTES;
 
     let mut empty = Cursor::new([]);
-    assert!(super::given_secret(&mut empty).expect("empty input").is_none());
+    let (printed, local) = super::given_secret(&mut empty).expect("empty input");
+    assert!(printed.is_none() && local.is_none());
     let bytes = [23; LINK_SECRET_BYTES];
     let mut whole = Cursor::new(bytes);
-    let secret = super::given_secret(&mut whole).expect("whole secret").expect("given secret");
-    assert!(secret.expose() == bytes, "the secret is taken whole");
-    for length in [LINK_SECRET_BYTES - 1, LINK_SECRET_BYTES + 1] {
+    let (printed, local) = super::given_secret(&mut whole).expect("whole secret");
+    assert!(printed.expect("given secret").expose() == bytes, "the secret is taken whole");
+    assert!(local.is_none());
+    let mut both = Cursor::new([vec![23; LINK_SECRET_BYTES], vec![37; LINK_SECRET_BYTES]].concat());
+    let (printed, local) = super::given_secret(&mut both).expect("both given secrets");
+    assert!(printed.expect("printed secret").expose() == bytes, "the printed secret comes first");
+    assert!(local.expect("local secret").expose() == [37; LINK_SECRET_BYTES], "the local secret comes second");
+    for length in [LINK_SECRET_BYTES - 1, LINK_SECRET_BYTES + 1, 63, 65] {
         let mut input = Cursor::new(vec![23; length]);
         assert_eq!(
             super::given_secret(&mut input).expect_err("partial or oversized secret"),
             "--box: stdin: expected the first link's secret"
         );
     }
-    let mut oversized = Cursor::new(vec![23; LINK_SECRET_BYTES * 2]);
+    let mut oversized = Cursor::new(vec![23; LINK_SECRET_BYTES * 3]);
     assert!(super::given_secret(&mut oversized).is_err(), "oversized input is refused");
-    assert_eq!(oversized.position(), u64::try_from(LINK_SECRET_BYTES + 1).expect("small bound"));
+    assert_eq!(oversized.position(), 65);
 }
 
 #[test]

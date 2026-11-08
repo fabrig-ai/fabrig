@@ -175,7 +175,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap()),
+                bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
             },
         },
     )
@@ -552,7 +552,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).unwrap()),
+                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).unwrap()),
             },
         },
     );
@@ -1213,4 +1213,56 @@ fn ready_creates_while_the_declared_accounts_host_check_is_out() {
         }
     }
     assert!(making, "Ready creates while the check is out");
+}
+
+#[test]
+fn signed_in_reads_linked_the_decision_and_me() {
+    for (row, linked, facts, kept, model, project, expected) in [
+        ("nothing in", None, false, false, false, false, false),
+        ("linked alone", Some(true), false, false, false, false, true),
+        ("empty store", Some(false), true, false, false, false, false),
+        ("kept unconnected forge", Some(false), true, true, false, false, true),
+        ("project alone", Some(false), false, false, false, true, true),
+        ("restarted with model", Some(false), true, false, true, false, true),
+        ("whole store", Some(false), true, true, true, true, true),
+    ] {
+        let (mut root, me, accounts, watch) = opened(true, Step::Welcome);
+        let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
+        if !project {
+            frame.projects = List::with_capacity(0);
+        }
+        deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+        if facts {
+            answer(&mut root, false);
+            account(&mut root, accounts, 18, model);
+        }
+        if let Some(linked) = linked {
+            let modes: &[w::Mode] = if kept { &[w::Mode::Connected] } else { &[] };
+            let mut record = crate::tests::forges::forges_document(modes, linked);
+            if project && kept && model {
+                let mut parts = wire::decode_forges(&record.bytes, &w::CEILINGS).unwrap().into_parts();
+                let mut forge = parts.forges.get(0).unwrap().clone().into_parts();
+                forge.connection = w::Connection::Connected(
+                    w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"bot".as_slice().into() })
+                        .unwrap(),
+                );
+                *parts.forges.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, forge).unwrap();
+                record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, parts).unwrap());
+            }
+            up(&mut root, Up::FamilyDelivered { watch: watch.unwrap(), record });
+        }
+        if facts {
+            let expected_decision = if kept && model && project {
+                FirstRun::Whole
+            } else if kept || model {
+                FirstRun::Unfinished { step: Step::Forge { forge: None } }
+            } else {
+                FirstRun::Empty
+            };
+            assert_eq!(pages::welcome::decision(&root), Some(expected_decision), "{row}");
+        } else {
+            assert_eq!(pages::welcome::decision(&root), None, "{row}");
+        }
+        assert_eq!(pages::welcome::signed_in(&root), expected, "{row}");
+    }
 }

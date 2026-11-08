@@ -206,7 +206,7 @@ pub fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_with_limits(binary, worker, directories, bytes, owned, false, None, &service::stock::Given::Stock)
+    prepare_with_limits(binary, worker, directories, bytes, owned, false, None, None, &service::stock::Given::Stock)
         .map(|(service, store, _)| (service, store))
 }
 #[expect(
@@ -222,6 +222,7 @@ fn prepare_with_limits(
     owned: &mut Vec<Fd>,
     under_box: bool,
     link_secret: Option<Secret>,
+    local_secret: Option<Secret>,
     given: &service::stock::Given,
 ) -> Result<(service::Service, Box<[u8]>, u32), String> {
     if worker.is_none()
@@ -304,7 +305,7 @@ fn prepare_with_limits(
         &directories.jig(),
         &files,
         agent.as_ref(),
-        &Seeds { deployment, installation, seed, crypto, link_secret },
+        &Seeds { deployment, installation, seed, crypto, link_secret, local_secret },
         Some(accounts),
         runtime,
         forges,
@@ -375,6 +376,7 @@ fn operations_in_mode(
         &mut owned,
         boxed,
         None,
+        None,
         &service::stock::Given::Stock,
     )
     .map(|(service, _, _)| service.operations());
@@ -403,7 +405,7 @@ pub fn prepare_in_with(
 ) -> Result<service::Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
-    let result = prepare_with_limits(binary, worker, directories, &bytes, &mut owned, false, None, given)
+    let result = prepare_with_limits(binary, worker, directories, &bytes, &mut owned, false, None, None, given)
         .map(|(service, _, _)| service);
     if result.is_err() {
         close(owned);
@@ -420,7 +422,7 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_with_limits(binary, worker, directories, config, &mut owned, false, None, given)
+    let result = prepare_with_limits(binary, worker, directories, config, &mut owned, false, None, None, given)
         .map(|(service, _, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
@@ -445,19 +447,23 @@ fn box_refusal(why: service::system::BoxRefusal) -> String {
     };
     format!("--box: {words}")
 }
-/// The first link's secret on a boxed serve's standard input (protocol/setup.md, 7.1).
-fn given_secret(input: &mut impl std::io::Read) -> Result<Option<skein_lib::Secret>, String> {
+/// The first links' secrets on a boxed serve's standard input (protocol/setup.md, 7.1).
+fn given_secret(input: &mut impl std::io::Read) -> Result<(Option<Secret>, Option<Secret>), String> {
     use std::io::Read;
-    let limit = service::clients::LINK_SECRET_BYTES.checked_add(1).expect("small secret bound");
+    let both = service::clients::LINK_SECRET_BYTES.checked_mul(2).expect("two secrets");
+    let limit = both.checked_add(1).expect("small secret bound");
     let mut bytes = Vec::with_capacity(limit);
     input
         .take(u64::try_from(limit).expect("small secret bound"))
         .read_to_end(&mut bytes)
         .map_err(|_| "--box: stdin: expected the first link's secret".to_string())?;
     if bytes.is_empty() {
-        Ok(None)
+        Ok((None, None))
     } else if bytes.len() == service::clients::LINK_SECRET_BYTES {
-        Ok(Some(Secret::new(bytes.into_boxed_slice())))
+        Ok((Some(Secret::new(bytes.into_boxed_slice())), None))
+    } else if bytes.len() == both {
+        let local = bytes.split_off(service::clients::LINK_SECRET_BYTES);
+        Ok((Some(Secret::new(bytes.into_boxed_slice())), Some(Secret::new(local.into_boxed_slice()))))
     } else {
         Err("--box: stdin: expected the first link's secret".into())
     }
@@ -491,7 +497,7 @@ fn run_inner(
             }
         }
     }
-    let link_secret = if boxed { given_secret(&mut std::io::stdin().lock())? } else { None };
+    let (link_secret, local_secret) = if boxed { given_secret(&mut std::io::stdin().lock())? } else { (None, None) };
     let bytes = directories.read()?;
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let prepared = prepare_with_limits(
@@ -502,6 +508,7 @@ fn run_inner(
         &mut owned,
         boxed,
         link_secret,
+        local_secret,
         &service::stock::Given::Stock,
     );
     let (mut service, store, line_bytes) = match prepared {
