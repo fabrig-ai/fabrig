@@ -888,8 +888,8 @@ and `connect-forge.html`.
   own run (`tools.md`, 5.5). GitHub’s row holds its App and accepted
   installations; it makes no first repository or project. Its reachable
   repositories are the sheet’s picker (`README.md`, 4.4).
-- **Elsewhere:** the banner's navigation's "Forges", `Settings`'
-  "Forges" and the rail's "Settings"
+- **Elsewhere:** the banner's navigation's "Forges", Deployment's tab
+  "Forges" and the rail's "Deployment"
   carry a dot, amber while a forge sets up or connects, red
   while one needs the person: set up failed, stopped, or not connected
   with a reason (`README.md`, 5.3). The dot's words, the entry's state
