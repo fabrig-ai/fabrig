@@ -2171,6 +2171,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal .temper-terminal-details .temper-settings-proposal-items { color: var(--dim); }
 
 /* ==== ui: needs ==== */
+#app :is(.temper-needs, .temper-home) .temper-ask > .temper-why { font-size: 14px; color: var(--gf-ink-2); margin-top: -8px; }
 #app > .temper-needs > section:has(> .temper-decided) > .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #app > .temper-needs > section:has(> .temper-decided) > .temper-home-head > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
 #app .temper-decision-allowed { font-size: 13.5px; color: var(--gf-muted); }

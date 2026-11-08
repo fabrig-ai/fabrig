@@ -37,9 +37,10 @@ fn fixture_title(
     filter: d::address::Filter,
     title: Option<&[u8]>,
 ) -> d::Domain {
-    fixture_watched(words, cut, count, more, filter, title).0
+    let (mut root, _, decided) = fixture_watched(words, cut, count, more, filter, title);
+    deliver_asked(&mut root, decided, None);
+    root
 }
-#[expect(clippy::too_many_lines, reason = "the fixture captures page watches and answers its requested cards")]
 fn fixture_watched(
     words: &str,
     cut: bool,
@@ -48,7 +49,32 @@ fn fixture_watched(
     filter: d::address::Filter,
     title: Option<&[u8]>,
 ) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
-    let (mut root, _, _, standing) = f::root_at_with_needs(Address::Settings { project: f::PROJECT }, &limits());
+    fixture_classes(words, cut, count, more, filter, title, None)
+}
+#[expect(clippy::too_many_lines, reason = "the fixture delivers independent question and class documents")]
+fn fixture_classes(
+    words: &str,
+    cut: bool,
+    count: u32,
+    more: bool,
+    filter: d::address::Filter,
+    title: Option<&[u8]>,
+    classes: Option<&temper_protocol_reaches::Classes>,
+) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
+    let (mut root, _, _, _, _, _, _, standing, _) = f::root_at_with_classes(
+        Address::Settings { project: f::PROJECT },
+        &limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        Some(d::forge::ways::Ways::STOCK),
+        classes.is_none(),
+        true,
+        classes,
+    );
+    let standing = standing.unwrap();
     let watch = standing;
     let mut opening = Queue::uncapped();
     event(&mut root, Event::Went { place: d::Place::Address(Address::Inbox { filter }) }, &mut opening);
@@ -159,6 +185,47 @@ fn fixture_watched(
     }
     assert!(root.pages().inbox().unwrap().delivered(root.client()));
     (root, watch, decided.unwrap())
+}
+fn deliver_asked(root: &mut d::Domain, watch: skein_lib::Token, reach: Option<temper_protocol_reaches::Reach>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut asked = List::with_capacity(1);
+    if let Some(reach) = reach {
+        asked
+            .push(
+                w::Asked::new(
+                    &w::CEILINGS,
+                    w::AskedParts {
+                        number: 1,
+                        task: f::INBOX_TASK,
+                        at: 0,
+                        reach: temper_protocol_reaches::reach_record(&reach),
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    let document = w::Decisions::new(
+        &w::CEILINGS,
+        w::DecisionsParts { project: f::PROJECT, rows: List::with_capacity(0), asked, cut: false },
+    )
+    .unwrap();
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::decisions(&document),
+                    },
+                },
+            },
+        },
+        &mut Queue::uncapped(),
+    );
 }
 fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -301,6 +368,7 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             look::FLOW_HEAD,
             look::ASK_META,
             look::FLOW_Q,
+            look::WHY,
             look::ASK_CONTEXT,
             look::ASK_SAW,
             look::ASK_CHOICES,
@@ -356,6 +424,7 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
 }
 #[test]
 fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_rec() {
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
     for (words, primary, rec) in [
         ("Where?\nChoice: First\nChoice: Second", b"First".as_slice(), false),
         ("Where?\nChoice: First\nChoice: Second (recommended)", b"Second".as_slice(), true),
@@ -364,6 +433,71 @@ fn first_choice_is_primary_when_none_recommends_and_only_recommendations_have_re
         let view = f::browser_page_view(&root);
         assert_eq!(styled(&view, look::RECOMMENDED).name.as_deref(), Some(primary));
         assert_eq!(main(&view).iter().any(|n| n.styles.as_slice().contains(&look::REC)), rec);
+    }
+    let classes = Classes {
+        items: Box::new([Item {
+            subject: Subject::Kind(Kind::Implementation),
+            words: b"small repairs".as_slice().into(),
+            class: Class::Ask,
+        }]),
+        sets: Box::new([PathSet {
+            number: 1,
+            name: b"the protocol core".as_slice().into(),
+            patterns: Box::new([b"src/**".as_slice().into()]),
+        }]),
+    };
+    let base = Reach {
+        kind: Kind::Implementation,
+        class: Class::Ask,
+        reason: Reason::Kind,
+        under: 0,
+        sets: 0,
+        matched: 0,
+        away: false,
+    };
+    let mut cases = Vec::new();
+    for (kind, clause) in [
+        (Kind::Wording, "it is a wording choice"),
+        (Kind::Retry, "it retries or splits a failing task"),
+        (Kind::Implementation, "it is an implementation choice"),
+        (Kind::Tests, "it changes only tests"),
+        (Kind::Dependency, "it adds a dependency"),
+        (Kind::Departure, "it departs from a landed design"),
+        (Kind::Money, "it spends money past a budget"),
+        (Kind::Irreversible, "it can’t be undone"),
+        (Kind::Rules, "it changes what reaches you"),
+        (Kind::Other, "no kind of decision names it"),
+    ] {
+        for (class, words) in [
+            (Class::Ask, "asks you unless you’re away"),
+            (Class::AskAway, "asks you, even when away"),
+            (Class::Wait, "always waits for you"),
+        ] {
+            let mut expected = String::from("Reached you because ");
+            expected.push_str(clause);
+            expected.push_str(", which ");
+            expected.push_str(words);
+            expected.push('.');
+            cases.push((Reach { kind, class, ..base }, true, expected));
+        }
+    }
+    cases.extend([
+        (Reach { reason: Reason::Set(1), ..base }, true, "Reached you because it changes the protocol core, which asks you unless you’re away.".into()),
+        (Reach { reason: Reason::Set(1), ..base }, false, "Reached you because it changes one of Shop’s path sets, which asks you unless you’re away.".into()),
+        (Reach { under: 1, ..base }, true, "Reached you because it is an implementation choice under “small repairs”, which asks you unless you’re away.".into()),
+        (Reach { reason: Reason::Always, ..base }, true, "Reached you because its goal always asks you.".into()),
+    ]);
+    for (reach, read, expected) in cases {
+        let filter = if read {
+            d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL }
+        } else {
+            d::address::Filter::ALL
+        };
+        let (mut root, _, watch) =
+            fixture_classes(QUESTION, false, 1, false, filter, None, if read { Some(&classes) } else { None });
+        deliver_asked(&mut root, watch, Some(reach));
+        let view = f::browser_page_view(&root);
+        assert_eq!(styled(&view, look::WHY).name.as_deref(), Some(expected.as_bytes()), "{reach:?}");
     }
 }
 #[test]
@@ -596,7 +730,13 @@ fn empty_column_until_delivered_and_terminal_keeps_its_list() {
     let pending = f::inbox_root();
     let view = f::browser_page_view(&pending);
     assert_eq!(main(&view).len(), 1);
-    let root = root();
+    let (mut root, _, decided) = fixture_watched(QUESTION, false, 1, false, d::address::Filter::ALL, None);
+    assert_eq!(main(&f::browser_page_view(&root)).len(), 1);
+    let terminal = f::page_view(&root);
+    assert!(has(&terminal, b"Fix the dropped watch"));
+    assert!(!has(&terminal, b"Reached you because"));
+    deliver_asked(&mut root, decided, None);
+    assert!(has(&f::browser_page_view(&root), b"Reached you because it was asked of you directly."));
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Inbox").is_some());
     assert!(main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FILTERS)));
@@ -827,12 +967,16 @@ pub(super) fn settings_owned(page: c::ReadValue, owned: Option<bool>) -> d::Doma
     let key = proposal.key;
     kinds_owned(&[(c::ObjectKey::Proposal(key), c::Read::Proposal { proposal: key }, page)], None, owned)
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the fixture delivers the inbox, decision document and each card read together"
+)]
 fn kinds_owned(
     values: &[(c::ObjectKey, c::Read, c::ReadValue)],
     whole: Option<c::ReadResult>,
     owned: Option<bool>,
 ) -> d::Domain {
-    let (mut root, _, watch) = f::root_at(Address::Inbox { filter: d::address::Filter::ALL }, &limits());
+    let (mut root, _, _, watch) = f::root_at_with_needs(Address::Settings { project: f::PROJECT }, &limits());
     let mut entries = List::with_capacity(u32::try_from(values.len()).unwrap());
     for (i, (object, _, _)) in values.iter().enumerate() {
         entries.push(documents::entry(*object, f::PROJECT, u64::try_from(i).unwrap(), Wall::EPOCH, None)).unwrap();
@@ -840,10 +984,15 @@ fn kinds_owned(
     let mut out = Queue::uncapped();
     event(
         &mut root,
+        Event::Went { place: d::Place::Address(Address::Inbox { filter: d::address::Filter::ALL }) },
+        &mut out,
+    );
+    event(
+        &mut root,
         Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: watch.unwrap(),
+                    watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(documents::inbox(
                         entries.clone(),
                         u32::try_from(values.len()).unwrap(),
@@ -857,6 +1006,13 @@ fn kinds_owned(
         &mut out,
     );
     while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+        } = &request
+            && Some(subject) == d::forge::decided::watch(f::PROJECT, &limits().forge).as_ref()
+        {
+            deliver_asked(&mut root, *watch, None);
+        }
         if let d::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
@@ -949,6 +1105,10 @@ fn proposal_parts_accept_reject_and_task_open() {
         let object = c::ObjectKey::Proposal(p.key);
         let root = kinds(&[proposal_row(p)]);
         let mut view = f::browser_page_view(&root);
+        assert_eq!(
+            styled(&view, look::WHY).name.as_deref(),
+            Some(b"Reached you because a proposal always waits for whoever may accept it.".as_slice())
+        );
         ordered(&view);
         assert_eq!(
             styled(&view, look::FLOW_Q).name.as_deref(),
@@ -1069,6 +1229,14 @@ fn funds_use_budget_reason_plain_numbers_and_held_acts() {
         let root = kinds(&[held_row(held(Some(reason)))]);
         let view = f::browser_page_view(&root);
         let funds = reason == c::HoldCategory::Budget;
+        assert_eq!(
+            styled(&view, look::WHY).name.as_deref(),
+            Some(if funds {
+                b"Reached you because money past a budget always waits for you.".as_slice()
+            } else {
+                b"Reached you because a held task always waits for whoever may release it."
+            })
+        );
         assert_eq!(
             styled(&view, look::FLOW_Q).name.as_deref(),
             Some(if funds { b"31 of 40 used.".as_slice() } else { b"first-run-projects" })
@@ -1244,7 +1412,8 @@ fn sent_cards_replace_all_acts_with_progress_and_the_returned_outcome() {
 fn a_refresh_of_the_same_rows_leaves_the_tree_unchanged() {
     for filter in [d::address::Filter::ALL, d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL }]
     {
-        let (mut root, watch, _) = fixture_watched(QUESTION, false, 1, false, filter, None);
+        let (mut root, watch, decided) = fixture_watched(QUESTION, false, 1, false, filter, None);
+        deliver_asked(&mut root, decided, None);
         let mut view = f::browser_page_view(&root);
         let before = stable_nodes(view.tree());
         let choice = f::find(view.tree(), Role::Button, b"In temper serve").unwrap();

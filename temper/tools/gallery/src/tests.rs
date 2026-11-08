@@ -1186,6 +1186,13 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "needs-why",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[Part::Text {
+            text: "Reached you because it is an implementation choice, which asks you unless you’re away.",
+        }],
+    },
+    Holds {
         name: "needs-held",
         heading: "first-run-projects",
         parts: &[

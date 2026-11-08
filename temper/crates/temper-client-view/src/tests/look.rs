@@ -635,6 +635,7 @@ fn asking_opening_and_needs_have_their_css_names() {
         (WAYS_REFUSED, b"temper-ways-refused"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
+        (WHY, b"temper-why"),
     ] {
         assert_eq!(NAMES.style(style), Some(name));
     }

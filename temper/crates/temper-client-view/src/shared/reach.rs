@@ -56,3 +56,65 @@ pub fn allowed(w: &Words, reach: &Reach, classes: Option<&Classes>) -> Box<[u8]>
     };
     w.say(word, &[Hole::Name(object(w, subject, reach.under, classes))])
 }
+
+/// A need's reason line, every shell's (temper/docs/design/client/README.md, 3.5, Needs you, Why it reached you).
+#[must_use]
+pub fn why(
+    root: &temper_client_domain::Domain,
+    w: &Words,
+    need: temper_client_domain::pages::needs::Need<'_>,
+) -> Option<Box<[u8]>> {
+    use temper_client_domain::pages::needs::Why;
+    let why = temper_client_domain::pages::needs::why(root, need)?;
+    let word = match why {
+        Why::Direct => Word::WhyDirect,
+        Why::Proposal => Word::WhyProposal,
+        Why::Held => Word::WhyHeld,
+        Why::Funds => Word::WhyFunds,
+        Why::Reach { project, reach } => {
+            let classes = root.forge().classes(project);
+            let clause = match reach.reason {
+                Reason::Kind => w.say(
+                    match reach.kind {
+                        Kind::Wording => Word::WhyWording,
+                        Kind::Retry => Word::WhyRetry,
+                        Kind::Implementation => Word::WhyImplementation,
+                        Kind::Tests => Word::WhyTests,
+                        Kind::Dependency => Word::WhyDependency,
+                        Kind::Departure => Word::WhyDeparture,
+                        Kind::Money => Word::WhyMoney,
+                        Kind::Irreversible => Word::WhyIrreversible,
+                        Kind::Rules => Word::WhyRules,
+                        Kind::Other => Word::WhyOther,
+                    },
+                    &[],
+                ),
+                Reason::Set(number) => {
+                    let name = match classes {
+                        Some(classes) => match classes.set(number) {
+                            Some(set) => set.name.clone(),
+                            None => path_set(root, w, project),
+                        },
+                        None => path_set(root, w, project),
+                    };
+                    w.say(Word::WhySet, &[Hole::Name(name)])
+                }
+                Reason::Always => return Some(w.say(Word::WhyAlways, &[])),
+            };
+            let clause = under_words(w, clause, reach.under, classes);
+            let class = match reach.class {
+                Class::Ask => Word::WhyAsk,
+                Class::AskAway => Word::WhyAskAway,
+                Class::Wait => Word::WhyWait,
+                Class::Decide => return None,
+            };
+            return Some(w.say(Word::WhyReach, &[Hole::Name(clause), Hole::Name(w.say(class, &[]))]));
+        }
+    };
+    Some(w.say(word, &[]))
+}
+fn path_set(root: &temper_client_domain::Domain, w: &Words, project: u32) -> Box<[u8]> {
+    let name = crate::pages::project_name(root.pages().me(root.client()), project)
+        .unwrap_or(w.say(Word::Project, &[Hole::Number(u64::from(project))]));
+    w.say(Word::WhyPathSet, &[Hole::Name(name)])
+}

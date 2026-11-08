@@ -297,12 +297,68 @@ fn project_values_are_read_on_open_and_dropped_on_close() {
             &mut f.root.forge,
             skein_lib::Time::ZERO,
             None,
+            None,
             false,
             f::limits().forge,
             &mut Queue::uncapped(),
         );
         assert_eq!(f.root.forge().ways(OTHER), None);
         assert_eq!(f.root.forge().classes(OTHER), None);
+    }
+    for shown in [Some(OTHER), Some(f::PROJECT), None] {
+        let mut f = fixture();
+        let mut out = Queue::uncapped();
+        ways::progress(
+            &mut f.root.forge,
+            skein_lib::Time::ZERO,
+            Some(f::PROJECT),
+            shown,
+            false,
+            f::limits().forge,
+            &mut out,
+        );
+        if shown != Some(OTHER) {
+            assert!(out.is_empty());
+            continue;
+        }
+        let Some(forge::Request::Client { asked: jig_client::Event::Read { handle, read } }) = out.pop() else {
+            panic!("shown classes read")
+        };
+        let Readable::Family { scope, record, .. } = read else { panic!("family read") };
+        assert_eq!(scope, c::Scope::Project(OTHER));
+        let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().into_parts().read
+        else {
+            panic!("setting")
+        };
+        assert_eq!((setting.kind(), setting.scope()), (8, OTHER));
+        assert!(out.is_empty());
+        let classes = Classes::stock(Way::YouApprove);
+        ways::told(
+            &mut f.root.forge,
+            skein_lib::Time::ZERO,
+            &f.root.client,
+            &Told::Page {
+                handle,
+                page: Readout::Family { family: wire::FORGE, record: Some(value(Asked::Classes(classes.clone()))) },
+            },
+            f::limits().forge,
+            &mut Queue::uncapped(),
+        );
+        assert_eq!(f.root.forge().classes(OTHER), Some(&classes));
+        for next in [Some(OTHER), None] {
+            let mut out = Queue::uncapped();
+            ways::progress(
+                &mut f.root.forge,
+                skein_lib::Time::ZERO,
+                Some(f::PROJECT),
+                next,
+                false,
+                f::limits().forge,
+                &mut out,
+            );
+            assert!(out.is_empty());
+            assert_eq!(f.root.forge().classes(OTHER), if next.is_some() { Some(&classes) } else { None });
+        }
     }
 }
 #[test]

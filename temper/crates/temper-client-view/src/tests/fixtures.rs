@@ -944,15 +944,27 @@ fn inbox_facts_at(
     // Six card reads beside the frame's own bounded reads.
     limits.client.domain.reads = 8;
     let (mut root, watch) = if let temper_client_domain::Address::Home { .. } = address {
-        let (root, _, _, watch) = root_at_with_needs(address, &limits);
+        let (root, _, _, watch) =
+            root_at_with_needs(temper_client_domain::Address::Settings { project: PROJECT }, &limits);
         (root, Some(watch))
     } else {
-        let (root, _, watch) = root_at(address, &limits);
+        let (root, _, watch) = root_at(address.clone(), &limits);
         (root, watch)
     };
-    let finish = root.pages().home().is_some();
+    let mut finish = false;
+    if let temper_client_domain::Address::Home { .. } = address {
+        finish = true;
+    }
     let env = Env { now: Time::ZERO, wall: NOW, limits };
     let mut out = Queue::uncapped();
+    if finish {
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(address) },
+            &mut out,
+        );
+    }
     let mut entries = List::with_capacity(6);
     for (object, group) in [
         (Object::Question { task: INBOX_TASK, message: INBOX_QUESTION }, Group::Questions),
@@ -1012,6 +1024,41 @@ fn inbox_facts_at(
     if let Some((read, page)) = document {
         let mut page = Some(page);
         while let Some(request) = out.pop() {
+            if let temper_client_domain::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+            } = &request
+                && Some(subject) == forge::decided::watch(PROJECT, &env.limits.forge).as_ref()
+            {
+                let document = w::Decisions::new(
+                    &w::CEILINGS,
+                    w::DecisionsParts {
+                        project: PROJECT,
+                        rows: List::with_capacity(0),
+                        asked: List::with_capacity(0),
+                        cut: false,
+                    },
+                )
+                .unwrap();
+                temper_client_domain::step(
+                    &mut root,
+                    &env,
+                    temper_client_domain::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch: *watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::decisions(&document),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+                continue;
+            }
+
             if let temper_client_domain::Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

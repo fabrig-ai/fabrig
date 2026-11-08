@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 353;
+pub const N: usize = 354;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -795,6 +795,12 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "needs-proposal", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "needs-why",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
         Sample { name: "needs-held", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "needs-funds", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
@@ -2570,12 +2576,23 @@ fn home_domain(name: &str) -> Domain {
                         decided_watches.push((watch, subject.project())).expect("two decided projects");
                         continue;
                     }
+                    w::Watch::Decided(subject) => wire::decisions(
+                        &w::Decisions::new(
+                            &w::CEILINGS,
+                            w::DecisionsParts {
+                                project: subject.project(),
+                                rows: List::with_capacity(0),
+                                asked: List::with_capacity(0),
+                                cut: false,
+                            },
+                        )
+                        .expect("Home decided document"),
+                    ),
                     w::Watch::Away if away_sample => {
                         away_watch = Some(watch);
                         crate::worlds::away_record(away_name == "rail-away-off")
                     }
                     w::Watch::Away
-                    | w::Watch::Decided(_)
                     | w::Watch::Change(_)
                     | w::Watch::Landing(_)
                     | w::Watch::Landings(_)
