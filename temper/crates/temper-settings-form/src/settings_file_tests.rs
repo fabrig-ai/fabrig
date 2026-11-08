@@ -156,6 +156,11 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
     for (setting, json, expected) in [
         (DEPLOYMENT_RULE, LANDING, c::Setting::Application { kind: 1, scope: 0, number: 1 }),
         (PROJECT_RULE, LANDING, c::Setting::Application { kind: 2, scope: 7, number: 2 }),
+        (
+            PROJECT_RULE,
+            br#"{"pattern":{"segments":["6272616e6368"],"last":{"exact":"6d61696e"}},"enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}"#,
+            c::Setting::Application { kind: 2, scope: 7, number: 2 },
+        ),
         (FORGE_CHARTER, b"23".as_slice(), c::Setting::Application { kind: 3, scope: 0, number: 1 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
