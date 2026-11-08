@@ -36,12 +36,14 @@ draft's status no longer lists 3.1 to 3.3 as lagging.
   form's words and the `landing-rule` help page cover the `branch` form
   and the per-project stock. A settings file and `propose_settings` carry
   either form.
-- **stock** (next batch): task `project-stock`, needs `forge-rules` and
-  `stock-roles`. The binary gives the forge kind 2's rule 1 for every
+- **stock:** task `project-stock`, high, about 110 minutes, needs
+  `forge-rules` and `stock-roles`. The binary gives the forge kind 2's rule 1 for every
   project and no kind 1 rule. Every test and world that assumed kind 1's
-  stock moves with it.
-- **reference** (next batch): task `reference-rules`, needs `forge-rules`
-  and `stock-roles`. The reference's `project.json` sets the project's
+  stock moves with it. Its new world test reads the stock's rule 1 for
+  two projects, then one project's own rule, then the stock's again
+  after a reset.
+- **reference:** task `reference-rules`, medium, about 45 minutes, needs
+  `forge-rules` and `stock-roles`. The reference's `project.json` sets the project's
   rule 1 to main's, naming a branch, so the stock's rule over every
   branch doesn't hold its goals' branches.
 
@@ -51,8 +53,9 @@ No walk.
 ## Critical path
 
 `forge-rules` (130) and `stock-roles` (170) start at the first push,
-beside `field-words` (50). `project-stock` follows both. The path runs
-`stock-roles`, then `project-stock`: about 170 + 120 implementer-minutes.
+beside `field-words` (50). `project-stock` (110) and `reference-rules`
+(45) follow both. The path runs `stock-roles`, then `project-stock`:
+about 280 implementer-minutes.
 
 ## Who hears first
 
@@ -113,6 +116,10 @@ same owner:
 - **No wire or stored format changes.** The client wire, the settings
   file and the forge's stored rows already carry any first segment. The
   forge's judge was the only refusal.
+- **Needs you's approval words stay as they are.** The stock's rule 1
+  asks for no approval. A project's rule with one is already worded
+  "This project's landing rule N" (`temper/docs/design/client/forge.md`,
+  4.1), and the deployment's keep theirs.
 - **The web's Settings writes no landing rule,** so "Settings writes
   either form" is ctl's settings file and Ask temper's `propose_settings`,
   both pinned by rows in `field-words`.

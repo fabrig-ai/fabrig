@@ -218,3 +218,7 @@ the rule broken by hand and what failed, the choices you made inside the
 sketch and the options above, and the minutes. Name the delegation's
 change in one line, for the owner of the goal's charters, who reviews it
 before landing.
+
+## Answers
+
+2026-11-08 (temper/ui). The first: measure the resolved charter in the stock's floor. Stock limits are this owner's, and the floor must hold what the stock needs after model resolution, so the advertised minimum core.run_bytes rises to cover charter 5's 11,945 bytes. Keep the floor's test refusing one byte below the new need, and name the new figure in the report. No word of the coordinator changes, and no shipped default limit is lowered. One more change, from the owner of the goal's charters' review: charter 5's waiting is 0, not 10 s. The goal parks with wait at the end of every wake, so 10 s would hold a worker slot and a program session open for nothing. Every other stock charter keeps 10 s. Put it in the contract's line and the stock's test row.
