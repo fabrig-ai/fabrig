@@ -199,9 +199,6 @@ in `../draft/tui.status.md`; no rendered-equality result is supplied.
   `view` block shows as code holding its address
   (`temper-client-tui`'s `view/chat/read.rs`); `tui-views` of the plan
   `tui-whole-t1` prints it.
-- **Not yet:** 6.14, *Needs you* and *Walking what needs you*: the view's
-  `shared` has no `need_prompts`, `NeedPrompt`, `NeedMark` or `NeedAct`;
-  `view-needs` of the plan `tui-whole-t1` builds them.
 - **Not yet:** 6.13, *The TUI's events* (`Own`, `Open`, `Walk`,
   `EndWalk`), and 6.14's words, state and keys under the launchpad as
   drawn (the walk's state, `/brief`'s and the opener's notes, `n`,
