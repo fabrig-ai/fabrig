@@ -5,7 +5,7 @@ use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
 use jig_client_protocol_wire::{self as wire, v19 as w};
-use skein_lib::{Map, Queue, Reader, RequestEnvelope, RequestKey, Secret, Time, Token, Writer};
+use skein_lib::{Map, Queue, Reader, RequestEnvelope, RequestKey, Secret, Time, Token, Wall, Writer};
 #[derive(Debug)]
 pub(crate) struct Attempt {
     pub(super) token: Token,
@@ -51,6 +51,7 @@ pub struct Link {
     pub(super) transport: Map<Token, ()>,
     pub(super) next: u64,
     pub(super) credential: Option<Secret>,
+    pub(super) expires: Option<Wall>,
     pub(super) generation: u64,
     stream: Option<crate::silence::Silence>,
     pub(super) predecessor: Option<[u8; 16]>,
@@ -67,6 +68,7 @@ impl Link {
             transport: Map::uncapped(),
             next: 1,
             credential: None,
+            expires: None,
             generation: 0,
             stream: None,
             predecessor: None,
@@ -271,7 +273,7 @@ impl Link {
         let why = match &record {
             w::KeyedAnswer::Busy => Some(Retry::Busy),
             w::KeyedAnswer::AnswersFull(value) => {
-                Some(Retry::Full { held: value.held(), room_at: skein_lib::Wall::from_nanos(value.room_at()) })
+                Some(Retry::Full { held: value.held(), room_at: Wall::from_nanos(value.room_at()) })
             }
             w::KeyedAnswer::NotReady => Some(Retry::NotReady),
             w::KeyedAnswer::SignedOut | w::KeyedAnswer::NotServed(_) => None,
@@ -787,6 +789,7 @@ impl Link {
     }
     pub(super) fn end_sign_in(&mut self, out: &mut Queue<Request>) {
         self.credential = None;
+        self.expires = None;
         while let Some((key, _)) = (&self.attempts).into_iter().next() {
             let key = *key;
             let attempt = self.attempts.remove(&key).expect("listed attempt");

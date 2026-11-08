@@ -569,8 +569,10 @@ keeps (`../protocol/configuration.md`, section 2).
       it touched, not its calls: `read_docs` is "read N docs", its distinct
       topics, each search one, a call whose input can't be read one
       ("read 1 doc"); `settings` is "checked settings N×", once "checked
-      settings"; `propose_settings` is "proposed a change N×", once
-      "proposed a change", and under way "proposing a change", none of them
+      settings"; successful `propose_settings` calls are "proposed a change N×", once
+      "proposed a change"; failed calls are "failed to propose a change N×",
+      once "failed to propose a change", grouped separately from successes
+      in the order each outcome first occurs. Under way it is "proposing a change", none of them
       naming its input; `read` and `Read` are "read N files", `list` and `Glob`
       "listed N folders", `write` and `Write` "wrote N files", `edit` and
       `Edit` "edited N files" and `remove` "removed N files", each its
@@ -4933,6 +4935,24 @@ The words for each offered source are:
   not.
 - **Plain words:** temper says that it runs Claude Code, and names no
   page, button or feature after it (jig's `domain/providers.md`, 3.2).
+- **A refused account act** says why and what to do, where jig's
+  refusal of that act has one reason a person can act on (jig's
+  `domain/accounts.md`, section 5), as the tools do (`tools.md`, 5.5,
+  *A refused account act says why and what next*), in the act's
+  outcome line, rather than the refusal's word alone:
+  - a declaration refused *name taken*: "The name NAME is taken.
+    Choose another name for this login.", NAME the declaration's; but
+    where the person's own source of that LLM provider holds NAME,
+    `ConnectModel` checks that source's login instead, as after its
+    declaration (3.5, `ConnectModel`), and draws no refusal;
+  - a declaration refused *not offered*: "This provider offers you no
+    program login. Choose another way to connect.";
+  - a resume refused *not offered*: "This source isn't limited, so
+    there's nothing to resume. Its state above is current."
+
+  A forgotten program login's name is declared again by the person who
+  held it (jig's `domain/accounts.md`, 3.4), and the panel goes on as
+  after a first declaration.
 
 ### 5.6 The first run's words: the playground and the welcome
 
@@ -6533,7 +6553,9 @@ connection, live (6.14). `temper open` stays the tests' line client
 
 - **Bare `temper`** runs the TUI when stdin and stdout are both
   terminals (skein-shell's `terminal_modes` answers for descriptors 0
-  and 1), at the address its directory keeps (6.12), else at
+  and 1), at the address of the engine's link file its environment
+  names, when the binary reads one there (6.12, *The engine's link, kept
+  at rest*), else at the address its directory keeps (6.12), else at
   `http://127.0.0.1:8367`, the clients' port `temper init` prefers
   (`../../help/reference/commands.md`). Otherwise it prints the line it
   printed before the TUI, `temper: no command; temper --help lists
@@ -6586,10 +6608,73 @@ connection, live (6.14). `temper open` stays the tests' line client
     signed in at an address the file did not hold, the binary writes
     the file whole through skein's io (skein-shell's `store_file`, a
     synced temporary replacing it).
+  - `sign-in`, the note of how the TUI's last sign-in at an address
+    stands, one line, `0o600`: `HOST:PORT until NANOS`, signed in there
+    until that wall time in nanoseconds, as the sign-in's answer said
+    (jig's `client/domain/client.md`, 8.2); or `HOST:PORT signed-out`,
+    its sign-in there ended before that time, so that only a person's act
+    signs it in there again (6.14, *Expired is not signed out*). It is
+    `temper-client-tui`'s `Note`, printed by `Note::print` and read by
+    `Note::read`. The binary reads it once at start, at most 64 bytes: a
+    line for another address than the TUI's, or one absent, unreadable
+    or past its bound, reads as none. The run writes it whole at each
+    duty `note` (6.13), through skein-io's file layer on its own io, as
+    the recorder saves (`tui/journeys.md`, 3.1): a synced temporary
+    replacing it. A write that fails says nothing, and the next note is
+    written whole again.
 - **One sign-in at a time:** the token is the engine's it was made at.
   Started at another address, the TUI offers it there, the engine
   there refuses it, and the TUI erases it and asks for that engine's
   link (6.14).
+- **The engine's link, kept at rest.** While the printed link is
+  enabled (section 7), the running engine, `temper serve` alone or under
+  `temper box`, keeps its live printed link, the address and the secret
+  together, in a private file, so that a TUI on the same machine signs
+  in with nothing to paste (6.14). The secret is otherwise held only in
+  jig's memory and on the engine's stdout (jig's `protocol/client.md`,
+  section 8, *The printed link*); the file is never in the configuration
+  directory, which holds no secret.
+  - *Where:* on Linux, `$XDG_RUNTIME_DIR/temper/printed-link-KEY`, where
+    `XDG_RUNTIME_DIR` is an absolute path (a tmpfs, never backed up);
+    with none, no file is kept and the TUI reads none. On macOS,
+    `DATA/printed-link`, in the deployment's data directory. KEY is the
+    first 8 bytes of the SHA-256 of the data directory's absolute path,
+    as 16 lowercase hex digits. One function, `temper`'s
+    `link_file::path`, makes it for the engine and for the TUI.
+  - *Its deployment:* the engine keys it by the data directory it runs
+    on, however it was named; the TUI by the deployment its environment
+    names, resolved as `temper box` with no flag resolves it
+    (`../protocol/configuration.md`, section 12): `TEMPER_DATA`, else the
+    XDG default. No flag names another: the command line's flags are
+    designed with the user later.
+  - *Written* whole, `0o600`, a synced temporary replacing it, in a
+    directory the engine makes `0o700` with its missing parents and
+    refuses unless it is this user's with no group or other bits, as the
+    TUI's own (above): the printed link's URL as the engine prints it,
+    then a line feed. Serve writes it at each `Link` its startup hears and
+    prints, and once at its start under `temper box` with the box's first
+    secret (`../protocol/setup.md`, 7.2), whose URL serve makes as the box
+    does and prints none of. A write that fails is one line on stderr,
+    `temper serve: link file PATH: WHY`, naming no secret, and serve
+    goes on.
+  - *Removed* when serve exits, by any way out it has. An engine killed
+    outright leaves it, and its link then grants nothing (below).
+  - *Read* as a private file of this user's, at most 4,096 bytes
+    (skein-shell's `read_private_file`): absent, unreadable, too large or
+    not private reads as none. The binary reads it once at start, for
+    bare `temper`'s address (6.11); the run reads it at each duty `local`
+    (6.13), for the sign-in (6.14).
+  - *A stale file grants nothing.* Its address and its secret come from
+    one file, written by the engine that holds the listener. A restart
+    forgets links, and a spent link is dead (jig's `protocol/client.md`,
+    section 8): a link that another engine answers, or that none
+    answers, signs nothing in, and the TUI falls back (6.14).
+  - *The risk, accepted by the user, 2026-11-07:* a live owner link,
+    one-time and live at most 2 hours, at rest and readable by any
+    process running as the person, the box's own agents among them.
+    Those can already read the TUI's credential (`token`, above), so this
+    adds little. *The way back:* the file holds the address alone, and
+    the sign-in takes one step, the paste or the browser's approval.
 
 ### 6.13 Its host and the seam
 
@@ -6610,15 +6695,20 @@ connection, live (6.14). `temper open` stays the tests' line client
       pub size: skein_ui_screen::Size,
       pub scheme: temper_client_tui::Scheme,          // 6.15
       pub address: Box<[u8]>,                         // HOST:PORT
+      pub local: bool,                                // an engine's link file to read (6.12)
       pub kept: Vec<jig_client::Record>,              // the small store's records
       pub credential: Option<skein_lib::Secret>,      // DIRECTORY/token's
+      pub note: Option<temper_client_tui::Note>,      // DIRECTORY/sign-in's, for this address
   }
   pub enum Report { Start(Start), Due, Key(skein_ui_screen_terminal::Key), Resize(skein_ui_screen::Size),
-      Heard(jig_client::Event), Kept { written: bool }, Opened { opened: bool } }
+      Heard(jig_client::Event), Kept { written: bool }, Opened { opened: bool },
+      Local { link: Option<skein_lib::Secret> } }     // the engine's link file, read
   pub struct Duties {
       pub asked: Vec<jig_client::Request>,            // to the native shell, in order
       pub keep: Option<Option<skein_lib::Secret>>,    // the credential to write; Some(None) erases it
+      pub note: Option<temper_client_tui::Note>,      // DIRECTORY/sign-in to write (6.12)
       pub address: Option<Box<[u8]>>,                 // the address signed in to (6.12)
+      pub local: bool,                                // the engine's link file to read (6.12)
       pub open: Option<Box<[u8]>>,                    // an address for a browser
       pub close: bool,
   }
@@ -6634,8 +6724,12 @@ connection, live (6.14). `temper open` stays the tests' line client
   ```
 
 - **The reports:** `Start`, once and first, with the window's size, the
-  scheme, the address, and the small store's records and the
-  credential as the native shell loaded them; `Due`, the root's
+  scheme, the address, whether the TUI has an engine's link file to read
+  (on Linux, `XDG_RUNTIME_DIR` absolute; on macOS, always), the small
+  store's records and the credential as the native shell loaded them,
+  and the note as the binary read it for this address (6.12); `Local`,
+  the engine's link file read for the duty `local`, its bytes or none;
+  `Due`, the root's
   deadline reached; `Key`, one key as skein's decoder made it (skein's
   `ui-screen.md`, 6.1); `Resize`, the window's new size; `Heard`, one of
   the transport's or the small store's events, as the native shell gives
@@ -6644,11 +6738,17 @@ connection, live (6.14). `temper open` stays the tests' line client
   before `Start` is the host's defect.
 - **The duties** of each report: the root's requests for the native
   shell, in order, each routed as `temper open` routes them (6.2); the
-  credential to keep, or none to erase it; the address signed in to,
-  once, the first time the link is live with a party; an address for a
+  credential to keep, or none to erase it; the note to write, when the
+  sign-in's standing changes (6.14); the address signed in to, once, the
+  first time the link is live with a party; the engine's link file to
+  read, each time the TUI signs in from it (6.14); an address for a
   browser to open, once for each approval asked (7.1); and closing, once.
   After closing, every report but `Heard` and `Kept` does nothing, so
   the native shell's last write still lands.
+- **The note:** after each report, an expiry the link names
+  (`link().expires`, jig's `client/domain/client.md`, 8.2) that differs
+  from the note's `Until` is a duty to note `Until` it; a sign-in judged
+  ended (6.14) is a duty to note `SignedOut`, once.
 - **The credential:** after each report the host reads it from
   `jig-client`'s `link()`, through the root. One that differs from the
   one kept is a duty to keep it, before the first screen is drawn on it;
@@ -6679,7 +6779,8 @@ connection, live (6.14). `temper open` stays the tests' line client
 
 Two screens, each a tree of the TUI's view, built from the root's link
 and `me` and the TUI's own state: signing in, while the link is signed
-out, and the first screen once signed in. Each has a framed top, the
+out, and the first screen once signed in, or while the TUI signs in from
+the engine's link (below). Each has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
 `tui-bottom`, spread: what closes the TUI, and the link's state. Their
 frames are illustrative: their words and look are refined on the
@@ -6688,6 +6789,7 @@ recording (`../draft/tui.md`, section 5).
 - **The TUI's state,** `temper-client-tui`'s `Tui`, holds what the root
   does not: the address, the field's value, the sign-in's progress
   (asked, answered, lost, or the TUI's own refusal of what was pasted),
+  whether it signs in from the engine's link and whether that ended,
   whether the link was signed out after a sign-in, and whether the
   credential's last write failed. The root stays the one source of the
   link's state and of `me`.
@@ -6751,6 +6853,56 @@ recording (`../draft/tui.md`, section 5).
   a held credential the engine does not know): the token is erased
   (6.13), and the screen shows again under the view's "Signed out.".
 
+**Signed in from the engine's link** (6.12, *The engine's link, kept at
+rest*), with nothing pasted and no key pressed:
+
+- **When:** the link is signed out, the TUI has not closed, it has an
+  engine's link file to read (`Start.local`), and its note for the
+  address doesn't say signed out: at its start with no credential kept,
+  and again when a sign-in expires (*Expired is not signed out*, below).
+  The host asks the duty `local` and, while it signs in from the file,
+  the view draws the first screen's "Connecting to HOST:PORT", the state
+  "Connecting": no sign-in screen is drawn and no approval is asked.
+- **The file read:** none, a link that `jig-client-protocol-http`'s
+  `printed` doesn't read under the prefix `/jig`, or a link for another
+  address than the TUI's, and the TUI falls back. A link for its address:
+  the host asks the root `SignIn { with: Link { secret, held: None } }`,
+  as for a paste (section 7), and keeps nothing of the secret but its
+  SHA-256, to tell a fresh link from it.
+- **Signed in:** the first screen, as by a link pasted; the credential
+  kept (6.13), and the note `Until` the sign-in's expiry.
+- **Answered `link_used` or `link_expired`:** a sign-in by a spent or
+  expired link draws a fresh one when none is live, which the engine
+  prints and keeps (jig's `protocol/client.md`, section 8; 6.12). So the
+  host reads the file again a second later, at most twice for one need,
+  and signs in by a link whose digest differs from the one answered; the
+  same link read again waits another second, within those two reads.
+  This is the common way: a browser signed in by the printed link first
+  spent it, and the TUI's try draws the next.
+- **Any other end** (refused, `link_unknown`, not ready, busy, full, no
+  answer), the reads spent, or the file read finding none: the TUI falls
+  back to the sign-in screen as it is with no file, which asks the
+  browser's approval (7.1) and takes the paste. It says nothing of the
+  file: no refusal line is drawn for the file's link, and a fallback
+  after an expiry shows the screen under the view's "Signed out.", as
+  any sign-in ended. The approval's take replaces a link's sign-in that
+  `jig-client` still sends again by itself (7.1, *A pasted link, sent*).
+- **Expired is not signed out.** The engine answers both alike, the
+  link signed out, so the note tells them apart, from the expiry the
+  sign-in's answer gave (6.13, *The note*), on the engine's own machine's
+  wall clock. The link signed out after a sign-in, or a held credential
+  refused, at or past the note's `Until` less a minute's slack, is an
+  expiry: the TUI signs in from the file on its own, as above. Before it,
+  the sign-in ended: a sign-out here or elsewhere, or an engine at that
+  address that never made it. The TUI notes `SignedOut` and never signs
+  in from the file at that address again until a person's act, the paste
+  or the browser's approval, signs it in, whose sign-in notes `Until`
+  once more. With no note for the address, the TUI has not signed in
+  there, and the file is read.
+- **Never shown:** the file's secret is never drawn, logged or kept in
+  the TUI's state; a recording keeps it in the person's private file, and
+  `add` redacts it (`tui/journeys.md`, section 5).
+
 **The first screen**, illustrative (`../draft/tui.md`, 4.3):
 
 ```
@@ -6785,20 +6937,24 @@ recording (`../draft/tui.md`, section 5).
   `temper-client-tui` gives by its `Scheme` (`Dark`, `Light`), whole
   (skein's `ui-screen.md`, section 3), from the browser's chat terminal
   (`browser.md`, 2.5, *A chat's terminal*) and the palette its
-  stylesheet, `temper.css`, holds there:
+  stylesheet, `temper.css`, holds there.
+- **The terminal's own colours.** The base is the terminal's defaults: a
+  paint with no colour, which skein draws as SGR 39 and 49 (skein's
+  `ui-screen.md`, sections 3 and 7), so that the terminal's ground and
+  body text show through and the TUI paints only its accents, as Claude
+  Code does. No region and no token names a background. The palette:
 
   | Colour | Dark | Light | What it paints |
   |---|---|---|---|
-  | bg | `#191816` | `#fffefd` | the base's background |
-  | ink | `#e8e3da` | `#34312c` | the base's text |
+  | bg | `#191816` | `#fffefd` | nothing on a terminal: the stand-in for its default background on a journey's page (`tui/journeys.md`, 6.4) |
+  | ink | `#e8e3da` | `#34312c` | nothing on a terminal: the stand-in for its default text there |
   | dim | `#9a9388` | `#7a736a` | the hints, "Connecting", the sign-in's progress |
   | faint | `#6a655c` | `#b5aea3` | the border, the placeholder |
-  | sel | `#2a2825` | `#f4f0e9` | the focus's background |
-  | accent | `#e08a68` | `#b8664e` | the title, "Offline", "Signed out", "Out of date", a refusal |
+  | accent | `#e08a68` | `#b8664e` | the title, the focus, "Offline", "Signed out", "Out of date", a refusal |
   | good | `#8fc28f` | `#3f7d4e` | "Live" |
 
   The terminal's `--line` is left out: a border's glyphs in it would
-  barely show.
+  barely show. Its `--sel` is left out with the focus's background.
 - **Its regions,** placed by name (skein's `ui-screen.md`, 5.2):
   `tui-top` at the top, its children on lines, framed by `╭ ╮ ╰ ╯`, `─`
   and `│` in the faint colour, its first level-1 heading in the border
@@ -6809,13 +6965,26 @@ recording (`../draft/tui.md`, section 5).
   `tui-live` (good), `tui-waiting` (dim), `tui-down` (accent) and
   `tui-refused` (accent), under the TUI's owner, its names' prefix
   `tui` (skein's `ui.md`, section 8).
-- **Its glyphs:** `❯` the focus mark, `•` the mask; the focus's paint
-  the selection's background.
-- **Chosen by the binary** from the environment: light where
-  `COLORFGBG`'s last field, the background the terminal declares, is 7
-  or 15, else dark; the colours' depth 24-bit where `COLORTERM` is
-  `truecolor` or `24bit`, else the 256 indexed ones (skein's
-  `ui-screen.md`, section 7).
+- **Its glyphs and its focus:** `❯` the focus mark, `•` the mask. The
+  focus is shown by the mark and the accent, the focus's paint the
+  accent's foreground with no background of its own, as Claude Code
+  shows it; in the spread bottom row, which keeps no focus columns, the
+  accent alone. Reverse video is the fallback should the mark and the
+  accent not show it (section 11).
+- **The scheme,** dark or light, chosen before `Start`, which carries
+  it (6.13): from `COLORFGBG` where its last field, the background the
+  terminal declares, is a number, light for 7 or 15 and dark for any
+  other, read by the binary; else from the terminal's own background,
+  asked at start (skein's `ui-screen.md`, section 8) and waited for at
+  most 200 ms, `limits::BACKGROUND` (6.16): light where
+  `Scheme::of_background` finds the answer light, its luma `2126 R +
+  7152 G + 722 B` above 1,275,000, half of white's, else dark; with no
+  answer within the wait, dark. The answer is never read as a key, and
+  a recording keeps the scheme among its start's facts
+  (`tui/journeys.md`, 3.2).
+- **The colours' depth,** chosen by the binary: 24-bit where
+  `COLORTERM` is `truecolor` or `24bit`, else the 256 indexed ones
+  (skein's `ui-screen.md`, section 7).
 
 ### 6.16 Its loop and closing
 
@@ -6833,14 +7002,25 @@ recording (`../draft/tui.md`, section 5).
   `limits::native()`; the TUI's tree's from `temper-client-tui`'s
   `limits`; a frame of at most 200 rows by 500 columns; a paste of at
   most 512 bytes, the link's field's bound; a frame drawn at most every
-  20 ms.
+  20 ms; the terminal's background waited for at most 200 ms,
+  `limits::BACKGROUND` (6.15).
+- **Its run's settings** (`run::Settings`), the binary's: beside the
+  engine, the directory, the address, the depth, the size, the limits
+  and the opener, the scheme where `COLORFGBG` decided it, or none for
+  the terminal to be asked (6.15); the path of the engine's link file,
+  or none where the platform keeps none (6.12); and the note the binary
+  read (6.12).
 - **Each iteration:** the native shell iterates; once it has loaded the
-  token and the small store, `Start`, at the terminal's size; then the
+  token and the small store, and the terminal's background is no longer
+  awaited (`Terminal::background`, skein's `ui-screen.md`, section 8),
+  `Start`, at the terminal's size, in the scheme chosen (6.15); then the
   credential's write ended, the transport's events, the window's size
   when it changed, the keys, and the root's deadline when it is due,
   each a report whose duties are carried at once: the requests to the
-  native shell, the credential kept or erased, the address noted for
-  the binary, closing. Once anything was reported, the host's frame
+  native shell, the credential kept or erased, the note written (6.12),
+  the address noted for the binary, the engine's link file read and
+  reported at once as `Local`, closing. Once anything was reported, the
+  host's frame
   goes to the terminal, which draws the newest at its pace. No key is
   taken and no frame drawn before `Start`.
 - **Time and the seed** are skein-shell's, as `temper open`'s (6.2).
@@ -6893,7 +7073,9 @@ temper's:
   loopback and that route, and gives the secret to `jig-client` with the
   credential DIRECTORY holds, if any (`SignIn { with: Link { secret,
   held } }`). The secret is in the command line only until the sign-in
-  spends it; the client root passes it on and keeps nothing of it.
+  spends it; the client root passes it on and keeps nothing of it. The
+  running engine also keeps its live link at rest, for a TUI on the same
+  machine (6.12, *The engine's link, kept at rest*).
 - **A sign-in held is kept** (jig's `domain/people.md`, section 3): a
   person still signed in who opens a fresh link with the same DIRECTORY
   keeps their sign-in, its number and its expiry, and the deployment's
@@ -7065,6 +7247,17 @@ was answered with. A box enables it beside the printed link
     (`../draft/tui.md`, 4.1), as `temper open` keeps a link's (section
     7), before anything is told of the sign-in, and draws its first
     screen; the page says "Signed in. You can close this tab." (3.5).
+  - *Not asked while the TUI signs in from the engine's link* (6.14):
+    the approval is asked when that ends with the TUI signed out, as the
+    sign-in screen opens.
+  - *The browser's way in after the TUI's link:* a printed link is
+    one-time, so a TUI signed in from the engine's link (6.14) spends the
+    link the box's terminal shows. Opened in the browser, it is answered
+    used, "This link was already used. A fresh one is in your terminal."
+    (5.1), and the engine draws the next, prints it and keeps it in its
+    file (6.12), as after any spent link (jig's `protocol/client.md`,
+    section 8): that next link is the browser's way in, as today, and the
+    approval page (3.5) asks for the browser signed in first.
   - *Never shown:* the secret and the credential are never drawn on
     the screen or logged. A recording keeps them in the person's
     private file; `add` redacts them before any recording or print is
@@ -7523,13 +7716,27 @@ own tests:
   simulated machine (each way out writing the terminal's `LEAVE` last
   and exiting 0), and of the binary's parts as functions (the command's
   parse, the directory's resolution, the scheme and the depth). Nothing
-  opens a terminal or a browser.
+  opens a terminal or a browser. The engine's link and the note (6.12,
+  6.14): `link_file::path` one function for the engine and the TUI, its
+  table of environments and data directories; the file written `0o600`
+  at each new link and removed at exit; `Note`'s lines read back and
+  refused; the host's rows for each way the sign-in from the file ends,
+  the second read after `link_used` and `link_expired`, an expiry told
+  from a sign-out and the note each writes, a signed-out note at start
+  asking no file; the run's rows on skein's simulated machine for the
+  file read, the note written and the scheme from the terminal's answer
+  or its wait; each a failing test first for a refusal.
 - **The TUI in the joint world** (`../domain/testing.md`, 6.3): its
   shipped host, its root linked, its requests carried to the engine's
   clients' component as a native shell carries them, the component
   given a printed link: signed in by the link pasted, drawing `me`; the
   engine restarted under it, "Offline" then "Live" and `me` still drawn;
-  signed out elsewhere, back at signing in with the token erased.
+  signed out elsewhere, back at signing in with the token erased, noted
+  signed out and never signed in from the engine's link; a fresh TUI
+  signed in from the engine's link with no key pressed, after a browser
+  spent the first one too; a stale file's dead link falling back to the
+  sign-in screen with no refusal drawn; an expired sign-in renewed from
+  the file; and the file's secret in no frame.
 - **`tests/client`** (`temper-client-world`), the joint world
   (`../domain/testing.md`, 2.1 and 6.3): temper's client root and view, with
   skein's fake person acting on the tree, joined to temper's engine
@@ -7701,12 +7908,18 @@ own tests:
   look or macOS runtime.
 - **The TUI's address kept at closing** (6.12): the binary writes it once
   the loop has ended, so a TUI killed outright keeps the address it
-  read. Default: so; writing it at the sign-in would give the loop file
-  io of its own.
-- **The TUI's scheme from `COLORFGBG`** (6.15): a terminal that declares
-  no background is drawn dark. Default: so, until skein's full-screen
-  shell asks the terminal its colours (skein's `ui-screen.md`, section
-  10).
+  read. Default: so, though the run now writes the note at once with
+  file io of its own; moving the address there waits for a need.
+- **The TUI's focus in reverse video** (6.15): the mark and the accent
+  show the focus. Default: so; reverse video is the fallback if the
+  frames show they can't, a look request's to ask.
+- **A sign-out made in the TUI** (6.14): the first pass has none, so its
+  note's `SignedOut` comes from a sign-in ended elsewhere. Default: a
+  later sign-out of the TUI's writes the same note.
+- **An engine at the same address that never made the TUI's sign-in**
+  (6.14): read as a sign-in ended, so the TUI waits for a person's act
+  there. Default: so, the safe side, until a deployment's own name
+  tells engines apart.
 - **The TUI while offline** (6.14): the first screen keeps "Connected to
   HOST:PORT as NAME" while the state says "Offline". Default: so, its
   words refined on the recording.

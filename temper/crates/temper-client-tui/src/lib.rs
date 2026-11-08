@@ -7,6 +7,7 @@ mod approval;
 mod event;
 pub mod limits;
 pub mod look;
+mod note;
 mod state;
 pub mod theme;
 mod view;
@@ -14,7 +15,8 @@ pub mod words;
 pub use approval::{approval_address, may_ask_again};
 pub use event::Event;
 pub use limits::limits;
-pub use state::{Browser, Refusal, Signing, Told, Tui};
+pub use note::Note;
+pub use state::{Browser, Local, Refusal, Signing, Told, Tui};
 pub use theme::{Scheme, theme};
 pub use view::{View, build, event};
 

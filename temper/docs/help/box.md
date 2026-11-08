@@ -18,7 +18,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 - **Host delivery checks:** `.temper/pre-pr` tools inherit the
   box process's `PATH` captured at startup: the box unit's `PATH` in a
   service. Install tools there before step 2.
-  For fabrig, install `cargo` with rustfmt (`cargo fmt`) and `python3`.
+  For fabrig: `cargo`, rustfmt (`cargo fmt` and `rustfmt`), `python3`.
   Kit PATH: `W/bin:/usr/local/bin:/usr/bin:/bin`.
   Unit example:
   `PATH=/home/box/.cargo/bin:W/bin:/usr/local/bin:/usr/bin:/bin`;
@@ -113,7 +113,7 @@ Fake backends:
 temper box --fake-backends --bundle BUNDLE --config CONFIG --data DATA --cache CACHE
 ```
 
-Keep running. Logs: `DATA/box/logs/box.log` and each step's log beside it.
+Keep running. Logs: `DATA/box/logs/box.log`; step logs sit beside it.
 
 Expect:
 
@@ -124,6 +124,7 @@ http://127.0.0.1:PORT/jig/v1/sign-in/link?secret=...
 
 It signs you in as this temper's owner, once, within 2 hours.
 Opened after that, it prints a fresh one here.
+In a terminal: temper http://127.0.0.1:PORT
 ```
 
 For a fresh fake box, the kernel chooses `PORT` and its four other ports,
@@ -134,9 +135,9 @@ follow the block with
 `box: model key FILE` and `box: GitHub own App id 1, key file FILE`
 (read later).
 
-If not: a link opened once the box has given up gets no answer, and the
-terminal has said why. Mend what it said and run `temper box` again, for
-a new link. A taken port refuses before any link is printed.
+If not: once the box gives up, a link gets no answer; the terminal says why.
+Mend it; rerun `temper box` for a new link.
+A taken port refuses before any link is printed.
 `missing or nonexecutable adapter`: build `fake-claude` beside
 `temper`. `not in current init shape`: changed `CONFIG`; use empty
 directories. `retained documents must be private files`:
@@ -236,6 +237,8 @@ temper program-login --config CONFIG --data DATA --cache CACHE NAME
 temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
+
+Use a never-used NAME, even after forgetting, and a fresh KEY.
 
 `program-login`: signs in at `PROGRAMS/NAME`.
 Existing login: parent as `PROGRAMS`, name as `NAME`; skip `program-login`.

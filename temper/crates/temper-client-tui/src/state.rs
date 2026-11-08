@@ -8,6 +8,7 @@ pub struct Tui {
     address: Box<[u8]>,
     field: Box<[u8]>,
     signing: Signing,
+    local: Local,
     browser: Option<Browser>,
     pasted: bool,
     signed_out: bool,
@@ -16,6 +17,13 @@ pub struct Tui {
     openings: u64,
     revision: u64,
     written: u64,
+}
+/// The sign-in from the engine's link (temper/docs/design/client/README.md, 6.14).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Local {
+    Idle,
+    Signing,
+    Ended,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Browser {
@@ -37,6 +45,7 @@ pub enum Refusal {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    Local { local: Local },
     Typed { value: Box<[u8]> },
     Refused { refusal: Refusal },
     Asked,
@@ -53,6 +62,7 @@ impl Tui {
             address: copy_of(address),
             field: copy_of(b""),
             signing: Signing::Idle,
+            local: Local::Idle,
             browser: None,
             pasted: false,
             signed_out: false,
@@ -74,6 +84,10 @@ impl Tui {
     #[must_use]
     pub const fn signing(&self) -> &Signing {
         &self.signing
+    }
+    #[must_use]
+    pub const fn local(&self) -> Local {
+        self.local
     }
     #[must_use]
     pub const fn browser(&self) -> Option<Browser> {
@@ -106,8 +120,22 @@ impl Tui {
         self.field = copy_of(b"");
         self.written = self.written.saturating_add(1);
     }
+    fn set_local(&mut self, local: Local) -> bool {
+        let mut changed = self.local != local;
+        if local == Local::Ended {
+            changed |= self.signing != Signing::Idle || self.pasted || !self.field.is_empty();
+            if !self.field.is_empty() {
+                self.empty();
+            }
+            self.signing = Signing::Idle;
+            self.pasted = false;
+        }
+        self.local = local;
+        changed
+    }
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Local { local } => self.set_local(local),
             Told::Typed { value } => {
                 let signing = match self.signing {
                     Signing::Refused(..) | Signing::Answered { .. } | Signing::Idle => Signing::Idle,
@@ -125,7 +153,13 @@ impl Tui {
                 changed
             }
             Told::Asked => {
-                let changed = self.signing != Signing::Asked || !self.field.is_empty() || !self.pasted;
+                let changed = self.signing != Signing::Asked
+                    || !self.field.is_empty()
+                    || !self.pasted
+                    || self.local == Local::Ended;
+                if self.local == Local::Ended {
+                    self.local = Local::Idle;
+                }
                 if changed {
                     self.empty();
                 }
@@ -171,12 +205,16 @@ impl Tui {
                 | jig_client::Link::Live
                 | jig_client::Link::Offline
                 | jig_client::Link::OutOfDate => {
-                    let changed =
-                        self.signing != Signing::Idle || !self.field.is_empty() || !self.linked || self.signed_out;
+                    let changed = self.signing != Signing::Idle
+                        || !self.field.is_empty()
+                        || !self.linked
+                        || self.signed_out
+                        || self.local != Local::Idle;
                     if changed {
                         self.empty();
                     }
                     self.signing = Signing::Idle;
+                    self.local = Local::Idle;
                     self.linked = true;
                     self.signed_out = false;
                     changed

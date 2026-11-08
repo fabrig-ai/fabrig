@@ -960,6 +960,11 @@ The table grows area by area, each with its stories (section 11).
    - **`SOURCE` names one of the account's sources** by its kind,
      `sign_in`, `key` or `program`, as `account list` prints it (section
      15).
+   - A declaration refused because NAME was issued says that the name remains
+     reserved after forgetting its account and asks for a never-used name.
+     It exits 2; JSON names `program_name_reserved`. Use a fresh request key
+     for the new declaration, since a key keeps its first answer.
+
    - **A program's login is never the tools'.** `account declare` makes
      the source; the person, or the harness, runs `temper program-login`
      on each host, outside `temper ctl`, since it hands the terminal to
@@ -969,6 +974,23 @@ The table grows area by area, each with its stories (section 11).
      configuration. Skip it where the programs directory's NAME is
      already signed in. Then `account verify ACCOUNT --source program`,
      ACCOUNT as `account list` shows it.
+   - **A refused account act says why and what next,** where jig's
+     refusal of that act has one reason a person can act on (jig's
+     `domain/accounts.md`, section 5), rather than the refusal's word
+     alone. Text prints, exit 2, `TOOL: WHY`, then the next step on a
+     line of its own; JSON keeps the refusal and adds the next step as
+     `next`:
+
+     | Act, refused | WHY | Next step |
+     |---|---|---|
+     | `account declare`, *name taken* | `program name NAME is taken` | `Declare under another name. If account list shows a source of yours named NAME, check its login instead: account verify ACCOUNT --source program` |
+     | `account declare`, *not offered* | `provider P offers you no program login` | `me prints each provider's ways; declare with a provider whose line names programs` |
+     | `account retry`, *not offered* | `the source is not limited, so there is nothing to resume` | `account list shows its state and what it needs` |
+
+     NAME and P are the declaration's own. A forgotten program source's
+     name is declared again by the person who held it, as jig's
+     `domain/accounts.md`, 3.4, has it, and is answered as a first
+     declaration is.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
      LLM choice, the template's choice or what each run's check takes without them (jig's
@@ -1566,7 +1588,11 @@ may change with them.
   deadline (section 12) exits 1 with one stderr line, at most 240 bytes,
   which names what was outstanding and holds no request's words and no
   secret. *Busy*, *streams full* (8.2) and all watches in use keep their
-  own lines, ahead of these. A sign-in's or a sign-out's call says
+  own lines, ahead of these. A watch refused not ready also takes
+  precedence: its line says the engine is not ready and points to
+  `temper serve`'s log for why (`../protocol/README.md`, 8.2), rather
+  than claiming all watches are in use. A sign-in's or a sign-out's call
+  says
   `temper ctl: the engine at ADDRESS did not answer within 30 s`. Any
   other says, from the link's
   state (jig's `client/domain/client.md`, 8.2):
@@ -1836,8 +1862,11 @@ temper ctl help [GROUP [VERB]]
   - *not ready* and *busy* pass: the call sends the same link again,
     with the same token, after 100 ms, doubling to 2 s, within its
     deadline (8.2); past it, after busy, `temper ctl: temper is busy;
-    this link stays usable until it expires`, and after not ready, the
-    deadline's own line.
+    this link stays usable until it expires`, and after not ready,
+    `temper ctl: temper is not ready: it is starting, or its core is not
+    answering, and temper serve's log says why; this link stays usable
+    until it expires` (`../protocol/README.md`, 8.2). A sign-in never
+    answered keeps the deadline's own line.
 
   `sign-out`
   ends the sign-in, and jig's native shell, keeping none, leaves `token`
@@ -2405,6 +2434,16 @@ contract's reads, watches and requests, they take:
   `client/domain/client.md`, section 20).
 
 ## 14. Later
+
+- **The core's reason at the client's deadline** (6.3, 8.1): a not-ready
+  refusal distinguishes readiness from capacity, but names no start step
+  or other gate reason. Carrying that reason through jig's wire and link
+  is deferred (`../protocol/README.md`, section 14). Default: say not
+  ready and direct the caller to serve's log, with the same 30 s bound.
+- **The browser's membership boundary** (section 12): check a third
+  membership and the nine-membership bound through the browser after
+  landing. The native decoder's table and one-process restart stories
+  cover the bound below that tier; the web preset uses the same nine.
 
 - **The settings reference's help pointer** (5.3): `settings-fields`'s
   `reserve_time` description says "See settings help". The field table

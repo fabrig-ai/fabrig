@@ -260,10 +260,12 @@ pub enum Refusal {
     },
     /// No visible object with that name.
     Unknown,
-    /// Another project holds this name.
+    /// Another project holds this name, or a program source's name a declaration gives is taken (domain/accounts.md, 3.4).
     NameTaken,
     /// The deployment does not offer this act.
     NotOffered,
+    /// The program source name remains reserved after its account is forgotten.
+    ProgramNameReserved,
     /// The key names another ask.
     KeyConflict,
     /// An LLM choice names a model, by its configured name, that cannot be chosen, and why.

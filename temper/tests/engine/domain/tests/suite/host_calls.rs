@@ -548,6 +548,211 @@ fn task_report_selectors_render_complete_retained_continuations() {
 // temper/docs/design/protocol/configuration.md, 13.9; jig/docs/design/domain/people.md, 8.
 type PersonWorld = temper_engine_domain_world::forge_routes::World;
 
+// temper/docs/design/protocol/configuration.md, 13.9: a result wake must recover
+// missing acceptance evidence. The supplied final-wake record pins job 50 at
+// 6000 bytes; the surrounding fake jobs are fixtures, not additional transcript.
+#[test]
+fn reference_goal_recovers_ci_selection_after_a_cut_job_read() {
+    let (mut world, goal) = reference_person_world("ci-selection");
+    let (full, docs) = reference_ci_pulls(&mut world);
+    let goal = reference_result_wake(&mut world, &goal);
+    let short = reference_job_read(&mut world, &goal, 100, full, 6000);
+    assert!(short.len() <= 6000);
+    assert!(short.contains("[log bytes cut]"), "short read exposes the evidence gap");
+    assert!(!short.contains("selection:"), "the required header precedes the tail");
+    let enlarged = reference_job_read(&mut world, &goal, 101, full, 16_384);
+    assert!(!enlarged.contains("[log bytes cut]"), "larger read recovers the whole log");
+    assert!(enlarged.contains("selection: full"));
+    let docs = reference_job_read(&mut world, &goal, 102, docs, 6000);
+    assert!(docs.contains("selection: docs"));
+    let instructions = String::from_utf8_lossy(&goal.run.policy.instructions);
+    for rule in [
+        "check every requested acceptance item before finishing",
+        "[log bytes cut] means missing evidence",
+        "required header is absent",
+        "retry `read_job` with a larger `max_bytes`",
+        "full or docs for each main pull",
+        "only after available reads cannot supply the evidence",
+        "An avoidably short read does not satisfy acceptance",
+    ] {
+        assert!(instructions.contains(rule), "result-wake acceptance recovery requires: {rule}");
+    }
+    person_end(
+        &mut world,
+        &goal,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"Main PR #6: full. Main PR #7: docs.".as_slice().into() },
+            cancel_delegates: false,
+        },
+    );
+    world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+    world.close();
+}
+
+fn reference_ci_forge(world: &mut PersonWorld) {
+    use skein_fake_forge_domain::{self as fake, api as raw};
+    let config = &mut world.fake_env.limits;
+    config.limits.commits = 64;
+    config.limits.statuses = 32;
+    config.limits.content_bytes = 16_384;
+    world.fake = fake::Domain::new(config, 71);
+    let cues =
+        [("docs", "selection: docs\n".to_owned()), ("full", format!("selection: full\n{}", "CI output\n".repeat(700)))];
+    fake::repository(
+        &mut world.fake,
+        config,
+        raw::Setup {
+            id: 2,
+            name: b"org/repo".as_slice().into(),
+            default: b"main".as_slice().into(),
+            tree: Box::new([]),
+            labels: Box::new([]),
+            workflows: Box::new([]),
+            protection: None,
+            hooked: false,
+            checks: raw::Checks {
+                contexts: cues.iter().map(|(name, _)| name.as_bytes().into()).collect(),
+                cues: cues
+                    .into_iter()
+                    .map(|(name, log)| raw::ContextCue {
+                        context: name.as_bytes().into(),
+                        cue: raw::Cue::PullFile {
+                            path: b"absent-{pull}".as_slice().into(),
+                            no_pull: raw::Check::Failed,
+                            step: b"ci-gate".as_slice().into(),
+                            log: log.into_bytes().into(),
+                        },
+                    })
+                    .collect(),
+                latency_min: skein_lib::Duration::ZERO,
+                latency_max: skein_lib::Duration::ZERO,
+                silent: 0,
+                passes: 0,
+                reruns: 0,
+                cue: None,
+            },
+        },
+    );
+    fake::grant(&mut world.fake, b"org/repo", 1, raw::Permission::Admin);
+    fake::grant(&mut world.fake, b"org/repo", 2, raw::Permission::Write);
+}
+
+fn reference_ci_pulls(world: &mut PersonWorld) -> (skein_forge::api::JobAttempt, skein_forge::api::JobAttempt) {
+    use skein_fake_forge_domain::{self as fake, api as raw};
+    reference_ci_issues(world);
+    let main = world.fake.branch(b"org/repo", b"main").expect("main");
+    let mut jobs = Vec::new();
+    // Two independent fake log contexts supply evidence, not a CI selector model.
+    for (pull, branch, advances, context) in [(6, "full", 23, "full"), (7, "docs", 1, "docs")] {
+        world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.as_bytes().into(), commit: main }));
+        let mut head = main;
+        for index in 0..advances {
+            head = fake::advance(
+                &mut world.fake,
+                &world.fake_env,
+                b"org/repo",
+                branch.as_bytes(),
+                b"file",
+                index.to_string().as_bytes(),
+                1,
+            )
+            .expect("fixture head");
+            for _ in 0..2 {
+                world.tick();
+            }
+            world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+        }
+        assert_eq!(
+            world.external(
+                1,
+                raw::Op::Write(raw::Write::OpenPull {
+                    title: b"Main pull".as_slice().into(),
+                    body: Box::new([]),
+                    head: branch.as_bytes().into(),
+                    base: b"main".as_slice().into(),
+                    opens_empty: false,
+                })
+            ),
+            raw::Answer::Created(pull)
+        );
+        world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+        let job = world.fake.check_run(b"org/repo", head, context.as_bytes()).expect("CI job");
+        jobs.push(skein_forge::api::JobAttempt {
+            head: temper_engine_forge_world::translate::commit(head),
+            run: job.run,
+            job: job.job,
+            attempt: job.attempt,
+        });
+    }
+    assert_eq!(jobs[0].job, 50, "supplied final-wake job");
+    (jobs[0], jobs[1])
+}
+
+fn reference_ci_issues(world: &mut PersonWorld) {
+    use skein_fake_forge_domain::api as raw;
+    for _ in 0..5 {
+        let raw::Answer::Created(number) = world.external(
+            1,
+            raw::Op::Write(raw::Write::CreateIssue {
+                title: b"Fixture".as_slice().into(),
+                body: Box::new([]),
+                labels: Box::new([]),
+            }),
+        ) else {
+            panic!("fixture issue")
+        };
+        world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+        if number == 5 {
+            break;
+        }
+    }
+}
+
+fn reference_result_wake(world: &mut PersonWorld, goal: &engine::Assignment) -> engine::Assignment {
+    let mut delegate = temper_engine_domain_world::fixtures::report_delegate(b"Report the landing", Box::new([]));
+    delegate.executor = tasks::Executor::Agent { charter: 7 };
+    delegate.authority.tools = tasks::Tools(0);
+    delegate.authority.budget.spend = 10_000;
+    let answer = world.scripted_call(goal, 90, engine::Tool::Delegate { batch: Box::new([delegate]) });
+    assert!(matches!(answer, engine::CallAnswer::Delegated(_)), "{answer:?}");
+    let reporter = person_assignment(world, 7, None);
+    person_park(world, goal);
+    person_end(
+        world,
+        &reporter,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"Landing result".as_slice().into() },
+            cancel_delegates: false,
+        },
+    );
+    let resumed = person_assignment(world, 5, Some(goal));
+    assert!(
+        resumed.messages.iter().any(|word| matches!(word.kind, tasks::MessageKind::Result(_))),
+        "the effective charter belongs to a result wake"
+    );
+    resumed
+}
+
+fn reference_job_read(
+    world: &mut PersonWorld,
+    goal: &engine::Assignment,
+    number: u32,
+    job: skein_forge::api::JobAttempt,
+    max_bytes: u32,
+) -> String {
+    let head = engine::commit_text(&job.head);
+    let input = serde_json::to_vec(&serde_json::json!({
+        "head": std::str::from_utf8(&head).expect("head"), "run": job.run, "job": job.job,
+        "attempt": job.attempt, "max_bytes": max_bytes,
+    }))
+    .expect("job read");
+    let call = person_tool(goal, number, b"read_job", &input);
+    let answer = world.scripted_call(goal, u64::from(number), call.tool);
+    let rendered = temper_engine_smith::answer_bounded(&answer, max_bytes);
+    assert!(!rendered.error(), "{}", String::from_utf8_lossy(rendered.text()));
+    String::from_utf8(rendered.text().to_vec()).expect("job log")
+}
+
 // temper/docs/design/domain/agent.md, 4.3 and 4.4: reports reach the coordinator,
 // whose close-out words must carry them across the sibling read boundary.
 #[test]
@@ -601,6 +806,99 @@ fn close_out_receives_complete_implementation_reports() {
     let (_, incomplete) = close_out_change(&mut world, &goal, 11, &missing, 7);
     assert_close_out_reports(&incomplete, &missing, &[]);
     world.close();
+}
+
+// temper/docs/design/protocol/configuration.md, 13.9: delivered rules and retained
+// evidence cross the report boundary; scripted choices do not prove model compliance.
+#[test]
+fn close_out_requires_acceptance_specific_regression_evidence() {
+    use std::fmt::Write;
+    let (mut world, mut goal) = reference_person_world("none");
+    let mut handoff = String::from("Close out the plan.\n\n");
+    let mut producers = Vec::new();
+    for (number, covered) in [(1, false), (2, true)] {
+        let spec = "Add the cancelled-early-start explanation and its task-help pointer; \
+                    each needs an assertion for its new words.";
+        let (change, producer) = close_out_change(&mut world, &goal, number, spec, 2);
+        let report = acceptance_report(covered);
+        close_out_land(&mut world, change, &producer, report.as_bytes());
+        let (read, pieces) = close_out_report(&mut world, &goal, producer.task);
+        assert_eq!(read, report, "acceptance evidence survives report continuations");
+        assert!(pieces > 1, "evidence uses the bounded report path");
+        writeln!(handoff, "Change task {change}; producer task {}:\n{read}", producer.task).expect("handoff");
+        let disposition = if covered {
+            "Coverage disposition: explanation and pointer have separate named assertions."
+        } else {
+            "Coverage disposition: unresolved gap for explanation and pointer; repair before built."
+        };
+        writeln!(handoff, "{disposition}\n").expect("coverage disposition");
+        producers.push(producer);
+    }
+    person_park(&mut world, &goal);
+    goal = person_assignment(&mut world, 5, Some(&goal));
+    let (_, close_out) = close_out_change(&mut world, &goal, 10, &handoff, 7);
+    assert_close_out_reports(&close_out, &handoff, &[]);
+    for producer in &producers {
+        assert_acceptance_instructions(producer);
+    }
+    assert_acceptance_instructions(&goal);
+    assert_acceptance_instructions(&close_out);
+    // The restart oracle must see both fake landings on the watched branch.
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll_max);
+    world.until(temper_engine_domain_world::forge_routes::Until::Ready);
+    world.close();
+}
+
+fn acceptance_report(covered: bool) -> String {
+    let evidence = if covered {
+        "Assertions added or extended: cancelled_early_start_explains_cancellation asserts the new explanation; \
+         cancelled_early_start_points_to_task_help asserts the task-help pointer.\n\
+         Existing coverage: change_and_task_help_say_what_a_cancelled_early_start_means covers the seed \
+         cancellation label and replacement producer, not these new words.\n\
+         Checks actually run: both new assertions failed with their required words removed, then passed restored."
+    } else {
+        "No new tests were added. The only test-file edit raises the member-line bound from 160 to 512.\n\
+         Acceptance explanation: no named assertion for its new words.\n\
+         Acceptance pointer: no named assertion for the task-help pointer.\n\
+         Existing coverage: change_and_task_help_say_what_a_cancelled_early_start_means covers the seed \
+         cancellation label and replacement producer. Checks actually run: page bounds and link validity passed."
+    };
+    format!("Implemented help explanation and task-help pointer.\n{evidence}\nCI: passed.\nLeft: none.\n")
+}
+
+fn assert_acceptance_instructions(run: &engine::Assignment) {
+    let instructions = String::from_utf8_lossy(&run.run.policy.instructions);
+    for rule in [
+        "assertions added or extended",
+        "existing coverage",
+        "checks actually run",
+        "Page bounds and link validity",
+        "explanation or pointer",
+    ] {
+        assert!(instructions.contains(rule), "charter {} acceptance evidence requires: {rule}", run.charter);
+    }
+    let rules: &[&str] = match run.charter {
+        2 => &[
+            "map each acceptance item to a named assertion at the lowest tier",
+            "add or extend tests when existing assertions do not cover it",
+        ],
+        5 => &[
+            "check each acceptance item against its named assertion at the lowest tier",
+            "coverage mapping and every unresolved coverage gap in the close-out change's words",
+            "even when Left is empty or CI passes",
+            "route it for repair before declaring the item built",
+        ],
+        7 => &[
+            "check each acceptance item against its named assertion at the lowest tier",
+            "even when Left is empty or CI passes",
+            "route it for repair before declaring the item built",
+            "retain the coverage mapping and unresolved coverage gaps in your report",
+        ],
+        other => panic!("acceptance review charter {other}"),
+    };
+    for rule in rules {
+        assert!(instructions.contains(rule), "charter {} acceptance evidence requires: {rule}", run.charter);
+    }
 }
 
 fn close_out_change(
@@ -918,7 +1216,7 @@ fn reference_missing_role(defaults: &mut jig_domain_core::settings::Defaults, mi
             without_person(&mut policy.roles[0].authority);
         }
         "creator" => without_person(&mut defaults.policies.get_mut(&1).expect("policy").policy.roles[0].authority),
-        "none" => {}
+        "none" | "ci-selection" => {}
         other => panic!("row {other}"),
     }
 }
@@ -932,6 +1230,9 @@ fn reference_person_world(missing: &str) -> (PersonWorld, engine::Assignment) {
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.journal.run_bytes = 26_000;
     let mut world = PersonWorld::configured_stock_limits(&defaults, &crate::stock::box_model(), &limits);
+    if missing == "ci-selection" {
+        reference_ci_forge(&mut world);
+    }
     world.adopt();
     if missing == "existing" {
         reference_existing_policy(&mut world, configured);
@@ -952,6 +1253,9 @@ fn reference_person_world(missing: &str) -> (PersonWorld, engine::Assignment) {
         panic!("goal")
     };
     let member = &mut batch[0];
+    if missing == "ci-selection" {
+        member.words = b"Report full or docs for each main pull, #6 and #7, matching ci-gate.".as_slice().into();
+    }
     member.executor = jig_domain_people::TaskExecutor::Agent { charter: 5 };
     member.wake = None;
     if missing != "none" && missing != "existing" {

@@ -289,7 +289,7 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The retry notice's optional reason occupies 16 inline bytes.
 // The task's later choice and two reason sets occupy 32 inline bytes.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2616;
+pub const TURN_OVERLAP_BYTES: u64 = 2617;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();
@@ -298,7 +298,7 @@ pub fn turn_overlap_limits() -> jig_test_domain::Limits {
 }
 #[must_use]
 pub fn callable_turn() -> Box<[u8]> {
-    use smith_transcript::v6 as s;
+    use smith_transcript::v7 as s;
     let mut blocks = List::with_capacity(2);
     blocks
         .push(s::Block::Text(
@@ -321,10 +321,9 @@ pub fn callable_turn() -> Box<[u8]> {
         .expect("source call block");
     turn_with_blocks(blocks)
 }
-fn turn_with_blocks(blocks: List<smith_transcript::v6::Block>) -> Box<[u8]> {
-    use smith_transcript::v6 as s;
-    let mut turn =
-        s::Turn::decode(&s::CEILINGS, &mut skein_lib::Reader::new(TURN_BYTES)).expect("v7 fixture").into_parts();
+fn turn_with_blocks(blocks: List<smith_transcript::v7::Block>) -> Box<[u8]> {
+    use smith_transcript::v7 as s;
+    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, TURN_BYTES).expect("v7 fixture").into_parts();
     let mut message = turn.messages.get(0).expect("person message").clone().into_parts();
     message.blocks = blocks;
     turn.messages = List::with_capacity(1);
@@ -338,8 +337,8 @@ fn turn_with_blocks(blocks: List<smith_transcript::v6::Block>) -> Box<[u8]> {
 // Eight KiB fits the committed marker and its owner; an extra byte cannot fit whole.
 pub const TURN_PAGE_BYTES: u32 = 8192;
 pub const LARGE_TURN_TEXT_BYTES: u32 = TURN_PAGE_BYTES + 1;
-// The v7 fixture's metadata and field framing measure 132 bytes.
-const TURN_FRAMING_BYTES: u64 = 132;
+// The v7 fixture's metadata and field framing measure 133 bytes.
+const TURN_FRAMING_BYTES: u64 = 133;
 pub const LARGE_TURN_BYTES: u64 = LARGE_TURN_TEXT_BYTES as u64 + TURN_FRAMING_BYTES;
 #[must_use]
 pub fn turn_page_limits() -> jig_test_domain::Limits {
@@ -349,7 +348,7 @@ pub fn turn_page_limits() -> jig_test_domain::Limits {
 }
 #[must_use]
 pub fn large_turn() -> Box<[u8]> {
-    use smith_transcript::v6 as s;
+    use smith_transcript::v7 as s;
     let mut blocks = List::with_capacity(1);
     blocks
         .push(s::Block::Text(

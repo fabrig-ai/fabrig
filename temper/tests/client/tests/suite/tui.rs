@@ -1,14 +1,15 @@
 //! The shipped TUI host on the engine (temper/docs/design/client/README.md, 10).
 use jig_client::ApprovalCode;
 use jig_client_kit::harness::{ClientId, FrontFault, Settings, World};
-use skein_lib::{Duration, Token};
+use skein_lib::{Duration, Secret, Token, Wall};
 use skein_ui_screen_terminal::Key;
 use temper_client_domain::{self as client, Action, Place, approve};
+use temper_client_tui::Note;
 use temper_client_world::{
     app::Temper,
     fixtures,
     front::{self, Joint},
-    tui::{ADDRESS, Tui},
+    tui::{ADDRESS, File, Tui},
 };
 
 const TUI: ClientId = ClientId(1_000);
@@ -128,6 +129,110 @@ fn a_tui_signed_in_by_its_pasted_link_draws_me() {
     assert_eq!(tui.address.as_deref(), Some(ADDRESS));
 }
 
+fn file_secret_is_in_no_frame(tui: &Tui, link: &[u8]) {
+    let url = std::str::from_utf8(link).expect("fixture URL");
+    let (_, secret) = url.split_once("?secret=").expect("fixture secret field");
+    assert!(!tui.frames.is_empty(), "the host drew frames");
+    for frame in &tui.frames {
+        assert!(!frame.contains(url), "the file's URL must not be drawn");
+        assert!(!frame.contains(secret), "the file's secret must not be drawn");
+    }
+}
+
+#[test]
+fn a_fresh_tui_signs_in_from_the_engines_link_with_no_key() {
+    let mut world = fixtures::tui_world(fixtures::SEED);
+    let link = world.front().latest_link().expect("the engine's printed link");
+    assert!(link == front::printed_link(), "the file starts with the given printed link");
+    let mut tui = Tui::with_file(&mut world, TUI, None, File::Engine, None);
+    assert!(tui.text().contains("Connecting to 127.0.0.1:8367"));
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(tui.text().contains(CONNECTED));
+    assert!(tui.status().ends_with("● Live"));
+    assert!(tui.credential().is_some(), "the file's sign-in keeps a credential");
+    assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
+    assert_eq!(tui.reads, 1);
+    assert_eq!(tui.sign_in_sends, 1);
+    assert_eq!(tui.approval_asks, 0);
+    assert!(tui.opens.is_empty());
+    assert!(matches!(tui.notes.last(), Some(Note::Until(until)) if *until > world.front().engine.env.wall));
+    file_secret_is_in_no_frame(&tui, &link);
+}
+
+#[test]
+fn a_tui_after_a_browser_spent_the_link_signs_in_by_the_next() {
+    let mut world = fixtures::tui_world(fixtures::SEED);
+    // A second shipped host spends the printed link as a browser would.
+    let mut elsewhere = Tui::start(&mut world, ELSEWHERE, None);
+    elsewhere.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
+    elsewhere.run(&mut world, fixtures::WITHIN);
+    assert!(elsewhere.credential().is_some());
+    let mut tui = Tui::with_file(&mut world, TUI, None, File::Engine, None);
+    assert_eq!(tui.reads, 1);
+    tui.run(&mut world, STEP);
+    assert_eq!(tui.reads, 1, "the used answer waits a second before reading again");
+    assert!(tui.credential().is_none());
+    assert_eq!(tui.approval_asks, 0);
+    tui.run(&mut world, fixtures::WITHIN);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!((2..=3).contains(&tui.reads), "reads={}", tui.reads);
+    assert!(
+        world.front().latest_link().expect("the newly drawn link") != front::printed_link(),
+        "trying the spent link draws the next one"
+    );
+    assert!(tui.credential().is_some(), "reads={}; sends={}; notes={:?}", tui.reads, tui.sign_in_sends, tui.notes);
+    assert!(tui.text().contains(CONNECTED));
+    assert!(tui.status().ends_with("● Live"));
+    assert!(tui.credential().is_some());
+    assert_eq!(tui.sign_in_sends, 2);
+    assert_eq!(tui.approval_asks, 0);
+    assert!(tui.opens.is_empty());
+}
+
+#[test]
+fn a_stale_files_link_falls_back_with_nothing_alarming() {
+    const UNKNOWN: &[u8] =
+        b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    const ELSEWHERE_LINK: &[u8] =
+        b"http://127.0.0.1:9000/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    for (link, sends) in [(UNKNOWN, 1), (ELSEWHERE_LINK, 0)] {
+        let mut world = fixtures::tui_world(fixtures::SEED);
+        let mut tui = Tui::with_file(&mut world, TUI, None, File::Bytes(Secret::new(link.into())), None);
+        tui.run(&mut world, fixtures::WITHIN);
+        assert_eq!(tui.sign_in_sends, sends, "only a link at this address is sent");
+        assert_eq!(tui.reads, 1);
+        assert_eq!(tui.approval_asks, 1);
+        assert!(tui.credential().is_none());
+        assert!(tui.text().contains(SIGN_IN));
+        for frame in &tui.frames {
+            for refusal in ["isn't from this temper", "already used", "refused"] {
+                assert!(!frame.contains(refusal), "a file's fallback draws no paste refusal");
+            }
+        }
+    }
+}
+
+#[test]
+fn an_expired_sign_in_is_renewed_from_the_file() {
+    let mut world = fixtures::tui_world(fixtures::SEED);
+    let link = world.front().latest_link().expect("the engine's printed link");
+    // This world's wall starts at the epoch, with no representable hour before it.
+    let expired = Note::Until(Wall::from_nanos(1));
+    let credential = Secret::new(Box::new([0; 40]));
+    let mut tui = Tui::with_file(&mut world, TUI, Some(credential), File::Engine, Some(expired));
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(tui.keeps.first().is_some_and(Option::is_none), "erase the unknown credential first");
+    assert_eq!(tui.keeps.len(), 2, "erase, then keep the new sign-in");
+    assert!(tui.credential().is_some());
+    assert!(tui.text().contains(CONNECTED));
+    assert!(tui.status().ends_with("● Live"));
+    assert_eq!(tui.reads, 1);
+    assert_eq!(tui.approval_asks, 0);
+    assert!(tui.opens.is_empty());
+    assert!(matches!(tui.notes.last(), Some(Note::Until(until)) if *until > world.front().engine.env.wall));
+    file_secret_is_in_no_frame(&tui, &link);
+}
+
 #[test]
 fn the_engine_restarted_under_a_tui_goes_offline_then_live_and_keeps_me() {
     let (mut world, mut tui) = signed_in();
@@ -153,7 +258,12 @@ fn the_engine_restarted_under_a_tui_goes_offline_then_live_and_keeps_me() {
 
 #[test]
 fn a_tui_signed_out_elsewhere_asks_for_a_link_with_its_token_erased() {
-    let (mut world, mut tui) = signed_in();
+    let mut world = fixtures::tui_world(fixtures::SEED);
+    let mut tui = Tui::with_file(&mut world, TUI, None, File::Engine, Some(Note::SignedOut));
+    assert_eq!(tui.reads, 0);
+    tui.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(matches!(tui.notes.last(), Some(Note::Until(_))));
     let credential = tui.credential().cloned().expect("signed-in TUI");
     world.front().link_client(ELSEWHERE, temper_client_shell_tui::limits::tui().native.client.client.domain);
     let now = world.now();
@@ -173,4 +283,23 @@ fn a_tui_signed_out_elsewhere_asks_for_a_link_with_its_token_erased() {
     assert!(tui.status().ends_with("● Signed out"), "status={:?}; frame={}", tui.status(), tui.text());
     assert_eq!(tui.keeps, vec![Some(credential), None]);
     assert!(tui.credential().is_none());
+    assert_eq!(tui.notes.last(), Some(&Note::SignedOut));
+    assert_eq!(tui.reads, 0, "a sign-out does not read the file");
+
+    let note = tui.notes.last().copied();
+    let mut restarted = Tui::with_file(&mut world, ClientId(1_002), None, File::Engine, note);
+    restarted.run(&mut world, fixtures::WITHIN);
+    assert_eq!(restarted.reads, 0, "the retained signed-out note forbids renewal");
+    assert_eq!(restarted.approval_asks, 1);
+    assert!(restarted.text().contains(SIGN_IN));
+    // A person's paste may try the spent link and draw the next, then use that one.
+    restarted.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
+    restarted.run(&mut world, STEP);
+    let fresh = world.front().latest_link().expect("trying the spent link draws a fresh one");
+    restarted.press(&mut world, vec![Key::Paste(fresh), Key::Enter]);
+    restarted.run(&mut world, fixtures::WITHIN);
+    assert!(restarted.credential().is_some());
+    assert!(restarted.status().ends_with("● Live"));
+    assert!(matches!(restarted.notes.last(), Some(Note::Until(_))));
+    assert_eq!(restarted.reads, 0, "the paste alone signs the fresh host in");
 }

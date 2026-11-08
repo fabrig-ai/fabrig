@@ -151,8 +151,7 @@ fn connect_prints_the_watch_that_follows_its_address() {
 fn unconfirmed_disconnect_names_the_provider_settings() {
     let mut root = f::account_root(false);
     let call = root.submit(&["account", "disconnect", "43"]);
-    let mut me = f::me(f::PARTY);
-    me.providers = f::provider_offers();
+    let me = program_offers();
     root.deliver(c::Delivery::Me(Box::new(me)));
     let mut accounts = f::accounts();
     accounts.accounts.get_mut(0).expect("account").sources.get_mut(0).expect("source").kind = c::AccountKind::SignIn;
@@ -286,13 +285,20 @@ fn a_lost_replacement_prints_its_recoverable_name() {
     }
 }
 
+fn program_offers() -> c::Me {
+    let mut me = f::me(f::PARTY);
+    me.providers = f::provider_offers();
+    me
+}
+fn program_accounts() -> f::Harness {
+    let mut root = f::account_root(false);
+    root.deliver(c::Delivery::Me(Box::new(program_offers())));
+    root
+}
 #[test]
 fn declare_validates_the_offer_and_sends_only_the_contract_fields() {
     for (join, json) in [(false, false), (true, false), (false, true), (true, true)] {
-        let mut root = f::account_root(false);
-        let mut me = f::me(f::PARTY);
-        me.providers = f::provider_offers();
-        root.deliver(c::Delivery::Me(Box::new(me)));
+        let mut root = program_accounts();
         let words = if join {
             &["account", "declare", "9", "helper", "work-login", "--account", "43", "--key", "declaration"][..]
         } else {
@@ -341,10 +347,7 @@ fn declare_refuses_unoffered_adapters_and_providers_locally() {
         &["account", "declare", "9", "absent", "work-login", "--key", "declaration"][..],
         &["account", "declare", "99", "helper", "work-login", "--key", "declaration"],
     ] {
-        let mut root = f::account_root(false);
-        let mut me = f::me(f::PARTY);
-        me.providers = f::provider_offers();
-        root.deliver(c::Delivery::Me(Box::new(me)));
+        let mut root = program_accounts();
         let call = root.submit(words);
         let printed = root.answer(call).expect("local refusal");
         assert_eq!(printed.status, 1);
@@ -356,8 +359,7 @@ fn declare_refuses_unoffered_adapters_and_providers_locally() {
 fn declare_refuses_unchecked_adapters_when_provider_offers_are_cut() {
     for (providers_cut, programs_cut, name_cut) in [(true, false, false), (false, true, false), (false, false, true)] {
         let mut root = f::account_root(false);
-        let mut me = f::me(f::PARTY);
-        me.providers = f::provider_offers();
+        let mut me = program_offers();
         me.providers_cut = providers_cut;
         let offer = me.providers.get_mut(0).expect("offer");
         offer.programs_cut = programs_cut;
@@ -806,5 +808,106 @@ fn an_export_refused_for_full_answers_removes_its_file() {
     assert_eq!(
         answer.stderr.as_ref(),
         b"temper ctl: the engine holds its 3 answers of the last day; room again at 1970-01-02 00:00 UTC\n"
+    );
+}
+
+#[test]
+fn account_refusals_say_why_and_what_next() {
+    // These unit refusals nest the result, outcome and refused object envelopes.
+    const REFUSAL_DEPTH: u32 = 3;
+    let declare = &["account", "declare", "9", "helper", "work-login", "--key", "declaration"][..];
+    for (words, refusal, why, next) in [
+        (
+            declare,
+            c::Refusal::NameTaken,
+            b"account declare: program name work-login is taken".as_slice(),
+            Some(b"Declare under another name. If account list shows a source of yours named work-login, check its login instead: account verify ACCOUNT --source program".as_slice()),
+        ),
+        (
+            declare,
+            c::Refusal::NotOffered,
+            b"account declare: provider 9 offers you no program login".as_slice(),
+            Some(b"me prints each provider's ways; declare with a provider whose line names programs".as_slice()),
+        ),
+        (
+            &["account", "retry", "43"],
+            c::Refusal::NotOffered,
+            b"account retry: the source is not limited, so there is nothing to resume".as_slice(),
+            Some(b"account list shows its state and what it needs".as_slice()),
+        ),
+        (declare, c::Refusal::Unknown, b"account declare: No visible object with that name".as_slice(), None),
+    ] {
+        for json in [false, true] {
+            let mut root = f::account_root(false);
+            f::offer_programs(&mut root);
+            let words = f::extended(words, if json { &["--json"] } else { &[] });
+            let call = root.submit(words.as_slice());
+            f::deliver_accounts(&mut root, f::accounts());
+            let ask = root.sends.get(&call).expect("account act sent").2.clone();
+            root.answered(call, c::Answer::Refused { refusal: refusal.clone(), at: None });
+            let printed = root.answer(call).expect("engine refusal");
+            assert_eq!(printed.status, 2, "{refusal:?}, json={json}");
+            assert!(printed.stdout.is_empty());
+            if json {
+                f::unique_keys(&printed.stderr).expect("valid refusal JSON with unique keys");
+                let doc = crate::jig::json::document_depth(&printed.stderr, REFUSAL_DEPTH).expect("refusal JSON");
+                let actual_next = match doc.member(0, b"next") {
+                    Some(at) => Some(doc.text(doc.token(at).expect("next token")).expect("next string")),
+                    None => None,
+                };
+                assert_eq!(actual_next, next, "{refusal:?}");
+            } else {
+                let mut text = skein_lib::Reader::new(&printed.stderr);
+                assert_eq!(text.bytes(u32::try_from(why.len()).expect("bounded reason")), Some(why), "{refusal:?}");
+                assert_eq!(text.u8(), Some(b'\n'), "whole reason line");
+                if let Some(next) = next {
+                    assert_eq!(text.bytes(u32::try_from(next.len()).expect("bounded advice")), Some(next), "{refusal:?}");
+                    assert_eq!(text.u8(), Some(b'\n'), "whole next-step line");
+                }
+                assert!(text.is_empty(), "no other refusal lines");
+            }
+            let mut records = f::restored_message(f::PARTY);
+            records.get_mut(f::EMPTY).expect("restored request").request.request = ask;
+            let mut restored = f::started_with(records, f::SEED, json);
+            restored.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
+            restored.answered(f::EMPTY, c::Answer::Refused { refusal: refusal.clone(), at: None });
+            let line = restored.kept_lines.get(0).expect("restored refusal");
+            if json {
+                f::unique_keys(line).expect("valid restored JSON with unique keys");
+                let doc = crate::jig::json::document_depth(line, REFUSAL_DEPTH).expect("restored refusal JSON");
+                let actual_next = match doc.member(0, b"next") {
+                    Some(at) => Some(doc.text(doc.token(at).expect("next token")).expect("next string")),
+                    None => None,
+                };
+                assert_eq!(actual_next, next, "restored {refusal:?}");
+            } else if next.is_some() {
+                assert!(line.ends_with(&printed.stderr), "restored refusal keeps the ask's words: {line:?}");
+            } else {
+                assert_eq!(line.as_ref(), b"kept: declare, declare: No visible object with that name\n");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_retired_program_name_explains_how_to_declare_again() {
+    let mut root = program_accounts();
+    let forgotten = root.submit(&["account", "forget", "43", "--key", "proof4-forget"]);
+    f::deliver_accounts(&mut root, f::accounts());
+    root.done(
+        forgotten,
+        c::Outcome::Document(c::DocumentOutcome::AccountRemoved { confirmed: true, failed_hosts: Box::new([]) }),
+    );
+    let mut accounts = f::accounts();
+    accounts.accounts = List::with_capacity(0);
+    f::deliver_accounts(&mut root, accounts);
+    let call = root.submit(&["account", "declare", "9", "helper", "claude-6", "--key", "proof5-claude6"]);
+    assert_eq!(root.sent_name(call), Some(f::named("proof5-claude6")));
+    root.answered(call, c::Answer::Refused { refusal: c::Refusal::ProgramNameReserved, at: None });
+    let printed = root.answer(call).expect("reservation refusal");
+    assert_eq!(printed.status, 2);
+    assert_eq!(
+        printed.stderr.as_ref(),
+        b"account declare: This program name remains reserved after forgetting its account; choose a never-used name\n"
     );
 }

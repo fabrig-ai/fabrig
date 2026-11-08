@@ -2677,7 +2677,31 @@ that changes the stock changes nothing of them.
   dead end, a trap in the code) with jig's `note`, in the goal's or the
   repository's scope, and reads the notes before it triages. Its
   goal's end waits for the landing's result at cleared, repaired or
-  not.
+  not. Before finishing on that result, it checks every requested
+  acceptance item and collects its evidence, including full or docs for
+  each main pull when CI selection is requested. A `[log bytes cut]`
+  marker with a required header absent means evidence is missing: it
+  retries `read_job` with a larger `max_bytes` to recover it. It reports
+  an unresolved gap only after available reads cannot supply the evidence,
+  and does not claim completion for an unmet item; an avoidably short read
+  does not satisfy acceptance.
+- **Acceptance evidence, from production to close-out.** Charter 2 maps
+  each acceptance item to a named assertion at the lowest tier that
+  shows it, adding or extending tests where existing assertions do not
+  cover the requested behavior. Its report distinguishes assertions
+  added or extended, existing coverage, and checks actually run, with
+  what each assertion proves. Page bounds and link validity do not
+  establish coverage of a new explanation or pointer. Charter 5's
+  results part checks this mapping and carries it and each unresolved
+  coverage gap in the close-out's words, beside the complete reports
+  and Left dispositions. Charter 7 reviews that evidence and retains
+  the mapping and gaps in its report, requesting missing evidence or
+  routing the gap for repair before declaring the item built. Missing
+  coverage remains an unresolved gap even when Left is empty or CI
+  passes; close-out and the goal's landing wait for it to be resolved.
+  The domain world checks the assigned instructions and retained
+  evidence through fake landings and bounded report continuations;
+  scripted choices establish no model compliance.
 - **Charter 5's plan done, and its landing's words**
   (`../draft/reference-code-production.md`, section 12;
   `../draft/reference-landing.md`, section 3, step 2), in its
@@ -2874,6 +2898,12 @@ that changes the stock changes nothing of them.
   `.temper/merge` (`tooling.md`, 4.1), which recounts a counted
   baseline left in conflict (each tree's `scripts/old-forms.txt`, by
   its `scripts/old_forms.py --write`) and leaves every other conflict.
+  The delivery format check batches Cargo's target roots by target edition
+  and nearest rustfmt configuration, retaining rustfmt's module traversal;
+  all five trees' counted baselines run against the private snapshot index,
+  including newly added sources. Only a tree whose checks all succeed may
+  reuse that success for an identical tree. The first uncached delivery
+  must also fit the unchanged 60-second check timeout (section 11).
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before

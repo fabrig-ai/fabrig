@@ -9,13 +9,13 @@ use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Op, Submit},
 };
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall};
 use skein_shell::Host;
 use skein_ui_screen::Size;
 #[cfg(any(test, feature = "record"))]
 use skein_ui_screen_terminal::Key;
-use skein_ui_screen_terminal::{Depth, Terminal};
-use temper_client_tui::Scheme;
+use skein_ui_screen_terminal::{Background, Depth, Terminal};
+use temper_client_tui::{Note, Scheme};
 
 const TAG: u64 = 1 << 61;
 const ROOM: u32 = 64;
@@ -25,7 +25,10 @@ pub struct Settings {
     pub engine: io::Addr,
     pub directory: Box<[u8]>,
     pub address: Box<[u8]>,
-    pub scheme: Scheme,
+    pub scheme: Option<Scheme>,
+    pub link_file: Option<Box<[u8]>>,
+    pub note: Option<Note>,
+    pub files: Option<Fd>,
     pub depth: Depth,
     pub size: Size,
     pub limits: limits::Limits,
@@ -51,7 +54,13 @@ pub struct Run {
     raw: Queue<Submit>,
     told: Queue<io::Event>,
     operations: u32,
-    start: Option<(Scheme, Box<[u8]>)>,
+    start: Option<(Option<Scheme>, Box<[u8]>)>,
+    loaded: Option<(Option<Secret>, Vec<jig_client::Record>)>,
+    link_file: Option<Box<[u8]>>,
+    local: LocalFile,
+    note: Option<Note>,
+    notes: Option<FileSave>,
+    address: Box<[u8]>,
     size: Option<Size>,
     signed_in: Option<Box<[u8]>>,
     closing: bool,
@@ -73,7 +82,7 @@ impl Run {
         signals: Fd,
     ) -> Result<Run, Fd> {
         let host = host::Host::new(&host::Settings { limits: settings.limits.clone() }, seed, Time::ZERO, Wall::EPOCH);
-        let terminal_settings = limits::terminal(&settings.limits, settings.depth);
+        let terminal_settings = limits::terminal(&settings.limits, settings.depth, settings.scheme.is_some());
         let mut shell = jig_client_shell_native::Shell::new(jig_client_shell_native::Settings {
             engine: settings.engine,
             directory: settings.directory,
@@ -100,11 +109,17 @@ impl Run {
         let mut io = io::Io::new(&limits);
         let signals = io.adopt_signals(signals)?;
         #[cfg(any(test, feature = "record"))]
-        let recording = settings.record.map(|root| Recording::new(root, user, seed));
+        let recording = settings.record.map(|root| Recording::new(root, user, seed, settings.files == Some(root)));
+        #[cfg(any(test, feature = "record"))]
+        let shared_notes = recording.as_ref().is_some_and(|recording| recording.notes);
+        #[cfg(not(any(test, feature = "record")))]
+        let shared_notes = false;
+        let notes = settings.files.filter(|_| !shared_notes).map(|root| FileSave::new(root, user, seed, b"sign-in"));
         let operations = shell
             .operations()
             .checked_add(Terminal::operations(&terminal_settings).expect("checked terminal operations"))
             .and_then(|n| n.checked_add(io::operations(&limits).expect("signal operations")))
+            .and_then(|n| n.checked_add(2 + if notes.is_some() { 2 } else { 0 }))
             .expect("combined operations");
         #[cfg(any(test, feature = "record"))]
         let operations =
@@ -128,7 +143,13 @@ impl Run {
             raw: Queue::with_capacity(ROOM),
             told: Queue::uncapped(),
             operations,
-            start: Some((settings.scheme, settings.address)),
+            start: Some((settings.scheme, settings.address.clone())),
+            loaded: None,
+            link_file: settings.link_file,
+            local: LocalFile::new(root, user),
+            note: settings.note,
+            notes,
+            address: settings.address,
             size: None,
             signed_in: None,
             closing: false,
@@ -151,6 +172,19 @@ impl Run {
     }
 
     fn complete(&mut self, mut complete: Complete) {
+        let lane = complete.op.tag();
+        if lane == 3 || lane == 4 {
+            complete.op = Token::new(complete.op.untagged());
+            if let Op::Cancel { target } = &mut complete.kind {
+                *target = Token::new(target.untagged());
+            }
+            if lane == 3 {
+                self.notes.as_mut().expect("note completion").complete(self.env.now, complete);
+            } else {
+                self.local.complete(self.env.now, complete);
+            }
+            return;
+        }
         if Terminal::owns(complete.op) {
             self.terminal.completions().push(complete);
         } else if complete.op.raw() & TAG == 0 {
@@ -162,11 +196,7 @@ impl Run {
             }
             #[cfg(any(test, feature = "record"))]
             if io::file_layer::owns(complete.op) {
-                self.recording.as_mut().expect("recording file completion").complete(
-                    self.env.now,
-                    complete,
-                    &mut self.raw,
-                );
+                self.recording.as_mut().expect("recording file completion").save.complete(self.env.now, complete);
                 return;
             }
             io::up(&mut self.io, &self.env, complete, &mut self.told, &mut self.raw);
@@ -228,7 +258,7 @@ impl Run {
         let saving = self.recording.is_some();
         #[cfg(not(any(test, feature = "record")))]
         let saving = false;
-        if !saving {
+        if !saving && self.notes.is_none() && self.local.closed() {
             self.terminal.close();
         }
         self.shell.close();
@@ -256,6 +286,17 @@ impl Run {
         if let Some(credential) = duties.keep {
             self.shell.keep(credential);
         }
+        if let Some(note) = duties.note
+            && let Some(notes) = &mut self.notes
+        {
+            notes.noted = Some(note.print(&self.address));
+        }
+        #[cfg(any(test, feature = "record"))]
+        if let Some(note) = duties.note
+            && let Some(recording) = self.recording.as_mut().filter(|recording| recording.notes)
+        {
+            recording.save.noted = Some(note.print(&self.address));
+        }
         if let Some(address) = duties.address {
             self.signed_in = Some(address);
         }
@@ -271,6 +312,13 @@ impl Run {
         }
         if duties.close {
             self.close();
+        }
+        if duties.local {
+            if let Some(path) = &self.link_file {
+                self.local.pending = Some(path.clone());
+            } else {
+                self.report(host::Report::Local { link: None });
+            }
         }
     }
 
@@ -290,6 +338,42 @@ impl Run {
         }
     }
 
+    fn started(&mut self, credential: Option<Secret>, kept: Vec<jig_client::Record>) {
+        let (scheme, address) = self.start.take().expect("the shell loads once");
+        let scheme = scheme.unwrap_or_else(|| match self.terminal.background() {
+            Background::Answered(rgb) => Scheme::of_background(rgb),
+            Background::Waiting | Background::Unanswered => Scheme::Dark,
+        });
+        let size = self.terminal.size();
+        self.size = Some(size);
+        #[cfg(any(test, feature = "record"))]
+        if let Some(recording) = &mut self.recording {
+            let mut recorder = journey::Recorder::new(&journey::Facts {
+                seed: recording.seed,
+                now: Time::ZERO,
+                wall: Wall::EPOCH,
+                size,
+                scheme,
+                address: address.clone(),
+                local: self.link_file.is_some(),
+                note: self.note,
+                kept: kept.clone(),
+                credential: credential.clone(),
+            });
+            recorder.turn(self.env.now, self.env.wall);
+            recording.recorder = Some(recorder);
+        }
+        self.report(host::Report::Start(host::Start {
+            size,
+            scheme,
+            address,
+            local: self.link_file.is_some(),
+            kept,
+            credential,
+            note: self.note,
+        }));
+    }
+
     fn reports(&mut self) {
         self.host.clocks(self.env.now, self.env.wall);
         #[cfg(any(test, feature = "record"))]
@@ -297,29 +381,20 @@ impl Run {
             recorder.turn(self.env.now, self.env.wall);
         }
         let mut reported = false;
-        if let Some((credential, kept)) = self.shell.loaded() {
-            let (scheme, address) = self.start.take().expect("the shell loads once");
-            let size = self.terminal.size();
-            self.size = Some(size);
-            #[cfg(any(test, feature = "record"))]
-            if let Some(recording) = &mut self.recording {
-                let mut recorder = journey::Recorder::new(&journey::Facts {
-                    seed: recording.seed,
-                    now: Time::ZERO,
-                    wall: Wall::EPOCH,
-                    size,
-                    scheme,
-                    address: address.clone(),
-                    kept: kept.clone(),
-                    credential: credential.clone(),
-                });
-                recorder.turn(self.env.now, self.env.wall);
-                recording.recorder = Some(recorder);
-            }
-            self.report(host::Report::Start(host::Start { size, scheme, address, kept, credential }));
+        if let Some(loaded) = self.shell.loaded() {
+            self.loaded = Some(loaded);
+        }
+        if self.terminal.background() != Background::Waiting
+            && let Some((credential, kept)) = self.loaded.take()
+        {
+            self.started(credential, kept);
             reported = true;
         }
         if self.size.is_some() {
+            if let Some(link) = self.local.result.take() {
+                self.report(host::Report::Local { link });
+                reported = true;
+            }
             if let Some(opened) = self.opened.take() {
                 self.report(host::Report::Opened { opened });
                 reported = true;
@@ -361,6 +436,7 @@ impl Run {
         }
         if !self.closing
             && self.size.is_none()
+            && self.loaded.is_none()
             && !self.shell.work_pending(self.env.now)
             && self.shell.next_deadline().is_none()
             && self.shell.submissions().is_empty()
@@ -377,7 +453,7 @@ impl Run {
             && let Some(recorder) = &mut recording.recorder
         {
             match key {
-                Key::Alt('M') => {
+                Key::Alt('M' | 'm') => {
                     recorder.deadline(self.host.deadline());
                     recorder.turn(self.env.now, self.env.wall);
                     recorder.mark(&mut self.host);
@@ -385,9 +461,9 @@ impl Run {
                     recorder.turn(self.env.now, self.env.wall);
                     return true;
                 }
-                Key::Alt('S') => {
+                Key::Alt('S' | 's') => {
                     recorder.deadline(self.host.deadline());
-                    recording.pending = Some(recorder.save(&mut self.host));
+                    recording.save.pending = Some(recorder.save(&mut self.host));
                     recorder.turn(self.env.now, self.env.wall);
                     return true;
                 }
@@ -415,6 +491,14 @@ impl Run {
     }
 
     fn publish(&mut self) {
+        if let Some(notes) = &mut self.notes {
+            publish_files(&mut notes.submissions, &mut self.submit, 3);
+        }
+        publish_files(&mut self.local.submissions, &mut self.submit, 4);
+        #[cfg(any(test, feature = "record"))]
+        if let Some(recording) = &mut self.recording {
+            publish_files(&mut recording.save.submissions, &mut self.submit, 2);
+        }
         while self.submit.room() > 0 {
             let Some(mut submit) = self.raw.pop() else { break };
             assert!(submit.op.raw() & TAG == 0, "signal token namespace");
@@ -461,13 +545,23 @@ impl Host for Run {
         #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
             if self.closing && self.shell.is_empty() && !recording.closing {
-                recording.pending = recording.recorder.as_ref().map(|recorder| recorder.save(&mut self.host));
+                recording.save.pending = recording.recorder.as_ref().map(|recorder| recorder.save(&mut self.host));
                 recording.closing = true;
+                recording.save.closing = true;
             }
-            recording.progress(now, &mut self.raw);
-            if recording.closed() {
-                self.terminal.close();
-            }
+            recording.save.progress(now);
+        }
+        self.local.progress(now);
+        if let Some(notes) = &mut self.notes {
+            notes.closing = self.closing && self.shell.is_empty();
+            notes.progress(now);
+        }
+        #[cfg(any(test, feature = "record"))]
+        let recorded = self.recording.as_ref().is_none_or(|recording| recording.save.closed());
+        #[cfg(not(any(test, feature = "record")))]
+        let recorded = true;
+        if self.closing && recorded && self.notes.as_ref().is_none_or(FileSave::closed) && self.local.closed() {
+            self.terminal.close();
         }
         self.io.reclaim();
         self.open();
@@ -482,10 +576,13 @@ impl Host for Run {
     }
     fn work_pending(&self, now: Time) -> bool {
         #[cfg(any(test, feature = "record"))]
-        if self.recording.as_ref().is_some_and(|recording| recording.pending() || recording.io.is_due(now)) {
+        if self.recording.as_ref().is_some_and(|recording| recording.save.pending() || recording.save.io.is_due(now)) {
             return true;
         }
-        !self.complete.is_empty()
+        self.local.pending()
+            || self.local.io.is_due(now)
+            || self.notes.as_ref().is_some_and(|notes| notes.pending() || notes.io.is_due(now))
+            || !self.complete.is_empty()
             || !self.raw.is_empty()
             || !self.submit.is_empty()
             || !self.told.is_empty()
@@ -498,13 +595,20 @@ impl Host for Run {
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
         #[cfg(any(test, feature = "record"))]
-        let recording = self.recording.as_ref().and_then(|recording| recording.io.next_deadline());
+        let recording = self.recording.as_ref().and_then(|recording| recording.save.io.next_deadline());
         #[cfg(not(any(test, feature = "record")))]
         let recording = None;
-        [self.shell.next_deadline(), self.terminal.next_deadline(), self.io.next_deadline(), recording]
-            .into_iter()
-            .flatten()
-            .min()
+        [
+            self.shell.next_deadline(),
+            self.terminal.next_deadline(),
+            self.io.next_deadline(),
+            recording,
+            self.local.io.next_deadline(),
+            self.notes.as_ref().and_then(|notes| notes.io.next_deadline()),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         [
@@ -517,10 +621,12 @@ impl Host for Run {
     }
     fn is_empty(&self) -> bool {
         #[cfg(any(test, feature = "record"))]
-        if self.recording.as_ref().is_some_and(|recording| !recording.closed()) {
+        if self.recording.as_ref().is_some_and(|recording| !recording.save.closed()) {
             return false;
         }
         self.closing
+            && self.local.closed()
+            && self.notes.as_ref().is_none_or(FileSave::closed)
             && self.terminal.closed()
             && self.shell.is_empty()
             && self.io.is_empty()
@@ -537,10 +643,25 @@ impl Host for Run {
     }
 }
 
-// The run's tag encloses both io lanes (skein/docs/design/io.md, 5).
 #[cfg(any(test, feature = "record"))]
+struct Recording {
+    notes: bool,
+    save: FileSave,
+    recorder: Option<journey::Recorder>,
+    seed: u64,
+    closing: bool,
+}
+
+#[cfg(any(test, feature = "record"))]
+impl Recording {
+    fn new(root: Fd, user: u32, seed: u64, notes: bool) -> Self {
+        Self { notes, save: FileSave::new(root, user, seed, b"recording"), recorder: None, seed, closing: false }
+    }
+}
+
+// Each private writer owns its file lane (skein/docs/design/io.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum RecordingStage {
+enum SaveStage {
     Ready,
     Opening,
     Writing,
@@ -551,132 +672,291 @@ enum RecordingStage {
 
 /// A private replace, serialized with later saves and drained before LEAVE.
 /// temper/docs/design/client/tui/journeys.md, 3.1; skein/docs/design/io.md, 5.3.
-#[cfg(any(test, feature = "record"))]
-struct Recording {
+struct FileSave {
     io: io::file_layer::FileIo,
     env: Env<io::file_layer::Limits>,
     root: Option<Token>,
     private: Option<Token>,
-    stage: RecordingStage,
+    stage: SaveStage,
     events: Queue<io::file::Event>,
     pending: Option<Box<[u8]>>,
-    recorder: Option<journey::Recorder>,
-    seed: u64,
+    active: Option<(&'static [u8], Box<[u8]>)>,
+    noted: Option<Box<[u8]>>,
+    path: &'static [u8],
+    submissions: Queue<Submit>,
     closing: bool,
 }
 
-#[cfg(any(test, feature = "record"))]
-impl Recording {
-    fn new(root: Fd, user: u32, seed: u64) -> Self {
+impl FileSave {
+    fn new(root: Fd, user: u32, seed: u64, path: &'static [u8]) -> Self {
         // Four descriptors cover the parent, private directory, target and temporary.
         let limits =
             io::file_layer::Limits { files: 4, read: 1, entries: 1, whole: u32::MAX, timeout: Duration::from_secs(30) };
         let mut io = io::file_layer::FileIo::with_limits(&limits).with_effective_user(user);
         io.seed_randomness(seed);
-        let root = io.adopt_root(root).expect("recording root room");
+        let root = io.adopt_root(root).expect("private save root room");
         Self {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             root: Some(root),
             private: None,
-            stage: RecordingStage::Ready,
+            stage: SaveStage::Ready,
             events: Queue::uncapped(),
             pending: None,
-            recorder: None,
-            seed,
+            active: None,
+            noted: None,
+            path,
+            submissions: Queue::with_capacity(4),
             closing: false,
         }
     }
 
-    fn complete(&mut self, now: Time, complete: Complete, out: &mut Queue<Submit>) {
+    fn complete(&mut self, now: Time, complete: Complete) {
         self.env.now = now;
-        io::file_layer::step::up(&mut self.io, &self.env, complete, &mut self.events, out);
+        io::file_layer::step::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
     }
 
-    fn request(&mut self, stage: RecordingStage, request: io::file::Request, out: &mut Queue<Submit>) {
+    fn request(&mut self, stage: SaveStage, request: io::file::Request) {
         self.stage = stage;
-        io::file_layer::step::down(&mut self.io, &self.env, request, &mut self.events, out);
+        io::file_layer::step::down(&mut self.io, &self.env, request, &mut self.events, &mut self.submissions);
     }
 
-    fn progress(&mut self, now: Time, out: &mut Queue<Submit>) {
+    fn progress(&mut self, now: Time) {
         use io::file::{Event, Expect, Request};
         self.env.now = now;
         if self.io.is_due(now) {
-            io::file_layer::step::expire(&mut self.io, &self.env, out);
+            io::file_layer::step::expire(&mut self.io, &self.env, &mut self.submissions);
         }
         while let Some(event) = self.events.pop() {
             match self.stage {
-                RecordingStage::Opening => {
+                SaveStage::Opening => {
                     if let Event::Opened { file, .. } = event {
                         self.private = Some(file);
                     } else {
-                        self.pending = None;
+                        self.active = None;
                     }
-                    self.stage = RecordingStage::Ready;
+                    self.stage = SaveStage::Ready;
                 }
-                RecordingStage::Writing => self.stage = RecordingStage::Ready,
-                RecordingStage::ClosingPrivate => {
-                    assert!(matches!(event, Event::Closed { .. }), "recording directory closed");
+                SaveStage::Writing => self.stage = SaveStage::Ready,
+                SaveStage::ClosingPrivate => {
+                    assert!(matches!(event, Event::Closed { .. }), "private save directory closed");
                     self.private = None;
-                    self.stage = RecordingStage::Ready;
+                    self.stage = SaveStage::Ready;
                 }
-                RecordingStage::ClosingRoot => {
-                    assert!(matches!(event, Event::Closed { .. }), "recording parent closed");
+                SaveStage::ClosingRoot => {
+                    assert!(matches!(event, Event::Closed { .. }), "private save parent closed");
                     self.root = None;
-                    self.stage = RecordingStage::Closed;
+                    self.stage = SaveStage::Closed;
                 }
-                RecordingStage::Ready | RecordingStage::Closed => unreachable!("recording request in flight"),
+                SaveStage::Ready | SaveStage::Closed => unreachable!("private save request in flight"),
             }
         }
-        if self.stage != RecordingStage::Ready || !self.io.takes() || out.room() < 2 {
+        if self.stage != SaveStage::Ready || !self.io.takes() || self.submissions.room() < 2 {
             return;
         }
         let owner = Token::new(1);
-        if self.pending.is_some() {
+        if self.active.is_some() || self.pending.is_some() || self.noted.is_some() {
             if let Some(root) = self.private {
-                let bytes = self.pending.take().expect("queued save");
+                let (path, bytes) = self.active.take().or_else(|| self.next()).expect("queued save");
                 self.request(
-                    RecordingStage::Writing,
-                    Request::Store {
-                        owner,
-                        root,
-                        path: b"recording".as_slice().into(),
-                        bytes,
-                        expected: Expect::Any,
-                        no_follow: true,
-                    },
-                    out,
+                    SaveStage::Writing,
+                    Request::Store { owner, root, path: path.into(), bytes, expected: Expect::Any, no_follow: true },
                 );
             } else {
+                self.active = self.next();
                 self.request(
-                    RecordingStage::Opening,
+                    SaveStage::Opening,
                     Request::OpenPrivate {
                         owner,
-                        root: self.root.expect("recording parent"),
+                        root: self.root.expect("private save parent"),
                         path: b"tui".as_slice().into(),
                     },
-                    out,
                 );
             }
         } else if self.closing {
             if let Some(file) = self.private {
-                self.request(RecordingStage::ClosingPrivate, Request::Close { owner, file }, out);
+                self.request(SaveStage::ClosingPrivate, Request::Close { owner, file });
             } else {
                 self.request(
-                    RecordingStage::ClosingRoot,
-                    Request::Close { owner, file: self.root.expect("recording parent") },
-                    out,
+                    SaveStage::ClosingRoot,
+                    Request::Close { owner, file: self.root.expect("private save parent") },
                 );
             }
         }
     }
 
+    fn next(&mut self) -> Option<(&'static [u8], Box<[u8]>)> {
+        if let Some(bytes) = self.noted.take() {
+            Some((b"sign-in", bytes))
+        } else {
+            self.pending.take().map(|bytes| (self.path, bytes))
+        }
+    }
+
     fn pending(&self) -> bool {
-        !self.events.is_empty() || (self.stage == RecordingStage::Ready && (self.pending.is_some() || self.closing))
+        !self.submissions.is_empty()
+            || !self.events.is_empty()
+            || (self.stage == SaveStage::Ready
+                && (self.active.is_some() || self.pending.is_some() || self.noted.is_some() || self.closing))
     }
 
     fn closed(&self) -> bool {
-        self.stage == RecordingStage::Closed && self.io.open_files() == 0 && self.io.takes()
+        self.submissions.is_empty() && self.stage == SaveStage::Closed && self.io.open_files() == 0 && self.io.takes()
+    }
+}
+
+// The namespace includes cancellation targets as well as file operations.
+fn publish_files(source: &mut Queue<Submit>, target: &mut Queue<Submit>, lane: u8) {
+    while target.room() > 0 {
+        let Some(mut submit) = source.pop() else { break };
+        submit.op = Token::tagged(lane, submit.op.raw()).expect("file namespace");
+        if let Op::Cancel { target } = &mut submit.kind {
+            *target = Token::tagged(lane, target.raw()).expect("file cancel namespace");
+        }
+        target.push(submit);
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LocalStage {
+    Ready,
+    Opening,
+    Stating,
+    Reading,
+    Closing,
+}
+
+/// A bounded private read on the loop, with the checks of skein-shell's
+/// `read_private_file` (temper/docs/design/client/README.md, 6.12).
+struct LocalFile {
+    io: io::file_layer::FileIo,
+    env: Env<io::file_layer::Limits>,
+    root: Fd,
+    user: u32,
+    stage: LocalStage,
+    file: Option<Token>,
+    events: Queue<io::file::Event>,
+    submissions: Queue<Submit>,
+    pending: Option<Box<[u8]>>,
+    link: Option<Secret>,
+    #[expect(clippy::option_option, reason = "a completed read can find no private file")]
+    result: Option<Option<Secret>>,
+}
+
+impl LocalFile {
+    fn new(root: Fd, user: u32) -> Self {
+        let limits =
+            io::file_layer::Limits { files: 1, read: 4097, entries: 1, whole: 4097, timeout: Duration::from_secs(30) };
+        Self {
+            io: io::file_layer::FileIo::with_limits(&limits),
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            root,
+            user,
+            stage: LocalStage::Ready,
+            file: None,
+            events: Queue::uncapped(),
+            submissions: Queue::with_capacity(4),
+            pending: None,
+            link: None,
+            result: None,
+        }
+    }
+
+    fn complete(&mut self, now: Time, complete: Complete) {
+        self.env.now = now;
+        io::file_layer::step::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
+    }
+
+    fn request(&mut self, stage: LocalStage, request: io::file::Request) {
+        self.stage = stage;
+        io::file_layer::step::down(&mut self.io, &self.env, request, &mut self.events, &mut self.submissions);
+    }
+
+    fn finish(&mut self) {
+        if let Some(file) = self.file {
+            self.request(LocalStage::Closing, io::file::Request::Close { owner: Token::new(1), file });
+        } else {
+            self.stage = LocalStage::Ready;
+            self.result = Some(self.link.take());
+        }
+    }
+
+    #[expect(clippy::verbose_bit_mask, reason = "the private-file rule names the group and other permission bits")]
+    fn progress(&mut self, now: Time) {
+        use io::file::{Event, Request};
+        self.env.now = now;
+        if self.io.is_due(now) {
+            io::file_layer::step::expire(&mut self.io, &self.env, &mut self.submissions);
+        }
+        while let Some(event) = self.events.pop() {
+            match self.stage {
+                LocalStage::Opening => {
+                    if let Event::Opened { file, .. } = event {
+                        self.file = Some(file);
+                        self.request(LocalStage::Stating, Request::Stat { owner: Token::new(1), file });
+                    } else {
+                        self.finish();
+                    }
+                }
+                LocalStage::Stating => {
+                    if let Event::Stated { stat, .. } = event
+                        && stat.kind == io::kernel::Kind::File
+                        && stat.owner == self.user
+                        && stat.mode & 0o077 == 0
+                        && stat.links == 1
+                        && stat.size <= 4096
+                    {
+                        self.request(
+                            LocalStage::Reading,
+                            Request::ReadAt {
+                                owner: Token::new(1),
+                                file: self.file.expect("opened link"),
+                                offset: 0,
+                                max: 4097,
+                            },
+                        );
+                    } else {
+                        self.finish();
+                    }
+                }
+                LocalStage::Reading => {
+                    if let Event::Read { bytes, .. } = event
+                        && bytes.len() <= 4096
+                    {
+                        self.link = Some(Secret::new(bytes.strip_suffix(b"\n").unwrap_or(&bytes).into()));
+                    }
+                    self.finish();
+                }
+                LocalStage::Closing => {
+                    self.file = None;
+                    self.stage = LocalStage::Ready;
+                    self.result = Some(self.link.take());
+                }
+                LocalStage::Ready => unreachable!("local request in flight"),
+            }
+        }
+        if self.stage == LocalStage::Ready
+            && self.io.takes()
+            && self.submissions.room() >= 2
+            && let Some(name) = self.pending.take()
+        {
+            self.request(
+                LocalStage::Opening,
+                Request::OpenReadNoFollow { owner: Token::new(1), root: self.root, name },
+            );
+        }
+    }
+
+    fn pending(&self) -> bool {
+        !self.events.is_empty() || !self.submissions.is_empty() || self.pending.is_some() || self.result.is_some()
+    }
+
+    fn closed(&self) -> bool {
+        self.stage == LocalStage::Ready
+            && self.io.open_files() == 0
+            && self.io.takes()
+            && self.pending.is_none()
+            && self.submissions.is_empty()
     }
 }
 
@@ -690,7 +970,10 @@ mod tests {
             engine: io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
-            scheme: Scheme::Dark,
+            scheme: Some(Scheme::Dark),
+            link_file: None,
+            note: None,
+            files: None,
             depth: Depth::Indexed,
             size: Size { rows: 24, columns: 80 },
             limits: limits::tui(),
@@ -699,7 +982,7 @@ mod tests {
         };
         let mut run = Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
             .expect("adopt synthetic descriptors without kernel calls");
-        for key in [Key::Alt('M'), Key::Alt('S')] {
+        for key in [Key::Alt('M'), Key::Alt('S'), Key::Alt('m'), Key::Alt('s')] {
             assert!(!run.record_key(&key), "no interception without a root: {key:?}");
         }
     }

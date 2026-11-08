@@ -53,6 +53,20 @@ fn differences_write_only_changed_runs_and_leave_cursor_last() {
 #[test]
 fn paints_change_where_needed_and_reset_to_terminal_defaults() {
     let red = Rgb { red: 255, green: 0, blue: 0 };
+    for depth in [Depth::True, Depth::Indexed] {
+        let mut defaults = frame("abcd", Paint::NONE);
+        assert!(defaults.put(
+            Position { row: 0, column: 0 },
+            Cell { glyph: 'a', paint: Paint { fore: Some(red), back: Some(red), ..Paint::NONE } }
+        ));
+        let bytes = drawn(None, &defaults, depth);
+        let start = skein_lib::bytes::find(bytes.as_slice(), b"a")
+            .expect("coloured cell exists")
+            .checked_add(1)
+            .expect("small output");
+        let tail = bytes.as_slice().get(start..).expect("default cells follow");
+        assert_eq!(tail, b"\x1b[0mbcd\x1b[?25l", "default colours follow the reset alone: {depth:?}");
+    }
     let paint =
         Paint { fore: Some(red), bold: true, dim: true, italic: true, underline: true, reverse: true, ..Paint::NONE };
     let mut next = frame("abcd", paint);

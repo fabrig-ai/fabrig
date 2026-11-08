@@ -1388,6 +1388,7 @@ fn a_people_choice_keeps_its_explicit_account() {
 fn account_refusals_keep_their_reasons_in_the_store() {
     use jig_domain_people as p;
     use jig_domain_tasks as t;
+    people_round_trip(fixtures::people_outcomes::answered(p::Outcome::Refused(p::Refusal::ProgramNameReserved)));
     for why in [p::AccountWhy::Unknown, p::AccountWhy::Provider, p::AccountWhy::Uses, p::AccountWhy::Limited] {
         people_round_trip(fixtures::people_outcomes::answered(p::Outcome::Refused(p::Refusal::Account {
             account: 42,

@@ -99,6 +99,7 @@ pub fn refusal(value: a::Refusal, limits: &w::Limits) -> Result<w::AccountRefusa
     Ok(match value {
         // A finish refusal leaves the sign-in waiting, so it never ends an accounts watch's sign-in.
         a::Refusal::SignInRedirect { .. } => unreachable!("a redirect refusal is only a finish answer"),
+        a::Refusal::NameTaken => unreachable!("a taken name is only a declaration's answer"),
         a::Refusal::NotSignedIn => w::AccountRefusal::NotSignedIn,
         a::Refusal::NotOurs => w::AccountRefusal::NotOurs,
         a::Refusal::Cancelled => w::AccountRefusal::Cancelled,
@@ -106,6 +107,7 @@ pub fn refusal(value: a::Refusal, limits: &w::Limits) -> Result<w::AccountRefusa
         a::Refusal::Unknown => w::AccountRefusal::Unknown,
         a::Refusal::NotLimited => w::AccountRefusal::NotLimited,
         a::Refusal::Uses => w::AccountRefusal::Uses,
+        a::Refusal::ProgramNameReserved => w::AccountRefusal::ProgramNameReserved,
         a::Refusal::NotKept { why } => w::AccountRefusal::NotKept(w::AccountRefusalNotKept::new(
             limits,
             w::AccountRefusalNotKeptParts { why: key_failure(why) },

@@ -738,6 +738,61 @@ log says when that happened; nothing else about the loop changes.
   `temper-service`'s `tests/long_pass.rs`, and the line's words beside
   `note_line` in `temper`'s `host.rs`.
 
+### 8.2 When the core does not answer
+
+The engine's service hands a party's input to the root only while its
+gate is open: the root started and its decisions open
+(`../domain/root.md`, 9.1), the forges' records loaded and connected,
+the first periods given (configuration.md, section 8) and the forges'
+names resolved (forge.md, 2.2). While the gate is shut, the clients'
+component answers a party's input not ready and a public read busy, at
+once. A watch refused while the gate is shut says not ready, distinct
+from a full watch room. An input the root hands back at its watermark
+waits in the service for room (`../domain/root.md`, section 4). The
+client names not ready when its answer carries that refusal; the
+service's log names what the gate waits on. No gate reason travels on
+the client wire (section 14).
+
+- **The line.** When the gate has kept a party's input from the root for
+  1 s or more, answered not ready or held, the service writes one stderr
+  line, which the box keeps in `serve.log` (setup.md, 7.2):
+  `temper serve: the core is not answering: REASON`. It writes it again
+  only when the reason changes, and once the gate passes a party's
+  input again after such a line, `temper serve: the core answers
+  again`. The 1 s is 8.1's bound, a thirtieth of `temper ctl`'s
+  deadline. The time is the service's clock, judged as each party's
+  input arrives, so a deployment no client calls writes nothing, and
+  the line needs no timer of its own.
+- **Its reasons,** in the order the gate tests them, the first that
+  holds:
+
+  | The gate | REASON |
+  |---|---|
+  | the root not yet opened | `starting: STEP`, the start's step in 9.1's words: `loading the core's records`, `loading the inbox`, `loading the forge's records`, `linking the forge's records`, `sweeping`, `switching the store`, `committing the wires`, `adopting runs`, `reading the forge afresh`, `settling the forge's outbox`, `opening decisions` |
+  | the forges' records not yet loaded and connected | `loading the forges' records` |
+  | the first periods not yet given | `opening the first periods` |
+  | the forges' names not yet resolved | `resolving the forges' names` |
+  | the root's commits past its window, waiting on the store | `waiting for the store to make commit N durable, the oldest of M in flight` |
+  | the root at its watermark | `at its watermark: B of W in flight` |
+
+  A root whose journal has stopped is not among them: it ends the
+  engine (below).
+- **A stopped journal ends the engine.** The root's `Stop` with what
+  stopped its journal (`../domain/root.md`, section 4) ends `temper
+  serve` with exit 1 and one line, `temper serve: the engine's journal
+  stopped: WHY`, WHY one of `the store answered commit N, with S sent
+  and D durable`, `a decision past the store's E writes`, `the commit
+  counter at its end`. A commit the store failed keeps its own line,
+  `temper serve: commit N failed`, and a start's refusal its own lines
+  (section 4).
+- **Bounded, and free when the core answers:** at most 240 bytes, no
+  request's words and no secret; one reason held, and a comparison as
+  each party's input arrives.
+- **Its tests** hold the 1 s, the change of reason, the line on the gate
+  passing again and each reason's words, on a service stepped with
+  supplied times, in `temper-service`'s tests; the journal's stop and
+  its line beside `note_line` in `temper`'s `host.rs`.
+
 ## 9. Versions
 
 jig's rules hold (jig's `protocol/README.md`, section 7): one version at a
@@ -979,6 +1034,12 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 
 Each document keeps its own; these cross them:
 
+- **The gate's reason on the client wire** (8.2): a distinct not-ready
+  watch refusal lets a client distinguish startup or an unanswering core
+  from watch capacity, but carries no reason. Sending the start's step
+  or the gate's other reason needs jig's vocabulary, wire and client
+  link to retain it. Default: the client names not ready and points to
+  serve's log; the log alone names why (`../client/tools.md`, section 14).
 - **The TUI's later passes** (section 4): the browser's approval,
   recording and post-landing terminal walk stay with the client's
   design (`../client/README.md`, section 11).
