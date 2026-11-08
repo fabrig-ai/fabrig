@@ -66,7 +66,7 @@ Instructions a run reads after the charter's shared text when its reasons meet t
 
 A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run.
 
-- `forge`: text, at most 32,768 bytes. The canonical `host` in the configuring chat's `settings` inventory under `project repositories`, alongside OWNER/NAME; people can also read `temper ctl DIR forge list` (or `forge list --json`). It is the host in repository resource names, including its port; copy it unchanged, not the forge number or web address.
+- `forge`: text, at most 32,768 bytes. The canonical `host` in Ask temper's `see settings` inventory under `project repositories`, alongside OWNER/NAME; people can also read `temper ctl DIR forge list` (or `forge list --json`). It is the host in repository resource names, including its port; copy it unchanged, not the forge number or web address.
 - `repository`: text, at most 65,537 bytes. The repository as OWNER/NAME; one adopted in no project gives a section saying so.
 - `branch`: text, at most 131,075 bytes. The branch whose head is read, its segments joined by `/`.
 - `path`: text, at most 256 bytes. The file's path in the repository, at most 256 bytes.

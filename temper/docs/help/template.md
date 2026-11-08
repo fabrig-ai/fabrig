@@ -10,8 +10,6 @@ A template is a setting, `template N`, numbered from 1. It is a recipe,
 never an executor: a client fills it, with what its creator gives, into
 a request for a new task, which temper checks as it checks any request.
 A chat defaults to template 1 and a goal to template 2.
-Template 3 is the configuring chat, run by charter 3
-(`temper help chat`); `chat start --template 3` starts it.
 Template 5 is Ask temper, run by charter 11; `chat start --template 5` starts it.
 `--template` selects another offered template.
 

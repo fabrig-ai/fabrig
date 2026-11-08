@@ -111,7 +111,7 @@ pub struct Joint {
 /// Typed replies observed by a scripted run (temper/docs/design/domain/testing.md, 6.3).
 #[derive(Debug)]
 pub enum HostAnswer {
-    Settings(Box<jig_domain_core::SettingsAnswer>),
+    See(Box<engine::SeeAnswer>),
     Tool(engine::CallAnswer),
 }
 struct HeldReply {
@@ -706,16 +706,16 @@ impl Joint {
         let store = driver.take_store();
         Self::with_engine(seed, &limits, store, [config, restart], &engine_limits, 1)
     }
-    /// The configuring chat's stock charter and template in the joined world
-    /// (temper/docs/design/domain/agent.md, 8.1).
+    /// Ask temper's stock charter and template in the joined world
+    /// (temper/docs/design/domain/agent.md, 8.4).
     #[must_use]
-    pub fn with_configuring(seed: u64, limits: client::Limits, member: bool) -> Self {
-        Self::with_configuring_projects(seed, limits, member, 1)
+    pub fn with_asking(seed: u64, limits: client::Limits, member: bool) -> Self {
+        Self::with_asking_projects(seed, limits, member, 1)
     }
 
-    /// Configuring proposals read across this many seeded projects.
+    /// Asking proposals read across this many seeded projects.
     #[must_use]
-    pub fn with_configuring_projects(seed: u64, limits: client::Limits, member: bool, projects: u32) -> Self {
+    pub fn with_asking_projects(seed: u64, limits: client::Limits, member: bool, projects: u32) -> Self {
         let mut engine_limits = engine_limits();
         engine_limits.people.projects = projects + 1;
         engine_limits.authority.projects = projects;
@@ -733,10 +733,10 @@ impl Joint {
         engine_limits.tasks.message_bytes = 512;
         engine_limits.tasks.inbox_bytes = 1024;
         engine_limits.journal.result_bytes = 512;
-        // Stock charter 3's instructions and framed run policy need 9,019 bytes.
-        engine_limits.journal.run_bytes = 9_019;
+        // Stock charter 11's instructions and framed run policy need 9,311 bytes.
+        engine_limits.journal.run_bytes = 9_311;
         engine_limits.documents.text_bytes = 4096;
-        let mut config = fixtures::configuring_configuration(seed, member);
+        let mut config = fixtures::asking_configuration(seed, member);
         let policy = config.core.seed_projects[0].policy.clone();
         config.core.seed_projects = (1..=projects)
             .map(|number| jig_domain_core::SeedProject {
@@ -762,12 +762,12 @@ impl Joint {
             change: jig_domain_accounts::Change::AddKey { provider: 1, join: None, carried: 0 },
         }));
         driver.settle();
-        let caller = if member { fixtures::configuring_member(&mut driver) } else { fixtures::PARTY };
-        let mut joint = Self::new(seed, limits);
+        let caller = if member { fixtures::asking_member(&mut driver) } else { fixtures::PARTY };
+        let (transport, component) = Self::client_parts(&walking::config(seed), &limits);
+        driver.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(fixtures::REPOSITORIES));
+        let mut joint = Self::with_driver(seed, &limits, driver, transport, component, false);
         joint.caller = caller;
-        driver.forge = joint.engine.forge.take();
-        joint.engine = driver;
-        // The worker offers the stock configuring charter's run bounds.
+        // The worker offers stock charter 11's run bounds.
         let mut hello = temper_engine_domain_world::protocol::hello(fixtures::QUESTION_WORKER, Box::new([]));
         let engine::Event::Worker(engine::WorkerInput::Link {
             link: engine::Link::Hello { hello: offered, .. }, ..
@@ -803,11 +803,11 @@ impl Joint {
         self.engine.pump();
         let (to, answer) = if let Some(index) = self.engine.delivered.iter().position(|delivery| {
             matches!(delivery, engine::Delivery::Host(value)
-                if matches!(value.as_ref(), engine::HostDelivery::Settings { .. }))
+                if matches!(value.as_ref(), engine::HostDelivery::See { .. }))
         }) {
             let engine::Delivery::Host(value) = self.engine.delivered.remove(index) else { unreachable!() };
-            let engine::HostDelivery::Settings { to, answer, .. } = *value else { unreachable!() };
-            (to, HostAnswer::Settings(answer))
+            let engine::HostDelivery::See { to, answer, .. } = *value else { unreachable!() };
+            (to, HostAnswer::See(answer))
         } else {
             let (to, name) = self.engine.protocol.pending_renders.pop().expect("host answer to render");
             let (answered, answer) = self.engine.protocol.answers.last().expect("typed host answer");
@@ -824,8 +824,8 @@ impl Joint {
     }
 
     /// Commit the run's one-line reply after it hears its proposal's outcome.
-    pub fn configuring_reply(&mut self, task: u64, words: &[u8]) {
-        let run = self.engine.task(task).expect("configuring chat");
+    pub fn asking_reply(&mut self, task: u64, words: &[u8]) {
+        let run = self.engine.task(task).expect("Ask temper chat");
         let read = run.inbox.last().map(|message| message.number);
         self.finish_reply(task, run.attempt, read, Some(words));
         self.settle();
@@ -1357,18 +1357,12 @@ impl Joint {
         slots: u32,
         refuse_hello: bool,
     ) -> Self {
-        let mut transport = Transport::new(jig_client::contract::VersionRange {
-            first: jig_client_protocol_wire::VERSION,
-            last: jig_client_protocol_wire::VERSION,
-        });
-        transport.models.clone_from(&configs[1].core.settings.models);
-        transport.providers = configs[1].core.settings.llm_providers.clone();
+        let (transport, component) = Self::client_parts(&configs[1], limits);
         let hello = Self::worker_hello(&configs[1], engine_limits, slots, refuse_hello);
         // protocol/configuration.md, 7: documents fit the client this world serves.
         // Smaller text projections still retain the full task spec and brief.
         let mut engine_limits = *engine_limits;
         engine_limits.documents.text_bytes = engine_limits.documents.text_bytes.min(limits.client.domain.text);
-        let component = crate::component::Composition::new(&configs[1], limits.client.domain);
         let [bootstrap, config] = configs;
         let store = restored_forges(store, bootstrap, &config, &engine_limits);
         let mut engine = Driver::cold(store, config, &engine_limits);
@@ -1376,6 +1370,25 @@ impl Joint {
         engine.settle();
         engine.send(hello);
         engine.settle();
+        Self::with_driver(seed, limits, engine, transport, component, refuse_hello)
+    }
+    fn client_parts(config: &engine::Config, limits: &client::Limits) -> (Transport, crate::component::Composition) {
+        let mut transport = Transport::new(jig_client::contract::VersionRange {
+            first: jig_client_protocol_wire::VERSION,
+            last: jig_client_protocol_wire::VERSION,
+        });
+        transport.models.clone_from(&config.core.settings.models);
+        transport.providers = config.core.settings.llm_providers.clone();
+        (transport, crate::component::Composition::new(config, limits.client.domain))
+    }
+    fn with_driver(
+        seed: u64,
+        limits: &client::Limits,
+        mut engine: Driver,
+        transport: Transport,
+        component: crate::component::Composition,
+        refuse_hello: bool,
+    ) -> Self {
         let last_commit = engine.store.header().commits;
         let truth = jig_client_kit::joint::truth::Truth::after(core_rows(&engine));
         engine.delivered.clear();

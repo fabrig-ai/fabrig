@@ -712,7 +712,7 @@ use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, host_tool::host_tool, protocol, store::Store};
 
 /// QA's approximate saved byte count, in eight turns below the 65,536-byte turn bound.
-pub(crate) const CONFIGURING_HISTORY_BYTES: usize = 470_054;
+pub(crate) const ASKING_HISTORY_BYTES: usize = 470_054;
 const HISTORY_TURNS: u32 = 8;
 const SAVED_TURNS: u32 = 16; // Eight saved turns and subsequent scripted replies.
 const HISTORY_TEXT_BYTES: usize = 60_000;
@@ -720,12 +720,12 @@ const HISTORY_TEXT_BYTES: usize = 60_000;
 pub(crate) const DESCRIPTION: &[u8] = b"Describe how our work runs after accepting the proposal.";
 const CHANNEL: Token = Token::new(7);
 
-/// A stock configuring chat on the real engine and ordered fake store.
-pub(crate) struct ConfiguringChat {
+/// A stock Ask temper chat on the real engine and ordered fake store.
+pub(crate) struct AskingChat {
     pub(crate) driver: Driver,
 }
 
-impl ConfiguringChat {
+impl AskingChat {
     /// Start stock settings, a signed-in owner, an account and a worker.
     pub(crate) fn new() -> Self {
         let setup = fixtures::engine();
@@ -818,14 +818,14 @@ impl ConfiguringChat {
         self.driver.settle();
     }
 
-    /// Create a standing configuring chat with stock authority.
+    /// Create a standing Ask temper chat with stock authority.
     pub(crate) fn chat(&mut self, key: u8) -> engine::Assignment {
         let mut ask = self.driver.chat_ask(1, DESCRIPTION);
         let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat") };
-        batch[0].executor = people::TaskExecutor::Agent { charter: 3 };
+        batch[0].executor = people::TaskExecutor::Agent { charter: 11 };
         batch[0].contract = people::Contract::Report { words: 32 };
         batch[0].budget = people::Budget::AsAllowed { cap: Some(128) };
-        batch[0].label = 3;
+        batch[0].label = 1;
         batch[0].flags.ended_by = people::EndedBy::Requester;
         self.ask(key, ask);
         self.driver.last_assignment()
@@ -838,7 +838,7 @@ impl ConfiguringChat {
         reason = "the scripted model formats whole JSON settings and reads its durable proposal"
     )]
     pub(crate) fn accept(&mut self, run: &engine::Assignment) {
-        let (_, error) = host_tool(&mut self.driver, run, 1, b"settings", b"{}");
+        let (_, error) = host_tool(&mut self.driver, run, 1, b"see", br#"{"address":"settings"}"#);
         assert!(!error);
         let mut value = self.read_chat_charter(run);
         value["instructions"] = serde_json::json!("Push early and report the result.");
@@ -877,22 +877,26 @@ impl ConfiguringChat {
     #[expect(
         clippy::disallowed_types,
         clippy::disallowed_methods,
-        reason = "the scripted model joins paginated UTF-8 settings into a JSON fixture"
+        clippy::disallowed_macros,
+        reason = "the scripted model formats continuation addresses and joins paginated UTF-8 settings into JSON"
     )]
     fn read_chat_charter(&mut self, run: &engine::Assignment) -> serde_json::Value {
         let mut from = 0;
+        let mut address = String::from("settings charter 1");
         let mut text = Vec::new();
         for completion in 2..100 {
-            let input = serde_json::json!({"setting":{"kind":"charter","number":1_u32},"from":from});
-            let (body, error) = host_tool(&mut self.driver, run, completion, b"settings", input.to_string().as_bytes());
+            let input = serde_json::json!({"address":address});
+            let (body, error) = host_tool(&mut self.driver, run, completion, b"see", input.to_string().as_bytes());
             assert!(!error, "settings page");
             let page = ::core::str::from_utf8(&body).unwrap();
-            if let Some((body, next)) = page.rsplit_once("next: ") {
-                let next: usize = next.trim().parse().unwrap();
-                text.extend_from_slice(body.as_bytes().get(..next.checked_sub(from).unwrap()).unwrap());
-                from = next;
+            let end = page.find("more: ").or_else(|| page.find("see: ")).unwrap();
+            if let Some(next) = page.lines().find_map(|line| line.strip_prefix("more: ")) {
+                let offset: usize = next.rsplit_once('@').unwrap().1.parse().unwrap();
+                text.extend_from_slice(page.as_bytes().get(..offset.checked_sub(from).unwrap()).unwrap());
+                from = offset;
+                address = format!("more {next}");
             } else {
-                text.extend_from_slice(page.strip_suffix("end\n").unwrap().as_bytes());
+                text.extend_from_slice(page.as_bytes().get(..end).unwrap());
                 let text = ::core::str::from_utf8(&text).unwrap();
                 let (_, object) = text.split_once('\n').unwrap();
                 return serde_json::from_str(object.trim()).unwrap();
@@ -903,7 +907,7 @@ impl ConfiguringChat {
 
     /// Commit valid history at the walk's size, park, then send a stand-in description question.
     pub(crate) fn resume(&mut self, run: &engine::Assignment) -> engine::Assignment {
-        let history = configuring_history();
+        let history = asking_history();
         let read = match self.driver.task(run.task).unwrap().inbox.last() {
             Some(message) => Some(message.number),
             None => None,
@@ -920,7 +924,7 @@ impl ConfiguringChat {
     }
 
     /// Feed the concrete worker's terminal through the engine's startup translation.
-    pub(crate) fn answer(&mut self, answer: ConfiguringAnswer) {
+    pub(crate) fn answer(&mut self, answer: AskingAnswer) {
         if let Some(turn) = answer.turn {
             self.driver.send(protocol::up(CHANNEL, turn, engine::Parts::none()));
             self.driver.settle();
@@ -944,10 +948,10 @@ impl ConfiguringChat {
     clippy::disallowed_methods,
     reason = "the saved-history fixture sizes eight concrete turns to the walk's byte count"
 )]
-fn configuring_history() -> Box<[Box<[u8]>]> {
+fn asking_history() -> Box<[Box<[u8]>]> {
     let agent = fixtures::worker_agent();
     let mut turns = Vec::new();
-    let mut remaining = CONFIGURING_HISTORY_BYTES;
+    let mut remaining = ASKING_HISTORY_BYTES;
     for number in 1..=HISTORY_TURNS {
         let overhead = text_turn(&agent, number, b"").len();
         let bytes = if number == HISTORY_TURNS { remaining.checked_sub(overhead).unwrap() } else { HISTORY_TEXT_BYTES };
@@ -971,7 +975,7 @@ pub(crate) enum ResumeAttempt {
 }
 
 /// Concrete worker records, including the answer turn before its terminal.
-pub(crate) struct ConfiguringAnswer {
+pub(crate) struct AskingAnswer {
     /// The attempt's terminal, decoded from the worker wire.
     pub(crate) terminal: hub::LinkUp,
     /// The description turn, decoded from the worker wire before its terminal.
@@ -979,10 +983,10 @@ pub(crate) struct ConfiguringAnswer {
 }
 
 /// Start through the concrete worker/channel path with the engine's retained history.
-pub(crate) fn configuring_attempt(run: engine::Assignment, behavior: ResumeAttempt) -> ConfiguringAnswer {
-    let (settings, agent) = configuring_worker_settings();
+pub(crate) fn asking_attempt(run: engine::Assignment, behavior: ResumeAttempt) -> AskingAnswer {
+    let (settings, agent) = asking_worker_settings();
     let mut stand = socket_stand_with(&settings, &agent);
-    configuring_grants(&mut stand.worker, &run.grants);
+    asking_grants(&mut stand.worker, &run.grants);
     let mut link = LinkPeer::with_settings(&settings, &agent);
     link.open(&mut stand.worker);
     let encoding = fixtures::encoding(&fixtures::engine());
@@ -994,7 +998,7 @@ pub(crate) fn configuring_attempt(run: engine::Assignment, behavior: ResumeAttem
         CHANNEL,
         fixtures::NOW,
     )
-    .expect("configuring assignment encodes") else {
+    .expect("Ask temper assignment encodes") else {
         panic!("assignment")
     };
     let (mut peer, start) = AgentPeer::pending(&mut stand.worker, &agent, link::Request::Down { down, parts });
@@ -1014,7 +1018,7 @@ pub(crate) fn configuring_attempt(run: engine::Assignment, behavior: ResumeAttem
         }
     };
     let (terminal, _) = link.answer(&mut stand.worker);
-    ConfiguringAnswer { terminal, turn }
+    AskingAnswer { terminal, turn }
 }
 
 fn question_reaches(start: &smith_protocol_channel::DecodedStart) -> bool {
@@ -1031,7 +1035,7 @@ fn question_reaches(start: &smith_protocol_channel::DecodedStart) -> bool {
     false
 }
 
-fn configuring_worker_settings() -> (crate::settings::Worker, crate::settings::Agent) {
+fn asking_worker_settings() -> (crate::settings::Worker, crate::settings::Agent) {
     let mut settings = fixtures::worker_settings();
     settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
     settings.jig.limits.hub.transcript_bytes = 2_097_152;
@@ -1046,7 +1050,7 @@ fn configuring_worker_settings() -> (crate::settings::Worker, crate::settings::A
     (settings, agent)
 }
 
-fn configuring_grants(worker: &mut crate::Worker, grants: &[Grant]) {
+fn asking_grants(worker: &mut crate::Worker, grants: &[Grant]) {
     for grant in grants {
         worker
             .values

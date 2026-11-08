@@ -1,6 +1,6 @@
 # ask-temper: execution
 
-2026-11-07. What of [ask-temper.md](ask-temper.md) gets built, and in what
+2026-11-08. What of [ask-temper.md](ask-temper.md) gets built, and in what
 order. It designs nothing: each milestone writes its own design from the
 draft as it runs (`DESIGN.md`, section 3). A milestone that meets a question
 the draft leaves open takes its section 12 default, or the nearest thing, and
@@ -37,7 +37,7 @@ says so in the draft's status.
 
 | | Milestone | Executes (`ask-temper.md`) | Needs | State |
 |---|---|---|---|---|
-| M1 | Alone and small | 1, 4, 5.1 in part, 5.2, 5.3, 8, 9 | | built: plan `ui-ask-m1`; its walk follows its landing |
+| M1 | Alone and small | 1, 4, 5.1 in part, 5.2, 5.3, 8, 9 | | built: plan `ui-ask-m1`; charter 3, template 3, `Configure` and Settings' offer gone by `ui-ask-drop`; its walk follows landing |
 | M2 | Reading | 2, 3, 5.1 | M1 | not started |
 | M3a | Ways | `stock-ways.md`, sections 4 to 6; 6.2's `path`, `way`, `proposal` and `charter` | M1; `stock-ways.md`, section 7's step 2 | not started |
 | M3b | Showing the rest | 6; the rest of 8's Showing part | M2, M3a | not started |
@@ -48,8 +48,7 @@ says so in the draft's status.
 - **Executes:** `ask-temper.md`, section 9: charter 11 and template 5 in the
   stock, charter 11 in the rules' and policy 1's delegation, "Ask temper" in
   the rail and the tab bar, and charter 3, template 3, `Configure` and
-  Settings' offer gone, which a plan of its own may do straight after, with no
-  walk between;
+  Settings' offer gone by plan `ui-ask-drop`;
   4.2: no repository and no workspace for its runs; 4.3: its tools declared
   alone, in the asking family; 4.4: Claude Code's prompt replaced for a run
   with no workspace; 5.1: `see` with the addresses configuring reads,

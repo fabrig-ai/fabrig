@@ -109,7 +109,7 @@ impl Sample {
             | "chat-started-model-open"
             | "chat-started-model-changing"
             | "chat-started-model-refused"
-            | "configure-model-open" => Some(b"Model"),
+            | "ask-model-open" => Some(b"Model"),
             "chat-work-open" => Some("Checked settings 3×, read 7 docs".as_bytes()),
             _ => None,
         }
@@ -537,45 +537,35 @@ pub fn samples() -> [Sample; N] {
             address: Address::Home { project: 1 },
             then: Shown,
         },
-        Sample { name: "configure", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample {
-            name: "configure-reference",
+            name: "ask-first-run",
             world: FirstRun { step: 7 },
             address: Address::Ask { project: 1 },
             then: Shown,
         },
         Sample {
-            name: "configure-reference-draft",
+            name: "ask-reference",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-reference-draft",
             world: FirstRun { step: 7 },
             address: Address::Ask { project: 1 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
         },
+        Sample { name: "ask-typing", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
+        Sample { name: "ask-sending", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
+        Sample { name: "ask-refused", world: FirstRun { step: 7 }, address: Address::Ask { project: 1 }, then: Shown },
         Sample {
-            name: "configure-typing",
-            world: FirstRun { step: 7 },
-            address: Address::Ask { project: 1 },
-            then: Shown,
-        },
-        Sample {
-            name: "configure-sending",
-            world: FirstRun { step: 7 },
-            address: Address::Ask { project: 1 },
-            then: Shown,
-        },
-        Sample {
-            name: "configure-refused",
-            world: FirstRun { step: 7 },
-            address: Address::Ask { project: 1 },
-            then: Shown,
-        },
-        Sample {
-            name: "configure-chat-document",
+            name: "ask-chat-document",
             world: Solo,
             address: Address::Chat { task: 10 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
         },
         Sample {
-            name: "configure-chat-document-split",
+            name: "ask-chat-document-split",
             world: Solo,
             address: Address::Chat { task: 10 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Split),
@@ -598,25 +588,20 @@ pub fn samples() -> [Sample; N] {
             address: Address::Chat { task: 1 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Draft),
         },
-        Sample { name: "configure-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "ask-chat", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "ask-chat-proposal-deployment", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample {
-            name: "configure-chat-proposal-deployment",
+            name: "ask-chat-proposal-two-projects",
             world: Solo,
             address: Address::Chat { task: 10 },
             then: Shown,
         },
-        Sample {
-            name: "configure-chat-proposal-two-projects",
-            world: Solo,
-            address: Address::Chat { task: 10 },
-            then: Shown,
-        },
-        Sample { name: "configure-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
-        Sample { name: "configure-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
-        Sample { name: "configure-chat-rejected", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
-        Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
-        Sample { name: "configure-chat-withdrawn", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
-        Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
+        Sample { name: "ask-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "ask-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "ask-chat-rejected", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "ask-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "ask-chat-withdrawn", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "ask-chats-tag", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-draft-empty", world: Solo, address: Address::Chat { task: 1 }, then: Then::DraftEmpty },
         Sample { name: "chat-start-goal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -922,7 +907,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-started-model-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-started-model-changing", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-started-model-refused", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
-        Sample { name: "configure-model-open", world: Bare, address: Address::Ask { project: 1 }, then: Shown },
+        Sample { name: "ask-model-open", world: Bare, address: Address::Ask { project: 1 }, then: Shown },
         Sample { name: "chat-paused", world: Solo, address: Address::Chat { task: 6 }, then: Then::Paused },
         Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
@@ -1454,7 +1439,7 @@ pub fn domain(sample: &Sample) -> Domain {
         let mut root = if sample.name == "chat-terminal-question" {
             crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name)
         } else if sample.name == "chat-terminal-proposal" {
-            crate::worlds::settings_chat_world("configure-chat-proposal")
+            crate::worlds::settings_chat_world("ask-chat-proposal")
         } else if sample.name == "chat-terminal-closed" {
             domain(&Sample {
                 name: "chat-closed",
@@ -1499,7 +1484,7 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name.starts_with("chat-model-")
         || sample.name.starts_with("chat-started-model-")
-        || sample.name == "configure-model-open"
+        || sample.name == "ask-model-open"
     {
         return crate::worlds::picker_world(sample.name);
     }
@@ -1548,8 +1533,8 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name.starts_with("changes") {
         return crate::worlds::changes_world(sample.name);
     }
-    if sample.name.starts_with("configure") {
-        return configure_domain(sample);
+    if sample.name.starts_with("ask-") {
+        return ask_domain(sample);
     }
     if sample.name.starts_with("home-") || matches!(sample.name, "rail-away-on" | "rail-away-off") {
         return home_domain(sample.name);
@@ -1558,7 +1543,7 @@ pub fn domain(sample: &Sample) -> Domain {
         return goal_domain(sample);
     }
     let (mut root, accounts_watch) = if sample.then == Then::Sheet(Confirmation::StartOver) {
-        crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then)
+        crate::worlds::asking_world(sample.world, sample.address.clone(), sample.then)
     } else {
         crate::worlds::world(sample.world, sample.address.clone(), sample.then)
     };
@@ -1964,35 +1949,32 @@ fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>)
     }
 }
 
-fn configure_domain(sample: &Sample) -> Domain {
+fn ask_domain(sample: &Sample) -> Domain {
     if matches!(
         sample.name,
-        "configure-chat-proposal"
-            | "configure-chat-proposal-deployment"
-            | "configure-chat-proposal-two-projects"
-            | "configure-chat-accepted"
-            | "configure-chat-rejected"
-            | "configure-chat-withdrawn"
-            | "configure-chat-replaced"
+        "ask-chat-proposal"
+            | "ask-chat-proposal-deployment"
+            | "ask-chat-proposal-two-projects"
+            | "ask-chat-accepted"
+            | "ask-chat-rejected"
+            | "ask-chat-withdrawn"
+            | "ask-chat-replaced"
     ) {
         return crate::worlds::settings_chat_world(sample.name);
     }
-    if matches!(
-        sample.name,
-        "configure-chat" | "configure-chats-tag" | "configure-chat-document" | "configure-chat-document-split"
-    ) {
-        let mut root = crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then).0;
+    if matches!(sample.name, "ask-chat" | "ask-chats-tag" | "ask-chat-document" | "ask-chat-document-split") {
+        let mut root = crate::worlds::asking_world(sample.world, sample.address.clone(), sample.then).0;
         if let Then::Mode(mode) = sample.then {
             step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut Queue::uncapped());
         }
         return root;
     }
     let (mut root, _) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
-    if sample.name == "configure" {
+    if sample.name == "ask-first-run" {
         return root;
     }
     let mut out = Queue::uncapped();
-    if sample.name.starts_with("configure-reference") {
+    if sample.name.starts_with("ask-reference") {
         step(&mut root, Event::Act { action: Action::Pages(Act::ShowReference) }, &mut out);
         if let Then::Mode(mode) = sample.then {
             step(&mut root, Event::Act { action: Action::Pages(Act::Mode { mode }) }, &mut out);
@@ -2006,11 +1988,11 @@ fn configure_domain(sample: &Sample) -> Domain {
         },
         &mut out,
     );
-    if sample.name == "configure-typing" {
+    if sample.name == "ask-typing" {
         return root;
     }
     step(&mut root, Event::Act { action: Action::Pages(Act::StartChat) }, &mut out);
-    if sample.name == "configure-refused" {
+    if sample.name == "ask-refused" {
         step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
         let attempt = sent_attempt(&mut out);
         step(

@@ -45,6 +45,37 @@ const STOCK_FORGE_WRITES: u32 = 9_754;
 // rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, 6).
 const STOCK_RUN_BYTES: u32 = 11_000;
 
+/// The settings family's tools run on a world's charter (temper/docs/design/domain/testing.md, 6.4).
+pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) {
+    const SETTINGS_CHARTER: u32 = 12;
+    const SETTINGS_TEMPLATE: u32 = 12;
+    let mut charter = defaults.charters[0].clone();
+    charter.number = SETTINGS_CHARTER;
+    charter.policy.tools = tasks::Tools(1_920);
+    charter.policy.instructions = b"Read and propose settings.".as_slice().into();
+    let mut charters = defaults.charters.clone().into_vec();
+    charters.push(charter);
+    defaults.charters = charters.into_boxed_slice();
+    let mut template = defaults.templates[0].clone();
+    template.number = SETTINGS_TEMPLATE;
+    template.name = b"settings".as_slice().into();
+    template.executor = people::TemplateExecutor::Charter(SETTINGS_CHARTER);
+    let mut templates = defaults.templates.clone().into_vec();
+    templates.push(template);
+    defaults.templates = templates.into_boxed_slice();
+    let policy = &mut defaults.policies.get_mut(&1).expect("world's policy 1").policy;
+    for authority in std::iter::once(&mut defaults.rules.ceiling)
+        .chain(std::iter::once(&mut policy.ceiling))
+        .chain(policy.roles.iter_mut().map(|role| &mut role.authority))
+    {
+        if authority.delegation.tasks != 0 {
+            let mut kinds = authority.delegation.kinds.clone().into_vec();
+            kinds.push(authority::Executor::Charter(SETTINGS_CHARTER));
+            authority.delegation.kinds = kinds.into_boxed_slice();
+        }
+    }
+}
+
 /// Which outward write’s decoded answer the story retains.
 #[derive(Clone, Copy)]
 pub enum HoldWrite {
@@ -677,8 +708,6 @@ impl World {
                 config.core.defaults.rules = domain.rules().clone();
             }
             if let Some((defaults, model, _)) = stock {
-                const STOCK_CHARTERS: u32 = 5;
-                const STOCK_EXECUTORS: u32 = 8;
                 const TREE_TASKS: u32 = 12; // Stock lifetime ceiling, including the root.
                 const LANDED_CHANGES: u32 = 2;
                 const RETAINED_HOLDINGS: u32 = 1 + LANDED_CHANGES * 2;
@@ -714,10 +743,11 @@ impl World {
                     }
                 }
                 landing_rules.projects = skein_lib::Map::with_capacity(1);
-                // Stock includes the review and configuring charters; all ten forge grants fit.
-                limits.tasks.charters = STOCK_CHARTERS;
-                limits.tasks.executor_kinds = STOCK_EXECUTORS;
-                limits.authority.executors = STOCK_EXECUTORS;
+                // Count the supplied stock and any charters of the world's own.
+                limits.tasks.charters = u32::try_from(defaults.charters.len()).expect("fixture charters fit");
+                limits.tasks.executor_kinds =
+                    u32::try_from(defaults.rules.ceiling.delegation.kinds.len()).expect("fixture executor kinds fit");
+                limits.authority.executors = limits.tasks.executor_kinds;
                 // B2 retains eleven tasks (chat, work, advisor, two procedures and six agents).
                 limits.tasks.funders = TREE_TASKS;
                 limits.tasks.project_goals = TREE_TASKS;

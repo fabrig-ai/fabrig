@@ -98,7 +98,7 @@ fn the_terminal_draws_a_chats_pages_in_the_browser_alone() {
     }
 }
 fn state_root(state: u8) -> d::Domain {
-    let mut task = super::chat::configuring_task();
+    let mut task = super::chat::asking_task();
     task.chip.phase = c::Phase::Active;
     task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
     task.waits_on = c::WaitsOn::News;
@@ -129,7 +129,7 @@ fn state_root(state: u8) -> d::Domain {
         _ => unreachable!(),
     }
     task.chip.phase = task.chip.details.phase.compact();
-    super::chat::configuring_task_root(task, true, 1)
+    super::chat::asking_task_root(task, true, 1)
 }
 #[test]
 fn the_terminal_says_where_it_is_and_what_runs() {
