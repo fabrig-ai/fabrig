@@ -6531,10 +6531,18 @@ measures it (skein's `ui-web.md`, section 7).
   rule opens a chat: a long one opens with at least a screen and a half,
   a short one whole.
 - **Opening history:** a chat follows its first page's older cursor without a
-  scroll event, so a short conversation reaches its opening question even
-  when the reply has already ended. Initial reads stop at the history's end,
-  the window's row or byte bound, a lasting read failure or a cursor that
-  does not advance. A page that would exceed the window leaves its held
+  scroll event, by the rule above: a short conversation reaches its opening
+  question even when the reply has already ended, and a long one stops once
+  a screen and a half is held, its older cursor kept for the next read, which
+  a browser's log asks for as its head comes near, saying "Loading earlier
+  messages" as any read does. The domain measures no screen, so a screen and
+  a half is a weight: the held lines weighing 2,880 bytes or more, a screen
+  and a half of an 80 by 24 terminal, by jig's weight of a line (its bytes,
+  and `LINE_ROOM` for it and for each message, block, object and part it
+  holds; jig's `client/domain/client.md`, section 10). Initial reads stop at
+  whichever comes first: the history's end, that weight held, the window's
+  row or byte bound, a lasting read failure or a cursor that does not
+  advance. A page that would exceed the window leaves its held
   newest rows and older cursor intact. Empty pages spend the same bounded
   initial read count as nonempty pages, at most the window's row capacity.
   Transient failures retry the same read under the conversation's retry rule.

@@ -744,6 +744,10 @@ read's head explicit.
   person's whole-bound layout or repair the failed-head-read retry below.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
+- **Not yet:** 5.15, *Opening history*: initial reads don't stop once a screen and a
+  half is held. A long chat reads its whole window at open, so reading back in a
+  browser asks for no earlier page and never says "Loading earlier messages"
+  (`temper-client-domain`'s `pages/chat.rs`, `accept_activity`).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first
   chat's restored document, at 420, after a round trip through working notes, with no
   error and no setting, repository or goal changed in between. Eight other fresh boxes
