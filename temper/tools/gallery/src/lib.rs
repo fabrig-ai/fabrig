@@ -83,8 +83,8 @@ fn write(path: &Path, bytes: &str) -> Result<(), Refusal> {
         Err(_) => Err(Refusal::Io { path: path.to_owned() }),
     }
 }
-fn draw(_: DrawingKind, _: &[u8], _: u16, _: u16, _: &mut Scene) -> bool {
-    false
+fn draw(kind: DrawingKind, data: &[u8], width: u16, height: u16, scene: &mut Scene) -> bool {
+    temper_client_view::paths::draw(kind, data, width, height, scene)
 }
 
 /// The same browser view construction used by pages and semantic tests.
@@ -172,6 +172,11 @@ fn page_with(sample: &Sample, digest: &skein_ui_bundle::Digest, inputs: ViewInpu
     );
     let mut ops = Vec::new();
     page.apply(&collected, &mut ops);
+    for node in view.tree().nodes() {
+        if node.drawing.as_ref().is_some_and(|drawing| drawing.kind == temper_client_view::paths::KIND) {
+            page.resized(node.id, 720, 0, &mut ops);
+        }
+    }
     let links = page.links().to_vec();
     for node in links {
         if let Some(href) = temper_client_view::href(&mut view, node) {
