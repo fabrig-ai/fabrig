@@ -141,3 +141,21 @@ Options, each decided:
 ## Report
 
 The implementer's report: the store's watched-set rule as written, Home's facts' fields, the region's function, Overturn's rule, the options taken (the watch table above all, with the counts that decided it), the rows and their bites, the gallery states, any golden or print regenerated, and the runs' counts.
+
+## Rebase (2026-11-08, step merge, foreman ui-reaches/decided-client/foreman-1)
+
+resolve the How work runs conflicts, preserving both features and correcting combined counts.
+Rebase onto main; the merge refused three paths:
+- `temper/crates/temper-client-view/src/look.rs`
+- `temper/crates/temper-client-view/src/words.rs`
+- `temper/tools/gallery/src/samples.rs`
+
+Main’s overlapping commits are `7ae1fdcc0b` (How work runs look), `db801753b4` (page and vocabulary), and `db11d6bc71` (six gallery states).
+
+In `look.rs`, keep main’s twelve `temper-how-*` names at tokens 646–657, then append `temper-decision-allowed` and change `DECISION_ALLOWED` to token 658. Keeping its current token 646 would silently name `HOW_WIDE`.
+
+In `words.rs`, retain both features’ variants, `ALL` entries, English phrases and IDs. Keep main’s removal of obsolete Settings words and this branch’s removal of obsolete Away words. The combined declarations are `ALL: [Word; 1436]`, `PHRASES = 2118`, `SEGMENTS = 3741`, and `ENGLISH_BYTES = 51491`; verify with the existing declaration check. `SEGMENTS` merges without a conflict but still needs updating. Preserve reach IDs 4318–4333 and How IDs 4900–4929.
+
+In `samples.rs`, retain main’s six How samples, mockup mappings and domain routing alongside `home-decided`, `needs-decided` and their deliveries. Set `N = 352`.
+
+Validate through heavy with focused view vocabulary/look tests, including `decision_tokens_name_the_away_rows`, and gallery tests `each_state_holds_what_its_name_says` and `home_away_deliveries_draw_the_mock_words_and_off_span`. Preserve both features in the automatically merged gallery names, tests and worlds. Regenerate and report any resulting stale generated artifacts using their existing tools.
