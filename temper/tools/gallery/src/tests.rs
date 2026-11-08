@@ -1399,13 +1399,14 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "home-needs-under-begin",
+        name: "home-begin-with-needs",
         heading: "Hello is ready.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
-            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
-            Part::Named { role: Role::Paragraph, name: "The repository has no license. Name one in the README?" },
-            Part::Named { role: Role::Link, name: "All 1 chats" },
+            Part::NoStyle { style: temper_client_view::look::HOME_NEEDS },
+            Part::NoStyle { style: temper_client_view::look::HOME_CHATS },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
+            Part::Absent { role: Role::Link, name: "All 1 chats" },
         ],
     },
     Holds {
@@ -1416,6 +1417,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Absent { role: Role::Button, name: "Start" },
             Part::Named { role: Role::Button, name: "Adopt" },
             Part::Absent { role: Role::Link, name: "New chat" },
+            Part::NoStyle { style: temper_client_view::look::HOME_CHATS },
         ],
     },
     Holds {
