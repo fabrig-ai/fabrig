@@ -33,7 +33,7 @@ pub(crate) fn decode(value: &Value) -> Result<Result<Tool, HostAnswer>, Problem>
 /// The most an answer's body holds (domain/agent.md, 8.4.1).
 pub const SEE_PART: u32 = 6_144;
 /// The line of addresses an unknown address answers with, as `ask.txt` gives it.
-pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
+pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
 
 const INVENTORY: &[u8] = "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings".as_bytes();
 const SETTING: &[u8] = "settings · revisions · help settings-fields".as_bytes();
@@ -50,6 +50,7 @@ pub fn see_answer(
     max_bytes: u32,
 ) -> HostAnswer {
     let text = match answer {
+        SeeAnswer::Ways(document) => Ok(ways_text(document)),
         SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
         SeeAnswer::Unknown => {
             return error(&join(&[b"see: no address ", line, b"; addresses: ", ADDRESSES.as_bytes()]), max_bytes);
@@ -128,8 +129,53 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
         }
         SeeAnswer::Gates(_) => "settings landing · file OWNER/NAME PATH".as_bytes(),
         SeeAnswer::Proposal(_) => "revision N · revisions · help proposal".as_bytes(),
+        SeeAnswer::Ways(_) => "settings rules · settings landing · settings project-ways · help settings".as_bytes(),
         SeeAnswer::NotYet | SeeAnswer::Unknown => unreachable!("errors have no following addresses"),
     }
+}
+
+fn ways_text(document: &engine::ways::WaysDocument) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    for (at, way) in document.ways.iter().enumerate() {
+        if at != 0 {
+            parts.push(b"\n".as_slice().into()).expect("way separator");
+        }
+        let current = document.current == Some(u32::try_from(at).expect("stock way index"));
+        let now = if current { " · now".as_bytes() } else { b"".as_slice() };
+        parts
+            .push(join(&[&way.name, now, b"\n", &way.line, b"\n", &path_text(&way.path), b"\n"]))
+            .expect("stock way text");
+    }
+    if document.current.is_none() {
+        if !document.ways.is_empty() {
+            parts.push(b"\n".as_slice().into()).expect("own separator");
+        }
+        parts.push(join(&["Yours · now\n".as_bytes(), &path_text(&document.own), b"\n"])).expect("own path text");
+    }
+    let permission = if document.may_change {
+        b"\nYou may change this project's settings.\n".as_slice()
+    } else {
+        b"\nYou may not change this project's settings; an owner may.\n".as_slice()
+    };
+    parts.push(permission.into()).expect("settings permission");
+    join_parts(&parts)
+}
+
+fn path_text(path: &engine::ways::Path) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    for (at, stop) in path.stops.iter().enumerate() {
+        if at != 0 {
+            parts.push(" → ".as_bytes().into()).expect("stop separator");
+        }
+        let actor = match stop.actor {
+            engine::ways::Actor::Person => b"a person".as_slice(),
+            engine::ways::Actor::Agent => b"an agent".as_slice(),
+            engine::ways::Actor::Code => b"code".as_slice(),
+            engine::ways::Actor::Bar => b"a branch".as_slice(),
+        };
+        parts.push(join(&[&stop.words, b" (", actor, b")"])).expect("stop text");
+    }
+    join_parts(&parts)
 }
 
 const NOT_SETTING: &[u8] = b"not a setting yet: whoever runs temper here sets it in temper's configuration (its landing member); no proposal changes it.\n";

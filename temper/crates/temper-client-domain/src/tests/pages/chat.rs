@@ -2956,3 +2956,360 @@ fn a_new_document_call_reads_again() {
         crate::pages::chat::document::note_write("Note 12 revision 1 written · 64 lines".as_bytes())
     );
 }
+
+const VIEW_ADDRESS: &[u8] = b"way Free";
+const VIEW_TEXT: &[u8] = b"```view\nway Free\n```";
+const VIEW_REVISION: u32 = 7;
+
+fn view_reads(out: &mut Queue<Request>) -> skein_lib::List<(jig_client::Handle, Box<[u8]>)> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut reads = skein_lib::List::with_capacity(crate::Limits::chat_views());
+    while let Some(request) = out.pop() {
+        if let Request::Client(Event::Read { handle, read: Readable::Family { scope, window, record } }) = request {
+            assert_eq!(record.family, wire::FORGE);
+            assert_eq!(record.version, wire::CLIENT_VERSION);
+            let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
+            let w::Read::View(view) = reading.into_parts().read else { panic!("chat reads a view") };
+            assert_eq!(scope, c::Scope::Project(view.project()));
+            assert_eq!(view.project(), fixtures::PROJECT);
+            assert_eq!(window, c::Window { rows: 0, after: None });
+            reads.push((handle, view.into_parts().address)).unwrap();
+        }
+    }
+    reads
+}
+fn view_blocks(texts: &[&[u8]]) -> skein_lib::List<c::Block> {
+    let mut blocks = skein_lib::List::with_capacity(u32::try_from(texts.len()).unwrap());
+    for text in texts {
+        blocks
+            .push(c::Block::Text(c::Text::new(Box::from(*text), u32::try_from(text.len()).unwrap()).unwrap()))
+            .unwrap();
+    }
+    blocks
+}
+fn show_view_text(f: &mut f::Fixture, texts: &[&[u8]], project: u32) {
+    let mut task = f::task();
+    task.project = project;
+    f::deliver(&mut f.client, f.watch, task);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle: f.chat.activity,
+            page: f::activity_reply(c::Speaker::Assistant, view_blocks(texts), f::POSITION),
+        },
+        &mut f.out,
+    );
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table checks shared reads, their bound and their release")]
+fn view_addresses_share_reads_and_release_on_departure() {
+    use crate::pages::chat::Shown;
+    struct Case<'a> {
+        texts: &'a [&'a [u8]],
+        draft: Option<&'a [u8]>,
+        project: u32,
+        expected: &'a [&'a [u8]],
+        reads: u32,
+        oldest: Option<&'a Shown>,
+    }
+    let bounded = numbered_views(0, 32);
+    let overflow = numbered_views(0, 33);
+    let newest = numbered_views(1, 33);
+    let bounded_text = borrowed_view_bytes(&bounded.texts);
+    let overflow_text = borrowed_view_bytes(&overflow.texts);
+    let at_bound = borrowed_view_bytes(&bounded.addresses);
+    let newest = borrowed_view_bytes(&newest.addresses);
+    for (name, case) in [
+        (
+            "turn",
+            Case {
+                texts: &[VIEW_TEXT],
+                draft: None,
+                project: fixtures::PROJECT,
+                expected: &[VIEW_ADDRESS],
+                reads: 1,
+                oldest: None,
+            },
+        ),
+        (
+            "twice",
+            Case {
+                texts: &[VIEW_TEXT, VIEW_TEXT],
+                draft: None,
+                project: fixtures::PROJECT,
+                expected: &[VIEW_ADDRESS],
+                reads: 1,
+                oldest: None,
+            },
+        ),
+        (
+            "document",
+            Case {
+                texts: &[],
+                draft: Some(VIEW_TEXT),
+                project: fixtures::PROJECT,
+                expected: &[VIEW_ADDRESS],
+                reads: 1,
+                oldest: None,
+            },
+        ),
+        (
+            "shared document",
+            Case {
+                texts: &[VIEW_TEXT],
+                draft: Some(VIEW_TEXT),
+                project: fixtures::PROJECT,
+                expected: &[VIEW_ADDRESS],
+                reads: 1,
+                oldest: None,
+            },
+        ),
+        (
+            "no project",
+            Case { texts: &[VIEW_TEXT], draft: None, project: 0, expected: &[VIEW_ADDRESS], reads: 0, oldest: None },
+        ),
+        (
+            "at bound",
+            Case {
+                texts: bounded_text.as_slice(),
+                draft: None,
+                project: fixtures::PROJECT,
+                expected: at_bound.as_slice(),
+                reads: 32,
+                oldest: Some(&Shown::Asking),
+            },
+        ),
+        (
+            "newest past bound",
+            Case {
+                texts: overflow_text.as_slice(),
+                draft: None,
+                project: fixtures::PROJECT,
+                expected: newest.as_slice(),
+                reads: 32,
+                oldest: None,
+            },
+        ),
+    ] {
+        let mut f = f::opened();
+        while f.out.pop().is_some() {}
+        show_view_text(&mut f, case.texts, case.project);
+        if let Some(body) = case.draft {
+            draft_answer(&mut f, notes_page(&[draft_note(1, 1, body)]));
+        }
+        let reads = view_reads(&mut f.out);
+        assert_eq!(reads.len(), case.reads, "{name}");
+        for address in case.expected {
+            assert_eq!(
+                f.chat.view(address),
+                Some(&if case.project == 0 { Shown::Failed } else { Shown::Asking }),
+                "{name}"
+            );
+        }
+        assert_eq!(f.chat.view(b"a0"), case.oldest, "{name}");
+        f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+        assert!(view_reads(&mut f.out).is_empty(), "unchanged text: {name}");
+        f.chat.leave(&mut f.out);
+        let released = f::handles(&mut f.out);
+        for (handle, _) in &reads {
+            assert!(released.contains(handle), "{name}");
+        }
+        let mut unique = skein_lib::Map::with_capacity(crate::Limits::chat_views());
+        for (_, address) in &reads {
+            assert!(unique.insert(address.clone(), ()).unwrap().is_none(), "equal addresses share one read: {name}");
+        }
+    }
+}
+
+struct NumberedViews {
+    texts: skein_lib::List<Box<[u8]>>,
+    addresses: skein_lib::List<Box<[u8]>>,
+}
+fn numbered_views(first: u64, end: u64) -> NumberedViews {
+    let count = u32::try_from(end.checked_sub(first).unwrap()).unwrap();
+    let mut texts = skein_lib::List::with_capacity(count);
+    let mut addresses = skein_lib::List::with_capacity(count);
+    for number in first..end {
+        texts.push(numbered_view_text(number)).unwrap();
+        addresses.push(numbered_view_address(number)).unwrap();
+    }
+    NumberedViews { texts, addresses }
+}
+fn borrowed_view_bytes(values: &skein_lib::List<Box<[u8]>>) -> skein_lib::List<&[u8]> {
+    let mut borrowed = skein_lib::List::with_capacity(values.len());
+    for value in values {
+        borrowed.push(value.as_ref()).unwrap();
+    }
+    borrowed
+}
+
+fn numbered_view_address(number: u64) -> Box<[u8]> {
+    let digits = skein_lib::Decimal::of(number);
+    let mut writer = skein_lib::Writer::new(digits.as_bytes().len().checked_add(1).unwrap());
+    writer.put(b"a").unwrap();
+    writer.put(digits.as_bytes()).unwrap();
+    writer.finish()
+}
+fn numbered_view_text(number: u64) -> Box<[u8]> {
+    let address = numbered_view_address(number);
+    let mut writer = skein_lib::Writer::new(address.len().checked_add(b"```view\n\n```".len()).unwrap());
+    writer.put(b"```view\n").unwrap();
+    writer.put(&address).unwrap();
+    writer.put(b"\n```").unwrap();
+    writer.finish()
+}
+
+fn view_value() -> temper_client_protocol_wire::v1::View {
+    use temper_client_protocol_wire::v1 as w;
+    w::View::NotDrawn(
+        w::NotDrawn::new(&w::CEILINGS, w::NotDrawnParts { words: b"Not drawn yet".as_slice().into() }).unwrap(),
+    )
+}
+fn view_page() -> jig_client::Readout {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: view_value() }).unwrap();
+    jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) }
+}
+fn settings_watch(client: &mut jig_client::Client) -> skein_lib::Token {
+    let mut out = Queue::uncapped();
+    client.step_unlinked(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Watch { handle: crate::forge::ways::handle(), subject: Watchable::Jig(c::Subject::Settings) },
+        &mut out,
+    );
+    while let Some(request) = out.pop() {
+        if let jig_client::UnlinkedRequest::Down {
+            down: jig_client::Down::Open { watch, subject: Watchable::Jig(c::Subject::Settings) },
+        } = request
+        {
+            return watch;
+        }
+    }
+    panic!("settings watch opened");
+}
+fn view_settings(client: &mut jig_client::Client, watch: skein_lib::Token, newest: u32) {
+    client.step_unlinked(
+        Time::ZERO,
+        skein_lib::Wall::EPOCH,
+        Event::Up {
+            up: jig_client::Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                    newest,
+                    settings: skein_lib::List::with_capacity(0),
+                    held: skein_lib::List::with_capacity(0),
+                    pending: skein_lib::List::with_capacity(0),
+                }))),
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+}
+
+#[test]
+fn view_answers_keep_drawings_until_a_new_revision_answers() {
+    use crate::pages::chat::Shown;
+    use temper_client_protocol_wire as wire;
+    for (name, page, expected, refreshes) in [
+        ("answer", view_page(), Shown::Drawn(Box::new(view_value())), 1),
+        ("refused", jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)), Shown::Failed, 0),
+        (
+            "malformed",
+            jig_client::Readout::Family { family: wire::FORGE, record: Some(Box::from(*b"bad")) },
+            Shown::Failed,
+            0,
+        ),
+        ("absent", jig_client::Readout::Family { family: wire::FORGE, record: None }, Shown::Failed, 0),
+        ("not served", jig_client::Readout::NotServed { family: Some(wire::FORGE), served: None }, Shown::Failed, 0),
+    ] {
+        let mut pages = crate::pages::Pages::new();
+        let mut client = f::opened().client;
+        crate::pages::step(
+            &mut pages,
+            &fixtures::env(&fixtures::limits()),
+            &client,
+            crate::pages::Event::Went { address: crate::Address::Chat { task: f::TASK } },
+            &mut Queue::uncapped(),
+        );
+        let settings = settings_watch(&mut client);
+        view_settings(&mut client, settings, VIEW_REVISION);
+        chat_told(&mut pages, &client, Told::Changed { handle: crate::forge::ways::handle() });
+        let document = pages.chat().unwrap().document;
+        chat_told(
+            &mut pages,
+            &client,
+            Told::Page {
+                handle: document,
+                page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(f::task())))),
+            },
+        );
+        let activity = pages.chat().unwrap().activity;
+        let mut out = chat_told(
+            &mut pages,
+            &client,
+            Told::Page {
+                handle: activity,
+                page: f::activity_reply(c::Speaker::Assistant, view_blocks(&[VIEW_TEXT]), f::POSITION),
+            },
+        );
+        let reads = view_reads(&mut out);
+        assert_eq!(reads.len(), 1, "{name}");
+        let handle = reads.get(0).unwrap().0;
+        chat_told(&mut pages, &client, Told::Page { handle, page });
+        assert_eq!(pages.chat().unwrap().view(VIEW_ADDRESS), Some(&expected), "{name}");
+        for revision in [VIEW_REVISION, VIEW_REVISION - 1, VIEW_REVISION + 1] {
+            view_settings(&mut client, settings, revision);
+            let mut out = chat_told(&mut pages, &client, Told::Changed { handle: crate::forge::ways::handle() });
+            let reads = view_reads(&mut out);
+            assert_eq!(
+                reads.len(),
+                if revision > VIEW_REVISION { refreshes } else { 0 },
+                "{name}: revision {revision}"
+            );
+            assert_eq!(pages.chat().unwrap().view(VIEW_ADDRESS), Some(&expected), "keep the drawing: {name}");
+        }
+        for _ in 0..refreshes {
+            chat_told(
+                &mut pages,
+                &client,
+                Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) },
+            );
+            assert_eq!(pages.chat().unwrap().view(VIEW_ADDRESS), Some(&Shown::Failed));
+        }
+    }
+}
+
+#[test]
+fn transient_view_reads_retry_with_the_settings_waits() {
+    use crate::pages::chat::Shown;
+    for page in [
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::SignedOut)),
+        jig_client::Readout::Limit,
+    ] {
+        let mut f = f::opened();
+        show_view_text(&mut f, &[VIEW_TEXT], fixtures::PROJECT);
+        let reads = view_reads(&mut f.out);
+        let handle = reads.get(0).unwrap().0;
+        let mut now = Time::ZERO;
+        for seconds in [1, 2, 4, 8, 16, 30, 30] {
+            f.chat.told(now, &f.client, Told::Page { handle, page: page.clone() }, &mut f.out);
+            let due = now.saturating_add(Duration::from_secs(seconds));
+            assert_eq!(f.chat.next_deadline(), Some(due));
+            assert_eq!(f.chat.view(VIEW_ADDRESS), Some(&Shown::Failed));
+            f.chat.fire(now, &mut f.out);
+            assert!(view_reads(&mut f.out).is_empty());
+            f.chat.fire(due, &mut f.out);
+            assert_eq!(view_reads(&mut f.out).as_slice(), [(handle, Box::from(VIEW_ADDRESS))]);
+            now = due;
+        }
+        f.chat.told(now, &f.client, Told::Page { handle, page: view_page() }, &mut f.out);
+        assert_eq!(f.chat.next_deadline(), None);
+        assert_eq!(f.chat.view(VIEW_ADDRESS), Some(&Shown::Drawn(Box::new(view_value()))));
+    }
+}

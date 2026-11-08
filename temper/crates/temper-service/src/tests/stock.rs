@@ -346,12 +346,32 @@ fn ask_temper_is_charter_11_and_template_5() {
     let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
     ask_design_first_rules(words);
     assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
-    for heading in ["## temper, as you explain it", "## Finding out", "## Answering", "## Configuring", "## Your voice"]
-    {
+    for heading in [
+        "## temper, as you explain it",
+        "## Finding out",
+        "## Answering",
+        "## Configuring",
+        "## Showing",
+        "## Your voice",
+    ] {
         assert!(words.contains(heading), "missing {heading}");
     }
-    for heading in ["## Showing", "## Remembering"] {
-        assert!(!words.contains(heading), "excluded {heading}");
+    assert!(!words.contains("## Remembering"), "Remembering joins with remember");
+    let (_, showing) = words.split_once("## Showing\n\n").expect("Showing part");
+    let (showing, _) = showing.split_once("## Your voice").expect("Your voice follows Showing");
+    assert_eq!(
+        showing,
+        r"Show a picture when it explains better than words. Draw what exists from a view, a fenced block naming it:
+```view
+path OWNER/NAME main @revision N
+```
+Views: path OWNER/NAME [BRANCH] · way NAME · charter N · proposal tN/K; a path or a charter takes @revision N, the newest when left out. Never draw by hand what a view shows.
+A way is drawn, never described: way NAME draws one of temper's stock ways over this project, as see ways lists them. A person who wants a way of their own gets a proposal, which draws its path before and after.
+
+"
+    );
+    for excluded in ["queue", "task N tree", "task N timeline", "```mermaid"] {
+        assert!(!showing.contains(excluded), "Showing excludes {excluded} until M3b");
     }
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 4, 5]);
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
@@ -523,7 +543,7 @@ fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     crate::startup::named_with(
         &document,
         &config::Directories::working(),
-        &crate::stock::Given::Own { jig: own, forge: Box::default() },
+        &crate::stock::Given::Own { jig: own, forge: Box::default(), ways: crate::stock::ways() },
     )
     .expect("a world sizes its own runs");
 }
@@ -880,7 +900,7 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
     let stock = engine(&init);
     let mut own = crate::stock::with_models(stock.llm.models.clone(), stock.limits.core.tasks.result_bytes);
     own.charters[0].policy.turns = 9;
-    let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
+    let given = crate::stock::Given::Own { jig: own, forge: Box::default(), ways: crate::stock::ways() };
     for member in ["charters", "templates", "policies", "rules"] {
         let original = fixtures::value(&init, b"engine");
         let mut engine = format!("{{\"{member}\":null,").into_bytes();
@@ -981,7 +1001,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
         role.period_spend = role.period_spend.min(policy.period_spend);
     }
     own.rules.maximum_run_spend = 2;
-    let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
+    let given = crate::stock::Given::Own { jig: own, forge: Box::default(), ways: crate::stock::ways() };
     let engine = crate::startup::engine_with(&document, at, &config::Directories::working(), &given).unwrap();
     assert_eq!(stock.charters[0].policy.waiting, skein_lib::Duration::from_secs(10));
     assert_eq!(engine.charters[0].policy.waiting, skein_lib::Duration::from_millis(1));
@@ -1418,6 +1438,137 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
             usize::try_from(item.value.size).unwrap(),
             temper_engine_smith::kinds::encode(&item.value.value).len()
         );
+    }
+}
+
+#[test]
+fn the_stock_ways_hold_their_words_and_settings() {
+    use temper_engine_domain_forge::{
+        self as forge,
+        settings::{LandingRule, RuleApproval, RuleGate, Value},
+    };
+    use temper_engine_domain_ways::Laid;
+    let all = forge::GatePattern {
+        segments: Box::new([b"branch".as_slice().into()]),
+        last: forge::GateLast::Open(Box::default()),
+    };
+    let review = LandingRule {
+        pattern: all.clone(),
+        enforce: true,
+        ci: true,
+        up_to_date: true,
+        gates: Box::new([RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Clean }]),
+        approvals: Box::default(),
+    };
+    let rows = [
+        (
+            b"You approve".as_slice(),
+            b"An agent makes each change; nothing reaches main until you approve it.".as_slice(),
+            vec![(
+                1,
+                LandingRule {
+                    pattern: all,
+                    enforce: true,
+                    ci: true,
+                    up_to_date: true,
+                    gates: Box::default(),
+                    approvals: Box::new([RuleApproval { role: 0, people: 1, freshness: forge::JudgeFreshness::Clean }]),
+                },
+            )],
+            None,
+            false,
+        ),
+        (
+            b"Agents review".as_slice(),
+            b"An agent makes each change, another reviews it, and code lands it.".as_slice(),
+            vec![(1, review)],
+            None,
+            false,
+        ),
+        (
+            b"Draft first".as_slice(),
+            b"You and an agent write a design draft; agents build it on its own branch, and it lands whole.".as_slice(),
+            vec![
+                (
+                    1,
+                    LandingRule {
+                        pattern: forge::GatePattern {
+                            segments: Box::new([b"branch".as_slice().into()]),
+                            last: forge::GateLast::Exact(b"main".as_slice().into()),
+                        },
+                        enforce: true,
+                        ci: true,
+                        up_to_date: true,
+                        gates: Box::default(),
+                        approvals: Box::default(),
+                    },
+                ),
+                (
+                    2,
+                    LandingRule {
+                        pattern: forge::GatePattern {
+                            segments: Box::new([b"branch".as_slice().into()]),
+                            last: forge::GateLast::Open(b"temper".as_slice().into()),
+                        },
+                        enforce: true,
+                        ci: false,
+                        up_to_date: false,
+                        gates: Box::default(),
+                        approvals: Box::default(),
+                    },
+                ),
+            ],
+            Some(Laid { drafts: true, goals: true, way: 4 }),
+            true,
+        ),
+    ];
+    let stock = crate::stock::ways();
+    assert_eq!(stock.len(), rows.len());
+    for (way, (name, line, rules, ways, delegation)) in stock.iter().zip(rows) {
+        assert_eq!(way.name.as_ref(), name);
+        assert_eq!(way.line.as_ref(), line, "{name:?}");
+        assert_eq!(way.rules.as_ref(), rules.as_slice(), "{name:?}");
+        assert_eq!(way.ways, ways, "{name:?}");
+        assert_eq!(way.delegation, delegation, "{name:?}");
+    }
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let forge_stock = crate::stock::forge(&limits);
+    let rule = forge_stock.iter().find(|item| (item.kind, item.number) == (2, 1)).unwrap();
+    assert_eq!(Value::Rule(stock[1].rules[0].1.clone()), rule.value.value);
+}
+
+#[test]
+fn startup_gives_the_stock_ways_or_the_worlds_own() {
+    let document = fixtures::engine_alone_document();
+    let files = fixtures::files();
+    let directories = config::Directories::working();
+    let engine = engine(&document);
+    let own = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let empty = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut custom = crate::stock::ways().into_vec();
+    custom.remove(0);
+    custom[0].line = b"The world's review way.".as_slice().into();
+    for (given, expected) in [
+        (crate::stock::Given::Stock, crate::stock::ways()),
+        (
+            crate::stock::Given::Own { jig: own, forge: Box::default(), ways: custom.clone().into_boxed_slice() },
+            custom.into_boxed_slice(),
+        ),
+        (crate::stock::Given::Own { jig: empty, forge: Box::default(), ways: Box::default() }, Box::default()),
+    ] {
+        let start = crate::startup::checked_start_with(
+            &document,
+            &directories,
+            &files,
+            None,
+            &fixtures::seeds(),
+            fixtures::forge_runtime(),
+            None,
+            &given,
+        )
+        .unwrap();
+        assert_eq!(start.engine.ways_stock, expected);
     }
 }
 

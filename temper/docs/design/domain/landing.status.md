@@ -1,6 +1,6 @@
 # landing: status
 
-2026-11-06. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-08. Where temper's code lags or departs from [landing.md](landing.md).
 
 - **Not yet:** 5.2, 16: the real-process story
   `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts`

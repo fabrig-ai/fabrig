@@ -527,7 +527,7 @@ pub fn adopt_and_see_outcome(owner: &[u8], name: &[u8]) -> Vec<skein_fake_person
 
 const QUESTION_CHAT_REPLY: Token = Token::new(1002);
 const QUESTION_CHAT_KEY: [u8; 16] = [32; 16];
-pub(crate) const QUESTION_WORKER: Token = Token::new(7);
+pub const QUESTION_WORKER: Token = Token::new(7);
 pub(crate) const QUESTION_PROJECT: u32 = 1;
 const QUESTION_CALL: u64 = 1003;
 const QUESTION_DELEGATE: u64 = 1004;

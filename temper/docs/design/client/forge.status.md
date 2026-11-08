@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
 
 Section 4.1's approval card is present on Needs you, Home and a goal's
 band, with rule, count behind, partial-read notice, Open and Later. A

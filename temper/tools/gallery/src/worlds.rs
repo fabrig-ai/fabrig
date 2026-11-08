@@ -2,6 +2,10 @@
 //! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
 use temper_fixtures::client_documents as documents;
 mod chat_work;
+mod views;
+pub(super) fn view_world(name: &str) -> Domain {
+    views::world(name)
+}
 mod picker;
 pub(super) fn picker_world(name: &str) -> Domain {
     picker::world(name)
@@ -406,6 +410,7 @@ fn world_in_layout(
     settings: Option<&str>,
     copies: bool,
 ) -> (Domain, Option<Token>) {
+    let view = goals.filter(|name| name.starts_with("chat-view-"));
     let to_begin = settings == Some("ask-first-run");
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
@@ -519,7 +524,9 @@ fn world_in_layout(
                         }
                         c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
-                            let mut task = if picker.is_some() {
+                            let mut task = if view.is_some() {
+                                views::task()
+                            } else if picker.is_some() {
                                 chat_work::task("chat-work-running")
                             } else if agent_work {
                                 agent_work_task()
@@ -627,7 +634,12 @@ fn world_in_layout(
                     }
                 }
                 jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } => {
-                    let value = if picker.is_some() {
+                    let value = if let Some(name) = view {
+                        match &what {
+                            c::Read::Activity { .. } => Some(c::ReadValue::Activity(Box::new(views::activity(name)))),
+                            _ => read_value(w, &what, then, goals),
+                        }
+                    } else if picker.is_some() {
                         match &what {
                             c::Read::Activity { before, .. } => Some(c::ReadValue::Activity(Box::new(
                                 chat_work::activity("chat-work-running", before.as_ref()),
@@ -709,6 +721,11 @@ fn world_in_layout(
                                     },
                                     &mut out,
                                 );
+                            }
+                        }
+                        v1::Read::View(view) => {
+                            if goals.is_some_and(|name| name.starts_with("chat-view-")) {
+                                views::answer(&mut root, read, view.address(), &mut out);
                             }
                         }
                         v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
@@ -833,6 +850,7 @@ fn world_in_layout(
                         | w::Watch::Landings(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
+                        | w::Watch::Ways(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals
                         | w::Watch::Changes(_)

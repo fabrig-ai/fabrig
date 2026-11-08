@@ -2,14 +2,16 @@
 //! 3.5, Away, and 4.6; temper/docs/design/domain/forge.md, 5.8 and 5.9).
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
+use skein_ui::{Role, State};
+use smith_domain_session::llm::{self, Block, Message};
 use temper_client_domain::{
     Action, Address, Event, Request,
     forge::away::AwayRow,
-    pages::{Act, away, home},
+    pages::{Act, away, home, needs},
 };
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::{
-    app::{Root, Temper},
+    app::{Root, Temper, View},
     fixtures,
     front::{HostAnswer, Joint},
 };
@@ -21,6 +23,8 @@ const SECOND_DEVICE: ClientId = ClientId(1);
 const PROJECT: u32 = 1;
 const PUMP_ROUNDS: usize = 32;
 const OFFLINE: Duration = Duration::from_millis(30);
+const WORKER: skein_lib::Token = skein_lib::Token::new(7);
+const LOCAL_DECISION: &[u8] = br#"{"question":"Which local implementation?","options":["Small","Broad"],"took":0,"why":"The small implementation fits the design.","kind":"implementation"}"#;
 
 struct Probe {
     root: Root,
@@ -33,6 +37,7 @@ struct Story {
     front: Joint,
     probes: Vec<Probe>,
     env: Env<temper_client_domain::Limits>,
+    inputs: Vec<(u64, u64, u64, Box<[u8]>)>,
 }
 impl Story {
     fn new() -> Self {
@@ -45,6 +50,7 @@ impl Story {
             front: Joint::with_away_people(fixtures::SEED, limits),
             probes: Vec::new(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            inputs: Vec::new(),
         };
         assert_eq!(story.client(fixtures::PARTY), CLIENT);
         story
@@ -102,7 +108,9 @@ impl Story {
                     }
                 }
             }
+            self.hear();
             let callbacks = self.front.poll(self.env.now, self.env.wall);
+            self.hear();
             if !worked && callbacks.is_empty() {
                 return;
             }
@@ -210,6 +218,354 @@ impl Story {
             })
             .collect()
     }
+}
+
+impl Story {
+    fn hear(&mut self) {
+        for delivery in &self.front.engine.delivered {
+            if let temper_engine_domain::Delivery::Link {
+                down: jig_domain_host::LinkDown::Message { run, attempt, name, words, .. },
+                ..
+            } = delivery
+            {
+                let input = (run.raw(), attempt.raw(), name.raw(), words.clone());
+                if !self.inputs.contains(&input) {
+                    self.inputs.push(input);
+                }
+            }
+        }
+    }
+    fn sequence() -> Self {
+        let mut limits = fixtures::domain_limits();
+        limits.client.domain.handles = 18;
+        limits.client.domain.watches = 18;
+        let mut story = Self {
+            front: Joint::with_away_sequence(fixtures::SEED, limits),
+            probes: Vec::new(),
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            inputs: Vec::new(),
+        };
+        assert_eq!(story.client(fixtures::PARTY), CLIENT);
+        story
+    }
+    fn begin_goal(&mut self) -> temper_engine_domain::Assignment {
+        use jig_domain_people as people;
+        use temper_engine_domain as engine;
+        self.front.engine.sign_in();
+        self.front.engine.settle();
+        let people::Ask::Create { project, mut batch } =
+            self.front.engine.chat_ask(PROJECT, b"Start a local away goal.")
+        else {
+            panic!("goal template")
+        };
+        batch[0].authority.tools = 1023;
+        batch[0].authority.notes = jig_domain_authority::Scopes::GOAL.0;
+        self.front.engine.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(2301)),
+            sign_in: self.front.engine.session(),
+            key: [83; 16],
+            ask: people::Ask::Create { project, batch },
+        }));
+        self.pump();
+        let chat = self.front.assignments.last().expect("chat assigned").clone();
+        self.call(&chat, 1, b"goal", br#"{"words":"Walk the local away decision."}"#);
+        let goal = self.front.assignments.last().expect("goal assigned").clone();
+        assert_ne!(goal.task, chat.task);
+        self.front.engine.answer(
+            WORKER,
+            chat.task,
+            chat.attempt,
+            1,
+            jig_domain_tasks::End::Parked,
+            engine::Parts::none(),
+        );
+        self.pump();
+        assert!(self.front.engine.task(goal.task).expect("live goal").tracked.is_some());
+        goal
+    }
+    fn visit_home(&mut self) {
+        self.event(CLIENT, Temper::went(Address::Home { project: PROJECT }));
+        if self.facts(CLIENT).to_begin() {
+            self.press(Role::Button, b"Skip");
+        }
+        assert!(!self.facts(CLIENT).to_begin());
+    }
+    fn view(&self) -> View {
+        let (_, mut view) = Temper::new(fixtures::SEED);
+        let View::Person(person) = &mut view else { panic!("person view") };
+        temper_client_view::build(person, self.probes[CLIENT.0].root.person(), self.env.wall, &mut Queue::uncapped());
+        view
+    }
+    fn press(&mut self, role: Role, name: &[u8]) {
+        let mut view = self.view();
+        let node = Temper::tree(&view)
+            .nodes()
+            .iter()
+            .find(|node| node.role == role && node.name.as_deref() == Some(name))
+            .unwrap_or_else(|| panic!("control {} in {:?}", String::from_utf8_lossy(name), Temper::tree(&view)));
+        assert!(!node.states.as_slice().contains(&State::Disabled));
+        let id = node.id;
+        let event = Temper::act(&mut view, id, skein_ui::Act::Press).expect("bound press");
+        self.event(CLIENT, event);
+    }
+    fn sees(&self, words: &[u8]) {
+        let view = self.view();
+        assert!(
+            Temper::tree(&view).nodes().iter().any(|node| {
+                node.name.as_deref().is_some_and(|name| name.windows(words.len()).any(|part| part == words))
+                    || node.text.iter().any(|run| run.text.windows(words.len()).any(|part| part == words))
+            }),
+            "{} in {:?}",
+            String::from_utf8_lossy(words),
+            Temper::tree(&view)
+        );
+    }
+    fn call(&mut self, run: &temper_engine_domain::Assignment, completion: u32, name: &[u8], input: &[u8]) -> String {
+        let (answer, error) =
+            temper_engine_domain_world::host_tool::host_tool(&mut self.front.engine, run, completion, name, input);
+        assert!(!error, "{}: {}", String::from_utf8_lossy(name), String::from_utf8_lossy(&answer));
+        let id = format!("call-{completion}").into_bytes().into_boxed_slice();
+        let mut turn =
+            temper_worker_domain_world::protocol::session_turn(completion, u64::from(completion), 0, completion == 1);
+        turn.messages = Box::new([
+            Message {
+                role: llm::Role::Assistant,
+                content: Box::new([Block::ToolCall(llm::ToolCall {
+                    id: id.clone(),
+                    name: name.into(),
+                    input: input.into(),
+                    call: llm::Decoded::Historical,
+                    replay: None,
+                })]),
+            },
+            Message {
+                role: llm::Role::User,
+                content: Box::new([Block::ToolResult {
+                    id,
+                    result: llm::Returned::Text { text: answer.clone(), error, replay: None },
+                }]),
+            },
+        ]);
+        let body = smith_protocol_channel::encode_turn(
+            &turn,
+            &smith_transcript::CEILINGS,
+            &temper_worker_domain_world::protocol::endpoints(),
+        )
+        .expect("goal's tool exchange encodes");
+        let read = self
+            .inputs
+            .iter()
+            .filter(|(task, attempt, _, _)| *task == run.task && *attempt == run.attempt)
+            .map(|(_, _, name, _)| *name)
+            .max();
+        self.front.engine.send(temper_engine_domain_world::protocol::turn(
+            WORKER,
+            run.task,
+            run.attempt,
+            completion,
+            u64::from(completion),
+            read,
+            &body,
+        ));
+        self.front.engine.settle();
+        self.pump();
+        String::from_utf8(answer.into_vec()).expect("host answer words")
+    }
+    fn answer(&mut self, run: &temper_engine_domain::Assignment, choice: &[u8]) {
+        self.press(Role::Button, choice);
+        assert!(
+            !self.inputs.iter().any(|(task, attempt, _, words)| {
+                *task == run.task && *attempt == run.attempt && words.as_ref() == choice
+            }),
+            "the answer waits for its hold"
+        );
+        self.after(needs::HOLD.saturating_add(Duration::from_nanos(1)));
+        assert!(
+            self.inputs.iter().any(|(task, attempt, _, words)| {
+                *task == run.task && *attempt == run.attempt && words.as_ref() == choice
+            }),
+            "the run receives {} after the hold",
+            String::from_utf8_lossy(choice)
+        );
+    }
+    fn finish(&mut self, run: &temper_engine_domain::Assignment) {
+        let report = b"The person answered the local question.";
+        let mut turn = temper_worker_domain_world::protocol::session_turn(6, 6, 0, false);
+        turn.messages[0].content = Box::new([Block::Text { text: report.as_slice().into(), replay: None }]);
+        let body = smith_protocol_channel::encode_turn(
+            &turn,
+            &smith_transcript::CEILINGS,
+            &temper_worker_domain_world::protocol::endpoints(),
+        )
+        .expect("report turn");
+        let read = self
+            .inputs
+            .iter()
+            .filter(|(task, attempt, _, _)| *task == run.task && *attempt == run.attempt)
+            .map(|(_, _, name, _)| *name)
+            .max();
+        self.front.engine.send(temper_engine_domain_world::protocol::turn(
+            WORKER,
+            run.task,
+            run.attempt,
+            6,
+            6,
+            read,
+            &body,
+        ));
+        self.front.engine.settle();
+        self.front.engine.answer(
+            WORKER,
+            run.task,
+            run.attempt,
+            6,
+            jig_domain_tasks::End::Finished {
+                result: jig_domain_tasks::TaskResult::Report { words: report.as_slice().into() },
+                cancel_delegates: false,
+            },
+            temper_engine_domain::Parts::none(),
+        );
+        self.pump();
+        let ended = self
+            .front
+            .engine
+            .store
+            .rows
+            .get(&StoreKey::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(run.task))));
+        let Some(Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Ended(task)))) = ended else {
+            panic!("the goal ended: {ended:?}")
+        };
+        assert_eq!(
+            task.phase,
+            jig_domain_tasks::Phase::Ended(jig_domain_tasks::Ending::Done(jig_domain_tasks::TaskResult::Report {
+                words: report.as_slice().into()
+            },))
+        );
+    }
+    fn committed_calls(&self, goal: u64) -> Vec<Box<[u8]>> {
+        let mut turns: Vec<_> = self
+            .front
+            .engine
+            .store
+            .rows
+            .values()
+            .filter_map(|row| {
+                if let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = row
+                    && turn.task == goal
+                {
+                    Some(turn)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        turns.sort_by_key(|turn| (turn.attempt, turn.turn));
+        let mut calls = Vec::new();
+        for turn in turns {
+            let decoded = smith_protocol_channel::decode_turn(
+                &turn.transcript,
+                turn.turn,
+                &smith_transcript::CEILINGS,
+                &temper_worker_domain_world::protocol::endpoints(),
+            )
+            .expect("committed goal turn decodes");
+            for message in decoded.messages {
+                for block in message.content {
+                    if let Block::ToolCall(call) = block {
+                        calls.push(call.name);
+                    }
+                }
+            }
+        }
+        calls
+    }
+}
+
+#[test]
+fn a_goal_decides_while_away_then_waits_on_home_after_overturn_and_off() {
+    let mut story = Story::sequence();
+    story.event(CLIENT, Temper::went(Address::Settings { project: PROJECT }));
+    story.press(Role::Option, b"I turn it off");
+    assert!(
+        story.row(CLIENT).is_some_and(|row| row.until.is_none()),
+        "Away row {:?}; answers {:?}",
+        story.row(CLIENT),
+        story.probes[CLIENT.0].answers
+    );
+    let view = story.view();
+    assert!(Temper::tree(&view).nodes().iter().any(|node| {
+        node.role == Role::Option
+            && node.name.as_deref() == Some(b"I turn it off")
+            && node.states.as_slice().contains(&State::Selected)
+    }));
+    story.visit_home();
+    story.press(Role::Button, b"Away");
+    story.sees(b"agents decide within");
+    let run = story.begin_goal();
+    let goal = run.task;
+    assert_eq!(story.call(&run, 1, b"decided", LOCAL_DECISION), "Decided: carry on with Small.");
+    let note = format!(
+        r#"{{"scope":{{"kind":"goal","project":1,"goal":{goal}}},"description":"report: I carried on with Small.","body":"I carried on with the small implementation before asking anyone."}}"#
+    );
+    assert!(story.call(&run, 2, b"note", note.as_bytes()).starts_with("Note "));
+    story.event(CLIENT, Temper::went(Address::Task { task: goal }));
+    story.sees(b"I carried on with the small implementation before asking anyone.");
+    story.visit_home();
+    story.sees(b"One thing was decided for you.");
+    story.sees(b"The small implementation fits the design.");
+    story.sees(b"Small");
+    assert!(
+        !Temper::tree(&story.view())
+            .nodes()
+            .iter()
+            .any(|node| { node.role == Role::Button && node.name.as_deref() == Some(b"Try the other implementation") }),
+        "Decided carries on without asking"
+    );
+    story.press(Role::Button, b"Overturn");
+    let decisions = story.decisions();
+    let [decision] = decisions.as_slice() else { panic!("one decision: {decisions:?}") };
+    assert!(decision.overturned, "Overturn saves its mark");
+    assert!(story.inputs.iter().any(|(task, attempt, _, words)| {
+        *task == goal && *attempt == run.attempt && words.as_ref() == b"I overturn your decision. Which local implementation? You took Small. Ask me again with message, as a question, and wait for my answer."
+    }), "the goal's run hears the person's overturn: {:?}", story.inputs);
+    assert!(story.call(&run, 3, b"message", br#"{"target":1,"form":"question","words":"Which local implementation after overturn?\nChoice: Try the other implementation\nChoice: Keep the chosen implementation"}"#).starts_with("Message "));
+    story.sees(b"Overturned: it asks you again");
+    story.sees(b"Still needs you");
+    assert!(
+        Temper::tree(&story.view())
+            .nodes()
+            .iter()
+            .any(|node| { node.role == Role::Button && node.name.as_deref() == Some(b"Try the other implementation") })
+    );
+    story.press(Role::Button, b"Away");
+    story.sees(b"Away is off: questions wait for you again.");
+    story.answer(&run, b"Try the other implementation");
+    assert!(story.call(&run, 4, b"decided", LOCAL_DECISION).starts_with("Ask: your person is here"));
+    assert_eq!(story.decisions(), decisions, "off saves no second decision");
+    assert!(story.call(&run, 5, b"message", br#"{"target":1,"form":"question","words":"Which local implementation while here?\nChoice: Use the small implementation\nChoice: Use the broad implementation"}"#).starts_with("Message "));
+    story.sees(b"Which local implementation while here?");
+    story.sees(b"One thing was decided for you.");
+    story.answer(&run, b"Use the small implementation");
+    story.finish(&run);
+    let view = story.view();
+    assert!(
+        Temper::tree(&view)
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Chats"))
+    );
+    assert!(
+        !Temper::tree(&view)
+            .nodes()
+            .iter()
+            .any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Goals"))
+    );
+    let calls = story.committed_calls(goal);
+    assert!(
+        calls.starts_with(&[Box::from(b"decided".as_slice()), Box::from(b"note".as_slice())]),
+        "Decided carries on before overturn: {calls:?}"
+    );
 }
 
 #[test]

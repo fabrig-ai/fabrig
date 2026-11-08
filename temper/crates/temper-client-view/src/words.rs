@@ -12,6 +12,14 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    ViewAsking,
+    ViewFailed,
+    ViewNow,
+    ViewWay,
+    ViewPath,
+    ViewRepositoryPath,
+    ViewBefore,
+    ViewAfter,
     NightMode,
     CloseTitle,
     CloseChat,
@@ -1549,7 +1557,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2104;
+const PHRASES: u32 = 2112;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1576,10 +1584,18 @@ const PHRASES: u32 = 2104;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3689;
+const SEGMENTS: u32 = 3707;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52059;
-const ALL: [Word; 1422] = [
+const ENGLISH_BYTES: u32 = 52180;
+const ALL: [Word; 1430] = [
+    Word::ViewAsking,
+    Word::ViewFailed,
+    Word::ViewNow,
+    Word::ViewWay,
+    Word::ViewPath,
+    Word::ViewRepositoryPath,
+    Word::ViewBefore,
+    Word::ViewAfter,
     Word::NightMode,
     Word::CloseTitle,
     Word::CloseChat,
@@ -3007,6 +3023,14 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::ViewAsking => 4250,
+            Self::ViewFailed => 4251,
+            Self::ViewNow => 4252,
+            Self::ViewWay => 4253,
+            Self::ViewPath => 4254,
+            Self::ViewRepositoryPath => 4255,
+            Self::ViewBefore => 4256,
+            Self::ViewAfter => 4257,
             Self::NightMode => 4180,
             Self::ApprovalKind => 4121,
             Self::ApprovalQuestion => 4122,
@@ -4494,6 +4518,12 @@ fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
 const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if word == Word::ViewAsking || word == Word::ViewFailed {
+        return Ok(512);
+    }
+    if word == Word::ViewPath || word == Word::ViewRepositoryPath {
+        return Ok(if last && word == Word::ViewRepositoryPath { 2048 } else { 1024 });
+    }
     if word == Word::SettingsProposalTitle {
         return Ok(SETTINGS_PROJECT_NAMES_BYTES);
     }
@@ -4851,6 +4881,16 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::ViewAsking => (&[b"Drawing ", b"\xe2\x80\xa6"], &[Name]),
+        Word::ViewFailed => (&[b"Couldn't draw ", b"."], &[Name]),
+        Word::ViewNow => (&[b" \xc2\xb7 now"], &[]),
+        Word::ViewWay => (&[b"The way a change goes"], &[]),
+        Word::ViewPath => (&[b"The way a change lands on ", b""], &[Name]),
+        Word::ViewRepositoryPath => (
+            &[b"The way a change lands on ", b" in ", b""], &[Name, Name]
+        ),
+        Word::ViewBefore => (&[b"Before"], &[]),
+        Word::ViewAfter => (&[b"After"], &[]),
         Word::NightMode => (&[b"Night mode"], &[]),
         Word::ApprovalKind => (&[b"an approval"], &[]),
         Word::ApprovalQuestion => (&[b"Approve ", b" on ", b""], &[Name, Name]),

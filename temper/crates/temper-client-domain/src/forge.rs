@@ -24,6 +24,7 @@ pub mod replace;
 pub mod sheet;
 pub mod start;
 pub mod status;
+pub mod stock_ways;
 pub mod tokens;
 pub mod trials;
 mod vocabulary;

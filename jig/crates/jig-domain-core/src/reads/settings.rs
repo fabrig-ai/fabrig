@@ -217,7 +217,9 @@ fn refused(to: ReplyTo, key: crate::CallKey, part: crate::CallPart) -> Queue<Req
 pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Request> {
     let super::Destination::Settings { to, key } = destination else {
         let reply = match destination {
-            super::Destination::Read(reply) | super::Destination::RevisionMetadata { reply, .. } => reply,
+            super::Destination::Read(reply)
+            | super::Destination::RevisionMetadata { reply, .. }
+            | super::Destination::ProjectProposal { reply, .. } => reply,
             super::Destination::Watch(_)
             | super::Destination::Erase
             | super::Destination::Restore
@@ -515,6 +517,104 @@ pub fn revision_metadata(
         Recipient { destination: super::Destination::RevisionMetadata { reply, project }, sign_in, party },
         number,
     )
+}
+
+/// A project's member reads a proposal of settings that touches the project, for the application's own reads
+/// (jig/docs/design/domain/engine.md, 17.6). Other scopes' items and core values stay as the run's read gives them.
+/// Decided party proposals have no retained projects and are unknown to this read.
+pub fn project_proposal(
+    core: &mut Core,
+    env: &Env<Limits>,
+    reply: ReplyTo,
+    sign_in: u64,
+    project: u32,
+    proposer: people::Proposer,
+    number: u64,
+) -> Queue<Request> {
+    let Some(party) = core.people.person(sign_in, env.now, env.wall) else {
+        return terminal(reply, Answer::None(if core.people.ready() { Why::SignedOut } else { Why::Unknown }));
+    };
+    if !metadata_allowed(core, party, project) || !project_proposal_scope(core, project, proposer, number) {
+        return terminal(reply, Answer::None(Why::Unknown));
+    }
+    match crate::documents::run_proposal(core, &env.limits, proposer, number, env.wall) {
+        Ok(value) => {
+            return terminal(reply, Answer::Document(Box::new(crate::documents::Document::Proposal(Box::new(value)))));
+        }
+        Err(crate::documents::Missing::NotAllowed) => return terminal(reply, Answer::None(Why::Unknown)),
+        Err(crate::documents::Missing::TooLarge) => return terminal(reply, Answer::None(Why::Busy)),
+        Err(crate::documents::Missing::Ended | crate::documents::Missing::Unknown) => {}
+    }
+    let range = Range {
+        party: match proposer {
+            people::Proposer::Party(party) => party,
+            people::Proposer::Task(_) => 0,
+        },
+        scope: Scope::Proposal { proposer, proposal: number },
+        after: None,
+        backwards: false,
+        rows: env.limits.documents.rows,
+        bytes: env.limits.load_bytes,
+    };
+    super::load_settings(
+        core,
+        env,
+        super::Pending {
+            destination: super::Destination::ProjectProposal { reply, project },
+            sign_in,
+            party,
+            range,
+            tasks: None,
+        },
+    )
+}
+
+fn project_proposal_scope(core: &Core, project: u32, proposer: people::Proposer, number: u64) -> bool {
+    match proposer {
+        people::Proposer::Task(task) => match core.tasks.task(task) {
+            Some(task) => task.project == project,
+            // The linked owner in the history load establishes the project.
+            None => true,
+        },
+        people::Proposer::Party(_) => {
+            let Ok(number) = u32::try_from(number) else { return false };
+            match core.settings_proposals.get(&(proposer, number)) {
+                Some(proposal) => proposal.projects().as_slice().contains(&project),
+                None => false,
+            }
+        }
+    }
+}
+
+pub(super) fn project_proposal_loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    name: skein_lib::Id<super::Pending>,
+    result: super::Loaded,
+) -> Queue<Request> {
+    let pending = core.reads.get(name).expect("pending project proposal load");
+    let super::Destination::ProjectProposal { project, .. } = pending.destination else {
+        unreachable!("project proposal destination")
+    };
+    let Scope::Proposal { proposer, proposal } = pending.range.scope else { unreachable!("project proposal scope") };
+    let value = if core.people.person(pending.sign_in, env.now, env.wall) != Some(pending.party) {
+        Answer::None(Why::SignedOut)
+    } else if !metadata_allowed(core, pending.party, project)
+        || !project_proposal_scope(core, project, proposer, proposal)
+    {
+        Answer::None(Why::Unknown)
+    } else {
+        match result {
+            super::Loaded::Busy | super::Loaded::TooLinked { .. } => Answer::None(Why::Busy),
+            super::Loaded::Gone | super::Loaded::TurnProblem { .. } => Answer::None(Why::Unknown),
+            super::Loaded::Page { rows, next } => {
+                super::rows::proposal_from_store(core, &env.limits, &pending.range, rows, next, env.wall, project)
+            }
+        }
+    };
+    let reply = core.reads.get_mut(name).expect("pending project proposal load").take_reply();
+    core.reads.retire(name);
+    terminal(reply, value)
 }
 
 fn metadata_allowed(core: &Core, party: u64, project: u32) -> bool {
@@ -1053,6 +1153,228 @@ mod tests {
             let (mut core, env) = metadata_core(role);
             let out = revision_metadata(&mut core, &env, REPLY, sign_in, project, REVISION);
             assert_eq!(read_answer(out), Answer::None(why), "project {project}, sign in {sign_in}");
+        }
+    }
+
+    const PROPOSER: u64 = 1;
+    const PROPOSAL: u64 = 7;
+
+    fn proposal_core(role: Option<people::Role>) -> (Core, Env<Limits>) {
+        let (mut core, env) = metadata_core(Some(people::Role::Owner));
+        crate::tests::make_task(&mut core, &env.limits, PROPOSER);
+        tasks::step(
+            &mut core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::Propose {
+                reply_to: ReplyTo::new(skein_lib::Token::new(91)),
+                proposal: tasks::Proposal {
+                    number: PROPOSAL,
+                    proposer: PROPOSER,
+                    project: people::DEPLOYMENT,
+                    action: tasks::ProposalAction::Settings {
+                        projects: Box::new([PROJECT]),
+                        against: REVISION,
+                        items: Box::new([]),
+                    },
+                    reason: b"Review these settings".as_slice().into(),
+                    as_holder: false,
+                    state: tasks::ProposalState::Pending {
+                        holder: tasks::ProposalHolder::Policy {
+                            project: people::DEPLOYMENT,
+                            kind: tasks::ProposalKind::Settings,
+                        },
+                        since: env.wall,
+                    },
+                },
+            },
+            &mut Queue::uncapped(),
+        );
+        core.settings_proposals
+            .insert(
+                (people::Proposer::Task(PROPOSER), u32::try_from(PROPOSAL).unwrap()),
+                settings::Proposal {
+                    key: Some(9),
+                    against: REVISION,
+                    items: Box::new([settings::Item {
+                        setting: settings::Setting::Charter(1),
+                        edit: settings::Edit::Reset,
+                    }]),
+                    applications: Box::new([]),
+                },
+            )
+            .unwrap();
+        core.people = metadata_core(role).0.people;
+        (core, env)
+    }
+
+    #[test]
+    fn project_proposal_members_read_the_same_waiting_review_as_owners() {
+        let (mut owner, env) = proposal_core(Some(people::Role::Owner));
+        let expected = read_answer(project_proposal(
+            &mut owner,
+            &env,
+            REPLY,
+            SIGN_IN,
+            PROJECT,
+            people::Proposer::Task(PROPOSER),
+            PROPOSAL,
+        ));
+        let Answer::Document(document) = &expected else { panic!("waiting proposal document") };
+        let crate::documents::Document::Proposal(proposal) = document.as_ref() else { panic!("proposal") };
+        let crate::documents::ProposalAction::Settings { review: Some(review), .. } = &proposal.action else {
+            panic!("settings review")
+        };
+        assert_eq!(review.key, Some(9));
+        let (mut member, env) = proposal_core(Some(people::Role::Member));
+        assert_eq!(
+            read_answer(project_proposal(
+                &mut member,
+                &env,
+                REPLY,
+                SIGN_IN,
+                PROJECT,
+                people::Proposer::Task(PROPOSER),
+                PROPOSAL
+            )),
+            expected
+        );
+    }
+
+    fn party_proposal(core: &mut Core, env: &Env<Limits>, scope: u32) {
+        core.settings_proposals
+            .insert(
+                (people::Proposer::Party(PROPOSER), u32::try_from(PROPOSAL).unwrap()),
+                settings::Proposal {
+                    key: Some(9),
+                    against: REVISION,
+                    items: Box::new([]),
+                    applications: Box::new([settings::application::Recorded {
+                        kind: 7,
+                        scope,
+                        number: 1,
+                        edit: settings::application::SizedEdit::Remove,
+                    }]),
+                },
+            )
+            .unwrap();
+        tasks::step(
+            &mut core.tasks,
+            &env.with(env.limits.tasks),
+            tasks::Event::ProposePerson {
+                reply_to: ReplyTo::new(skein_lib::Token::new(92)),
+                proposal: tasks::PersonProposal {
+                    number: PROPOSAL,
+                    proposer: PROPOSER,
+                    project: people::DEPLOYMENT,
+                    action: tasks::PersonAction::Settings { against: REVISION, items: Box::new([]) },
+                    reason: Box::new([]),
+                    state: tasks::PersonProposalState::Pending { since: env.wall },
+                },
+            },
+            &mut Queue::uncapped(),
+        );
+    }
+
+    #[test]
+    fn project_proposal_admits_only_its_signed_in_projects_members() {
+        for (role, sign_in, project, why) in [
+            (None, SIGN_IN, PROJECT, Why::Unknown),
+            (Some(people::Role::Member), SIGN_IN + 1, PROJECT, Why::SignedOut),
+            (Some(people::Role::Member), SIGN_IN, PROJECT + 1, Why::Unknown),
+            (Some(people::Role::Member), SIGN_IN, people::DEPLOYMENT, Why::Unknown),
+        ] {
+            let (mut core, env) = proposal_core(role);
+            assert_eq!(
+                read_answer(project_proposal(
+                    &mut core,
+                    &env,
+                    REPLY,
+                    sign_in,
+                    project,
+                    people::Proposer::Task(PROPOSER),
+                    PROPOSAL
+                )),
+                Answer::None(why)
+            );
+        }
+        for (scope, expected_document) in [(PROJECT, true), (PROJECT + 1, false)] {
+            let (mut core, env) = proposal_core(Some(people::Role::Member));
+            party_proposal(&mut core, &env, scope);
+            let answer = read_answer(project_proposal(
+                &mut core,
+                &env,
+                REPLY,
+                SIGN_IN,
+                PROJECT,
+                people::Proposer::Party(PROPOSER),
+                PROPOSAL,
+            ));
+            let document = match answer {
+                Answer::Document(_) => true,
+                Answer::None(Why::Unknown) => false,
+                other @ (Answer::Setting(_)
+                | Answer::Revision(_)
+                | Answer::Revisions(_)
+                | Answer::TaskText(_)
+                | Answer::Tasks(_)
+                | Answer::Ended(_)
+                | Answer::Page(_)
+                | Answer::None(_)) => panic!("project-scoped proposal answer: {other:?}"),
+            };
+            assert_eq!(document, expected_document, "scope {scope}");
+            tasks::step(
+                &mut core.tasks,
+                &env.with(env.limits.tasks),
+                tasks::Event::DecidePersonProposal {
+                    reply_to: ReplyTo::new(skein_lib::Token::new(93)),
+                    proposer: PROPOSER,
+                    proposal: PROPOSAL,
+                    by: tasks::Party::Person(1),
+                    message: None,
+                    decision: tasks::ProposalDecision::Accept,
+                    revision: Some(REVISION),
+                },
+                &mut Queue::uncapped(),
+            );
+            core.settings_proposals.remove(&(people::Proposer::Party(PROPOSER), u32::try_from(PROPOSAL).unwrap()));
+            // A decided party proposal retains no project list, even if its set touched this project.
+            assert_eq!(
+                read_answer(project_proposal(
+                    &mut core,
+                    &env,
+                    REPLY,
+                    SIGN_IN,
+                    PROJECT,
+                    people::Proposer::Party(PROPOSER),
+                    PROPOSAL
+                )),
+                Answer::None(Why::Unknown)
+            );
+        }
+    }
+
+    #[test]
+    fn project_proposal_load_rechecks_membership_and_sign_in() {
+        for (role, wall, why) in [
+            (None, skein_lib::Wall::EPOCH, Why::Unknown),
+            (Some(people::Role::Member), skein_lib::Wall::from_nanos(100), Why::SignedOut),
+        ] {
+            let (mut core, mut env) = proposal_core(Some(people::Role::Member));
+            let mut out = project_proposal(
+                &mut core,
+                &env,
+                REPLY,
+                SIGN_IN,
+                PROJECT,
+                people::Proposer::Task(PROPOSER),
+                PROPOSAL + 1,
+            );
+            let Some(Request::Held(held)) = out.pop() else { panic!("proposal load") };
+            let crate::Held::ReadLoad { load, .. } = *held else { panic!("proposal load") };
+            core.people = metadata_core(role).0.people;
+            env.wall = wall;
+            let out = crate::reads::loaded(&mut core, &env, &mut Queue::uncapped(), load, crate::reads::Loaded::Busy);
+            assert_eq!(read_answer(out), Answer::None(why));
         }
     }
 

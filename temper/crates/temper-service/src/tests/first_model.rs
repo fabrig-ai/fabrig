@@ -75,6 +75,7 @@ fn stock_box(account: OneAccount) -> StockBox {
         core,
         landings: application.landings,
         kinds_stock: crate::stock::forge(&limits),
+        ways_stock: Box::default(),
         forge: skein_forge_client::Config { namespace: Box::new([31; 16]), writers: Box::new([]) },
         identities: Box::new([]),
         machine: None,

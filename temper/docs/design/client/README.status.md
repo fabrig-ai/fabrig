@@ -565,9 +565,9 @@ read's head explicit.
   delegate tasks, Pause, Resume, a message and Close, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
   view holds Goals' link to `/chats` (`the_link_shows_with_a_tracked_template`),
-  and the fake box's walk reaches an
-  ended goal's report from its Goals row, in the terminal's client
-  (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
+  and the joint world's story reaches an
+  ended goal's report from its chat through Home's Goals link and its Goals row
+  (`tests/client/tests/suite/task.rs`, `a_chats_goal_shows_its_report_from_its_goals_row`). The fake
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
   only for the first chat's goal, task 2, and has it ask, wait or finish with no
   delegates, so it can show no planning and no delegate task: the journey
@@ -909,10 +909,10 @@ read's head explicit.
     boxes, its driver thrown away as that plan's cut has it, so no test keeps it. The
     client's world holds the card, count and Accept (its story of Ask temper's
     proposal of a project's ways reaching its Needs you and its rail), and
-    the process tier a person's plan's return
-    (`a_plans_project_has_its_brief_on_a_return_past_the_sitting`), past a sitting a
-    test's `forge.sitting_ms` sets to seconds, where that request's return is past 31
-    minutes, because a real box has no fake clock.
+    the joint world a person's plan's return
+    (`tests/client/tests/suite/status.rs`,
+    `a_plans_project_has_its_brief_on_a_return_past_the_sitting`), past the sitting
+    on the world's clock advanced by 31 minutes.
 - **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
   2026-11-06, decided by its plan's cut. A press outside that took the focus to
   another control leaves it there, where the request returns the focus to the row:
