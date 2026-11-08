@@ -295,7 +295,8 @@ impl Judge {
             let answer = &caller.answers[self.answered];
             if self.stage == Stage::Declare {
                 assert!(
-                    answer.exit != Exit::Code(0) && String::from_utf8_lossy(&answer.error).contains("not offered"),
+                    answer.exit == Exit::Code(2)
+                        && String::from_utf8_lossy(&answer.error).contains("name remains reserved"),
                     "forgotten declaration: {:?} {} {}",
                     answer.exit,
                     String::from_utf8_lossy(&answer.output),
