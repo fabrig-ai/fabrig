@@ -89,3 +89,22 @@ Pre-approved options:
 
 Follow the implementer's text. Also list each golden and journey regenerated, each
 re-record's tries, and any mark widened.
+
+## Answers
+
+2026-11-08. *May chat-draft start on Chats (`/chats`) and use its page's
+"+ New chat" link, or should a repair teach the recorder the rail's menu?*
+Start on Chats; no code repair. The rail drops Chats, but `Chats` keeps
+its address (`temper/docs/design/draft/surfaces.md`, 2), and its page's
+"+ New chat" goes to the same `NewChat { draft: false }` the recording
+already presses. An open menu is browser-local state the journeys don't
+record (`temper/docs/design/client/journeys.md`, 3.4), and teaching them
+is code outside this migration. So, in `journeys/chat-draft/` only:
+`setup` reloads `/chats` in place of `/projects/1/settings`; the
+recording's press is named as the Chats page's link reads; the `README.md`
+starts the recording at Chats and says so for `01.html` and `02.html`
+(marked, then before opening "+ New chat"), keeping the rest of the
+story. Then `again chat-draft`, with the moving-mark retries as before,
+and acceptance 4's tests. If Chats under `/chats` shows no project's
+"+ New chat" or the draft's "+ Draft" needs the How work runs start, that
+is a question with its log.
