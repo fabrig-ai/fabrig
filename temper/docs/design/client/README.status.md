@@ -42,7 +42,11 @@ is live with a party. The base uses the terminal's default colours,
 focus uses the accent, and the run chooses its scheme from COLORFGBG,
 else OSC 11 with a 200 ms wait, else dark, before Start. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
-present. Section 11 keeps the flags, design-location cleanup, terminal
+present. The simulated run checks a runtime link outside fresh TUI state
+roots, the connected Owner screen without input, no approval request and
+descriptor cleanup. The binary's path rows keep that deployment link
+across fresh state directories and explicit configuration/cache paths.
+Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 

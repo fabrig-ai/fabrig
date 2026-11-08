@@ -6713,7 +6713,10 @@ fallback, and draws a first screen that proves the connection, live
     (skein-shell's `read_private_file`): absent, unreadable, too large or
     not private reads as none. The binary reads it once at start, for
     bare `temper`'s address (6.11); the run reads it at each duty `local`
-    (6.13), for the sign-in (6.14).
+    (6.13), for the sign-in (6.14). The binary opens a separate root for
+    the link's parent; the run resolves only its filename beneath that
+    root and closes the descriptor on shutdown. A parent that cannot be
+    opened reads as no link, without refusing the TUI's state directory.
   - *A stale file grants nothing.* Its address and its secret come from
     one file, written by the engine that holds the listener. A restart
     forgets links, and a spent link is dead (jig's `protocol/client.md`,

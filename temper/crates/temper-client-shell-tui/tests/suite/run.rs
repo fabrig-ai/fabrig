@@ -358,6 +358,8 @@ struct Engine {
     denied: usize,
     bodies: std::collections::BTreeSet<Token>,
     discarding: std::collections::BTreeSet<Token>,
+    link_sign_ins: usize,
+    approvals: usize,
 }
 impl Engine {
     fn new(sim: &mut Sim) -> Self {
@@ -378,6 +380,8 @@ impl Engine {
             denied: 0,
             bodies: std::collections::BTreeSet::new(),
             discarding: std::collections::BTreeSet::new(),
+            link_sign_ins: 0,
+            approvals: 0,
         };
         engine.down(io::Request::Listen {
             owner: Token::new(1),
@@ -478,8 +482,10 @@ impl Engine {
                 down: stream::Down::Demand { read: stream::Read::Fill(length), room: 0 },
             });
         } else if bytes.starts_with(b"POST /jig/v1/approval/ask ") {
+            self.approvals += 1;
             self.respond(owner, approval_response());
         } else if bytes.starts_with(b"POST /jig/v1/sign-in/link ") {
+            self.link_sign_ins += 1;
             self.signed_in = true;
             self.respond(owner, sign_in_response());
         } else {
@@ -793,6 +799,78 @@ fn background_selects_the_recorded_start_scheme() {
 const LOCAL_SECRET: &[u8] = b"AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM";
 const LOCAL_LINK: &[u8] =
     b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM";
+
+#[test]
+fn a_fresh_tui_reads_the_runtime_link_outside_its_state_directory() {
+    for state in ["state-auto", "state-retry", "state-bothenv"] {
+        let mut world = World::options(
+            false,
+            true,
+            false,
+            Outcome::Success,
+            Recording::None,
+            Some(Scheme::Dark),
+            Some(b"/runtime/temper/printed-link-deployment"),
+            false,
+            None,
+        );
+        let runtime =
+            world.files.lay(&[Item::file(b"printed-link-deployment", &[LOCAL_LINK, b"\n"].concat()).mode(0o600)]);
+        let root = world.sim.root(world.pid, Handle::new(runtime.raw()));
+        world.run = world.run.with_local_link(root, b"/runtime/temper/printed-link-deployment");
+        world.settle();
+        let engine = world.engine.as_ref().expect("fake engine");
+        assert_eq!(engine.link_sign_ins, 1, "{state}: automatic link sign-in");
+        assert_eq!(engine.approvals, 0, "{state}: no browser approval");
+        let screen = terminal_text(&world.bytes);
+        assert!(screen.contains("Connected to 127.0.0.1:8367"), "{state}: {screen}");
+        assert!(screen.contains("Owner"), "{state}: {screen}");
+        assert!(!screen.contains("Signed out"), "{state}: {screen}");
+        world.draining = true;
+        world.sim.peer_close(world.pid, world.input);
+        world.settle();
+        assert_eq!(world.run.exit(), Some(Exit::Code(0)));
+        world.sim.assert_no_open_fds(world.pid);
+        world.sim.assert_quiescent(world.pid);
+        assert_eq!(world.files.open_handles(), 0);
+    }
+}
+
+fn terminal_text(bytes: &[u8]) -> String {
+    let mut cells = std::collections::BTreeMap::new();
+    let mut at = (1, 1);
+    let mut chars = std::str::from_utf8(bytes).expect("terminal UTF-8").chars();
+    while let Some(glyph) = chars.next() {
+        if glyph != '\x1b' {
+            cells.insert(at, glyph);
+            at.1 += 1;
+            continue;
+        }
+        assert_eq!(chars.next(), Some('['), "terminal emits CSI commands");
+        let mut parameters = String::new();
+        let command = loop {
+            let byte = chars.next().expect("complete CSI command");
+            if ('@'..='~').contains(&byte) {
+                break byte;
+            }
+            parameters.push(byte);
+        };
+        match command {
+            'H' => {
+                at = parameters.split_once(';').map_or((1, 1), |(row, column)| {
+                    (row.parse().expect("cursor row"), column.parse().expect("cursor column"))
+                });
+            }
+            'J' => {
+                assert_eq!(parameters, "2", "whole-screen clear");
+                cells.clear();
+            }
+            'm' | 'h' | 'l' => {}
+            other => panic!("unexpected terminal command: {other}"),
+        }
+    }
+    cells.values().collect()
+}
 
 #[test]
 #[cfg(feature = "record")]
