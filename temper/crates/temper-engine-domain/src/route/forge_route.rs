@@ -3012,7 +3012,7 @@ fn change_member(
             )));
         }
     }
-    let base = change_landing(domain, env, task, &repository, change.landing.as_ref())?;
+    let base = change_destination(domain, env, task, &repository, change)?;
     change_repairs(domain, env, change, &repository, &base)?;
     match chat_change(domain, env, context, change, &repository, base, branch, spend) {
         Ok(member) => Ok(member),
@@ -3080,6 +3080,60 @@ fn change_repository(domain: &Domain, project: u32, named: Option<&[u8]>) -> Res
     Ok(chosen.ok_or(tasks::Refusal::Unknown)?.clone())
 }
 
+/// Resolve the nearest held goal branch through the requester chain (domain/forge.md, 11.1).
+fn change_goal_branch(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    repository: &forge::Repository,
+) -> Result<Option<Box<[u8]>>, ChangeRefused> {
+    let Some(mut current) = domain.core.tasks.task(task) else { return Ok(None) };
+    let root = domain.core.tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
+    // Each step visits one requester, including the calling task itself.
+    for _ in 0..=current.depth {
+        let branch = tree_branch(repository, root, b'g', current.number, None, env.limits.forge.name_bytes)
+            .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
+        let name = forge::Name {
+            forge: repository.provider.forge,
+            repository: repository.provider.repository,
+            what: branch_what(&branch, env.limits.forge.name_bytes)
+                .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?,
+        };
+        if let Some(hold) = domain.forge.hold(&name)
+            && hold.task == current.number
+        {
+            return Ok(Some(branch));
+        }
+        let tasks::Party::Task(parent) = current.requester else { break };
+        let Some(parent) = domain.core.tasks.task(parent) else { break };
+        current = parent;
+    }
+    Ok(None)
+}
+
+/// Keep ordinary child destinations on their held goal branch (domain/forge.md, 11.1).
+fn change_destination(
+    domain: &Domain,
+    env: &Env<Limits>,
+    task: u64,
+    repository: &forge::Repository,
+    change: &crate::ChangeCall,
+) -> Result<Box<[u8]>, ChangeRefused> {
+    if change.branch == Some(crate::ChangeBranch::Mine) && change.landing.is_none() {
+        return Ok(repository.settings.default_branch.clone());
+    }
+    let base = change_landing(domain, env, task, repository, change.landing.as_ref())?;
+    if change.branch != Some(crate::ChangeBranch::Mine)
+        && let Some(goal) = change_goal_branch(domain, env, task, repository)?
+        && base != goal
+    {
+        return Err(ChangeRefused::Words(Box::from(
+            b"landing: this task's goal holds a branch; land child changes into it, then land it whole with branch mine.".as_slice(),
+        )));
+    }
+    Ok(base)
+}
+
 fn change_landing(
     domain: &Domain,
     env: &Env<Limits>,
@@ -3088,43 +3142,27 @@ fn change_landing(
     landing: Option<&crate::ChangeLanding>,
 ) -> Result<Box<[u8]>, ChangeRefused> {
     match landing {
-        None => Ok(repository.settings.default_branch.clone()),
+        None => Ok(match change_goal_branch(domain, env, task, repository)? {
+            Some(branch) => branch,
+            None => repository.settings.default_branch.clone(),
+        }),
         Some(crate::ChangeLanding::Branch(branch)) => {
             branch_parts(branch, env.limits.forge.name_bytes).ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
             Ok(branch.clone())
         }
-        Some(crate::ChangeLanding::Goal) => {
-            let root = domain.core.tasks.root(task).ok_or(ChangeRefused::Refusal(tasks::Refusal::Unknown))?;
-            let branch = tree_branch(repository, root, b'g', task, None, env.limits.forge.name_bytes)
-                .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?;
-            let name = forge::Name {
-                forge: repository.provider.forge,
-                repository: repository.provider.repository,
-                what: branch_what(&branch, env.limits.forge.name_bytes)
-                    .ok_or(ChangeRefused::Refusal(tasks::Refusal::Spec))?,
-            };
-            if let Some(hold) = domain.forge.hold(&name)
-                && hold.task == task
-            {
-                return Ok(branch);
+        Some(crate::ChangeLanding::Goal) => match change_goal_branch(domain, env, task, repository)? {
+            Some(branch) => Ok(branch),
+            None => {
+                let repository = repository_name(repository);
+                // Fixed refusal, bounded repository name and period.
+                let count = u32::try_from(repository.len()).expect("bounded repository name").saturating_add(64);
+                let mut words = List::with_capacity(count);
+                append(&mut words, b"landing goal: this task holds no goal branch in ");
+                append(&mut words, &repository);
+                append(&mut words, b".");
+                Err(ChangeRefused::Words(words.into_boxed()))
             }
-            let prefix = b"landing goal: this task holds no goal branch in ";
-            let repository = repository_name(repository);
-            let count = u32::try_from(
-                prefix
-                    .len()
-                    .checked_add(repository.len())
-                    .expect("bounded repository name")
-                    .checked_add(1)
-                    .expect("goal refusal's period"),
-            )
-            .expect("bounded goal refusal");
-            let mut words = List::with_capacity(count);
-            append(&mut words, prefix);
-            append(&mut words, &repository);
-            append(&mut words, b".");
-            Err(ChangeRefused::Words(words.into_boxed()))
-        }
+        },
     }
 }
 

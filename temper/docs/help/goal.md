@@ -13,6 +13,12 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   `plan:` and how many live delegates run, wait or are held below.
 - **The goal template,** template 2 in the stock settings, makes a
   tracked task at priority 1.
+- **Plan, tasks, land whole** uses the stock template `goal for a draft`
+  and holds a goal branch. Child changes, including those made from its
+  subtree, land into that branch when their landing destination is left
+  out. An ordinary child cannot name a destination outside it. The goal
+  lands its held branch into the base as one separate change after its
+  work and checks complete.
 
 ## How it changes
 
