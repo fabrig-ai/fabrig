@@ -3950,8 +3950,9 @@ the person to check existence and grant the repository to the App.
   - its step: producing, opening, recreating, reopening, checking,
     gating, queued (its place, from 1 (u32), and the tasks ahead of it,
     nearest first, at most 64 (u64 each)), first, updating, resolving,
-    repairing (its reason: CI, a gate by its number (u64), or a semantic
-    conflict), landing, or landed (its merge commit, 32 bytes); verifying,
+    repairing (its reason: CI, a gate by its number (u64), a semantic
+    conflict, or a person's request for changes on the forge,
+    `../domain/forge.md`, 8.3), landing, or landed (its merge commit, 32 bytes); verifying,
     red and cleared also carry the merge and at most 32 tier strings of at
     most 8192 bytes each. A tier string names its run and every full failing
     ID owned by or suspected of that landing, or explicitly `many tests`.

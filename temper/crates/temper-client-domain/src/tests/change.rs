@@ -48,6 +48,7 @@ fn each_step_supplies_its_slot_line_and_held_word() {
             W::HeldRepairing,
         ),
         (repair(w::Reason::Semantic), Some(4), W::RepairSemantic, W::HeldRepairing),
+        (repair(w::Reason::Review), Some(3), W::RepairReview, W::HeldRepairing),
         (w::Step::Landing, Some(5), W::LandingLine, W::HeldLanding),
         (
             w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()),
@@ -62,6 +63,17 @@ fn each_step_supplies_its_slot_line_and_held_word() {
         let panel = p::panel(17, step);
         let (line, holes) = change::line(&panel);
         assert_eq!(line, word);
+        if word == W::RepairReview {
+            let mut found = false;
+            for (candidate, literals, kinds) in crate::forge::words::CHANGES {
+                if candidate == word {
+                    assert_eq!(literals, &[b"Repairing: a person asked for changes on the forge.".as_slice()]);
+                    assert!(kinds.is_empty());
+                    found = true;
+                }
+            }
+            assert!(found);
+        }
         let expected: Box<[Hole]> = if word == W::QueueTh {
             Box::new([Hole::Number(65), Hole::Name(Box::from(panel.landing()))])
         } else if word == W::PrepareLine || word == W::FirstLine || word == W::UpdateLine || word == W::ResolveLine {
