@@ -88,23 +88,6 @@ Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
-- **Not yet:** 6.12 to 6.16, from the user's requests of 2026-11-08
-  (plan `tui-launchpad-2`) and the look request `tui-chat-title-below`:
-  the binary reads the engine's link file at start whatever the
-  address, for `boxed` (6.12, *On a box*); `Start` carries the
-  terminal's background and `boxed`, the background is asked whatever
-  `COLORFGBG` says, and the theme's band is that background moved one
-  step, with no band and dim words where it did not answer, the palette
-  having no `sel` (6.13, 6.15, *The band*); Up, Down, Enter and Esc on
-  up to three left-off chats while the launchpad's box is empty
-  (6.14, *Where you left off*); `/effort` offered on the launchpad;
-  a Markdown bullet drawn "•" under `tui-bullets`; and a chat's title,
-  cut to 20 characters, with its number and the engine's place, in the
-  rule above the box, the top line, `tui-chat-top` and `tui-star` gone
-  (6.14, *The rule above the box*). The code draws one left-off chat
-  and no arrows, `/effort` on a chat alone, the `sel` band, "✦" before
-  a Markdown bullet and the chat's top line.
-
 Sections 6.13 and 6.14's no-project command composer has no known
 implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
