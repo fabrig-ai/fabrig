@@ -7,13 +7,12 @@ second :
   second 
   second 
   second 18446744073709551615
-  second :
-    second 65535
-    second 
-    `a/b`
-    `\xFF\x00`
-    
-    * second  (busy)
+  second 65535
+  second 
+  `a/b`
+  `\xFF\x00`
+  
+  * second  (busy)
   second 
   `~~~~~~~~`
   second 
@@ -22,10 +21,9 @@ second :
   second 65535
   !!!!!!!!
   second 
-  second :
-    second 65535
-    second 
-    `a/b`
-    `\xFF\x00`
-    
-    * second  (busy)
+  second 65535
+  second 
+  `a/b`
+  `\xFF\x00`
+  
+  * second  (busy)

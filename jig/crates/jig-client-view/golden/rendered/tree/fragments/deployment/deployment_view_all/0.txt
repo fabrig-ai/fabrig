@@ -3,7 +3,6 @@ Deployment owner facts:
   Store map bytes: 0
   Store high-water mark in bytes: 0
   Hosts:
-    Hosts:
     Hosts forgotten: 18446744073709551615
   Tracked attempts:
     - Attempt: 18446744073709551615
@@ -20,7 +19,6 @@ Deployment owner facts:
   LLM accounts:
     LLM provider offers
     Maximum key bytes 256
-    LLM accounts:
   Resource capacities:
     Tasks Capacity:
       Used: 0
