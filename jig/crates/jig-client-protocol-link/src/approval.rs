@@ -93,7 +93,7 @@ impl Link {
             )
             .expect("checked exchange capacity");
         let credential = if kind.asking() { None } else { self.credential.clone() };
-        out.push(Request::Exchange { exchange, credential, message });
+        self.emit_exchange(exchange, credential, message, out);
     }
     pub(super) fn approval_answer(&mut self, kind: ApprovalKind, body: &[u8], out: &mut Queue<Request>) {
         let mut reader = Reader::new(body);

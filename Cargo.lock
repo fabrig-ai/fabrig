@@ -1032,6 +1032,7 @@ dependencies = [
  "jig-protocol-transcript",
  "skein-codec",
  "skein-lib",
+ "skein-ui-web",
  "smith-transcript",
 ]
 
