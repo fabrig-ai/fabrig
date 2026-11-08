@@ -1,0 +1,45 @@
+draft = "look-round-18"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-18/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "bar-tag"
+title = "An Ask temper chat's bar shows \" · Ask temper\" after its number, and alone on a phone"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[part]]
+id = "first-run-gallery"
+title = "The gallery's first-run worlds list a fresh box's templates 1, 2 and 5; the reference world's ways leave 5 to Ask temper"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 7.2"
+
+[[part]]
+id = "first-run-journeys"
+title = "project-landing, chat-draft and welcome-playground recorded again on a box that offers Ask temper"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/journeys.md, 9"
+
+[[slice]]
+id = 1
+story = "An Ask temper chat's bar reads \"T9 · Ask temper\" at 1440 and 1000, and \"Ask temper\" at 420"
+parts = ["bar-tag"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A fresh box's first-run pages, in the gallery and the journeys' prints, draw the rail's \"Ask temper\" and the phone's \"Ask\" tab"
+parts = ["first-run-gallery", "first-run-journeys"]
+walk = false

@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-07. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 No known implementation gap. Sections 2 to 8 have the separate recording
 build, seam recorder and private saves, shipped-host replay and proof,

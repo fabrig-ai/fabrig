@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
