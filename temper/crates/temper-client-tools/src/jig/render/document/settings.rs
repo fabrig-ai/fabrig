@@ -43,6 +43,13 @@ pub(crate) fn text(
         }
         out.put(b"\n");
         settings_form::render::stock_text(&a::form_read_value(value), out);
+        if let c::Setting::Application { kind: 9, .. } = document.setting
+            && document.value.is_some()
+            && let Some(state) = &document.application
+            && state.follows == c::ApplicationFollows::Default
+        {
+            out.put(b"the stock\n");
+        }
         if let Some(state) = &document.application {
             application_text(state, out);
         }

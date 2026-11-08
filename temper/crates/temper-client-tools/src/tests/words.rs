@@ -130,6 +130,30 @@ fn argv_takes_a_group_and_a_verb() {
     ] {
         assert_eq!(refusal(words).as_ref(), expected.as_bytes(), "{words:?}");
     }
+    for (words, form, values) in [
+        (
+            &["settings", "show", "charter-words", "12", "--revision", "5"][..],
+            5,
+            [
+                Some(Values::One(Value::Word(0))),
+                Some(Values::One(Value::Number(12))),
+                Some(Values::One(Value::Number(5))),
+            ],
+        ),
+        (
+            &["settings", "show", "project-words", "shop", "--revision", "5"][..],
+            4,
+            [
+                Some(Values::One(Value::Word(2))),
+                Some(Values::One(Value::Project(jig::call::Project::Name(b"shop".as_slice().into())))),
+                Some(Values::One(Value::Number(5))),
+            ],
+        ),
+    ] {
+        let call = fixtures::call(words);
+        assert_eq!((call.tool, call.form), (jig::rows::SETTING_AT, form), "{words:?}");
+        assert_eq!(call.values.as_ref(), values.as_slice(), "{words:?}");
+    }
 }
 
 #[test]
