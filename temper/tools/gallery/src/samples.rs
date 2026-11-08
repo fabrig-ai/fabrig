@@ -118,7 +118,7 @@ impl Sample {
     #[must_use]
     pub fn open_menu(&self) -> Option<&[u8]> {
         match self.name {
-            "rail-new-menu" => Some(b"More ways to start work"),
+            "rail-new-menu" => Some(b"New draft or change"),
             "rail-person-menu" => Some(b"Robin"),
             _ => None,
         }

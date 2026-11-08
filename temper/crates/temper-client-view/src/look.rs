@@ -672,18 +672,20 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
 ];
 /// The project's navigation frame (client/README.md, 5.3).
 pub const RAIL: Style = Style { owner: owner(), token: 175 };
-/// The rail's three page entries.
+/// The rail's navigation entries.
 pub const RAIL_NAV: Style = Style { owner: owner(), token: 176 };
-/// The rail's new chat link and menu.
+/// The unnamed hairline before How work runs (client/README.md, 5.3).
+pub const RAIL_SEP: Style = Style { owner: owner(), token: 646 };
+/// The rail's new box.
 pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
-/// All ways to start work in the rail menu (client/README.md, 5.3).
-pub const RAIL_NEW_ALL: Style = Style { owner: owner(), token: 437 };
-/// The rail's status, settings and person.
+/// The rail's Away switch, status, Deployment and person.
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 /// The browser’s night switch (temper/docs/design/client/README.md, 5.3).
 pub const NIGHT_SWITCH: Style = Style { owner: owner(), token: 608 };
 /// The browser's phone navigation.
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
+/// To begin's tab bar stays below a phone's Ask composer (client/README.md, 5.3).
+pub const TABBAR_BEGINNING: Style = Style { owner: owner(), token: 647 };
 /// Forge status in the welcome's column (client/README.md, 3.5).
 pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 373 };
 /// A Model way’s panel (client/README.md, 3.5).
@@ -1152,7 +1154,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-facts",
         b"temper-home-byline",
         b"temper-chat-goal",
-        b"temper-rail-new-all",
+        b"temper-reserved-437",
         b"temper-away",
         b"temper-away-chip",
         b"temper-away-track",
@@ -1362,8 +1364,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-use",
         b"temper-ways-refused",
         // Reserved for the rail, Work and Deployment (client/browser.md, 2.5)
-        b"temper-reserved-646",
-        b"temper-reserved-647",
+        b"temper-rail-sep",
+        b"temper-tabbar-beginning",
         b"temper-reserved-648",
         b"temper-reserved-649",
         b"temper-work-page",

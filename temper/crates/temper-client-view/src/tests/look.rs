@@ -35,7 +35,7 @@ fn the_looks_names_pass_skeins_check() {
         (CONFIRM_FATES, b"temper-confirm-fates"),
         (CONFIRM_ACTS, b"temper-confirm-acts"),
         (CONFIRM_DO, b"temper-confirm-do"),
-        (skein_ui::Style { owner: crate::frame::owner(), token: 646 }, b"temper-reserved-646"),
+        (RAIL_SEP, b"temper-rail-sep"),
         (skein_ui::Style { owner: crate::frame::owner(), token: 675 }, b"temper-reserved-675"),
     ] {
         assert_eq!(NAMES.style(token), Some(name));
@@ -193,14 +193,15 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (SHEET_FOOT, b"temper-sheet-foot"),
     (SHEET_ERROR, b"temper-sheet-error"),
 ];
-const RAIL_NAMES: [(skein_ui::Style, &[u8]); 10] = [
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 11] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
     (RAIL_NEW, b"temper-rail-new"),
-    (RAIL_NEW_ALL, b"temper-rail-new-all"),
+    (RAIL_SEP, b"temper-rail-sep"),
     (RAIL_FOOT, b"temper-rail-foot"),
     (RAIL_PERSON, b"temper-rail-person"),
     (TABBAR, b"temper-tabbar"),
+    (TABBAR_BEGINNING, b"temper-tabbar-beginning"),
     (AWAY, b"temper-away"),
     (AWAY_CHIP, b"temper-away-chip"),
     (AWAY_TRACK, b"temper-away-track"),
