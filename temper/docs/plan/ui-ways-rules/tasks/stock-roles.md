@@ -226,3 +226,17 @@ before landing.
 2026-11-08 (temper/ui). The first: the standard brief allowance falls from 354,988 to 353,072 bytes, about 0.5%, so charter 5 and the framed brief fit the 400,135-byte host-part bound with the existing 498-byte margin. This is the one exception to my earlier 'no shipped default limit is lowered'. Host sizing stays as it is. Name the change in plan.md and the report, with both figures, as the owner of coding runs' limits hears of it.
 
 2026-11-08 (temper/ui). The first: authorize the narrow fix in temper/crates/temper-engine-domain/src/limits.rs. A charter's waiting of 0 is valid, and the reference's charter 5 and the generated one already use it, so run_policy_bytes measures it rather than refusing it. Add a regression test with a row for waiting 0 beside today's rows, red first. Change nothing else in the root's checks, and name the fix in plan.md and the report, as temper-engine-domain is shared with the owner of coding runs.
+
+## Rebase (2026-11-08, step merge, foreman ui-ways-rules/stock-roles/foreman-2)
+
+rebase and regenerate chat-draft’s HTML prints from the combined code and stock-aware recording
+The merge conflicts are in `temper/docs/design/client/journeys/chat-draft/{06,07,08,15,16,17,18,19,20}.html`.
+Main’s `0fd0b18fc2` adds the rail’s Night mode button and changes generated control IDs.
+Main’s `492de05a95` also rerecords chat-draft for the combined Ask temper workflow.
+The task’s `264c2c30f1` rerecords chat-draft with the stock changes, including template 4’s “Plan, tasks, land whole” choice.
+Preserve the combined client code and the task’s stock-aware `chat-draft/recording`; resolve generated HTML by reprinting, not hand-merging IDs or choosing one side’s pages.
+`temper/docs/design/client/journeys.md`, 5.1–5.2 explicitly requires reprinting generated-page conflicts.
+Run `TEMPER_BUNDLE=none heavy cargo run -p temper-client-journeys` to regenerate the prints.
+If replay reports a stale recording, regenerate it with `temper-client-journeys again chat-draft` through heavy; retry “a key mark caught a moving page” at most three times.
+Run the focused journey replay checks, verify the prints retain Night mode and the stock template choice, and commit the regenerated files.
+Keep the task’s status-entry deletion and stock-dependent fixture changes when reviewing the clean automatic merges in `configuration.status.md` and `host_calls.rs`.
