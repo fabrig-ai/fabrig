@@ -7,7 +7,7 @@ use temper_client_domain::{self as d, Address, Domain, Event, Place, pages::term
 fn text(bytes: &[u8]) -> c::Text {
     c::Text::new(bytes.into(), 32).unwrap()
 }
-fn model() -> c::MeModel {
+pub(super) fn model() -> c::MeModel {
     c::MeModel {
         new_until: None,
         number: 1,
@@ -276,15 +276,21 @@ fn the_tui_offers_its_commands() {
             failures.push((name, found)).unwrap();
         }
     }
+    own_commands(&words);
     front_commands(&words);
     assert!(failures.is_empty(), "command rows: {failures:?}");
 }
 
 fn front_commands(words: &crate::words::Words) {
     for (name, front, prefix, expected) in [
-        ("in front", true, "/", &["/new", "/chats", "/theme", "/help", "/log", "/exit"][..]),
+        (
+            "in front",
+            true,
+            "/",
+            &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/log", "/exit"][..],
+        ),
         ("log prefix", true, "/l", &["/log"][..]),
-        ("out of front", false, "/", &["/new", "/chats", "/theme", "/help", "/exit"][..]),
+        ("out of front", false, "/", &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/exit"][..]),
         ("log out of front", false, "/l", &[][..]),
     ] {
         let mut root = root(true, false, false, false, false, false);
@@ -316,4 +322,156 @@ fn front_commands(words: &crate::words::Words) {
             }
         }
     }
+}
+
+#[expect(clippy::disallowed_methods, reason = "command rows inspect help names, padding and key order")]
+#[expect(clippy::too_many_lines, reason = "one table checks commands, their availability, bindings and help")]
+fn own_commands(words: &crate::words::Words) {
+    use crate::{Own, Told, Tui};
+    for (name, brief, needs, prefix, chat, project, front, expected) in [
+        (
+            "brief and need",
+            true,
+            true,
+            "/",
+            false,
+            true,
+            false,
+            &[
+                "/change", "/ask", "/model", "/effort", "/new", "/chats", "/brief", "/needs", "/open", "/theme",
+                "/help", "/exit",
+            ][..],
+        ),
+        (
+            "neither",
+            false,
+            false,
+            "/",
+            false,
+            true,
+            false,
+            &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/exit"][..],
+        ),
+        ("c prefix", true, true, "/c", false, true, false, &["/change", "/chats"][..]),
+        ("b prefix", true, true, "/b", false, true, false, &["/brief"][..]),
+        ("no brief", false, true, "/b", false, true, false, &[][..]),
+        ("no needs", true, false, "/n", false, true, false, &["/new"][..]),
+        (
+            "chat",
+            false,
+            true,
+            "/",
+            true,
+            true,
+            false,
+            &["/pause", "/close", "/new", "/chats", "/open", "/theme", "/help", "/exit"][..],
+        ),
+        ("no project", false, false, "/", false, false, false, &["/theme", "/help", "/exit"][..]),
+        (
+            "front",
+            true,
+            true,
+            "/",
+            false,
+            true,
+            true,
+            &["/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/theme", "/help", "/log", "/exit"][..],
+        ),
+    ] {
+        let mut root = if name == "brief and need" {
+            super::foot::walk_root(true)
+        } else if !project {
+            root(false, false, false, false, false, false)
+        } else if chat {
+            root(true, false, true, false, false, false)
+        } else {
+            super::launchpad::home_read(Some(brief), &[], needs, None)
+        };
+        let action = if chat {
+            d::pages::Act::MessageWords { words: prefix.as_bytes().into() }
+        } else {
+            d::pages::Act::ChatWords { words: prefix.as_bytes().into() }
+        };
+        f::event(&mut root, Event::Act { action: d::Action::Pages(action) });
+        let mut tui = Tui::new(f::ADDRESS);
+        if front {
+            tui.step(Told::Front);
+        }
+        if !project {
+            tui.step(Told::CommandWords { value: prefix.as_bytes().into() });
+        }
+        let part = crate::view::foot::read(&root, &tui, words, f::NOW);
+        let items = match &part.list {
+            Some(list) => list.items.as_ref(),
+            None => &[],
+        };
+        assert_eq!(items.len(), expected.len(), "{name}: {items:?}");
+        for (item, expected) in items.iter().zip(expected) {
+            assert_eq!(item.name.as_ref(), expected.as_bytes(), "{name}");
+            for (own, description) in [
+                (Own::Change, "One change, run as the project's way says"),
+                (Own::Ask, "Ask temper"),
+                (Own::Brief, "The brief, whole"),
+                (Own::Needs, "Walk what needs you"),
+                (Own::Open, "Open this on the web"),
+            ] {
+                if own.name() == expected.as_bytes() {
+                    assert_eq!(item.event, crate::Event::Own { command: own }, "{name}");
+                    assert_eq!(item.words.as_ref(), description.as_bytes(), "{name}");
+                }
+            }
+        }
+        f::event(
+            &mut root,
+            Event::Act {
+                action: d::Action::Pages(d::pages::Act::Terminal(d::pages::terminal::Act::Run {
+                    command: Command::Help,
+                })),
+            },
+        );
+        let notes = crate::view::foot::read_notes(&root, &tui, words);
+        let mut names = List::with_capacity(16);
+        for line in &notes.lines {
+            if line.starts_with(b"/") {
+                names.push(line.split(|b| *b == b' ').next().unwrap()).unwrap();
+            }
+        }
+        // Help is unfiltered even when the box contains a command prefix.
+        if prefix == "/" {
+            assert_eq!(usize::try_from(names.len()).unwrap(), expected.len(), "help {name}");
+            for (found, expected) in names.iter().zip(expected) {
+                assert_eq!(*found, expected.as_bytes(), "help {name}");
+            }
+        }
+        assert_eq!(
+            notes.lines.iter().any(|line| line.as_ref() == b"n walks what needs you"),
+            needs && !chat,
+            "help {name}"
+        );
+        if name == "brief and need" {
+            for line in [
+                b"/change  One change, run as the project's way says".as_slice(),
+                b"/ask     Ask temper",
+                b"/brief   The brief, whole",
+                b"/needs   Walk what needs you",
+                b"/open    Open this on the web",
+            ] {
+                assert!(notes.lines.iter().any(|found| found.as_ref() == line), "help padding and words: {line:?}");
+            }
+            let esc = notes.lines.iter().position(|line| line.as_ref() == b"Esc closes a list").unwrap();
+            assert_eq!(notes.lines[esc.checked_add(1).unwrap()].as_ref(), b"n walks what needs you");
+        }
+    }
+    let mut root = root(true, true, false, false, false, true);
+    f::event(
+        &mut root,
+        Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: b"/".as_slice().into() }) },
+    );
+    let part = crate::view::foot::read(&root, &Tui::new(f::ADDRESS), words, f::NOW);
+    let list = part.list.unwrap();
+    let expected = ["/change", "/ask", "/model", "/effort", "/new", "/chats", "/open", "/theme", "/help", "/exit"];
+    for (item, expected) in list.items.iter().zip(expected) {
+        assert_eq!(item.name.as_ref(), expected.as_bytes());
+    }
+    assert_eq!(list.items.len(), expected.len());
 }

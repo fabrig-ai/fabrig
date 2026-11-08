@@ -1914,7 +1914,7 @@ fn each_event_becomes_its_acts() {
                     host.report(Report::Key(Key::Down));
                     host.state().left_off().is_none()
                         && event.is_none()
-                        && text(&mut host).lines().any(|line| line.starts_with("❯ /chats"))
+                        && text(&mut host).lines().any(|line| line.starts_with("❯ /ask"))
                 }
             }
             "stop" => give(&mut host, Event::Stop).close,
