@@ -565,6 +565,7 @@ fn a_merge_into_the_goal_branch_observed_before_its_answer_is_not_drift() {
     assert!(forge_hold(&world, &branch).expect("goal branch hold").drift.is_none());
     world.release_write_answers();
     world.until(Until::Ready);
+    observe_goal_branch(&mut world, &branch);
     assert_eq!(writer(&world, &branch), None, "confirmed merge frees its writer");
     assert_eq!(branch_tip(&mut world, b"main"), main);
     finish_siblings(&mut world, &goal);
