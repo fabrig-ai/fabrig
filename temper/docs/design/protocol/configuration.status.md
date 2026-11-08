@@ -63,22 +63,6 @@ checkout workspaces and git operations. All three supplied box documents
 agree. Agent-process resident memory is deferred in section 11; the
 start's fit checks do not establish laptop memory use.
 
-- **Not yet:** 13.1, 13.4, 13.6 step 3: the stock still holds charter 3 and
-  template 3, the configuring chat: `temper-service/src/stock.rs` builds
-  `configuring_charter` from `stock/configuring.txt` with
-  `CONFIGURING_TOOLS`, 1,920, and the template `configuring`, and
-  `ceiling` names `Executor::Charter(3)` in the rules' and policy 1's
-  delegation; charter 11's models
-  come from `CONFIGURING_FIRST_CHOICES`, where 13.4's table names them
-  Ask temper's order.
-- **Not yet:** 13.4, 11: the standard brief, 354,988 bytes, is derived
-  from charter 3's room, 356,461, less 1,472 bytes of framing and a
-  one-byte margin, in `temper-service/src/limits.rs`'s comment on
-  `brief_bytes` and in
-  `the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds`
-  (`temper-service/src/tests/stock_brief.rs`), whose rooms table keeps
-  charter 3's row, where 13.4 and section 11 derive it from charter 1's
-  room, 356,958, less the same 1,472, the rest a margin.
 
 Section 13.4 has no known gap in charter 10: the stock trial has one
 working turn, no tools or resume, and charter 1's model choices. Its
