@@ -84,3 +84,21 @@ The account's rows, at least:
 ## Report
 
 The implementer's report: the page as drawn, what went, the rows and the bite with its failure, the prints regenerated, the runs' counts, and the account as committed.
+
+## Rebase (2026-11-08, step merge, foreman look-round-25/how-drawing/foreman-1)
+
+rebase onto the landing trunk, preserving its style identities and gallery changes, then regenerate journeys.
+The merge conflicts are the branch’s: `look.rs`, `words.rs`, gallery `tests.rs`, and `chat-draft/01.html` through `20.html`.
+Use trunk catch-up `b1d4fad3a3` (integration `2f6eba732b`) as the combined baseline.
+Main’s `20714f54e5` relocated How styles to preserve rail and Work tokens; the catch-up also relocated path-mark styles.
+In `temper/crates/temper-client-view/src/look.rs`, delete `HOW_SCROLL` through `HOW_LINE` and reserve their current slots, 678–686, as `temper-reserved-678` through `temper-reserved-686`.
+Keep `HOW_WIDE=676`, `HOW_WAY=677`, `HOW_ROW=687`, path-mark tokens 688–697, and trunk’s rail/Work names and constants.
+Do not apply the spec’s old 648–656 retirement range over trunk’s live Work styles.
+In `words.rs`, retain trunk’s rail, Work and Deployment vocabulary and the branch’s specified How-word removals.
+Recalculate `ALL`, `PHRASES`, `SEGMENTS` and `ENGLISH_BYTES` from the combined vocabulary; preserve `WaysMaybe` and the path-mark words.
+In `temper/tools/gallery/src/tests.rs`, retain trunk’s added states, navigation assertions and helper arms while applying this branch’s How drawing, legend, expanded-stop and caret assertions.
+Remove the obsolete `HowPath` and `Current` variants and arms as the branch does; add no gallery states.
+For `chat-draft`, preserve trunk’s recording, including opening-history updates from `1b57095197` and `d56c00427d`.
+Regenerate the HTML from the combined code with `heavy cargo run -p temper-client-journeys`; resolve generated conflicts through regeneration.
+If the tool reports the recording stale, use `again chat-draft` under the request’s retry limit, then regenerate and report it.
+Run the spec’s focused/fuzzy checks and changed-package clippy through heavy; report selected counts and regenerated artifacts.
