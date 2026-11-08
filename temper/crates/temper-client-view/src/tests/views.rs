@@ -303,6 +303,38 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
             print: "A model · high",
         },
         Row {
+            name: "rule",
+            shown: Shown::Drawn(Box::new(w::View::Rule(
+                w::RuleView::new(
+                    &w::CEILINGS,
+                    w::RuleViewParts {
+                        kind: 2,
+                        number: 1,
+                        card: w::Card::new(
+                            &w::CEILINGS,
+                            w::CardParts {
+                                who: "a landing rule · holds a merge until it is met".as_bytes().into(),
+                                name: b"the project's rule 1".as_slice().into(),
+                                facts: List::from_boxed(Box::new([w::Fact::new(
+                                    &w::CEILINGS,
+                                    w::FactParts {
+                                        label: b"Covers".as_slice().into(),
+                                        value: b"every branch".as_slice().into(),
+                                    },
+                                )
+                                .unwrap()])),
+                            },
+                        )
+                        .unwrap(),
+                    },
+                )
+                .unwrap(),
+            ))),
+            groups: &[b"the project's rule 1"],
+            labels: &[],
+            print: "every branch",
+        },
+        Row {
             name: "not drawn",
             shown: Shown::Drawn(Box::new(w::View::NotDrawn(
                 w::NotDrawn::new(

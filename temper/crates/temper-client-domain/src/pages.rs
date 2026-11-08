@@ -15,6 +15,7 @@ pub mod calls;
 pub mod changes;
 pub mod chat;
 pub mod members;
+pub mod roles;
 /// Whether the project's settings offer writing drafts (client/README.md, 5.13).
 #[must_use]
 pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
@@ -93,6 +94,7 @@ pub struct Pages {
     accounts: accounts::Accounts,
     builders: builders::Builders,
     members: Option<members::Members>,
+    roles: roles::Roles,
     models: models::Models,
     switcher: switcher::Switcher,
     pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
@@ -103,6 +105,7 @@ pub struct Pages {
     forges_opened: Option<u16>,
     accounts_open: bool,
     builders_open: bool,
+    roles_open: bool,
     welcome: Option<welcome::Welcome>,
     default_project: welcome::DefaultProject,
     adopting: Option<welcome::Adopting>,
@@ -345,6 +348,7 @@ impl Pages {
             accounts: accounts::Accounts::default(),
             builders: builders::Builders::default(),
             members: None,
+            roles: roles::Roles::default(),
             models: models::Models::new(),
             switcher: switcher::Switcher::default(),
             connect_model: None,
@@ -355,6 +359,7 @@ impl Pages {
             forges_opened: None,
             accounts_open: false,
             builders_open: false,
+            roles_open: false,
             welcome: None,
             default_project: welcome::DefaultProject::new(),
             adopting: None,
@@ -384,6 +389,11 @@ impl Pages {
     #[must_use]
     pub fn members(&self) -> Option<&members::Members> {
         self.members.as_ref()
+    }
+
+    #[must_use]
+    pub fn roles(&self) -> Option<&roles::Roles> {
+        if self.roles_open { Some(&self.roles) } else { None }
     }
 
     #[must_use]
@@ -688,12 +698,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.accounts.leave(out);
             pages.builders.leave(out);
             pages.members = None;
+            pages.roles.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
             pages.welcome = None;
             pages.accounts_open = false;
             pages.builders_open = false;
+            pages.roles_open = false;
         }
         Event::Act { act: Act::Switcher(act) } => {
             let me = pages.me(client);
@@ -931,7 +943,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 }
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
                 Address::Changes { .. } => out.push(Request::Show { address: Address::Changes { project } }),
-                Address::Settings { .. } => out.push(Request::Show { address: Address::Settings { project } }),
+                Address::Settings { .. } | Address::Role { .. } | Address::Rule { .. } => {
+                    out.push(Request::Show { address: Address::Settings { project } });
+                }
                 Address::Models { .. } => out.push(Request::Show { address: Address::Models { project } }),
                 Address::Builders { .. } => out.push(Request::Show { address: Address::Builders { project } }),
                 Address::Repositories { .. } => out.push(Request::Show { address: Address::Repositories { project } }),
@@ -1015,6 +1029,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     if let Some(members) = &mut pages.members {
         members.configure(accounts::current_me(client), &mut pages.next, out);
     }
+    if pages.roles_open && client.link().state != Link::SignedOut && client.link().state != Link::OutOfDate {
+        pages.roles.configure(&pages.address, client, env.limits.forge, &mut pages.next, out);
+    } else {
+        pages.roles.leave(out);
+    }
     let showing = pages.watching
         && pages.project.is_some()
         && match pages.address {
@@ -1036,6 +1055,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::ConnectModel { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
+            | Address::Role { .. }
+            | Address::Rule { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
             | Address::Ask { .. }
@@ -1172,11 +1193,13 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
     pages.accounts.leave(out);
     pages.builders.leave(out);
     pages.members = None;
+    pages.roles.leave(out);
     if let Some(mut page) = pages.connect_model.take() {
         page.leave();
     }
     pages.accounts_open = false;
     pages.builders_open = false;
+    pages.roles_open = false;
     pages.welcome = None;
     pages.address = Address::Inbox { filter: crate::address::Filter::ALL };
     pages.project = None;
@@ -1306,6 +1329,8 @@ fn rail_chats(address: &Address) -> bool {
         | Address::Task { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Adopt { .. } => true,
     }
@@ -1381,6 +1406,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
     }
     if (!pages.accounts_open
         && !pages.builders_open
+        && !pages.roles_open
         && pages.changes.is_none()
         && pages.stock_ways.is_none()
         && pages.home.is_none()
@@ -1397,10 +1423,13 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         pages.accounts.leave(out);
         pages.builders.leave(out);
+        pages.roles.leave(out);
         pages.accounts_open = address == Address::Accounts;
         pages.builders_open = match &address {
             Address::Builders { .. } | Address::Limits => true,
-            Address::Inbox { .. }
+            Address::Role { .. }
+            | Address::Rule { .. }
+            | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Members
@@ -1418,6 +1447,31 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Repositories { .. }
+            | Address::Ask { .. }
+            | Address::Adopt { .. } => false,
+        };
+        pages.roles_open = match &address {
+            Address::Role { .. } | Address::Rule { .. } => true,
+            Address::Inbox { .. }
+            | Address::Chats { .. }
+            | Address::NewChat { .. }
+            | Address::Work { .. }
+            | Address::Members
+            | Address::Limits
+            | Address::Accounts
+            | Address::Forges
+            | Address::ConnectForge { .. }
+            | Address::ConnectModel { .. }
+            | Address::Welcome { .. }
+            | Address::Chat { .. }
+            | Address::Task { .. }
+            | Address::Home { .. }
+            | Address::Goals { .. }
+            | Address::Changes { .. }
+            | Address::Settings { .. }
+            | Address::Repositories { .. }
+            | Address::Models { .. }
+            | Address::Builders { .. }
             | Address::Ask { .. }
             | Address::Adopt { .. } => false,
         };
@@ -1545,6 +1599,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
+            | Address::Role { .. }
+            | Address::Rule { .. }
             | Address::Repositories { .. }
             | Address::Ask { .. }
             | Address::Adopt { .. } => None,
@@ -1610,6 +1666,9 @@ pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
 
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps page replies beside their request owners")]
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if pages.roles.told(&told, env.limits.forge) {
+        return true;
+    }
     if let Told::Changed { handle } = &told
         && *handle == crate::forge::ways::handle()
         && let Some(chat) = &mut pages.chat
@@ -2025,6 +2084,8 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Settings { project }
         | Address::Models { project }
         | Address::Builders { project }
+        | Address::Role { project, .. }
+        | Address::Rule { project, .. }
         | Address::Repositories { project }
         | Address::Ask { project } => Some(*project),
         Address::Inbox { .. }
@@ -2100,6 +2161,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             pages.accounts.leave(out);
             pages.builders.leave(out);
             pages.members = None;
+            pages.roles.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
@@ -2177,6 +2239,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.accounts.leave(out);
             pages.builders.leave(out);
             pages.members = None;
+            pages.roles.leave(out);
             if let Some(mut page) = pages.connect_model.take() {
                 page.leave();
             }
@@ -2251,6 +2314,8 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => return,

@@ -221,10 +221,8 @@ fn settings_links_carry_the_forge_and_account_marks_in_both_shells() {
             b"an account needs you",
         ),
     ] {
-        let (mut root, watch) = f::forge_root_accounts(
-            Address::Accounts,
-            super::connect_forge::rows(connection, w::Offer::Offered),
-        );
+        let (mut root, watch) =
+            f::forge_root_accounts(Address::Accounts, super::connect_forge::rows(connection, w::Offer::Offered));
         let mut accounts = super::accounts::document(1);
         accounts.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().state = account;
         super::accounts::deliver(&mut root, watch, accounts);

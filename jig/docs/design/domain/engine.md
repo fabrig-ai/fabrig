@@ -1131,7 +1131,11 @@ call writes over a change its run was not shown.
   reach no one, and failing the attempt would cost a whole run and tell
   the next nothing. The task waits for its delegates, whose results wake
   it (tasks.md, 8.3), and a later run finishes once they are done. The
-  tasks child decides it.
+  finish put off leaves no trace for the next run: telling it would need
+  a value stored for that run, and the delegate's result that wakes it,
+  with its delegates' state in its brief (section 9), says what it needs
+  (the plan `wake-faults`'s answer of 2026-11-08; tasks.md, section 13). The tasks child decides
+  it.
 - **Waiting holds the slot; parking frees it.** A run that calls `wait`
   keeps its host's slot while it waits, so a run that is talked with
   answers at once. Idle

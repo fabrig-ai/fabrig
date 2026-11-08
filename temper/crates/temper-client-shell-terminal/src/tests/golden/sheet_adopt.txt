@@ -1,12 +1,11 @@
 == What First works on. == Live
 First:
   [1] temper
-  First:
-    [2] First (pressed)
-    New project:
-      [3] New project: (empty) (enter sends)
-      [4] Create
-    [5] Settings for First
+  [2] First (pressed)
+  New project:
+    [3] New project: (empty) (enter sends)
+    [4] Create
+  [5] Settings for First
   [6] Home
   [7] Needs you
   [8] Chats
@@ -19,39 +18,35 @@ First:
     [12] All ways to start work
   [13] Settings (current)
   * Pat
-First · settings
+First · how work runs
 The repositories chats and goals in First read and change.
-Settings:
+How work runs:
   [14] How work runs
   [15] Repositories (current)
-  [16] Forges
-  [17] Accounts
-  [18] Models
-  [19] Builders
 ## Repositories
-[20] Add repositories
+[16] Add repositories
 Add repositories to First:
   Find by name:
-    [21] Find by name: (empty)
+    [17] Find by name: (empty)
   Repositories:
     - Reading repositories…
   0 so far · more as you scroll
   Not listed:
-    [22] Owner: (empty)
-    [23] Name: (empty)
+    [18] Owner: (empty)
+    [19] Name: (empty)
   More: · Owned, it runs CI
     What temper does with it
     Role:
-      [24] (*) Owned
+      [20] (*) Owned
       temper pushes, opens pull requests and lands
-      [25] ( ) Fork
+      [21] ( ) Fork
       temper contributes through a fork
-      [26] ( ) Context
+      [22] ( ) Context
       temper only reads
-    [27] Branch prefix: temper/
-    [28] Landing branch: (empty)
-    [29] Checks: gate numbers, separated by spaces or commas: (empty)
-    [30] [x] It runs CI
-    [31] [x] Make it the project's home
-  [32] Cancel
+    [23] Branch prefix: temper/
+    [24] Landing branch: (empty)
+    [25] Checks: gate numbers, separated by spaces or commas: (empty)
+    [26] [x] It runs CI
+    [27] [x] Make it the project's home
+  [28] Cancel
   [-] Adopt (disabled)

@@ -3,26 +3,24 @@ Deployment owner facts:
   Store map bytes: 0
   Store high-water mark in bytes: 0
   Hosts:
-    Hosts:
     Hosts forgotten: 18446744073709551615
   Tracked attempts:
   LLM accounts:
     LLM provider offers
     Maximum key bytes 256
-    LLM accounts:
-      - Account: 4294967295
-        Account generation: 18446744073709551615
-        
-        Held by the deployment
-        Sources:
-        Default uses
-        Account State Asking
-        Unusable
-        Expiring
-        Needs attention
-        Spent until: 01:00
-        Hosted runs:
-        Tasks waiting for account:
+    - Account: 4294967295
+      Account generation: 18446744073709551615
+      
+      Held by the deployment
+      Sources:
+      Default uses
+      Account State Asking
+      Unusable
+      Expiring
+      Needs attention
+      Spent until: 01:00
+      Hosted runs:
+      Tasks waiting for account:
   Resource capacities:
     Tasks Capacity:
       Used: 0

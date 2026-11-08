@@ -1,6 +1,6 @@
 # ui-web: status
 
-2026-11-07. Where skein's code lags or departs from [ui-web.md](ui-web.md).
+2026-11-08. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
 Sections 6 and 7 have no known gap in a field's options: listbox and
 option mapping, retained active selection, arrows, Enter without a
@@ -33,7 +33,10 @@ without log following. Temper's retained sheet story exercises this path;
 no passing runtime result for its repaired version is supplied here.
 
 Sections 8 and 12 have no known gap in the lazy scene, its stated
-height, the SVG in its figure's flow, or the flow tokens' default look.
+height, the SVG in its figure's flow, its stated width with
+`data-scene-width`, `skein-ui.css` scaling its SVG to the figure's
+width and a press's point scaled to the scene's pixels, or the flow
+tokens' default look.
 The host table reads the Markdown cases and compares their SVG bytes.
 
 - **Departs:** 7: a press outside an open menu returns the focus to its button

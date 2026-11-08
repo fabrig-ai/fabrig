@@ -147,6 +147,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Settings { .. }
             | temper_client_domain::Address::Models { .. }
             | temper_client_domain::Address::Builders { .. }
+            | temper_client_domain::Address::Role { .. }
+            | temper_client_domain::Address::Rule { .. }
             | temper_client_domain::Address::Repositories { .. }
             | temper_client_domain::Address::Work { .. }
             | temper_client_domain::Address::Goals { .. }
@@ -178,6 +180,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Settings { .. }
             | temper_client_domain::Address::Models { .. }
             | temper_client_domain::Address::Builders { .. }
+            | temper_client_domain::Address::Role { .. }
+            | temper_client_domain::Address::Rule { .. }
             | temper_client_domain::Address::Repositories { .. }
             | temper_client_domain::Address::Work { .. }
             | temper_client_domain::Address::Goals { .. }
@@ -313,6 +317,10 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::pages::deployment::members(&mut builder, root, &view.forge_words, &mut view.pages);
     } else if let temper_client_domain::Address::Limits = root.pages().address() {
         crate::pages::deployment::limits(&mut builder, root, &view.forge_words, &mut view.pages);
+    } else if let temper_client_domain::Address::Role { project, .. }
+    | temper_client_domain::Address::Rule { project, .. } = root.pages().address()
+    {
+        crate::pages::roles::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Repositories { project }
     | temper_client_domain::Address::Adopt { project } = root.pages().address()
     {

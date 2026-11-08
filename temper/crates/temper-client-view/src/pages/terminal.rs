@@ -114,6 +114,8 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
                 | Address::Settings { .. }
                 | Address::Models { .. }
                 | Address::Builders { .. }
+                | Address::Role { .. }
+                | Address::Rule { .. }
                 | Address::Repositories { .. }
                 | Address::Adopt { .. } => Act::AddDraft,
             };

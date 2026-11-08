@@ -423,10 +423,12 @@ fn a_resize_draws_the_scene_and_keeps_the_fallback() {
 }
 
 #[test]
-fn a_drawing_reserves_its_scene_on_resize_and_says_its_height() {
-    for (look, height) in
-        [(fixtures::drawing_look(), None), (fixtures::scene_height_look(), Some(fixtures::DRAWING_HEIGHT))]
-    {
+fn a_drawing_reserves_its_scene_on_resize_and_says_its_size() {
+    for (look, width, height) in [
+        (fixtures::drawing_look(), None, None),
+        (fixtures::scene_height_look(), None, Some(fixtures::DRAWING_HEIGHT)),
+        (fixtures::scene_size_look(), Some(fixtures::DRAWING_WIDTH), Some(fixtures::DRAWING_HEIGHT)),
+    ] {
         let (mut page, mut view) = (Page::new(look, &LIMITS, b"/", Primary::Control), View::new(&LIMITS));
         assert!(page.scene.is_none());
         page.apply(
@@ -442,16 +444,21 @@ fn a_drawing_reserves_its_scene_on_resize_and_says_its_height() {
         assert!(page.scene.is_none(), "a drawing reserves no scene before resize");
         assert!(!page.html().contains("data-drawn"));
         page.resized(DRAWING, 100, 50, &mut Vec::new());
-        assert_eq!(page.scene.as_ref().expect("resized drawing has a scene").height(), height);
+        let scene = page.scene.as_ref().expect("resized drawing has a scene");
+        assert_eq!(scene.width(), width);
+        assert_eq!(scene.height(), height);
         let html = page.html();
         assert!(html.contains("data-drawn=\"\""));
+        assert_eq!(html.contains("data-scene-width=\"\""), width.is_some());
         assert_eq!(html.contains("data-scene-height=\"\""), height.is_some());
         if let Some(height) = height {
+            let scene_width = width.unwrap_or(100);
             assert!(html.contains(&format!(
-                "<svg aria-hidden=\"true\" width=\"100\" height=\"{height}\" viewBox=\"0 0 100 {height}\">"
+                "<svg aria-hidden=\"true\" width=\"{scene_width}\" height=\"{height}\" viewBox=\"0 0 {scene_width} {height}\">"
             )));
-            page.resized(DRAWING, 100, height, &mut Vec::new());
-            assert_eq!(page.html(), html, "measuring the scene's own height changes nothing");
+            let scaled_height = u16::try_from(u32::from(height) * 100 / u32::from(scene_width)).unwrap();
+            page.resized(DRAWING, 100, scaled_height, &mut Vec::new());
+            assert_eq!(page.html(), html, "measuring the scene's scaled height changes nothing");
         }
     }
 }

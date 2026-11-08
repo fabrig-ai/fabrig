@@ -1,12 +1,11 @@
 == Where agents work. == Live
 First:
   [1] temper
-  First:
-    [2] First (pressed)
-    New project:
-      [3] New project: (empty) (enter sends)
-      [4] Create
-    [5] Settings for First
+  [2] First (pressed)
+  New project:
+    [3] New project: (empty) (enter sends)
+    [4] Create
+  [5] Settings for First
   [6] Home
   [7] Needs you
   [8] Chats
@@ -19,21 +18,21 @@ First:
     [12] All ways to start work
   [13] Settings (current)
   * Pat
-First · settings
+Deployment
 The machines temper’s agents run on, each with its slots and how many are in use.
-Settings:
-  [14] How work runs
-  [15] Repositories
-  [16] Forges
-  [17] Accounts
-  [18] Models
-  [19] Builders (current)
-## Builders · 2
-No builder is connected.
+Deployment:
+  [14] Accounts
+  [15] Forges
+  [16] Models
+  [17] Workers (current)
+  [18] Members
+  [19] Limits
+## Workers · 2
+No worker is connected.
 worker
 2 slots · 1 in use
 Not connected
 worker
 2 slots · 1 in use
 Not connected
-Each agent’s role names which builders it runs on. Ask temper to change it.
+Each agent’s role names which workers it runs on. Ask temper to change it.
