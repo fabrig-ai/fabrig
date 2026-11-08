@@ -133,6 +133,45 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "night-home",
+        heading: "Hello is ready.",
+        parts: &[
+            Part::Pressed { name: "Night mode" },
+            Part::Named { role: Role::Paragraph, name: "One step left. Skip it if you like; it stays in Ask temper." },
+            Part::Text { text: "temper can change its code now." },
+            Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper"] },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
+            Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
+            Part::Named { role: Role::Link, name: "Ask temper" },
+            Part::Text { text: "work/hello is in Hello" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "To begin" },
+        ],
+    },
+    Holds {
+        name: "night-ask",
+        heading: "Ask temper",
+        parts: &[
+            Part::Pressed { name: "Night mode" },
+            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
+        ],
+    },
+    Holds {
+        name: "night-chat-split",
+        heading: "T1 · Away mode, draft",
+        parts: &[
+            Part::Pressed { name: "Night mode" },
+            Part::Pressed { name: "Split" },
+            Part::Named { role: Role::Button, name: "Chat" },
+            Part::Named { role: Role::Button, name: "Split" },
+            Part::Named { role: Role::Button, name: "Draft" },
+            Part::Named { role: Role::Button, name: "Show" },
+            Part::Named { role: Role::TextArea, name: "Message" },
+            Part::Named { role: Role::Paragraph, name: "Ctrl+\\ switches the draft" },
+            Part::Named { role: Role::Region, name: "Away mode" },
+        ],
+    },
+    Holds {
         name: "approve-typing",
         heading: "Sign in a terminal?",
         parts: &[
@@ -3405,6 +3444,9 @@ fn print_writes_every_page_and_the_bundle() {
         assert!(at >= position, "table order");
         position = at + link.len();
         let page = fs::read_to_string(out.join(format!("{}.html", sample.name))).expect("sample page");
+        let night = sample.name.starts_with("night-");
+        assert_eq!(page.contains("<html lang=\"en\" data-night>"), night, "{}: night attribute", sample.name);
+        assert_eq!(page.contains("<html lang=\"en\">"), !night, "{}: day root", sample.name);
         if matches!(sample.address, temper_client_domain::Address::Welcome { .. }) {
             assert!(!page.contains("<summary>Menu</summary>"), "welcome has a bare frame");
             assert!(page.contains("<title>Welcome · first run · temper</title>"), "{}: welcome title", sample.name);

@@ -81,9 +81,6 @@ its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
 
-- **Not yet:** 5.3: the rail draws no night switch. The plan
-  `look-round-19`'s task `night-switch` builds it.
-
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,

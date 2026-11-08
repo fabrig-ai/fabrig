@@ -12,6 +12,7 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    NightMode,
     CloseTitle,
     CloseChat,
     KeepIt,
@@ -1534,7 +1535,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2091;
+const PHRASES: u32 = 2092;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1561,10 +1562,11 @@ const PHRASES: u32 = 2091;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3666;
+const SEGMENTS: u32 = 3667;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51491;
-const ALL: [Word; 1412] = [
+const ENGLISH_BYTES: u32 = 51501;
+const ALL: [Word; 1413] = [
+    Word::NightMode,
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2982,6 +2984,7 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::NightMode => 4180,
             Self::ApprovalKind => 4121,
             Self::ApprovalQuestion => 4122,
             Self::ApprovalForgejo => 4123,
@@ -4816,6 +4819,7 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::NightMode => (&[b"Night mode"], &[]),
         Word::ApprovalKind => (&[b"an approval"], &[]),
         Word::ApprovalQuestion => (&[b"Approve ", b" on ", b""], &[Name, Name]),
         Word::ApprovalForgejo => (&[b"Forgejo"], &[]),

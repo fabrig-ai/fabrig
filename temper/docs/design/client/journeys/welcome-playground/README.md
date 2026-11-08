@@ -10,6 +10,6 @@ opened, the welcome drawn, "Try the playground" pressed.
   ended.
 
 The rail names Demo, the recording's project, with its switcher,
-Home, Needs you, Chats, Ask temper and Settings. New chat holds the composer and
+Home, Needs you, Chats, Ask temper and Settings, with the night switch after its foot. New chat holds the composer and
 the playground's suggested requests.
 On a phone the rail and tab bar are hidden; the back link returns to Chats.
