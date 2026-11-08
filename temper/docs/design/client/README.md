@@ -4067,7 +4067,7 @@ the person to check existence and grant the repository to the App.
   `owner/name`, none for a project with no repository; `branch`; `stops`,
   at most 32, in order, each a `Stop`:
   - `actor`, `Actor`: `person`, `agent`, `code` or `bar`;
-  - `step`, `Step`: `ask`, `draft`, `plan`, `produce`, `produce_many`,
+  - `step`, `PathStep`: `ask`, `draft`, `plan`, `produce`, `produce_many`,
     `check`, `review`, `repair`, `approve`, `update`, `resolve`, `merge`,
     `prepare`, `prove`, `turn`, `verify` or `branch`;
   - `words`, at most 64 bytes, as the path draws them ("you ask",
@@ -4086,7 +4086,7 @@ the person to check existence and grant the repository to the App.
   roles, charters and models are the core's (`../domain/forge.md`, 8.13).
   Its document, `WaysPanel` (`../protocol/configuration.md`, 13.10):
   - `project`; `ways`, at most 4, the stock's in their order, each a
-    `Way`: `name`, at most 64 bytes; `line`, at most 256; `path`, its
+    `StockWay`: `name`, at most 64 bytes; `line`, at most 256; `path`, its
     path over the project; `items`, at most 8, each a `ProposalItem`, what
     "Use this" sends; `delegation`, whether the project's policy lacks the
     delegation the way needs (13.10 there);

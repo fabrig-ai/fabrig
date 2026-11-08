@@ -92,3 +92,15 @@ Acceptance:
 
 As the implementer's text asks; name each regenerated file group and each
 reader file where an arm went.
+
+## Answers
+
+- 2026-11-08. The contract's new `enum Step` and `record Way` collide with
+  the schema's change-progress `Step` and landing `Way`: which to rename?
+  The new ones (option A). On the wire a path's step is `PathStep` and a
+  stock way is `StockWay` (the domain crate's own name for it);
+  `notes/contracts.md`, section 3, and `client/README.md`, 4.6, now say so,
+  and the block there is the one to insert verbatim. The existing `Step`,
+  `Way` and their consumers stay as they are. `View`'s variant `way:
+  WayView` is unchanged. Keep the branch's work and rename the two types
+  and their uses (`Stop`'s `step`, `WaysPanel`'s `ways`) in it.
