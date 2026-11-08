@@ -154,7 +154,9 @@ it on recovery; distinguishing its capacity cause remains deferred
 Printed-link sign-ins carry used, expired and unknown reasons through the
 client; malformed browser secrets take that same exchange. A local link
 lives beside the printed link, each spent apart, the local one drawn
-again at once and never printed (`protocol/client.md`, section 8).
+again at once and never printed; its first may be given at start, as a
+box gives its front's, and the printed link's sign-ins are said to the
+startup, `LinkSignedIn` (`protocol/client.md`, 4.2 and section 8).
 The history of eight digests is memory-only, so forgotten links are unknown; longer history and
 fallback to a live cookie remain deferred (`protocol/client.md`, sections
 8 and 15; `client/domain/client.md`, sections 12 and 18).
