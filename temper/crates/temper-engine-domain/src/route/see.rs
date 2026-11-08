@@ -11,6 +11,8 @@ use skein_lib::{List, Writer};
 /// What a `see` call read, for its renderer (domain/agent.md, 8.4.1).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum SeeAnswer {
+    /// The project's ways (temper/docs/design/protocol/configuration.md, 13.10).
+    Ways(Box<temper_engine_domain_ways::WaysDocument>),
     /// A `settings` family read's answer, with an inventory's context.
     Settings(Box<SeeSettings>),
     /// A read's own answer as the tool `tool` renders it: the settings family's refusal

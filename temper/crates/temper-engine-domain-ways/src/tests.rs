@@ -1,0 +1,379 @@
+//! Table tests of path comparisons and settings overlays.
+use super::*;
+use alloc::boxed::Box;
+use temper_engine_domain_forge::settings::{Held, LandingRule, ProjectWays, RuleApproval, RuleGate, Value};
+use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness};
+
+const PROJECT: u32 = 9;
+const OTHER: u32 = 10;
+
+fn rule(last: GateLast, ci: bool, up_to_date: bool) -> LandingRule {
+    LandingRule {
+        pattern: GatePattern { segments: Box::new([b"branch".as_slice().into()]), last },
+        enforce: true,
+        ci,
+        up_to_date,
+        gates: Box::default(),
+        approvals: Box::default(),
+    }
+}
+
+fn approval_rule() -> LandingRule {
+    let mut rule = rule(GateLast::Open(Box::default()), true, true);
+    rule.approvals = Box::new([RuleApproval { role: 0, people: 1, freshness: JudgeFreshness::Clean }]);
+    rule
+}
+
+fn review_rule() -> LandingRule {
+    let mut rule = rule(GateLast::Open(Box::default()), true, true);
+    rule.gates = Box::new([RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Clean }]);
+    rule
+}
+
+fn stock_ways() -> [StockWay; 3] {
+    let approve = approval_rule();
+    let review = review_rule();
+    [
+        StockWay {
+            name: b"You approve".as_slice().into(),
+            line: b"An agent makes each change; nothing reaches main until you approve it.".as_slice().into(),
+            rules: Box::new([(1, approve)]),
+            ways: None,
+            delegation: false,
+        },
+        StockWay {
+            name: b"Agents review".as_slice().into(),
+            line: b"An agent makes each change, another reviews it, and code lands it.".as_slice().into(),
+            rules: Box::new([(1, review)]),
+            ways: None,
+            delegation: false,
+        },
+        StockWay {
+            name: b"Draft first".as_slice().into(),
+            line: b"You and an agent write a design draft; agents build it on its own branch, and it lands whole."
+                .as_slice()
+                .into(),
+            rules: Box::new([
+                (1, rule(GateLast::Exact(b"main".as_slice().into()), true, true)),
+                (2, rule(GateLast::Open(b"temper".as_slice().into()), false, false)),
+            ]),
+            ways: Some(Laid { drafts: true, goals: true, way: 4 }),
+            delegation: true,
+        },
+    ]
+}
+
+fn project_ways() -> ProjectWays {
+    ProjectWays { drafts: false, goals: false, changes: true, away: true, way: 8 }
+}
+
+#[test]
+fn items_set_the_ways_rules_and_preserve_other_visibility() {
+    let [approve, review, draft] = stock_ways();
+    let own = project_ways();
+    let approval = approval_rule();
+    let reviewed = review_rule();
+    for (way, ways, expected) in [
+        (
+            &approve,
+            None,
+            Box::<[(u32, u32, Edit)]>::from([
+                (2, 1, Edit::Set(Value::Rule(approval.clone()))),
+                (2, 2, Edit::Remove),
+                (2, 3, Edit::Remove),
+                (2, 4, Edit::Remove),
+            ]),
+        ),
+        (
+            &approve,
+            Some(&own),
+            Box::from([
+                (2, 1, Edit::Set(Value::Rule(approval))),
+                (2, 2, Edit::Remove),
+                (2, 3, Edit::Remove),
+                (2, 4, Edit::Remove),
+            ]),
+        ),
+        (
+            &review,
+            None,
+            Box::from([
+                (2, 1, Edit::Set(Value::Rule(reviewed.clone()))),
+                (2, 2, Edit::Remove),
+                (2, 3, Edit::Remove),
+                (2, 4, Edit::Remove),
+            ]),
+        ),
+        (
+            &review,
+            Some(&own),
+            Box::from([
+                (2, 1, Edit::Set(Value::Rule(reviewed))),
+                (2, 2, Edit::Remove),
+                (2, 3, Edit::Remove),
+                (2, 4, Edit::Remove),
+            ]),
+        ),
+        (
+            &draft,
+            None,
+            Box::from([
+                (2, 1, Edit::Set(Value::Rule(rule(GateLast::Exact(b"main".as_slice().into()), true, true)))),
+                (2, 2, Edit::Set(Value::Rule(rule(GateLast::Open(b"temper".as_slice().into()), false, false)))),
+                (2, 3, Edit::Remove),
+                (2, 4, Edit::Remove),
+                (
+                    7,
+                    1,
+                    Edit::Set(Value::Ways(ProjectWays {
+                        drafts: true,
+                        goals: true,
+                        changes: false,
+                        away: false,
+                        way: 4,
+                    })),
+                ),
+            ]),
+        ),
+        (
+            &draft,
+            Some(&own),
+            Box::from([
+                (2, 1, Edit::Set(Value::Rule(rule(GateLast::Exact(b"main".as_slice().into()), true, true)))),
+                (2, 2, Edit::Set(Value::Rule(rule(GateLast::Open(b"temper".as_slice().into()), false, false)))),
+                (2, 3, Edit::Remove),
+                (2, 4, Edit::Remove),
+                (
+                    7,
+                    1,
+                    Edit::Set(Value::Ways(ProjectWays {
+                        drafts: true,
+                        goals: true,
+                        changes: true,
+                        away: true,
+                        way: 4,
+                    })),
+                ),
+            ]),
+        ),
+    ] {
+        let mut expected_items = skein_lib::List::uncapped();
+        for (kind, number, edit) in expected {
+            expected_items.push(Item { kind, scope: PROJECT, number, edit }).expect("expected items");
+        }
+        assert_eq!(items(way, PROJECT, ways), expected_items.into_boxed());
+    }
+}
+
+fn held(scope: u32, number: u32, ci: bool) -> Held {
+    Held { scope, number, rule: rule(GateLast::Open(Box::default()), ci, false) }
+}
+
+#[test]
+fn laid_keeps_deployment_order_and_overlays_project_numbers() {
+    for (rules, stock, edits, expected) in [
+        (
+            Box::from([held(PROJECT, 2, false)]),
+            Box::from([]),
+            Box::from([Item {
+                kind: 2,
+                scope: PROJECT,
+                number: 1,
+                edit: Edit::Set(Value::Rule(rule(GateLast::Open(Box::default()), true, false))),
+            }]),
+            Box::from([held(PROJECT, 1, true), held(PROJECT, 2, false)]),
+        ),
+        (
+            Box::from([held(PROJECT, 1, false)]),
+            Box::from([held(0, 1, true)]),
+            Box::from([Item { kind: 2, scope: PROJECT, number: 1, edit: Edit::Remove }]),
+            Box::from([held(PROJECT, 1, true)]),
+        ),
+        (
+            Box::from([held(PROJECT, 1, false)]),
+            Box::from([]),
+            Box::from([Item { kind: 2, scope: PROJECT, number: 1, edit: Edit::Remove }]),
+            Box::from([]),
+        ),
+        (
+            Box::from([held(0, 2, true), held(0, 1, false), held(PROJECT, 2, false), held(OTHER, 1, true)]),
+            Box::from([]),
+            Box::from([Item { kind: 2, scope: OTHER, number: 2, edit: Edit::Remove }]),
+            Box::from([held(0, 2, true), held(0, 1, false), held(PROJECT, 2, false)]),
+        ),
+        (
+            Box::from([held(PROJECT, 1, false)]),
+            Box::from([]),
+            Box::from([Item {
+                kind: 2,
+                scope: PROJECT,
+                number: 1,
+                edit: Edit::Set(Value::Rule(rule(GateLast::Open(Box::default()), true, false))),
+            }]),
+            Box::from([held(PROJECT, 1, true)]),
+        ),
+    ] {
+        assert_eq!(laid(&rules, &stock, PROJECT, &edits), expected);
+    }
+}
+
+#[test]
+fn laid_ways_sets_removes_and_ignores_other_settings() {
+    let own = project_ways();
+    let stock = ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 };
+    for (ways, edits, expected) in [
+        (None, Box::from([]), stock),
+        (Some(&own), Box::from([]), own),
+        (Some(&own), Box::from([Item { kind: 7, scope: PROJECT, number: 1, edit: Edit::Remove }]), stock),
+        (None, Box::from([Item { kind: 7, scope: PROJECT, number: 1, edit: Edit::Set(Value::Ways(own)) }]), own),
+        (
+            Some(&own),
+            Box::from([
+                Item { kind: 7, scope: OTHER, number: 1, edit: Edit::Remove },
+                Item { kind: 7, scope: PROJECT, number: 2, edit: Edit::Remove },
+                Item { kind: 2, scope: PROJECT, number: 1, edit: Edit::Remove },
+            ]),
+            own,
+        ),
+    ] {
+        assert_eq!(laid_ways(ways, PROJECT, &edits), expected);
+    }
+}
+
+fn stop() -> Stop {
+    Stop {
+        actor: Actor::Person,
+        step: Step::Ask,
+        words: b"you ask".as_slice().into(),
+        opens: Opens::Nothing,
+        card: Card { who: b"person".as_slice().into(), name: b"you".as_slice().into(), facts: Box::default() },
+    }
+}
+
+#[test]
+fn same_compares_drawn_stops_and_ignores_cards() {
+    let own = stop();
+    let mut card = own.clone();
+    card.card.name = b"another person".as_slice().into();
+    let mut actor = own.clone();
+    actor.actor = Actor::Agent;
+    let mut step = own.clone();
+    step.step = Step::Draft;
+    let mut words = own.clone();
+    words.words = b"draft".as_slice().into();
+    let mut opens = own.clone();
+    opens.opens = Opens::Charter(1);
+    for (other, expected) in
+        [(own.clone(), true), (card, true), (actor, false), (step, false), (words, false), (opens, false)]
+    {
+        assert_eq!(own.same(&other), expected);
+    }
+}
+
+fn path(stops: &[Stop]) -> Path {
+    Path { repository: None, branch: b"main".as_slice().into(), stops: stops.into() }
+}
+
+#[test]
+fn paths_compare_stops_in_order_and_number() {
+    let ask = stop();
+    let mut draft = ask.clone();
+    draft.step = Step::Draft;
+    let own = path(&[ask.clone(), draft.clone()]);
+    let mut renamed = own.clone();
+    renamed.repository = Some(b"other/repo".as_slice().into());
+    renamed.branch = b"other".as_slice().into();
+    for (other, expected) in
+        [(renamed, true), (path(&[draft.clone(), ask.clone()]), false), (path(&[ask]), false), (path(&[]), false)]
+    {
+        assert_eq!(own.same(&other), expected);
+    }
+}
+
+#[test]
+fn current_returns_the_first_equal_path_or_none() {
+    let own = path(&[stop()]);
+    for (ways, expected) in [
+        (Box::from([]), None),
+        (Box::from([path(&[])]), None),
+        (Box::from([path(&[]), own.clone(), own.clone()]), Some(1)),
+        (Box::from([own.clone()]), Some(0)),
+    ] {
+        assert_eq!(current(&ways, &own), expected);
+    }
+}
+
+#[test]
+fn sentence_stops_trims_and_cuts_at_a_character_end() {
+    let long = "x".repeat(VALUE.checked_sub(1).expect("value bound")) + "érest";
+    let at_bound = "x".repeat(VALUE);
+    let past_bound = "x".repeat(VALUE.checked_add(1).expect("value bound"));
+    for (input, expected) in [
+        (b"  First. Next. ".as_slice(), b"First.".as_slice()),
+        (b" First.\nNext", b"First."),
+        (b"  No stop\n ", b"No stop"),
+        (b"v1.2 stays", b"v1.2 stays"),
+        (b"", b""),
+        (long.as_bytes(), "x".repeat(VALUE.checked_sub(1).expect("value bound")).as_bytes()),
+        (at_bound.as_bytes(), at_bound.as_bytes()),
+        (past_bound.as_bytes(), at_bound.as_bytes()),
+    ] {
+        assert_eq!(first_sentence(input), expected);
+    }
+}
+
+#[test]
+fn can_names_families_in_order_and_always_forbids_merging() {
+    for (inspect, modify, shell, agents, expected) in [
+        (false, false, false, false, b"finish alone; never merge or update".as_slice()),
+        (true, false, false, false, b"read the code and the forge; never merge or update"),
+        (false, true, false, false, b"change and push its branch; never merge or update"),
+        (false, false, true, false, b"run commands; never merge or update"),
+        (false, false, false, true, b"start sub-agents; never merge or update"),
+        (true, true, true, true, b"read the code and the forge; change and push its branch; run commands; start sub-agents; never merge or update"),
+    ] { assert_eq!(can(inspect, modify, shell, agents), expected); }
+}
+
+#[test]
+fn subjects_keep_project_bits_apart_from_other_subjects() {
+    const SUBJECT: u64 = subject(0);
+    assert_eq!(SUBJECT, 0x4000_0040_0000_0000);
+    for (project, expected) in [(0, SUBJECT), (1, 0x4000_0040_0000_0001), (u32::MAX, 0x4000_0040_ffff_ffff)] {
+        assert_eq!(subject(project), expected);
+    }
+}
+
+#[test]
+fn derive_stub_keeps_the_branch_and_repository() {
+    for (repository, expected) in [
+        (None, None),
+        (
+            Some(Repository {
+                host: b"forge".as_slice().into(),
+                owner: b"owner".as_slice().into(),
+                name: b"name".as_slice().into(),
+                ci: false,
+                checks: Box::default(),
+                gates: Box::default(),
+                tiers: Box::default(),
+            }),
+            Some(Box::from(b"owner/name".as_slice())),
+        ),
+    ] {
+        let inputs = Inputs {
+            branch: b"topic".as_slice().into(),
+            repository,
+            rules: Box::default(),
+            start: Start::Chat,
+            producer: 1,
+            reviewer: 2,
+            by: temper_engine_domain_forge_change::Way::Queue,
+            roles: Box::default(),
+            agents: Box::default(),
+        };
+        assert_eq!(
+            derive(&inputs),
+            Path { branch: b"topic".as_slice().into(), repository: expected, stops: Box::default() }
+        );
+    }
+}

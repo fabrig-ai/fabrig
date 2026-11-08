@@ -1256,6 +1256,7 @@ fn released_into(
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Trials { .. }
+        | Delivery::Ways { .. }
         | Delivery::Approvals { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }

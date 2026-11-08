@@ -375,6 +375,9 @@ pub(super) fn read(
         Some(why) => crate::Delivery::Read { reply, answer: Answer::None(why) },
         None => {
             let answer = match query {
+                crate::ForgeRead::View { .. } => crate::ForgeReadAnswer::View(Box::new(crate::ways::View::NotDrawn(
+                    b"not drawn yet".as_slice().into(),
+                ))),
                 crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
                     crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
@@ -409,6 +412,7 @@ fn read_refusal(
         Some(party) => {
             let permitted = match scope {
                 ApplicationScope::Deployment => match query {
+                    crate::ForgeRead::View { project, .. } => domain.core.people.role(party, *project).is_some(),
                     crate::ForgeRead::ProgramEnvironment => {
                         domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
                     }
@@ -418,6 +422,7 @@ fn read_refusal(
                 },
                 ApplicationScope::Project(project) => {
                     let own_kind = match query {
+                        crate::ForgeRead::View { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
                             (*kind == 2 || *kind == 6 || *kind == 7) && *scope == project

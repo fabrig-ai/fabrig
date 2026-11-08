@@ -50,7 +50,7 @@ pub fn see_answer(
     max_bytes: u32,
 ) -> HostAnswer {
     let text = match answer {
-        SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
+        SeeAnswer::Ways(_) | SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
         SeeAnswer::Unknown => {
             return error(&join(&[b"see: no address ", line, b"; addresses: ", ADDRESSES.as_bytes()]), max_bytes);
         }
@@ -128,6 +128,7 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
         }
         SeeAnswer::Gates(_) => "settings landing · file OWNER/NAME PATH".as_bytes(),
         SeeAnswer::Proposal(_) => "revision N · revisions · help proposal".as_bytes(),
+        SeeAnswer::Ways(_) => b"",
         SeeAnswer::NotYet | SeeAnswer::Unknown => unreachable!("errors have no following addresses"),
     }
 }
