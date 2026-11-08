@@ -246,6 +246,7 @@ fn world() -> ClientWorld {
     limits.documents.executors = 2;
     limits.tasks.depth = 2;
     limits.tasks.parameters = 3; // Change repository, pushed branch and title.
+    limits.forge.client.pending = 8; // Goal projections, branch watches and the change's fresh reads overlap.
     limits.authority.grants = u32::try_from(GRANTS.len()).expect("fixture grants");
     limits.tasks.authority_grants = limits.authority.grants;
     limits.documents.grants = limits.authority.grants;
