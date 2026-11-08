@@ -1,45 +1,19 @@
 //! The `ChatGPT` plan on the fake box: the fake sign-in leaves a usable model for Ready.
 //! (temper/docs/design/protocol/setup.md, 7.5; temper/docs/design/client/README.md, 3.5.)
 use super::open_default::{browser_bounds, named};
-use super::{Act, Call, Walk, usable};
-use crate::support::{WITHIN, ctl};
+use super::{Act, Call, Walk};
+use crate::support::WITHIN;
 use skein_lib::Time;
 use skein_shell::{Clock, Host};
 use skein_ui::{Role, State};
 use skein_world::{Referee, real};
 use std::{
-    cell::RefCell,
     io::{Read, Write},
     net::TcpStream,
     path::Path,
-    rc::Rc,
 };
 use temper_client_domain::{Address, Step};
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
-
-#[test]
-fn a_chatgpt_sign_in_on_the_fake_box_leaves_a_usable_model_and_ready_can_create() {
-    let walk = Walk::owned("walk-sign-in");
-    let seen = walk.run_then(
-        vec![
-            Act::Now(Call::new(&["forge", "setup", "--key", "walk-here", "--json"])),
-            Act::Now(Call::new(&["account", "connect", "1", "--key", "walk-plan", "--json"])),
-            Act::Visit,
-            Act::Now(Call::new(&["account", "list", "--until", "settled", "--json"])),
-            Act::After(Box::new(|seen| {
-                let accounts = ctl::json(seen.last().expect("settled accounts"));
-                eprintln!(
-                    "settled sign-in: usable {}; last_end {}; signing {}",
-                    accounts["accounts"]["usable"], accounts["accounts"]["last_end"], accounts["accounts"]["signing"]
-                );
-                Call::new(&["account", "list", "--json"])
-            })),
-        ],
-        ready_can_create,
-    );
-    assert!(usable(seen.answers.last().expect("accounts")), "the sign-in left a usable model");
-    walk.scratch.remove();
-}
 
 #[derive(Debug)]
 enum Page {
@@ -131,73 +105,6 @@ fn a_chatgpt_browser_tab_on_the_fake_box_leaves_ready_able_to_create() {
     let walk = Walk::owned("walk-browser-sign-in");
     walk.run_then(vec![Act::Now(Call::new(&["forge", "setup", "--key", "walk-here", "--json"]))], browser_sign_in);
     walk.scratch.remove();
-}
-
-#[test]
-fn a_chatgpt_sign_in_beside_a_browsers_idle_issuer_sockets_leaves_ready_able_to_create() {
-    let walk = Walk::owned("walk-idle-sockets");
-    // The authorize socket and spare outlive the acts, until Ready has been read.
-    let sockets = Rc::new(RefCell::new(None));
-    let held = Rc::clone(&sockets);
-    walk.run_then(
-        vec![
-            Act::Now(Call::new(&["forge", "setup", "--key", "walk-here", "--json"])),
-            Act::Now(Call::new(&["account", "connect", "1", "--key", "walk-plan", "--json"])),
-            Act::After(Box::new(move |seen| {
-                let address = crate::support::boxed::visit_address(seen.last().expect("connect answer"))
-                    .expect("connect printed a browser address");
-                *held.borrow_mut() = Some(browser_hops(&address));
-                Call::new(&["account", "list", "--until", "settled", "--json"])
-            })),
-            Act::After(Box::new(|seen| {
-                let accounts = ctl::json(seen.last().expect("settled accounts"));
-                assert!(
-                    accounts["accounts"]["usable"].as_bool().expect("account usability"),
-                    "settled sign-in: usable {}; last_end {}; signing {}",
-                    accounts["accounts"]["usable"],
-                    accounts["accounts"]["last_end"],
-                    accounts["accounts"]["signing"]
-                );
-                Call::new(&["account", "list", "--json"])
-            })),
-        ],
-        |config, client| {
-            ready_can_create(config, client);
-            let held = sockets.borrow();
-            let issuer = held.as_ref().expect("held browser sockets")[0].peer_addr().expect("issuer address");
-            let extra: Vec<_> = (0..=temper_fake::oauth::CONNECTIONS)
-                .map(|_| TcpStream::connect(issuer).expect("extra issuer socket"))
-                .collect();
-            let log = walk.sandbox().join("data/box/logs/fake-issuer.log");
-            let mut patience = crate::support::patience::Patience::arm("the issuer's rejection log", WITHIN);
-            loop {
-                let lines = std::fs::read_to_string(&log).expect("fake issuer log");
-                if lines.contains("rejected a connection") {
-                    eprintln!("issuer rejection log: {lines}");
-                    break;
-                }
-                assert!(patience.failed().is_none(), "fake-issuer.log never showed rejected a connection: {lines}");
-                std::thread::sleep(std::time::Duration::from_millis(10));
-            }
-            drop(extra);
-            drop(held);
-            drop(sockets.borrow_mut().take().expect("held browser sockets"));
-        },
-    );
-    walk.scratch.remove();
-}
-
-/// What Chromium leaves on the issuer: its authorize hop's socket, kept alive, and
-/// a spare opened beside the navigation. Only then does it follow the redirect.
-fn browser_hops(address: &[u8]) -> [TcpStream; 2] {
-    let mut kept = browser_socket(address);
-    let (status, location) = hop(&mut kept, address);
-    assert_eq!(status, 302, "issuer authorize redirect");
-    let spare = browser_socket(address);
-    let mut tab = browser_socket(&location);
-    let (status, _) = hop(&mut tab, &location);
-    assert!(status < 400, "callback answered {status}");
-    [kept, spare]
 }
 
 fn browser_socket(url: &[u8]) -> TcpStream {

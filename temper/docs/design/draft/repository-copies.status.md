@@ -1,6 +1,6 @@
 # repository-copies: status
 
-2026-11-07. Where the design lags or departs from [repository-copies.md](repository-copies.md).
+2026-11-08. Where the design lags or departs from [repository-copies.md](repository-copies.md).
 
 - **Design lags:**
   - 9: Home’s “To begin” second step retains its own empty-or-copy sheet
@@ -29,7 +29,7 @@
   - 5.2: `../domain/forge.md`, 4.5: the row holds no party: the forge connector is not told one and nothing reads it (the cut, 2026-11-04).
   - 5.2: `../domain/forge.md`, 4.5: a row with no `into` is erased once made, since nothing is left for it to say (the cut, 2026-11-04).
   - 6: `../protocol/setup.md`, 7.5: the sources are on the `fake forgejo` peer, a Forgejo elsewhere connected as its admin: an owned Forgejo is real and reaches no `.invalid` host, so a walk copies in a connected forge, not in the welcome's owned one (the cut, 2026-11-04).
-  - 10: the walk ran on the fake backends alone: a copy on a real box, an owned Forgejo's, is the person's to try, since no test reaches a real host (the cut, 2026-11-04). So too at Ready: `temper/crates/temper/tests/fake_backends/walk/copy.rs` sends Ready's requests itself on a connected fake forge, and Ready's own sending them is the client's world's (`temper/tests/client/tests/suite/first_repository.rs`), so no walk presses Create with copies on a box, and Forgejo's migration from a public host stays unproved (the cut of ui-welcome, 2026-11-05).
+  - 10: copies are proved in the one-process world: `suite::copy::a_copy_beside_a_repository_joins_its_project_keeping_the_sources_workflow` (`temper/tests/one-process/tests/suite/copy.rs`) holds ctl's copy beside a repository, and `suite::ready_copies::readys_two_copies_are_made_in_order_and_adopted_with_the_first_as_home` (`temper/tests/one-process/tests/suite/ready_copies.rs`) presses Create, sends Ready's burst and holds both copies made and adopted in order, the first as home. These stories use a fake forge: a copy on a real box, an owned Forgejo's, is the person's to try, since no test reaches a real public host (the cut, 2026-11-04). No walk presses Create with copies on a box, and Forgejo's migration from a public host stays unproved (the cut of ui-welcome, 2026-11-05).
 - **Open:**
   - 3: what a refused copy leaves: Forgejo keeps an empty repository at the name of a missing source, and only the same address asked again takes it away, so a mistyped address leaves one on the forge (`../domain/forge.md`, section 20). Default: so; the plan could delete it at the refusal.
   - 4: Forgejo's own bound on a migration, `[git.timeout] MIGRATE`, may end a large copy before the 30 minutes of `copy_deadline`; no fact records its value (skein's `forge-setup.md`, section 9). Default: Forgejo's, as this draft's section 4 has it.

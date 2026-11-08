@@ -193,19 +193,8 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   init's no-sign-in configuration while it holds the engine; none is a
   recorded pass of the five stories.
 
-- **Not yet:** 2.6, *The fake box keeps two walks*: the box still runs
-  ten other walks (`crates/temper/tests/fake_backends/walk/`: `status`'s
-  two, `away`, `goal`, `copy`'s two, `note_parts`, `chat_document`, and
-  `sign_in`'s ctl sign-in and idle-socket walks), and none of the lower
-  stories the bullet names is written: the joint world's plan brief, Away
-  sequence, chat's goal report and the sign-in's usable account; the
-  restart story's Skip; the real loop's held issuer sockets, document in
-  parts and whole revision after a follow-up; the fake's logged
-  turn-away; and the one-process world's Ready copies and copy beside a
-  repository. Each walk goes once its lower story runs.
-
 - **Not yet:** 2.6: no passing whole run is recorded for the three-test
-  profile with the four fixed-callback walks serialized. Its proof belongs
+  profile with the one fixed-callback walk serialized. Its proof belongs
   to the next after-landing run on main (11), per the request
   `process-threads` of 2026-11-06; the profile and its callback group are
   configured in `.config/nextest.toml`.
@@ -213,21 +202,11 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   `test-speed`'s figures at `b23901eab7`, at differing loads, four read
   over it (367.8 to 433.7 s) and three within (287.1 to 349.7 s), and
   they hold no run with that plan's parts together. The budget is the user's.
-  2.6: Goal and Away keep the shipped 5 s poll, where the request `test-speed` has them
-  wake on an event or take the status walks' paces: no poll is what they wait
-  for, and a trial of short paces on Away saved less wall than it cost CPU. The
-  fake-box walks retain the stock charter's 10 s wait on their single worker
-  (`agent.md`, 4.6); Away also waits through two 5 s Undo holds
-  (`../client/README.md`, 3.5), and the personal plan's walk has its brief wait
-  for the chat resumed on landing to release that worker, after its deliberate
-  4 s sitting gap. A person on one worker meets the charter's wait and the
-  holds too, for reasons that still hold, and these waits have no cheap repair
-  without changing what the walks show. Home's status walk still costs about
-  19 s, including that 10 s wait and four client visits; the personal plan's
-  also provisions and restarts an owned Forgejo and runner. Their shared forge
-  paces are 1 s with 100 ms hints; the measured ranges, remaining costs and
-  rejected pace change are in the plan's figures on the walks' waits,
-  at `289ef784ef`.
+  2.6: the two fake-box walks retain the stock charter's 10 s wait on their
+  single worker (`agent.md`, 4.6). A person on one worker meets the charter's
+  wait too, for reasons that still hold, and this wait has no cheap repair
+  without changing what the walks show. The measured ranges and remaining
+  costs are in `test-speed`'s figures on the walks' waits, at `289ef784ef`.
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and
