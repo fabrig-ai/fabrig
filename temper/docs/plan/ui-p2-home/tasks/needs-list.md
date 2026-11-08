@@ -148,3 +148,25 @@ recorded again, the gallery's CPU seconds before and after, the calls you
 made inside the sketches (where the phone and the wide forms split), the
 tests and their counts, each new row's rule and how it failed when
 broken, and your implementation and check minutes apart.
+
+## Answers
+
+- 2026-11-08. May needs-list also edit `temper-client-domain/src/acts.rs`
+  so the always-open field's first `CardWords` opens the reply? Yes: the
+  field's acceptance (a reply past the ordinary text bound kept and sent)
+  cannot hold without it, because the first card and the card shown after
+  an answer are reached with no `Act::Open`. Widen the domain scope by
+  this, and no more: in `pages/needs.rs`, move `Act::OpenReply`'s body
+  into one `pub(crate)` helper (it opens the reply only while
+  `answerable` and not already open, resetting `reply_beyond`), used by
+  that arm; in `acts.rs`'s `Act::CardWords` arm, before the `replying`
+  check, call it for the object, so an answerable question or person task
+  in words takes the reply's `long_text` bound and its over-bound
+  accounting, and every other card keeps the ordinary text bound. Add the
+  domain rows (`src/tests/pages/needs.rs`): words on an answerable card
+  with no `OpenReply` past the ordinary bound are kept; words on a
+  proposal's card keep the ordinary bound. No new act, watch, protocol or
+  stored format. The terminal's tests must pass unchanged; if one moves
+  (its inbox drawing a reply opened by words alone), stop and ask rather
+  than change it. Keep your `Act::Open` edit as the spec says. Then finish
+  the remaining mutation checks and the acceptance runs.
