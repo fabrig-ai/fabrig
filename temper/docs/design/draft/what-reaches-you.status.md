@@ -43,9 +43,6 @@
 - **Open:**
   - 9: push or mail by default; default push where offered, mail where the
     deployment has its settings, nothing otherwise.
-  - 7: approving in place, posted as the person, or the forge's review
-    page one tap away (`../README.md`, section 8); default the forge's
-    page.
   - 2: the classes' table per project or per person; default per project.
   - 6: whether code's own decisions, a known flake's rerun, are listed;
     default not.

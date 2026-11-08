@@ -45,7 +45,7 @@ or the nearest thing, and says so in that draft's status.
 
 | | Milestone | Executes | Needs | Owner | State |
 |---|---|---|---|---|---|
-| M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/ui | not started |
+| M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | not started |
 | P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | not started |
 | P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | not started |
 | P3 | How work runs | `surfaces.md`, 7 | M0, N1; N2 and F1 for their parts | temper/ui | not started |
@@ -70,7 +70,9 @@ or the nearest thing, and says so in that draft's status.
 
 - **Lands** the mockups of `whole-story.md`, section 9, exactly as drawn,
   with a `README.md` in each directory saying what they are and their
-  precedence over the greenfield mock (`surfaces.md`, section 13).
+  precedence over the greenfield mock (`surfaces.md`, section 13). Mockups
+  under `docs/` are documents, whatever their format (the user,
+  2026-11-08), so they land as the drafts do.
 - **Then** the drafts and `../client/greenfield/README.md` may cite them
   as paths.
 - **Done** when it lands. No code.
@@ -87,7 +89,9 @@ or the nearest thing, and says so in that draft's status.
   settings (`stock-ways.md`, section 4).
 - **Tests:** the gallery's states for each page at a laptop's and a
   phone's width, light and dark; the client's joint world for a page
-  across two projects; each page's journey recorded.
+  across two projects; a fuzz test of each page's parts against
+  `surfaces.md`, section 12's rules, across random settings and their
+  moves; each page's journey recorded.
 - **Walk:** on a box, each page against its mockup, at a laptop's and a
   phone's width.
 

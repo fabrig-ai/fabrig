@@ -56,5 +56,3 @@
     project's period funds it, which project its task belongs to, whether
     it may read other projects' Nows. Default: one brief a project, joined
     on All projects.
-  - 4, 10 and 15: approving in place, posted as the person, rather than
-    one tap to the forge's review page (`../README.md`, section 8).

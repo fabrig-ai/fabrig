@@ -11,7 +11,7 @@ top of four drafts written with it, `standing-roles.md`,
 mockups are section 9's. The user: "I'll be the first user of temper and
 ideally temper would be my only frontend", and they asked for all of it
 by v0.1.0 (`v0.1.0.md`, section 5). Its milestones are
-`whole-story.execution.md`. Reasons: `notes.md`, section 11.
+`whole-story.execution.md`. Reasons: `notes.md`, section 12.
 
 ## 1. In one page
 
@@ -75,6 +75,15 @@ areas to standing roles.
   test-only changes" or "hand an area to a role".
 - **Which rail items and sections each step shows** is
   `surfaces.md`, section 12.
+- **Derived, never a profile.** No page is drawn per step: each part
+  of a page shows by a rule over the project's settings and what exists
+  (`surfaces.md`, section 12). A project between two steps, or mixing
+  them, gets exactly its parts, so the three points drawn are
+  illustrations, not views.
+- **Moving along it is a change of settings,** proposed and accepted
+  like any (`configuring.md`, section 4): new work follows the new
+  settings, running work keeps what it started under, and the pages
+  show both side by side until the old work is done.
 - **Drawn at three points:** Pair, Team, and at scale with roles
   (section 9).
 
@@ -296,9 +305,6 @@ execution's M0.
 
 ## 12. Open questions
 
-- **Approving in place:** an approval or a sign-off given from Needs
-  you and posted on the forge as the person, rather than on the forge's
-  own page (temper's `../README.md`, section 8).
 - **Being told:** Web Push to an installed web app, or mail, as the
   default (`what-reaches-you.md`, section 11).
 - **Goals across projects:** a goal whose changes land in two projects'
@@ -307,3 +313,11 @@ execution's M0.
   (`standing-roles.md`, section 12).
 - **Follows across deployments or forges:** later (`follows.md`,
   section 6).
+
+## 13. Later
+
+- **Approving in place:** an approval or a sign-off given from Needs you and posted on
+  the forge as the person, with a forge credential they signed in with,
+  rather than one tap to the forge's own review page (temper's
+  `../README.md`, section 8). The forge's page is v0.1.0's (the user,
+  2026-11-08).

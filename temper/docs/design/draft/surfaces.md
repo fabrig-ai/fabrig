@@ -151,7 +151,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   card leads with "Review on GitHub ↗" or "Sign off on Forgejo ↗", one tap
   to the forge's review page, as `forge-identity.md`, section 8, has it,
   and the mockups draw it. Approving in place, temper posting the review
-  as the person, is temper's `../README.md`, section 8's open question.
+  as the person, is later (section 16).
 - **Only you:** what no one else can do, a sign-in or a login about to
   expire, with its act alone and "Remind me tomorrow"
   (`what-reaches-you.md`, section 8). Work goes on around it.
@@ -176,10 +176,13 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **Its filters:** All, Drafts, Goals, Changes, Chats. `Goals { project,
   filter }` and `Changes { project }` are its filters' addresses
   (`../client/README.md`, 3.5, *Goals* and *Changes*).
-- **What it holds is the project's way's** (`stock-ways.md`, section 2):
-  at Pair, chats and their changes; with agents reviewing, changes; with
-  drafts first, drafts and goals ahead of the rest. A filter with nothing
-  under it isn't drawn.
+- **What it holds is what exists,** never the way's name: each chat that
+  started work, change, goal and draft shows by its own facts, under what
+  it belongs to, a goal's changes under the goal and a chat's under the
+  chat, the latest activity first. Under You approve the list fills with
+  chats and their changes because that is what the way makes; under
+  Draft first, with drafts and goals. A filter with nothing under it
+  isn't drawn (section 12).
 - **A row opens its page:** a goal's and a task's pages stay as they are
   (`../client/README.md`, 5.8 and 5.9), and a goal's conversation opens
   from its page.
@@ -373,8 +376,32 @@ stays the web's.
 
 ## 12. Density
 
-What the pages show follows what a project's way and its people use, as
-`whole-story.md`, section 3, has the steps. Each step adds one thing.
+What the pages show follows what a project's settings say and what
+exists, part by part. No page is drawn per step of the spectrum
+(`whole-story.md`, section 3), so a project between two steps, or mixing
+them, shows exactly its parts, and moving along it never flips a page.
+
+- **Each part has one rule,** over the project's settings, its facts or
+  the person's, decided in code by one pure function per page, which the
+  web and the terminal share:
+
+| Part | Shows when |
+|---|---|
+| Home's brief | the status agent has written one (`../domain/forge.md`, 5.7) |
+| All projects, and Home's projects | the person is in two projects or more |
+| Needs you's approvals and sign-offs | a change waits for the person's review under a landing rule |
+| Needs you's questions, money, Only you | such an entry waits for the person |
+| Decided for you | a row within its day exists (`what-reaches-you.md`, section 6) |
+| Away | the project's classes hold an "asks you" item Away may decide (`what-reaches-you.md`, section 3) |
+| Work's chats, changes, goals and drafts | one of that kind exists, live or lately done |
+| Team, in the rail | the project has a second member or a standing role |
+| Team's role cards; Home's owners' lines | a standing role exists |
+| What follows what; lag and parity | a follow exists (`follows.md`, section 5) |
+| How work runs' rules by path, follows, budgets | one is set |
+| How work runs, Work, Ask temper | always |
+
+- **The steps are illustrations,** not views; under the stock ways they
+  come out so:
 
 | Step | The rail | Home | Needs you | Work |
 |---|---|---|---|---|
@@ -384,19 +411,26 @@ What the pages show follows what a project's way and its people use, as
 | At scale | as Stock | as Stock | questions and money | drafts and goals first |
 | Standing roles | Team, for standing roles beside people | the brief from owners' Nows; What follows what | what passes what reaches you | goals, and follows' changes |
 
-- **Derived, not switched:** Team shows once a project has a second
-  member or a standing role. Decided for you shows once a row exists:
-  You approve leaves agents nothing to decide, so a Pair project has
-  none, and Agents review lets them decide wording and retries
-  (`what-reaches-you.md`, section 2). Away shows once the project's
-  classes hold an "asks you" item Away may decide (`what-reaches-you.md`,
-  section 3): Agents review's implementation choices are such items,
-  You approve has none. This replaces today's `Domain::away_shown`
-  (`../client/README.md`, 3.5, *Away*). All projects shows once the
-  person has two. How work runs and Work always show.
+- **Mixed is ordinary:** a You approve project with one standing role
+  owning its tests shows Team for that role and approvals for the rest;
+  a Draft first project whose `main` still needs the person's approval
+  shows drafts, goals and approvals together.
+- **A move along the spectrum** is a change of settings, proposed and
+  accepted (`configuring.md`, section 4). New work follows it, running
+  work keeps what it started under, and each item shows by its own
+  facts, so an approval asked before the move stays in Needs you beside
+  the questions asked after it, until it is done.
+- **How work runs suggests the next step** when the facts earn it, such
+  as "let agents land test-only changes" after a run of approvals given
+  unchanged: a fixed set of suggestions, each a rule over counts code
+  keeps, offered as a proposal the person may make, changing nothing on
+  its own.
+- **This replaces** today's `Domain::away_shown` (`../client/README.md`,
+  3.5, *Away*) and the greenfield mock's per-project `parts` switches.
 - **Overrides:** today's "What the project shows" switches
-  (`../client/README.md`, 5.13) stay
-  as overrides at How work runs' foot.
+  (`../client/README.md`, 5.13) stay as overrides at How work runs'
+  foot, hiding a part its rule would show, never showing one it would
+  hide.
 
 ## 13. The mockups and their precedence
 
@@ -459,6 +493,12 @@ Focused and fuzzy tests only; a walk and a render check follow landing.
   `../client/tui/journeys.md` say: Home to a need, answered; Team to a
   role, then Talk; a design session to `/goal`; a talk with a role that
   adds a rule. The user takes their pages and frames.
+- **A fuzz test of section 12's rules,** over random settings revisions
+  and facts, on each page's model: a part shows exactly when its rule
+  holds; no part is drawn empty; every live item is placed exactly once;
+  and a move of the settings never hides a live item, such as an
+  approval asked under You approve, still shown once the project has
+  moved to Agents review.
 
 ## 15. Open questions
 
@@ -479,6 +519,11 @@ Focused and fuzzy tests only; a walk and a render check follow landing.
   period funds it, which project its task belongs to, whether it may read
   other projects' Nows. Default: section 3's one brief a project, joined
   on All projects.
-- **Approving in place:** a person's approval or sign-off posted by temper
-  as the person, rather than one tap to the forge's review page
-  (`../README.md`, section 8). Default: the forge's page.
+
+## 16. Later
+
+- **Approving in place:** an approval or a sign-off given from Needs you and posted on
+  the forge as the person, with a forge credential they signed in with,
+  rather than one tap to the forge's own review page (temper's
+  `../README.md`, section 8). The forge's page is v0.1.0's (the user,
+  2026-11-08).

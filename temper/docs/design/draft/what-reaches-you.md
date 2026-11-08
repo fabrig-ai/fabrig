@@ -248,7 +248,7 @@ own" (the Team example on fabrig.ai's home page says so).
   on Forgejo ↗", one tap to the forge's review page, as
   `forge-identity.md`, section 8 has it, its line saying the path set:
   "Signs off changes to vsr's protocol core." Approving in place, posted as
-  the person, stays open (section 11).
+  the person, is later (section 12).
 - **The `paths` kind and the rule are two judgements:** the kind is
   judged when an agent asks, on the paths it declares or its change's head
   (section 4), and says whether a choice may be made for the person; the
@@ -355,10 +355,6 @@ It becomes:
   reach the push service, and on iOS an installed web app; mail needs the
   deployment's mail settings. Default: push where offered, mail where set,
   nothing otherwise.
-- **Approving in place:** whether Needs you's card approves a change
-  itself, temper posting the review as the person with a forge credential
-  they signed in with, rather than leading to the forge's review page
-  (`../README.md`, section 8). Default: the forge's page, one tap away.
 - **The table per project or per person:** a team may want one person
   asked about a path set and another not. Default: per project, with
   approvals naming roles as they do.
@@ -367,3 +363,11 @@ It becomes:
   Default: not listed.
 - **The forge's own protection** for a path set: `../README.md`, section
   8. Default: temper's landing alone.
+
+## 12. Later
+
+- **Approving in place:** an approval or a sign-off given from Needs you and posted on
+  the forge as the person, with a forge credential they signed in with,
+  rather than one tap to the forge's own review page (temper's
+  `../README.md`, section 8). The forge's page is v0.1.0's (the user,
+  2026-11-08).
