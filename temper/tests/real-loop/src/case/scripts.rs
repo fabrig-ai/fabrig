@@ -514,7 +514,7 @@ pub fn step_5_2_rules() -> Box<[Box<[Rule]>]> {
         ("", 4),
     ]
     .map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn });
-    // Current-head CI wakes do not replace either delegate's final result.
+    // Landing news does not replace either delegate's final result.
     let owner = [
         (IMPLEMENTER_RESULT, 3),
         (&format!("Result from task {H1}:"), 3),
