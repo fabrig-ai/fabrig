@@ -3469,6 +3469,12 @@ whole.
 
 ## 20. Open questions
 
+- **Project-scoped rules on a real forge** (8.9): observe the
+  every-project default, its override and reset, and branch-relative
+  coverage through the existing process and live landing stories after
+  landing. Default: those stories; focused and fuzzy checks on fakes
+  establish no real-forge outcome.
+
 - **The connector's own retries** (5.3): a brief read or lost-read
   recovery waiting for client room is retried when the connector resumes
   with room, without a timed backoff. A run's host call instead uses

@@ -213,6 +213,105 @@ fn story_run(story: &Story) -> Run {
     )
 }
 
+fn burst_story(count: usize) -> Story {
+    Story {
+        turns: vec![
+            Turn::new(vec![Step::Together(
+                (0..count).map(|index| inspect_child(&format!("SURVEY-{index}:"), true)).collect(),
+            )]),
+            finish(),
+        ],
+        cued: (0..count)
+            .map(|index| Script {
+                cue: format!("SURVEY-{index}:"),
+                turns: vec![Turn::new(vec![Step::Text(format!("survey answer {index}"))])],
+            })
+            .collect(),
+        ..Default::default()
+    }
+}
+
+fn burst_charter(direct: bool) -> Box<[u8]> {
+    smith_agent_process_world::wire::edit_charter(&program_world::child_charter(), |parts| {
+        smith_agent_process_world::wire::budget(parts, 32, 80);
+        if direct {
+            let mut child = parts.models.as_slice()[0].clone().into_parts();
+            child.endpoint = b"direct".as_slice().into();
+            child.account = Some(1);
+            parts.models = skein_lib::List::with_capacity(1);
+            parts
+                .models
+                .push(smith_charter::Llm::new(&smith_charter::CEILINGS, child).expect("direct child"))
+                .expect("model");
+        }
+    })
+}
+
+fn burst_answers(run: &Run, count: usize, room: usize) {
+    accepted(run);
+    let mut results = results(run);
+    assert_eq!(results.len(), count + 1, "survey calls and finish each answer: count={count}");
+    results.pop().expect("finish result");
+    let mut names = std::collections::BTreeSet::new();
+    let mut answers = std::collections::BTreeSet::new();
+    for result in &results {
+        assert!(names.insert(result.id()), "each call answers once");
+        let smith_transcript::Returned::Said(said) = result.returned() else {
+            panic!("unexpected survey result: {:?}", result.returned());
+        };
+        if said.error() {
+            assert!(said.text() == b"busy" || said.text() == b"refused reason=too-many", "{said:?}");
+        } else {
+            assert!(skein_lib::bytes::find(said.text(), b"survey answer").is_some(), "{said:?}");
+            assert!(answers.insert(said.text()), "each child returns its own survey answer");
+        }
+    }
+    assert_eq!(answers.len(), count.min(room), "admitted surveys answer");
+    let mut live = std::collections::BTreeSet::new();
+    let mut peak = 0;
+    for record in &run.events {
+        match &record.event {
+            Event::ConversationOpened(opening) if opening.kind == ConversationKind::Child => {
+                assert!(live.insert(opening.conversation));
+                peak = peak.max(live.len());
+            }
+            Event::ConversationClosed(close) if close.conversation != 0 => {
+                assert!(live.remove(&close.conversation), "each opened child closes once");
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(peak, count.min(room), "survey children run side by side");
+    assert!(live.is_empty(), "every child conversation settles");
+    assert!(run.run_directories.is_empty(), "private program directories settle");
+}
+
+#[test]
+fn a_program_main_survives_a_sub_agent_burst() {
+    let room = usize::try_from(smith_agent_process_world::limits().domain.run.run_conversations - 1).expect("room");
+    let mut counts = vec![2, 5, 6, room, room + 1];
+    counts.sort_unstable();
+    counts.dedup();
+    for (direct, count) in [false, true].into_iter().flat_map(|direct| counts.iter().map(move |count| (direct, *count)))
+    {
+        let run = program_world::run(
+            Case::Burst { direct },
+            &burst_story(count),
+            Some(b"claude.ai"),
+            &burst_charter(direct),
+            &program(b"source"),
+            None,
+        );
+        burst_answers(&run, count, room);
+        let programs = run
+            .invocations
+            .iter()
+            .filter(|invocation| argument(&invocation.arguments, "--effort") == Some("high"))
+            .count();
+        assert_eq!(programs, if direct { 0 } else { count.min(room) }, "the selected child backend runs");
+    }
+}
+
 #[test]
 fn two_program_children_run_side_by_side_and_each_answers() {
     let story = Story {

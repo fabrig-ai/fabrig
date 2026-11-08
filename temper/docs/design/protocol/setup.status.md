@@ -2,6 +2,13 @@
 
 2026-11-08. Where temper's code lags or departs from [setup.md](setup.md).
 
+Section 8.3 has no known implementation gap in the binary supplying
+every project's rule 1 and no deployment rule, or supplying stock
+charter 5 and template 4 with their delegation. The documents carry none
+of those settings. Applying the reference's combined project settings
+in a walk remains unobserved (`configuration.status.md`, 13.9);
+section 15 keeps that after-landing work.
+
 Section 7.2's sign-in block names the TUI command at the link's origin,
 on stderr in the first block alone. Serve keeps the engine's private
 link file at startup and each new Link and removes it when its loop
