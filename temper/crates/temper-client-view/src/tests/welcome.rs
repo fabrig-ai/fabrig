@@ -2701,7 +2701,10 @@ fn welcome_waiting_orders_the_note_link_and_folded_paste_in_both_shells() {
 fn ready_keeps_declare_and_check_refusals_under_models_line() {
     use jig_client::contract as c;
     use pages::{accounts::Way, connect_model::Act as A};
-    for checking in [false, true] {
+    for (checking, expected) in [
+        (false, "This provider offers you no program login. Choose another way to connect."),
+        (true, "This act is not offered"),
+    ] {
         let (mut root, watch) = model_with_forge(d::WayKind::Program);
         let mut doc = super::accounts::card_document(b"anthropic", b"claude-pat", c::AccountKind::Program);
         doc.signing.clear();
@@ -2746,7 +2749,7 @@ fn ready_keeps_declare_and_check_refusals_under_models_line() {
             } else {
                 node(tree, Role::Slot, "Model none yet")
             };
-            let refusal = node(tree, Role::Status, "This act is not offered");
+            let refusal = node(tree, Role::Status, expected);
             assert_eq!(forge::parent(tree, model), Some(pane));
             assert!(refusal > model);
             assert_eq!(forge::parent(tree, refusal), Some(pane));

@@ -357,7 +357,7 @@ fn a_refresh_marks_the_accounts_documents_only_when_facts_change() {
 }
 
 #[test]
-fn a_reserved_program_name_reaches_the_party() {
+fn another_holders_reserved_program_name_reaches_the_party() {
     let (mut core, env) = signing_core();
     let mut providers = core.settings.llm_providers.clone();
     providers.providers[0].offers.programs = Box::new([b"claude_code".as_slice().into()]);
@@ -368,7 +368,7 @@ fn a_reserved_program_name_reaches_the_party() {
         Event::Account(accounts::Event::Restore {
             record: accounts::Stored::Issued {
                 number: 21,
-                holder: PARTY,
+                holder: accounts::Holder::Party(8),
                 name: b"claude-6".as_slice().into(),
                 signed_out: true,
             },
@@ -381,6 +381,6 @@ fn a_reserved_program_name_reaches_the_party() {
     };
     assert_eq!(
         stepped(&mut core, &env, ask(7, declaration)),
-        (None, Some(people::Outcome::Refused(people::Refusal::ProgramNameReserved)))
+        (None, Some(people::Outcome::Refused(people::Refusal::NameTaken)))
     );
 }

@@ -812,6 +812,84 @@ fn an_export_refused_for_full_answers_removes_its_file() {
 }
 
 #[test]
+fn account_refusals_say_why_and_what_next() {
+    // These unit refusals nest the result, outcome and refused object envelopes.
+    const REFUSAL_DEPTH: u32 = 3;
+    let declare = &["account", "declare", "9", "helper", "work-login", "--key", "declaration"][..];
+    for (words, refusal, why, next) in [
+        (
+            declare,
+            c::Refusal::NameTaken,
+            b"account declare: program name work-login is taken".as_slice(),
+            Some(b"Declare under another name. If account list shows a source of yours named work-login, check its login instead: account verify ACCOUNT --source program".as_slice()),
+        ),
+        (
+            declare,
+            c::Refusal::NotOffered,
+            b"account declare: provider 9 offers you no program login".as_slice(),
+            Some(b"me prints each provider's ways; declare with a provider whose line names programs".as_slice()),
+        ),
+        (
+            &["account", "retry", "43"],
+            c::Refusal::NotOffered,
+            b"account retry: the source is not limited, so there is nothing to resume".as_slice(),
+            Some(b"account list shows its state and what it needs".as_slice()),
+        ),
+        (declare, c::Refusal::Unknown, b"account declare: No visible object with that name".as_slice(), None),
+    ] {
+        for json in [false, true] {
+            let mut root = f::account_root(false);
+            f::offer_programs(&mut root);
+            let words = f::extended(words, if json { &["--json"] } else { &[] });
+            let call = root.submit(words.as_slice());
+            f::deliver_accounts(&mut root, f::accounts());
+            let ask = root.sends.get(&call).expect("account act sent").2.clone();
+            root.answered(call, c::Answer::Refused { refusal: refusal.clone(), at: None });
+            let printed = root.answer(call).expect("engine refusal");
+            assert_eq!(printed.status, 2, "{refusal:?}, json={json}");
+            assert!(printed.stdout.is_empty());
+            if json {
+                f::unique_keys(&printed.stderr).expect("valid refusal JSON with unique keys");
+                let doc = crate::jig::json::document_depth(&printed.stderr, REFUSAL_DEPTH).expect("refusal JSON");
+                let actual_next = match doc.member(0, b"next") {
+                    Some(at) => Some(doc.text(doc.token(at).expect("next token")).expect("next string")),
+                    None => None,
+                };
+                assert_eq!(actual_next, next, "{refusal:?}");
+            } else {
+                let mut text = skein_lib::Reader::new(&printed.stderr);
+                assert_eq!(text.bytes(u32::try_from(why.len()).expect("bounded reason")), Some(why), "{refusal:?}");
+                assert_eq!(text.u8(), Some(b'\n'), "whole reason line");
+                if let Some(next) = next {
+                    assert_eq!(text.bytes(u32::try_from(next.len()).expect("bounded advice")), Some(next), "{refusal:?}");
+                    assert_eq!(text.u8(), Some(b'\n'), "whole next-step line");
+                }
+                assert!(text.is_empty(), "no other refusal lines");
+            }
+            let mut records = f::restored_message(f::PARTY);
+            records.get_mut(f::EMPTY).expect("restored request").request.request = ask;
+            let mut restored = f::started_with(records, f::SEED, json);
+            restored.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
+            restored.answered(f::EMPTY, c::Answer::Refused { refusal: refusal.clone(), at: None });
+            let line = restored.kept_lines.get(0).expect("restored refusal");
+            if json {
+                f::unique_keys(line).expect("valid restored JSON with unique keys");
+                let doc = crate::jig::json::document_depth(line, REFUSAL_DEPTH).expect("restored refusal JSON");
+                let actual_next = match doc.member(0, b"next") {
+                    Some(at) => Some(doc.text(doc.token(at).expect("next token")).expect("next string")),
+                    None => None,
+                };
+                assert_eq!(actual_next, next, "restored {refusal:?}");
+            } else if next.is_some() {
+                assert!(line.ends_with(&printed.stderr), "restored refusal keeps the ask's words: {line:?}");
+            } else {
+                assert_eq!(line.as_ref(), b"kept: declare, declare: No visible object with that name\n");
+            }
+        }
+    }
+}
+
+#[test]
 fn a_retired_program_name_explains_how_to_declare_again() {
     let mut root = program_accounts();
     let forgotten = root.submit(&["account", "forget", "43", "--key", "proof4-forget"]);
