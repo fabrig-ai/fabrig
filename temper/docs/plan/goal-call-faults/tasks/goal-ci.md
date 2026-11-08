@@ -3,7 +3,7 @@ id = "goal-ci"
 part = "subscribe-room"
 kind = "feature"
 needs = []
-files = ["temper/crates/temper-engine-domain-forge/src/topics.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/tests.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/forge/**", "temper/tests/engine/protocol-forge/**", "temper/tests/real-loop/**", "temper/docs/design/domain/forge.status.md"]
+files = ["temper/crates/temper-engine-domain-forge/src/topics.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/tests.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/tests/suite/forge_routes/goal_branch.rs", "temper/tests/engine/domain/tests/suite/forge_routes/goal_landing.rs", "temper/tests/engine/forge/**", "temper/tests/engine/protocol-forge/**", "temper/tests/real-loop/**", "temper/docs/design/domain/forge.status.md"]
 effort = "high"
 minutes = 110
 +++
@@ -136,3 +136,36 @@ Acceptance:
 As the implementer's text says, with the failure each new row showed
 before the fix, every test whose expectation changed and why, and what
 a goal's inbox no longer hears.
+
+## Answers
+
+2026-11-08. *Extend goal-ci to repair `forge_routes/goal_branch.rs` and
+`forge_routes/goal_landing.rs`, or hand the branch to a follow-up repair?*
+Extend: this task's acceptance ("every other test of the touched
+packages pass") cannot hold without them, and they fail only because the
+goal's CI wakes are gone. Both files are now in `files`, for the two
+stories alone: `a_merge_into_the_goal_branch_observed_before_its_answer_is_not_drift`
+and `a_goals_landing_lands_its_branch_into_main_whole_leaving_it_held_by_the_goal`.
+Continue from the pushed branch (`b9fb703577`); keep its work.
+
+- First find what each story leaned on. If the removed CI wake only
+  advanced the world (a fetch or settle the story never asked for), make
+  the story drive or wait for what it asserts: in `goal_branch.rs`, the
+  merge's own settlement (an observation of the goal branch after the
+  released write answer, as `observe_goal_branch` does, or a wait until
+  the writer clears, bounded by `STEPS`); in `goal_landing.rs`, the
+  landing news on `main` observed before close takes its restart
+  snapshot. Keep every assertion and the restart oracle's counters and
+  journal comparisons strict.
+- If instead the writer is never freed (or the landing never published)
+  without a goal CI topic however long the world runs, that is a
+  production fault the CI wake hid: do not restore goal CI topics and do
+  not weaken the story; stop and report `Question:` with what frees the
+  writer and where.
+- Then finish the checks the run left: the full focused
+  `temper-engine-domain-world` and `temper-real-loop-world` runs, the
+  real loop's fuzzy run, and `heavy cargo check -p temper-service -p
+  temper -p temper-system-world -p temper-client-world --tests`. Name
+  each story change in the report with its reason.
+- Run `old_forms.py` from `temper/` (`python3 -I -B scripts/old_forms.py`),
+  as the run found.
