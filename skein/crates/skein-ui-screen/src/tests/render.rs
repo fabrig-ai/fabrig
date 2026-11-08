@@ -70,9 +70,11 @@ fn every_role_state_and_property_is_laid() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "hand-written frames are the renderer's independent oracle")]
 #[expect(clippy::disallowed_types, reason = "lossy strings make a failed byte comparison readable in test diagnostics")]
+#[expect(clippy::too_many_lines, reason = "all golden rows share one renderer test process")]
 fn golden_frames_lay_bands_text_fields_scroll_and_roles() {
     use core::fmt::Write;
     let mut failures = String::new();
+    let entries = fixtures::entries();
     let options = fixtures::options(false, false, true);
     let following = fixtures::following(30, Some(1), false, false);
     let looks = fixtures::looks();
@@ -83,6 +85,14 @@ fn golden_frames_lay_bands_text_fields_scroll_and_roles() {
     let roles = fixtures::roles();
     let theme = fixtures::theme();
     for (name, tree, size, node, caret, expected) in [
+        (
+            "entries",
+            &entries,
+            Size { columns: 60, rows: 20 },
+            Some(fixtures::id(&entries, b"Command")),
+            1,
+            include_bytes!("golden/entries.txt").as_slice(),
+        ),
         (
             "bands",
             &bands,
@@ -611,6 +621,8 @@ fn field_labels_follow_the_nearest_token() {
 
 #[test]
 #[expect(clippy::disallowed_types, reason = "the diagnostic collects every failed table row")]
+#[expect(clippy::use_debug, reason = "description rows report the role and mismatched cell")]
+#[expect(clippy::too_many_lines, reason = "look contract rows share text and cell assertions")]
 fn rendering_lays_end_alignment_bands_and_title_parts() {
     use core::fmt::Write;
     let mut failures = String::new();
@@ -621,6 +633,65 @@ fn rendering_lays_end_alignment_bands_and_title_parts() {
     let band_paint = Paint { back: fixtures::BAND_PAINT.back, ..fixtures::RED_PAINT };
     let edge_paint = Paint { back: fixtures::REGION_PAINT.back, ..fixtures::RED_PAINT };
     for (name, tree, size, expected, cells) in [
+        (
+            "spaced options menu",
+            fixtures::spaced_options(),
+            Size { columns: 20, rows: 5 },
+            "  F:\n  One\n\n  Two\nAfter\n",
+            &[][..],
+        ),
+        (
+            "gap uses region paint without token attributes",
+            fixtures::entry_spacing(false, false, true),
+            Size { columns: 20, rows: 7 },
+            "╭──────────────────╮\n│ Before           │\n│ First            │\n│                  │\n│ Last             │\n│ After            │\n╰──────────────────╯\n",
+            &[(Position { row: 3, column: 2 }, Cell { glyph: ' ', paint: fixtures::REGION_PAINT })][..],
+        ),
+        (
+            "spaced first and last children have no outer gap",
+            fixtures::entry_spacing(false, false, false),
+            Size { columns: 20, rows: 5 },
+            "Before\nFirst\n\nLast\nAfter\n",
+            &[(Position { row: 2, column: 0 }, Cell::BLANK)][..],
+        ),
+        (
+            "spaced grandchildren stay adjacent",
+            fixtures::entry_spacing(true, false, false),
+            Size { columns: 20, rows: 7 },
+            "Before\nFirst\ninner\n\nLast\ninner\nAfter\n",
+            &[(Position { row: 3, column: 0 }, Cell::BLANK)][..],
+        ),
+        (
+            "children laid as no row take no gap",
+            fixtures::entry_spacing(false, true, false),
+            Size { columns: 20, rows: 5 },
+            "Before\nFirst\n\nLast\nAfter\n",
+            &[][..],
+        ),
+        (
+            "numbered item ignores mark",
+            fixtures::entry_mark(true, true),
+            Size { columns: 20, rows: 1 },
+            "3. Words\n",
+            &[(Position { row: 0, column: 0 }, Cell { glyph: '3', paint: fixtures::DIM })][..],
+        ),
+        (
+            "nearest token mark wins",
+            fixtures::entry_mark(false, true),
+            Size { columns: 20, rows: 1 },
+            "▸ Words\n",
+            &[(Position { row: 0, column: 0 }, Cell { glyph: '▸', paint: fixtures::DIM })][..],
+        ),
+        (
+            "ancestor mark reaches item",
+            fixtures::entry_mark(false, false),
+            Size { columns: 20, rows: 1 },
+            "✦ Words\n",
+            &[
+                (Position { row: 0, column: 0 }, Cell { glyph: '✦', paint: fixtures::ACCENT }),
+                (Position { row: 0, column: 2 }, Cell { glyph: 'W', paint: Paint::NONE }),
+            ][..],
+        ),
         (
             "options names without descriptions stay unpadded",
             fixtures::options(false, false, false),
@@ -653,7 +724,8 @@ fn rendering_lays_end_alignment_bands_and_title_parts() {
         let mut frame = Frame::new(size);
         render(&tree, &theme, size, &mut Focus::default(), &mut frame);
         if frame.text().as_ref() != expected.as_bytes() {
-            writeln!(failures, "{name}: text differs from {expected}").expect("diagnostic writes");
+            writeln!(failures, "{name}: text {} differs from {expected}", String::from_utf8_lossy(&frame.text()))
+                .expect("diagnostic writes");
         }
         for (at, cell) in cells {
             let drawn = match frame.row(at.row) {
@@ -664,6 +736,18 @@ fn rendering_lays_end_alignment_bands_and_title_parts() {
                 writeln!(failures, "{name}: paint or glyph differs at {} {}", at.row, at.column)
                     .expect("diagnostic writes");
             }
+        }
+    }
+    for (role, row, column) in [(Role::Group, 1, 2), (Role::Item, 2, 4), (Role::Disclosure, 1, 8)] {
+        let tree = fixtures::described(role);
+        let size = Size { columns: 24, rows: 5 };
+        let mut frame = Frame::new(size);
+        render(&tree, &theme, size, &mut Focus::default(), &mut frame);
+        let expected = Cell { glyph: 'W', paint: fixtures::DIM.over(fixtures::REGION_PAINT) };
+        let cell = frame.row(row).expect("description row exists").get(column);
+        if cell != Some(&expected) {
+            writeln!(failures, "description paint replaces all tokens for {role:?}: {cell:?}, expected {expected:?}")
+                .expect("diagnostic writes");
         }
     }
     assert!(failures.is_empty(), "{failures}");

@@ -8,6 +8,3 @@ select options. Section 9's every-role, every-state and every-property
 fixture has goldens at 80 by 24 and 80 by 144; the latter holds the whole
 tree. Section 10 keeps the deferred rendering and input work.
 
-- **Not yet:** 3 and 5.3: `mark`, `described` and `spaced` on a token's
-  look: an item's mark, a description's own paint, one blank row
-  between children.

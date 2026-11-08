@@ -48,6 +48,13 @@ struct PendingItem {
     description: bool,
 }
 
+/// A gap waits for a child's first row, keeping the enclosing region's blank cells.
+#[derive(Debug)]
+struct Gap {
+    end: u32,
+    cells: List<Ink>,
+}
+
 #[derive(Debug)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -62,6 +69,7 @@ pub(super) struct Canvas {
     first_len: u16,
     row: u32,
     column: u16,
+    content_start: u16,
     indent: u16,
     continuation: u16,
     left: u16,
@@ -78,6 +86,7 @@ pub(super) struct Canvas {
     cut: bool,
     align: Align,
     band: Option<Paint>,
+    gap: Option<Gap>,
 }
 
 impl Canvas {
@@ -97,6 +106,7 @@ impl Canvas {
             first_len: 0,
             row: 0,
             column: 0,
+            content_start: columns,
             indent: 0,
             continuation: 0,
             left: 0,
@@ -113,6 +123,36 @@ impl Canvas {
             cut: false,
             align: Align::Start,
             band: None,
+            gap: None,
+        }
+    }
+
+    pub fn gap(&mut self, end: u32, paint: Paint) {
+        if self.gap.is_some() {
+            return;
+        }
+        let (left, right) = match self.edges.last() {
+            Some(edge) => {
+                let side = match edge.look.border {
+                    Some(border) => u16::from(border.sides),
+                    None => 0,
+                };
+                (edge.left.saturating_add(side), edge.right.saturating_sub(side))
+            }
+            None => (0, self.columns),
+        };
+        let mut cells = self.cells.clone();
+        for column in left..right {
+            *cells.get_mut(u32::from(column)).expect("gap column exists") = Ink::blank(paint);
+        }
+        self.gap = Some(Gap { end, cells });
+    }
+
+    pub fn cancel_gap(&mut self, end: u32) {
+        if let Some(gap) = &self.gap
+            && gap.end == end
+        {
+            self.gap = None;
         }
     }
 
@@ -287,6 +327,7 @@ impl Canvas {
                 Some(ink) => ink.caret,
                 None => false,
             };
+        self.content_start = self.content_start.min(self.column);
         self.set(self.column, Ink { cell: Cell { glyph, paint }, focused, caret });
         self.column = self.column.saturating_add(1);
         if count == 2 {
@@ -322,6 +363,9 @@ impl Canvas {
                 self.column = self.column.saturating_add(1);
             }
             self.dirty = !tail.is_empty();
+            if self.dirty {
+                self.content_start = begin;
+            }
         } else {
             self.commit(frame);
             self.column = begin;
@@ -367,10 +411,21 @@ impl Canvas {
         }
         self.column = self.left.saturating_add(self.continuation).min(self.right);
         self.dirty = false;
+        self.content_start = self.columns;
         self.cut = false;
     }
     fn commit(&mut self, frame: &mut Frame) {
         self.lay_line();
+        if let Some(gap) = self.gap.take() {
+            let cells = core::mem::replace(&mut self.cells, gap.cells);
+            self.emit(frame);
+            self.cells = cells;
+        }
+        self.emit(frame);
+        self.reset();
+    }
+
+    fn emit(&mut self, frame: &mut Frame) {
         let visible = self.row >= self.viewport.first
             && self.row.saturating_sub(self.viewport.first) < u32::from(self.viewport.height);
         let screen_row = self
@@ -398,13 +453,12 @@ impl Canvas {
             }
         }
         self.row = self.row.saturating_add(1);
-        self.reset();
     }
     fn lay_line(&mut self) {
         if let Some(paint) = self.band {
-            let start = self.left.saturating_add(self.indent).min(self.right);
+            // An item's prefix can precede its child's indentation.
             for column in self.left..self.right {
-                if (column < start || column >= self.column)
+                if (column < self.content_start || column >= self.column)
                     && let Some(ink) = self.cells.get_mut(u32::from(column))
                 {
                     ink.cell.paint = paint;
@@ -461,7 +515,12 @@ impl Canvas {
                 && let Some(description) = &n.description
             {
                 self.start(item.indent);
-                self.safe(description, info.get(item.at).expect("item information exists").paint, false, frame);
+                self.safe(
+                    description,
+                    info.get(item.at).expect("item information exists").description_paint(),
+                    false,
+                    frame,
+                );
                 self.finish(frame);
             }
         }

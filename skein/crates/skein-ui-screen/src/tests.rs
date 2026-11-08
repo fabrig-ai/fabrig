@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use skein_ui::{Owner, Region, Style};
 
 use crate::{
-    Arrange, Border, Cell, Frame, Glyphs, Paint, Place, Position, RegionLook, Rgb, Size, StyleLook, Theme, width,
+    Arrange, Border, Cell, Frame, Glyphs, Mark, Paint, Place, Position, RegionLook, Rgb, Size, StyleLook, Theme, width,
 };
 
 const RED: Rgb = Rgb { red: 0xab, green: 0xcd, blue: 0xef };
@@ -26,6 +26,9 @@ const STYLE: StyleLook = StyleLook {
     align: crate::Align::Start,
     band: false,
     label: true,
+    mark: None,
+    described: None,
+    spaced: false,
 };
 const GLYPHS: Glyphs = Glyphs { focus: '>', mask: '●' };
 
@@ -74,7 +77,10 @@ fn paint_over_keeps_colours_and_adds_every_attribute() {
 }
 
 #[test]
+#[expect(clippy::disallowed_types, reason = "all invalid glyph rows report their failures together")]
 fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
+    use core::fmt::Write;
+    let mut failures = String::new();
     for (name, regions, styles, glyphs, valid) in [
         ("valid", &[REGION][..], &[STYLE][..], GLYPHS, true),
         ("empty looks", &[][..], &[][..], GLYPHS, true),
@@ -93,6 +99,27 @@ fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
             &[STYLE, StyleLook { style: Style { owner: Owner { number: 2 }, token: 1 }, ..STYLE }][..],
             GLYPHS,
             true,
+        ),
+        (
+            "control mark",
+            &[REGION][..],
+            &[StyleLook { mark: Some(Mark { glyph: '\n', paint: INK }), ..STYLE }][..],
+            GLYPHS,
+            false,
+        ),
+        (
+            "wide mark",
+            &[REGION][..],
+            &[StyleLook { mark: Some(Mark { glyph: '中', paint: INK }), ..STYLE }][..],
+            GLYPHS,
+            false,
+        ),
+        (
+            "combining mark",
+            &[REGION][..],
+            &[StyleLook { mark: Some(Mark { glyph: '\u{301}', paint: INK }), ..STYLE }][..],
+            GLYPHS,
+            false,
         ),
         ("wide focus", &[REGION][..], &[STYLE][..], Glyphs { focus: '中', ..GLYPHS }, false),
         ("control mask", &[REGION][..], &[STYLE][..], Glyphs { mask: '\u{7f}', ..GLYPHS }, false),
@@ -137,8 +164,11 @@ fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
             styles: Box::from(styles),
             glyphs,
         };
-        assert_eq!(theme.valid(), valid, "{name}");
+        if theme.valid() != valid {
+            writeln!(failures, "{name}: expected valid={valid}").expect("diagnostic writes");
+        }
     }
+    assert!(failures.is_empty(), "{failures}");
 }
 
 #[test]

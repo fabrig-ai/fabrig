@@ -83,12 +83,21 @@ pub enum Align {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Mark {
+    pub glyph: char,
+    pub paint: Paint,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StyleLook {
     pub style: Style,
     pub paint: Paint,
     pub align: Align,
     pub band: bool,
     pub label: bool,
+    pub mark: Option<Mark>,
+    pub described: Option<Paint>,
+    pub spaced: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -130,6 +139,11 @@ impl Theme {
             }
         }
         for (at, look) in self.styles.iter().enumerate() {
+            if let Some(mark) = look.mark
+                && !valid_glyph(mark.glyph)
+            {
+                return false;
+            }
             for earlier in self.styles.iter().take(at) {
                 if earlier.style == look.style {
                     return false;
