@@ -1511,7 +1511,7 @@ static HOLDS: [Holds; samples::N] = [
                 name: "The repository has no license. Name one in the README?",
             },
             Part::Absent { role: Role::Button, name: "Later" },
-            Part::Text { text: "The last one" },
+            Part::Text { text: "3 of 3" },
         ],
     },
     Holds {
@@ -4657,6 +4657,12 @@ fn print_writes_every_page_and_the_bundle() {
     for name in ["goal-landed", "goal-landed-open"] {
         let page = fs::read_to_string(out.join(format!("{name}.html"))).expect("landed goal print");
         assert_eq!(page.contains("open class=\"temper-goal-landed-fold\""), name == "goal-landed-open");
+    }
+    for (name, parts) in [("needs-list", ["class=\"temper-needs-bar\"", "1 of 3"])] {
+        let page = fs::read_to_string(out.join(format!("{name}.html"))).expect("needs print");
+        for part in parts {
+            assert!(page.contains(part), "{name}: {part}");
+        }
     }
     let signin = fs::read_to_string(out.join("connect-model-signing-in.html")).expect("sign-in page");
     assert!(signin.contains("href=\"https://issuer.example/visit/gallery-sign-in\""), "external sign-in href");
