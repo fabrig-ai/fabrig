@@ -26,7 +26,8 @@ fn a_start_at_a_stale_filter_shows_its_printed_address() {
     assert_eq!(duties.show, Some((Box::from(b"/?project=3".as_slice()), true)));
     let mut page = host::page(&host.bounds.tree, Primary::Control);
     host.draw(&mut page, &mut Vec::new());
-    assert!(page.html().contains("temper-needs"));
+    assert!(page.html().contains("temper-top"));
+    assert!(!page.html().contains("<main"));
     assert!(!page.html().contains("temper-filters"));
 }
 
