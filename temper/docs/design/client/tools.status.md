@@ -15,8 +15,6 @@ declares, forgets and declares the same name again, observes the worker's
 login-check dispatch, and checks a live name's exit-2 refusal and advice.
 Its worker is fake; it establishes no real login's usability.
 
-- **Not yet:** 5.3: the settings file's `charter-words` and
-  `project-words` SETTING and VALUE (`ui-p3e-words`'s `words-kind`).
 
 - **Not yet:** 5.3: `settings show charter-words` and `settings show
   project-words` (`ui-p3e-words`'s `words-tools`).

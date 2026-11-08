@@ -53,6 +53,14 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
                 v1::ProjectWays::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
             settings::Value::Ways(settings::ProjectWays { drafts, goals, changes, away, way })
         }
+        9 => {
+            let record = v1::CharterWords::decode(&v1::CEILINGS, &mut reader).ok()?;
+            settings::Value::CharterWords(record.into_parts().line)
+        }
+        10 => {
+            let parts = v1::ProjectWords::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
+            settings::Value::ProjectWords(settings::ProjectWords { headline: parts.headline, lede: parts.lede })
+        }
         _ => return None,
     };
     if !reader.is_empty() {
