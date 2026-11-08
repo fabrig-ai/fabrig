@@ -81,7 +81,11 @@ fn a_new_chats_paste_stays_with_send_disabled() {
     follow(
         &mut world,
         client,
-        vec![type_words(b"What do you want done?", &words), see(b"That's 1 character over what one message holds.")],
+        vec![
+            Step::See { find: Find::named(Role::TextArea, b"What do you want done?"), within: f::WITHIN },
+            type_words(b"What do you want done?", &words),
+            see(b"That's 1 character over what one message holds."),
+        ],
     );
     assert_over(&world, client, b"What do you want done?", b"Send", &words);
 }

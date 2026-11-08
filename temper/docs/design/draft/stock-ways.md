@@ -39,10 +39,12 @@ once all of it works, with no part of the page drawn by hand.
 
 - **Ordered** from more of you to more of your agents, as the page's
   tabs are.
-- **A way sets how work starts and lands, nothing else:** charters
-  (kind 3), models, questions (kind 6), kind 7's `changes` and `away`,
-  and a repository's gates and tiers stay as they are, so a person's
-  choices of models survive a change of way.
+- **A way sets how work starts and lands,** and, since
+  `whole-story.md` (2026-11-08), the defaults of what reaches a person
+  (`what-reaches-you.md`, section 2) and the standing roles it brings
+  (`standing-roles.md`, section 10). Nothing else: charters (kind 3),
+  models, kind 7's `changes`, and a repository's gates and tiers stay as
+  they are, so a person's choices of models survive a change of way.
 - **Their words** are the stock's, carried by the read (section 5), so
   that the page and `see ways` say the same.
 - **The landing branch** is named `main`, as the reference's rules name
