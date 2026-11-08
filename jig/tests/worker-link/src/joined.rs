@@ -42,8 +42,12 @@ mod net {
             if let Some(event) = self.events.pop_front() {
                 return Some(event);
             }
-            if self.grants != Some(0) && let Some(right) = self.right.take() {
-                if let Some(grants) = &mut self.grants { *grants -= 1; }
+            if self.grants != Some(0)
+                && let Some(right) = self.right.take()
+            {
+                if let Some(grants) = &mut self.grants {
+                    *grants -= 1;
+                }
                 return Some(LowerEvent::Write(stream::OutputUp::Settled {
                     right,
                     outcome: stream::OutputOutcome::Granted,

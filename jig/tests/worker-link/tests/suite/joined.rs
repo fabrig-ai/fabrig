@@ -3,7 +3,7 @@ mod joined_story {
     use super::joined::{Joined, application, credential, received, sent, values};
     use jig_domain_host as host;
     use jig_protocol_engine_workers as engine;
-    use jig_protocol_worker_link::{Credential, Request};
+    use jig_protocol_worker_link::{Credential, Loss, Request};
     use jig_worker_link_world::fixtures::{self, ATTEMPT_TWO, RUN_SEVEN};
     use skein_channel::Closed;
     use skein_lib::{Duration, Secret, Time, Token};
@@ -144,10 +144,16 @@ mod joined_story {
         }
     }
     fn healthy(world: &Joined, row: &str, second: u32) {
-        assert!(!world.worker_root.iter().any(|r| matches!(r, Request::Lost | Request::Fact { .. })),
-            "{row} at {second} s: worker {:?}", world.worker_root);
-        assert!(!world.engine_root.iter().any(|r| matches!(r, engine::Request::Lost { .. })),
-            "{row} at {second} s: engine {:?}", world.engine_root);
+        assert!(
+            !world.worker_root.iter().any(|r| matches!(r, Request::Lost | Request::Fact { .. })),
+            "{row} at {second} s: worker {:?}",
+            world.worker_root
+        );
+        assert!(
+            !world.engine_root.iter().any(|r| matches!(r, engine::Request::Lost { .. })),
+            "{row} at {second} s: engine {:?}",
+            world.engine_root
+        );
     }
     #[test]
     fn a_link_busy_both_ways_for_minutes_is_never_lost() {
@@ -198,9 +204,7 @@ mod joined_story {
                 world.run();
                 // Leave the initial trickle queued; thereafter each old batch drains
                 // while the next waits, for longer than either liveness deadline.
-                let grants = if row.turns && row.facts > 0 && second == 0 {
-                    [Some(0), Some(0)]
-                } else { row.grants };
+                let grants = if row.turns && row.facts > 0 && second == 0 { [Some(0), Some(0)] } else { row.grants };
                 // Separate each frame's grant from the next one.
                 let rounds = grants.into_iter().flatten().max().unwrap_or(1);
                 for frame in 0..rounds {
@@ -217,15 +221,24 @@ mod joined_story {
             world.grants(None, None);
             world.run();
             healthy(&world, row.name, SECONDS);
-            let up: Vec<_> = world.engine_root.iter().filter_map(|r| {
-                if let engine::Request::Up { up, .. } = r { Some(up) } else { None }
-            }).collect();
+            let up: Vec<_> = world
+                .engine_root
+                .iter()
+                .filter_map(|r| if let engine::Request::Up { up, .. } = r { Some(up) } else { None })
+                .collect();
             assert_eq!(up, expected_up.iter().collect::<Vec<_>>(), "{}: every worker record in order", row.name);
-            let received_messages: Vec<_> = downs(&world).into_iter().filter(|d| matches!(d, host::LinkDown::Message { .. })).collect();
-            assert_eq!(received_messages, expected_down.iter().collect::<Vec<_>>(), "{}: every engine message in order", row.name);
-            let kept: Vec<_> = downs(&world).into_iter().filter_map(|d| {
-                if let host::LinkDown::TurnKept { turn, .. } = d { Some(*turn) } else { None }
-            }).collect();
+            let received_messages: Vec<_> =
+                downs(&world).into_iter().filter(|d| matches!(d, host::LinkDown::Message { .. })).collect();
+            assert_eq!(
+                received_messages,
+                expected_down.iter().collect::<Vec<_>>(),
+                "{}: every engine message in order",
+                row.name
+            );
+            let kept: Vec<_> = downs(&world)
+                .into_iter()
+                .filter_map(|d| if let host::LinkDown::TurnKept { turn, .. } = d { Some(*turn) } else { None })
+                .collect();
             let expected_kept: Vec<_> = (1..=if row.turns { SECONDS } else { 0 }).collect();
             assert_eq!(kept, expected_kept, "{}: every acknowledgement in order", row.name);
             world.finish();
@@ -236,7 +249,7 @@ mod joined_story {
         world.run();
         assert!(world.engine_root.is_empty());
         assert!(world.worker_root.iter().any(|request| matches!(request,
-            Request::Fact { why: Closed::RefusedPeer(found) } if *found == reason)));
+            Request::Fact { why: Loss::Closed(Closed::RefusedPeer(found)) } if *found == reason)));
         world.advance(Duration::from_millis(200));
         assert!(world.dials.len() >= 2);
         assert!(world.dials[1] >= Time::ZERO.saturating_add(Duration::from_millis(50)));
