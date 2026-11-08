@@ -2703,6 +2703,23 @@ that changes the stock changes nothing of them.
   routing the gap for repair before declaring the item built. Missing
   coverage remains an unresolved gap even when Left is empty or CI
   passes; close-out and the goal's landing wait for it to be resolved.
+  For help trimming or a supplied replacement patch, charter 5's shared
+  specification instructions identify existing facts at risk and require a
+  before/after fact mapping and named retention assertions. Charter 2
+  preserves unrelated facts during initial production as well as repairs
+  and resolutions, and reports missing preservation evidence as unresolved
+  acceptance. Charter 5's results review checks the mapping and carries it
+  and every missing preservation assertion in the close-out's words;
+  charter 7 checks and retains them in its report. Passing addition tests
+  and page bounds cannot settle missing preservation evidence. It remains
+  unresolved acceptance until supplied or repaired, and blocks close-out.
+  The help case adds the early-start explanation and resolving pointer
+  while retaining the guidance that `read_task` supplies the answer number.
+  The domain story uses explicitly scripted replacement records: deletion
+  of that hint despite passing addition checks, and retention of all three
+  facts. Bounded report reads and close-out handoff retain the missing or
+  complete evidence. These records are not a recovered patch or a model
+  transcript, and establish no real-model compliance.
   Each requested deliverable also carries its requested evidence, from
   the coordinator's spec through production, results review and close-out.
   When each scoped-check table row's cost is requested, each row needs
