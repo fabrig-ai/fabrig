@@ -2,6 +2,15 @@
 
 2026-11-08. Where smith's code lags or departs from [programs.md](programs.md).
 
+Sections 2 and 5.1 have no known gap in Linux's program-child launch:
+status checks and print runs use the agent's own `--program-child`
+mode, which execs with Kill on parent death. The argv and malformed-mode
+tables cover the launch; the Linux end-to-end abort story observes the
+agent, fake program and relay, kills the agent alone and checks that
+neither descendant remains running. Simulated program worlds launch
+directly and do not prove the kernel signal. macOS also launches directly;
+its crash lifetime remains section 9's deferred work.
+
 Sections 5.1, 5.3 and 8 have no known implementation gap in a run with no
 workspace replacing the prompt, disabling built-in tools and slash commands,
 and starting in its private empty `work` directory, including its summary

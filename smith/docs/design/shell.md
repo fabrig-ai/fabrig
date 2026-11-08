@@ -111,9 +111,10 @@ and the values a setting overrides.
   (testing.md, section 4).
 - **The end** is protocol/agent.md, section 6's: its answer sent, the
   channel finished, everything it owns closed, then exit. An agent that
-  aborts runs no end, and its programs die with it: it starts each
-  through its own binary's `--program-child` mode (protocol/programs.md,
-  5.1).
+  aborts runs no end. On Linux its programs die with it: it starts each
+  through its own binary's `--program-child` mode. On macOS it starts
+  them directly, and an abort needs the host's whole tree ended
+  (protocol/programs.md, 5.1).
 
 ### 2.3 The local shell
 
@@ -1458,6 +1459,8 @@ section 8):
 
 ## 11. Open questions
 
+- **Program lifetime on macOS** (2.2): protocol/programs.md, section 9's
+  question. Default: direct launch and the host's whole-tree supervision.
 - **The Anthropic window:** whether the preset's window should be the
   models' 1,000,000 tokens once the `history` and `cache-reuse` probes measure
   cost and quality there.
