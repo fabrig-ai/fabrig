@@ -21,7 +21,7 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ / for commands
 ────────────────────────────────────────────────────────────────────────────────
- / for commands                                                          ● Live
+ ● Live
 --
 aaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaacccaaa
 a.ddddddddddaaacccccccccccccccccccccccccc......................................a
@@ -46,7 +46,7 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 eeaaaaaaaaaaaaaa................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.cccccccccccccc..........................................................ffffff.
+.ffffff.........................................................................
 --
 a: fore #6A655C
 b: fore #E08A68 bold

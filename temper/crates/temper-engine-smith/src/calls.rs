@@ -237,11 +237,12 @@ pub(crate) const SPECS: [Spec; 43] = [
 /// The complete host-tool registry, with exact schemas and write effects.
 #[must_use]
 pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
-    offered_tools(timeout, tasks::Tools(u64::MAX), true)
+    offered_tools(timeout, tasks::Tools(u64::MAX), true, true)
 }
 
 /// An asking charter offers its own tools alone, gated by authority.
 /// Settings declarations require the charter's and the run's settings family.
+/// Delegate declarations require the charter's delegate family.
 /// Message, task-read and plan declarations require their run families.
 /// Root authority still decides each accepted call by its durable name.
 pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tasks::Tools) -> Box<[run::HostTool]> {
@@ -264,10 +265,10 @@ pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tas
     if charter.0 & families.settings == 0 {
         offered.0 &= !families.settings;
     }
-    offered_tools(timeout, offered, false)
+    offered_tools(timeout, offered, charter.0 & families.delegate.0 != 0, false)
 }
 
-fn offered_tools(timeout: Duration, authority: tasks::Tools, full: bool) -> Box<[run::HostTool]> {
+fn offered_tools(timeout: Duration, authority: tasks::Tools, delegate: bool, full: bool) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
     let settings = authority.0 & families.settings != 0;
     let message = authority.0 & families.message.0 != 0;
@@ -278,6 +279,7 @@ fn offered_tools(timeout: Duration, authority: tasks::Tools, full: bool) -> Box<
         let spec = if plan && spec.name == b"change" { PLAN_CHANGE } else { spec };
         if (!full && (spec.name == b"see" || spec.name == b"document"))
             || (!settings && (spec.name == b"settings" || spec.name == b"propose_settings"))
+            || (!delegate && (spec.name == b"goal" || spec.name == b"change" || spec.name == b"delegate"))
             || (!message && spec.name == b"message")
             || (!read && spec.name == b"read_task")
         {

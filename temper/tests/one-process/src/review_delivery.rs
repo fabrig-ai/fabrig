@@ -22,6 +22,8 @@ use temper_playground::{
 thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
 const STEPS: u32 = 20_000;
 const DEADLINE: Time = Time::from_nanos(10_000_000_000);
+// The chat fits; the review's fixed instructions and tools exceed this envelope.
+const CHARTER_BYTES: u32 = 49_152;
 
 /// Keep the simulated goal, review and native controls within their fixture bounds.
 pub(crate) fn configure(value: &mut Value) {
@@ -43,11 +45,11 @@ pub(crate) fn configure(value: &mut Value) {
         ("tasks.executor_kinds", 4),
         ("core.policy_bytes", 40_000),
         ("core.run_bytes", 45_000),
-        ("hub.charter_bytes", 65_536),
+        ("hub.charter_bytes", CHARTER_BYTES),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
-    value["workers"][0]["limits"]["overrides"]["hub.charter_bytes"] = 65_536.into();
+    value["workers"][0]["limits"]["overrides"]["hub.charter_bytes"] = CHARTER_BYTES.into();
     value["application"]["limits"]["overrides"]["root.journal.run_bytes"] = 45_000.into();
     value["application"]["limits"]["overrides"]["forge.client.window_ms"] = 100.into();
     value["application"]["limits"]["overrides"]["forge.issue_policy.interval_ms"] = 100.into();

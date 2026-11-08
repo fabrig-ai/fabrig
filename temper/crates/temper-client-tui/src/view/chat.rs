@@ -1,5 +1,9 @@
 //! The chat's ordered conversation (temper/docs/design/client/README.md, 3.5 and 6.14).
-use super::{Binds, foot, text};
+use super::{
+    Binds, foot,
+    printed::{self, Printed},
+    text,
+};
 use crate::{
     Tui, look,
     words::{Word, Words},
@@ -26,10 +30,16 @@ pub(crate) enum Entry {
     Said(Box<[u8]>),
     Delegate { task: u64, words: Box<[u8]> },
     Agent { words: Box<[u8]>, growing: bool },
+    Viewed(Box<[Piece]>),
     Run(RunLine),
     Dots,
     Delegation(DelegationLine),
     Proposal(Box<[u8]>),
+}
+#[derive(Debug)]
+pub(crate) enum Piece {
+    Text(Box<[u8]>),
+    View(Printed),
 }
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Chat {
     let mut part = Chat { to_end: 0, entries: Box::default(), notes: foot::read_notes(root, tui, words) };
@@ -117,6 +127,18 @@ fn entry(b: &mut Builder, entry: &Entry, words: &Words) {
                 skein_ui::markdown::read_growing(bytes, 2, |b| text(b, Role::Text, b" ", Some(look::END)), b);
             } else {
                 skein_ui::markdown::read(bytes, 2, b);
+            }
+            b.close();
+        }
+        Entry::Viewed(pieces) => {
+            b.style(look::AGENT);
+            b.open(Role::Group);
+            b.style(look::BULLETS);
+            for piece in pieces {
+                match piece {
+                    Piece::Text(bytes) => skein_ui::markdown::read(bytes, 2, b),
+                    Piece::View(view) => printed::draw(b, view, words),
+                }
             }
             b.close();
         }
