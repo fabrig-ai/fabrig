@@ -466,6 +466,32 @@ fn producer_refusal(
     settled_host_refusal(world, chat, number, b"change", call)
 }
 
+fn retain_report(driver: &mut Driver, run: &engine::Assignment, expected: &[u8]) -> u64 {
+    let mut member =
+        temper_engine_domain_world::fixtures::report_delegate(b"specification is not a report", Box::new([]));
+    member.authority.tools = tasks::Tools(519);
+    member.contract = tasks::Contract::Report { words: driver.env.limits.tasks.result_bytes };
+    temper_engine_domain_world::fixtures::tool_call(
+        driver,
+        run,
+        10,
+        engine::Tool::Delegate { batch: Box::new([member]) },
+    );
+    let Some(engine::CallAnswer::Delegated(children)) = driver.answered(10) else { panic!("report delegate") };
+    let child = children[0].task;
+    let producer = super::added_deps::assignment(driver, child);
+    driver.answer(
+        Token::new(7),
+        child,
+        producer.attempt,
+        0,
+        tasks::End::Finished { result: tasks::TaskResult::Report { words: expected.into() }, cancel_delegates: false },
+        engine::Parts::none(),
+    );
+    driver.settle();
+    child
+}
+
 #[test]
 fn task_report_selectors_render_complete_retained_continuations() {
     const REPORT: &[u8] = b"Left: document retained reports; disposition: accepted.";
@@ -486,31 +512,7 @@ fn task_report_selectors_render_complete_retained_continuations() {
         bounds.loads.bytes = PAGE_BYTES;
         bounds.loads.reply_bytes = PAGE_BYTES;
         let (mut driver, run) = coordinator_within(bounds);
-        let mut member =
-            temper_engine_domain_world::fixtures::report_delegate(b"specification is not a report", Box::new([]));
-        member.authority.tools = tasks::Tools(519);
-        member.contract = tasks::Contract::Report { words: bounds.tasks.result_bytes };
-        temper_engine_domain_world::fixtures::tool_call(
-            &mut driver,
-            &run,
-            10,
-            engine::Tool::Delegate { batch: Box::new([member]) },
-        );
-        let Some(engine::CallAnswer::Delegated(children)) = driver.answered(10) else { panic!("report delegate") };
-        let child = children[0].task;
-        let producer = super::added_deps::assignment(&driver, child);
-        driver.answer(
-            Token::new(7),
-            child,
-            producer.attempt,
-            0,
-            tasks::End::Finished {
-                result: tasks::TaskResult::Report { words: expected.clone().into() },
-                cancel_delegates: false,
-            },
-            engine::Parts::none(),
-        );
-        driver.settle();
+        let child = retain_report(&mut driver, &run, &expected);
         let applied = driver.store.applied;
         let mut report = String::new();
         let mut from = 0;
@@ -1778,29 +1780,62 @@ fn read_room_bounds(reply: Option<u32>) -> engine::Limits {
 }
 
 fn read_whole(driver: &mut Driver, run: &engine::Assignment, child: u64) -> (Vec<u8>, u32) {
+    read_task_whole(driver, run, child, "specification", REPLY)
+}
+
+fn read_task_bytes(piece: &str) -> Vec<u8> {
+    let mut words = Vec::new();
+    let mut bytes = piece.bytes();
+    while let Some(byte) = bytes.next() {
+        if byte == b'\\' {
+            assert_eq!(bytes.next(), Some(b'x'), "escaped report byte");
+            let hex: String = bytes.by_ref().take(2).map(char::from).collect();
+            assert_eq!(hex.len(), 2, "complete byte escape");
+            words.push(u8::from_str_radix(&hex, 16).expect("hex byte"));
+        } else {
+            words.push(byte);
+        }
+    }
+    std::str::from_utf8(&words).expect("each page preserves UTF-8 boundaries");
+    words
+}
+
+fn read_task_whole(
+    driver: &mut Driver,
+    run: &engine::Assignment,
+    child: u64,
+    field: &str,
+    reply: u32,
+) -> (Vec<u8>, u32) {
+    let tool_bytes = u32::try_from(b"read_task".len()).expect("tool name fits u32");
+    let maximum = reply.min(driver.env.limits.call_answer_bytes.saturating_sub(tool_bytes));
     let mut words = Vec::new();
     let mut calls = 0;
     loop {
         let from = words.len();
-        let input = format!("{{\"task\":{child},\"from\":{from}}}");
+        let input = format!(r#"{{"task":{child},"field":"{field}","from":{from}}}"#);
         let answer = decoded_task_call(driver, run, 100 + u64::from(calls), b"read_task", input.as_bytes());
         let engine::CallAnswer::TaskRead(result) = &answer else { panic!("task read") };
         let read = result.as_ref().as_ref().expect("successful read through the journal door");
         let counted = u64::try_from(size_of_val(result.as_ref())).expect("task-read carrier fits u64")
             + jig_domain_core::reads::run_task::owned_bytes(read);
         assert!(counted <= u64::from(driver.env.limits.journal.transcript_bytes));
-        let rendered = temper_engine_smith::answer_bounded(&answer, REPLY);
+        let word_room = driver.env.limits.host_reply_bytes.unwrap_or(driver.env.limits.documents.text_bytes);
+        assert!(read.words.bytes.len() <= usize::try_from(word_room).expect("word room fits usize"));
+        assert!(read.words.bytes.len() <= usize::try_from(driver.env.limits.call_answer_bytes).expect("call room"));
+        let rendered = temper_engine_smith::answer_for_tool(&answer, b"read_task", maximum);
         assert!(!rendered.error(), "{}", String::from_utf8_lossy(rendered.text()));
-        assert!(rendered.text().len() <= usize::try_from(REPLY).expect("reply fits usize"));
+        assert!(rendered.text().len() <= usize::try_from(maximum).expect("reply fits usize"));
         let rendered = std::str::from_utf8(rendered.text()).expect("rendered UTF-8");
-        let label = format!("Words from {from}:\n");
+        let heading = if field == "result" { "Result" } else { "Words" };
+        let label = format!("{heading} from {from}:\n");
         let body = rendered.split_once(&label).expect("words offset").1;
         calls += 1;
         if let Some((piece, next)) = body.rsplit_once("\nnext: ") {
-            words.extend_from_slice(piece.as_bytes());
+            words.extend_from_slice(&read_task_bytes(piece));
             assert_eq!(next.parse::<usize>().expect("next byte offset"), words.len(), "follow the printed next");
         } else {
-            words.extend_from_slice(body.as_bytes());
+            words.extend_from_slice(&read_task_bytes(body));
             return (words, calls);
         }
         assert!(calls < 20, "read makes progress");
@@ -1857,4 +1892,44 @@ fn a_read_stays_within_the_journal_bound() {
     let child = coordinator_delegates(&mut driver, &run, 10, &[&spec], None)[0];
     let (words, _) = read_whole(&mut driver, &run, child);
     assert_eq!(words, spec);
+}
+
+// temper/docs/design/domain/root.md, 5.2 and domain/agent.md, 4.3.
+#[test]
+fn a_goal_reads_a_whole_design_result_in_practical_pages() {
+    const PRACTICAL_REPLY: u32 = 16_384;
+    let mut bounds = read_room_bounds(Some(PRACTICAL_REPLY));
+    bounds.documents.text_bytes = 128;
+    bounds.call_answer_bytes = PRACTICAL_REPLY;
+    bounds.tasks.result_bytes = 32_768;
+    bounds.tasks.inbox_bytes = bounds.tasks.result_bytes;
+    bounds.forge.client.op_bytes = bounds.tasks.result_bytes;
+    bounds.journal.result_bytes = bounds.tasks.result_bytes;
+    // A retained task row carries its result, terminal outcome and inbox copies.
+    bounds.journal.transcript_bytes = 262_144;
+    bounds.loads.transcript_bytes = 262_144;
+    bounds.loads.bytes = 262_144;
+    bounds.loads.reply_bytes = 262_144;
+    bounds.loads.read_bytes = 262_144;
+    for (requirements, pages) in [(1, 1), (230, 3)] {
+        let (mut driver, run) = coordinator_within(bounds);
+        let report = format!(
+            "Design: keep UTF-8 words and their byte offsets through task handoffs.\n\n\
+             Coding spec: implement bounded reads in the domain and rendered continuations.\n{}\n\
+             Acceptance: reconstruct every byte, including this final café 🦀.\n",
+            "Requirement: retain the complete design and coding spec; follow each printed next offset, preserving café 🦀 and all reply limits.\n".repeat(requirements)
+        );
+        let child = retain_report(&mut driver, &run, report.as_bytes());
+        let applied = driver.store.applied;
+        let (words, calls) = read_task_whole(&mut driver, &run, child, "result", PRACTICAL_REPLY);
+        assert_eq!(words, report.as_bytes(), "the handoff includes the complete coding spec and tail");
+        assert_eq!(calls, pages, "result pages use the admitted reply room rather than the client window");
+        let input = format!(r#"{{"task":{child},"field":"result","from":{}}}"#, report.len() + 1);
+        let answer = decoded_task_call(&mut driver, &run, 199, b"read_task", input.as_bytes());
+        assert!(matches!(&answer, engine::CallAnswer::TaskRead(read) if **read == Err(tasks::Refusal::Unknown)));
+        let rendered = temper_engine_smith::answer_bounded(&answer, PRACTICAL_REPLY);
+        assert!(rendered.error());
+        assert!(String::from_utf8_lossy(rendered.text()).contains("no text at that offset"));
+        assert_eq!(driver.store.applied, applied, "result reads and their refusal record no calls");
+    }
 }
