@@ -50,7 +50,9 @@ pub(crate) fn main(
         .min();
     }
     if let Some(need) = session.shown(inbox, root.forge().approvals()) {
-        flow(b, root, w, bindings, times, need, &lines, rows, sign_in);
+        if needs::ready(root, need) {
+            flow(b, root, w, bindings, times, need, &lines, rows, sign_in);
+        }
     } else {
         b.open(Role::Slot);
         b.style(look::NEEDS_INTRO);
@@ -197,6 +199,9 @@ fn card_main(
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
     };
     ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
+    if let Some(why) = crate::shared::why(root, w, needs::Need::Card(card)) {
+        ask::text(b, Role::Paragraph, &why, look::WHY);
+    }
     context(b, root, &asked, w, rows);
     ask::whole_parts(b, &asked, w, bindings);
     if let Some(outcome) = session.refused(card.object) {

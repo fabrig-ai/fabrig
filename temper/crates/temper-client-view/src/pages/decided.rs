@@ -86,7 +86,7 @@ fn decision(
         b.text(Run::Plain, b" ");
     }
     if let Some(reach) = &row.reach {
-        let allowed = crate::shared::allowed(w, reach, None);
+        let allowed = crate::shared::allowed(w, reach, root.forge().classes(row.project));
         if !allowed.is_empty() {
             text(b, Role::Text, &allowed, Some(look::DECISION_ALLOWED));
             if w.shell == Shell::Terminal {

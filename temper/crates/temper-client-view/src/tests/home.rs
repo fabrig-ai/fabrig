@@ -292,6 +292,7 @@ struct NeedsFixture<'a> {
     objects: &'a [c::ObjectKey],
     cut: bool,
     read: bool,
+    decided: bool,
 }
 fn home_with_needs(
     rows: List<w::ForgeRow>,
@@ -605,6 +606,38 @@ fn settle_home(
     while let Some(request) = out.pop() {
         let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         let mut more = match down {
+            jig_client::Down::Open { watch, subject }
+                if status.and_then(|s| s.away.as_ref()).is_none()
+                    && needs.is_some_and(|n| n.decided)
+                    && Some(&subject) == d::forge::decided::watch(f::PROJECT, &home_limits().forge).as_ref() =>
+            {
+                drive(
+                    root,
+                    d::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::decisions(
+                                        &w::Decisions::new(
+                                            &w::CEILINGS,
+                                            w::DecisionsParts {
+                                                project: f::PROJECT,
+                                                rows: List::with_capacity(0),
+                                                asked: List::with_capacity(0),
+                                                cut: false,
+                                            },
+                                        )
+                                        .unwrap(),
+                                    ),
+                                },
+                            },
+                        },
+                    },
+                )
+            }
             jig_client::Down::Open { watch, subject }
                 if status.and_then(|s| s.away.as_ref()).is_some()
                     && (Some(&subject) == d::forge::away::watch(&home_limits().forge).as_ref()
@@ -1317,7 +1350,7 @@ const QUESTIONS: [c::ObjectKey; 7] = [
     c::ObjectKey::Question { task: f::INBOX_TASK, message: 7 },
 ];
 fn everyday(beginning: bool, objects: &[c::ObjectKey], cut: bool, read: bool) -> d::Domain {
-    home_with_needs(forge_rows(true), !beginning, true, Some(NeedsFixture { objects, cut, read })).0
+    home_with_needs(forge_rows(true), !beginning, true, Some(NeedsFixture { objects, cut, read, decided: true })).0
 }
 fn inbox_act() -> d::pages::Act {
     d::pages::Act::Go {
@@ -1413,11 +1446,11 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
             let card = children(subtree(tree, parts[1].id));
             assert_eq!(
                 card.iter().map(|node| node.styles.as_slice()[0]).collect::<Box<[_]>>().as_ref(),
-                [crate::look::ASK_META, crate::look::ASK_QUESTION, crate::look::ASK_CHOICES]
+                [crate::look::ASK_META, crate::look::ASK_QUESTION, crate::look::WHY, crate::look::ASK_CHOICES]
             );
             assert_eq!(card[0].name.as_deref(), Some("Add a README · a question · under 1 min".as_bytes()));
             assert_eq!(card[1].name.as_deref(), Some(b"Which license?".as_slice()));
-            let choices = children(subtree(tree, card[2].id));
+            let choices = children(subtree(tree, card[3].id));
             assert_eq!(choices.len(), 2);
             assert_eq!(choices[0].styles.as_slice(), &[crate::look::ASK_QUIET]);
             if browser {
@@ -1665,7 +1698,7 @@ fn home_chats(chats: ChatFixture) -> d::Domain {
         forge_rows(true),
         true,
         true,
-        Some(NeedsFixture { objects: &[], cut: false, read: true }),
+        Some(NeedsFixture { objects: &[], cut: false, read: true, decided: true }),
         Some(chats),
     )
     .0
@@ -1756,7 +1789,7 @@ fn sections_are_hidden_while_to_begin_shows() {
                 forge_rows(true),
                 false,
                 false,
-                Some(NeedsFixture { objects, cut: false, read: true }),
+                Some(NeedsFixture { objects, cut: false, read: true, decided: true }),
                 Some(chat_fixture(chats_count, 0, false, false)),
             )
             .0;
@@ -1868,7 +1901,7 @@ fn home_skipped_project_draws_the_everyday_intro() {
         forge_rows(true),
         false,
         false,
-        Some(NeedsFixture { objects: &[], cut: false, read: true }),
+        Some(NeedsFixture { objects: &[], cut: false, read: true, decided: true }),
         None,
         Some(&[f::PROJECT]),
         true,
@@ -2193,7 +2226,7 @@ fn status_home(parts: w::ProjectStatusParts, answered: bool, beginning: bool, go
         forge_rows(true),
         !beginning,
         !beginning,
-        Some(NeedsFixture { objects: &[], cut: false, read: true }),
+        Some(NeedsFixture { objects: &[], cut: false, read: true, decided: true }),
         None,
         Some(&[]),
         true,
@@ -2386,9 +2419,22 @@ fn needs_act(root: &mut d::Domain, act: d::pages::needs::Act) {
 #[expect(clippy::disallowed_methods, reason = "test assertions inspect semantic subtrees and public action deliveries")]
 fn parsed_home_card_replies_in_place_and_prints_choices() {
     use d::pages::needs::Act as N;
+    let waiting = home_with_needs(
+        forge_rows(true),
+        true,
+        true,
+        Some(NeedsFixture { objects: &[PARSED], cut: false, read: true, decided: false }),
+    )
+    .0;
+    let view = f::browser_page_view(&waiting);
+    main_find(view.tree(), Role::Region, b"Needs you");
+    main_find(view.tree(), Role::Heading { level: 2 }, "Needs you · 1".as_bytes());
+    assert!(!main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::ASK)));
+    assert!(!main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::HOME_CTA)));
     let mut root = everyday(false, &[PARSED, QUESTIONS[0]], false, true);
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         main_find(view.tree(), Role::Paragraph, b"Which license?");
+        main_find(view.tree(), Role::Paragraph, b"Reached you because it was asked of you directly.");
         main_find(view.tree(), Role::Paragraph, b"The README needs a license.");
         let saw = styled(view.tree(), crate::look::ASK_SAW);
         assert_eq!(saw.role, Role::Disclosure);
@@ -2643,7 +2689,12 @@ fn home_goals(live: usize, ended: usize, beginning: bool) -> d::Domain {
         forge_rows(true),
         !beginning,
         !beginning,
-        Some(NeedsFixture { objects: &[c::ObjectKey::Question { task: 9, message: 1 }], cut: false, read: true }),
+        Some(NeedsFixture {
+            objects: &[c::ObjectKey::Question { task: 9, message: 1 }],
+            cut: false,
+            read: true,
+            decided: true,
+        }),
         Some(chat_fixture(1, 0, false, false)),
         Some(&[]),
         true,
@@ -3345,7 +3396,7 @@ fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts
         forge_rows(true),
         !beginning,
         !beginning,
-        Some(NeedsFixture { objects, cut: false, read: true }),
+        Some(NeedsFixture { objects, cut: false, read: true, decided: true }),
         None,
         Some(&[]),
         true,

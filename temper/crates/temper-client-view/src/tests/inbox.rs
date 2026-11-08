@@ -217,6 +217,18 @@ fn cards_are_grouped_in_lists_with_kinds_and_named_project_paths() {
         } else {
             assert_eq!(style_count(subtree(tree, card), look::META), 0);
         }
+        let mut line = None;
+        for node in subtree(tree, card) {
+            if node.styles.as_slice().contains(&look::WHY) {
+                line = node.name.as_deref();
+            }
+        }
+        let expected = match i {
+            0 => Some(b"Reached you because a proposal always waits for whoever may accept it.".as_slice()),
+            2 => Some(b"Reached you because a held task always waits for whoever may release it.".as_slice()),
+            _ => None,
+        };
+        assert_eq!(line, expected);
     }
 }
 #[test]

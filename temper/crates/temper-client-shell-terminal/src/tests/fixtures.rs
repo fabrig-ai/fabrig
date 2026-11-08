@@ -584,6 +584,9 @@ pub fn inbox_page() -> skein_ui::Tree {
             if *kind == b"Proposal" {
                 golden_cards::proposal(&mut builder);
             }
+            if heading == b"Needs you" {
+                golden_cards::why(&mut builder, kind);
+            }
             if heading == b"Updates" {
                 builder.open(Role::Paragraph);
                 builder.text(Run::Plain, &time);

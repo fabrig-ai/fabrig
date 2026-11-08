@@ -549,7 +549,19 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Ask { .. }
         | Address::Welcome { .. } => false,
     };
-    forge::ways::progress(&mut root.forge, env.now, root.pages.project(), on_tab, env.limits.forge, &mut child);
+    let shown = if let Address::Inbox { .. } = root.pages.address() {
+        match root.pages.inbox() {
+            Some(inbox) => match root.pages.needs().shown(inbox, root.forge.approvals()) {
+                Some(crate::pages::needs::Need::Card(card)) => card.project,
+                Some(crate::pages::needs::Need::Approval(row)) => Some(row.project),
+                None => None,
+            },
+            None => None,
+        }
+    } else {
+        None
+    };
+    forge::ways::progress(&mut root.forge, env.now, root.pages.project(), shown, on_tab, env.limits.forge, &mut child);
     forge::ways::proposals(&mut root.forge, root.pages.cards(), env.limits.forge, &mut child);
     route_forge(root, env, &mut child, out);
 }

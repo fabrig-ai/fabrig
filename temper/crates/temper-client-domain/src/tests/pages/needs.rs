@@ -1122,3 +1122,271 @@ fn a_paste_past_the_bound_stays_and_sends_nothing() {
         assert_eq!(sent(&mut fire(&mut pages, HOLD_DUE)).1, expected(FIRST, b"short", fixtures::PROJECT));
     }
 }
+
+fn why_root(state: &str, rows: &[(u64, u64, temper_protocol_reaches::Reach)]) -> crate::Domain {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let limits = fixtures::limits();
+    let env = fixtures::env(&limits);
+    let mut root = crate::unlinked(&limits, fixtures::SEED);
+    let me = fixtures::start(&mut root, List::with_capacity(0));
+    fixtures::confirm(&mut root, me, fixtures::PARTY, &mut Queue::uncapped());
+    if state == "unwatched" {
+        return root;
+    }
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut root,
+        &env,
+        crate::Event::Went { place: crate::Place::Address(Address::Home { project: fixtures::PROJECT }) },
+        &mut out,
+    );
+    let subject = crate::forge::decided::watch(fixtures::PROJECT, &limits.forge).unwrap();
+    let mut watch = None;
+    for request in &out {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch: found, subject: opened } },
+        } = request
+            && *opened == subject
+        {
+            watch = Some(*found);
+        }
+    }
+    let watch = watch.unwrap();
+    if state == "unknown" {
+        return root;
+    }
+    let up = if state == "ended" {
+        jig_client::Up::WatchEnded { watch, end: c::WatchEnd::NotAllowed }
+    } else {
+        let mut asked = List::with_capacity(16);
+        for (index, (task, at, reach)) in rows.iter().enumerate() {
+            asked
+                .push(
+                    w::Asked::new(
+                        &w::CEILINGS,
+                        w::AskedParts {
+                            number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
+                            task: *task,
+                            at: *at,
+                            reach: temper_protocol_reaches::reach_record(reach),
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        let document = w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: state == "cut" },
+        )
+        .unwrap();
+        jig_client::Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::decisions(&document),
+            },
+        }
+    };
+    crate::step(&mut root, &env, crate::Event::Client { event: jig_client::Event::Up { up } }, &mut Queue::uncapped());
+    root
+}
+#[test]
+#[expect(clippy::too_many_lines, reason = "each row names one question matching or document readiness rule")]
+fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
+    use temper_protocol_reaches::{Class, Kind, Reach, Reason};
+    let reach = Reach {
+        kind: Kind::Implementation,
+        class: Class::Ask,
+        reason: Reason::Kind,
+        under: 0,
+        sets: 0,
+        matched: 0,
+        away: false,
+    };
+    let other = Reach { kind: Kind::Tests, ..reach };
+    let expected = Some(needs::Why::Reach { project: fixtures::PROJECT, reach });
+    let mut question = f::question();
+    if let c::ReadValue::Question(q) = &mut question {
+        q.from = Some(c::Requester::Task(42));
+        q.since = Wall::from_nanos(20);
+    }
+    let mut own = question.clone();
+    if let c::ReadValue::Question(q) = &mut own {
+        q.from = None;
+    }
+    let mut person = f::person(c::ActKind::Answer);
+    if let c::ReadValue::PersonTask(p) = &mut person {
+        p.requester = c::Requester::Task(42);
+    }
+    let mut timed_person = person.clone();
+    if let c::ReadValue::PersonTask(p) = &mut timed_person {
+        p.since = Some(Wall::from_nanos(20));
+    }
+    let mut funds = f::held(c::ActKind::Release);
+    if let c::ReadValue::Escalation(e) = &mut funds {
+        e.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+    }
+    let mut ordinary = person.clone();
+    if let c::ReadValue::PersonTask(p) = &mut ordinary {
+        p.address = c::PersonAddress::Role(1);
+    }
+    for (name, page, group, state, rows, why, ready) in [
+        (
+            "newest eligible",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(42, 20, reach), (42, 10, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "later ignored",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(42, 20, reach), (42, 21, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "other task ignored",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(42, 20, reach), (43, 20, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "own task",
+            own,
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(f::TASK, 20, reach)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "person requester newest",
+            person,
+            c::InboxGroup::PersonTasks,
+            "delivered",
+            Box::from([(42, 50, reach), (42, 20, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "person timestamp",
+            timed_person,
+            c::InboxGroup::PersonTasks,
+            "delivered",
+            Box::from([(42, 20, reach), (42, 21, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "direct",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([].as_slice()),
+            Some(needs::Why::Direct),
+            true,
+        ),
+        ("cut", question.clone(), c::InboxGroup::Questions, "cut", Box::from([].as_slice()), None, true),
+        (
+            "cut with row",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "cut",
+            Box::from([(42, 20, reach)].as_slice()),
+            expected,
+            true,
+        ),
+        ("unwatched", question.clone(), c::InboxGroup::Questions, "unwatched", Box::from([].as_slice()), None, true),
+        ("ended", question.clone(), c::InboxGroup::Questions, "ended", Box::from([].as_slice()), None, true),
+        ("unknown", question.clone(), c::InboxGroup::Questions, "unknown", Box::from([].as_slice()), None, false),
+        (
+            "decided",
+            question,
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(42, 20, Reach { class: Class::Decide, ..reach })].as_slice()),
+            Some(needs::Why::Direct),
+            true,
+        ),
+        (
+            "invalid reach",
+            f::question(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(f::TASK, 0, Reach { reason: Reason::Set(0), ..reach })].as_slice()),
+            Some(needs::Why::Direct),
+            true,
+        ),
+        (
+            "proposal",
+            f::proposal(c::ActKind::Accept, c::Admission::Allowed),
+            c::InboxGroup::Proposals,
+            "unknown",
+            Box::from([].as_slice()),
+            Some(needs::Why::Proposal),
+            true,
+        ),
+        (
+            "held",
+            f::held(c::ActKind::Release),
+            c::InboxGroup::Escalations,
+            "unknown",
+            Box::from([].as_slice()),
+            Some(needs::Why::Held),
+            true,
+        ),
+        (
+            "funds",
+            funds,
+            c::InboxGroup::Escalations,
+            "unknown",
+            Box::from([].as_slice()),
+            Some(needs::Why::Funds),
+            true,
+        ),
+        ("ordinary person", ordinary, c::InboxGroup::PersonTasks, "unknown", Box::from([].as_slice()), None, true),
+    ] {
+        let root = why_root(state, &rows);
+        let mut pages = fixture();
+        let card = pages.inbox.as_mut().unwrap().cards.get_mut(0).unwrap();
+        card.page = Some(page);
+        card.group = group;
+        assert_eq!(needs::why(&root, needs::Need::Card(card)), why, "{name}");
+        assert_eq!(needs::ready(&root, needs::Need::Card(card)), ready, "{name}");
+    }
+    let root = why_root("unknown", &[]);
+    let approval = crate::forge::approvals::Row {
+        task: f::TASK,
+        project: fixtures::PROJECT,
+        goal: None,
+        forge: 1,
+        kind: crate::forge::forges::Kind::Forgejo,
+        owner: b"work".as_slice().into(),
+        name: b"hello".as_slice().into(),
+        pull: 1,
+        address: Box::default(),
+        title: Box::default(),
+        since: Wall::EPOCH,
+        scope: fixtures::PROJECT,
+        rule: 1,
+        role: 1,
+        required: 1,
+        counted: 0,
+        behind: 0,
+        whole: true,
+        yours: crate::forge::approvals::Yours::Counts,
+    };
+    assert_eq!(needs::why(&root, needs::Need::Approval(&approval)), None, "approval");
+    assert!(needs::ready(&root, needs::Need::Approval(&approval)), "approval");
+}

@@ -145,6 +145,63 @@ pub fn domain(name: &str) -> Domain {
                     &mut out,
                 );
             }
+            jig_client::Down::Open { watch, subject }
+                if Some(&subject)
+                    == temper_client_domain::forge::decided::watch(1, &driver::limits().forge).as_ref() =>
+            {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                let mut asked = List::with_capacity(1);
+                if name == "needs-why" {
+                    let reach = temper_protocol_reaches::Reach {
+                        kind: temper_protocol_reaches::Kind::Implementation,
+                        class: temper_protocol_reaches::Class::Ask,
+                        reason: temper_protocol_reaches::Reason::Kind,
+                        under: 0,
+                        sets: 0,
+                        matched: 0,
+                        away: false,
+                    };
+                    let task = match prototype.from {
+                        Some(c::Requester::Task(task)) => task,
+                        Some(c::Requester::Person(_) | c::Requester::Deployment { .. }) | None => 1,
+                    };
+                    asked
+                        .push(
+                            w::Asked::new(
+                                &w::CEILINGS,
+                                w::AskedParts {
+                                    number: 1,
+                                    task,
+                                    at: 0,
+                                    reach: temper_protocol_reaches::reach_record(&reach),
+                                },
+                            )
+                            .expect("asked row"),
+                        )
+                        .expect("one asked row");
+                }
+                let document = w::Decisions::new(
+                    &w::CEILINGS,
+                    w::DecisionsParts { project: 1, rows: List::with_capacity(0), asked, cut: false },
+                )
+                .expect("decided document");
+                driver::step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::decisions(&document),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
                 let rows = if group == c::InboxReadGroup::Needs { entries(name) } else { List::with_capacity(0) };
                 driver::answer(

@@ -403,7 +403,7 @@ fn needs(
         }
         if w.shell == Shell::Browser {
             match first {
-                needs::Need::Card(card) if card.page.is_none() => {}
+                needs::Need::Card(card) if card.page.is_none() || !needs::ready(root, *first) => {}
                 needs::Need::Card(_) | needs::Need::Approval(_) => {
                     phone_need(b, first, count, w, bindings, project);
                 }
@@ -423,6 +423,9 @@ fn ask(
     times: &mut Times,
     rows: u32,
 ) {
+    if !needs::ready(root, needs::Need::Card(card)) {
+        return;
+    }
     let mut asked = super::ask::read(card, w);
     if card.page.is_none() {
         asked.title = super::ask::need_title(card, w);

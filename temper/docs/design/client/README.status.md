@@ -2,11 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Needs you*, *Why it reached you*, and *A card that
-  needs the person*; 5.13, kind 8 of the shown card's project: no need says
-  why it reached the person, and no card waits for its project's `decided`
-  document. `ui-reaches/needs-why`.
-
 - **Not yet:** 3.5, *Needs you*, *Stop asking* and *Keep asking*, and *What
   the client keeps*' Stop asking: no reason line offers Stop asking, and the
   client sends no `KeepAsking`. `ui-reaches/stop-asking`.
