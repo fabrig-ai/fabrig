@@ -1,6 +1,8 @@
 # ui-web: status
 
-2026-11-07. Where skein's code lags or departs from [ui-web.md](ui-web.md).
+2026-11-08. Where skein's code lags or departs from [ui-web.md](ui-web.md).
+
+- **Not yet:** 8 and 12: a scene that says its width has no SVG of its own width, no `data-scene-width` and no scaled press point, and `skein-ui.css` no rule scaling it (`look-round-24`, `scene-width`).
 
 Sections 6 and 7 have no known gap in a field's options: listbox and
 option mapping, retained active selection, arrows, Enter without a

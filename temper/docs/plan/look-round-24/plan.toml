@@ -4,3 +4,48 @@ sources = ["temper/docs/plan/look-round-24/inputs/request.md", "temper/docs/desi
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "stroke"
+title = "A path's marks and labels take no outline: skein's default stroke gives way under the path"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[part]]
+id = "scale"
+title = "Across, a path is the request's 720 by 140 picture scaled to its box; an open card stands 14 under the drawing at every width"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.16"
+
+[[part]]
+id = "gallery"
+title = "The gallery prints each path across and down the page, and shows the second at a phone's width"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 7.1"
+
+[[slice]]
+id = 1
+story = "A path's stops, bars and labels carry no ink outline, by day or by night, while its line, boundary, rings, halo and caret keep their own"
+parts = ["stroke"]
+walk = false
+
+[[slice]]
+id = 2
+story = "At 1000 the path is 658 by 127.94, its open card where the request's is; on a phone the open card stands 14 under the path, with no caret"
+parts = ["scale"]
+walk = false
+
+[[slice]]
+id = 3
+story = "The gallery's ask-first-run at 420 runs the path down the page, and over 760 across, as the shell draws them"
+parts = ["gallery"]
+walk = false
