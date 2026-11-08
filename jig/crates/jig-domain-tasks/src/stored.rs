@@ -5,6 +5,7 @@ use crate::domain::{Domain, Startup, Task, activate, publish, record, snapshot, 
 use crate::{
     Active, Closing, Executor, Limits, Party, Phase, Problem, Refusal, Request, Stage, Stored, TaskRecord, Was,
 };
+use alloc::boxed::Box;
 use skein_lib::{Env, Queue};
 
 pub(crate) mod failure;
@@ -60,18 +61,11 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
                 Executor::Person(_) | Executor::Procedure { .. } | Executor::Job { .. } => {}
             }
             crate::settings::hold(domain, &task);
-            let id = domain
-                .tasks
-                .insert(Task {
-                    published: Some(task.clone()),
-                    procedure_offered: None,
-                    observed_phase: Some(task.phase.clone()),
-                    record: *task,
-                    alarm: None,
-                    grace_alarm: None,
-                    observed_hold,
-                })
-                .expect("restored task admitted");
+            let mut restored = Task::new(*task);
+            restored.published = Some(Box::new(restored.record.clone()));
+            restored.observed_phase = Some(restored.record.phase.clone());
+            restored.observed_hold = observed_hold;
+            let id = domain.tasks.insert(restored).expect("restored task admitted");
             let indexed = domain.names.insert(number, id);
             assert!(indexed == Ok(None), "restored name admitted");
             crate::waits::refresh(domain, number);
