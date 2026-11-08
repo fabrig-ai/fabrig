@@ -60,7 +60,7 @@ or the nearest thing, and says so in that draft's status.
 | R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | not started |
 | F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | not started |
 | F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | not started |
-| T1 | The launchpad as drawn | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell` | M0 | temper/tui | not started |
+| T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | not started |
 | T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | not started |
 | T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | not started |
 | E | The whole story on a box | `whole-story.md`, 11 | every milestone above | each owner writes its part of the story | not started |
@@ -173,3 +173,13 @@ or the nearest thing, and says so in that draft's status.
   of it.
 - **Wide where it can be:** a track may run two plans at once when
   they share no files, such as P1 and P2, or R2 and R3.
+- **Started ahead of the go** (the user, 2026-11-08): the terminal's
+  directing work. P6 starts at once. T1 starts when `tui-box-front` and
+  `client-binary` have landed, and T2 when T1 and P6 have, beside the
+  work already in flight. Every other milestone waits for the user's
+  word, which comes no earlier than 2026-11-11.
+- **Ask temper around it** (the user, 2026-11-08): M2 and M4, which this
+  draft needs (`whole-story.md`, section 8), run ahead of the go, after
+  P6. M3b runs after this draft's stories, as nothing here needs its
+  views. The TUI's drawing of views is dropped for v0.1.0: T1 prints
+  them (`surfaces.md`, 11.5).
