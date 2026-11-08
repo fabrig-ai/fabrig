@@ -942,6 +942,4 @@ terminal checks remain section 11's after-landing work.
 
 - **Not yet:** 4.6: the records `BranchPath`, `WaysPanel` and `ViewAnswer`, the
   subject `ways` and the read `View`. 5.13, *A way's acts*: a way's
-  `delegation` adds no policy item. 5.16:
-  a `view` block shows as code, the chat page reads no view, and no path is
-  drawn.
+  `delegation` adds no policy item.
