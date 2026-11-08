@@ -32,14 +32,11 @@ parks without spending a try.
 
 - **Not yet:** 5.5: a start its host refused before the run's first turn
   is the invalid class (`jig-domain-hub-link`'s `payload::ending`), where
-  the section has it permanent. 5.6: an agent run's finish while its
-  task's delegates are live is refused, and the core fails its attempt
-  invalid (`jig-domain-core`'s `route_refused_payload`), where the section
-  has it park. 8.1, 8.3, 8.6, 9: an entry a run was offered under a
-  covering part and left undecided wakes the task again, but for a read
-  escalation awaiting an unanswered direct person delegate, kept in an
-  in-memory read set (`Task.read_escalations`). 8.6: a message that
-  arrives between a run's preparation and its claim, whose kind would add
+  the section has it permanent. 8.1, 8.3, 8.6, 9: an entry a run was
+  offered under a covering part and left undecided wakes the task again,
+  but for a read escalation awaiting an unanswered direct person delegate,
+  kept in an in-memory read set (`Task.read_escalations`). 8.6: a message
+  that arrives between a run's preparation and its claim, whose kind would add
   to its reasons, is kept back against the parts prepared
   (`jig-domain-core`'s `preparation_current`), where the section has the
   run prepare again.

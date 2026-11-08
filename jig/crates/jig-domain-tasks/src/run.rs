@@ -483,6 +483,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         }
         End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => None,
     };
+    let parked = invalid.is_none() && kept.run_parks(&end);
     let end = match end {
         End::Finished { result, cancel_delegates } => {
             if invalid.is_none() {
@@ -500,7 +501,6 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         }
         End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => end,
     };
-    let parked = kept.run_parks(&end);
     let end = if parked { End::Parked } else { end };
     let refuses_live = match &end {
         End::Finished { cancel_delegates, .. } => !cancel_delegates && !result_followups,

@@ -75,11 +75,9 @@ and catalogue-number reuse remain section 16's open questions.
 
 - **Not yet:** 7.1: a message or an entry that arrives between a run's
   preparation and its claim, and would add to its reasons, is kept back
-  rather than preparing the run again. 7.4: a finish while the task's
-  delegates are live fails its attempt invalid rather than parking it; an
-  entry left undecided under a covering part wakes the task again. 8: an
-  invalid start other than a transcript's is the invalid class, not the
-  permanent one.
+  rather than preparing the run again. 7.4: an entry left undecided under a
+  covering part wakes the task again. 8: an invalid start other than a
+  transcript's is the invalid class, not the permanent one.
 
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
