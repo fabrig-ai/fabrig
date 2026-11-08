@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
@@ -206,6 +206,8 @@ establish no rendered equality.
 - **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
   line (skein's `ui-web.status.md`, 4.3).
+- **Not yet:** 2.5, *An Ask temper chat's tag*: `temper.css`'s
+  `.temper-session-right > p:not(.temper-byline)` hides it at every width (look-round-18).
 - **Not yet:** 4.2, 4.3, 4.6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
@@ -258,6 +260,10 @@ establish no rendered equality.
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.
+- **Not yet:** 7.2, *The worlds are the mockups'*: the first run's worlds list the chat
+  template alone, so their pages draw no Ask temper row or tab; the reference world's
+  own way "Plan, then wait for me" is template 5, so its charter 1 chats read as Ask
+  temper's (look-round-18).
 - **Departs:** 2.5: Home uses the greenfield mock's own scale, as the
   project's frame and Goals do, where the general main's scale says
   14/12: its column is 720 px, body 15 px, headline 32 px (25 px on a

@@ -15,6 +15,8 @@ holds no act; its first replay proves the print against the live page.
   and Forgejo line, and To begin's two steps left: "Tell temper how you
   work" and "Start a chat". The repository step says "work/hello is in
   Hello". "Skip" and "Add Claude or another plan" remain available.
+  The rail lists "Ask temper" after "Chats", and the phone's tab bar
+  "Ask" after "Chats", as a fresh box offers Ask temper.
 
 The walk is recorded by `again project-landing` from its `setup`, with
 no hand driver.
