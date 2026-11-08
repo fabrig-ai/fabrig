@@ -1,0 +1,101 @@
+//! The rail's parts (temper/docs/design/client/README.md, 5.3).
+use crate::{Address, Domain};
+use skein_lib::Wall;
+
+/// What the rail's parts are decided from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "independent facts, one per rule")]
+pub struct Facts {
+    pub projects: u32,
+    pub needs: u32,
+    pub needs_cut: bool,
+    pub members: Option<u32>,
+    pub standing_roles: Option<u32>,
+    pub asking: bool,
+    pub away: bool,
+    pub drafts: bool,
+    pub beginning: bool,
+}
+
+/// What the rail and the tab bar show.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "one switch per part of the rail")]
+pub struct Parts {
+    pub all_projects: bool,
+    pub needs_you: bool,
+    pub count: u32,
+    pub cut: bool,
+    pub work: bool,
+    pub team: bool,
+    pub ask: bool,
+    pub how: bool,
+    pub away: bool,
+    pub new: New,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum New {
+    Hidden,
+    DraftOrChange,
+    Change,
+}
+
+#[must_use]
+pub fn parts(facts: &Facts) -> Parts {
+    let members = match facts.members {
+        Some(members) => members >= 2,
+        None => false,
+    };
+    let standing_roles = match facts.standing_roles {
+        Some(roles) => roles >= 1,
+        None => false,
+    };
+    Parts {
+        all_projects: facts.projects >= 2,
+        needs_you: !facts.beginning,
+        count: facts.needs,
+        cut: facts.needs_cut,
+        work: !facts.beginning,
+        team: !facts.beginning && (members || standing_roles),
+        ask: facts.asking,
+        how: !facts.beginning,
+        away: facts.away,
+        new: if facts.beginning {
+            New::Hidden
+        } else if facts.drafts {
+            New::DraftOrChange
+        } else {
+            New::Change
+        },
+    }
+}
+
+#[must_use]
+#[expect(clippy::useless_conversion, reason = "the rail's contract requires a saturating project-count conversion")]
+pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
+    let (projects, asking) = match root.pages().me(root.client()) {
+        Some(me) => (
+            u32::try_from(me.projects.len()).unwrap_or(u32::MAX),
+            jig_client::shapes::template(me, project, super::chats::ASKING_TEMPLATE).is_some(),
+        ),
+        None => (0, false),
+    };
+    let needs = root.pages().needs().count(root.client(), root.forge().approvals(), project);
+    Facts {
+        projects,
+        needs: needs.count,
+        needs_cut: needs.cut,
+        members: None,
+        standing_roles: None,
+        asking,
+        away: root.away_shown(project, wall),
+        drafts: super::drafts_offered(root, project),
+        beginning: super::home::beginning(root, project, wall),
+    }
+}
+
+/// Whether the page is one across projects.
+#[must_use]
+pub fn across(root: &Domain) -> bool {
+    if let Address::Inbox { filter } = root.pages().address() { filter.project.is_none() } else { false }
+}

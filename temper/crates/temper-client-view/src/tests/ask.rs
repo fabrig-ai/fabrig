@@ -1068,7 +1068,7 @@ fn settings_is_current_in_the_rail_and_phone_tabs() {
                 assert_eq!(current, [Some(b"Ask temper".as_slice())]);
                 if style == look::TABBAR {
                     let tabs = styled(view.tree(), style);
-                    assert_eq!(tabs.iter().filter(|node| node.role == Role::Link).count(), 5);
+                    assert_eq!(tabs.iter().filter(|node| node.role == Role::Link).count(), 4);
                     let ask = tabs
                         .iter()
                         .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Ask temper"))
@@ -1086,10 +1086,12 @@ fn unlisted_project_says_what_home_says_in_both_shells() {
     let (root, _, _) = f::root_at(Address::Ask { project: UNKNOWN }, &f::domain_limits());
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert!(String::from_utf8_lossy(&f::main_text(view.tree())).contains("Project 99 is not one of yours."));
-        let node = named(view.tree(), Role::Link, b"Chats").id;
+        let node = named(view.tree(), Role::Link, b"Work").id;
         assert_eq!(
             crate::act(&mut view, node, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go { address: Address::Chats { filter: d::ChatsFilter::All } }))
+            Some(d::Action::Pages(pages::Act::Go {
+                address: Address::Work { project: f::PROJECT, filter: d::WorkFilter::All }
+            }))
         );
         assert!(f::find(view.tree(), Role::TextArea, ENTRY).is_none());
         assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::STARTER)));
@@ -1238,7 +1240,7 @@ fn asking_chat_picker_applies_to_its_next_run() {
         let byline = named(view.tree(), Role::Disclosure, b"Model");
         assert_eq!(byline.description.as_deref(), Some(b"chosen".as_slice()));
         assert!(byline.styles.as_slice().contains(&look::MODEL));
-        let settings = named(view.tree(), Role::Link, b"Settings").id;
+        let settings = named(view.tree(), Role::Link, b"How work runs").id;
         assert_eq!(crate::href(&mut view, settings).as_deref(), Some(b"/projects/1/settings".as_slice()));
         let id = named(view.tree(), Role::Button, b"second").id;
         let action = crate::act(&mut view, id, Act::Press).expect("picker action");

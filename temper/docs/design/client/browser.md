@@ -250,8 +250,10 @@ replay says the same clocks (`README.md`, 5.12).
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
   | `Changes { project }` | `/projects/<project>/changes` |
+  | `Work { project, filter }` | `/projects/<project>/work`, and its filter's query |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Repositories { project }` | `/projects/<project>/settings/repositories` |
+  | `Models { project }` | `/projects/<project>/settings/models` |
   | `Builders { project }` | `/projects/<project>/settings/builders` |
   | `Role { project, charter }` | `/projects/<project>/settings/roles/<charter>` |
   | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
@@ -260,6 +262,8 @@ replay says the same clocks (`README.md`, 5.12).
   | `Chats { filter }` | `/chats`, and its filter's query |
   | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
   | `Accounts` | `/accounts` |
+  | `Members` | `/deployment/members` |
+  | `Limits` | `/deployment/limits` |
   | `Chat { task }` | `/chats/<task>` |
   | `Task { task }` | `/tasks/<task>` |
   | `Adopt { project }` | `/projects/<project>/adopt` |
@@ -295,6 +299,12 @@ replay says the same clocks (`README.md`, 5.12).
   `Authorize`'s query, kept as it came and never printed again, alone
   are in an address, and another page's query is dropped, `/chats/7?x=1`
   replaced with `/chats/7`.
+- **Work's filter is its query,** as the chats list's: none for All, so
+  that `/projects/<project>/work` is Work whole, and `?show=drafts` for
+  Drafts. A `show` that doesn't read as Drafts, or a field of another name,
+  is dropped, and the address replaced with the printed one. Work's other
+  filters are their pages' addresses, Goals' and Changes' (`README.md`, 3.5,
+  *Work*).
 - **The chats list's filter is its query,**
   as the inbox's (the user's pick, 10-23): none for "All", so that
   `/chats` is the list whole; `?state=live` for "Live",
@@ -694,9 +704,10 @@ replay says the same clocks (`README.md`, 5.12).
   column. On a phone, at 760 px and under, the column is one, the rail
   a top bar of the switcher alone, the brand's star before the
   project's name, its menu at least 220 px wide, and the tab bar fixed
-  at the foot, five links in five columns as wide as their words, each on
-  one line at any phone's width, a "Needs you" count included, and four
-  while `me` offers no Ask temper (the look request `ask-temper-place`),
+  at the foot, four links in four columns as wide as their words, Home,
+  Needs you, Work and Ask, each on one line at any phone's width, a "Needs
+  you" count included, and three while `me` offers no Ask temper (the look
+  request `ask-temper-place`),
   the page leaving it room; while To begin shows, three equal tabs, on Home
   and on Ask temper's page, whose chat layout draws no tab bar otherwise,
   its composer and model picker standing wholly over them, the page's foot
@@ -705,6 +716,32 @@ replay says the same clocks (`README.md`, 5.12).
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
   `temper.css` hides over 760 px, stands at that width alone (`README.md`, 3.5
   and 5.3).
+- **The rail as the whole story draws it** (`README.md`, 5.3; the mockups'
+  `whole-story.css`, `.rail`, `.nav`, `.nav .sep`, `.new` and `.foot`, in the
+  greenfield mock's paper and ink): the hairline after "Ask temper",
+  `div.temper-rail-sep`, a rule of the rail's line colour 8 px over and
+  under, inset as the entries are; the new box, "+ New draft or change" or
+  "+ New change", the dashed box `div.temper-rail-new` keeps, one button or
+  one link filling it, its menu the panel the box opened before; "Deployment"
+  at the foot, a row as the link's state's, above the person's row, its
+  dots after its word. The rules go under `temper.css`'s marker `/* ==== ui:
+  rail ==== */`, before the switcher's; the rules they replace go where they
+  stand.
+- **Work's look** (`README.md`, 3.5, *Work*; the mockup's `work.html` and
+  `whole-story.css`): the head as Home's intro, its kicker, headline and lede,
+  the landing's line in `small` under the lede; the filters, the mockup's
+  `.chips`, a chip each, the current one `.chip.sig`; each section's head
+  `.shead`, its title at the left and its quiet line at the right; each card
+  the mockup's `.card`, its from line `.from` led by its tag, `.who.a` for a
+  goal, `.who.c` for a change, `.who.p` for a chat and a draft, its
+  headline `.q`, a goal's bar 6 px high on the hairline's grey, its done part
+  ink, its rows `.rows`, its byline `.byline`; a landed row `.row`, its time
+  mono. Its rules go under `temper.css`'s marker `/* ==== ui: work ==== */`,
+  before Goals'. On a phone the column is one, the cards full width.
+- **Deployment's frame** is How work runs' tabs' frame, `.col`, its head and
+  its tab bar the same rules, its kicker "Deployment"; Members' and Limits'
+  lines are Repositories' and Workers' `.setting` lines. Its rules go under
+  `/* ==== ui: settings ==== */`.
 - **A selector a browser accepts:** no rule of the shell's stylesheets
   nests `:has()` inside another `:has()`, which Chromium refuses, and the
   whole rule with it, without a word. What a rule asks of a child's own
@@ -2155,8 +2192,23 @@ from the engine's own answers, is where the look is tuned.
 | `chats-drafts` | the Chats page under Drafts: "writes away-mode.md" |
 | `ask-chat-document` | an Ask temper chat in Chat, its document written |
 | `ask-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
-| `rail-new-menu` | the rail's "+ New chat" with its menu open |
+| `rail-new-menu` | the rail's "+ New draft or change" with its menu open: Draft, Change and Ask temper |
 | `rail-person-menu` | the rail's person with its menu open |
+| `rail-new-change` | a project offering no drafts, as at Pair: the rail's "+ New change", a link, no menu |
+| `rail-all-projects` | a person in two projects, the switcher open: "All projects", "2 projects", first |
+| `rail-across` | *Needs you* across projects: the switcher names "All projects", the rail's Work and How work runs the project last open |
+| `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts; four changes landed this week |
+| `work-pair` | hand-made deliveries after `pair/work.html`: chats and their changes alone, drafts not offered; no Drafts or Goals filter, the rail's "+ New change" |
+| `work-drafts` | `work` under Drafts: the drafts' cards alone |
+| `work-goals` | `work` under Goals: Work's head and filters, the goals' list under them, its heading at level 2 |
+| `work-changes` | `work` under Changes: Work's head and filters, the queue and what landed under them |
+| `work-empty` | hand-made deliveries with nothing listed: "Nothing in flight yet.", All alone among the filters |
+| `members` | Deployment's Members: the deployment's line, two projects' members with their roles |
+| `members-refused` | Members with one project's read refused: its title and "Read by the project’s members." |
+| `limits` | Deployment's Limits: the capacities, two waiting attempts, and two projects' tasks |
+| `limits-not-owner` | Limits for a person with no role in the deployment: its one line |
+| `night-work` | `work` with the night look on |
+| `night-limits` | `limits` with the night look on |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |
