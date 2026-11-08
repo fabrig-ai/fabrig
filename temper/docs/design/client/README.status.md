@@ -4,14 +4,19 @@
 
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
-Ask temper in both shells. The browser adds the night switch after the
-rail's foot; the four-byte look record restores night, accepts the old
+Ask temper in both shells. Home leaves Needs you and Chats out while
+To begin shows, even with delivered needs and chats; the existing section
+table covers populated and skipped states in both shells.
+Ask temper keeps its three phone tabs and room for the composer above
+them. The browser's night switch remains at the folded rail's foot and
+at a phone chat bar's right, including when the folded rail is open.
+No known implementation gap remains in these rules.
+The four-byte look record restores night, accepts the old
 three-byte record as day, and drives `html[data-night]` before drawing.
 A first visit is day; the terminal shells have no night switch.
 Domain, view and host tables cover these paths. The browser reload row
 is written and compiled, with no supplied runtime result; render checks
 and refinement remain section 11's after-landing work.
-
 
 Section 5.9's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
