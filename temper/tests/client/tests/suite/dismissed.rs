@@ -19,7 +19,7 @@ use temper_engine_domain_forge as forge;
 
 const CLIENT: ClientId = ClientId(0);
 // The person's other device, as in chat.rs.
-const INBOX_CLIENT: ClientId = ClientId(1);
+const SECOND_DEVICE: ClientId = ClientId(1);
 const OTHER_CLIENT: ClientId = ClientId(2);
 // Person 1 and its two sign-ins take the first three people identifiers.
 const OTHER_PARTY: u64 = 4;
@@ -43,7 +43,8 @@ struct Probe {
 fn probe(seed: u64, env: &Env<temper_client_domain::Limits>) -> Probe {
     let mut root = Root::Person(Box::new(temper_client_domain::unlinked(&env.limits, seed)));
     let mut out = Queue::uncapped();
-    Temper::step(&mut root, env, Temper::start(fixtures::inbox(), Vec::new(), 0), &mut out);
+    // Dismissal probes read global facts and need no page documents.
+    Temper::step(&mut root, env, Temper::start(temper_client_domain::Address::Forges, Vec::new(), 0), &mut out);
     Probe { root, out, sent: None, attempt: None, answers: Vec::new() }
 }
 struct Story {
@@ -56,7 +57,7 @@ impl Story {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fixtures::domain_limits() };
         let mut front = Joint::with_dismissal_people(fixtures::SEED, env.limits);
         let mut probes = Vec::new();
-        for who in [CLIENT, INBOX_CLIENT] {
+        for who in [CLIENT, SECOND_DEVICE] {
             front.bind(who, fixtures::PARTY);
             probes.push(probe(fixtures::SEED + u64::try_from(who.0).expect("client number"), &env));
         }
@@ -197,13 +198,13 @@ impl Story {
 fn a_dismissal_reaches_every_client_of_the_person() {
     let mut story = Story::new();
     story.other_person(true);
-    for who in [CLIENT, INBOX_CLIENT, OTHER_CLIENT] {
+    for who in [CLIENT, SECOND_DEVICE, OTHER_CLIENT] {
         assert_eq!(story.fact(who), Some(false), "client {who:?}");
     }
     story.dismiss(CLIENT, FIRST);
     story.answered_dismissed(CLIENT);
     assert_eq!(story.fact(CLIENT), Some(true));
-    assert_eq!(story.fact(INBOX_CLIENT), Some(true));
+    assert_eq!(story.fact(SECOND_DEVICE), Some(true));
     assert_eq!(story.fact(OTHER_CLIENT), Some(false));
 }
 
@@ -228,8 +229,8 @@ fn a_second_dismissal_is_answered_as_the_first() {
             }
         )]
     );
-    story.dismiss(INBOX_CLIENT, SECOND);
-    story.answered_dismissed(INBOX_CLIENT);
+    story.dismiss(SECOND_DEVICE, SECOND);
+    story.answered_dismissed(SECOND_DEVICE);
     assert_eq!(story.rows(), rows);
     for (number, at) in [(2200, 10), (2201, 10), (2202, 20)] {
         let key = Key { asker: Owner::Forge.asker(), number };
@@ -247,7 +248,7 @@ fn a_second_dismissal_is_answered_as_the_first() {
         ));
         assert_eq!(story.rows(), expected, "only the latest KeepAsking remains");
         // The forge side's dismissal watch is handle 2; read its wire facts before the reader filters them.
-        let watched = story.probes[INBOX_CLIENT.0]
+        let watched = story.probes[SECOND_DEVICE.0]
             .root
             .person()
             .client()
@@ -270,7 +271,7 @@ fn a_second_dismissal_is_answered_as_the_first() {
                 at
             )
         );
-        assert_eq!(story.fact(INBOX_CLIENT), Some(true), "To begin still reads its fact");
+        assert_eq!(story.fact(SECOND_DEVICE), Some(true), "To begin still reads its fact");
     }
 }
 
@@ -313,17 +314,17 @@ fn a_dismissal_outlives_a_restart() {
     story.dismiss(CLIENT, FIRST);
     story.answered_dismissed(CLIENT);
     story.front.restart_dismissal_people(OFFLINE);
-    story.front.reload(INBOX_CLIENT, story.env.now);
-    story.probes[INBOX_CLIENT.0] = probe(fixtures::SEED, &story.env);
+    story.front.reload(SECOND_DEVICE, story.env.now);
+    story.probes[SECOND_DEVICE.0] = probe(fixtures::SEED, &story.env);
     story.pump();
-    assert_eq!(story.fact(INBOX_CLIENT), None, "fresh client has no dismissal document yet");
+    assert_eq!(story.fact(SECOND_DEVICE), None, "fresh client has no dismissal document yet");
     story.env.now = story.env.now.saturating_add(OFFLINE);
     story.env.wall = Wall::from_nanos(story.env.now.as_nanos());
     for probe in &mut story.probes {
         Temper::fire(&mut probe.root, &story.env, &mut probe.out);
     }
     story.pump();
-    assert_eq!(story.fact(INBOX_CLIENT), Some(true));
+    assert_eq!(story.fact(SECOND_DEVICE), Some(true));
 }
 
 #[test]
@@ -354,7 +355,7 @@ fn a_goal_from_reaches_another_client_of_the_party() {
     story.dismiss_fact(CLIENT, FIRST, GOAL_FROM);
     story.answered_dismissed(CLIENT);
     assert_eq!(
-        story.probes[INBOX_CLIENT.0].root.person().forge().goals_from(PROJECT, 7).collect::<Vec<_>>(),
+        story.probes[SECOND_DEVICE.0].root.person().forge().goals_from(PROJECT, 7).collect::<Vec<_>>(),
         [(11, 0)]
     );
     assert_eq!(story.probes[OTHER_CLIENT.0].root.person().forge().goals_from(PROJECT, 7).collect::<Vec<_>>(), []);

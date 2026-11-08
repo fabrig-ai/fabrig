@@ -641,7 +641,7 @@ fn a_goal_is_answered_by_the_switch() {
     let goal = story.front.begin_away_goal();
     story.pump();
     story.home(CLIENT);
-    assert!(story.facts(CLIENT).away.is_none());
+    assert!(story.facts(CLIENT).decided.is_none());
     story.toggle();
     assert_eq!(story.decide(goal, 1), "Decided: carry on with Small.");
     let decisions = story.decisions();
@@ -653,9 +653,10 @@ fn a_goal_is_answered_by_the_switch() {
     assert_eq!(row.took, Some(0));
     assert_eq!(row.why.as_ref(), b"Fits the design");
     assert!(!row.overturned);
-    let form = story.facts(CLIENT).away.expect("Home hears the decision on its open watch");
-    assert_eq!(form.span, Some((story.stored().since, None)));
-    assert_eq!(form.landed, Some(0));
+    let form = story.facts(CLIENT).decided.expect("Home hears the decision on its open watch");
+    let spell = story.facts(CLIENT).spell.expect("Home hears the Away spell");
+    assert_eq!((spell.since, spell.end), (story.stored().since, None));
+    assert_eq!(spell.landed, Some(0));
     assert_eq!(form.showing, 1);
     let [line] = form.rows.as_ref() else { panic!("one decision on Home") };
     assert_eq!((line.number, line.task, line.at), (row.number, goal, row.at));
@@ -671,7 +672,7 @@ fn a_goal_is_answered_by_the_switch() {
     );
     asked_after(&decisions, &story.decisions());
     assert_eq!(
-        story.facts(CLIENT).away.expect("decisions remain after off").span,
+        story.facts(CLIENT).spell.map(|spell| (spell.since, spell.end)),
         Some((story.stored().since, Some(story.env.wall)))
     );
 }
@@ -700,7 +701,7 @@ fn past_until_the_client_draws_off_and_the_root_says_ask() {
     );
     asked_after(&decisions, &story.decisions());
     assert_eq!(story.stored(), before, "the call does not write the expired Away row");
-    assert_eq!(story.facts(CLIENT).away.expect("the earlier decision remains").span, Some((before.since, Some(until))));
+    assert_eq!(story.facts(CLIENT).spell.map(|spell| (spell.since, spell.end)), Some((before.since, Some(until))));
 }
 
 #[test]
@@ -713,7 +714,7 @@ fn another_partys_home_shows_nothing() {
     story.home(CLIENT);
     story.toggle();
     assert_eq!(story.decide(goal, 1), "Decided: carry on with Small.");
-    assert_eq!(story.facts(CLIENT).away.expect("owner's decision form").showing, 1);
+    assert_eq!(story.facts(CLIENT).decided.expect("owner's decision form").showing, 1);
     let decisions = story.decisions();
     let other = SECOND_DEVICE;
     // The people take turns on Home, leaving the fixed watch table room for the restart oracle.
@@ -724,7 +725,7 @@ fn another_partys_home_shows_nothing() {
     story.home(other);
     assert!(story.probes[other.0].decisions.as_ref().expect("the member's Home watch delivered").rows().is_empty());
     assert_eq!(story.row(other), None, "the switch belongs to its person");
-    assert!(story.facts(other).away.is_none(), "another member sees no decision form");
+    assert!(story.facts(other).decided.is_none(), "another member sees no decision form");
     story.probes[other.0].answers.clear();
     let bounds = &w::CEILINGS;
     let overturn = w::Overturn::new(bounds, w::OverturnParts { project: PROJECT, number: 1 }).expect("overturn");
@@ -767,10 +768,10 @@ fn another_partys_home_shows_nothing() {
     let w::Outcome::OverturnRefused(reason) = answer.outcome() else { panic!("overturn refused: {answer:?}") };
     assert_eq!(reason.reason(), &w::OverturnRefusal::Unknown);
     assert_eq!(story.decisions(), decisions, "the other person changed no decision");
-    assert!(story.facts(other).away.is_none());
+    assert!(story.facts(other).decided.is_none());
     story.event(other, Temper::went(Address::Forges));
     story.home(CLIENT);
-    assert_eq!(story.facts(CLIENT).away.expect("owner still sees the decision").showing, 1);
+    assert_eq!(story.facts(CLIENT).decided.expect("owner still sees the decision").showing, 1);
 }
 
 fn asked_after(before: &[forge::Decided], after: &[forge::Decided]) {

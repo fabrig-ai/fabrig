@@ -12,6 +12,23 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    DecidedCountMore,
+    AllowedDecide,
+    AllowedAway,
+    ReachWording,
+    ReachRetry,
+    ReachImplementation,
+    ReachTests,
+    ReachDependency,
+    ReachDeparture,
+    ReachMoney,
+    ReachIrreversible,
+    ReachRules,
+    ReachOther,
+    ReachSet,
+    ReachPathSet,
+    ReachUnder,
+
     WaysLede,
     HowChange,
     HowOwn,
@@ -1548,7 +1565,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2102;
+const PHRASES: u32 = 2118;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1575,10 +1592,26 @@ const PHRASES: u32 = 2102;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3713;
+const SEGMENTS: u32 = 3741;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51160;
-const ALL: [Word; 1420] = [
+const ENGLISH_BYTES: u32 = 51491;
+const ALL: [Word; 1436] = [
+    Word::DecidedCountMore,
+    Word::AllowedDecide,
+    Word::AllowedAway,
+    Word::ReachWording,
+    Word::ReachRetry,
+    Word::ReachImplementation,
+    Word::ReachTests,
+    Word::ReachDependency,
+    Word::ReachDeparture,
+    Word::ReachMoney,
+    Word::ReachIrreversible,
+    Word::ReachRules,
+    Word::ReachOther,
+    Word::ReachSet,
+    Word::ReachPathSet,
+    Word::ReachUnder,
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
@@ -3161,6 +3194,23 @@ impl Word {
             Self::WaysUse => 4315,
             Self::WaysKeep => 4316,
             Self::WaysEnded => 4317,
+            Self::DecidedCountMore => 4318,
+            Self::AllowedDecide => 4319,
+            Self::AllowedAway => 4320,
+            Self::ReachWording => 4321,
+            Self::ReachRetry => 4322,
+            Self::ReachImplementation => 4323,
+            Self::ReachTests => 4324,
+            Self::ReachDependency => 4325,
+            Self::ReachDeparture => 4326,
+            Self::ReachMoney => 4327,
+            Self::ReachIrreversible => 4328,
+            Self::ReachRules => 4329,
+            Self::ReachOther => 4330,
+            Self::ReachSet => 4331,
+            Self::ReachPathSet => 4332,
+            Self::ReachUnder => 4333,
+
             Self::ToastWayUsed => 4300,
             Self::ToastWayKept => 4301,
             Self::ToastPaused => 3534,
@@ -5884,13 +5934,29 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AwayLimits => (&[b"Limits"], &[]),
         Word::ToastOverturnAlready => (&[b"That was overturned already."], &[]),
         Word::ToastOverturnEnded => (&[b"It has ended; a new goal can undo it."], &[]),
-        Word::ToastOverturned => (&[b"Overturned: its goal asks you again, under Still needs you."], &[]),
+        Word::ToastOverturned => (&[b"Overturned: it asks you again, under Needs you."], &[]),
         Word::Overturn => (&[b"Overturn"], &[]),
         Word::HomeDecisionOverturned => (&[b"Overturned: it asks you again"], &[]),
         Word::HomeDecisionEnded => (&[b"ended ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
         Word::HomeDecisionLanded => (&[b"landed ", b" \xc2\xb7 a new goal can undo it"], &[Name]),
         Word::HomeStillNeedsCount => (&[b"Still needs you \xc2\xb7 ", b""], &[Number]),
         Word::HomeStillNeeds => (&[b"Still needs you"], &[]),
+        Word::ReachWording => (&[b"wording choices"], &[]),
+        Word::ReachRetry => (&[b"retries and splits"], &[]),
+        Word::ReachImplementation => (&[b"implementation choices"], &[]),
+        Word::ReachTests => (&[b"test-only changes"], &[]),
+        Word::ReachDependency => (&[b"new dependencies"], &[]),
+        Word::ReachDeparture => (&[b"departures from a landed design"], &[]),
+        Word::ReachMoney => (&[b"spending past a budget"], &[]),
+        Word::ReachIrreversible => (&[b"irreversible changes"], &[]),
+        Word::ReachRules => (&[b"changes to what reaches you"], &[]),
+        Word::ReachOther => (&[b"other decisions"], &[]),
+        Word::ReachPathSet => (&[b"changes to a path set"], &[]),
+        Word::DecidedCountMore => (&[b"Decided for you \xc2\xb7 ", b"+"], &[Number]),
+        Word::AllowedDecide => (&[b"Allowed: ", b" are decided and listed."], &[Name]),
+        Word::AllowedAway => (&[b"Allowed: ", b" are decided while you\xe2\x80\x99re away."], &[Name]),
+        Word::ReachSet => (&[b"changes to ", b""], &[Name]),
+        Word::ReachUnder => (&[b"", b" under \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name, Name]),
         Word::HomeDecidedCount => (&[b"Decided for you \xc2\xb7 ", b""], &[Number]),
         Word::HomeDecidedMany => (&[b"", b" things were decided for you."], &[Name]),
         Word::HomeDecidedOne => (&[b"One thing was decided for you."], &[]),

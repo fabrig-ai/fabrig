@@ -2,9 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 7.2: `home-decided` and `needs-decided`, and the "Allowed:"
-  line in `home-away`'s rows. `ui-reaches/decided-client`.
-
 - **Not yet:** 7.2: `settings-away` as a view of the classes, and
   `settings-away-you-approve`. `ui-reaches/away-client`.
 

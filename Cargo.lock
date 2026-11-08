@@ -5005,6 +5005,7 @@ dependencies = [
  "skein-world",
  "temper-client-protocol-wire",
  "temper-fixtures",
+ "temper-protocol-reaches",
  "temper-protocol-records",
 ]
 
@@ -5219,6 +5220,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-docs",
  "temper-fixtures",
+ "temper-protocol-reaches",
 ]
 
 [[package]]

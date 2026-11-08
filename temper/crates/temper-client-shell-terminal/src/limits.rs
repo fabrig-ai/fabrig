@@ -47,8 +47,8 @@ pub fn native() -> Limits {
                     requests,
                     // A jig ask reserves this much, so the table holds `requests` asks.
                     ask_bytes: requests.bytes / u64::from(requests.requests),
-                    handles: 21,
-                    watches: 19, // Includes the shared me, goal fact, trials and running trial task watches.
+                    handles: 24, // Holds four projects' decided watches.
+                    watches: 22, // Holds four projects' decided and the shared session watches.
                     turn_bytes: 1_048_576,
                     backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
                     authority: 16, // Entries in an authority's grants, delegation kinds and notes' scopes.

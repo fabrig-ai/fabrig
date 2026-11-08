@@ -804,20 +804,20 @@ fn settle_home(
                 if status.and_then(|s| s.away.as_ref()).is_some() =>
             {
                 let fixture = status.unwrap().away.as_ref().unwrap();
-                if fixture.state == d::pages::home::DecisionTask::Unknown {
+                if fixture.state == d::pages::decided::DecisionTask::Unknown {
                     continue;
                 }
                 let mut document = f::task::document();
                 document.chip.task = task;
                 document.chip.title = f::task::document_words(b"welcome-stall");
                 match fixture.state {
-                    d::pages::home::DecisionTask::Unknown => unreachable!(),
-                    d::pages::home::DecisionTask::Live => {}
-                    d::pages::home::DecisionTask::Done(at) | d::pages::home::DecisionTask::Ended(at) => {
+                    d::pages::decided::DecisionTask::Unknown => unreachable!(),
+                    d::pages::decided::DecisionTask::Live => {}
+                    d::pages::decided::DecisionTask::Done(at) | d::pages::decided::DecisionTask::Ended(at) => {
                         document.chip.details.phase = c::ChipPhase::Ended;
                         document.chip.details.details.ended_at = Some(at);
                         document.chip.details.details.ending =
-                            if let d::pages::home::DecisionTask::Done(_) = fixture.state {
+                            if let d::pages::decided::DecisionTask::Done(_) = fixture.state {
                                 Some(c::ChipEnding::Done(c::ResultValue::Report(f::task::document_words(b"Landed."))))
                             } else {
                                 None
@@ -3275,7 +3275,7 @@ fn home_add_waits_for_kept_and_reports_forge_refusals_in_both_shells() {
 struct AwayFixture {
     spell: Option<w::AwayRow>,
     rows: List<w::Decision>,
-    state: d::pages::home::DecisionTask,
+    state: d::pages::decided::DecisionTask,
 }
 fn away_fixture(count: u32) -> AwayFixture {
     let mut rows = List::with_capacity(count);
@@ -3325,7 +3325,7 @@ fn away_fixture(count: u32) -> AwayFixture {
             .unwrap(),
         ),
         rows,
-        state: d::pages::home::DecisionTask::Live,
+        state: d::pages::decided::DecisionTask::Live,
     }
 }
 fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts: w::ProjectStatusParts) -> d::Domain {
@@ -3378,12 +3378,12 @@ fn the_kicker_reads_since_to_its_end_once_off() {
     }
 }
 #[test]
-fn the_kicker_alone_with_no_row() {
+fn the_everyday_kicker_with_rows_and_no_spell() {
     let mut away = away_fixture(1);
     away.spell = None;
     let root = default_away(away);
     for browser in [false, true] {
-        assert_eq!(kicker(&root, browser).as_ref(), b"While you were away");
+        assert_eq!(kicker(&root, browser).as_ref(), "Monday, 00:00 · you last looked 9 hours ago".as_bytes());
     }
 }
 #[test]
@@ -3410,7 +3410,15 @@ fn none_for_no_changes() {
         let mut parts = status_parts();
         parts.landed = 1;
         let root = away_home(away, false, &[], parts);
-        main_find(status_view(&root, true).tree(), Role::Heading { level: 1 }, b"Four things were decided for you.");
+        main_find(
+            status_view(&root, true).tree(),
+            Role::Heading { level: 1 },
+            if delivered {
+                b"Four things were decided for you."
+            } else {
+                b"The last change landed 6 minutes ago. Nothing needs you."
+            },
+        );
     }
 }
 #[test]
@@ -3492,32 +3500,95 @@ fn limits_goes_to_settings() {
 
 #[test]
 fn a_row_says_title_and_clock() {
-    let root = default_away(away_fixture(1));
-    for browser in [false, true] {
-        let view = status_view(&root, browser);
-        let row = styled(view.tree(), crate::look::DECISION);
-        let text = f::nodes_text(subtree(view.tree(), row.id));
-        contains(&text, "welcome-stall · Sun 23:05");
-        contains(&text, "Fix in the store or serve?");
-        contains(&text, "In serve");
-        contains(&text, "The store changes a record.");
-        main_find(view.tree(), Role::Button, b"Overturn");
-        if !browser {
-            contains(
-                &printed(&view),
-                "welcome-stall · Sun 23:05 Fix in the store or serve? In serve The store changes a record.",
+    for (kind, class, reason, away_on, allowed) in [
+        (
+            w::ReachKind::Tests,
+            w::ReachClass::Decide,
+            w::ReachReason::Kind,
+            false,
+            Some("Allowed: test-only changes are decided and listed."),
+        ),
+        (
+            w::ReachKind::Retry,
+            w::ReachClass::Ask,
+            w::ReachReason::Kind,
+            true,
+            Some("Allowed: retries and splits are decided while you’re away."),
+        ),
+        (
+            w::ReachKind::Implementation,
+            w::ReachClass::Decide,
+            w::ReachReason::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number: 1 }).unwrap()),
+            false,
+            Some("Allowed: changes to a path set are decided and listed."),
+        ),
+        (
+            w::ReachKind::Tests,
+            w::ReachClass::Decide,
+            w::ReachReason::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number: 0 }).unwrap()),
+            false,
+            None,
+        ),
+        (w::ReachKind::Retry, w::ReachClass::Ask, w::ReachReason::Kind, false, None),
+    ] {
+        let mut away = away_fixture(1);
+        let mut parts = away.rows.get(0).unwrap().clone().into_parts();
+        let mut reach = parts.reach.into_parts();
+        reach.kind = kind;
+        reach.class = class;
+        reach.reason = reason;
+        reach.away = away_on;
+        reach.under = 2;
+        parts.reach = w::Reach::new(&w::CEILINGS, reach).unwrap();
+        *away.rows.get_mut(0).unwrap() = w::Decision::new(&w::CEILINGS, parts).unwrap();
+        let root = default_away(away);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            let row = styled(view.tree(), crate::look::DECISION);
+            let text = f::nodes_text(subtree(view.tree(), row.id));
+            contains(&text, "welcome-stall · Sun 23:05");
+            contains(&text, "Fix in the store or serve?");
+            contains(&text, "In serve");
+            contains(&text, "The store changes a record.");
+            main_find(view.tree(), Role::Button, b"Overturn");
+            let mut line = None;
+            for node in main_nodes(view.tree()) {
+                if node.styles.as_slice().contains(&crate::look::DECISION_ALLOWED) {
+                    line = node.name.as_deref();
+                }
+            }
+            assert_eq!(
+                line,
+                match allowed {
+                    Some(allowed) => Some(allowed.as_bytes()),
+                    None => None,
+                }
             );
+            if let Some(allowed) = allowed {
+                let took = skein_lib::bytes::find(&text, b"In serve").unwrap();
+                let allowed_at = skein_lib::bytes::find(&text, allowed.as_bytes()).unwrap();
+                let why = skein_lib::bytes::find(&text, b"The store changes a record.").unwrap();
+                assert!(took < allowed_at && allowed_at < why);
+            }
+            if !browser {
+                let printed = printed(&view);
+                contains(&printed, "welcome-stall · Sun 23:05 Fix in the store or serve? In serve");
+                if let Some(allowed) = allowed {
+                    contains(&printed, allowed);
+                }
+                contains(&printed, "The store changes a record.");
+            }
         }
     }
 }
 #[test]
 fn an_unread_task_says_task_n() {
     let mut away = away_fixture(1);
-    away.state = d::pages::home::DecisionTask::Unknown;
+    away.state = d::pages::decided::DecisionTask::Unknown;
     let root = default_away(away);
     contains(&f::main_text(status_view(&root, true).tree()), "Task 99 · Sun 23:05");
 }
-fn assert_decision_end(state: d::pages::home::DecisionTask, overturned: bool, late: &str) {
+fn assert_decision_end(state: d::pages::decided::DecisionTask, overturned: bool, late: &str) {
     let mut away = away_fixture(1);
     away.state = state;
     let mut row = away.rows.get(0).unwrap().clone().into_parts();
@@ -3537,7 +3608,7 @@ fn assert_decision_end(state: d::pages::home::DecisionTask, overturned: bool, la
 #[test]
 fn done_says_landed() {
     assert_decision_end(
-        d::pages::home::DecisionTask::Done(skein_lib::Wall::from_nanos(STATUS_NOW)),
+        d::pages::decided::DecisionTask::Done(skein_lib::Wall::from_nanos(STATUS_NOW)),
         false,
         "landed 00:00 · a new goal can undo it",
     );
@@ -3545,28 +3616,36 @@ fn done_says_landed() {
 #[test]
 fn ended_says_ended() {
     assert_decision_end(
-        d::pages::home::DecisionTask::Ended(skein_lib::Wall::from_nanos(STATUS_NOW)),
+        d::pages::decided::DecisionTask::Ended(skein_lib::Wall::from_nanos(STATUS_NOW)),
         false,
         "ended 00:00 · a new goal can undo it",
     );
 }
 #[test]
 fn overturned_says_it_asks_again_and_strikes_took() {
-    assert_decision_end(d::pages::home::DecisionTask::Live, true, "Overturned: it asks you again");
+    assert_decision_end(d::pages::decided::DecisionTask::Live, true, "Overturned: it asks you again");
 }
 #[test]
 fn ended_and_overturned_says_landed_and_strikes_took() {
     assert_decision_end(
-        d::pages::home::DecisionTask::Done(skein_lib::Wall::from_nanos(STATUS_NOW)),
+        d::pages::decided::DecisionTask::Done(skein_lib::Wall::from_nanos(STATUS_NOW)),
         true,
         "landed 00:00 · a new goal can undo it",
     );
 }
 #[test]
 fn needs_head_says_still() {
-    for objects in [&[][..], &QUESTIONS[..2]] {
-        let root = away_home(away_fixture(1), false, objects, status_parts());
-        let heading = if objects.is_empty() { "Still needs you" } else { "Still needs you · 2" };
+    for (spell, objects, heading) in [
+        (true, &[][..], "Still needs you"),
+        (true, &QUESTIONS[..2], "Still needs you · 2"),
+        (false, &[][..], "Needs you"),
+        (false, &QUESTIONS[..2], "Needs you · 2"),
+    ] {
+        let mut away = away_fixture(1);
+        if !spell {
+            away.spell = None;
+        }
+        let root = away_home(away, false, objects, status_parts());
         for browser in [false, true] {
             main_find(status_view(&root, browser).tree(), Role::Heading { level: 2 }, heading.as_bytes());
         }
@@ -3618,9 +3697,9 @@ fn an_overturned_row_offers_none() {
 #[test]
 fn only_live_rows_offer_overturn() {
     for state in [
-        d::pages::home::DecisionTask::Unknown,
-        d::pages::home::DecisionTask::Done(skein_lib::Wall::EPOCH),
-        d::pages::home::DecisionTask::Ended(skein_lib::Wall::EPOCH),
+        d::pages::decided::DecisionTask::Unknown,
+        d::pages::decided::DecisionTask::Done(skein_lib::Wall::EPOCH),
+        d::pages::decided::DecisionTask::Ended(skein_lib::Wall::EPOCH),
     ] {
         let mut away = away_fixture(1);
         away.state = state;

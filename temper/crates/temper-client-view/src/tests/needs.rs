@@ -39,6 +39,7 @@ fn fixture_title(
 ) -> d::Domain {
     fixture_watched(words, cut, count, more, filter, title).0
 }
+#[expect(clippy::too_many_lines, reason = "the fixture captures page watches and answers its requested cards")]
 fn fixture_watched(
     words: &str,
     cut: bool,
@@ -46,8 +47,22 @@ fn fixture_watched(
     more: bool,
     filter: d::address::Filter,
     title: Option<&[u8]>,
-) -> (d::Domain, skein_lib::Token) {
-    let (mut root, _, watch) = f::root_at(Address::Inbox { filter }, &limits());
+) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
+    let (mut root, _, _, standing) = f::root_at_with_needs(Address::Settings { project: f::PROJECT }, &limits());
+    let watch = standing;
+    let mut opening = Queue::uncapped();
+    event(&mut root, Event::Went { place: d::Place::Address(Address::Inbox { filter }) }, &mut opening);
+    let mut decided = None;
+    let subject = d::forge::decided::watch(f::PROJECT, &limits().forge).unwrap();
+    for request in &opening {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject: found } },
+        } = request
+            && found == &subject
+        {
+            decided = Some(*watch);
+        }
+    }
     let mut entries = List::with_capacity(count);
     for message in 1..=u64::from(count) {
         entries.push(documents::entry(object(message), f::PROJECT, message, Wall::EPOCH, None)).unwrap();
@@ -58,7 +73,7 @@ fn fixture_watched(
         Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
-                    watch: watch.unwrap(),
+                    watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(documents::inbox(
                         entries.clone(),
                         count,
@@ -143,7 +158,60 @@ fn fixture_watched(
         }
     }
     assert!(root.pages().inbox().unwrap().delivered(root.client()));
-    (root, watch.unwrap())
+    (root, watch, decided.unwrap())
+}
+fn deliver_decided(root: &mut d::Domain, watch: skein_lib::Token) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let reach = temper_protocol_reaches::Reach {
+        kind: temper_protocol_reaches::Kind::Tests,
+        class: temper_protocol_reaches::Class::Decide,
+        reason: temper_protocol_reaches::Reason::Kind,
+        under: 0,
+        sets: 0,
+        matched: 0,
+        away: false,
+    };
+    let row = w::Decision::new(
+        &w::CEILINGS,
+        w::DecisionParts {
+            number: 1,
+            task: 99,
+            at: 0,
+            question: b"Which tests?".as_slice().into(),
+            took: b"The focused suite".as_slice().into(),
+            why: b"It covers the rule.".as_slice().into(),
+            overturned: false,
+            reach: temper_protocol_reaches::reach_record(&reach),
+        },
+    )
+    .unwrap();
+    let document = w::Decisions::new(
+        &w::CEILINGS,
+        w::DecisionsParts {
+            project: f::PROJECT,
+            rows: List::from_boxed(Box::new([row])),
+            asked: List::with_capacity(0),
+            cut: false,
+        },
+    )
+    .unwrap();
+    let mut out = Queue::uncapped();
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::decisions(&document),
+                    },
+                },
+            },
+        },
+        &mut out,
+    );
 }
 fn root() -> d::Domain {
     fixture(QUESTION, false, 3, false, d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL })
@@ -400,7 +468,15 @@ fn progress_counts_answered_first_including_cut_and_exposes_pips() {
 }
 #[test]
 fn next_line_last_at_and_later_order() {
-    let mut root = root();
+    let (mut root, _, decided) = fixture_watched(
+        QUESTION,
+        false,
+        3,
+        false,
+        d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL },
+        None,
+    );
+    deliver_decided(&mut root, decided);
     let view = f::browser_page_view(&root);
     assert!(has(&view, "Next: forge-cards · Fix the dropped watch".as_bytes()));
     act(&mut root, needs::Act::Open { object: object(3) });
@@ -415,6 +491,15 @@ fn next_line_last_at_and_later_order() {
     let view = f::browser_page_view(&root);
     assert!(has(&view, b"The last one"));
     assert!(has(&view, b"later"));
+    assert!(has(&view, "Decided for you · 1".as_bytes()));
+    assert!(f::find(view.tree(), Role::Button, b"Limits").is_some());
+    let nodes = main(&view);
+    let answered = nodes.iter().position(|node| node.styles.as_slice().contains(&look::ANSWERED_SECTION)).unwrap();
+    let decided = nodes
+        .iter()
+        .position(|node| node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes()))
+        .unwrap();
+    assert!(answered < decided);
 }
 #[test]
 fn answered_lines_have_links_labels_and_undo_only_during_hold() {
@@ -459,8 +544,12 @@ fn answered_lines_have_links_labels_and_undo_only_during_hold() {
 
 #[test]
 fn done_with_and_without_lines_and_home_project() {
-    for answered in [false, true] {
-        let mut root = fixture(QUESTION, false, u32::from(answered), false, d::address::Filter::ALL);
+    for (answered, decided_rows) in [(false, false), (true, false), (false, true), (true, true)] {
+        let (mut root, _, decided) =
+            fixture_watched(QUESTION, false, u32::from(answered), false, d::address::Filter::ALL, None);
+        if decided_rows {
+            deliver_decided(&mut root, decided);
+        }
         if answered {
             choose(&mut root, 1);
         }
@@ -469,6 +558,21 @@ fn done_with_and_without_lines_and_home_project() {
         assert!(has(&view, b"Every question is answered. Work carries on; Home tells you what changed."));
         assert_eq!(main(&view).iter().any(|n| n.styles.as_slice().contains(&look::ANSWERED)), answered);
         assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FLOW_HEAD)));
+        assert_eq!(has(&view, "Decided for you · 1".as_bytes()), decided_rows);
+        if decided_rows {
+            assert!(has(&view, "Shop · Task 99 · 00:00".as_bytes()));
+            assert!(f::find(view.tree(), Role::Button, b"Limits").is_none());
+            let nodes = main(&view);
+            let region = nodes
+                .iter()
+                .position(|node| {
+                    node.role == Role::Region && node.name.as_deref() == Some("Decided for you · 1".as_bytes())
+                })
+                .unwrap();
+            let home =
+                nodes.iter().position(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Home")).unwrap();
+            assert!(region < home);
+        }
         let home = main(&view).iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Home")).unwrap().id;
         assert_eq!(
             crate::act(&mut view, home, Act::Press),
@@ -1140,7 +1244,7 @@ fn sent_cards_replace_all_acts_with_progress_and_the_returned_outcome() {
 fn a_refresh_of_the_same_rows_leaves_the_tree_unchanged() {
     for filter in [d::address::Filter::ALL, d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL }]
     {
-        let (mut root, watch) = fixture_watched(QUESTION, false, 1, false, filter, None);
+        let (mut root, watch, _) = fixture_watched(QUESTION, false, 1, false, filter, None);
         let mut view = f::browser_page_view(&root);
         let before = stable_nodes(view.tree());
         let choice = f::find(view.tree(), Role::Button, b"In temper serve").unwrap();

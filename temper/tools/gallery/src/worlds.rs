@@ -4577,7 +4577,7 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
         }
-        "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
+        "home-morning" | "home-decided" | "needs-decided" | "home-away" | "home-away-one" | "home-away-overturned" => {
             Wall::from_nanos(1_792_483_440_000_000_000)
         }
         "rail-away-on" | "rail-away-off" => Wall::from_nanos(1_792_479_840_000_000_000),
@@ -5405,6 +5405,11 @@ pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
         },
     )
     .expect("Home away spell");
+    if matches!(name, "home-decided" | "needs-decided") {
+        return wire::aways(
+            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::with_capacity(0) }).expect("no Away spell"),
+        );
+    }
     wire::aways(
         &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
             .expect("Home away rows"),
@@ -5441,7 +5446,7 @@ pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStat
     )
     .expect("Home away status")
 }
-fn home_away_task(name: &str, task: u64) -> c::Task {
+fn home_away_task(name: &str, task: u64, project: u32) -> c::Task {
     let mut document = base_task(
         task,
         match task {
@@ -5450,6 +5455,12 @@ fn home_away_task(name: &str, task: u64) -> c::Task {
             _ => "forge-cards",
         },
     );
+    document.project = project;
+    document.chip.details.details.project = project;
+    if name == "home-decided" && task == 104 {
+        document.priority = Some(1);
+        document.goal = Some(task);
+    }
     if name == "home-away-one" || (name == "home-away-overturned" && task == 101) {
         document.chip.details.phase = c::ChipPhase::Ended;
         document.chip.details.details.ended_at =
@@ -5458,7 +5469,7 @@ fn home_away_task(name: &str, task: u64) -> c::Task {
     }
     document
 }
-pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
+pub(super) fn home_away_decisions(name: &str, project: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
     let mut rows = List::with_capacity(4);
@@ -5496,6 +5507,12 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
             "A wording choice inside the task’s spec.",
         ),
     ] {
+        if name == "home-decided" && number != 1 && number != 4 {
+            continue;
+        }
+        if name == "needs-decided" && ((project == 1 && number != 1) || (project == 2 && number != 4)) {
+            continue;
+        }
         if name == "home-away-one" && number != 1 {
             continue;
         }
@@ -5513,13 +5530,17 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
                     reach: w::Reach::new(
                         &w::CEILINGS,
                         w::ReachParts {
-                            kind: w::ReachKind::Wording,
-                            class: w::ReachClass::Decide,
+                            kind: match number {
+                                3 => w::ReachKind::Retry,
+                                4 => w::ReachKind::Wording,
+                                _ => w::ReachKind::Implementation,
+                            },
+                            class: if number == 4 { w::ReachClass::Decide } else { w::ReachClass::Ask },
                             reason: w::ReachReason::Kind,
                             under: 0,
                             sets: 0,
                             matched: 0,
-                            away: false,
+                            away: number != 4,
                         },
                     )
                     .expect("fixture reach fits"),
@@ -5532,7 +5553,7 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
     wire::decisions(
         &w::Decisions::new(
             &w::CEILINGS,
-            w::DecisionsParts { project: PROJECT, rows, asked: List::with_capacity(0), cut: false },
+            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
         )
         .expect("Home decisions"),
     )
@@ -5547,7 +5568,7 @@ fn home_away_step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<R
     );
 }
 /// Decision reads use the sample's wall so the shown rows remain within their day.
-pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) {
+pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str, project: u32) {
     use jig_client::{Down, Readable, Readout, Up};
     let mut out = Queue::uncapped();
     home_away_step(
@@ -5560,7 +5581,7 @@ pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) 
                     record: jig_client::Family {
                         family: FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
-                        bytes: home_away_decisions(name),
+                        bytes: home_away_decisions(name, project),
                     },
                 },
             },
@@ -5578,7 +5599,7 @@ pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) 
                         up: Up::ReadDone {
                             read,
                             result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(home_away_task(
-                                name, task,
+                                name, task, project,
                             ))))),
                         },
                     },

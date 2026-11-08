@@ -2,7 +2,9 @@
 mod cards;
 mod lists;
 mod question;
+mod reach;
 mod refusal;
+pub use reach::{allowed, object};
 mod words;
 pub use cards::{DelegationLine, delegation_line, proposal_line};
 pub use lists::{Choice, Confirmation, chats, confirmation, efforts, list_head, models};

@@ -318,7 +318,7 @@ fn refused_says_try_again() {
 }
 
 #[test]
-fn overturned_says_its_goal_asks_again() {
+fn overturned_says_it_asks_again_under_needs_you() {
     let root = super::home::overturn_answer(
         temper_client_protocol_wire::v1::Outcome::Overturned,
         Some(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: 99, message: 9 }))),
@@ -326,7 +326,7 @@ fn overturned_says_its_goal_asks_again() {
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert_eq!(
             f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
-            b"Overturned: its goal asks you again, under Still needs you."
+            b"Overturned: it asks you again, under Needs you."
         );
     }
 }
