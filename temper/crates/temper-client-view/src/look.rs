@@ -84,6 +84,51 @@ pub const SHEET_ERROR: Style = Style { owner: owner(), token: 416 };
 
 /// The session toast (client/README.md, 3.5).
 pub const TOAST: Style = Style { owner: owner(), token: 300 };
+/// Work, client/README.md, 3.5.
+pub const WORK_PAGE: Style = Style { owner: owner(), token: 650 };
+/// Work, client/README.md, 3.5.
+pub const WORK_INTRO: Style = Style { owner: owner(), token: 651 };
+/// Work, client/README.md, 3.5.
+pub const WORK_KICKER: Style = Style { owner: owner(), token: 652 };
+/// Work, client/README.md, 3.5.
+pub const WORK_HEADLINE: Style = Style { owner: owner(), token: 653 };
+/// Work, client/README.md, 3.5.
+pub const WORK_LEDE: Style = Style { owner: owner(), token: 654 };
+/// Work, client/README.md, 3.5.
+pub const WORK_LANDING: Style = Style { owner: owner(), token: 655 };
+/// Work, client/README.md, 3.5.
+pub const WORK_FILTERS: Style = Style { owner: owner(), token: 656 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CHIP: Style = Style { owner: owner(), token: 657 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CURRENT: Style = Style { owner: owner(), token: 688 };
+/// Work, client/README.md, 3.5.
+pub const WORK_SECTION: Style = Style { owner: owner(), token: 689 };
+/// Work, client/README.md, 3.5.
+pub const WORK_SECTION_HEAD: Style = Style { owner: owner(), token: 690 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CARD: Style = Style { owner: owner(), token: 691 };
+/// Work, client/README.md, 3.5.
+pub const WORK_FROM: Style = Style { owner: owner(), token: 692 };
+/// Work, client/README.md, 3.5.
+pub const WORK_AGENT: Style = Style { owner: owner(), token: 693 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CODE: Style = Style { owner: owner(), token: 664 };
+/// Work, client/README.md, 3.5.
+pub const WORK_PERSON: Style = Style { owner: owner(), token: 665 };
+/// Work, client/README.md, 3.5.
+pub const WORK_QUOTE: Style = Style { owner: owner(), token: 666 };
+/// Work, client/README.md, 3.5.
+pub const WORK_BAR: Style = Style { owner: owner(), token: 667 };
+/// Work, client/README.md, 3.5.
+pub const WORK_ROWS: Style = Style { owner: owner(), token: 668 };
+/// Work, client/README.md, 3.5.
+pub const WORK_ROW: Style = Style { owner: owner(), token: 669 };
+/// Work, client/README.md, 3.5.
+pub const WORK_BYLINE: Style = Style { owner: owner(), token: 670 };
+/// Work, client/README.md, 3.5.
+pub const WORK_MONO: Style = Style { owner: owner(), token: 671 };
+
 /// The Goals column (client/README.md, 3.5).
 pub const GOALS: Style = Style { owner: owner(), token: 270 };
 /// Goals’ intro (client/README.md, 3.5).
@@ -627,18 +672,20 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
 ];
 /// The project's navigation frame (client/README.md, 5.3).
 pub const RAIL: Style = Style { owner: owner(), token: 175 };
-/// The rail's three page entries.
+/// The rail's navigation entries.
 pub const RAIL_NAV: Style = Style { owner: owner(), token: 176 };
-/// The rail's new chat link and menu.
+/// The unnamed hairline before How work runs (client/README.md, 5.3).
+pub const RAIL_SEP: Style = Style { owner: owner(), token: 646 };
+/// The rail's new box.
 pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
-/// All ways to start work in the rail menu (client/README.md, 5.3).
-pub const RAIL_NEW_ALL: Style = Style { owner: owner(), token: 437 };
-/// The rail's status, settings and person.
+/// The rail's Away switch, status, Deployment and person.
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 /// The browser’s night switch (temper/docs/design/client/README.md, 5.3).
 pub const NIGHT_SWITCH: Style = Style { owner: owner(), token: 608 };
 /// The browser's phone navigation.
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
+/// To begin's tab bar stays below a phone's Ask composer (client/README.md, 5.3).
+pub const TABBAR_BEGINNING: Style = Style { owner: owner(), token: 647 };
 /// Forge status in the welcome's column (client/README.md, 3.5).
 pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 373 };
 /// A Model way’s panel (client/README.md, 3.5).
@@ -1107,7 +1154,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-facts",
         b"temper-home-byline",
         b"temper-chat-goal",
-        b"temper-rail-new-all",
+        b"temper-reserved-437",
         b"temper-away",
         b"temper-away-chip",
         b"temper-away-track",
@@ -1316,6 +1363,37 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-acts",
         b"temper-ways-use",
         b"temper-ways-refused",
+        // Reserved for the rail, Work and Deployment (client/browser.md, 2.5)
+        b"temper-rail-sep",
+        b"temper-tabbar-beginning",
+        b"temper-reserved-648",
+        b"temper-reserved-649",
+        b"temper-work-page",
+        b"temper-work-intro",
+        b"temper-work-kicker",
+        b"temper-work-headline",
+        b"temper-work-lede",
+        b"temper-work-landing",
+        b"temper-work-filters",
+        b"temper-work-chip",
+        b"temper-work-current",
+        b"temper-work-section",
+        b"temper-work-section-head",
+        b"temper-work-card",
+        b"temper-work-from",
+        b"temper-work-agent",
+        b"temper-work-code",
+        b"temper-work-person",
+        b"temper-work-quote",
+        b"temper-work-bar",
+        b"temper-work-rows",
+        b"temper-work-row",
+        b"temper-work-byline",
+        b"temper-work-mono",
+        b"temper-reserved-672",
+        b"temper-reserved-673",
+        b"temper-reserved-674",
+        b"temper-reserved-675",
         b"temper-how-wide",
         b"temper-how-way",
         b"temper-how-scroll",
@@ -1749,25 +1827,25 @@ pub const WAYS_USE: Style = Style { owner: owner(), token: 644 };
 pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
 
 /// How work runs (temper/docs/design/client/browser.md, 2.5).
-pub const HOW_WIDE: Style = Style { owner: owner(), token: 646 };
-pub const HOW_WAY: Style = Style { owner: owner(), token: 647 };
-pub const HOW_SCROLL: Style = Style { owner: owner(), token: 648 };
-pub const HOW_PATH: Style = Style { owner: owner(), token: 649 };
-pub const HOW_HEAD: Style = Style { owner: owner(), token: 650 };
-pub const HOW_LANE: Style = Style { owner: owner(), token: 651 };
-pub const HOW_PERSON: Style = Style { owner: owner(), token: 652 };
-pub const HOW_AGENT: Style = Style { owner: owner(), token: 653 };
-pub const HOW_CODE: Style = Style { owner: owner(), token: 654 };
-pub const HOW_BAR: Style = Style { owner: owner(), token: 655 };
-pub const HOW_LINE: Style = Style { owner: owner(), token: 656 };
-pub const HOW_ROW: Style = Style { owner: owner(), token: 657 };
+pub const HOW_WIDE: Style = Style { owner: owner(), token: 676 };
+pub const HOW_WAY: Style = Style { owner: owner(), token: 677 };
+pub const HOW_SCROLL: Style = Style { owner: owner(), token: 678 };
+pub const HOW_PATH: Style = Style { owner: owner(), token: 679 };
+pub const HOW_HEAD: Style = Style { owner: owner(), token: 680 };
+pub const HOW_LANE: Style = Style { owner: owner(), token: 681 };
+pub const HOW_PERSON: Style = Style { owner: owner(), token: 682 };
+pub const HOW_AGENT: Style = Style { owner: owner(), token: 683 };
+pub const HOW_CODE: Style = Style { owner: owner(), token: 684 };
+pub const HOW_BAR: Style = Style { owner: owner(), token: 685 };
+pub const HOW_LINE: Style = Style { owner: owner(), token: 686 };
+pub const HOW_ROW: Style = Style { owner: owner(), token: 687 };
 /// Team’s column and people (temper/docs/design/client/browser.md, 2.5, Team’s look).
-pub const TEAM: Style = Style { owner: owner(), token: 658 };
-pub const TEAM_INTRO: Style = Style { owner: owner(), token: 659 };
-pub const TEAM_PEOPLE: Style = Style { owner: owner(), token: 660 };
-pub const TEAM_PERSON: Style = Style { owner: owner(), token: 661 };
-pub const TEAM_ROLE: Style = Style { owner: owner(), token: 662 };
-pub const TEAM_LINE: Style = Style { owner: owner(), token: 663 };
+pub const TEAM: Style = Style { owner: owner(), token: 688 };
+pub const TEAM_INTRO: Style = Style { owner: owner(), token: 689 };
+pub const TEAM_PEOPLE: Style = Style { owner: owner(), token: 690 };
+pub const TEAM_PERSON: Style = Style { owner: owner(), token: 691 };
+pub const TEAM_ROLE: Style = Style { owner: owner(), token: 692 };
+pub const TEAM_LINE: Style = Style { owner: owner(), token: 693 };
 
 #[cfg(test)]
 mod tests {

@@ -32,6 +32,8 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
             Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -48,6 +50,7 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
             | Address::Role { .. }
             | Address::Rule { .. }
             | Address::Repositories { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Ask { .. }
             | Address::Adopt { .. } => {}

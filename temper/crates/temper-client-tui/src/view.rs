@@ -286,12 +286,15 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
                 | temper_client_domain::Address::Chats { .. }
                 | temper_client_domain::Address::NewChat { .. }
                 | temper_client_domain::Address::Ask { .. }
+                | temper_client_domain::Address::Members
+                | temper_client_domain::Address::Limits
                 | temper_client_domain::Address::Accounts
                 | temper_client_domain::Address::Forges
                 | temper_client_domain::Address::ConnectForge { .. }
                 | temper_client_domain::Address::ConnectModel { .. }
                 | temper_client_domain::Address::Welcome { .. }
                 | temper_client_domain::Address::Task { .. }
+                | temper_client_domain::Address::Work { .. }
                 | temper_client_domain::Address::Goals { .. }
                 | temper_client_domain::Address::Changes { .. }
                 | temper_client_domain::Address::Settings { .. }

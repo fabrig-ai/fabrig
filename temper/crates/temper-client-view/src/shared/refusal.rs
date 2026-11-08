@@ -131,12 +131,15 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
             | Address::NewChat { .. }
             | Address::Inbox { .. }
             | Address::Chats { .. }
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Task { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
             | Address::Team { .. }

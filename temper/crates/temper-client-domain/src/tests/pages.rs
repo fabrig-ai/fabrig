@@ -20,14 +20,17 @@ mod goals;
 mod home;
 mod how;
 mod inbox;
+mod members;
 mod paste;
 mod project_pages;
+mod rail;
 mod ready_adoption;
 mod report;
 mod start_goal;
 mod switcher;
 mod task;
 mod welcome;
+mod work;
 use super::fixtures;
 use crate::{
     Action, Address,

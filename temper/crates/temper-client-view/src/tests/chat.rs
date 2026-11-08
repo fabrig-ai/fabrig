@@ -2986,7 +2986,7 @@ fn asking_chats_keep_the_settings_layout_and_controls_in_both_shells() {
     skein_ui_text::render(view.tree(), b"temper", None, &mut print);
     let printed = print.text.as_slice();
     for words in
-        ["Settings", "T9 · Hello", "Conversation:", "Message", "Send", "Enter sends · Shift+Enter for a new line"]
+        ["How work runs", "T9 · Hello", "Conversation:", "Message", "Send", "Enter sends · Shift+Enter for a new line"]
     {
         assert!(skein_lib::bytes::find(printed, words.as_bytes()).is_some(), "{words}");
     }
@@ -3004,7 +3004,7 @@ fn only_a_delivered_template_five_executor_changes_chat_path_and_navigation() {
             assert_eq!(style_position(tree.nodes(), look::AGENT_PAGE), None);
             for style in [look::RAIL, look::TABBAR] {
                 if let Some(at) = style_position(tree.nodes(), style) {
-                    for name in [b"Ask temper".as_slice(), b"Chats"] {
+                    for name in [b"Ask temper".as_slice(), b"Work"] {
                         let nodes = subtree(tree, at);
                         let link = named_position(nodes, Role::Link, Some(name));
                         if name == b"Ask temper" && !listed {
@@ -3154,7 +3154,7 @@ fn asking_chats_keep_the_conversation_and_proposals_whole() {
 
 fn goals_navigation(root: &temper_client_domain::Domain, shown: bool) {
     let view = fixtures::browser_page_view(root);
-    // The rail and the phone's tab bar follow the same Goals visibility.
+    // Work stays in both navigation surfaces while Goals is offered or held.
     for style in [crate::look::RAIL_NAV, crate::look::TABBAR] {
         let mut at = None;
         for (index, node) in view.tree().nodes().iter().enumerate() {
@@ -3166,7 +3166,7 @@ fn goals_navigation(root: &temper_client_domain::Domain, shown: bool) {
         let children = subtree(view.tree(), at.unwrap());
         let mut found = false;
         for node in children {
-            found |= node.role == Role::Link && node.name.as_deref() == Some(b"Goals");
+            found |= node.role == Role::Link && node.name.as_deref() == Some(b"Work");
         }
         assert_eq!(found, shown);
     }

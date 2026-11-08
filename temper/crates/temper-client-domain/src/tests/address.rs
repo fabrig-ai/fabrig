@@ -1,11 +1,15 @@
 use crate::{
-    ChatsFilter, GoalsFilter, ModelWay, Step, WayKind,
+    ChatsFilter, GoalsFilter, ModelWay, Step, WayKind, WorkFilter,
     address::{Address, Filter, Kind, Place, parse, print},
 };
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 33] = [
+    let pages: [(Address, &[u8]); 37] = [
+        (Address::Work { project: 3, filter: WorkFilter::All }, b"/projects/3/work"),
+        (Address::Work { project: 3, filter: WorkFilter::Drafts }, b"/projects/3/work?show=drafts"),
+        (Address::Members, b"/deployment/members"),
+        (Address::Limits, b"/deployment/limits"),
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
@@ -558,5 +562,20 @@ fn the_approval_page_reads_its_code_and_prints_it_shown() {
         let path = crate::address::print_approve(code);
         assert_eq!(path.as_ref(), expected);
         assert_eq!(parse(&path), Place::Approve { code });
+    }
+}
+
+#[test]
+fn work_filter_is_its_query() {
+    for (path, filter, canonical) in [
+        (b"/projects/3/work?show=drafts".as_slice(), WorkFilter::Drafts, b"/projects/3/work?show=drafts".as_slice()),
+        (b"/projects/3/work?show=other", WorkFilter::All, b"/projects/3/work"),
+        (b"/projects/3/work?x=1", WorkFilter::All, b"/projects/3/work"),
+        (b"/projects/3/work/?show=drafts", WorkFilter::Drafts, b"/projects/3/work?show=drafts"),
+        (b"/projects/3/work?show=other&x=1&show=drafts", WorkFilter::Drafts, b"/projects/3/work?show=drafts"),
+    ] {
+        let address = Address::Work { project: 3, filter };
+        assert_eq!(parse(path), Place::Address(address.clone()), "{path:?}");
+        assert_eq!(print(&address).as_ref(), canonical);
     }
 }

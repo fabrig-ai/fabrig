@@ -35,6 +35,7 @@ mod settings;
 mod start_goal;
 mod team;
 mod toast;
+mod work;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;
 
@@ -183,3 +184,5 @@ mod repository_link;
 mod welcome_copy;
 
 mod views;
+
+mod deployment;

@@ -100,6 +100,8 @@ impl Sample {
     pub fn open_disclosure(&self) -> Option<&[u8]> {
         match self.name {
             "sheet-few" => Some(b"More"),
+            "rail-all-projects" => Some(b"vsr"),
+            "rail-across" => Some(b"All projects"),
             "chat-model-open"
             | "chat-model-both"
             | "chat-model-all"
@@ -118,13 +120,13 @@ impl Sample {
     #[must_use]
     pub fn open_menu(&self) -> Option<&[u8]> {
         match self.name {
-            "rail-new-menu" => Some(b"More ways to start work"),
+            "rail-new-menu" => Some(b"New draft or change"),
             "rail-person-menu" => Some(b"Robin"),
             _ => None,
         }
     }
 }
-pub const N: usize = 353;
+pub const N: usize = 368;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -140,6 +142,61 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
         Sample { name: "team-alone", world: Bare, address: Address::Team { project: 1 }, then: Shown },
         Sample { name: "night-team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
+        Sample {
+            name: "rail-new-change",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "rail-all-projects",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample { name: "rail-across", world: Reference, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "work",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "work-pair",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "work-drafts",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::Drafts },
+            then: Shown,
+        },
+        Sample {
+            name: "work-goals",
+            world: Reference,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
+        Sample { name: "work-changes", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
+        Sample {
+            name: "work-empty",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample { name: "members", world: Reference, address: Address::Members, then: Shown },
+        Sample { name: "members-refused", world: Reference, address: Address::Members, then: Shown },
+        Sample { name: "limits", world: Reference, address: Address::Limits, then: Shown },
+        Sample { name: "limits-not-owner", world: Reference, address: Address::Limits, then: Shown },
+        Sample {
+            name: "night-work",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample { name: "night-limits", world: Reference, address: Address::Limits, then: Shown },
         Sample { name: "how", world: FirstRun { step: 7 }, address: Address::Settings { project: 1 }, then: Shown },
         Sample {
             name: "how-approve",
@@ -708,7 +765,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
             name: "rail-new-menu",
-            world: Solo,
+            world: Reference,
             address: Address::Home { project: 1 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
         },
@@ -1247,6 +1304,14 @@ fn special_mockup(name: &str) -> Option<String> {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one address table maps the gallery pages to their mockups")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    match sample.name {
+        "work" | "work-drafts" | "work-goals" | "work-changes" | "night-work" => {
+            return Some("../web/whole-story/work.html".to_owned());
+        }
+        "work-pair" | "rail-new-change" => return Some("../web/whole-story/pair/work.html".to_owned()),
+        _ => {}
+    }
+
     if sample.name.starts_with("approve-") {
         return None;
     }
@@ -1333,13 +1398,14 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::Inbox { .. } => ("inbox", None),
-        Address::Accounts => ("accounts", None),
+        Address::Members | Address::Limits | Address::Accounts => ("accounts", None),
         Address::ConnectModel { .. } => ("connect-model", None),
         Address::Welcome { .. } => ("welcome", None),
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Goals { .. }
+        Address::Work { .. }
+        | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Team { .. }
         | Address::Home { .. }
@@ -1365,6 +1431,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
@@ -1390,6 +1458,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => String::new(),
@@ -1523,12 +1592,32 @@ pub fn domain(sample: &Sample) -> Domain {
         "night-ask" => Some("ask-first-run"),
         "night-how" => Some("how"),
         "night-chat-split" => Some("chat-draft-split"),
+        "night-work" => Some("work"),
+        "night-limits" => Some("limits"),
         _ => None,
     };
     if let Some(name) = base {
         let mut root = domain(&Sample { name, ..sample.clone() });
         step(&mut root, Event::Act { action: Action::Pages(Act::Terminal(T::Night)) }, &mut Queue::uncapped());
         return root;
+    }
+    if matches!(
+        sample.name,
+        "rail-new-change"
+            | "rail-all-projects"
+            | "rail-across"
+            | "work"
+            | "work-pair"
+            | "work-drafts"
+            | "work-goals"
+            | "work-changes"
+            | "work-empty"
+            | "members"
+            | "members-refused"
+            | "limits"
+            | "limits-not-owner"
+    ) {
+        return crate::worlds::rail_work_world(sample.name, sample.address.clone());
     }
     if sample.name == "no-project" {
         return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
