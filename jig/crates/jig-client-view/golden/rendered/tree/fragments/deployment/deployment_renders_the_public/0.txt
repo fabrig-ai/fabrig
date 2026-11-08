@@ -3,7 +3,6 @@ Deployment owner facts:
   Store map bytes: 0
   Store high-water mark in bytes: 0
   Hosts:
-    Hosts:
     Hosts forgotten: 18446744073709551615
   Tracked attempts:
   LLM accounts:
@@ -24,7 +23,6 @@ Deployment owner facts:
       Readiness unknown
       Program checks unknown
     More payer readiness omitted
-    LLM accounts:
   Resource capacities:
     Tasks Capacity:
       Used: 0

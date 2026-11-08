@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 #[cfg(test)]
 extern crate self as temper_client_shell_terminal;
+pub mod address;
 pub mod client;
 pub mod diagnostics;
 pub mod limits;

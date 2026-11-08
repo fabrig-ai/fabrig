@@ -1472,3 +1472,233 @@ fn dismissal_refusals_stay_in_the_repository_row() {
         }
     }
 }
+
+fn role_card(rule: bool) -> w::View {
+    let facts: &[(&[u8], &[u8])] = if rule {
+        &[(b"Covers", b"every branch")]
+    } else {
+        &[
+            (b"Model", b"A model, high"),
+            (b"Can", b"read the change"),
+            (b"Asked to", b"Review the change."),
+            (b"Holds", b"the merge"),
+        ]
+    };
+    let card = w::Card::new(
+        &w::CEILINGS,
+        w::CardParts {
+            name: if rule { b"the project's rule 1".as_slice().into() } else { b"the reviewer".as_slice().into() },
+            who: if rule {
+                "a landing rule · holds a merge until it is met".as_bytes().into()
+            } else {
+                b"an agent reviewing a change".as_slice().into()
+            },
+            facts: List::from_boxed(
+                facts
+                    .iter()
+                    .map(|(label, value)| {
+                        w::Fact::new(&w::CEILINGS, w::FactParts { label: (*label).into(), value: (*value).into() })
+                            .unwrap()
+                    })
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice(),
+            ),
+        },
+    )
+    .unwrap();
+    if rule {
+        w::View::Rule(w::RuleView::new(&w::CEILINGS, w::RuleViewParts { kind: 2, number: 1, card }).unwrap())
+    } else {
+        w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 4, card }).unwrap())
+    }
+}
+fn role_read(out: &Queue<d::Request>) -> Option<Token> {
+    use temper_client_protocol_wire as wire;
+    let mut found = None;
+    for request in out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+            && let w::Read::View(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+        {
+            assert!(found.is_none(), "one view read");
+            found = Some(*read);
+        }
+    }
+    found
+}
+fn role_answer(root: &mut d::Domain, read: Token, answer: jig_client::Readout) -> Queue<d::Request> {
+    drive(
+        root,
+        d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::ReadDone { read, result: answer } } },
+    )
+}
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table covers the two pages, read states and revision refreshes")]
+fn role_pages_draw_their_card_or_the_read_state() {
+    use temper_client_protocol_wire as wire;
+    let refused = jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused));
+    let not_drawn = w::View::NotDrawn(
+        w::NotDrawn::new(&w::CEILINGS, w::NotDrawnParts { words: b"No view".as_slice().into() }).unwrap(),
+    );
+    let rows = [
+        (
+            Address::Role { project: f::PROJECT, charter: 4 },
+            Some(role_card(false)),
+            None,
+            "The reviewer",
+            &[b"Model".as_slice(), b"Can", b"Asked to", b"Holds"][..],
+        ),
+        (
+            Address::Rule { project: f::PROJECT, kind: 2, number: 1 },
+            Some(role_card(true)),
+            None,
+            "The project's rule 1",
+            &[b"Covers".as_slice()][..],
+        ),
+        (Address::Role { project: f::PROJECT, charter: 4 }, None, None, "Reading role 4…", &[][..]),
+        (Address::Rule { project: f::PROJECT, kind: 2, number: 1 }, None, None, "Reading rule 2/1…", &[][..]),
+        (
+            Address::Role { project: f::PROJECT, charter: 4 },
+            None,
+            Some(refused.clone()),
+            "This role can't be read now: charter 4.",
+            &[][..],
+        ),
+        (
+            Address::Rule { project: f::PROJECT, kind: 2, number: 1 },
+            None,
+            Some(refused),
+            "This rule can't be read now: rule 2/1.",
+            &[][..],
+        ),
+        (
+            Address::Role { project: f::PROJECT, charter: 4 },
+            Some(not_drawn.clone()),
+            None,
+            "This role can't be read now: charter 4.",
+            &[][..],
+        ),
+        (
+            Address::Rule { project: f::PROJECT, kind: 2, number: 1 },
+            Some(not_drawn),
+            None,
+            "This rule can't be read now: rule 2/1.",
+            &[][..],
+        ),
+    ];
+    for (address, value, refusal, expected, terms) in rows {
+        let (mut root, _, _, _, _, _, settings_watch, ..) = f::root_at_with_values(
+            settings(),
+            &f::domain_limits(),
+            b"Shop",
+            None,
+            None,
+            None,
+            Some(&[]),
+            None,
+            false,
+            true,
+        );
+        let out = drive(&mut root, d::Event::Went { place: d::Place::Address(address.clone()) });
+        let read = role_read(&out).expect("view read");
+        let answer = value
+            .clone()
+            .map(|view| jig_client::Readout::Family {
+                family: wire::FORGE,
+                record: Some(wire::view_answer(
+                    &w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap(),
+                )),
+            })
+            .or(refusal);
+        let card_shown = match &value {
+            Some(w::View::Charter(_) | w::View::Rule(_)) => value.as_ref(),
+            _ => None,
+        };
+        let pending = answer.is_none();
+        if let Some(answer) = answer {
+            role_answer(&mut root, read, answer);
+        }
+        assert_role_page(&root, &address, value.as_ref(), expected, terms);
+        // A settings revision rereads the open address, retaining the last card.
+        let out = drive(
+            &mut root,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: settings_watch.unwrap(),
+                        event: c::WatchEvent::Delivered(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest: 1,
+                            settings: List::with_capacity(0),
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))),
+                    },
+                },
+            },
+        );
+        assert_eq!(role_read(&out).is_some(), !pending, "{address:?}: newer revision");
+        if let Some(card) = card_shown {
+            let pages::roles::Read::Drawn(shown) = root.pages().roles().unwrap().read() else {
+                panic!("card retained while rereading")
+            };
+            assert_eq!(shown, card);
+        }
+        if pending {
+            let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: role_card(false) }).unwrap();
+            let out = role_answer(
+                &mut root,
+                read,
+                jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) },
+            );
+            assert!(role_read(&out).is_some(), "revision while pending is read after the answer");
+        }
+    }
+}
+
+fn assert_role_page(root: &d::Domain, address: &Address, value: Option<&w::View>, expected: &str, terms: &[&[u8]]) {
+    for (browser, mut view) in [(false, f::page_view(root)), (true, f::browser_page_view(root))] {
+        let tree = view.tree();
+        assert_eq!(skein_ui::outline::check(tree), None);
+        assert_eq!(main(tree)[0].styles.as_slice(), &[look::MAIN, look::SETTINGS]);
+        let text = String::from_utf8_lossy(&f::nodes_text(main(tree))).into_owned();
+        assert!(text.contains(expected), "{address:?}: {text}");
+        let headings: Vec<_> = main(tree)
+            .iter()
+            .filter(|n| n.role == Role::Heading { level: 1 })
+            .map(|n| n.name.as_deref().unwrap())
+            .collect();
+        let wanted_headings = if terms.is_empty() { vec![] } else { vec![expected.as_bytes()] };
+        assert_eq!(headings, wanted_headings);
+        assert_eq!(
+            main(tree).iter().filter(|n| n.role == Role::Term).map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            terms
+        );
+        if let Some(w::View::Charter(card)) = value {
+            assert!(text.contains(core::str::from_utf8(card.card().who()).unwrap()));
+            for fact in card.card().facts() {
+                assert!(text.contains(core::str::from_utf8(fact.value()).unwrap()));
+            }
+        }
+        if let Some(w::View::Rule(card)) = value {
+            assert!(text.contains(core::str::from_utf8(card.card().who()).unwrap()));
+            for fact in card.card().facts() {
+                assert!(text.contains(core::str::from_utf8(fact.value()).unwrap()));
+            }
+        }
+        let tabs = styled(tree, look::SETTINGS_TABS);
+        assert!(tabs.iter().any(|n| n.role == Role::Link
+            && n.name.as_deref() == Some(b"How work runs")
+            && n.states.as_slice().contains(&State::Current)));
+        let back = main(tree).iter().find(|n| n.styles.as_slice().contains(&look::BACK));
+        assert_eq!(back.is_some(), browser);
+        if let Some(back) = back {
+            assert_eq!(back.name.as_deref(), Some(b"How work runs".as_slice()));
+            let id = back.id;
+            assert_eq!(crate::href(&mut view, id), Some(d::address::print(&settings())));
+        }
+    }
+}

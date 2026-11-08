@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Team, on vsr</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="whole-story.css">
+<script src="whole-story.js"></script>
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">vsr <small>4 projects</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">2</span></a>
+      <a href="work.html">Work</a>
+      <a class="on" href="team.html">Team</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New draft or change</a>
+    <div class="foot">
+      <button class="away" type="button">Away <i></i></button>
+      <a href="#">Deployment</a>
+      <a href="#">Owner</a>
+    </div>
+    <button class="night" type="button" aria-label="Night mode" aria-pressed="false" title="Night mode"></button>
+  </nav>
+
+  <main class="main">
+    <div class="col wide">
+      <header class="intro">
+        <p class="kicker">vsr · Team</p>
+        <h1 class="headline">Who owns what on vsr</h1>
+        <p class="lede">Each area has one owner: you, or a standing role. Prover hands each finding and red to its area's owner. An owner that can't decide asks you, as How work runs says.</p>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>Areas</h2><a href="#">+ Hand an area to a role</a></div>
+        <div class="scroll">
+          <table class="tbl">
+            <thead><tr><th>Area</th><th>What it covers</th><th>Owner</th><th>Their Now</th><th>This week</th></tr></thead>
+            <tbody>
+              <tr><td class="strong">Protocol core</td><td>The protocol, its state machine and its document</td><td><span class="who p">You</span></td><td>One question waits on you.</td><td class="muted">–</td></tr>
+              <tr><td class="strong">I/O layer</td><td>The io_uring layer and the examples</td><td><span class="who p">You</span></td><td>Nothing open.</td><td class="muted">–</td></tr>
+              <tr><td class="strong">Tests and proof</td><td>Tests, fuzzing and the tiers</td><td><span class="who a">Prover</span></td><td>One finding overnight, reproduced; its fix waits on your answer.</td><td>$21 of $40</td></tr>
+              <tr class="sel"><td class="strong">Rust port</td><td>The port to Rust, vsr-rs</td><td><span class="who a">Porter</span></td><td>Two landings behind; porting the witness catch-up check.</td><td>$49 of $60</td></tr>
+              <tr><td class="strong">Anything else</td><td>What fits none of these</td><td><span class="who a">Prover</span></td><td>Triaged three this week, all routed.</td><td class="muted">in Prover's</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="small muted"><span class="who a">Prover</span> reads what comes in against these words and its rules, and hands it to its owner. <a href="how.html">Change by proposal</a></p>
+      </section>
+
+      <section class="card" aria-label="Porter">
+        <div class="shead">
+          <div class="intro" style="gap: 4px">
+            <h2 style="font-size: 22px; font-weight: 500">Porter</h2>
+            <p class="small muted">A standing role · owns vsr-rs since 3 November · started by you</p>
+          </div>
+          <div class="choices">
+            <a class="btn dark" href="#">Talk to it</a>
+            <a class="btn" href="#">Pause</a>
+            <a class="btn" href="#">Give the area back</a>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="section">
+            <p class="kicker">Its Now · written at 06:58, when its last session ended</p>
+            <ul>
+              <li>vsr's main is at 4e1c9a0; vsr-rs has ported up to 7b20d13, two landings behind.</li>
+              <li>Porting the witness catch-up check: 212 lines of C and one new helper. vsr's C tests pass on Rust but two, which need the helper.</li>
+              <li>Waiting on purpose: vsr's handoff fix will touch the same three functions. If it hasn't landed by 18:00, I port the check alone.</li>
+              <li>Asked you nothing this week; one decision listed for you.</li>
+            </ul>
+            <p class="kicker" style="margin-top: 8px">Its rules · <a href="how.html">change by proposal</a></p>
+            <p class="small">Port line by line: keep C's names, order and comments. unsafe is fine. A C construct with no direct Rust form asks protocol core's owner. The check is vsr's C tests, built against vsr-rs.</p>
+          </div>
+
+          <div class="section">
+            <p class="kicker">Wakes on</p>
+            <div class="rows">
+              <div class="row" style="grid-template-columns: minmax(0, 1fr) auto"><span>A landing on vsr's main touching src/ or include/</span><span class="who c">at once</span></div>
+              <div class="row" style="grid-template-columns: minmax(0, 1fr) auto"><span>A red on vsr-rs</span><span class="who c">at once</span></div>
+              <div class="row" style="grid-template-columns: minmax(0, 1fr) auto"><span>A finding labelled port</span><span class="who c">every 4 hours</span></div>
+              <div class="row" style="grid-template-columns: minmax(0, 1fr) auto"><span>Its weekly report</span><span class="who c">Mondays 06:00</span></div>
+            </div>
+            <p class="kicker" style="margin-top: 8px">Sessions this week</p>
+            <div class="rows">
+              <div class="row" style="grid-template-columns: 110px minmax(0, 1fr) auto"><span class="mono">Sat 22:10 · 31 min</span><span>Ported the snapshot chunk bounds; landed.</span><span class="r">$3.10</span></div>
+              <div class="row" style="grid-template-columns: 110px minmax(0, 1fr) auto"><span class="mono">Sun 03:35 · 12 min</span><span>Ported the bounds check, chose checked_add; landed.</span><span class="r">$1.40</span></div>
+              <div class="row" style="grid-template-columns: 110px minmax(0, 1fr) auto"><span class="mono">Sun 06:40 · 18 min</span><span>Started the witness catch-up check; waits for the handoff fix.</span><span class="r">$2.20</span></div>
+            </div>
+            <p class="small muted">Each session starts fresh from its rules, its Now and what woke it, and ends by writing its Now. Its ports run as changes, checked like any other.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,4 +1,6 @@
 //! Agent card words (temper/docs/design/domain/forge.md, 8.13).
+use alloc::boxed::Box;
+use skein_lib::bytes;
 
 /// The named tool families, followed by the charter's merge boundary.
 #[must_use]
@@ -27,9 +29,40 @@ pub fn can(inspect: bool, modify: bool, shell: bool, agents: bool) -> &'static [
     }
 }
 
-/// Through the first ". " or ".\n", trimmed, at most `crate::VALUE` bytes at a character's end.
+/// Keep `value` whole within `bound`, otherwise cut at the last word's end with "…".
+/// With no space in reach, cut at a character's end; invalid UTF-8 or a bound below three gives nothing.
 #[must_use]
-pub fn first_sentence(instructions: &[u8]) -> &[u8] {
+pub fn cut_on_word(value: &[u8], bound: usize) -> Box<[u8]> {
+    let marker = "…".as_bytes();
+    if bound < marker.len() || !bytes::is_utf8(value) {
+        return Box::default();
+    }
+    if value.len() <= bound {
+        return value.into();
+    }
+    let room = bound.checked_sub(marker.len()).expect("marker fits bound");
+    let mut word_end = None;
+    let mut trimmed_end = 0;
+    for (at, byte) in value.iter().enumerate() {
+        if at > room {
+            break;
+        }
+        if *byte == b' ' {
+            word_end = Some(trimmed_end);
+        } else {
+            trimmed_end = at.checked_add(1).expect("character within input");
+        }
+    }
+    let prefix = match word_end {
+        Some(end) => value.get(..end).expect("word within input"),
+        None => bytes::utf8_prefix(value, room),
+    };
+    bytes::concat(&[prefix, marker])
+}
+
+/// Through the first ". " or ".\n", trimmed, then cut on a word within `bound`.
+#[must_use]
+pub fn first_sentence(instructions: &[u8], bound: usize) -> Box<[u8]> {
     let mut sentence = instructions;
     for (at, pair) in instructions.windows(2).enumerate() {
         if pair == b". " || pair == b".\n" {
@@ -38,5 +71,5 @@ pub fn first_sentence(instructions: &[u8]) -> &[u8] {
             break;
         }
     }
-    skein_lib::bytes::utf8_prefix(sentence.trim_ascii(), crate::VALUE).trim_ascii_end()
+    cut_on_word(sentence.trim_ascii(), bound)
 }

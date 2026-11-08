@@ -4,10 +4,10 @@ use crate::{Tier, bundle, configuration, forgery, temper};
 impl Tier {
     /// Whether a public landings page's text, run together, is a form the demo's page takes
     /// (temper/docs/design/client/browser.md, 8.4): the queue's one member while the change
-    /// waits, then no landing or the stock queue's merge.
+    /// waits, then no landing or the stock queue's merge, with the public sign-in top bar.
     #[must_use]
     pub fn public_landings_reads(shown: &str) -> bool {
-        let Some(mut end) = shown.strip_prefix("temperLandings") else {
+        let Some(mut end) = shown.strip_prefix("temperSign inLandings") else {
             return false;
         };
         if let Some(member) = end.strip_prefix("Queuetask ") {
@@ -74,49 +74,62 @@ fn lowercase_hex(digits: &str) -> bool {
 mod tests {
     use crate::Tier;
 
+    const LANDINGS_PAGES: &[(&str, bool)] = &[
+        ("temperLandingsNo landings to show yet.", false),
+        ("temperSign inSign inLandingsNo landings to show yet.", false),
+        ("temperSign inLandingsNo landings to show yet.", true),
+        ("temperSign inLandingslanded · task 18c22892 · 789ada1", true),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready just nowNo landings to show yet.", true),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 3f2a9c01 · Ready a minute agoNo landings to show yet.", true),
+        (
+            "temperSign inLandingsQueuetask 18c22892 · Goal 3f2a9c01 · Ready 2 minutes agolanded · task 18c22892 · 789ada1",
+            true,
+        ),
+        (
+            "temperSign inLandingsQueuetask 18c22892 · Goal 3f2a9c01 · Ready 12 minutes agoNo landings to show yet.",
+            true,
+        ),
+        ("temperSign inLandings", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready just now", false),
+        ("temperSign inLandingsQueueNo landings to show yet.", false),
+        (
+            "temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready just nowtask 18c22892 · Goal 18c22892 · Ready just nowNo landings to show yet.",
+            false,
+        ),
+        ("temperSign inLandingsQueuetask 18c2289 · Goal 18c22892 · Ready just nowNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c228920 · Goal 18c22892 · Ready just nowNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18C22892 · Goal 18c22892 · Ready just nowNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 3f2a9c0 · Ready just nowNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 3f2a9c010 · Ready just nowNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 3F2a9c01 · Ready just nowNo landings to show yet.", false),
+        ("temperSign inLandingslanded · task 18c2289 · 789ada1", false),
+        ("temperSign inLandingslanded · task 18c228920 · 789ada1", false),
+        ("temperSign inLandingslanded · task 18C22892 · 789ada1", false),
+        ("temperSign inLandingslanded · task 18c22892 · 789ada", false),
+        ("temperSign inLandingslanded · task 18c22892 · 789ada10", false),
+        ("temperSign inLandingslanded · task 18c22892 · 789Ada1", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Held just nowNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready 1 minute agoNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready an hour agoNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready a day agoNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready minutes agoNo landings to show yet.", false),
+        ("temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready  minutes agoNo landings to show yet.", false),
+        (
+            "temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready -2 minutes agoNo landings to show yet.",
+            false,
+        ),
+        (
+            "temperSign inLandingsQueuetask 18c22892 · Goal 18c22892 · Ready 2.5 minutes agoNo landings to show yet.",
+            false,
+        ),
+        ("temperSign inLandingsNo landings to show yet. extra", false),
+        ("temperSign inLandingslanded · task 18c22892 · 789ada1 extra", false),
+        ("extra temperSign inLandingsNo landings to show yet.", false),
+    ];
+
     #[test]
     fn a_public_landings_page_reads_the_forms_it_draws_and_no_other() {
-        for (shown, accepted) in [
-            ("temperLandingsNo landings to show yet.", true),
-            ("temperLandingslanded · task 18c22892 · 789ada1", true),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready just nowNo landings to show yet.", true),
-            ("temperLandingsQueuetask 18c22892 · Goal 3f2a9c01 · Ready a minute agoNo landings to show yet.", true),
-            (
-                "temperLandingsQueuetask 18c22892 · Goal 3f2a9c01 · Ready 2 minutes agolanded · task 18c22892 · 789ada1",
-                true,
-            ),
-            ("temperLandingsQueuetask 18c22892 · Goal 3f2a9c01 · Ready 12 minutes agoNo landings to show yet.", true),
-            ("temperLandings", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready just now", false),
-            ("temperLandingsQueueNo landings to show yet.", false),
-            (
-                "temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready just nowtask 18c22892 · Goal 18c22892 · Ready just nowNo landings to show yet.",
-                false,
-            ),
-            ("temperLandingsQueuetask 18c2289 · Goal 18c22892 · Ready just nowNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c228920 · Goal 18c22892 · Ready just nowNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18C22892 · Goal 18c22892 · Ready just nowNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 3f2a9c0 · Ready just nowNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 3f2a9c010 · Ready just nowNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 3F2a9c01 · Ready just nowNo landings to show yet.", false),
-            ("temperLandingslanded · task 18c2289 · 789ada1", false),
-            ("temperLandingslanded · task 18c228920 · 789ada1", false),
-            ("temperLandingslanded · task 18C22892 · 789ada1", false),
-            ("temperLandingslanded · task 18c22892 · 789ada", false),
-            ("temperLandingslanded · task 18c22892 · 789ada10", false),
-            ("temperLandingslanded · task 18c22892 · 789Ada1", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Held just nowNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready 1 minute agoNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready an hour agoNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready a day agoNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready minutes agoNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready  minutes agoNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready -2 minutes agoNo landings to show yet.", false),
-            ("temperLandingsQueuetask 18c22892 · Goal 18c22892 · Ready 2.5 minutes agoNo landings to show yet.", false),
-            ("temperLandingsNo landings to show yet. extra", false),
-            ("temperLandingslanded · task 18c22892 · 789ada1 extra", false),
-            ("extra temperLandingsNo landings to show yet.", false),
-        ] {
+        for &(shown, accepted) in LANDINGS_PAGES {
             assert_eq!(Tier::public_landings_reads(shown), accepted, "public landings page: {shown}");
         }
     }

@@ -156,6 +156,21 @@ Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
+Sections 2, 6.11 and 6.12 have the clients' start, one for two binaries:
+`temper [ADDRESS]` and `temper-client [ADDRESS]` run
+`temper-client-shell-tui`'s `start` under their own names, both `ctl`s
+run `temper-client-shell-cli`'s, an argument's address or link is read
+by `temper-client-shell-terminal`'s `address`, and the link file and the
+private directories are `temper-shell`'s. The TUI's start has its table
+of refusals under both names.
+
+- **Departs:** 2, *The crate graph*: `temper-client-domain` also depends on
+  `temper-protocol-records`, because the forge's side encodes and decodes a
+  pasted bundle by it (`forge/forges.rs`), on `skein-ui` for its phrasebooks
+  (`words.rs`) and on `skein-json` to read a call's input (`pages/calls.rs`);
+  the graph names none of them. Through it the
+  deployment's client links the records crate (`../protocol/README.status.md`, 4).
+
 Sections 6.13 and 6.14's no-project command composer has no known
 implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
@@ -1038,6 +1053,21 @@ place, or no project yet's first-project form and the welcome's acts in
 place of any address's page. The view's tables cover each place in both
 shells; temper/ui's rendered comparison follows landing (`browser.md`,
 section 5).
+
+Sections 3.5, The welcome, *Its frame* and *Its steps*, and 5.1, *the
+top bar* and *while `me` is read*, have no known implementation gap, by
+`look-round-22`: the welcome's top bar draws, after its steps, the
+outside pages' end, signed in the person's name and "Sign out"; while
+`me` is read, `outside::reading_me` holds and `build` draws the top bar
+over an empty main marked busy, with no banner, no page body and the
+terminal look waiting, at every address but the sign-in page, the
+`Authorize` and approval places and the pages not about the work. The
+main is kept empty, not left out, because skein's outline asks exactly
+one main of every tree (skein's `ui.md`, 14). The frame's table covers
+`Chats`, `NewChat`, `Welcome` and a kept terminal look before `me` in
+both shells, and the welcome's tables its end; the welcome's journeys
+are reprinted with it. temper/ui's rendered comparison follows landing
+(`browser.md`, section 5).
 
 Sections 3.5, 5.1 and 5.12 have the browser's approval page in the
 column, its root state and actions, the asked time, the signed-out

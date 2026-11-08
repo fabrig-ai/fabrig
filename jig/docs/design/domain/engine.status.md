@@ -28,13 +28,18 @@ and saved work remain, no try or backoff is charged by the interruption,
 and the task is due again. Jobs retain their claims for restart recovery.
 
 Sections 7.1, 7.2, 7.4 and 9 have no known gap in selecting a charter's
-parts from a run's reasons, retaining the prepared offering through a
-claim, or taking only offered messages at a turn's fence. Later runs
+parts from a run's reasons, preparing a run again when a reason arrives
+before its claim (`routing/run/parts.rs`, `preparation_current`), taking
+only offered messages at a turn's fence, parking a finish while its
+task's delegates are live, or an undecided entry its run covered waiting
+for a change. Later runs
 take `later`, reselecting the kept account when its provider changes;
 charter documents still reach every run. The core-world per-wake table
-covers first and later instructions and choices, a kept question,
-undecided escalation, always-offered words and amendment, no parts,
-and a question arriving between preparation and claim. Tool access to
+covers first and later instructions and choices, a kept question, an
+undecided escalation waking the run that has its part, one its part
+covered waiting for a new hold, across a restart too, always-offered
+words and amendment, no parts, and a question and a due result arriving
+between preparation and claim. Tool access to
 `later` remains section 16's later work.
 
 Section 17.2 has no known gap in an out-of-shape refusal's position:
@@ -47,6 +52,9 @@ facts retain their figures, and admitted hosts too small for the run's
 charter version give the first shared shortfall and their best offer,
 or no named bound when their shortfalls differ. Account and credential
 waits keep precedence; a fitting host leaves the ordinary host wait.
+A refused start's class has no known gap: a refused transcript is
+transient, any other invalid start permanent, and a busy one is placed
+again, no failure.
 
 Sections 17.1, 17.7, 17.8 and 17.11 have no known implementation gap in
 numbered model settings, release-default overlays, resolved charter versions,

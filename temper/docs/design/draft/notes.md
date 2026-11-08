@@ -454,6 +454,16 @@ The reasons behind `per-wake.md`, from the user, 2026-11-07.
   must make it, and no batch holds a person's words (jig's `domain/tasks.md`,
   8.3). An entry left undecided wakes the next run, as entries aren't inbox
   messages and nothing would judge one again.
+- **A covered entry waits for a change** (the user, 2026-11-08). A goal that
+  passed a held repair's question to its person and parked was woken 19 times
+  in three minutes by that escalation, each run inspecting it, deciding nothing
+  and parking again, a run's cost each time. A run whose part covered the entry
+  already chose to leave it, so only the entry's change, or another wake, brings
+  it back. An entry the run had no part for still wakes the run that has.
+- **Every reason waiting at the claim** (the user, 2026-11-08). A goal run woke
+  as its landing's result came due, read only the shared instructions, and
+  ended without the work the results part asks: the result arrived between
+  its preparation and its claim and was kept back against the parts prepared.
 - **Fresh runs only.** A conversation's instructions can't change under it
   without losing its cache and its turns' reading.
 - **A later choice, not one per kind** (revises N11's one choice per task). One

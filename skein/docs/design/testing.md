@@ -491,7 +491,7 @@ Every tier follows testing-strategy.md, 8.1: CPU budget, wall hard limit,
 starved warning and the three-question repair rule.
 
 The two gate suites use the root `.config/nextest.toml`'s `default` and
-`fuzzy` profiles, with CPU budgets of 30 s and 120 s in
+`fuzzy` profiles, with CPU budgets of 40 s and 120 s in
 `tools/tiers/budgets.toml`, enforced at the merge gate under
 testing-strategy.md, 8.1. The browser kit against real
 Chromium and the UI example's browser tier use `browser-skein`

@@ -1,11 +1,10 @@
 == jig == 
 Task 8: Review:
-  Task 8: Review:
-    [1] Task 8: Review
-    Person 1
-    Held
-    Held budget
-    Current revision 4
+  [1] Task 8: Review
+  Person 1
+  Held
+  Held budget
+  Current revision 4
   Failed: whole failure
   At 01:00
   Result owner details:

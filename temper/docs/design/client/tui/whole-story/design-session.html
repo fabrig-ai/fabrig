@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Terminal, a design session</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#151517}</style>
+<link rel="stylesheet" href="../../web/whole-story/whole-story.css">
+</head>
+<body>
+<p style="max-width: 920px; margin: 20px auto 0; font: 13px var(--mono)"><a href="../../web/whole-story/index.html" style="color: #c4c4cc">‹ temper, the whole story</a></p>
+<div style="overflow-x: auto"><div style="width: 920px; height: 640px; margin: 24px auto">
+<div class="term" role="img" aria-label="A design session on cowsql with the draft in a side pane">
+<div>╭─ temper · <span class="b">cowsql</span> · raft-to-vsr · a design session ───────────────────────────────────────── dev.fabrig.ai ─╮</div>
+<div>╰────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</div>
+<div><span class="s">❯</span> Snapshots: cowsql ships raft snapshots as WAL         <span class="d">│</span> <span class="b">raft-to-vsr.md</span>                    <span class="d">draft · sitting 2</span></div>
+<div>  pages. Can vsr's state transfer carry them as is?     <span class="d">│</span> ───────────────────────────────────────────────────</div>
+<div>                                                        <span class="d">│</span> <span class="b">4. Snapshots and state transfer</span></div>
+<div><span class="s">✦</span> Mostly. vsr's checkpoint is the host's to make,       <span class="d">│</span></div>
+<div>  so cowsql keeps its page format. Two things           <span class="d">│</span> 4.1 cowsql keeps its WAL page format. vsr's</div>
+<div>  change: vsr asks for a checkpoint at its own          <span class="d">│</span>     checkpoint is the host's: cowsql writes one</div>
+<div>  positions, not raft's index; and a witness never      <span class="d">│</span>     at the positions vsr asks for.</div>
+<div>  takes one, so a cowsql witness runs no SQLite.        <span class="d">│</span></div>
+<div>  I've written it as 4.1 and 4.2, beside.               <span class="d">│</span> 4.2 A witness keeps the log and never a         <span class="s">new</span></div>
+<div>                                                        <span class="d">│</span>     checkpoint, so a cowsql witness runs no</div>
+<div>  <span class="d">Read 6 files in vsr, 4 in cowsql · 41 s</span>               <span class="d">│</span>     SQLite.</div>
+<div>                                                        <span class="d">│</span></div>
+<div>  One point is yours. While a cluster moves, run        <span class="d">│</span> 4.3 Moving a cluster: open, see the question.</div>
+<div>  raft and vsr side by side, or move it at once?        <span class="d">│</span></div>
+<div>                                                        <span class="d">│</span> <span class="b">5. What changes for cowsql's users</span></div>
+<div>  <span class="s">1. Move it at once</span>  <span class="d">recommended: no mixed</span>             <span class="d">│</span></div>
+<div>                       <span class="d">state to reason about</span>            <span class="d">│</span> 5.1 Nothing in the SQL API. The node API loses</div>
+<div>  2. Side by side, raft as the fallback                 <span class="d">│</span>     its raft-only options.</div>
+<div>  3. Tell it something else                             <span class="d">│</span></div>
+<div>                                                        <span class="d">│</span></div>
+<div>                                                        <span class="d">│</span></div>
+<div>                                                        <span class="d">│</span></div>
+<div>                                                        <span class="d">│</span></div>
+<div>                                                        <span class="d">│</span></div>
+<div>                                                        <span class="d">│</span></div>
+<div>                                                        <span class="d">│</span></div>
+<div>──────────────────────────────────────────────────────────────────────────────────────────────────────────────</div>
+<div><span class="s">❯</span> 1</div>
+<div>──────────────────────────────────────────────────────────────────────────────────────────────────────────────</div>
+<div> cowsql · drafter · Opus 5.5 · xhigh            <span class="d">pane: half · Ctrl-P folds · /goal starts a goal from the draft</span></div>
+</div>
+</div>
+</div>
+</body>
+</html>

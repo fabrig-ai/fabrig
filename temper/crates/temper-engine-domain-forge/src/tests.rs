@@ -481,7 +481,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
-        | Request::GoalTopic { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
@@ -573,7 +572,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
-        | Request::GoalTopic { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
@@ -658,7 +656,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
-        | Request::GoalTopic { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }

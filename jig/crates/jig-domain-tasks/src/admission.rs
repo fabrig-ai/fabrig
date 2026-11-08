@@ -105,7 +105,6 @@ fn finish_turn(
 ) {
     let Turned { number, attempt, turn, read, refusals, outstanding, cumulative, offered: _ } = turned;
     crate::inbox::keep_refusals(domain, number, &refusals);
-    crate::wake::read_escalations(domain, number, read, &outstanding);
     let task = &mut task_mut(domain, number).expect("turn admitted").record;
     task.last_activity = environment.wall;
     task.turn = turn;

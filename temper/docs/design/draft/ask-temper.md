@@ -298,8 +298,8 @@ bound.
 | `proposal tN/K` | its path before and after, what temper enforces apart from what agents follow | the setting |
 
 - **Drawn by** the browser in fabrig.ai's language: stops on a line, a person's
-  and an agent's above it, code's below. The TUI draws them in text. Their look
-  is designed with temper/ui and temper/tui.
+  and an agent's above it, code's below. The TUI prints them as lines
+  (`surfaces.md`, 11.5). Their look is designed with temper/ui.
 
 ### 6.3 Sketches
 
@@ -466,7 +466,7 @@ Focused and fuzzy alone; its judgement is the user's, by trying it.
 - **Told first, as shared work:** smith's start of Claude Code for a run with no
   workspace (4.4); jig's read as a party for a run (5.1) and its party scope
   for notes (jig's `draft/notes-memory.md`, section 7); skein-ui's flows with
-  marks (6.3); the TUI's drawing of views, temper/tui's.
+  marks (6.3); the TUI's printing of views, temper/tui's.
 
 ## 12. Open questions
 
