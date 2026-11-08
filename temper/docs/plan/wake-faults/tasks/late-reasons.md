@@ -111,3 +111,13 @@ Acceptance:
 6. Commit and push.
 
 ## Report
+
+## Rebase (2026-11-08, step merge, foreman wake-faults/late-reasons/foreman-1)
+
+Resolve both status conflicts by preserving late-reasons and covered-entries deletions.
+Rebase onto the landing trunk. The conflicting commit is `f15f70e6d77ef81cf31137be103ac344dab2471a` (“Keep covered undecided entries parked until a change”), now in `origin/wake-faults/integration`.
+- In `jig/docs/design/domain/engine.status.md`, remove both the 7.1 late-arrival gap and the covered-entry sentence. Retain the 7.4 live-delegates gap and section 8 invalid-start gap, unless subsequently removed on the target.
+- In `jig/docs/design/domain/tasks.status.md`, remove both the 8.6 late-arrival gap naming `preparation_current` and the 8.1/8.3/8.6/9 covered-entry gap naming `Task.read_escalations`. Preserve all other target-side status edits.
+Both tasks delete adjacent sentences in the same paragraphs; combine their deletions rather than selecting either whole side.
+The two `per_wake.rs` files merged automatically. Preserve both tasks’ rows and helpers under `notes/contracts.md`, section 3.
+No core behavior change is needed to resolve this merge refusal.
