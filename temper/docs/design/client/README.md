@@ -4063,7 +4063,7 @@ the person to check existence and grant the repository to the App.
   *What the client keeps*). The engine fills `kind` and `address` from the
   forge's configuration as it does a change's panel's pull request's
   (`forge.md`, 9.2).
-- **A path, `Path`** (`../domain/forge.md`, 8.13): `repository`, option,
+- **A path, `BranchPath`** (`../domain/forge.md`, 8.13): `repository`, option,
   `owner/name`, none for a project with no repository; `branch`; `stops`,
   at most 32, in order, each a `Stop`:
   - `actor`, `Actor`: `person`, `agent`, `code` or `bar`;
@@ -4099,7 +4099,7 @@ the person to check existence and grant the repository to the App.
 - **A view, the read `View`:** `ViewRead`: `project` and `address`, at most
   512 bytes, a `view` block's line (5.16), read in the project's scope by a
   party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,
-  a `WayView`, `name`, `line`, `path` and `current`; `path`, a `Path`;
+  a `WayView`, `name`, `line`, `path` and `current`; `path`, a `BranchPath`;
   `proposal`, a `ProposalView`, `before` and `after`; `charter`, a
   `CharterView`, `charter` and its `card`; or `not_drawn`, `words`, at
   most 512 bytes, saying in a line why it is not drawn.

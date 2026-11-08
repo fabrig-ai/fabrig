@@ -5334,6 +5334,7 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
+ "temper-engine-domain-ways",
  "temper-protocol-worker-wire",
 ]
 
@@ -5397,6 +5398,15 @@ name = "temper-engine-domain-trials"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+]
+
+[[package]]
+name = "temper-engine-domain-ways"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
 ]
 
 [[package]]
@@ -5531,6 +5541,7 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-ways",
  "temper-settings-form",
 ]
 
@@ -6020,6 +6031,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
+ "temper-engine-domain-ways",
  "temper-engine-domain-world",
  "temper-engine-smith",
  "temper-forge-setup",

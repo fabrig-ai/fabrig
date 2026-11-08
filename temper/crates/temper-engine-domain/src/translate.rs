@@ -28,6 +28,8 @@ pub struct Config {
     pub landings: Map<u32, ProjectLanding>,
     /// The forge's kind defaults at this start (temper/docs/design/domain/root.md, 5.6).
     pub kinds_stock: Box<[forge::settings::Stock]>,
+    /// The stock ways, in their order (temper/docs/design/protocol/configuration.md, 13.10).
+    pub ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     /// Forge writer identities and this deployment's branch namespace.
     pub forge: skein_forge_client::Config,
     /// Each forge's git identity, an application credential (D10;

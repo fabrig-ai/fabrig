@@ -39,7 +39,7 @@ Acceptance:
 
 - `temper/docs/plan/ui-ask-m3a/notes/common.md`; `notes/contracts.md`,
   section 3 (binding).
-- `temper/docs/design/client/README.md`, 4.6: *A path, `Path`*, *A
+- `temper/docs/design/client/README.md`, 4.6: *A path, `BranchPath`*, *A
   project's ways, the subject `ways`*, *A view, the read `View`*, and
   `CLIENT_VERSION` (the version moves at a release, so not here).
 - skein's `docs/design/codec.md`, 6 (the schema, its generator and its
@@ -62,7 +62,7 @@ Acceptance:
 - **Options, pre-approved:** if the generator refuses a line of the
   contract (a keyword, a bound's form), take the nearest form it accepts,
   keeping every name and bound, and say so in the report. If a record's
-  worst case passes a ceiling the generator enforces, lower `Path`'s
+  worst case passes a ceiling the generator enforces, lower `BranchPath`'s
   `stops` to the largest that fits, never below 24, and say so; the
   contract's `STOPS` then follows in `ways-derive`'s hands. If the
   bounds test of the family's worst document in a decision
@@ -104,3 +104,13 @@ reader file where an arm went.
   `Way` and their consumers stay as they are. `View`'s variant `way:
   WayView` is unchanged. Keep the branch's work and rename the two types
   and their uses (`Stop`'s `step`, `WaysPanel`'s `ways`) in it.
+- 2026-11-08. The codec's generator reserves `Path` (its diagnostic
+  enum), so `record Path` cannot generate: rename the record, or change
+  skein's generator? Rename the record (option A); skein stays as it is.
+  On the wire a path is `BranchPath`, every bound kept;
+  `notes/contracts.md`, section 3, and `client/README.md`, 4.6, now say
+  so, and the block there is the one to insert verbatim. Its references
+  follow: `StockWay`'s `path`, `WaysPanel`'s `own`, `WayView`'s `path`,
+  `ProposalView`'s `before` and `after`, and `View`'s variant `path`,
+  whose name stays `path`. The domain's `ways::Path` keeps its name. Keep
+  the branch's work and rename in it.

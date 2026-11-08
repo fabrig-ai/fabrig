@@ -611,8 +611,13 @@ pub use temper_engine_domain_forge::APPROVALS_SUBJECT;
 pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 
 /// Forge reads through party authorization (temper/docs/design/client/README.md, 4.6).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    /// A view block, read in the project's scope (temper/docs/design/client/README.md, 4.6).
+    View {
+        project: u32,
+        address: Box<[u8]>,
+    },
     /// The owner's program-login environment (temper/docs/design/client/README.md, 4.6).
     ProgramEnvironment,
     /// The explicit value set in a retained revision.
@@ -634,6 +639,7 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
     Setting(Option<forge::settings::SizedValue>),
     /// The proposal's items and whether an enforcing approval covers an owned Forgejo (domain/forge.md, 8.12).
@@ -1104,6 +1110,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Trials { .. }
+        | Delivery::Ways { .. }
         | Delivery::Approvals { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
