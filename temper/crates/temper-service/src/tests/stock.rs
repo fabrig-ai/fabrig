@@ -316,10 +316,16 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
-        assert_eq!(charter.policy.inspect, charter.number != 9 && charter.number != 10 && charter.number != 11);
+        assert_eq!(
+            charter.policy.inspect,
+            charter.number != 9 && charter.number != 10 && charter.number != 11 && charter.number != 12
+        );
         assert!(!charter.policy.shell);
         assert_eq!(charter.policy.modify, charter.number == 2 || charter.number == 5);
-        assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2 || charter.number == 5);
+        assert_eq!(
+            charter.policy.agents,
+            charter.number == 1 || charter.number == 2 || charter.number == 5 || charter.number == 12
+        );
     }
 }
 
@@ -329,9 +335,9 @@ fn ask_temper_is_charter_11_and_template_5() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 4, 5, 6, 9, 10, 11]
+        [1, 2, 4, 5, 6, 9, 10, 11, 12]
     );
-    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 512, 1023, 512, 0, 0, 3072]) {
+    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 512, 1023, 512, 0, 0, 3072, 1022]) {
         assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
     }
     let charter = defaults.charters.iter().find(|charter| charter.number == 11).expect("Ask temper charter");
@@ -373,12 +379,60 @@ A way is drawn, never described: way NAME draws one of temper's stock ways over 
     for excluded in ["queue", "task N tree", "task N timeline", "```mermaid"] {
         assert!(!showing.contains(excluded), "Showing excludes {excluded} until M3b");
     }
-    assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 4, 5]);
+    assert_eq!(
+        defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(),
+        [1, 2, 4, 5, 6]
+    );
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 5;
     expected.name = b"ask".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(11);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 5).unwrap(), expected);
+}
+
+#[test]
+fn the_drafter_is_charter_12_and_template_6() {
+    use jig_domain_authority::Executor;
+    use jig_domain_core::ToolFamilies;
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
+    assert_eq!(charter.policy.instructions.len(), 2_874);
+    assert_eq!(
+        skein_lib::sha256::digest(&charter.policy.instructions),
+        [
+            0x1f, 0x44, 0x77, 0x43, 0xf6, 0x7f, 0x32, 0x1b, 0xac, 0x95, 0x16, 0xe4, 0x72, 0x17, 0x3e, 0x9f, 0x88, 0xe0,
+            0x5b, 0x40, 0x67, 0xc4, 0xe1, 0xc7, 0xbe, 0xc3, 0xd1, 0x45, 0x7c, 0x5e, 0xd9, 0x00,
+        ]
+    );
+    assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
+    assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.settings, 0);
+    assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
+    let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
+    expected.number = 12;
+    expected.policy.instructions = include_bytes!("../stock/drafter.txt").as_slice().into();
+    expected.policy.inspect = false;
+    expected.policy.modify = false;
+    expected.policy.shell = false;
+    expected.policy.agents = true;
+    expected.policy.tools = jig_domain_tasks::Tools(1022);
+    assert_eq!(*charter, expected);
+    let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
+    expected.number = 6;
+    expected.name = b"design session".as_slice().into();
+    expected.executor = jig_domain_people::TemplateExecutor::Charter(12);
+    assert_eq!(*defaults.templates.iter().find(|template| template.number == 6).unwrap(), expected);
+    let policy = &defaults.policies.get(&1).unwrap().policy;
+    for authority in [&defaults.rules.ceiling, &policy.ceiling] {
+        assert!(authority.delegation.kinds.contains(&Executor::Charter(12)));
+    }
+    for role in &policy.roles {
+        if role.number == 3 {
+            assert!(role.authority.delegation.kinds.is_empty());
+        } else {
+            assert!(role.authority.delegation.kinds.contains(&Executor::Charter(12)));
+        }
+    }
 }
 
 fn ask_design_first_rules(words: &str) {
@@ -429,16 +483,16 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     assert_eq!(run, (13_123, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 5886, Setting::Policy(1), "the stock's policy 1 needs 5886 bytes"),
+        (b"core.policy_bytes", 5918, Setting::Policy(1), "the stock's policy 1 needs 5918 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 14, Setting::Rules, "the stock's rules need 14 executors"),
+        (b"authority.executors", 15, Setting::Rules, "the stock's rules need 15 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 8, Setting::Charter(1), "the stock offers 8 charters"),
-        (b"core.templates", 4, Setting::Template(1), "the stock offers 4 templates"),
+        (b"tasks.charters", 9, Setting::Charter(1), "the stock offers 9 charters"),
+        (b"core.templates", 5, Setting::Template(1), "the stock offers 5 templates"),
         (b"documents.text_bytes", 16, Setting::Template(4), "the stock's template 4 needs 16 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
         (b"core.settings.alternatives", 2, Setting::Charter(11), "the stock's charter 11 needs 2 alternatives"),
@@ -556,7 +610,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5886 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5918 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -945,7 +999,7 @@ fn the_foremans_charter_reads_and_gives_a_verdict() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 4, 5, 6, 9, 10, 11]
+        [1, 2, 4, 5, 6, 9, 10, 11, 12]
     );
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 4).unwrap().clone();
@@ -1171,6 +1225,7 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Charter(6),
                 Executor::Charter(9),
                 Executor::Charter(11),
+                Executor::Charter(12),
                 Executor::Procedure(2),
                 Executor::Procedure(3),
                 Executor::Procedure(4),

@@ -177,6 +177,16 @@ impl Changes {
     pub const fn state(&self) -> &State {
         &self.state
     }
+    /// The goal named by a listed task, once its read has arrived (client/README.md, 3.5).
+    #[must_use]
+    pub fn goal(&self, task: u64) -> Option<u64> {
+        for row in &self.reads {
+            if row.task == task {
+                return row.document.as_ref()?.goal;
+            }
+        }
+        None
+    }
     /// Where a listed task came from, once its read has arrived.
     #[must_use]
     pub fn from<'a>(&'a self, client: &Client, task: u64) -> Option<From<'a>> {

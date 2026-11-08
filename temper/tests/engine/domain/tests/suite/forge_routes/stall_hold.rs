@@ -1,6 +1,6 @@
 //! A stalled row holds its task and reaches its deciding holder
 //! (temper/docs/design/domain/forge.md, 8.4; jig/docs/design/domain/tasks.md, 9).
-use super::early_start::{goal_world, observe_push, stop};
+use super::early_start::{observe_push, stop};
 use super::questions::{next_producer, row};
 use super::*;
 use jig_domain_core::{documents, reads};
@@ -11,7 +11,15 @@ const STEPS: u32 = 1000; // A stall's read, durable hold, escalation and worker 
 
 fn preparing(goal: bool) -> (World, engine::Assignment, u64, engine::Assignment) {
     let (mut world, owner) = if goal {
-        let (world, goal, _, _) = goal_world();
+        let mut world = World::configured_ci(true, true, true);
+        world.adopt();
+        world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
+        let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, true) else {
+            panic!("goal template")
+        };
+        // This stall waits for main's CI rule on a task-by-task goal.
+        batch[0].symbols = Box::new([]);
+        let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
         (world, goal)
     } else {
         let mut world = World::configured_ci(true, true, true);

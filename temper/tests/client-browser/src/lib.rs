@@ -77,23 +77,42 @@ pub fn bundle() -> PathBuf {
 pub fn first_chat(title: &[u8]) -> Find {
     Find::exactly_named(Role::Heading { level: 1 }, &[b"T1 \xc2\xb7 ".as_slice(), title].concat())
 }
+/// Open the rail's new box and choose a change (temper/docs/design/client/README.md, 5.3).
+#[must_use]
+pub fn start_change(drafts: bool) -> Vec<Step> {
+    let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
+    let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
+    if drafts {
+        vec![
+            see(Find::exactly_named(Role::Button, b"New draft or change")),
+            press(Role::Button, b"New draft or change"),
+            see(Find::exactly_named(Role::MenuItem, b"Change")),
+            press(Role::MenuItem, b"Change"),
+        ]
+    } else {
+        vec![see(Find::exactly_named(Role::Link, b"New change")), press(Role::Link, b"New change")]
+    }
+}
 /// From the welcome's Forge step in a world with a usable model, navigate to `/chats`,
 /// open `NewChat` and start the first chat with `words`, one line, and see it titled by them.
 #[must_use]
-pub fn start_chat(words: &[u8]) -> Vec<Step> {
+pub fn first_chat_steps(words: &[u8]) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
-    vec![
+    let mut steps = vec![
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
         Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         see(live()),
         connected(),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ New chat") }),
+    ];
+    steps.extend(start_change(true));
+    steps.extend([
         see(composer()),
         Step::Person(PersonStep::Type { find: composer(), words: Box::from(words) }),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Send") }),
         see(first_chat(words)),
-    ]
+    ]);
+    steps
 }
 /// Choose the playground at the printed link's welcome and await its ready project.
 #[must_use]
@@ -109,16 +128,18 @@ pub fn playground_ready() -> Vec<Step> {
         connected(),
     ]
 }
-/// From the ready playground, open Chats and start the first chat with `words`.
+/// From the ready playground, open the empty Chats list and start a change with `words`.
 #[must_use]
 pub fn playground_chat(words: &[u8]) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
-    let press = |name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, name) });
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
-    vec![
-        press(b"Chats"),
+    // With no chat that started work, Work has no Chats filter.
+    let mut steps = vec![
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
         see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
-        press(b"+ New chat"),
+    ];
+    steps.extend(start_change(true));
+    steps.extend([
         see(Find::exactly_named(Role::Heading { level: 1 }, b"New chat")),
         see(composer()),
         Step::Focused(composer()),
@@ -126,7 +147,8 @@ pub fn playground_chat(words: &[u8]) -> Vec<Step> {
         Step::Type { find: composer(), words: words.into() },
         Step::Key(skein_browser::boundary::Key::Enter),
         see(first_chat(words)),
-    ]
+    ]);
+    steps
 }
 fn live() -> Find {
     Find::exactly_named(Role::Button, b"Owner")
@@ -480,7 +502,7 @@ mod tests {
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         let defaults = &core.defaults;
         let bound = &agent["endpoints"][0]["limits"];
-        assert_eq!(defaults.charters.len(), 8);
+        assert_eq!(defaults.charters.len(), 9);
         for charter in &defaults.charters {
             let resolved =
                 jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)

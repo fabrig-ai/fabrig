@@ -831,13 +831,22 @@ fn navigation_dot_names_and_colours_follow_real_rows_only() {
             client,
             vec![PersonStep::See {
                 find: Find::exactly_named(Role::Text, label).within(Box::new([skein_fake_person::Target::ExactRole {
-                    role: Role::Link,
-                    name: b"Settings".as_slice().into(),
+                    role: Role::Navigation,
+                    name: b"Project 1".as_slice().into(),
                 }])),
                 within: f::WITHIN,
             }],
         );
         let dot = node(&world, client, Role::Text, label);
+        let nodes = world.tree(client).nodes();
+        let (at, deployment) = nodes
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, node)| node.role == Role::Link && node.name.as_deref() == Some(b"Deployment"))
+            .expect("rail's Deployment link");
+        let size = usize::try_from(deployment.size).expect("Deployment subtree size");
+        assert!(nodes.iter().skip(at).take(size).any(|node| node.id == dot.id), "Deployment holds its mark");
         assert!(dot.styles.as_slice().contains(&style), "wrong colour: {dot:?}");
     }
 }
@@ -980,7 +989,7 @@ fn running_setup_opened_in_second_tab_is_not_resent() {
 }
 
 #[test]
-fn strip_exclusions_and_forges_navigation_through_settings_match_pages() {
+fn strip_exclusions_and_forges_navigation_through_deployment_match_pages() {
     for page in [
         Address::Forges,
         flow(None),
@@ -996,9 +1005,11 @@ fn strip_exclusions_and_forges_navigation_through_settings_match_pages() {
     for page in [Address::Forges, flow(None)] {
         let mut world = world();
         let client = open(&mut world, page);
-        follow(&mut world, client, vec![press(Role::Link, b"Settings")]);
-        assert!(node(&world, client, Role::Link, b"Settings").states.as_slice().contains(&State::Current));
-        assert!(!node(&world, client, Role::Link, b"Forges").states.as_slice().contains(&State::Current));
+        follow(&mut world, client, vec![press(Role::Link, b"Deployment")]);
+        assert!(world.tree(client).nodes().iter().any(|n| n.role == Role::Link
+            && n.name.as_deref() == Some(b"Deployment")
+            && n.states.as_slice().contains(&State::Current)));
+        assert!(node(&world, client, Role::Link, b"Accounts").states.as_slice().contains(&State::Current));
         follow(
             &mut world,
             client,

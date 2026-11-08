@@ -173,7 +173,7 @@ const ASK_PROPOSE_SETTINGS: Spec = Spec {
     effect: run::HostEffect::Write,
 };
 
-const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#, effect: run::HostEffect::Write };
+const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: goal into base; run: land run branch; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: goal into base; run: land run branch; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#, effect: run::HostEffect::Write };
 
 pub(crate) const SPECS: [Spec; 43] = [
     Spec { name: b"decided", description: b"Ask whether your goal may decide while its person is away. Carry on only if decided; otherwise ask with message, as a question.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"question":{"type":"string","description":"The question, at most 400 bytes."},"options":{"type":"array","minItems":2,"maxItems":6,"items":{"type":"string"},"description":"Two to six options, each at most 120 bytes."},"took":{"type":"integer","minimum":0,"maximum":5,"description":"The chosen option's index, starting at zero."},"why":{"type":"string","description":"Why you chose it, at most 400 bytes."},"kind":{"type":"string","enum":["implementation","retry","wording","dependency","other"]}},"required":["question","options","took","why","kind"]}"#, effect: run::HostEffect::Write },
@@ -237,11 +237,12 @@ pub(crate) const SPECS: [Spec; 43] = [
 /// The complete host-tool registry, with exact schemas and write effects.
 #[must_use]
 pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
-    offered_tools(timeout, tasks::Tools(u64::MAX), true)
+    offered_tools(timeout, tasks::Tools(u64::MAX), true, true)
 }
 
 /// An asking charter offers its own tools alone, gated by authority.
 /// Settings declarations require the charter's and the run's settings family.
+/// Delegate declarations require the charter's delegate family.
 /// Message, task-read and plan declarations require their run families.
 /// Root authority still decides each accepted call by its durable name.
 pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tasks::Tools) -> Box<[run::HostTool]> {
@@ -264,10 +265,10 @@ pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tas
     if charter.0 & families.settings == 0 {
         offered.0 &= !families.settings;
     }
-    offered_tools(timeout, offered, false)
+    offered_tools(timeout, offered, charter.0 & families.delegate.0 != 0, false)
 }
 
-fn offered_tools(timeout: Duration, authority: tasks::Tools, full: bool) -> Box<[run::HostTool]> {
+fn offered_tools(timeout: Duration, authority: tasks::Tools, delegate: bool, full: bool) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
     let settings = authority.0 & families.settings != 0;
     let message = authority.0 & families.message.0 != 0;
@@ -278,6 +279,7 @@ fn offered_tools(timeout: Duration, authority: tasks::Tools, full: bool) -> Box<
         let spec = if plan && spec.name == b"change" { PLAN_CHANGE } else { spec };
         if (!full && (spec.name == b"see" || spec.name == b"document"))
             || (!settings && (spec.name == b"settings" || spec.name == b"propose_settings"))
+            || (!delegate && (spec.name == b"goal" || spec.name == b"change" || spec.name == b"delegate"))
             || (!message && spec.name == b"message")
             || (!read && spec.name == b"read_task")
         {

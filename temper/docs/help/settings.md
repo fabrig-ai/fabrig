@@ -12,10 +12,11 @@ or project for ways and questions; rules have no number: `charter 2`, `template 
 `landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`,
 `project-ways 2`, `project-questions 2`.
 
-- A project's ways say whether chats can write drafts and whether Goals,
-  Changes and the Away switch show, and which offered template with
+- A project's ways say whether chats can write drafts, whether Work's Goals
+  and Changes filters and the Away switch show, and which offered template with
   `tracked` set a goal starts by; 0 takes the first. The stock offers drafts, hides the
-  other three and uses 0.
+  two filters and the switch and uses 0. Goals and Changes hide no rail entry;
+  work under a hidden filter stays under Work's All filter.
 - A project's questions give a change's question route when its maker
   names none: `none`, `foreman` or `up`. The stock uses `none`.
 - A landing rule governs changes landing on matching branches, for the
@@ -35,11 +36,14 @@ The binary holds defaults; the store holds overrides. A setting without
 an override follows its default. Settings never live in the configuration
 document.
 
-The stock has charters 1, 2, 4, 5, 6, 9, 10 and 11, and templates 1 for a
-chat, 2 for a goal, 4 for a draft goal and 5 for Ask temper. Charter 5
-coordinates a draft goal. Charter 10 is a model's trial and is never
-offered. Its rules offer seven charter executors (1, 2, 4, 5, 6, 9 and 11),
-procedures 2, 3 and 4, merge job 3 and roles 0, 1 and 2.
+The stock has charters 1, 2, 4, 5, 6, 9, 10, 11 and 12, and templates 1
+for a chat, 2 for a goal, 4 for a draft goal, 5 for Ask temper and 6 for a
+design session. Charter 5 coordinates a draft goal. Charter 10 is a
+model's trial and is never offered. Charter 12 is the drafter: it writes a
+draft with you as a design session's document, reads code through the
+forge, and starts nothing. Its rules offer eight charter executors
+(1, 2, 4, 5, 6, 9, 11 and 12), procedures 2, 3 and 4, merge job 3 and
+roles 0, 1 and 2.
 
 A setting's whole value is JSON, as `settings show` prints it. For members,
 types and bounds, read `temper help settings-fields`.
@@ -101,6 +105,9 @@ its default. A stored change still wins over a changed default.
 
 ## Acting on it
 
+- On the rail, **How work runs** opens the project's process and its
+  Repositories tab. On a phone, choose **How work runs for PROJECT** in
+  the project switcher.
 - Tell Ask temper how you work (`temper help chat`). It reads
   settings and proposes what temper enforces and agents follow; an owner decides.
 - `temper ctl`: `settings show` reads the inventory: newest revision,
@@ -131,8 +138,9 @@ its default. A stored change still wins over a changed default.
 
 ### Models
 
-On Settings, Models, temper reads each provider's list where it can: as an
-account becomes usable, once a day and when you choose **Read again**.
+In Deployment, at the rail's foot, open Models. temper reads each provider's
+list where it can: as an account becomes usable, once a day and when you
+choose **Read again**.
 A new model starts off the picker, marked “new” for a week. Its prices are
 estimated until Ask temper sets them. A failed read says so on
 Models and changes nothing.
@@ -183,6 +191,6 @@ For members needing a restart, read `temper help configuration`.
 - Providers, listeners, workers and limits are configured at start;
   changes need a restart. Limits must hold the stock's settings or start
   refuses. Another model or new stock can change the limits needed.
-- Stock floors are eight charters, four templates and fourteen executor kinds
-  (seven charters, three procedures, one job and three roles); your settings
+- Stock floors are nine charters, five templates and fifteen executor kinds
+  (eight charters, three procedures, one job and three roles); your settings
   may need more.
