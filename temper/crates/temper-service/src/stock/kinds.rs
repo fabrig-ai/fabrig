@@ -88,6 +88,25 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             per_scope: 1,
             charters: 0,
         },
+        Kind {
+            number: 9,
+            scope: KindScope::Deployment,
+            connector,
+            value_bytes: size(&settings::Value::CharterWords(word(settings::LINE_BYTES))),
+            per_scope: limits.tasks.charters,
+            charters: 0,
+        },
+        Kind {
+            number: 10,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::ProjectWords(settings::ProjectWords {
+                headline: word(settings::HEADLINE_BYTES),
+                lede: word(settings::LEDE_BYTES),
+            })),
+            per_scope: 1,
+            charters: 0,
+        },
     ])
 }
 

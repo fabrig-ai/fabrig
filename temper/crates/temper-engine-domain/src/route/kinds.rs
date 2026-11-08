@@ -453,7 +453,7 @@ fn read_refusal(
                         crate::ForgeRead::View { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
-                            (*kind == 2 || *kind == 6 || *kind == 7) && *scope == project
+                            (*kind == 2 || *kind == 6 || *kind == 7 || *kind == 10) && *scope == project
                         }
                         crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,
                     };

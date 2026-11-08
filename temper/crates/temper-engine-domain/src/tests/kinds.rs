@@ -691,6 +691,17 @@ fn read_forge(
         while let Some(request) = out.pop() {
             match request {
                 crate::Request::Party(crate::PartyRequest::Deliver(delivery)) => return delivery,
+                crate::Request::Store(crate::StoreRequest::Read { load, .. }) => {
+                    crate::try_step(
+                        domain,
+                        env,
+                        crate::Event::Store(crate::StoreInput::ReadLoaded {
+                            load,
+                            result: jig_domain_core::reads::Loaded::Page { rows: Box::new([]), next: None },
+                        }),
+                    )
+                    .unwrap();
+                }
                 crate::Request::Store(crate::StoreRequest::Commit { number, .. }) => {
                     crate::try_step(domain, env, crate::Event::Store(crate::StoreInput::Committed { number, fill: 0 }))
                         .unwrap();
@@ -1031,7 +1042,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
 fn a_project_reads_its_own_kinds_with_a_role_there() {
     use jig_domain_core::reads::{Answer, Why};
     use jig_domain_people::{ApplicationScope, DEPLOYMENT, Role};
-    for kind in [2, 6, 7] {
+    for kind in [2, 6, 7, 10] {
         for (role, membership, scope, query_scope, good) in [
             (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT), PROJECT, true),
             (None, PROJECT, ApplicationScope::Project(PROJECT), PROJECT, false),
@@ -1048,6 +1059,13 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                     size: 1,
                 },
                 7 => ways(0),
+                10 => settings::SizedValue {
+                    value: settings::Value::ProjectWords(settings::ProjectWords {
+                        headline: b"Our way".as_slice().into(),
+                        lede: b"We review changes.".as_slice().into(),
+                    }),
+                    size: 33,
+                },
                 _ => unreachable!("table kind"),
             };
             domain.forge.keep_settings(
@@ -1057,19 +1075,18 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                 &[settings::Asked { kind, scope: query_scope, number: 1, edit: settings::Edit::Set(value.clone()) }],
                 &mut Queue::uncapped(),
             );
-            let answer = read_forge(
-                &mut domain,
-                &env,
-                READ_SIGN_IN,
-                scope,
-                crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 },
-            );
-            let expected = if good {
-                Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(Some(value)) }
-            } else {
-                Delivery::Read { reply: READ_REPLY, answer: Answer::None(Why::Unknown) }
-            };
-            assert_eq!(answer, expected, "kind {kind}, membership {membership}, scope {scope:?}");
+            for (query, read_value) in [
+                (crate::ForgeRead::Setting { kind, scope: query_scope, number: 1 }, Some(value)),
+                (crate::ForgeRead::RevisionSetting { kind, scope: query_scope, number: 1, revision: 1 }, None),
+            ] {
+                let answer = read_forge(&mut domain, &env, READ_SIGN_IN, scope, query);
+                let expected = if good {
+                    Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(read_value) }
+                } else {
+                    Delivery::Read { reply: READ_REPLY, answer: Answer::None(Why::Unknown) }
+                };
+                assert_eq!(answer, expected, "kind {kind}, membership {membership}, scope {scope:?}");
+            }
         }
     }
     for query in [
@@ -1078,6 +1095,7 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
         crate::ForgeRead::RevisionSetting { kind: 1, scope: PROJECT, number: 1, revision: 1 },
         crate::ForgeRead::RevisionSetting { kind: 3, scope: PROJECT, number: 1, revision: 1 },
         crate::ForgeRead::RevisionSetting { kind: 6, scope: PROJECT + 1, number: 1, revision: 1 },
+        crate::ForgeRead::RevisionSetting { kind: 10, scope: PROJECT + 1, number: 1, revision: 1 },
         crate::ForgeRead::ProposalItems { key: PROPOSAL },
     ] {
         let (mut domain, env) = reader_in(Some(Role::Owner), PROJECT);
