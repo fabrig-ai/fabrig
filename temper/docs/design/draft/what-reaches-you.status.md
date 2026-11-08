@@ -1,0 +1,37 @@
+# what-reaches-you: status
+
+2026-11-08. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
+
+- **Design lags:**
+  - 2: no kind of `../protocol/configuration.md`, 13.2 holds the classes'
+    table or a project's path sets, and the stock ways of 13.10 set no
+    defaults for them; `../domain/agent.md`, 4.3's `decided` knows five
+    kinds, `implementation`, `retry`, `wording`, `dependency` and `other`.
+  - 3: `../domain/forge.md`, 5.8 keeps Away's four bits of kinds on the
+    person's row; `../client/README.md`, 3.5's *Away* and 5.13's *While
+    you're away, agents may decide* draw them.
+  - 4: `../domain/forge.md`, 5.9 answers ask to any caller but a goal or a
+    chat with a person, and judges no paths; `decided` takes none
+    (`../domain/agent.md`, 4.3).
+  - 5: `../client/README.md`, 3.5's *Needs you* draws no reason line and no
+    "Stop asking"; no proposal is made from a need's reason.
+  - 6: `../client/README.md`, 3.5 shows decided rows on Home alone, and
+    *Needs you* draws nothing of them.
+  - 7: a landing rule names no path set (`../protocol/configuration.md`,
+    section 3 and 13.3); `../domain/forge.md`, 8.7 reads no paths a change
+    touches, and 8.12's line names none.
+  - 8: `../client/README.md`, 3.5's *Needs you* has no "Only you" part;
+    the accounts' states are drawn on Accounts alone (5.5).
+  - 9: `../client/README.md`, 5.13's *Telling you* is disabled; no design
+    holds a service worker, a push or a digest (`../client/browser.md`),
+    nor mail settings (`../protocol/configuration.md`).
+  - 10: `../../development/acceptance.md` holds no story of it.
+- **Open:**
+  - 9: push or mail by default; default push where the browser offers it,
+    mail where the deployment has its settings, nothing otherwise.
+  - 2: the classes' table per project or per person; default per project.
+  - 6: whether code's own decisions, a known flake's rerun, are listed;
+    default not.
+  - 7: whether temper also writes a path set's sign-off where the forge
+    enforces it (`../README.md`, section 8); default temper's landing
+    alone.
