@@ -926,3 +926,10 @@ pub(crate) fn wait_commands(text: &[u8], commands: &[&str], program_login: &[u8]
         }
     }
 }
+
+/// A program declaration can be sent only after its provider's ways arrive.
+pub(crate) fn offer_programs(root: &mut Harness) {
+    let mut me = me(PARTY);
+    me.providers = provider_offers();
+    root.deliver(c::Delivery::Me(Box::new(me)));
+}
