@@ -44,6 +44,7 @@ mod to_begin;
 mod tui;
 mod watch_room;
 mod welcome;
+mod work;
 mod fuzzy {
     mod client;
     mod public_address;
