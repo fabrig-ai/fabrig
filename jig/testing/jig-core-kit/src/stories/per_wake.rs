@@ -106,6 +106,22 @@ pub fn escalation(world: &mut World, requester: (u64, u64)) -> u64 {
     child.0
 }
 
+/// Release the same held child and let its next attempt exceed its bound again.
+pub fn rehold(world: &mut World, child: u64) {
+    let revision = fixtures::live_row(world, child).revisions.hold;
+    fixtures::ask(world, 86, jig_domain_people::Ask::Release { project: 1, task: child, revision, again: None });
+    let attempt = fixtures::live_row(world, child).attempt;
+    world.send(root::Event::Answer {
+        channel: Token::new(7),
+        task: child,
+        attempt,
+        cumulative: 0,
+        end: tasks::End::Exceeded(tasks::Exceeded { bound: tasks::Bound::Reasoning, value: 2048 }),
+        read: None,
+        refused: Box::new([]),
+    });
+}
+
 /// Park the named attempt, independently of the last child assigned to the worker.
 pub fn park(world: &mut World, run: (u64, u64), read: Option<u64>) {
     world.await_timer(run.0);

@@ -120,6 +120,21 @@ pub(crate) fn wake_restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         held.push(*number).expect("live names bounded");
     }
     for &number in &held {
+        let task = record(domain, number).expect("restored held name live");
+        match task.escalation {
+            Escalation::Waiting { revision, holder: EscalationHolder::Task(holder), entry, since } => {
+                if let Some(row) = record(domain, holder)
+                    && row.phase == Phase::Active(crate::Active::Idle)
+                    && crate::reasons::covered(&word(number, revision, entry, since), row.offered)
+                {
+                    continue;
+                }
+            }
+            Escalation::Waiting { holder: EscalationHolder::Person(_) | EscalationHolder::Role { .. }, .. }
+            | Escalation::Unheld { .. }
+            | Escalation::Routing { .. }
+            | Escalation::Rejected { .. } => {}
+        }
         wake_holder(domain, env, number, out);
     }
 }
