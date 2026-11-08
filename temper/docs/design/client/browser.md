@@ -1502,10 +1502,13 @@ Not in the tier, each in the lowest world that shows it:
   compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` after
   landing, including their named states, open menus and disclosures at
   1440, 1000 and 420 px (`../draft/look-requests.md`, section 4).
-  Include `home-begin-*`, Home with a need or chat left out while To
-  begin shows, Ask temper's restricted rail and its three tabs at 420,
-  and `night-home`, `night-ask` and `night-chat-split`, the switch in the
-  folded rail and at a phone's chat bar, and the night's shadows. Check
+  Include `home-begin-*`, Home with a need and a chat left out with
+  either step left, and their return after the last step or a skip.
+  Check Ask temper's restricted rail, its three tabs at 420 with the
+  composer above them, and `night-home`, `night-ask` and `night-chat-split`,
+  the switch in the
+  folded rail open and closed and at a phone's chat bar, and the night's
+  shadows against their day values (2.5, *Shadows keep their colour*). Check
   the faint top-right glow without rings and readability on every other
   page; refine the first night palette with the user. Run the history
   story's night reload row after landing. Default: tokens, focused
