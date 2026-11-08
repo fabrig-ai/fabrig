@@ -153,7 +153,7 @@ fn a_program_main_reads_a_burst_past_its_room() {
         eprintln!("burst count={count} direct={direct}");
         let story = Story {
             turns: vec![
-                Turn::new(vec![Step::Together((0..count).map(|index| Step::Call {
+                Turn::new(vec![Step::AllAtOnce((0..count).map(|index| Step::Call {
                     tool: "sub_agent".into(),
                     input: json!({"brief":format!("CUE-{index} Survey the workspace."),"tools":["inspect"],"llm":"fake"}),
                 }).collect())]),
@@ -163,7 +163,11 @@ fn a_program_main_reads_a_burst_past_its_room() {
                 }]),
             ],
             cued: CHILD_ANSWERS.iter().enumerate().take(count).map(|(index, answer)| Script {
-                cue: format!("CUE-{index}"), turns: vec![Turn::new(vec![Step::Text((*answer).into())])],
+                cue: format!("CUE-{index}"), turns: if index == 0 {
+                    vec![Turn::new(vec![Step::Text((*answer).into())])]
+                } else {
+                    vec![Turn::new(vec![read("/work/repo/a")]), Turn::new(vec![Step::Text((*answer).into())])]
+                },
             }).collect(),
             ..Default::default()
         };

@@ -21,6 +21,7 @@ pub(super) fn declarations(case: Case) -> smith_agent_service::profile::Configur
     if matches!(case, Case::Burst { .. }) {
         let mut direct = declarations.endpoints[0].clone();
         direct.number = 1;
+        direct.provider = skein_llm::Provider::Anthropic;
         declarations.endpoints = vec![declarations.endpoints[0].clone(), direct].into();
     }
     declarations
@@ -38,10 +39,22 @@ pub(super) fn configuration(conversations: u32) -> smith_agent_service::Config {
         Box::new([smith_domain::run::charter::Endpoint(0), smith_domain::run::charter::Endpoint(1)]);
     let mut direct = config.domain.limits[0].clone();
     direct.endpoint = smith_domain::run::charter::Endpoint(1);
+    direct.protocol_allowance = smith_agent_service::profile::endpoint_allowance(
+        &profile,
+        &declarations.endpoints[1],
+        &limits.domain.session.tools,
+    )
+    .expect("direct endpoint framing");
     config.domain.limits = vec![config.domain.limits[0].clone(), direct].into();
     let mut endpoints = List::with_capacity(ENDPOINTS);
     for (number, name) in [(0, b"".as_slice()), (1, b"direct".as_slice())] {
-        endpoints.push(smith_protocol_translate::Endpoint { name: name.into(), number, dialect: 3 }).expect("endpoint");
+        endpoints
+            .push(smith_protocol_translate::Endpoint {
+                name: name.into(),
+                number,
+                dialect: if number == 0 { 3 } else { 4 },
+            })
+            .expect("endpoint");
     }
     config.channel_endpoints = smith_protocol_translate::Endpoints::new(endpoints);
     config.llm_endpoints = smith_protocol_llm::Endpoints::new(
@@ -55,7 +68,7 @@ pub(super) fn configuration(conversations: u32) -> smith_agent_service::Config {
                     credential: skein_llm::client::CredentialLimits { value: limits.llm.grant_value_bytes },
                     address: skein_io::kernel::Addr::from((std::net::Ipv4Addr::LOCALHOST, 443)),
                     transport: skein_llm_connection::Transport::Plaintext,
-                    llm: skein_llm::Endpoint::openai(),
+                    llm: if number == 0 { skein_llm::Endpoint::openai() } else { skein_llm::Endpoint::anthropic() },
                 },
                 oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
             })
@@ -102,7 +115,7 @@ pub(super) fn grant(frame: skein_channel::Frame, case: Case) -> skein_channel::F
                         account: 1,
                         generation: 1,
                         valid: Duration::from_secs(7200),
-                        value: crate::bearer(b"token"),
+                        value: crate::key(b"token"),
                     },
                 )
                 .expect("child credential"),
@@ -118,29 +131,33 @@ pub(super) fn peer(story: &smith_fake_claude::Story) -> skein_fake_peers::llm::P
         .cued
         .iter()
         .map(|script| {
-            let answer = script
+            let turns = script
                 .turns
                 .iter()
-                .flat_map(|turn| &turn.steps)
-                .find_map(
-                    |step| {
-                        if let smith_fake_claude::Step::Text(text) = step { Some(text.as_bytes()) } else { None }
-                    },
-                )
-                .expect("child text");
-            api::Script {
-                cue: script.cue.as_bytes().into(),
-                turns: Box::new([smith_agent_world::fixture::says(
-                    Box::new([api::Line::Text { text: answer.into() }]),
-                    1,
-                )]),
-            }
+                .map(|turn| {
+                    let lines: Vec<_> = turn
+                        .steps
+                        .iter()
+                        .map(|step| match step {
+                            smith_fake_claude::Step::Text(text) => api::Line::Text { text: text.as_bytes().into() },
+                            smith_fake_claude::Step::Act { tool, input } if tool == "Read" => api::Line::Call {
+                                name: b"read".as_slice().into(),
+                                arguments: serde_json::to_vec(&serde_json::json!({"path":input["file_path"]}))
+                                    .expect("read input")
+                                    .into(),
+                            },
+                            _ => panic!("burst child scripts contain text or reads"),
+                        })
+                        .collect();
+                    if turn.steps.iter().any(|step| matches!(step, smith_fake_claude::Step::Act { .. })) {
+                        smith_agent_world::fixture::calls(lines.into(), 1)
+                    } else {
+                        smith_agent_world::fixture::says(lines.into(), 1)
+                    }
+                })
+                .collect::<Vec<_>>();
+            api::Script { cue: script.cue.as_bytes().into(), turns: turns.into() }
         })
         .collect::<Vec<_>>();
-    crate::fake::configured_openai(
-        scripts.into(),
-        crate::fake::credential(false),
-        Duration::ZERO,
-        skein_fake_peers::Transport::Plaintext,
-    )
+    crate::fake::configured_anthropic(scripts.into(), crate::fake::credential(true))
 }
