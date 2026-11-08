@@ -969,8 +969,10 @@ keeps (`../protocol/configuration.md`, section 2).
     times stay in the tree and the look hides them. A fold whose call failed shows
     its first failure's line on its folded row, "failed: WORDS", where today it
     says "1 failed". The column stays left, 100 characters at most.
-  - *The running line,* above the box, while the browser would draw the chat's
-    working dots, or the chat waits on its delegates or on an account: "✦",
+  - *The running line,* above the box, while the chat works, its status one
+    the browser draws working dots for (*While it works,* below), whether or not
+    the dots stand: the words being written and a call under way keep it. Or
+    while the chat waits on its delegates or on an account: "✦",
     pulsing, then the bar's status words ("working", "waiting on 1 delegate",
     "Waiting for an account"). It draws no clock.
   - *The box:* the composer, "❯" before its text area, its name, placeholder,
