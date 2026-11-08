@@ -164,3 +164,17 @@ Preserve C6’s separate keys: Work 4650–4749 and Deployment 4750–4799.
 Keep Work’s `ChangesLede` edit and Deployment’s Settings/Workers wording edits.
 Verify the combined declarations with the repository’s vocabulary checks and run the focused `temper-client-view` tests through heavy.
 The log reports no other conflicting path; retain the automatically merged reader and gallery changes.
+
+## Rebase (2026-11-08, step merge, foreman ui-p1-rail/work-page/foreman-2)
+
+Rebase words.rs preserving Work and the new role/rule words, and combine vocabulary counts.
+The merge conflicts only in `temper/crates/temper-client-view/src/words.rs`.
+Rebase onto the landing trunk, currently `0b8959ce2e`.
+It includes main’s `f358753b09` (“Give roles and landing rules their own Settings pages”) through merge `d184a71b65`.
+Preserve its `RoleReading`, `RoleUnreadable`, `RoleRuleReading`, and `RoleRuleUnreadable` variants, ALL entries, English phrases, and IDs 3560–3563.
+Keep all 28 Work additions, their IDs and phrases, and Work’s `ChangesLede` edit.
+Retain Deployment’s words and Settings/Workers wording already incorporated by the previous rebase.
+The previous Rebase section’s counts now omit the four role/rule additions.
+Set `PHRASES = 2163`, `SEGMENTS = 3834`, `ENGLISH_BYTES = 52767`, and `ALL: [Word; 1481]`.
+Run `tests::accounts::english_phrase_declarations_match_the_vocabulary` through heavy, then the focused `temper-client-view` tests.
+Preserve the automatically merged CSS, page registration, root dispatch, status and gallery changes.
