@@ -81,6 +81,10 @@ pub struct Pages {
     shown: u64,
     pub(crate) inbox: Option<inbox::Inbox>,
     pub home: Option<home::Home>,
+    all_home: Option<all_home::AllHome>,
+    needs_decided: Option<all_home::AllHome>,
+    ask_line: Box<[u8]>,
+    ask_with: Option<(u32, Box<[u8]>)>,
     changes: Option<changes::Changes>,
     stock_ways: Option<crate::forge::stock_ways::StockWays>,
     chats: Option<chats::Chats>,
@@ -117,6 +121,12 @@ pub struct Pages {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    AskLine {
+        words: Box<[u8]>,
+    },
+    AskWith {
+        words: Box<[u8]>,
+    },
     Terminal(terminal::Act),
     OpenStart {
         draft: Option<Box<[u8]>>,
@@ -332,6 +342,10 @@ impl Pages {
             shown: 0,
             inbox: None,
             home: None,
+            all_home: None,
+            needs_decided: None,
+            ask_line: Box::default(),
+            ask_with: None,
             changes: None,
             stock_ways: None,
             chats: None,
@@ -529,6 +543,10 @@ impl Pages {
         Self { serial: skein_lib::Rng::new(seed).next_u64(), ..Self::new() }
     }
     #[must_use]
+    pub fn ask_line(&self) -> &[u8] {
+        &self.ask_line
+    }
+    #[must_use]
     pub const fn project(&self) -> Option<u32> {
         self.project
     }
@@ -671,6 +689,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if let Some(home) = pages.home.take() {
                 home.leave(out);
             }
+            leave_across(pages, out);
+            pages.ask_line = Box::default();
+            pages.ask_with = None;
             if let Some(chats) = pages.chats.take() {
                 pages.next = pages.next.max(chats.leave(out));
             }
@@ -695,6 +716,48 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             needs::act(pages, env, client, &crate::forge::approvals::Approvals::default(), act, out);
         }
         Event::Act { act: Act::Choice(act) } => choice::act(pages, client, act, out),
+        Event::Act { act: Act::AskLine { words } } => {
+            pages.ask_line = composer::held(words, env.limits.client.domain.long_text).0;
+        }
+        Event::Act { act: Act::AskWith { words } } => {
+            if !words.is_empty() {
+                let project = match pages.address {
+                    Address::Home { project } => Some(project),
+                    Address::AllHome => match pages.project {
+                        Some(project) => Some(project),
+                        None => match pages.me(client) {
+                            Some(me) => match me.projects.get(0) {
+                                Some(row) => Some(row.project),
+                                None => None,
+                            },
+                            None => None,
+                        },
+                    },
+                    Address::Inbox { .. }
+                    | Address::Ask { .. }
+                    | Address::NewChat { .. }
+                    | Address::Chats { .. }
+                    | Address::Accounts
+                    | Address::Forges
+                    | Address::ConnectForge { .. }
+                    | Address::ConnectModel { .. }
+                    | Address::Welcome { .. }
+                    | Address::Chat { .. }
+                    | Address::Task { .. }
+                    | Address::Changes { .. }
+                    | Address::Settings { .. }
+                    | Address::Repositories { .. }
+                    | Address::Models { .. }
+                    | Address::Builders { .. }
+                    | Address::Goals { .. }
+                    | Address::Adopt { .. } => None,
+                };
+                if let Some(project) = project {
+                    pages.ask_with = Some((project, composer::held(words, env.limits.client.domain.long_text).0));
+                    out.push(Request::Show { address: Address::Ask { project } });
+                }
+            }
+        }
         Event::Act { act: Act::ChatWords { words } } => {
             if let Some(chats) = &mut pages.chats {
                 chats.write(words, &env.limits);
@@ -1025,7 +1088,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Adopt { .. } => true,
         };
     pages.needs.configure(showing, &env.limits, out);
+    configure_across(pages, env, client, out);
     prepare_rail_chats(pages, client);
+    if let Some((project, _)) = &pages.ask_with
+        && pages.address == (Address::Ask { project: *project })
+        && let Some(chats) = &mut pages.chats
+    {
+        let (_, words) = pages.ask_with.take().expect("held Ask words");
+        chats.write(words, &env.limits);
+    }
     let me = pages.me(client);
     pages.has_goals.configure(me, pages.project, out);
     if let Address::Home { project } = pages.address
@@ -1108,6 +1179,16 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
     }
     if let Some(home) = &mut pages.home
         && home.told(&told, client, env.limits.forge, out)
+    {
+        return true;
+    }
+    if let Some(reads) = &mut pages.all_home
+        && reads.told(&told, client, env.limits.forge, out)
+    {
+        return true;
+    }
+    if let Some(reads) = &mut pages.needs_decided
+        && reads.told(&told, client, env.limits.forge, out)
     {
         return true;
     }
@@ -1299,6 +1380,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
     if pages.address != address {
         pages.notes.clear();
         pages.listing = None;
+        if let Some((project, _)) = &pages.ask_with
+            && address != (Address::Ask { project: *project })
+        {
+            pages.ask_with = None;
+        }
     }
     let mut opening = chat::document::Mode::Chat;
     let mut started = false;
@@ -1349,6 +1435,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         && pages.changes.is_none()
         && pages.stock_ways.is_none()
         && pages.home.is_none()
+        && pages.all_home.is_none()
+        && pages.needs_decided.is_none()
         && pages.inbox.is_none()
         && pages.chats.is_none()
         && pages.goals.is_none()
@@ -1419,6 +1507,8 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Some(home) = pages.home.take() {
             home.leave(out);
         }
+        leave_across(pages, out);
+        pages.ask_line = Box::default();
         if let Some(inbox) = pages.inbox.take() {
             pages.next = pages.next.max(inbox.leave(out));
         }
@@ -1477,7 +1567,12 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             page.filter = filter;
             pages.chats = Some(page);
         }
+        if address == Address::AllHome {
+            pages.all_home = Some(all_home::AllHome::new(true, None));
+            pages.inbox = Some(inbox::Inbox::new(crate::address::Filter::ALL, pages.next, &env.limits, out));
+        }
         if let Address::Inbox { filter } = address {
+            pages.needs_decided = Some(all_home::AllHome::new(false, filter.project));
             pages.inbox = Some(inbox::Inbox::new(filter, pages.next, &env.limits, out));
         }
         pages.choice = choice::Draft::default();
@@ -1925,6 +2020,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Accounts(_)
         | Act::ConnectModel(_)
         | Act::SignOut
+        | Act::AskLine { .. }
+        | Act::AskWith { .. }
         | Act::ChatWords { .. }
         | Act::StartChat
         | Act::WayTab { .. }
@@ -2571,5 +2668,35 @@ fn configure_stock_ways(pages: &mut Pages, client: &Client) {
     };
     if let Some(page) = &mut pages.stock_ways {
         page.configure(asking || home::configured(client));
+    }
+}
+
+fn leave_across(pages: &mut Pages, out: &mut Queue<Request>) {
+    if let Some(reads) = pages.all_home.take() {
+        reads.leave(out);
+    }
+    if let Some(reads) = pages.needs_decided.take() {
+        reads.leave(out);
+    }
+}
+fn configure_across(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
+    let reads = match pages.all_home.take() {
+        Some(reads) => Some(reads),
+        None => pages.needs_decided.take(),
+    };
+    let Some(mut reads) = reads else { return };
+    if let Some(inbox) = &pages.inbox {
+        pages.next = pages.next.max(inbox.next);
+    }
+    let mut next = pages.next;
+    reads.configure(pages.me(client), &mut next, env.limits.forge, out);
+    pages.next = next;
+    if let Some(inbox) = &mut pages.inbox {
+        inbox.next = pages.next;
+    }
+    if pages.address == Address::AllHome {
+        pages.all_home = Some(reads);
+    } else {
+        pages.needs_decided = Some(reads);
     }
 }

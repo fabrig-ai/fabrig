@@ -71,7 +71,7 @@ pub const fn needs(facts: &NeedsFacts) -> NeedsParts {
     NeedsParts { list: facts.known && facts.open > 0, done: facts.known && facts.open == 0, decided: facts.showing > 0 }
 }
 #[must_use]
-pub fn needs_facts(root: &Domain, _wall: Wall) -> NeedsFacts {
+pub fn needs_facts(root: &Domain, wall: Wall) -> NeedsFacts {
     let (known, open) = match root.pages().inbox() {
         Some(inbox) => (
             inbox.known(),
@@ -79,5 +79,5 @@ pub fn needs_facts(root: &Domain, _wall: Wall) -> NeedsFacts {
         ),
         None => (false, 0),
     };
-    NeedsFacts { known, open, showing: 0 }
+    NeedsFacts { known, open, showing: super::all_home::showing(root, wall) }
 }

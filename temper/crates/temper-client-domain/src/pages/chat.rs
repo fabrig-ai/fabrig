@@ -1210,6 +1210,8 @@ impl Chat {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::SignOut
+            | Act::AskLine { .. }
+            | Act::AskWith { .. }
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::WayTab { .. }

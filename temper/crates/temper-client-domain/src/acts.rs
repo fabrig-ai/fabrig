@@ -159,6 +159,8 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::Older
         | Act::Newer
         | Act::Latest
+        | Act::AskLine { .. }
+        | Act::AskWith { .. }
         | Act::ChatWords { .. }
         | Act::StartChat
         | Act::WayTab { .. }

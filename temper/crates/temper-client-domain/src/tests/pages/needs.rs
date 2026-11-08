@@ -129,6 +129,13 @@ fn reply_to(pages: &mut Pages, object: ObjectKey, words: &[u8]) -> Queue<Request
     limits.client.domain.turn_text = temper_client_protocol_wire::CUE_BYTES;
     let env = fixtures::env(&limits);
     let client = super::composer::root(&limits);
+    pages::step(
+        pages,
+        &env,
+        client.client(),
+        pages::Event::Told { told: Told::Changed { handle: pages::me_handle() } },
+        &mut Queue::uncapped(),
+    );
     let mut out = Queue::uncapped();
     for act in [
         pages::Act::Needs(Act::OpenReply { object }),
