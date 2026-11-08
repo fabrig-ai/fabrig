@@ -71,6 +71,13 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   their own connect's new stop alone (`forge/tokens.rs` `stopped`); the
   code records no reason, and a code task gives the admin's form the
   tokens' rule.
+- **Design departs:** 9.1, from the look request `outside-pages` of
+  2026-11-08, decided by its plan's cut: the GitHub App's setup pages carry
+  `files/pages.css`'s rules inline but its `@font-face` rules, where the
+  request has the same rules, so they draw in the system's sans: their
+  `default-src 'none'` fetches nothing. A test in
+  `temper-service/src/setup/routes.rs` holds the inline style to the sheet's
+  other rules.
 - **Design departs:** 5.4, from the request `ui-repo-link` of 2026-11-06,
   decided by its plan's cut: a folded forge row's repository stays plain,
   with its link in the body's Repositories, because the summary's description

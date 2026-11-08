@@ -489,6 +489,17 @@ impl Program {
         None
     }
 
+    fn file_index(&self, owner: Token) -> Option<u32> {
+        for index in 0..self.children.len() {
+            if let Some(child) = self.children.get(index).expect("child slot")
+                && child.backend.owns_file(owner)
+            {
+                return Some(index);
+            }
+        }
+        None
+    }
+
     fn route_io(
         &mut self,
         env: &skein_lib::Env<llm::ComponentLimits>,
@@ -819,16 +830,27 @@ pub(super) fn file_event(service: &mut Stages, event: file::Event) -> Option<fil
             return None;
         }
     }
-    if program.backend.owns(owner) || program.io_index(owner).is_some() {
-        program.route_io(
-            &service.llm_env,
-            owner,
-            backend::BelowEvent::File { event, descriptor },
-            &mut service.llm_events,
-        );
-        None
-    } else {
-        Some(event)
+    match program.file_index(owner) {
+        Some(index) => {
+            let child = program.children.get_mut(index).expect("child slot").as_mut().expect("child backend");
+            child.backend.from_io(
+                &service.llm_env,
+                backend::BelowEvent::File { event, descriptor },
+                &mut service.llm_events,
+                &mut program.below,
+            );
+            None
+        }
+        None if program.backend.owns_file(owner) => {
+            program.backend.from_io(
+                &service.llm_env,
+                backend::BelowEvent::File { event, descriptor },
+                &mut service.llm_events,
+                &mut program.below,
+            );
+            None
+        }
+        None => Some(event),
     }
 }
 

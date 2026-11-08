@@ -1099,10 +1099,6 @@ timings, budgets and shares within its own (`docs/design/testing.md`).
 
 ## 15. Open questions
 
-- **A program-backed burst's panic** (5.3): identify the panicking
-  bound from the failed agent's retained detail before choosing a fix.
-  Default: keep the configured room and answer each call by the existing
-  admission rules; a burst alone is no reason to raise a bound.
 - **A silent check** (8.1): feedback carries only what its process
   wrote and the machine read. Progress messages belong to the repository's
   check, so a timeout before it writes can still have an empty tail.

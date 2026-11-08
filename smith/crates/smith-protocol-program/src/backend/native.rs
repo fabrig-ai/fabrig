@@ -9,9 +9,9 @@ use super::{Backend, Below, State, policy};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_io::{digest, file};
-use skein_lib::{Queue, Time, Token};
+use skein_lib::{Env, Queue, Time, Token};
 use smith_domain::tools::{Place, Version};
-use smith_protocol_llm::ToDomain;
+use smith_protocol_llm::{self as protocol, ToDomain};
 
 pub(super) enum After {
     Allow { call: mcp::CallId, input: Box<[u8]> },
@@ -98,8 +98,20 @@ impl Backend {
         }
     }
 
-    pub(super) fn native_event(&mut self, event: file::Event, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
-        let snapshot = self.native.take().expect("one native file terminal");
+    pub(super) fn native_event(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        event: file::Event,
+        up: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) {
+        let snapshot = match &self.native {
+            Some(snapshot) if snapshot.submitted => self.native.take().expect("one submitted native file terminal"),
+            Some(_) | None => {
+                self.unasked(env, up, below);
+                return;
+            }
+        };
         if snapshot.cancelled || self.startup.phase() == State::Ending || self.stopping.waiting() {
             return;
         }

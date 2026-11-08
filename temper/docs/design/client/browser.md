@@ -445,11 +445,13 @@ replay says the same clocks (`README.md`, 5.12).
   mapping tells the engine they carried the cookie, so the engine
   takes them as a browser's (jig's `protocol/client.md`, 17.3); `temper
   ctl`'s bearer is refused (`tools.md`, section 9). Signed out,
-  the page says "Sign in first": to open the printed link first, then
-  the page's address again, since the link's sign-in lands on
-  `/welcome`, not back on the page. It offers no Google sign-in: the
-  approval is enabled on loopback alone, where the printed link is the
-  way in.
+  the page says "Sign in first". With Google's way given, as the
+  sign-in page reads it, it offers "Continue with Google", whose `then`
+  is the page's address with its code, so the sign-in comes back to the
+  approval (the look request `outside-pages`). Without it, the printed
+  link is the way in: the page says to open it first, then the page's
+  address again, since the link's sign-in lands on `/welcome`, not back
+  on the page (`README.md`, 3.5, *The approval page*).
 - **One person, on loopback,** as `README.md`, section 7 says. A browser
   on another machine is open (`README.md`, section 11).
 
@@ -1547,14 +1549,27 @@ Not in the tier, each in the lowest world that shows it:
 
 - **The terminal approval page after landing** (2.3 to 2.5, 7.2):
   check `/terminal` in a signed-in browser on a fresh box, its typed-code
-  entry and the eleven `approve-*` gallery states at narrow and wide
+  entry and the twelve `approve-*` gallery states at narrow and wide
   widths. Domain, view and shell tables and gallery prints establish no
   rendered browser result. The TUI's own flow and walk follow
   `../draft/tui.execution.md`, M2.
 - **Terminal approval at a public name** (2.4): Google's browser sign-in,
   the code typed rather than carried in the address, the request's origin
   and age, and a person's list of sign-ins with each ended from there
-  (`../draft/tui.md`, section 7). The loopback page uses the printed link.
+  (`../draft/tui.md`, section 7). The loopback page signs in by the
+  printed link, or by Google's way where it is given.
+
+- **The outside pages' comparison** (2.4, 2.5, 7.2; `README.md`, 3.5
+  and 5.1; `forge.md`, 9.1; `../protocol/sign-in.md`, 4.3): temper/ui
+  compares the look request `outside-pages`'s pages 01 to 10 under their
+  overlay with the reprint after landing, at 1440, 1000 and 420 px
+  (`../draft/look-requests.md`, section 4), with the states its message
+  names in words: the top bar while `me` is read, offline and behind; the
+  public pages' "Sign in"; every approval state, deciding and signed out
+  with and without Google; each `Authorize` state; out of date; no
+  project yet with and without the welcome; the GitHub App's setup pages;
+  and night. Default: the stylesheets, the two focused tests and the
+  gallery's prints establish no rendered equality.
 
 - **The chat terminal's comparison and keys** (2.5, 7.2; `README.md`,
   3.5): temper/ui compares the four `chat-terminal` requests' pages,

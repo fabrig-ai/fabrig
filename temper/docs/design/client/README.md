@@ -8322,14 +8322,13 @@ was answered with. A box enables it beside the printed link
   - *Not asked while the TUI signs in from the engine's link* (6.14):
     the approval is asked when that ends with the TUI signed out, as the
     sign-in screen opens.
-  - *The browser's way in after the TUI's link:* a printed link is
-    one-time, so a TUI signed in from the engine's link (6.14) spends the
-    link the box's terminal shows. Opened in the browser, it is answered
-    used, "This link was already used. A fresh one is in your terminal."
-    (5.1), and the engine draws the next, prints it and keeps it in its
-    file (6.12), as after any spent link (jig's `protocol/client.md`,
-    section 8): that next link is the browser's way in, as today, and the
-    approval page (3.5) asks for the browser signed in first.
+  - *The browser's way in beside the TUI's link:* a TUI signed in from
+    the engine's link (6.14) spends the engine's local link, never the
+    printed link (6.12; jig's `protocol/client.md`, section 8, *The local
+    link*), so the link the box's terminal shows stays live for the
+    browser, before the TUI signs in or after it. That link is the
+    browser's way in, and the approval page (3.5) asks for the browser
+    signed in first.
   - *Never shown:* the secret and the credential are never drawn on
     the screen or logged. A recording keeps them in the person's
     private file; `add` redacts them before any recording or print is
@@ -9039,10 +9038,13 @@ own tests:
   at a name, Google on the web, the code typed there with the ask's origin
   and age shown, and the web's list of a person's sign-ins, each ended
   from there (`../draft/tui.md`, section 7). Default: loopback, approved
-  by a browser signed in by the printed link.
+  by a browser signed in by the printed link, or by Google's way where it
+  is given (3.5, *The approval page*).
 - **The TUI after landing** (6.11 to 6.16): on a fresh box, start bare
-  `temper` in another terminal and read the launchpad with nothing
-  pasted; check renewal after expiry and refusal to renew after a
+  `temper` in another terminal before opening the printed link and read
+  the launchpad with nothing pasted, then open the printed link in the
+  browser and see it sign in, with no fresh link printed (6.12); check
+  renewal after expiry and refusal to renew after a
   sign-out noted before the expiry slack. With no usable engine's link
   file, paste the printed link, then sign in through the browser's
   approval and check refusal and asking again

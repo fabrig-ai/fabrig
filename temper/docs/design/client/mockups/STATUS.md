@@ -9,7 +9,9 @@ are marked in the drawing, each with its need, and not repeated here.
 Section 2 lists the pages not under the rules yet, with the notes the
 README held for them.
 
-The look request `outside-pages` draws every page outside a project in the welcome's look (`../README.md`, 5.1; `../browser.md`, 2.5), so the mockups' banner over those pages is not the client's.
+The look request `outside-pages` draws every page outside a project in
+the welcome's look (`../README.md`, 5.1; `../browser.md`, 2.5), so the
+mockups' banner over those pages is not the client's.
 
 The `connect-flows` request supersedes Settings’ model and forge connection
 drawings: shared welcome cards and panels, no steps bar or Ready page,

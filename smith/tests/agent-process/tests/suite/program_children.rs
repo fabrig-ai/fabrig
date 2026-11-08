@@ -143,6 +143,8 @@ fn a_program_main_reads_a_burst_past_its_room() {
     for (count, direct, opened, refused, programs) in [
         (2, false, 2, 0, 2),
         (2, true, 2, 0, 0),
+        (3, false, 3, 0, 3),
+        (3, true, 3, 0, 0),
         (4, false, 4, 0, 4),
         (4, true, 4, 0, 0),
         (5, false, 4, 1, 4),
