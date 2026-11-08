@@ -46,3 +46,16 @@ id = 3
 story = "tui_again::starting reads a TUI journey's walk and its setup after project-landing, refusing a setup with a mark; again walks the setup in the browser before it starts the TUI"
 parts = ["journey-setup"]
 walk = false
+
+[[part]]
+id = "screen-label"
+title = "skein's screen lays a text field or area with no label where its token's look says so"
+mode = "direct"
+needs = ["screen-lists"]
+design = "skein/docs/design/ui-screen.md, 5.4"
+
+[[slice]]
+id = 4
+story = "A focused field whose token's look says label false draws the focus mark, then its placeholder or value and the cursor, with no NAME: before it"
+parts = ["screen-label"]
+walk = false
