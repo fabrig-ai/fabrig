@@ -556,6 +556,7 @@ fn run_inner(
 }
 
 #[cfg(test)]
+#[path = "serve/tests/program_environment.rs"]
 mod program_environment;
 
 #[cfg(test)]

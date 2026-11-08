@@ -9,9 +9,12 @@ fn forbidden(source: &str) -> bool {
         || ["CommandExt", "try_lock", "lock_shared", ".lock()"].iter().any(|name| compact.contains(name))
 }
 fn forbidden_at(path: &Path, source: &str) -> bool {
-    let source = if path.ends_with("temper/src/main.rs") || path.ends_with("temper-client/src/main.rs") {
+    let source = if path.ends_with("temper/src/main.rs")
+        || path.ends_with("temper-client/src/main.rs")
+        || path.ends_with("temper-engine/src/main.rs")
+    {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
-    } else if path.ends_with("temper/src/lib.rs") {
+    } else if path.ends_with("temper-engine-shell/src/serve.rs") {
         // Serve reads the first link's secret from stdin (protocol/setup.md, 7.1).
         // Its stdin guard is not a file lock; file locks and process operations stay guarded.
         source.replace("std::io::stdin().lock()", "BoxLinkInput")
@@ -31,7 +34,7 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
             .replace("process::CommandExt", "LauncherExec")
             .replace("std::process::current_exe", "LauncherExecutable")
             .replace("std::process::id", "LauncherId")
-    } else if path.ends_with("temper/src/restart_fault.rs") {
+    } else if path.ends_with("temper-engine-shell/src/serve/restart_fault.rs") {
         // The process tier's exact-listener fault aborts its own serve only.
         // Process creation, exec and every lock still belong to their boundaries.
         source.replace("std::process::abort", "RestartFaultAbort")
@@ -83,7 +86,7 @@ fn calls_through_the_process_boundary_do_not_exempt_direct_operations() {
 }
 #[test]
 fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
-    for path in ["temper/src/main.rs", "temper-client/src/main.rs"] {
+    for path in ["temper/src/main.rs", "temper-client/src/main.rs", "temper-engine/src/main.rs"] {
         for (source, expected) in [
             ("use std::process::ExitCode;", false),
             ("use std::{process::ExitCode};", false),
@@ -101,7 +104,7 @@ fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
 }
 #[test]
 fn serve_stdin_guard_does_not_exempt_file_locks_or_processes() {
-    let path = Path::new("temper/src/lib.rs");
+    let path = Path::new("temper-engine-shell/src/serve.rs");
     for (source, expected) in [
         ("std::io::stdin().lock()", false),
         ("file.lock()", true),
@@ -118,6 +121,7 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
     for (path, source, expected) in [
         ("other.rs", "use std::{fs, process::Child};", true),
         ("other.rs", "std::process::exit(1)", true),
+        ("temper/src/lib.rs", "std::io::stdin().lock()", true),
         ("other.rs", "CommandExt", true),
         ("other.rs", "try_lock", true),
         ("other.rs", "smith::process::Event", false),
@@ -138,9 +142,11 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
         ("temper/src/claude_code.rs", "file.lock()", true),
         ("other.rs", "file.lock()", true),
         ("temper/src/host.rs", "std::process::abort()", true),
-        ("temper/src/restart_fault.rs", "std::process::abort()", false),
-        ("temper/src/restart_fault.rs", "std::process::Command", true),
-        ("temper/src/restart_fault.rs", "try_lock", true),
+        ("temper/src/restart_fault.rs", "std::process::abort()", true),
+        ("temper-engine-shell/src/serve/restart_fault.rs", "std::process::abort()", false),
+        ("temper-engine-shell/src/serve/restart_fault.rs", "std::process::Command", true),
+        ("temper-engine-shell/src/serve/restart_fault.rs", "try_lock", true),
+        ("temper-engine-shell/src/serve/restart_fault.rs", "file.lock()", true),
         ("other.rs", "std::process::Command", true),
     ] {
         assert_eq!(forbidden_at(Path::new(path), source), expected, "{path}: {source}");
