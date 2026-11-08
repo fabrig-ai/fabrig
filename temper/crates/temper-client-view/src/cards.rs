@@ -41,6 +41,7 @@ pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
         | c::Refusal::Moved { .. }
         | c::Refusal::Ended { .. }
         | c::Refusal::Unknown
+        | c::Refusal::ProgramNameReserved
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
         | c::Refusal::Circle { .. }
