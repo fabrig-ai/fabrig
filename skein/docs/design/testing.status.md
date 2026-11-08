@@ -11,6 +11,11 @@ allocation layout and the native fork floor.
 Section 6's full-screen renderer and terminal crates, golden frames and
 simulated-terminal world are present.
 
+Section 5's starvation verdicts support one-process runs: a starved test
+unwinds with `StarvedPass`, while a helper's `exit` ends only that helper.
+`starved_passes` and `pass_starved` share the one-process and nextest
+policy. No gap is known in these verdict paths.
+
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.

@@ -10,7 +10,24 @@ This is red-72's repair, after red-71, for the same story. `temper-client-browse
 
 `repair` alone. It starts at the first push, and the plan lands with it.
 
-## What was decided
+## Landed decision
+
+The repair is the product's, in `jig-client-protocol-link`. Logical
+cancellation stopped counting watch openings and cleanup exchanges while
+they still occupied the browser's fetch table. Authorization could then
+be lost locally before any authorize HTTP request reached the server.
+Every emitted exchange now keeps transport credit until `Reply` or
+`Lost`, so temper's existing first-send wait holds authorization for room.
+The focused stream table holds that boundary with both successful and
+failed late HTTP terminals. The browser story's checks are unchanged.
+
+The provider-readiness hypothesis below was not the cause repaired. No
+250 ms retry or 20 s provider wait was added. People's startup refusal,
+including the mint and approval paths, remains separate work in
+`jig/docs/design/protocol/client.md`, section 15; the provider's existing
+departure is recorded in its status, section 18.
+
+## Planning assumptions
 
 - **One task, as the request asks.** The cause is settled only by reading the restarted server's log under load, and this call runs on a machine that builds nothing. Splitting the work would only guess.
 - **The 10 s is likely the story's own `WITHIN`,** not a product deadline. `WITHIN` is 10 s (`temper/tests/client-browser/src/lib.rs`), and it bounds the step that fails. 12 s is the passing run's 2 s plus that wait. The busy page can come at once, and the step then waits out `WITHIN` for a heading that never comes. The spec says to check this from the log's times before hunting for a 10 s deadline.

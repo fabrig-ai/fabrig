@@ -302,14 +302,15 @@ has no outcome in the supplied inventory, and the real-box sign-in
 story awaits its after-landing run. Repository links and box-owned sign-in
 are built, with native browser clicks at 1440 and Settings links at 420;
 the runner was disabled. No separate attacker-review outcome is supplied,
-three laptop baseline cases remain unrepeated, and an intermittent busy
-authorization page without a request is unresolved (`protocol/setup.md`,
+three laptop baseline cases remain unrepeated, and the exploratory busy
+authorization page without a request remains untraced (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). The cross-site
 restart authorization failure is local fetch admission loss: the client
 stopped counting cancelled watch exchanges and cleanup calls before their
 HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
 reply or failure, so authorization waits for room (`protocol/sign-in.md`,
-9.3). `temper init`'s documents hold
+9.3). Startup readiness beyond that local admission remains separate
+work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
