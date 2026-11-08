@@ -83,6 +83,7 @@ pub(super) enum Routed {
     Secrets(kit::SecretsRequest),
     Transport(kit::ToTransport),
     Link(skein_lib::Secret),
+    LocalLink,
     TakeMoved { exchange: Token, source: u32 },
     Closed,
 }
@@ -93,6 +94,8 @@ pub(super) fn to_root(request: kit::Request) -> Routed {
         kit::Request::Secrets(value) => Routed::Secrets(value),
         kit::Request::Transport(message) => Routed::Transport(message),
         kit::Request::Link { secret } => Routed::Link(secret),
+        // The reference service keeps no local link (protocol/service.md, 7).
+        kit::Request::LocalLink { .. } => Routed::LocalLink,
         kit::Request::Minted { .. }
         | kit::Request::MintRefused { .. }
         | kit::Request::Redeemed { .. }
@@ -316,6 +319,7 @@ impl Clients {
                 Routed::Transport(message) => {
                     self.mount.down(&self.mount_env, http::Event::Component(message));
                 }
+                Routed::LocalLink => {}
                 Routed::Link(value) => {
                     self.secret = Some(value);
                     self.print_link();

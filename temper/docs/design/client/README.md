@@ -6851,11 +6851,15 @@ it (6.14). `temper open` stays the tests' line client
   link (6.14).
 - **The engine's link, kept at rest.** While the printed link is
   enabled (section 7), the running engine, `temper serve` alone or under
-  `temper box`, keeps its live printed link, the address and the secret
-  together, in a private file, so that a TUI on the same machine signs
-  in with nothing to paste (6.14). The secret is otherwise held only in
-  jig's memory and on the engine's stdout (jig's `protocol/client.md`,
-  section 8, *The printed link*); the file is never in the configuration
+  `temper box`, keeps its live local link, a one-time secret of its own
+  beside the printed link's (jig's `protocol/client.md`, section 8, *The
+  local link*), with the address, in a private file, so that a TUI on
+  the same machine signs in with nothing to paste (6.14). The file never
+  holds the printed link's secret: a TUI's sign-in spends the file's
+  link alone, and the printed link stays live for the person's browser,
+  never touched, printed again or spent by a TUI. The file's secret is
+  otherwise held only in jig's memory: never on serve's stdout or
+  stderr, nor in a log; the file is never in the configuration
   directory, which holds no secret.
   - *Where:* on Linux, `$XDG_RUNTIME_DIR/temper/printed-link-KEY`, where
     `XDG_RUNTIME_DIR` is an absolute path (a tmpfs, never backed up);
@@ -6873,13 +6877,15 @@ it (6.14). `temper open` stays the tests' line client
   - *Written* whole, `0o600`, a synced temporary replacing it, in a
     directory the engine makes `0o700` with its missing parents and
     refuses unless it is this user's with no group or other bits, as the
-    TUI's own (above): the printed link's URL as the engine prints it,
-    then a line feed. Serve writes it at each `Link` its startup hears and
-    prints, and once at its start under `temper box` with the box's first
-    secret (`../protocol/setup.md`, 7.2), whose URL serve makes as the box
-    does and prints none of. A write that fails is one line on stderr,
-    `temper serve: link file PATH: WHY`, naming no secret, and serve
-    goes on.
+    TUI's own (above): the local link's URL, made as serve makes the
+    printed link's, then a line feed. Serve writes it at each `LocalLink`
+    its startup hears, once its clients' listener is up, and prints none
+    of it: at its start, and each time the component draws the next,
+    after a TUI spent the last or a sign-in found it expired. A `Link` is
+    printed alone and never written, and `temper box`'s first secret,
+    the printed link's (`../protocol/setup.md`, 7.2), is never written
+    either. A write that fails is one line on stderr, `temper serve: link
+    file PATH: WHY`, naming no secret, and serve goes on.
   - *Removed* when serve exits, by any way out it has. An engine killed
     outright leaves it, and its link then grants nothing (below).
   - *Read* as a private file of this user's, at most 4,096 bytes
@@ -6899,8 +6905,12 @@ it (6.14). `temper open` stays the tests' line client
     one-time and live at most 2 hours, at rest and readable by any
     process running as the person, the box's own agents among them.
     Those can already read the TUI's credential (`token`, above), so this
-    adds little. *The way back:* the file holds the address alone, and
-    the sign-in takes one step, the paste or the browser's approval.
+    adds little. The file's link is its own, the user's pick of
+    2026-11-08, so it adds nothing to the printed link's exposure, and a
+    `temper` started before the person opens the printed link leaves that
+    link to the browser. *The way back:* the file holds the address
+    alone, and the sign-in takes one step, the paste or the browser's
+    approval.
 
 ### 6.13 Its host and the seam
 
@@ -7167,14 +7177,17 @@ rest*), with nothing pasted and no key pressed:
   SHA-256, to tell a fresh link from it.
 - **Signed in:** the launchpad, as by a link pasted; the credential
   kept (6.13), and the note `Until` the sign-in's expiry.
-- **Answered `link_used` or `link_expired`:** a sign-in by a spent or
-  expired link draws a fresh one when none is live, which the engine
-  prints and keeps (jig's `protocol/client.md`, section 8; 6.12). So the
-  host reads the file again a second later, at most twice for one need,
-  and signs in by a link whose digest differs from the one answered; the
-  same link read again waits another second, within those two reads.
-  This is the common way: a browser signed in by the printed link first
-  spent it, and the TUI's try draws the next.
+- **Answered `link_used` or `link_expired`:** the engine draws the next
+  local link when a TUI spends one, and a sign-in by a spent or expired
+  one draws a fresh one when none is live, which the engine keeps in the
+  file and never prints (jig's `protocol/client.md`, section 8, *The
+  local link*; 6.12). So the host reads the file again a second later,
+  at most twice for one need, and signs in by a link whose digest
+  differs from the one answered; the same link read again waits another
+  second, within those two reads. This is the way when the file's link
+  expired, or another TUI spent the link this one read. A browser signed
+  in by the printed link, before or after, leaves the file's link
+  live.
 - **Any other end** (refused, `link_unknown`, not ready, busy, full, no
   answer), the reads spent, or the file read finding none: the TUI falls
   back to the sign-in screen as it is with no file, which asks the
@@ -7754,8 +7767,9 @@ temper's:
   credential DIRECTORY holds, if any (`SignIn { with: Link { secret,
   held } }`). The secret is in the command line only until the sign-in
   spends it; the client root passes it on and keeps nothing of it. The
-  running engine also keeps its live link at rest, for a TUI on the same
-  machine (6.12, *The engine's link, kept at rest*).
+  running engine also keeps a local link of its own at rest, never the
+  printed one, for a TUI on the same machine (6.12, *The engine's link,
+  kept at rest*).
 - **A sign-in held is kept** (jig's `domain/people.md`, section 3): a
   person still signed in who opens a fresh link with the same DIRECTORY
   keeps their sign-in, its number and its expiry, and the deployment's
@@ -8423,8 +8437,10 @@ own tests:
   engine restarted under it, "Offline" then "Live" and `me` still drawn;
   signed out elsewhere, back at signing in with the token erased, noted
   signed out and never signed in from the engine's link; a fresh TUI
-  signed in from the engine's link with no key pressed, after a browser
-  spent the first one too; a stale file's dead link falling back to the
+  signed in from the engine's link with no key pressed, the file's link
+  never the printed link's, and the printed link signing a browser in
+  after it and before it; a second TUI signed in from the link drawn
+  when the first spent its own; a stale file's dead link falling back to the
   sign-in screen with no refusal drawn; an expired sign-in renewed from
   the file; the file's secret in no frame; and signed in, the launchpad
   drawn for the person's project, a question asked from its box, the
