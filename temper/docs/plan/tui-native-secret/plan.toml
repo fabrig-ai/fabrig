@@ -1,0 +1,6 @@
+draft = "tui-native-secret"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-native-secret/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+priority = true
