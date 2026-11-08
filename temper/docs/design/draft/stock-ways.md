@@ -190,11 +190,15 @@ once all of it works, with no part of the page drawn by hand.
 | 1 | the look requests `ask-temper-start`, `to-begin-two-steps` and `night-mode` | nothing |
 | 2 | section 3: the stock's rule per project, a rule naming a branch, Draft first's roles | nothing |
 | 3 | sections 4 to 6: the ways as data, the path, `ways`, `see ways` and the four views | 2 |
-| 4 | the look request `ask-temper-ways`, every state its message names | 3 |
+| 4 | the look request `ask-temper-ways`, every state its message names | 3; a box's owner linked on its owned Forgejo (`forge-identity.md`, 4.1) |
 
 - **Each is complete when it lands,** with its focused and fuzzy tests;
   its walk follows. Steps 3 and 4 may be one plan; step 4 never lands
   before steps 2 and 3 are on main.
+- **"Use this" on You approve** needs an owner the owned Forgejo knows:
+  on a box today the owner is an unknown identity there, so an approval
+  by role 0 is refused with none eligible. That link lands before step
+  4.
 - **The walk after step 4:** a fresh box; To begin's Start; each tab
   and a stop's card; "Use this" on You approve, then a change waiting
   for the owner's review on Forgejo; then Draft first, and a goal from a
