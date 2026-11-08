@@ -7,11 +7,11 @@ Sections 2.1, 2.2, 3.9 and 4 have no known gap in endpoint limits,
 against the endpoint rather than a model declaration.
 
 Section 6's `sub_agent` row is covered at a declared room of five by
-eight program-world rows, asking two, four, five and six calls with
-program and credential children. Requests enter together; admitted
-children answer and excess calls return `refused reason=too-many`.
-The reported deployment abort was not reproduced, so its cause remains
-the gap below; no production limit changed.
+ten program-world rows, asking two to six calls with program and
+credential children. Requests enter together; admitted children answer
+and excess calls return `refused reason=too-many`. The reported
+deployment abort on such a burst was no limit's but a file answer's
+routing (programs.status.md, 5.1); no production limit changed.
 
 Sections 3.4, 3.10, 4 and 6 have no known gap in a sub-agent's answer
 allowance: `answer_bytes` equals `outcome_bytes`, the larger of 4,096 and
@@ -38,10 +38,6 @@ runtime outcome is supplied here.
 
 - **Not yet:** 2.4: a host's answer stops at 65,536 rather than 262,144
   bytes (`smith-domain-run/src/host.rs`, `HostAnswer::CAPACITY`).
-- **Not yet:** 6: the reported deployment abort on five or six
-  `sub_agent` calls has no identified panicking bound or production
-  fix. The scripted admission rows above do not reproduce it
-  (domain/run.status.md, 5.3; plan `subagent-burst`).
 - **Departs:** 2.4: a host's input admits up to 1,048,576 rather than
   262,144 bytes (`smith-domain-run/src/host.rs`, `HostInput::CAPACITY`),
   matching the channel's `host_ask_input` and transcript's `call_input`
