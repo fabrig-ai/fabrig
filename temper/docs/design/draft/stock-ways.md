@@ -123,18 +123,32 @@ once all of it works, with no part of the page drawn by hand.
 - **A typical run, with one repair,** on each branch in this order: who
   starts, a person's "you ask" and the change's charter's "produce", or
   for a goal "draft", its template's charter's "plan" and "produce ×n";
-  "check" where the rules ask CI; each agent's gate, as "review"; one
-  "repair", at the first place one can occur, and "check" again after it
-  where the rules ask CI; each approval, "you approve", or the role's
-  name for someone else's; "update" and "resolve" where the rules ask
-  up to date; "merge"; each tier following the branch, "check" on a
-  goal's branch, the coordinator's repair after it while none is drawn,
-  and "verify" on main. A goal's branch ends its changes' part with its
+  "check" where the rules ask CI; each agent's gate, as "review"; where
+  the rules ask up to date, "update", as a change takes its base before
+  a repair starts (`../domain/forge.md`, 8.2); one "resolve", after the
+  path's first update or catch-up, for a conflict there; one "repair",
+  at the first place one can occur, and "check" again after it where the
+  rules ask CI; each approval, "you approve", or the role's name for
+  someone else's; "update" again where the rules ask up to date;
+  "merge"; each tier following the branch, "check" on a goal's branch,
+  the coordinator's repair after it while none is drawn, then "catch up"
+  where the project names a merge job, taking main into the goal's
+  branch (`../domain/forge.md`, section 10); and "verify" on main. A
+  goal's branch ends its changes' part with its
   bar, and the goal's landing into main follows by main's rules. Main's
   bar ends the path.
 - **What the line leaves out:** a repair or a resolution goes back
   through the checks and judgements it answers, which the line doesn't
-  repeat; the stop's card says so.
+  repeat; the stop's card says so. A conflict at a later update is
+  resolved the same way, and not drawn again.
+- **Drawn apart:** a stop made only when needed has its mark outlined: a
+  repair or a resolution, with what it answers over its words, "tests",
+  or "tests, review", for a repair, "conflict" for a resolution; and a
+  catch-up. A merge into a goal's branch says "into goal" over its word.
+- **What a goal's charter adds:** the words of its coordinator's stop,
+  "plan" in the stock's and "design" where it designs first, and
+  an agent's "close-out" after main's merge where it makes one, as the
+  reference's do (`../protocol/configuration.md`, 13.9).
 - **Under `turn`,** the turn's own steps take the queue's
   (`../domain/landing.md`, section 8).
 - **No agent's stop below the line:** an update or a merge is always
