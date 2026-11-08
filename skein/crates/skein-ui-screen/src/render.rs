@@ -5,7 +5,7 @@ mod roles;
 mod words;
 
 use skein_lib::{List, Stack};
-use skein_ui::{Node, Role, Tree};
+use skein_ui::{Node, Role, State, Tree};
 
 use crate::{Align, Arrange, Cell, Focus, Frame, Paint, Place, RegionLook, Size};
 use canvas::{Canvas, Viewport};
@@ -185,6 +185,11 @@ fn focus_requests(tree: &Tree, focus: &mut Focus) {
 /// (skein/docs/design/ui-screen.md, section 5).
 pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, frame: &mut Frame) {
     focus_requests(tree, focus);
+    focus.active = match crate::options::menu(tree, focus.node) {
+        Some(menu) => crate::options::active(tree, menu.id, focus.active),
+        None => None,
+    };
+    focus.rows = 0;
     frame.clear(size, Cell { glyph: ' ', paint: theme.base });
     let size = frame.size();
     if size.rows == 0 || size.columns == 0 {
@@ -221,6 +226,7 @@ pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, 
         }
     }
     let body_rows = left;
+    focus.rows = body_rows;
     let mut top = 0_u16;
     let mut bottom = size.rows;
     for band in bands.iter_mut().rev() {
@@ -241,7 +247,8 @@ pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, 
     let mut measured = Canvas::new(size.columns, theme.base, Viewport::measure(), tree.len());
     walk(tree, &info, None, theme, focus, &mut measured, frame);
     let last = measured.rows().saturating_sub(u32::from(body_rows.max(1)));
-    focus.scroll = focus.scroll.min(last);
+    let continues = body_logs(tree, &info, focus);
+    focus.scroll = if focus.follow { last } else { focus.scroll.min(last) };
     if body_rows != 0
         && let Some((first, end)) = measured.focus_rows()
     {
@@ -251,10 +258,43 @@ pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, 
             focus.scroll = end.saturating_sub(u32::from(body_rows)).min(first);
         }
     }
+    if !continues && measured.rows() > u32::from(body_rows) && focus.scroll == last {
+        focus.follow = true;
+    }
     frame.set_scroll(focus.scroll);
     let viewport = Viewport { first: focus.scroll, origin: top, height: body_rows, draw: true };
     let mut canvas = Canvas::new(size.columns, theme.base, viewport, tree.len());
     walk(tree, &info, None, theme, focus, &mut canvas, frame);
+}
+
+fn body_logs(tree: &Tree, info: &List<Info>, focus: &mut Focus) -> bool {
+    let mut skip = 0;
+    let mut continues = false;
+    for at in 0..tree.len() {
+        if at < skip {
+            continue;
+        }
+        let node = tree.get(at).expect("body node exists");
+        if let Some(look) = info.get(at).expect("node information exists").look
+            && look.place != Place::Body
+        {
+            skip = at.saturating_add(node.size);
+            continue;
+        }
+        if node.role == Role::Log {
+            if let Some(request) = node.end_request
+                && request > focus.ended
+            {
+                focus.follow = true;
+                focus.ended = request;
+            }
+            continues = continues || node.states.as_slice().contains(&State::Continues);
+        }
+    }
+    if continues {
+        focus.follow = false;
+    }
+    continues
 }
 
 #[derive(Debug)]
@@ -352,6 +392,14 @@ fn walk(
             }
         }
         out.start(indent);
+        if n.role == Role::Menu && crate::options::field(tree, n.id).is_some() {
+            options_menu(tree, at, info, theme, focus, out, frame);
+            if let Some(look) = region {
+                out.leave_region(look, frame);
+            }
+            skip = until;
+            continue;
+        }
         let mut number = None;
         if n.role == Role::Item
             && let Some(parent) = parents.top_mut()
@@ -547,7 +595,7 @@ fn control(
         out.field(n, focus, theme, paint, frame);
         words::entry(n, paint, out, frame);
     }
-    if tree.disabled(n.id) && !n.states.as_slice().contains(&skein_ui::State::Disabled) {
+    if tree.disabled(n.id) && !n.states.as_slice().contains(&State::Disabled) {
         out.safe(words::DISABLED, paint, focused, frame);
     }
     words::states(n, paint, out, frame);
@@ -687,6 +735,79 @@ fn descriptions(
         }
     }
     out.start(indent);
+}
+
+fn first_line(bytes: &[u8]) -> &[u8] {
+    for (at, byte) in bytes.iter().enumerate() {
+        if *byte == b'\n' || *byte == b'\r' {
+            return bytes.get(..at).expect("first line is a prefix");
+        }
+    }
+    bytes
+}
+
+fn option_name_width(node: &Node) -> u16 {
+    match &node.name {
+        Some(name) => canvas::text_width(first_line(name)),
+        None => 0,
+    }
+}
+
+fn options_menu(
+    tree: &Tree,
+    at: u32,
+    info: &List<Info>,
+    theme: &crate::Theme,
+    focus: &Focus,
+    out: &mut Canvas,
+    frame: &mut Frame,
+) {
+    let menu = tree.get(at).expect("options menu exists");
+    let end = at.saturating_add(menu.size);
+    let mut longest = 0;
+    for item in at.saturating_add(1)..end {
+        let node = tree.get(item).expect("menu descendant exists");
+        if node.role == Role::MenuItem {
+            longest = longest.max(option_name_width(node));
+        }
+    }
+    let indent = out.indent();
+    for item in at.saturating_add(1)..end {
+        let node = tree.get(item).expect("menu descendant exists");
+        if node.role != Role::MenuItem {
+            continue;
+        }
+        let data = info.get(item).expect("item information exists");
+        let active = focus.active == Some(node.id);
+        let band = if active { Some(theme.active.over(data.paint)) } else { data.band };
+        let mut paint = data.paint;
+        if active {
+            paint = theme.focus.over(theme.active.over(paint));
+        }
+        out.start(indent);
+        out.looks(Align::Start, band);
+        out.tag_focus(false);
+        out.clip_line(true);
+        out.line();
+        let mut mark = [0; 4];
+        let glyph = if active { theme.glyphs.focus } else { ' ' };
+        out.safe(glyph.encode_utf8(&mut mark).as_bytes(), paint, false, frame);
+        out.safe(b" ", paint, false, frame);
+        if let Some(name) = &node.name {
+            out.safe(first_line(name), paint, false, frame);
+        }
+        if let Some(description) = &node.description {
+            let width = option_name_width(node);
+            for _space in 0..longest.saturating_sub(width).saturating_add(3) {
+                out.safe(b" ", paint, false, frame);
+            }
+            out.safe(first_line(description), paint, false, frame);
+        }
+        words::option_states(node, paint, out, frame);
+        out.finish(frame);
+        out.clip_line(false);
+    }
+    out.looks(Align::Start, None);
 }
 
 fn spread(

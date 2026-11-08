@@ -62,6 +62,7 @@ pub fn theme(scheme: Scheme) -> Theme {
         base: Paint::NONE,
         focus: fore(accent),
         placeholder: fore(faint),
+        active: Paint::NONE,
         regions: Box::new([
             RegionLook {
                 region: look::TOP,
