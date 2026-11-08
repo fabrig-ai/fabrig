@@ -47,3 +47,29 @@ id = 3
 story = "A one-process directory reads as a summary with cpu_by process and its processes; execute_one_process returns 1, 100, 0 or 4 as execute does; a nextest run's summary only gains cpu_by and processes"
 parts = ["summary"]
 walk = false
+
+[[part]]
+id = "repairs"
+title = "Every tree's focused and fuzzy suites run through tools/tiers/one-process, green where nextest is green, each one-process failure repaired at its cause"
+mode = "direct"
+needs = ["starved", "runner", "summary"]
+design = "skein/docs/foundation/testing-strategy.md, 8"
+
+[[slice]]
+id = 4
+story = "TIERS_WRAPPER=heavy tools/tiers/one-process default and fuzzy, the whole workspace, fail nothing nextest passes; the command over the fixtures exits 100, 0, 0, 100, 0 and 4"
+parts = ["repairs"]
+walk = false
+
+[[part]]
+id = "close"
+title = "tools/tiers/design.status.md says where the one-process mode lags or departs, as built"
+mode = "direct"
+needs = ["repairs"]
+design = "tools/tiers/design.md, 11"
+
+[[slice]]
+id = 5
+story = "The tiers design's status names no gap of the one-process mode but those the code shows"
+parts = ["close"]
+walk = false
