@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/look-round-19/inputs/request.md", "temper/docs/desi
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "start"
+title = "ask-temper-start's account: what Start opens on a new project, matched against main"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/journeys.md, 9"
+
+[[slice]]
+id = 1
+story = "Start on a new project's Home opens Ask temper's page before a first message, as the request ask-temper-start draws it, its account committed"
+parts = ["start"]
+walk = false

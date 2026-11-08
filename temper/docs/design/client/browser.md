@@ -831,9 +831,43 @@ replay says the same clocks (`README.md`, 5.12).
   positioned, so a visually hidden absolute part (a who-line) is clipped by the
   pane's overflow and does not lengthen the page: a long chat's document never
   exceeds its window.
-- **Light only:** the mockups' palette is light, and `temper.css` sets
+- **Day and night** (the look request `night-mode`, 2026-11-07, a first pass the
+  user keeps to refine): the mockups' palette is the day's, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
-  preference. A dark palette is open (section 5).
+  preference. *Night* is the same pages on `html[data-night]`, which the shell
+  sets from the kept look (`README.md`, 3.5, *Its look, kept per browser*):
+  - *Tokens first:* every colour of `temper.css` and `task-pages.css` comes from
+    a custom property, the day's values exactly as the literals they replace, so
+    that a day page is drawn as before. One day set, on `:root`, holds the
+    `--temper-*` and `--gf-*` tokens and those the literals become, named by
+    their part (a ground, an ink, a line, a primary's ground and words);
+    one night set redefines them on `:root[data-night]`, where it outranks
+    every day set. `color-scheme` is `dark` at night.
+  - *The night's colours* are fabrig.ai's, as the request's overlay draws them:
+    paper `#01061b`, surface `#070d2b`, top bar `#050a24`, ink `#fafafa`,
+    second ink `#d2def6`, muted `#a9b6d8`, faint and hint `#8493b8`, lines
+    `rgba(140, 170, 230, .17)` and `.3`, hover `.1`; the signal `#fb7f2e`, its pale
+    `rgba(251, 127, 46, .12)`, line `.38` and words `#ffb27a`; good `#0be2ff`;
+    amber `#f5b45a` and red `#ff7a7a` with pales at `.12`. A primary, ink with
+    white words by day, is the orange `#fd7a2a` with words `#0a0f22` at night,
+    its send arrow drawn in those words; a disabled send is the second line's
+    ground. The day's literal greys become the night's lines and hover, and the
+    dark line icons drawn as images are turned light, `filter: invert(.85)`.
+  - *The glow:* small and faint, at the window's top right, over the whole
+    window, as the body's ground under a transparent `#app` and main: the
+    overlay's radial gradients over its fractal-noise grain, so that it draws
+    no rings.
+  - *The switch* (`README.md`, 5.3): `temper-night-switch`, 30 px square, no
+    border, at the rail's right, 16 px in and 24 px over its foot, the rail
+    `position: sticky`; its icon a mask of 16 px line art in the muted colour,
+    a moon, and a sun while pressed; the hover's ground and ink on hover. On a
+    phone, at 760 px and under, fixed 18 px from the top and 14 px from the
+    right, over the top bar.
+  - *What stays:* a chat's terminal keeps its own theme, dark or light, at
+    night (2.5, *A chat's terminal*); the placeholder's first paint is the
+    day's, since it draws before the shell reads the kept look. The rest of the
+    client takes the tokens as they fall, and no page is left with words in
+    the day's ink on the night's ground.
 - **The composers** (`NewChat`'s and a chat's) are text areas with
   skein-ui's `SubmitsOnEnter`: Enter sends, Shift+Enter is a new line
   (skein's `ui-web.md`, section 7), which the view allows in a
@@ -1548,8 +1582,12 @@ Not in the tier, each in the lowest world that shows it:
 - **A switch to serve no browser** from a binary that has one, such as
   `clients.bundle` `false`. Default: none until a deployment asks: the
   browser is reached only by a printed link, as the terminal is.
-- **A dark palette,** following the system's preference as
-  `skein-ui.css` does. Default: light only (2.5).
+- **Night following the system,** a first visit taking the system's dark
+  preference as `skein-ui.css` does. Default: a browser with no kept look
+  is day, and night is the switch's alone (2.5, *Day and night*).
+- **Night before the first paint,** the placeholder drawn at night when the kept
+  look says so, before the shell starts. Default: the placeholder is the day's
+  (2.5, *Day and night*).
 - **Other browsers** than Chromium are `skein-browser`'s question
   (skein's `browser.md`).
 - **One shared stream per public document,** fanned out by the server
@@ -1683,7 +1721,9 @@ from the engine's own answers, is where the look is tuned.
   href function, which the shell's host calls too. The page's root is
   the document's `#app`, as skein's `Dom` mounts it; dialogs carry
   `open`, since a static document has no top layer. The title is the
-  shell's: the page's heading, then "temper".
+  shell's: the page's heading, then "temper". A state whose root's kept
+  look is night, its switch pressed, prints `data-night` on its `html`, as
+  the shell sets it (2.5, *Day and night*).
 - **The bundle's stylesheets and files,** under `OUT/bundle/`, made by
   skein's bundler from the stylesheets and files `scripts/bundle.sh`
   passes, in its order (2.5), with no module: each page links them as
@@ -1749,12 +1789,11 @@ from the engine's own answers, is where the look is tuned.
 | `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
 | `settings-away` | *How work runs* with the section `#away`, the defaults ticked |
-| `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
-| `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
+| `home-begin-both-left` | hand-made Home deliveries: both steps left, the repository first; first repository offered; the rail's Home and Ask temper alone, the phone's three tabs |
+| `home-begin-ask-left` | hand-made Home deliveries: repository adopted, "temper can change its code now."; "Tell temper how you work" left, its act staying in Ask temper (the look request `to-begin-two-steps`'s page) |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
 | `home-accounts-both` | hand-made Home deliveries: ChatGPT plan and Claude subscription; link offers another account |
 | `home-accounts-key` | hand-made Home deliveries: an API key; link offers another account |
-| `home-one-left` | hand-made Home deliveries: repository adopted and a way of working accepted; first chat left |
 | `home-with-goals` | `home-at-work`'s deliveries with a goal in the project, so that the rail shows Goals |
 | `home-at-work` | hand-made Home deliveries: one question and three chats, the everyday request's words where the client holds its facts |
 | `home-morning` | hand-made Home deliveries: `ProjectStatus` with everything: a brief above `seen`, a last look nine hours ago, three queued, needs and chats; the mock's morning |
@@ -1765,7 +1804,7 @@ from the engine's own answers, is where the look is tuned.
 | `home-chats-sentence` | hand-made Home deliveries: no goal in the project: Chats' sentence after its rows |
 | `home-needs-several` | hand-made Home deliveries: three needs, the first as a card and the others as rows |
 | `home-nothing-needs` | hand-made Home deliveries: all steps done, no needs and one chat |
-| `home-ready` | hand-made Home deliveries: all three steps done; plain Home |
+| `home-ready` | hand-made Home deliveries: both steps done; plain Home, its rail and tab bar whole |
 | `home-adopting` | hand-made Home deliveries: first adoption in flight; no repository acts |
 | `home-copying` | hand-made Home deliveries: acme/widget copying, acme/other waiting, in intent order |
 | `home-copy-failed` | hand-made Home deliveries: first copy adopted, second failed with the forge’s words and Copy again |
@@ -1780,8 +1819,10 @@ from the engine's own answers, is where the look is tuned.
 | `home-after-skip` | hand-made Home deliveries: To begin skipped with steps left; plain Home with empty Needs you and Chats |
 | `home-skip-refused` | hand-made Home deliveries: Skip refused; the alert under the note and Skip offered again |
 | `home-needs-under-begin` | hand-made Home deliveries: To begin showing above one question and one chat |
-| `home-begin-settings-left` | hand-made Home deliveries: the first and second steps left; their acts stay in Settings |
-| `home-begin-one-chats` | hand-made Home deliveries: the third step alone left; its act stays in Chats |
+| `home-begin-settings-left` | hand-made Home deliveries: a way of working accepted, the repository alone left; its act stays in Settings |
+| `night-home` | `home-begin-ask-left` with the night switch pressed: the night look, the switch a sun (the look request `night-mode`'s page 01) |
+| `night-ask` | Ask temper as "Start" opens it on the first run's project, template 5 listed, at night (its page 02) |
+| `night-chat-split` | `chat-draft-split` at night: a chat beside its draft (its page 03) |
 | `goals-solo` | hand-made Goals deliveries: a small project's rows, one in each state, the mock's words where the client holds its facts |
 | `goals-reference` | hand-made Goals deliveries: the reference's rows, a goal of a hundred tasks among them, and its ways in the lede |
 | `goals-none` | hand-made Goals deliveries: "No goals yet."; the rail keeps Goals since the page is Goals |
