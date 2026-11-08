@@ -1,0 +1,6 @@
+draft = "walks-lower"
+repo = "fabrig"
+sources = ["temper/docs/plan/walks-lower/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
