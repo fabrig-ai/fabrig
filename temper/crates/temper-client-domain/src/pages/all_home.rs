@@ -190,6 +190,8 @@ fn reads(root: &Domain) -> Option<&AllHome> {
         | crate::Address::Task { .. }
         | crate::Address::Changes { .. }
         | crate::Address::Settings { .. }
+        | crate::Address::Role { .. }
+        | crate::Address::Rule { .. }
         | crate::Address::Repositories { .. }
         | crate::Address::Models { .. }
         | crate::Address::Builders { .. }

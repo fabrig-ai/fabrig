@@ -758,6 +758,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                     | Address::Task { .. }
                     | Address::Changes { .. }
                     | Address::Settings { .. }
+                    | Address::Role { .. }
+                    | Address::Rule { .. }
                     | Address::Repositories { .. }
                     | Address::Models { .. }
                     | Address::Builders { .. }
