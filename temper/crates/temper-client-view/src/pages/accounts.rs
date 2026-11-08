@@ -309,6 +309,10 @@ fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
         R::Moving => W::Moving,
         R::NotLimited => W::NotLimited,
         R::Uses => W::UsesRefused,
+        R::ProgramNameReserved => {
+            crate::cards::refusal(b, w, &c::Refusal::ProgramNameReserved);
+            return;
+        }
         R::NotKept { why } => match why {
             c::AccountKeyFailure::TooLong => W::KeyLong,
             c::AccountKeyFailure::NotStored => W::NotStored,

@@ -72,24 +72,22 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
         FirstRun { .. } => None,
         Reference | Solo | World::Bare => Some(model(w)),
     };
-    if matches!(w, Solo | Reference) {
+    if matches!(w, FirstRun { .. } | Solo | Reference) {
         let chat = member.templates.get(0).expect("chat template").clone();
-        let mut templates = List::with_capacity(5);
+        let mut templates = List::with_capacity(6);
         templates.push(chat.clone()).expect("chat template");
-        for (number, name) in
-            [(2, "goal"), (4, "goal for a draft"), (5, "Plan, then wait for me"), (6, "One agent, one branch")]
-        {
-            if w == Solo && number > 4 {
+        templates.push(goal_template(&chat, 2, "goal")).expect("goal template");
+        if matches!(w, Solo | Reference) {
+            templates.push(goal_template(&chat, 4, "goal for a draft")).expect("draft goal template");
+        }
+        if w != Solo {
+            templates.push(asking_template(&chat)).expect("Ask temper template");
+        }
+        for (number, name) in [(6, "Plan, then wait for me"), (7, "One agent, one branch")] {
+            if w != Reference {
                 continue;
             }
-            let mut template = chat.clone();
-            template.number = number;
-            template.name = doc(name);
-            template.tracked = Some(1);
-            template.label = 2;
-            template.flags.conversation = false;
-            template.flags.listed = true;
-            templates.push(template).expect("goal templates");
+            templates.push(goal_template(&chat, number, name)).expect("reference goal templates");
         }
         member.templates = templates;
     }
@@ -165,6 +163,23 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
         ask_frame(&mut me);
     }
     me
+}
+fn goal_template(chat: &c::Template, number: u32, name: &str) -> c::Template {
+    let mut template = chat.clone();
+    template.number = number;
+    template.name = doc(name);
+    template.tracked = Some(1);
+    template.label = 2;
+    template.flags.conversation = false;
+    template.flags.listed = true;
+    template
+}
+fn asking_template(chat: &c::Template) -> c::Template {
+    let mut template = chat.clone();
+    template.number = temper_client_domain::pages::chats::ASKING_TEMPLATE;
+    template.name = doc("ask");
+    template.executor = c::TemplateExecutor::Charter(11);
+    template
 }
 fn template_preview(member: &mut c::MeProject) {
     member.defaults = List::with_capacity(1);

@@ -81,6 +81,7 @@ pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> 
         c::Refusal::Unknown => w::Refusal::Unknown,
         c::Refusal::NameTaken => w::Refusal::NameTaken,
         c::Refusal::NotOffered => w::Refusal::NotOffered,
+        c::Refusal::ProgramNameReserved => w::Refusal::ProgramNameReserved,
         c::Refusal::KeyConflict => w::Refusal::KeyConflict,
         c::Refusal::Llm { model, why } => w::Refusal::Llm(w::RefusalLlm::new(
             limits,

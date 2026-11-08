@@ -727,6 +727,13 @@ replay says the same clocks (`README.md`, 5.12).
   `NewChat`'s. An agent's task's page keeps its own look, `AGENT_PAGE` and
   `TASKBAR`, with `ENTRY`, `COMPOSER_AREA`, `COMPOSER` and `HINT` for its
   composer.
+- **An Ask temper chat's tag** (`README.md`, 3.5), `CHATS_TAG`'s " · Ask
+  temper" after the chat's number in its bar, takes the number's look,
+  `.temper-byline`'s 12 px and faint, on one line, the bar's gap before it
+  taken back so that its own " · " is the only space and the two read
+  "T9 · Ask temper". At 760 px and under, where the number goes, the tag
+  stays without its " · " (the look request `ask-temper-place`). The bar's
+  right holds no other paragraph, and no rule hides one there.
 - **A chat's document** (`README.md`, 3.5) is `configure-chat-draft`'s rules, in
   `temper.css` under the same marker: `temper-mode-chat`, `-split` and `-draft` on
   the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
@@ -1707,7 +1714,13 @@ from the engine's own answers, is where the look is tuned.
   fixtures don't: the providers, accounts and their holders by name.
   A spend is the contract's whole number (jig's owner numbers), so a
   mockup's fraction is rounded to the nearest (0.8 is 1) until the
-  contract holds one.
+  contract holds one. A project lists the templates its box would offer:
+  the first run's worlds the stock's chat (1), goal (2) and Ask temper
+  (5, charter 11), as a fresh box does, so that their pages draw Ask
+  temper's rail row and tab (the look request `ask-temper-place`); the
+  reference world Ask temper at 5 too, and its own ways at numbers the
+  stock leaves free; the solo world Ask temper in its Ask temper states
+  alone.
 - **Its time** is each world's, fixed: the mockup's now, its
   `world.now`, at which the view builds, and each record's time the
   mockup's offset from it, so that a time reads as its mockup's

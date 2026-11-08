@@ -237,6 +237,8 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
+Use a never-used NAME, even after forgetting, and a fresh KEY.
+
 `program-login`: signs in at `PROGRAMS/NAME`.
 Existing login: parent as `PROGRAMS`, name as `NAME`; skip `program-login`.
 One box at a time.

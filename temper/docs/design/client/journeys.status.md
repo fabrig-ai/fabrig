@@ -45,7 +45,7 @@ a real-box recording remains the person's later work (section 10).
 - **Not yet:**
   - 9: the recordings of `welcome-set-up`, `welcome-playground`, `project-landing` and `chat-draft` were made on fake boxes whose stock held template 3 and charter 3, the configuring chat's, and their `me` and settings records still list them; each is recorded again (8.1) on a box whose stock no longer does.
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
-  - 3.6: `welcome-playground` and `welcome-set-up` were added before the redaction and keep their fake boxes' link secret (3.5), until each is next added, because that request left the journeys' files to their owner.
+  - 3.6: `welcome-set-up` was added before the redaction and keeps its fake box's link secret (3.5), until it is next added, because that request left the journey's files to its owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
 - **Departs:**
