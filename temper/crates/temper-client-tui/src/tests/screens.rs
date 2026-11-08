@@ -59,7 +59,7 @@ fn the_sign_in_screen_says_each_line() {
         let field = f::find(view.tree(), Role::TextField, b"Link");
         assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
         assert!(field.states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
-        assert_eq!(field.focus, Some(1));
+        assert_eq!(field.focus, Some(if *local == Local::Ended { 2 } else { 1 }));
         assert_eq!(field.placeholder.as_deref(), Some("http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…".as_bytes()));
         assert_eq!(f::find(view.tree(), Role::Status, "● Signed out".as_bytes()).styles.as_slice(), &[look::DOWN]);
         assert_eq!(f::count(view.tree(), Role::Button), 0);
@@ -77,7 +77,7 @@ fn the_sign_in_screen_says_each_line() {
     let before = f::index(view.tree(), signed_out.id);
     let after = f::index(view.tree(), address.id);
     assert!(before < after);
-    assert_eq!(f::find(view.tree(), Role::TextField, b"Link").focus, Some(2));
+    assert_eq!(f::find(view.tree(), Role::TextField, b"Link").focus, Some(3));
     // A refusal can change while the link stays SignedOut and Tui stays still.
     let (mut root, exchange) = f::asking();
     let mut tui = Tui::new(f::ADDRESS);
