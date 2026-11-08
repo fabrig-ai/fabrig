@@ -434,87 +434,151 @@ fn limits_raises_the_focus_count() {
     assert_eq!(root.pages.away_focus(), 2);
 }
 #[test]
-fn shown_by_goal_by_on_or_by_ways() {
-    let (mut root, away_watch, me_watch) = opened();
-    assert!(!root.away_shown(f::PROJECT, Wall::EPOCH));
-    up(
-        &mut root,
-        Up::FamilyDelivered { watch: away_watch, record: row_record(&[AwayRow { until: Some(minute(480)), ..WHAT }]) },
-    );
-    assert!(root.away_shown(f::PROJECT, minute(479)));
-    assert!(!root.away_shown(f::PROJECT, minute(480)));
-    assert!(!root.away_shown(17, minute(479)));
-    let mut me = f::chats::me();
-    let template = me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap();
-    template.number = jig_client::shapes::GOAL;
-    template.tracked = Some(1);
-    let mut out =
-        up(&mut root, Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) });
-    let mut goals = None;
-    let mut ways = None;
-    while let Some(request) = out.pop() {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
-            match down {
-                Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { window: 1, .. }) } => {
-                    goals = Some(watch);
-                }
-                Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
-                    if let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-                        && setting.kind() == 7
-                    {
-                        ways = Some(read);
+fn shown_by_classes_or_an_on_row() {
+    use temper_protocol_reaches::{Classes, Way};
+    for (table, on, goal, expected) in [
+        (Some(Classes::stock(Way::AgentsReview)), false, false, true),
+        (Some(Classes::stock(Way::YouApprove)), false, false, false),
+        (Some(Classes::stock(Way::YouApprove)), true, false, true),
+        (None, false, false, false),
+        (None, false, true, false),
+    ] {
+        let (mut root, away_watch, me_watch) = opened();
+        let mut me = f::chats::me();
+        let template = me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap();
+        template.number = jig_client::shapes::GOAL;
+        template.tracked = Some(1);
+        let out = up(
+            &mut root,
+            Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+        );
+        let mut classes_read = None;
+        let mut goals_watch = None;
+        for request in &out {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
+                match down {
+                    Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { window: 1, .. }) } => {
+                        goals_watch = Some(*watch);
                     }
+                    Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
+                        if let w::Read::Setting(setting) =
+                            wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                            && setting.kind() == 8
+                        {
+                            classes_read = Some(*read);
+                        }
+                    }
+                    Down::Save { .. }
+                    | Down::Erase { .. }
+                    | Down::Send { .. }
+                    | Down::Open { .. }
+                    | Down::Continue { .. }
+                    | Down::Close { .. }
+                    | Down::Read { .. } => {}
                 }
-                Down::Save { .. }
-                | Down::Erase { .. }
-                | Down::Send { .. }
-                | Down::Open { .. }
-                | Down::Continue { .. }
-                | Down::Close { .. }
-                | Down::Read { .. } => {}
             }
         }
+        if let Some(table) = table {
+            let record = temper_protocol_reaches::classes_record(&table).unwrap();
+            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+            record.encode(&mut writer).unwrap();
+            let record = wire::setting_answer(
+                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+            );
+            up(
+                &mut root,
+                Up::ReadDone {
+                    read: classes_read.expect("classes read"),
+                    result: jig_client::Readout::Family { family: wire::FORGE, record: Some(record) },
+                },
+            );
+        }
+        if on {
+            deliver(&mut root, away_watch, &[f::PROJECT]);
+        }
+        if goal {
+            up(
+                &mut root,
+                Up::Watched {
+                    watch: goals_watch.expect("goals watch"),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        rows: List::from_boxed(Box::new([goal_line()])),
+                        more: false,
+                    }))),
+                },
+            );
+        }
+        assert_eq!(root.away_shown(f::PROJECT, Wall::EPOCH), expected, "on {on}, goal {goal}");
+        assert!(!root.away_shown(17, Wall::EPOCH));
     }
-    let goal_watch = goals.expect("goals fact");
-    let mut rows = List::with_capacity(1);
-    rows.push(goal_line()).unwrap();
-    up(
-        &mut root,
-        Up::Watched {
-            watch: goal_watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
-        },
-    );
-    assert!(root.has_goals(f::PROJECT));
-    assert!(root.away_shown(f::PROJECT, minute(480)), "goal alone");
-    up(
-        &mut root,
-        Up::Watched {
-            watch: goal_watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
-                rows: List::with_capacity(0),
-                more: false,
-            }))),
-        },
-    );
-    assert!(!root.away_shown(f::PROJECT, minute(480)));
-    let project_ways =
-        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { skein_bools: [false, false, false, true], way: 0 })
-            .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(project_ways.measure()).unwrap());
-    project_ways.encode(&mut writer).unwrap();
-    let record = wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
-    );
-    up(
-        &mut root,
-        Up::ReadDone {
-            read: ways.expect("ways read"),
-            result: jig_client::Readout::Family { family: wire::FORGE, record: Some(record) },
-        },
-    );
-    assert!(root.away_shown(f::PROJECT, minute(480)), "Ways alone");
-    assert!(!root.away_shown(17, minute(480)));
+    asking_and_turning_rows();
+}
+fn asking_and_turning_rows() {
+    use crate::forge::classes::{Asking, asking, turned};
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject, Way};
+    // Settings lists kinds in kit order, followed by words and sets in table order.
+    let words = Item {
+        subject: Subject::Kind(Kind::Implementation),
+        words: Box::from(*b"inside the wasm crate"),
+        class: Class::AskAway,
+    };
+    let custom = Classes {
+        items: Box::new([
+            words.clone(),
+            Item { subject: Subject::Kind(Kind::Retry), words: Box::new([]), class: Class::Decide },
+        ]),
+        sets: Box::new([]),
+    };
+    for (table, expected) in [
+        (
+            Classes::stock(Way::AgentsReview),
+            Box::<[Asking]>::from([
+                Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: true },
+                Asking { subject: Subject::Kind(Kind::Dependency), item: 5, away: true },
+                Asking { subject: Subject::Kind(Kind::Departure), item: 6, away: true },
+            ]),
+        ),
+        (
+            custom.clone(),
+            Box::<[Asking]>::from([
+                Asking { subject: Subject::Kind(Kind::Wording), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Implementation), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Tests), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Dependency), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Departure), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Implementation), item: 1, away: false },
+            ]),
+        ),
+    ] {
+        assert_eq!(asking(&table), expected);
+    }
+    for (row, expected) in [
+        (
+            Asking { subject: Subject::Kind(Kind::Implementation), item: 0, away: false },
+            Classes {
+                items: Box::new([
+                    words.clone(),
+                    custom.items[1].clone(),
+                    Item { subject: Subject::Kind(Kind::Implementation), words: Box::new([]), class: Class::Ask },
+                ]),
+                sets: Box::new([]),
+            },
+        ),
+        (
+            Asking { subject: Subject::Kind(Kind::Implementation), item: 1, away: false },
+            Classes {
+                items: Box::new([Item { class: Class::Ask, ..words.clone() }, custom.items[1].clone()]),
+                sets: Box::new([]),
+            },
+        ),
+    ] {
+        assert_eq!(turned(&custom, row), expected);
+        assert_eq!(expected.check(), Ok(()));
+    }
+    let stock = Classes::stock(Way::AgentsReview);
+    let changed = turned(&stock, Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: true });
+    assert_eq!(changed.items[3].class, Class::AskAway);
+    assert_eq!(turned(&changed, Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: false }), stock);
 }
 
 fn goal_line() -> c::TaskLine {

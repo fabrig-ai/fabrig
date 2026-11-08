@@ -1,4 +1,4 @@
-//! Away's acts and answered toast (temper/docs/design/client/README.md, 3.5, Away).
+//! Away's acts and answered toast; the project's classes decide what Away may decide (temper/docs/design/client/README.md, 3.5, Away).
 use super::{Pages, needs::Toasted};
 use crate::{
     Address, Domain, Limits, Request,
