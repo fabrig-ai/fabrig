@@ -119,3 +119,19 @@ Options, each decided:
 ## Report
 
 The implementer's report: kind 8's slot and its stock, `away_shown`'s rule, `asking` and `turned`, the section and preview as drawn, the words, the rows and their bites, the options taken, the journeys and goldens regenerated (each with why it moved), and the runs' counts.
+
+## Rebase (2026-11-08, step merge, foreman ui-reaches/away-client/foreman-1)
+
+Rebase onto the landing target and regenerate both conflicting journeys from the combined client.
+The merge conflicts with `d5fee46a9b` (“Merge catch-up with the landing target and regenerate launchpad chat”), which includes main’s `711b3a7906` chat-draft refresh.
+Conflicting generated paths:
+- `temper/docs/design/client/journeys/chat-draft/{01..20}.html` and `recording`.
+- `temper/docs/design/client/tui/journeys/launchpad-chat/{01..04}.html`, `{01..04}.txt` and `recording`.
+
+Preserve the target’s opening-history repair in `temper/crates/temper-client-domain/src/pages/chat.rs` and its current settings changes, together with this task’s kind 8 reads, classes section and Away rule.
+The target’s launchpad-chat frame 04 restores the user’s question before the fake model’s answer; retain that behavior.
+Use complete recordings as temporary conflict resolutions, then regenerate; do not splice exchange records or resolve the prints independently.
+Through heavy, run `temper-client-journeys again chat-draft` and `temper-client-journeys again launchpad-chat` against the combined checkout, retaining their setup and walk.
+These commands regenerate recordings and prints together. On “a key mark caught a moving page”, follow the spec’s three-attempt limit and fresh fake box requirement.
+Verify with `heavy cargo nextest run -p temper-client-journeys --lib -E 'test(=tests::the_committed_journeys_are_their_print)'`; confirm a nonzero selected count.
+Report each regenerated journey and explain history, kind 8/Away, and fresh recording port/time changes.
