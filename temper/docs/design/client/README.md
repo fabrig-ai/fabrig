@@ -7771,8 +7771,9 @@ the user's hand-made frames of the look request `tui-box-front`
 6.14's are.
 
 - **Its start:** the box spawns `temper internal tui --box
-  http://HOST:PORT`, HOST:PORT the printed link's own origin, which is
-  the TUI's address (`../protocol/setup.md`, 7.6). Its stdin is
+  http://HOST:PORT`, HOST:PORT the clients' listener, on loopback, never
+  the configured public origin, which is the TUI's address
+  (`../protocol/setup.md`, 7.6); the handed link is made there too. Its stdin is
   the null device, and its stdout and stderr pipes the box reads into
   the front's log, `tui.log`, beside `box.log`. It
   reads two descriptors the box gives it: descriptor 3, the local link's
@@ -8049,9 +8050,10 @@ Stop the box? csv-export's running task stops with it.
   it, read as UTF-8 with a replacement for each invalid byte and cut at
   512 bytes, `limits::LOG_LINE` (`tui-note`); with none kept yet,
   "Nothing yet." in their place. The lines are a log (skein's `ui.md`,
-  3.2) whose end request moves each time the note opens, so that the
-  body shows its end, the newest lines, as many as fit, and PgUp reads
-  back the rest (skein's `ui-screen.md`, 5.2).
+  3.2) whose end request is the TUI's state's revision, so that it moves
+  as the note opens and as lines come while it stands, and the body
+  shows its end, the newest lines, as many as fit; PgUp reads back the
+  rest until the next change (skein's `ui-screen.md`, 5.2).
 
 **The place.** In front, the TUI is on a box: it names its place
 "box" at the default port, 8367, and "box:PORT" at another,

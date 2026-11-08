@@ -100,9 +100,10 @@ not (`temper/docs/design/protocol/setup.md`, 7.1 and 7.6).
 ## 5. The front: the box's TUI child (tasks `box-front`, `binary-front`)
 
 - **Its command:** `temper internal tui --box http://HOST:PORT`, HOST:PORT
-  the printed link's own origin. On Linux the box spawns it through
-  `temper internal forge-child --parent BOX --signal terminate --`, as every
-  step; on macOS directly. Its environment is the box's.
+  the clients' listener, on loopback, never the configured public origin.
+  On Linux the box spawns it through `temper internal forge-child --parent
+  BOX --signal terminate --`, as every step; on macOS directly. Its
+  environment is the box's.
 - **Its descriptors:**
 
   | fd | What | Way |
@@ -117,9 +118,10 @@ not (`temper/docs/design/protocol/setup.md`, 7.1 and 7.6).
   (`skein_shell::take_foreground`), and runs the TUI on that descriptor, its
   input and its output, as bare `temper` runs on 0 and 1. The box gives it
   no descriptor of its terminal.
-- **The local link's URL** on fd 3 is made as the printed link's
-  (`temper_service::clients::first_link_url`), at most 4,096 bytes, from the
-  local link's first secret, which the box also writes after the printed
+- **The local link's URL** on fd 3 is made at the clients' listener with
+  no public origin (`temper_service::clients::first_link_url(listener, None,
+  &secret)`), so that its host is the front's address, at most 4,096 bytes,
+  from the local link's first secret, which the box also writes after the printed
   link's on serve's stdin (section 4). Never argv, the environment or a file.
 - **The box's side:** its exit, stop and give up with a front are
   `setup.md`, 7.6's. The front's exit is the box's stop, as a first
@@ -232,7 +234,7 @@ pub struct Front {
   bytes (`BoxLine::print`), replayed through `BoxLine::read`; a `box-line`
   record's `link` URL's secret is a *link* original, as `found`'s is.
 
-## 9. The binary (task `binary-front`)
+## 9. The binary (tasks `front-command`, `binary-front`)
 
 - `temper box [DIRECTORIES] [--echo none|steps] [--no-tui]` and `temper box
   [DIRECTORIES] --fake-backends [--bundle BUNDLE] [--no-tui]`.
