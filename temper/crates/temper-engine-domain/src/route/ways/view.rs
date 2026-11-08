@@ -9,6 +9,7 @@ use temper_engine_domain_forge::settings;
 
 mod address;
 mod charter;
+mod rule;
 use address::Address;
 
 #[derive(Hash, Debug)]
@@ -39,6 +40,7 @@ pub(crate) fn read(
             Some(view) => view,
             None => charter::draw(domain, project, party, number),
         },
+        Address::Rule { kind, number } => rule::draw(domain, project, party, kind, number),
         Address::Proposal { proposer, number } => {
             let token = reply.into_token();
             let reply = ReplyTo::new(token);
@@ -65,7 +67,7 @@ pub(crate) fn read(
         Address::Unknown => not_drawn(&[
             b"no view ",
             &line,
-            "; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N.".as_bytes(),
+            "; views: way NAME · path OWNER/NAME [BRANCH] · proposal tN/K · charter N · rule K/N.".as_bytes(),
         ]),
     };
     deliver(env, decision, reply, view);
@@ -221,7 +223,7 @@ fn text(bytes: &[u8], limit: usize) -> Box<[u8]> {
 }
 
 fn fact(label: &[u8], value: &[u8]) -> ways::Fact {
-    ways::Fact { label: label.into(), value: text(value, ways::VALUE) }
+    ways::Fact { label: label.into(), value: ways::cut_on_word(value, ways::VALUE) }
 }
 fn not_drawn(parts: &[&[u8]]) -> ways::View {
     let mut words = bytes::concat(parts);
