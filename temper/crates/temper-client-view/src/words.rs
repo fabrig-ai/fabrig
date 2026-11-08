@@ -1473,6 +1473,22 @@ pub enum Word {
     NeedsOldest,
     NeedsTell,
     NeedsHeadCut,
+    AllHomeAcross,
+    AllHomeIn,
+    AllHomeOne,
+    AllHomeAway,
+    AllHomePhoneLooked,
+    AllHomePhoneByline,
+    AllHomeDecided,
+    AllHomeReaches,
+    AllHomeProjects,
+    AllHomeAllNeeds,
+    HomeCardTell,
+    HomeCardMore,
+    HomeCardsMore,
+    HomeCardsOneMore,
+    HomeBranchRed,
+    AllHomeDecidedTitle,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -1547,7 +1563,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2101;
+const PHRASES: u32 = 2117;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1574,10 +1590,10 @@ const PHRASES: u32 = 2101;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3708;
+const SEGMENTS: u32 = 3752;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51592;
-const ALL: [Word; 1419] = [
+const ENGLISH_BYTES: u32 = 51813;
+const ALL: [Word; 1435] = [
     Word::WaysLede,
     Word::WaysTitle,
     Word::WaysNow,
@@ -2997,6 +3013,22 @@ const ALL: [Word; 1419] = [
     Word::NeedsOldest,
     Word::NeedsTell,
     Word::NeedsHeadCut,
+    Word::AllHomeAcross,
+    Word::AllHomeIn,
+    Word::AllHomeOne,
+    Word::AllHomeAway,
+    Word::AllHomePhoneLooked,
+    Word::AllHomePhoneByline,
+    Word::AllHomeDecided,
+    Word::AllHomeReaches,
+    Word::AllHomeProjects,
+    Word::AllHomeAllNeeds,
+    Word::HomeCardTell,
+    Word::HomeCardMore,
+    Word::HomeCardsMore,
+    Word::HomeCardsOneMore,
+    Word::HomeBranchRed,
+    Word::AllHomeDecidedTitle,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
@@ -4447,6 +4479,22 @@ impl Word {
             Self::NeedsOldest => 4322,
             Self::NeedsTell => 4323,
             Self::NeedsHeadCut => 4324,
+            Self::AllHomeAcross => 4325,
+            Self::AllHomeIn => 4326,
+            Self::AllHomeOne => 4327,
+            Self::AllHomeAway => 4328,
+            Self::AllHomePhoneLooked => 4329,
+            Self::AllHomePhoneByline => 4330,
+            Self::AllHomeDecided => 4331,
+            Self::AllHomeReaches => 4332,
+            Self::AllHomeProjects => 4333,
+            Self::AllHomeAllNeeds => 4334,
+            Self::HomeCardTell => 4335,
+            Self::HomeCardMore => 4336,
+            Self::HomeCardsMore => 4337,
+            Self::HomeCardsOneMore => 4338,
+            Self::HomeBranchRed => 4339,
+            Self::AllHomeDecidedTitle => 4340,
         };
         let owner =
             if number >= 100 { crate::frame::owner() } else { temper_client_domain::forge::words::owner(connector) };
@@ -5221,6 +5269,22 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsProject => (&[b"Needs you \xc2\xb7 ", b""], &[Name]),
         Word::NeedsOldest => (&[b"oldest first"], &[]),
         Word::NeedsTell => (&[b"Or tell it something else"], &[]),
+        Word::AllHomeAcross => (&[b"", b" changes landed across ", b" projects."], &[Number, Name]),
+        Word::AllHomeIn => (&[b"", b" changes landed in ", b"."], &[Number, Name]),
+        Word::AllHomeOne => (&[b"One change landed in ", b"."], &[Name]),
+        Word::AllHomeAway => (&[b"", b" \xc2\xb7 away ", b" to ", b""], &[Name, Name, Name]),
+        Word::AllHomePhoneLooked => (&[b"", b" \xc2\xb7 last looked ", b" ago"], &[Name, Name]),
+        Word::AllHomePhoneByline => (&[b"The status agent, ", b""], &[Name]),
+        Word::AllHomeDecided => (&[b"", b" \xe2\x80\xba"], &[Name]),
+        Word::AllHomeReaches => (&[b"What reaches you"], &[]),
+        Word::AllHomeProjects => (&[b"Projects"], &[]),
+        Word::AllHomeAllNeeds => (&[b"All needs"], &[]),
+        Word::HomeCardTell => (&[b"Tell it something else"], &[]),
+        Word::HomeCardMore => (&[b"More"], &[]),
+        Word::HomeCardsMore => (&[b"", b" more"], &[Number]),
+        Word::HomeCardsOneMore => (&[b"One more"], &[]),
+        Word::AllHomeDecidedTitle => (&[b"Decided for you"], &[]),
+        Word::HomeBranchRed => (&[b"", b" red"], &[Name]),
         Word::NeedsHeadCut => (&[b"Needs you \xc2\xb7 ", b"+"], &[Number]),
         Word::HomeNeedsNone => (&[b"Nothing needs you."], &[]),
         Word::HomeNeedsOne => (&[b"One thing needs you."], &[]),

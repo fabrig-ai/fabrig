@@ -26,7 +26,7 @@ fn object(message: u64) -> c::ObjectKey {
 fn event(root: &mut d::Domain, event: Event, out: &mut Queue<d::Request>) {
     d::step(root, &Env { now: Time::ZERO, wall: f::NOW, limits: limits() }, event, out);
 }
-fn fixture(words: &str, cut: bool, count: u32, more: bool, filter: d::address::Filter) -> d::Domain {
+pub(super) fn fixture(words: &str, cut: bool, count: u32, more: bool, filter: d::address::Filter) -> d::Domain {
     fixture_title(words, cut, count, more, filter, None)
 }
 fn fixture_title(
@@ -491,7 +491,7 @@ fn done_with_and_without_lines_and_home_project() {
         let home = main(&view).iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Home")).unwrap().id;
         assert_eq!(
             crate::act(&mut view, home, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go { address: Address::Home { project: f::PROJECT } }))
+            Some(d::Action::Pages(pages::Act::Go { address: Address::AllHome }))
         );
     }
 }
@@ -803,7 +803,7 @@ fn finished_person(whole: bool) -> d::Domain {
     };
     word_person_read("Fix the dropped watch", true, false, c::Requester::Task(42), Some(result))
 }
-fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
+pub(super) fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
     kinds_read(values, None)
 }
 fn kinds_read(values: &[(c::ObjectKey, c::Read, c::ReadValue)], whole: Option<c::ReadResult>) -> d::Domain {
