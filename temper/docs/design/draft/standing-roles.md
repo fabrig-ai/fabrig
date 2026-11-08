@@ -217,7 +217,8 @@ role of the project's people.
   person is there.
 - **What lasts goes where it belongs.** An instruction for every case becomes
   a rule: the standing role proposes a change to its own rules, and the person, if an
-  owner, accepts it in place ("Add it to Porter's rules?"). An instruction for
+  owner of the deployment, whose charters are (`configuring.md`, 3.3),
+  accepts it in place ("Add it to Porter's rules?"). An instruction for
   the work at hand goes in its Now. A decision becomes a record: an answer, a
   goal, a setting.
 - **Leaving ends the session.** The person leaves, the standing role writes

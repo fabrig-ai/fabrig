@@ -279,7 +279,8 @@ addressed to them that asks for an act rather than a choice (jig's
 - **Work goes around them:** runs that need the account wait for it, as
   today, and nothing else does. The line says what waits: "Two agents on
   vsr wait for this login."
-- **Early:** a login that ends within two days shows here before it ends.
+- **Early:** a login its account reads as expiring shows here before it
+  ends. When it ends, read from its provider, is Later.
 
 ## 9. Being told
 
