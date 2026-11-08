@@ -1016,6 +1016,8 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
         crate::Address::NewChat { .. }
         | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
+        | crate::Address::Members
+        | crate::Address::Limits
         | crate::Address::Accounts
         | crate::Address::Forges
         | crate::Address::ConnectForge { .. }
@@ -1028,6 +1030,7 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
         | crate::Address::Repositories { .. }
         | crate::Address::Models { .. }
         | crate::Address::Builders { .. }
+        | crate::Address::Work { .. }
         | crate::Address::Role { .. }
         | crate::Address::Rule { .. }
         | crate::Address::Goals { .. }

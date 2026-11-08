@@ -67,14 +67,16 @@ fn stock_request(world: &World, template: &jig_domain_core::Template) -> people:
     people::Ask::Create { project, batch }
 }
 
-#[test]
-fn the_stock_template_four_starts_on_the_configured_forge() {
+/// Start the stock draft-goal template with its held branch.
+pub(super) fn running_stock_goal() -> (World, engine::Assignment, Box<[u8]>) {
     let defaults = stock_defaults();
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.documents.lines = 8;
-    let mut world = World::configured_stock_limits(&defaults, &stock::box_model(), &limits);
+    limits.forge.change_policy.questions = 1;
+    let mut world = World::configured_stock_limits(&defaults, &stock::box_model(), &limits)
+        .with_settings_owner(&forge_top::user_key(1, 7));
     world.adopt();
-    let mut event = protocol::hello(Token::new(7), Box::new([]));
+    let mut event = protocol::hello_slots(Token::new(7), 3, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
     else {
         panic!("worker hello")
@@ -94,14 +96,21 @@ fn the_stock_template_four_starts_on_the_configured_forge() {
     };
     assert_eq!(goal, last);
     world.until(Until::Ready);
-    let assigned = world.assigned.iter().find(|run| run.task == goal).expect("stock coordinator starts");
+    let assigned = world.assigned.iter().find(|run| run.task == goal).expect("stock coordinator starts").clone();
+    let branch = format!("temper/{goal}/g{goal}").into_bytes().into_boxed_slice();
+    (world, assigned, branch)
+}
+
+#[test]
+fn the_stock_template_four_starts_on_the_configured_forge() {
+    let (mut world, assigned, branch) = running_stock_goal();
+    let goal = assigned.task;
     assert_eq!(assigned.charter, 5);
-    let branch = format!("temper/{goal}/g{goal}");
-    let mut held = resource(branch.as_bytes());
+    let mut held = resource(&branch);
     held.connector = 1;
     assert!(live_task(&world, goal).holdings.contains(&tasks::Holding::Write { resource: held, kind: 1 }));
-    assert_eq!(forge_hold(&world, branch.as_bytes()).expect("exclusive forge hold").task, goal);
-    assert_eq!(branch_tip(&mut world, branch.as_bytes()), branch_tip(&mut world, b"main"));
+    assert_eq!(forge_hold(&world, &branch).expect("exclusive forge hold").task, goal);
+    assert_eq!(branch_tip(&mut world, &branch), branch_tip(&mut world, b"main"));
     world.close();
 }
 

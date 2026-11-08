@@ -18,15 +18,16 @@ fn a_person_at_the_terminal_reads_a_run_of_calls() {
         scratch,
         || llm::scripted(scripts::call_line_scripts()),
         || {
-            vec![
-                sign_in(D1),
-                terminal::open(),
-                terminal::type_on(b"+ New chat", b""),
-                terminal::see(b"What do you want done?"),
-                terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
-                terminal::see_without(scripts::REPLY, PROVISIONAL),
-                terminal::close(),
-            ]
+            [sign_in(D1), terminal::open()]
+                .into_iter()
+                .chain(super::support::start_change(true))
+                .chain([
+                    terminal::see(b"What do you want done?"),
+                    terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
+                    terminal::see_without(scripts::REPLY, PROVISIONAL),
+                    terminal::close(),
+                ])
+                .collect()
         },
     );
     assert_eq!(ran.calls()[SIGN_IN].exit, Some(Exit::Code(0)), "ctl signed in before provisioning the key");
@@ -58,15 +59,16 @@ fn a_person_at_the_terminal_reads_a_chats_committed_reply() {
         scratch,
         || llm::scripted(scripts::chat_scripts(1)),
         || {
-            vec![
-                sign_in(D1),
-                terminal::open(),
-                terminal::type_on(b"+ New chat", b""),
-                terminal::see(b"What do you want done?"),
-                terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
-                terminal::see_without(scripts::REPLY, PROVISIONAL),
-                terminal::close(),
-            ]
+            [sign_in(D1), terminal::open()]
+                .into_iter()
+                .chain(super::support::start_change(true))
+                .chain([
+                    terminal::see(b"What do you want done?"),
+                    terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
+                    terminal::see_without(scripts::REPLY, PROVISIONAL),
+                    terminal::close(),
+                ])
+                .collect()
         },
     );
     assert_eq!(ran.calls()[SIGN_IN].exit, Some(Exit::Code(0)), "ctl signed in before provisioning the key");
@@ -137,30 +139,31 @@ fn up_down_and_the_page_up_line_read_the_conversation() {
             )
         },
         || {
-            vec![
-                sign_in(D1),
-                terminal::open_reading(),
-                terminal::type_on(b"+ New chat", b""),
-                terminal::type_on(b"What do you want done?", b"Read our earlier words"),
-                terminal::see_without(FIRST, PROVISIONAL),
-                terminal::type_on(b"Message", b"Please continue the conversation with a second answer"),
-                terminal::see_without(MIDDLE, PROVISIONAL),
-                terminal::type_on(b"Message", b"Please continue the conversation with a third answer"),
-                terminal::see_without(LAST, PROVISIONAL),
-                terminal::line(b"up"),
-                terminal::line(b"up"),
-                terminal::line(b"up"),
-                terminal::see_without(FIRST, LAST),
-                terminal::line(b"down"),
-                terminal::line(b"down"),
-                terminal::line(b"down"),
-                terminal::see_without(LAST, FIRST),
-                terminal::line(b"\x1b[5~"),
-                terminal::line(b"\x1b[5~"),
-                terminal::line(b"\x1b[5~"),
-                terminal::see_without(FIRST, LAST),
-                terminal::close(),
-            ]
+            [sign_in(D1), terminal::open_reading()]
+                .into_iter()
+                .chain(super::support::start_change(true))
+                .chain([
+                    terminal::type_on(b"What do you want done?", b"Read our earlier words"),
+                    terminal::see_without(FIRST, PROVISIONAL),
+                    terminal::type_on(b"Message", b"Please continue the conversation with a second answer"),
+                    terminal::see_without(MIDDLE, PROVISIONAL),
+                    terminal::type_on(b"Message", b"Please continue the conversation with a third answer"),
+                    terminal::see_without(LAST, PROVISIONAL),
+                    terminal::line(b"up"),
+                    terminal::line(b"up"),
+                    terminal::line(b"up"),
+                    terminal::see_without(FIRST, LAST),
+                    terminal::line(b"down"),
+                    terminal::line(b"down"),
+                    terminal::line(b"down"),
+                    terminal::see_without(LAST, FIRST),
+                    terminal::line(b"\x1b[5~"),
+                    terminal::line(b"\x1b[5~"),
+                    terminal::line(b"\x1b[5~"),
+                    terminal::see_without(FIRST, LAST),
+                    terminal::close(),
+                ])
+                .collect()
         },
     );
     assert_eq!(ran.terminal().exit, Some(Exit::Code(0)));

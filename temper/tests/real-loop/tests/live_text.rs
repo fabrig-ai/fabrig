@@ -5,6 +5,7 @@ use temper_real_loop_world::{
     calls::{D1, release_hold, sign_in},
     fixtures, llm, run_on, scripts, terminal,
 };
+mod support;
 #[global_allocator]
 static HEAP: Counting = Counting;
 // The production view's Provisional word (cards/words.rs).
@@ -22,18 +23,19 @@ fn a_person_reads_a_chats_reply_as_it_is_written_then_its_committed_turn() {
         scratch,
         || llm::scripted(scripts::live_scripts()),
         || {
-            vec![
-                sign_in(D1),
-                terminal::open(),
-                terminal::type_on(b"+ New chat", b""),
-                terminal::see(b"What do you want done?"),
-                terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
-                terminal::see(scripts::FIRST),
-                release_hold(scripts::LIVE),
-                terminal::see_without(REPLY, PROVISIONAL.as_bytes()),
-                terminal::see(b"waiting on your words"),
-                terminal::close(),
-            ]
+            [sign_in(D1), terminal::open()]
+                .into_iter()
+                .chain(support::start_change(true))
+                .chain([
+                    terminal::see(b"What do you want done?"),
+                    terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
+                    terminal::see(scripts::FIRST),
+                    release_hold(scripts::LIVE),
+                    terminal::see_without(REPLY, PROVISIONAL.as_bytes()),
+                    terminal::see(b"waiting on your words"),
+                    terminal::close(),
+                ])
+                .collect()
         },
     );
     assert_eq!(ran.calls()[SIGN_IN].exit, Some(Exit::Code(0)), "ctl signed in before provisioning the key");
