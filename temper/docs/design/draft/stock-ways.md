@@ -179,9 +179,12 @@ once all of it works, with no part of the page drawn by hand.
   tN/K`, its path before and after; and `charter N`
   (`ask-temper.md`, 6.2). The queue's, a task's tree and its timeline
   wait for M2's reads (`ask-temper.execution.md`).
-- **Its instructions' Showing part** for them: a way asked about is
-  drawn, not described, and a person who wants their own way gets a
-  proposal, drawn before and after.
+- **Its instructions** (`ask-temper.md`, section 8): `ways` on the `see`
+  line, `way NAME` among the views, and the Showing part's first step:
+  a way asked about is drawn, not described, and a person who wants
+  their own way gets a proposal, drawn before and after. The other
+  views and the sketches join with M3b, since a view or a mark not
+  built yet would show as code.
 
 ## 7. In order
 
