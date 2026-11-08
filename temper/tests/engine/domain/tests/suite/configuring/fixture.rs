@@ -623,7 +623,7 @@ pub(super) fn read_whole(
         );
         let page = std::str::from_utf8(&body).expect("settings UTF-8");
         pages += 1;
-        if let Some((body, next)) = page.rsplit_once("next: ") {
+        if let Some((body, next)) = page.rsplit_once("\nnext: ") {
             let next: u32 = next.trim().parse().expect("continuation offset");
             assert!(next > from, "pagination advances");
             let bytes = usize::try_from(next - from).expect("page size");
