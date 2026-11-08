@@ -467,6 +467,9 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
         Operation::End { task, failed } => {
             if world.runs.contains_key(&task) {
                 let kept = !world.record(task).waiting_on.is_empty();
+                let delegates = !world.record(task).delegates.is_empty()
+                    && !world.record(task).narrowing
+                    && matches!(world.record(task).phase, Phase::Active(_));
                 let result = if failed {
                     TaskResult::Failure { reason: Box::new([1]) }
                 } else {
@@ -474,8 +477,13 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
                 };
                 match world.terminal(task, End::Finished { result, cancel_delegates: false }) {
                     Reply::Acknowledged(Accepted::New) => {
-                        if kept && !failed {
-                            assert!(matches!(world.record(task).phase, Phase::Active(Active::Idle)));
+                        if delegates || kept && !failed {
+                            assert!(
+                                matches!(world.record(task).phase, Phase::Active(Active::Idle))
+                                    || delegates && matches!(world.record(task).phase, Phase::Active(Active::Due)),
+                                "parked task {task}: {:?}",
+                                world.record(task).phase
+                            );
                             let mut parked = false;
                             for record in world.records.values() {
                                 if let Stored::Activity(row) = record
@@ -485,11 +493,10 @@ fn apply(world: &mut World, operation: Operation, seen: &mut BTreeSet<Reached>, 
                                     parked = true;
                                 }
                             }
-                            assert!(parked, "kept done finish has a durable parked line");
+                            assert!(parked, "a finish waiting for dependencies or delegates has a durable parked line");
                             seen.insert(Reached::Parked);
                         }
                     }
-                    Reply::Refused(problem) if problem.why == Refusal::LiveDelegates => {}
                     reply @ (Reply::Made(_)
                     | Reply::Lifted { .. }
                     | Reply::Done

@@ -615,9 +615,29 @@ fn corrected_finish_cancels_delegates_and_closes_deepest_first() {
     w.make(Party::Task(2), vec![task(3, &[])]);
     w.claim_task(3);
     let finish = End::Finished { result: TaskResult::Report { words: Box::new([9]) }, cancel_delegates: false };
-    let before = w.records.clone();
-    refused(&w.terminal(1, finish), Refusal::LiveDelegates);
-    assert_eq!(w.records, before);
+    assert_eq!(w.terminal(1, finish), Reply::Acknowledged(jig_domain_tasks::Accepted::New));
+    assert_eq!(w.record(1).phase, Phase::Active(Active::Idle));
+    assert_eq!(w.record(1).delegates.as_ref(), [2]);
+    assert_eq!(w.record(1).tries, jig_domain_tasks::Tries::NONE);
+    assert!(w.results.is_empty());
+    let reply_to = w.to();
+    w.send(Event::Message {
+        reply_to,
+        project: 1,
+        operation: jig_domain_tasks::Message {
+            task: 1,
+            word: jig_domain_tasks::Word {
+                number: 1,
+                from: Party::Person(1),
+                kind: jig_domain_tasks::MessageKind::Words,
+                words: b"Cancel the delegates".as_slice().into(),
+                at: w.env.wall,
+                hits: 1,
+                eligible: true,
+            },
+        },
+    });
+    w.claim(1, 4);
     w.observe(jig_tasks_world::referee::Seen::Cancelled { task: 2 });
     w.terminal(1, End::Finished { result: TaskResult::Report { words: Box::new([1]) }, cancel_delegates: true });
     assert!(w.closing.is_empty());
