@@ -305,7 +305,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N1 | in flight | `ui-reaches` |
 | N2 | waits | N1, by its needs |
 | N3a, N3b | wait | N1, by their needs |
-| N4 | in flight | goal 147, `n4-request-changes` |
+| N4 | in flight | goal 147, `n4-request-changes`; tells temper/ui and temper/tui: client-wire-v1 `Reason` and public-v1 `PublicRepair` gain `review`, in place; `temper-client-domain` gains its line |
 | N5, N6 | wait | N2 |
 | R1 | in flight | goal 101 |
 | R2, R3 | wait | R1, by their needs |
