@@ -162,7 +162,8 @@ fn server_name(bytes: &[u8]) -> Result<skein_tls::Name, String> {
         .ok_or_else(|| "invalid server name".into())
 }
 fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String> {
-    accounts_runtime::resolve(engine)
+    use std::net::ToSocketAddrs;
+    accounts_runtime::resolve(engine, |host, port| (host, port).to_socket_addrs().ok()?.next())
 }
 
 /// Resolve the machine's GitHub host once at start (temper/docs/design/protocol/configuration.md, 3).

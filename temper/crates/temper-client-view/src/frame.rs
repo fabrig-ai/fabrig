@@ -124,6 +124,8 @@ impl Bindings {
                         PageAct::Choice(temper_client_domain::pages::choice::Act::Find { .. }),
                         skein_ui::Act::Input { value },
                     ) => PageAct::Choice(temper_client_domain::pages::choice::Act::Find { words: value }),
+                    (PageAct::AskLine { .. }, skein_ui::Act::Input { value }) => PageAct::AskLine { words: value },
+                    (PageAct::AskLine { words }, skein_ui::Act::Submit) => PageAct::AskWith { words: words.clone() },
                     (PageAct::ChatWords { .. }, skein_ui::Act::Input { value }) => PageAct::ChatWords { words: value },
                     (PageAct::MessageWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::MessageWords { words: value }
@@ -349,9 +351,14 @@ fn all_projects(
     use skein_ui::phrases::Hole;
     let name = w.say(Word::AllProjects, &[]);
     let count = w.say(Word::RailProjectsCount, &[Hole::Number(u64::from(projects))]);
-    let mut filter = match root.pages().address() {
-        Address::Inbox { filter } => *filter,
-        Address::Home { .. }
+    let address = match root.pages().address() {
+        Address::Inbox { filter } => {
+            let mut filter = *filter;
+            filter.project = None;
+            Address::Inbox { filter }
+        }
+        Address::AllHome
+        | Address::Home { .. }
         | Address::Team { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
@@ -374,9 +381,8 @@ fn all_projects(
         | Address::Limits
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. }
-        | Address::Welcome { .. } => temper_client_domain::address::Filter::ALL,
+        | Address::Welcome { .. } => Address::AllHome,
     };
-    filter.project = None;
     if w.shell == Shell::Browser {
         b.open(Role::Slot);
         b.style(crate::look::PROJECTS_ROW);
@@ -386,7 +392,7 @@ fn all_projects(
     if across {
         b.state(skein_ui::State::Pressed);
     }
-    b.bind(bindings.insert(PageAct::Go { address: Address::Inbox { filter } }));
+    b.bind(bindings.insert(PageAct::Go { address }));
     if w.shell == Shell::Terminal {
         w.text(b, Word::SwitcherRow, &[Hole::Name(name), Hole::Name(count.clone())]);
     }
@@ -751,7 +757,7 @@ struct Shown {
 #[expect(clippy::match_like_matches_macro, reason = "the step crate excludes matches!; its address check uses if let")]
 fn shown(root: &Domain) -> Shown {
     let (home, inbox, work, how) = match root.pages().address() {
-        Address::Home { .. } => (true, false, false, false),
+        Address::AllHome | Address::Home { .. } => (true, false, false, false),
         Address::Inbox { .. } => (false, true, false, false),
         Address::Work { .. }
         | Address::Goals { .. }
@@ -954,6 +960,7 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Team { .. }
+        | Address::AllHome
         | Address::Adopt { .. }
         | Address::Welcome { .. } => false,
     };

@@ -40,26 +40,19 @@ pub enum Links {
     Print,
 }
 
-/// Make a harness-free world. The service is process zero.
-#[must_use]
-pub fn world(start: Start) -> World<Process<()>, Machine> {
-    world_metered(start, Bare)
-}
-
-/// Make a harness-free world with a meter installed before admitting any process.
-#[must_use]
-pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Machine, N> {
-    let Start { seed, wall, deployment, fakes, links } = start;
-    let mut disk = machine::fresh();
-    machine::setup(&mut disk);
-    let document: serde_json::Value = serde_json::from_slice(&deployment).expect("deployment JSON");
+/// Lay a story's fake disk before its first start: the machine's
+/// files, then every handover its deployment names
+/// (temper/docs/design/playground.md, 4).
+pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &[u8], seed: u64) {
+    machine::setup(disk);
+    let document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment JSON");
     if let Some(key) = document.pointer("/application/demo/llm/key").and_then(serde_json::Value::as_str) {
-        machine::lay_handover(&mut disk, key.as_bytes(), documents::KEY);
+        machine::lay_handover(disk, key.as_bytes(), documents::KEY);
     }
     if let Some(setup) = document["setup"].as_array() {
         for entry in setup {
             if let Some(directory) = entry["directory"].as_str() {
-                machine::lay_handover(&mut disk, format!("{directory}/admin_token").as_bytes(), fakes::ADMIN_TOKEN);
+                machine::lay_handover(disk, format!("{directory}/admin_token").as_bytes(), fakes::ADMIN_TOKEN);
             }
         }
     }
@@ -69,7 +62,7 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
             place::{File, Place},
         };
         let directories = jig_protocol_config::Directories::working();
-        let named = temper_service::startup::named_with(&deployment, &directories, &documents::given(&document))
+        let named = temper_service::startup::named_with(deployment, &directories, &documents::given(&document))
             .expect("deployment's machine");
         let last = document["setup"]
             .as_array()
@@ -82,8 +75,23 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
         let entry = temper_forge_setup::machine::entry(&named.machine, number, BoxKind::Fake, &directories)
             .expect("playground's fake machine");
         let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
-        machine::lay_handover(&mut disk, &path, &crate::stories::admin_token(seed));
+        machine::lay_handover(disk, &path, &crate::stories::admin_token(seed));
     }
+}
+
+/// Make a harness-free world. The service is process zero.
+#[must_use]
+pub fn world(start: Start) -> World<Process<()>, Machine> {
+    world_metered(start, Bare)
+}
+
+/// Make a harness-free world with a meter installed before admitting any process.
+#[must_use]
+pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Machine, N> {
+    let Start { seed, wall, deployment, fakes, links } = start;
+    let mut disk = machine::fresh();
+    prepare(&mut disk, &deployment, seed);
+    let document: serde_json::Value = serde_json::from_slice(&deployment).expect("deployment JSON");
     let machine = Machine::new(disk);
     let parameters = programs::Parameters {
         deployment,

@@ -929,8 +929,10 @@ bytes.
 
 - **Its defaults at each start,** before its records (section 14): the
   application's, which it compares with those it stored, telling the
-  core which settings' defaults differ and their sizes; it saves the new
-  ones in the decision that makes the release's revision. A default
+  core which settings' defaults differ and their sizes, and naming, by
+  kind, scope and number, each default it stored that the application
+  no longer gives; it saves the new ones in the decision that makes the
+  release's revision (engine.md, 17.5). A default
   past its kind's bounds, a stored value it cannot read, or one of a
   kind no longer declared, refuses the start, naming it.
 - **Judged in the change's decision.** A change naming items of its

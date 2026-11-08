@@ -3,7 +3,6 @@ use skein_world::domain::Verdict;
 use temper_one_process_world::{fixtures, world};
 
 #[test]
-#[ignore = "Story A stalls at Starting after 5 s; forge 1 Kept, account and project absent"]
 fn story_a_is_walked_from_the_welcome_to_the_csv_change_landed() {
     let outcome = world::run(fixtures::calm(fixtures::SEED), world::Story::PlaygroundA);
     assert_eq!(outcome.verdict, Verdict::Passed);

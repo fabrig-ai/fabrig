@@ -1,6 +1,6 @@
 # channel: status
 
-2026-11-07. Where jig's code lags or departs from [channel.md](channel.md).
+2026-11-08. Where jig's code lags or departs from [channel.md](channel.md).
 
 Section 5.1's hello carries endpoint bounds, not a model list; no known
 implementation gap remains in that declaration or its fleet checks.

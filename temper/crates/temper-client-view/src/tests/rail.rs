@@ -306,13 +306,13 @@ fn the_panel_puts_all_projects_first_and_links_after_the_forms() {
             assert_eq!(crate::href(&mut view, deployment).as_deref(), Some(b"/accounts".as_slice()));
             if let Some(id) = all_id {
                 let target = if across || filtered {
-                    d::address::Filter { project: None, ..filter }
+                    Address::Inbox { filter: d::address::Filter { project: None, ..filter } }
                 } else {
-                    d::address::Filter::ALL
+                    Address::AllHome
                 };
                 assert_eq!(
                     crate::act(&mut view, id, Act::Press),
-                    Some(d::Action::Pages(pages::Act::Go { address: Address::Inbox { filter: target } }))
+                    Some(d::Action::Pages(pages::Act::Go { address: target }))
                 );
             }
         }

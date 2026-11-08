@@ -130,7 +130,8 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     }
     let detail = match root.pages().address() {
         Address::Role { .. } | Address::Rule { .. } => true,
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }

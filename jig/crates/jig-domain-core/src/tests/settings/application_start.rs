@@ -20,7 +20,12 @@ fn default(size: u32, differs: bool) -> connector::DefaultState {
 }
 fn answer(core: &mut Core, env: &Env<Limits>, connector: u16, defaults: Box<[connector::DefaultState]>) {
     assert!(
-        step(core, env, Event::EffectConnector(connector::Event::SettingsDefaults { connector, defaults })).is_empty()
+        step(
+            core,
+            env,
+            Event::EffectConnector(connector::Event::SettingsDefaults { connector, defaults, dropped: Box::new([]) })
+        )
+        .is_empty()
     );
 }
 
@@ -28,15 +33,36 @@ fn answer(core: &mut Core, env: &Env<Limits>, connector: u16, defaults: Box<[con
 fn complete(
     core: &mut Core,
     env: &Env<Limits>,
-    mut action: Action,
+    action: Action,
     defaults: Box<[connector::DefaultState]>,
 ) -> Box<[Request]> {
+    complete_with_dropped(core, env, action, defaults, Box::new([]))
+}
+fn complete_with_dropped(
+    core: &mut Core,
+    env: &Env<Limits>,
+    mut action: Action,
+    defaults: Box<[connector::DefaultState]>,
+    dropped: Box<[connector::DroppedDefault]>,
+) -> Box<[Request]> {
     let mut defaults = Some(defaults);
+    let mut dropped = Some(dropped);
     let mut out = Queue::uncapped();
     for _ in 0_u32..64 {
         action = match action {
             Action::Step(Phase::RestoreConnector { connector: 2 }) => {
-                answer(core, env, 2, defaults.take().unwrap());
+                assert!(
+                    step(
+                        core,
+                        env,
+                        Event::EffectConnector(connector::Event::SettingsDefaults {
+                            connector: 2,
+                            defaults: defaults.take().unwrap(),
+                            dropped: dropped.take().unwrap(),
+                        })
+                    )
+                    .is_empty()
+                );
                 core.start_done(env, Phase::RestoreConnector { connector: 2 }, &mut out)
             }
             Action::Step(Phase::Sweep) => core.start_sweep(env, crate::start::SweepInput::Finished, &mut out),
@@ -57,10 +83,13 @@ fn complete(
     panic!("bounded start");
 }
 fn first() -> (Core, Env<Limits>, Box<[Request]>) {
+    first_with_defaults(Box::new([default(3, true)]))
+}
+fn first_with_defaults(defaults: Box<[connector::DefaultState]>) -> (Core, Env<Limits>, Box<[Request]>) {
     let env = environment();
     let mut core = Core::new(configuration(), &env.limits).unwrap();
     let action = core.start_begin(false, env.wall);
-    let out = complete(&mut core, &env, action, Box::new([default(3, true)]));
+    let out = complete(&mut core, &env, action, defaults);
     (core, env, out)
 }
 fn snapshot(core: &mut Core, out: &[Request]) -> Map<Key, Record> {
@@ -173,15 +202,8 @@ fn a_changed_default_makes_a_release_revision_with_its_size_and_save() {
 #[test]
 fn a_changed_or_removed_state_stays_over_a_changed_default_without_a_revision() {
     for follows in [app::Follows::Changed { revision: 1 }, app::Follows::Removed { revision: 1 }] {
-        let (mut core, env, out) = first();
-        let mut rows = snapshot(&mut core, &out);
         let state = app::State { follows, size: 5, charters: Box::new([1]) };
-        let record = Record::Core(CoreRecord::Settings(s::Record::Application {
-            setting: setting(1, 0, 1),
-            state: state.clone(),
-        }));
-        rows.insert(record.key(), record).unwrap();
-        let mut restarted = restart(configuration(), &env, &rows);
+        let (mut restarted, env) = restart_with_state(state.clone());
         let out = complete(&mut restarted, &env, Action::Step(Phase::LoadCore), Box::new([default(6, true)]));
         assert_eq!(restarted.current.newest(), 1);
         assert_eq!(restarted.current.applications.get(&setting(1, 0, 1)), Some(&state));
@@ -191,11 +213,11 @@ fn a_changed_or_removed_state_stays_over_a_changed_default_without_a_revision() 
 }
 
 #[test]
-fn a_default_no_longer_reported_is_erased_in_a_release_revision() {
+fn a_dropped_default_is_erased_in_a_release_revision() {
     let (mut core, env, out) = first();
     let rows = snapshot(&mut core, &out);
     let mut restarted = restart(configuration(), &env, &rows);
-    let out = complete(&mut restarted, &env, Action::Step(Phase::LoadCore), Box::default());
+    let out = complete_with_dropped(&mut restarted, &env, Action::Step(Phase::LoadCore), Box::default(), dropped());
     assert!(restarted.current.applications.is_empty());
     let revisions = revisions(&out);
     assert_eq!(revisions.len(), 1);
@@ -529,4 +551,80 @@ fn an_undeclared_default_is_refused_even_without_declared_kind_owners() {
         core.start_failure(),
         Some(Failure::Application { kind: 1, scope: 0, number: 1, why: ApplicationWhy::Undeclared })
     );
+}
+
+fn restart_with_state(state: app::State) -> (Core, Env<Limits>) {
+    let (mut core, env, out) = first();
+    let mut rows = snapshot(&mut core, &out);
+    let row = Record::Core(CoreRecord::Settings(s::Record::Application { setting: setting(1, 0, 1), state }));
+    rows.insert(row.key(), row).unwrap();
+    (restart(configuration(), &env, &rows), env)
+}
+
+fn dropped() -> Box<[connector::DroppedDefault]> {
+    Box::new([connector::DroppedDefault { kind: 1, scope: 0, number: 1 }])
+}
+
+fn assert_no_application_write(out: &[Request], target: s::Setting) {
+    for request in out {
+        if let Request::Write(Write::Save(Record::Core(CoreRecord::Settings(s::Record::Application {
+            setting, ..
+        })))) = request
+        {
+            assert_ne!(*setting, target, "kept state is not written");
+        }
+        if let Request::Write(Write::Erase(Key::Core(CoreKey::Settings(s::Key::Changed(setting))))) = request {
+            assert_ne!(*setting, target, "kept state is not erased");
+        }
+    }
+}
+
+#[test]
+fn a_dropped_name_with_a_changed_state_keeps_the_change() {
+    let state = app::State { follows: app::Follows::Changed { revision: 1 }, size: 5, charters: Box::new([1]) };
+    let (mut restarted, env) = restart_with_state(state.clone());
+    let out = complete_with_dropped(&mut restarted, &env, Action::Step(Phase::LoadCore), Box::new([]), dropped());
+    assert_eq!(restarted.current.applications.get(&setting(1, 0, 1)), Some(&state));
+    assert_eq!(restarted.current.newest(), 1);
+    assert!(revisions(&out).is_empty());
+    assert_eq!(saved(&out).as_ref(), &[(2, None)]);
+    assert_no_application_write(&out, setting(1, 0, 1));
+}
+
+#[test]
+fn a_reset_to_a_default_no_connector_reports_keeps_its_state_at_restart() {
+    const CHANGED_BYTES: u32 = 5; // The bytes of "value".
+    const DEFAULT_BYTES: u32 = 3; // The scripted connector's reset judgment.
+    const RETAINED_SLOTS: u32 = 1; // The one setting changed and reset.
+    use super::application::{application_core, change};
+    let (mut core, limits) = application_core();
+    let target = setting(1, 0, 1);
+    let (mut initial, _, out) = first_with_defaults(Box::new([]));
+    let mut rows = snapshot(&mut initial, &out);
+    for (edit, size) in [
+        (s::Edit::Set(s::Value::Application(Box::from(b"value".as_slice()))), CHANGED_BYTES),
+        (s::Edit::Reset, DEFAULT_BYTES),
+    ] {
+        let out = change(
+            &mut core,
+            &limits,
+            Box::new([s::Item { setting: target, edit }]),
+            Box::new([Box::new([connector::Judged::Accept { size, charters: Box::new([]) }])]),
+        );
+        for (_, row) in &snapshot(&mut core, &out) {
+            if let Record::Core(CoreRecord::Settings(_) | CoreRecord::Deployment(_)) = row {
+                rows.insert(row.key(), row.clone()).unwrap();
+            }
+        }
+    }
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let state = app::State { follows: app::Follows::Default, size: DEFAULT_BYTES, charters: Box::new([]) };
+    let mut restarted = restart(configuration(), &env, &rows);
+    let out = complete(&mut restarted, &env, Action::Step(Phase::LoadCore), Box::new([]));
+    assert_eq!(restarted.current.applications.get(&target), Some(&state));
+    assert_eq!(restarted.current.applications.len(), RETAINED_SLOTS, "reset keeps its slot");
+    assert_eq!(restarted.current.newest(), 3);
+    assert!(revisions(&out).is_empty());
+    assert_eq!(saved(&out).as_ref(), &[(2, None)]);
+    assert_no_application_write(&out, target);
 }

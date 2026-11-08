@@ -299,6 +299,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
             match root.pages().address() {
                 Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
                 Address::Home { .. }
+                | Address::AllHome
                 | Address::Inbox { .. }
                 | Address::Chats { .. }
                 | Address::NewChat { .. }
@@ -310,8 +311,8 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
                 | Address::ConnectForge { .. }
                 | Address::ConnectModel { .. }
                 | Address::Welcome { .. }
-                | Address::Work { .. }
                 | Address::Task { .. }
+                | Address::Work { .. }
                 | Address::Goals { .. }
                 | Address::Changes { .. }
                 | Address::Settings { .. }

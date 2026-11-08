@@ -9,7 +9,7 @@ use temper_client_domain::{
     forge::status,
     owner::Owner,
     pages::{
-        Act,
+        Act, all_home,
         home::{self, Facts, Status},
     },
 };
@@ -24,6 +24,7 @@ use temper_engine_domain_forge as forge;
 
 const CLIENT: ClientId = ClientId(0);
 const PROJECT: u32 = 1;
+const OTHER_PROJECT: u32 = 2;
 const PUMP_ROUNDS: usize = 32;
 // Bounds immediate forge progression; no real clock or poll wait is needed.
 const LANDING_ROUNDS: usize = 200;
@@ -40,12 +41,15 @@ const STATUS_PROCEDURE: u32 = 5;
 struct Probe {
     root: Root,
     out: Queue<Request>,
+    looks: Vec<u32>,
 }
 
 struct Story {
     front: Joint,
     probes: Vec<Probe>,
     env: Env<temper_client_domain::Limits>,
+    refuse_status: Option<u32>,
+    status_ends: Vec<jig_client::contract::WatchEnd>,
 }
 
 impl Story {
@@ -59,6 +63,8 @@ impl Story {
             front: Joint::with_status_people(fixtures::SEED, limits),
             probes: Vec::new(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            refuse_status: None,
+            status_ends: Vec::new(),
         }
     }
 
@@ -66,7 +72,7 @@ impl Story {
         let who = ClientId(self.probes.len());
         self.front.bind(who, party);
         let root = Root::Person(Box::new(temper_client_domain::unlinked(&self.env.limits, fixtures::SEED)));
-        self.probes.push(Probe { root, out: Queue::uncapped() });
+        self.probes.push(Probe { root, out: Queue::uncapped(), looks: Vec::new() });
         self.event(who, Temper::start(address, Vec::new(), 0));
         who
     }
@@ -123,8 +129,38 @@ impl Story {
                 Temper::take(&mut probe.root, &self.env, &mut probe.out);
                 while let Some(request) = probe.out.pop() {
                     worked = true;
-                    if let Duty::Wire(request) = Temper::duty(request) {
-                        self.front.wire(ClientId(index), self.env.now, self.env.wall, request);
+                    match Temper::duty(request) {
+                        Duty::Wire(mut request) => {
+                            for project in [PROJECT, OTHER_PROJECT] {
+                                if let Request::Unlinked {
+                                    request:
+                                        jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { request, .. } },
+                                } = &request
+                                    && Some(request) == status::ask(project, &self.env.limits.forge).as_ref()
+                                {
+                                    probe.looks.push(project);
+                                }
+                                if self.refuse_status == Some(project)
+                                    && let Request::Unlinked {
+                                        request:
+                                            jig_client::UnlinkedRequest::Down {
+                                                down: jig_client::Down::Open { subject, .. },
+                                            },
+                                    } = &mut request
+                                    && Some(&*subject) == status::watch(project, &self.env.limits.forge).as_ref()
+                                    && let jig_client::Watchable::Family { scope, .. } = subject
+                                {
+                                    // The real engine refuses this watch's unowned scope.
+                                    *scope = jig_client::contract::Scope::Project(u32::MAX);
+                                }
+                            }
+                            self.front.wire(ClientId(index), self.env.now, self.env.wall, request);
+                        }
+                        Duty::Show { address, replace } => {
+                            self.front.shows.push((address.clone(), replace));
+                            Temper::step(&mut probe.root, &self.env, Temper::went(address), &mut probe.out);
+                        }
+                        Duty::Store(_) | Duty::SignIn { .. } | Duty::SignOut | Duty::Fact => {}
                     }
                 }
             }
@@ -134,6 +170,12 @@ impl Story {
             }
             for (who, event) in callbacks {
                 self.front.received(who, &event);
+                if let Some(Event::Client {
+                    event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { end, .. } },
+                }) = event.root()
+                {
+                    self.status_ends.push(*end);
+                }
                 let probe = &mut self.probes[who.0];
                 Temper::step(&mut probe.root, &self.env, event, &mut probe.out);
             }
@@ -192,13 +234,15 @@ impl Story {
     }
 
     fn looked(&self, party: u64) -> Option<forge::Looked> {
-        self.front.engine.store.rows.get(&StoreKey::Forge(forge::Key::Looked { party, project: PROJECT })).map(
-            |record| {
-                let Record::Forge { row } = record else { panic!("forge record") };
-                let forge::Stored::Looked(row) = row.as_ref() else { panic!("looked row") };
-                row.clone()
-            },
-        )
+        self.looked_on(party, PROJECT)
+    }
+
+    fn looked_on(&self, party: u64, project: u32) -> Option<forge::Looked> {
+        self.front.engine.store.rows.get(&StoreKey::Forge(forge::Key::Looked { party, project })).map(|record| {
+            let Record::Forge { row } = record else { panic!("forge record") };
+            let forge::Stored::Looked(row) = row.as_ref() else { panic!("looked row") };
+            row.clone()
+        })
     }
 
     fn view(&self) -> temper_client_world::app::View {
@@ -452,6 +496,193 @@ fn entering_home_looks_once_and_shows_status() {
     assert_eq!(story.front.status_looks(CLIENT), 1, "the settled Home sends no second look");
 }
 
+impl Story {
+    fn across() -> Self {
+        let mut story = Self::new();
+        story.front = fixtures::across_people(story.env.limits);
+        story
+    }
+
+    fn across_landings() -> Self {
+        use jig_domain_authority::Executor;
+        use temper_engine_domain_world::{store::Store, walking};
+        let mut story = Self::new();
+        let (mut config, mut bounds) = fixtures::across_configuration();
+        bounds.tasks.charters = 2; // The ordinary charter and the status agent.
+        bounds.tasks.charter_documents = 4;
+        bounds.tasks.executor_kinds = 2;
+        bounds.authority.executors = 2;
+        bounds.documents.executors = 2;
+        let mut status = walking::charter();
+        status.number = 9;
+        config.core.defaults.charters = Box::new([walking::charter(), status]);
+        let kinds: Box<[Executor]> = Box::new([Executor::Charter(1), Executor::Charter(9)]);
+        config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
+        for project in &mut config.core.seed_projects {
+            project.policy.policy.ceiling.delegation.kinds.clone_from(&kinds);
+        }
+        let bootstrap = temper_engine_domain_world::oracle::config::copy(&config);
+        let mut retained = temper_engine_domain_world::fixtures::restored_over(Store::new(), bootstrap, &bounds);
+        // Committed landing history, as in the refused-run story; both briefs below come from the procedure.
+        let rows = [PROJECT, OTHER_PROJECT]
+            .into_iter()
+            .flat_map(|project| {
+                [
+                    Record::Forge {
+                        row: Box::new(forge::Stored::ProjectFacts(forge::ProjectFacts {
+                            project,
+                            landed: u64::from(project),
+                            last_landed: Wall::EPOCH,
+                            brief: None,
+                            running: None,
+                        })),
+                    },
+                    Record::Forge {
+                        row: Box::new(forge::Stored::Looked(forge::Looked {
+                            party: fixtures::PARTY,
+                            project,
+                            previous: None,
+                            latest: Wall::EPOCH,
+                            seen: 0,
+                            next_seen: 0,
+                        })),
+                    },
+                ]
+            })
+            .collect();
+        retained.seed(rows, Box::new([]));
+        let restart = temper_engine_domain_world::oracle::config::copy(&config);
+        story.front = Joint::with_engine(fixtures::SEED, &story.env.limits, retained, [config, restart], &bounds, 4);
+        for project in [PROJECT, OTHER_PROJECT] {
+            story.front.engine.send(temper_engine_domain::Event::Party(temper_engine_domain::PartyInput::Period {
+                project,
+                period: 1,
+                budget: 1000,
+                next: None,
+            }));
+            story.front.engine.settle();
+        }
+        story.after(Duration::from_secs(31 * 60));
+        story
+    }
+}
+
+#[test]
+fn all_home_looks_per_entry_and_joins_both_status_procedures_briefs() {
+    use jig_domain_tasks as tasks;
+    let mut story = Story::across_landings();
+    story.client(fixtures::PARTY, Address::AllHome);
+    let runs: Vec<_> = story
+        .front
+        .assignments
+        .iter()
+        .filter(|run| run.charter == 9)
+        .map(|run| (story.front.engine.task(run.task).expect("status agent").project, run.clone()))
+        .collect();
+    assert_eq!(runs.len(), 2, "both projects' status procedures assigned their agent");
+    for (project, report) in [
+        (PROJECT, b"One change landed.\n\nThe first project is ready. More detail stays on its Home.".as_slice()),
+        (
+            OTHER_PROJECT,
+            b"Two changes landed.\n\nThe second project is ready! More detail stays on its Home.".as_slice(),
+        ),
+    ] {
+        let (_, run) = runs.iter().find(|(held, _)| *held == project).expect("project's status agent");
+        let tasks::Party::Task(parent) = story.front.engine.task(run.task).expect("status agent").requester else {
+            panic!("status procedure parent")
+        };
+        assert_eq!(
+            story.front.engine.task(parent).expect("status procedure").executor,
+            tasks::Executor::Procedure { connector: fixtures::FORGE, code: STATUS_PROCEDURE }
+        );
+        story.front.engine.answer(
+            fixtures::QUESTION_WORKER,
+            run.task,
+            run.attempt,
+            0,
+            tasks::End::Finished {
+                result: tasks::TaskResult::Report { words: report.into() },
+                cancel_delegates: false,
+            },
+            temper_engine_domain::Parts::none(),
+        );
+        story.pump();
+        story.after(Duration::from_secs(1));
+    }
+    let facts = all_home::facts(story.probes[CLIENT.0].root.person(), story.env.wall);
+    assert_eq!(facts.projects.iter().map(|row| row.project).collect::<Vec<_>>(), [PROJECT, OTHER_PROJECT]);
+    for row in &facts.projects {
+        let Status::Shown(document) = &row.status else { panic!("project {} has its status", row.project) };
+        assert_eq!((document.project(), document.landed(), document.seen()), (row.project, u64::from(row.project), 0));
+    }
+    let intro = all_home::intro(&facts);
+    assert_eq!(intro.landed, all_home::Landed::Across { count: 3, projects: 2 });
+    let brief = intro.brief.expect("the procedure briefs join across projects");
+    assert_eq!(
+        brief.lines.iter().map(|line| (line.project, line.name.as_ref(), line.sentence.as_ref())).collect::<Vec<_>>(),
+        [
+            (OTHER_PROJECT, b"Project 2".as_slice(), b"The second project is ready!".as_slice()),
+            (PROJECT, b"Project 1".as_slice(), b"The first project is ready.".as_slice()),
+        ]
+    );
+    let first: Vec<_> = [PROJECT, OTHER_PROJECT]
+        .into_iter()
+        .map(|project| {
+            assert_eq!(story.probes[CLIENT.0].looks.iter().filter(|sent| **sent == project).count(), 1);
+            story.looked_on(fixtures::PARTY, project).expect("committed entry look")
+        })
+        .collect();
+    story.pump();
+    assert_eq!(story.probes[CLIENT.0].looks.len(), 2, "the settled entry sends no duplicate look");
+    story.go(CLIENT, fixtures::inbox());
+    story.after(Duration::from_secs(29 * 60));
+    story.go(CLIENT, Address::AllHome);
+    for before in first {
+        let after = story.looked_on(fixtures::PARTY, before.project).expect("return look committed");
+        assert_eq!(story.probes[CLIENT.0].looks.iter().filter(|project| **project == before.project).count(), 2);
+        assert_eq!((after.previous, after.seen), (before.previous, before.seen));
+        assert_eq!(after.latest, story.env.wall);
+        assert!(after.latest > before.latest);
+    }
+}
+
+#[test]
+fn a_refused_projects_status_leaves_the_other_project_shown() {
+    let mut story = Story::across();
+    story.refuse_status = Some(OTHER_PROJECT);
+    story.client(fixtures::PARTY, Address::AllHome);
+    assert!(
+        story.status_ends.contains(&jig_client::contract::WatchEnd::NotAllowed),
+        "the real engine refused the watch"
+    );
+    let facts = all_home::facts(story.probes[CLIENT.0].root.person(), story.env.wall);
+    assert_eq!(facts.projects.len(), 2);
+    assert!(matches!(&facts.projects[0].status, Status::Shown(document) if document.project() == PROJECT));
+    assert_eq!((facts.projects[1].project, &facts.projects[1].status), (OTHER_PROJECT, &Status::Unknown));
+}
+
+#[test]
+fn all_home_asks_in_the_open_project_without_starting_a_chat() {
+    const WORDS: &[u8] = b"Explain the second project's landing";
+    let mut story = Story::across();
+    story.client(fixtures::PARTY, Address::Home { project: OTHER_PROJECT });
+    story.go(CLIENT, Address::AllHome);
+    let pages = story.probes[CLIENT.0].root.person().pages();
+    assert_eq!(pages.project(), Some(OTHER_PROJECT));
+    let before = story.front.engine.store.rows.clone();
+    story.event(CLIENT, Event::Act { action: Action::Pages(Act::AskLine { words: WORDS.into() }) }.into());
+    assert_eq!(story.probes[CLIENT.0].root.person().pages().ask_line(), WORDS);
+    story.event(CLIENT, Event::Act { action: Action::Pages(Act::AskWith { words: WORDS.into() }) }.into());
+    assert_eq!(story.front.shows.last().map(|(address, _)| address), Some(&Address::Ask { project: OTHER_PROJECT }));
+    let pages = story.probes[CLIENT.0].root.person().pages();
+    assert_eq!(pages.address(), &Address::Ask { project: OTHER_PROJECT });
+    let composer = pages.chats().expect("Ask's unsent composer");
+    assert_eq!(composer.words.as_ref(), WORDS);
+    assert!(composer.start.is_none());
+    assert!(story.front.assignments.is_empty(), "AskWith starts no chat");
+    assert_eq!(story.front.engine.store.rows, before, "only navigation and composer words change");
+}
+
 #[test]
 fn a_second_entry_within_the_sitting_keeps_its_last_looked() {
     let mut story = Story::new();
@@ -587,6 +818,7 @@ fn a_restart_keeps_the_rows() {
     story.probes[CLIENT.0] = Probe {
         root: Root::Person(Box::new(temper_client_domain::unlinked(&story.env.limits, fixtures::SEED))),
         out: Queue::uncapped(),
+        looks: Vec::new(),
     };
     story.event(CLIENT, Temper::start(fixtures::inbox(), Vec::new(), 0));
     story.after(OFFLINE);

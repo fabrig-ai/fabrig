@@ -109,6 +109,7 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
         crate::Address::Welcome {
             step: crate::Step::Welcome | crate::Step::WelcomeAsked | crate::Step::Forge { .. },
         }
+        | crate::Address::AllHome
         | crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
         | crate::Address::NewChat { .. }

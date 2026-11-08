@@ -680,7 +680,7 @@ impl Host {
 
     fn show(&mut self, address: Address) {
         let project = match &address {
-            Address::Home { .. } | Address::Chat { .. } => {
+            Address::AllHome | Address::Home { .. } | Address::Chat { .. } => {
                 self.went(address);
                 return;
             }
