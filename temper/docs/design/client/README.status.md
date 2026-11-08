@@ -1032,9 +1032,6 @@ TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
-- **Not yet:** 6.11 and 6.17, `temper internal tui --box`: descriptor 3
-  read, the terminal opened and its foreground taken, the run given its
-  front (`front-command`, `tui-box-front`).
 - **Not yet:** 6.17, the joint world's stories of a TUI in front of a box
   (`world-front`, `tui-box-front`).
 - **Not yet:** 6.17, *The place*: "box" and "box:PORT" wait for

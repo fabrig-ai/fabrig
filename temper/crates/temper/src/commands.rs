@@ -54,7 +54,7 @@ const DIRECTORIES: Argument = Argument {
 const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
-pub const COMMANDS: [Row; 23] = [
+pub const COMMANDS: [Row; 24] = [
     Row {
         words: &["help"],
         who: Who::Documentation,
@@ -286,6 +286,15 @@ Refused, changing nothing, when the configuration directory already holds temper
             Argument { shown: "PID", line: "The process whose end ends the program." },
             Argument { shown: "PROGRAM", line: "The program to run, with its ARGS." },
         ],
+        settings: &[],
+        notes: "",
+    },
+    Row {
+        words: &["internal", "tui"],
+        who: Who::Spawned,
+        forms: &["--box ADDRESS"],
+        line: "Run the TUI in front of the box that started it, signed in by the link the box hands it.",
+        arguments: &[Argument { shown: "ADDRESS", line: "The box's engine, http://HOST:PORT, on loopback." }],
         settings: &[],
         notes: "",
     },

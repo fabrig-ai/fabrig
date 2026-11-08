@@ -213,6 +213,14 @@ Run an owned forge's program, sent SIGNAL when its parent PID ends. Spawned by t
 - `PID`: The process whose end ends the program.
 - `PROGRAM`: The program to run, with its ARGS.
 
+## temper internal tui
+
+`temper internal tui --box ADDRESS`
+
+Run the TUI in front of the box that started it, signed in by the link the box hands it. Spawned by temper; never run by hand.
+
+- `ADDRESS`: The box's engine, http://HOST:PORT, on loopback.
+
 ## temper fake llm
 
 `temper fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]`
