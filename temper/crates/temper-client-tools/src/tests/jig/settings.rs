@@ -2212,10 +2212,15 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             let setting = c::Setting::Application { kind, scope, number: 1 };
             let mut root = fixtures::signed_in(fixtures::PARTY);
             let call = root.submit_prepared(fixtures::call(&argv), json, None);
-            assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Settings);
-            root.serve(call, forge_inventory(setting, c::ApplicationFollows::Changed { revision: 5 }));
+            let historical = argv.contains(&"--revision");
+            if historical {
+                assert!(!root.reads.contains_key(&call), "historical reads go straight to the forge");
+            } else {
+                assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Settings);
+                root.serve(call, forge_inventory(setting, c::ApplicationFollows::Changed { revision: 5 }));
+            }
             assert!(root.answer(call).is_none());
-            if argv.contains(&"--revision") {
+            if historical {
                 let w::Read::RevisionSetting(query) = forge_query(&root, call) else { panic!("revision query") };
                 assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
             } else {
@@ -2246,7 +2251,11 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                         })
                     }]
                 );
-                assert!(text.contains("\"application\":{\"follows\":\"change\",\"revision\":5"), "{text}");
+                if historical {
+                    assert!(!text.contains("\"application\":"), "{text}");
+                } else {
+                    assert!(text.contains("\"application\":{\"follows\":\"change\",\"revision\":5"), "{text}");
+                }
                 assert!(text.contains(label.split_whitespace().next().unwrap()), "{text}");
             } else {
                 let canonical = setting_json(setting, c::SettingValue::Application(forge_value(kind)));
@@ -2267,7 +2276,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                     assert!(text.contains(value), "inline value differs from the shared settings form: {text}");
                 }
                 assert!(text.starts_with(label), "{text}");
-                assert!(text.contains("changed at revision 5"), "{text}");
+                assert!(text.contains(if historical { "revision 5" } else { "changed at revision 5" }), "{text}");
                 assert!(!text.contains("the stock"), "{text}");
             }
             assert_eq!(root.watches.len(), 1);

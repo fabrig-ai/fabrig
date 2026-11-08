@@ -2,10 +2,6 @@
 
 2026-11-08. Remaining gaps between temper's code and [tools.md](tools.md).
 
-- **Not yet:** 5.2, 5.3: `temper ctl settings show` and a settings file know
-  no `project-classes`, and the help pages name none
-  (`ui-reaches/classes-tools`).
-
 - **Not yet:** 5.3: a settings file's project ways still take `away`
   (`ui-reaches/ways-away`).
 

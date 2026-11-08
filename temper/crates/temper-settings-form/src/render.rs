@@ -132,13 +132,6 @@ fn encode_named_value(setting: c::Setting, value: &c::SettingValue, out: &mut En
     encode_value(value, out);
 }
 fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limits, out: &mut Text) {
-    if let c::Setting::Application { kind, .. } = setting
-        && let c::SettingValue::Application(bytes) = value
-        && application_value_text(kind, bytes, out)
-    {
-        out.put(b"\n");
-        return;
-    }
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measured = Encoder::measure(&bounds);

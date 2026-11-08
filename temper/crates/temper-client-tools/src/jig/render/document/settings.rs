@@ -21,7 +21,7 @@ pub(crate) fn proposal_text(proposal: c::ProposalKey, out: &mut Text) {
 }
 pub(crate) fn text(
     value: &c::ReadValue,
-    requested: Option<u64>,
+    call: &crate::jig::call::Call,
     limits: &Limits,
     vocabulary: &dyn Parts,
     out: &mut Text,
@@ -42,13 +42,17 @@ pub(crate) fn text(
             None => out.put(b"none"),
         }
         out.put(b"\n");
-        settings_form::render::stock_text(&a::form_read_value(value), out);
+        if call.tool != crate::jig::rows::SETTING_AT
+            || crate::jig::call::number(call, if call.form == 2 { 3 } else { 2 }).is_none()
+        {
+            settings_form::render::stock_text(&a::form_read_value(value), out);
+        }
         if let Some(state) = &document.application {
             application_text(state, out);
         }
         return;
     }
-    settings_form::render::text(&a::form_read_value(value), requested, &a::limits(limits), out);
+    settings_form::render::text(&a::form_read_value(value), crate::jig::call::number(call, 0), &a::limits(limits), out);
 }
 
 pub(super) fn edit_word(edit: &c::RevisionItemEdit) -> &'static [u8] {
