@@ -86,3 +86,12 @@ Acceptance:
 
 As the implementer's text says; each row's failure seen, and the golden checked against
 the design.
+
+## Rebase (2026-11-08, step merge, foreman tui-launchpad/screen-entries/foreman-1)
+
+resolve ui-screen.status.md by preserving incoming status text and deleting only the completed Not yet entry
+The merge conflicts in `skein/docs/design/ui-screen.status.md`.
+Integration commit `665a24f3f2` brings in main’s status updates, including `5e46ea0a91`.
+Preserve the paragraph about default colours and OSC background answers, and the **Departs: 6.2** entry about PageUp/PageDown.
+Delete only the three-line **Not yet: 3 and 5.3** entry for `mark`, `described` and `spaced`, as the task requires.
+Keep the existing date and introductory text. No renderer changes are needed for this refusal.
