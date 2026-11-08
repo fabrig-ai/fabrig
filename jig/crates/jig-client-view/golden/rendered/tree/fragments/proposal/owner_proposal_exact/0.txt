@@ -30,13 +30,12 @@ second :
     second 18446744073709551615
     second 
     `\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF`
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
       second 18446744073709551615
       second 4294967295
       second 4294967295
@@ -98,42 +97,38 @@ second :
       second 
     second 18446744073709551615
     second 18446744073709551615
-    second :
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
     second 4294967295
     second 0
     second 1
     second 2
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
     second 
   - second 1
     ### supplied spec
@@ -154,13 +149,12 @@ second :
     second 18446744073709551615
     second 
     `\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF`
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
       second 18446744073709551615
       second 4294967295
       second 4294967295
@@ -222,42 +216,38 @@ second :
       second 
     second 18446744073709551615
     second 18446744073709551615
-    second :
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
     second 4294967295
     second 0
     second 1
     second 2
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
     second 
   - second 2
     ### supplied spec
@@ -278,13 +268,12 @@ second :
     second 18446744073709551615
     second 
     `\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF`
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
       second 18446744073709551615
       second 4294967295
       second 4294967295
@@ -346,41 +335,37 @@ second :
       second 
     second 18446744073709551615
     second 18446744073709551615
-    second :
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
-      second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
+    second 
     second 4294967295
     second 0
     second 1
     second 2
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
-    second :
-      second 65535
-      second 
-      `a/b`
-      `\xFF\x00\xFE`
-      
-      * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
+    second 65535
+    second 
+    `a/b`
+    `\xFF\x00\xFE`
+    
+    * second  (busy)
     second 
   second 

@@ -57,6 +57,7 @@ pub struct Scene {
     styles: List<Style>,
     styles_per_mark: u32,
     background: Option<Span>,
+    width: Option<u16>,
     height: Option<u16>,
     refused: bool,
 }
@@ -71,6 +72,7 @@ impl Scene {
             styles: List::with_capacity(styles),
             styles_per_mark: limits.styles_per_node,
             background: None,
+            width: None,
             height: None,
             refused: false,
         }
@@ -81,8 +83,20 @@ impl Scene {
         self.bytes.clear();
         self.styles.clear();
         self.background = None;
+        self.width = None;
         self.height = None;
         self.refused = false;
+    }
+    /// Say this scene's width, drawn at it and scaled to its box's (ui.md, 11.2).
+    pub fn set_width(&mut self, width: u16) {
+        if !self.refused {
+            self.width = Some(width);
+        }
+    }
+    /// The width it said, if it said one.
+    #[must_use]
+    pub const fn width(&self) -> Option<u16> {
+        self.width
     }
     /// Say this scene's height, in place of its box's (ui.md, 11.2).
     pub fn set_height(&mut self, height: u16) {
@@ -371,6 +385,9 @@ fn emit_act(bytes: &[u8], point: Option<Point>, out: &mut List<u8>) -> bool {
 
 impl core::fmt::Display for Scene {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        if let Some(width) = self.width {
+            f.write_fmt(format_args!("width {width}\n"))?;
+        }
         if let Some(height) = self.height {
             f.write_fmt(format_args!("height {height}\n"))?;
         }

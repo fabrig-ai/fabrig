@@ -1,6 +1,6 @@
 # ui-web: status
 
-2026-11-07. Where skein's code lags or departs from [ui-web.md](ui-web.md).
+2026-11-08. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
 Sections 6 and 7 have no known gap in a field's options: listbox and
 option mapping, retained active selection, arrows, Enter without a
