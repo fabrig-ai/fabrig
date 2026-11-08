@@ -1,0 +1,31 @@
+# ui-authorize-red: the cross-site authorization story passes again
+
+A red's repair, `red-71`, taken by temper/ui as its browser story of a sign-in. The foreman found no owner among the suspects. `temper-client-browser-world::browser_all`'s `browser_authorize::a_cross_site_authorization_returns_a_code_and_the_links_state` fails at `temper/tests/client-browser/tests/browser_all/browser_authorize.rs`, near line 106. At step 7 it finds no level-1 heading "Authorization received". The page instead reads "temper couldn't sign you in just now", in its region "LLM account".
+
+**When it began:** it passed in every after-landing run up to main `2ce016c348`, at 2026-11-07 23:56Z, and failed at both tips since, `bf198e50bb` (00:09Z) and `0c00e03c9d` (00:21Z), each twice. The only change between them is `post-landing-probes/finding-438`: charter instructions in `temper/docs/examples/reference/settings.json` and engine tests. The foreman judged it outside the failure. The failure began just after midnight UTC, so a clock-bound fixture is a likely cause: a date, an expiry, a certificate or a token minted with a fixed time.
+
+## One task
+
+1. **Run the story by name, alone, through the build wrapper,** as a red's repair may, as often as the repair needs. Record why the sign-in fails, from the box's log, with `secret=` filtered.
+2. **Fix the cause at its lowest place.** If it's a fixture's clock, make it relative to the run's clock, never a fixed date. If it's product code, fix it under a failing focused test first. If it's finding-438's after all, say so and fix it the same way. The story's checks stay as they are.
+
+## Sources
+
+- `temper/tests/client-browser/tests/browser_all/browser_authorize.rs`
+
+
+## For every task of this plan
+
+- **A plan is complete when it lands (the user, 11-06).** Walks, render checks, screenshots and throwaway browser drivers follow landing, outside the plan, and file findings back to fab: don't ask for them, or run them.
+- **Only focused and fuzzy run in a plan (the user, 11-06).** Never `tools/tiers/run`, a browser, process or live tier, one of their stories, or a tier's CPU figure: "we run optimistically and repair if after-landing flags". A new story for those tiers is written and compiled (`cargo check --tests`), not run. This overrides anything below or in a spec. A look's render check by a throwaway driver isn't a tier.
+- **Tests stay cheap (temper/tiers, 11-06):** a new case of one behaviour is a row of an existing table test, not a new test (skein's `docs/foundation/testing-strategy.md`, 8), and a story goes beside its siblings' fixture. temper's focused and fuzzy suites go to 30 and 120 CPU seconds in the gate, and a plan that adds cost gets rejected there.
+- **Decide, don't ask.** The user is asleep and takes fabrig/ui's judgement. A stored format, a protocol or a public interface may change freely: no compatibility, no `Question:`; note it in `plan.md`. A small edit a task needs just outside its file list (a re-export, a `mod` line, a design line, a golden) is made and named in the report, not parked. A `Question:` is only for what truly blocks the task.
+- **`temper.css`:** put new rules under this plan's marker comment, `/* ==== ui: AREA ==== */` (chats, needs, goals, changes, settings, welcome, phone), never at the end of the file, so that parallel plans merge cleanly. Remove replaced rules where they stand.
+- **Goldens, prints and the gallery's `names.txt`/`tests.rs`:** they conflict across plans; on a catch-up, regenerate rather than hand-merge, and keep `names.txt` sorted as it is.
+- **Reach for the mock, not the old page:** `temper/docs/design/client/greenfield/`; where old tests walk a part the mock removes, change them with it.
+- **Generated files** (`docs/help/reference/*`, prints, goldens, counted baselines) that your change makes stale are yours to regenerate in the same task; don't park on them.
+- **`temper-client-journeys again` is generation, not a walk:** it regenerates what the gate's focused replay checks read, so a task whose change makes a recording stale runs it, though it drives a browser.
+- **Recording flakes:** a re-record that stops on "a key mark caught a moving page" is retried up to three times, each on a fresh fake box; if all fail, widen the mark's wait in the recording driver and say so. A wire change makes journey recordings stale: re-record them in that task.
+- **Help pages:** `docs/help/` pages a change grows past their bound are that task's to shorten, losing no facts, and never raise the bound.
+- **A test's oracle or helper that your change's correct behaviour trips is yours to repair in the same task,** keeping what it checks for everything else, and named in the report; don't park on it.
+- **Before calling a focused or fuzzy failure "outside the change",** run it once on the pristine base. If main passes and your branch fails, it's yours.
