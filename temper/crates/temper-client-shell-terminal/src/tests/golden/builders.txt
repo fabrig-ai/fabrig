@@ -16,17 +16,18 @@ First:
     [11] Goal
       Agents plan a larger change and land it.
     [12] All ways to start work
-  [13] Settings (current)
+  [13] Away
+  [14] Settings (current)
   * Pat
 First · settings
 The machines temper’s agents run on, each with its slots and how many are in use.
 Settings:
-  [14] How work runs
-  [15] Repositories
-  [16] Forges
-  [17] Accounts
-  [18] Models
-  [19] Builders (current)
+  [15] How work runs
+  [16] Repositories
+  [17] Forges
+  [18] Accounts
+  [19] Models
+  [20] Builders (current)
 ## Builders · 2
 No builder is connected.
 worker
