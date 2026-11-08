@@ -700,6 +700,9 @@ pub(crate) fn act(
         }
         Act::Open { object } => {
             pages.needs.at = Some(object);
+            if let Address::Inbox { .. } = pages.address {
+                return;
+            }
             let project = match pages.address {
                 Address::Home { project } => Some(project),
                 Address::Inbox { .. }

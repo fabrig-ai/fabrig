@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 344;
+pub const N: usize = 349;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -707,6 +707,16 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "forges-removing", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
         Sample { name: "forges-in-settings", world: Solo, address: Address::Forges, then: Shown },
         Sample { name: "accounts-in-settings", world: Solo, address: Address::Accounts, then: Shown },
+        Sample { name: "needs-list", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-list-second", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-tell", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "needs-approval-first",
+            world: Solo,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample { name: "night-needs", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
             name: "needs-one",
             world: Solo,
@@ -1155,6 +1165,9 @@ fn model_sample(name: &'static str, kind: temper_client_domain::WayKind, then: T
     Sample { name, world: World::Reference, address: Address::ConnectModel { way: Some(way) }, then }
 }
 fn special_mockup(name: &str) -> Option<String> {
+    if matches!(name, "needs-list" | "needs-list-second" | "needs-tell" | "needs-approval-first" | "night-needs") {
+        return Some("../whole-story/needs.html".to_owned());
+    }
     if name.starts_with("needs-") || name == "inbox-solo" || name == "inbox-reference" || name == "inbox-empty" {
         return Some("../greenfield/needs.html".to_owned());
     }
@@ -1478,6 +1491,7 @@ pub fn domain(sample: &Sample) -> Domain {
         return crate::worlds::view_world(sample.name);
     }
     let base = match sample.name {
+        "night-needs" => Some("needs-list"),
         "night-home" => Some("home-begin-ask-left"),
         "night-ask" => Some("ask-first-run"),
         "night-chat-split" => Some("chat-draft-split"),

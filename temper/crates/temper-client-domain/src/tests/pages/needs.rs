@@ -371,17 +371,33 @@ fn later_moves_last_keeps_its_count_and_advances_shown() {
 }
 #[test]
 fn open_selects_the_card_with_homes_project_filter() {
-    for (address, project) in [(Address::Home { project: fixtures::PROJECT }, Some(fixtures::PROJECT)), (chats(), None)]
-    {
+    for (address, show) in [
+        (Address::Home { project: fixtures::PROJECT }, Some(Some(fixtures::PROJECT))),
+        (chats(), Some(None)),
+        (Address::Inbox { filter: crate::address::Filter::ALL }, None),
+        (
+            Address::Inbox {
+                filter: crate::address::Filter { project: Some(fixtures::PROJECT), ..crate::address::Filter::ALL },
+            },
+            None,
+        ),
+    ] {
         let mut pages = fixture();
-        went(&mut pages, address);
+        went(&mut pages, address.clone());
         let mut out = act(&mut pages, 0, Act::Open { object: SECOND });
         assert_eq!(
             out.pop(),
-            Some(Request::Show {
-                address: Address::Inbox { filter: crate::address::Filter { project, ..crate::address::Filter::ALL } }
-            })
+            match show {
+                Some(project) => Some(Request::Show {
+                    address: Address::Inbox {
+                        filter: crate::address::Filter { project, ..crate::address::Filter::ALL }
+                    }
+                }),
+                None => None,
+            }
         );
+        assert!(out.is_empty());
+        assert_eq!(pages.address(), &address);
         went(&mut pages, Address::Inbox { filter: crate::address::Filter::ALL });
         pages.inbox = fixture().inbox;
         add(&mut pages, SECOND, fixtures::PROJECT);
