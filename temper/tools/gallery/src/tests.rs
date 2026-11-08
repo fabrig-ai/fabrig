@@ -195,7 +195,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
             Part::Pressed { name: "Night mode" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
         ],
     },
@@ -2188,32 +2188,8 @@ const HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value { role: Role::TextArea, name: "Ask temper, or tell it how you work", value: "" },
-        ],
-    },
-    Holds {
-        name: "ask-reference",
-        heading: "Ask temper",
-        parts: &[
-            Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
-            Part::Pressed { name: "Split" },
-            Part::Named { role: Role::Region, name: "How temper builds temper" },
-            Part::Text {
-                text: "Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change.",
-            },
-        ],
-    },
-    Holds {
-        name: "ask-reference-draft",
-        heading: "Ask temper",
-        parts: &[
-            Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
-            Part::Pressed { name: "Draft" },
-            Part::Named { role: Role::Region, name: "How temper builds temper" },
-            Part::Text {
-                text: "Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change.",
-            },
         ],
     },
     Holds {
@@ -2224,7 +2200,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
@@ -2240,7 +2216,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
@@ -2256,7 +2232,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Settings"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
             Part::Absent { role: Role::Menu, name: "More ways to start work" },
-            Part::Named { role: Role::Region, name: "Ways to begin" },
+            Part::Named { role: Role::Region, name: "Ways of working" },
             Part::Value {
                 role: Role::TextArea,
                 name: "Ask temper, or tell it how you work",
