@@ -3,7 +3,7 @@ id = "goal-ci"
 part = "subscribe-room"
 kind = "feature"
 needs = []
-files = ["temper/crates/temper-engine-domain-forge/src/topics.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/tests.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/tests/suite/forge_routes/goal_branch.rs", "temper/tests/engine/domain/tests/suite/forge_routes/goal_landing.rs", "temper/tests/engine/forge/**", "temper/tests/engine/protocol-forge/**", "temper/tests/real-loop/**", "temper/docs/design/domain/forge.status.md"]
+files = ["temper/crates/temper-engine-domain-forge/src/topics.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/boundary.rs", "temper/crates/temper-engine-domain-forge/src/tests.rs", "temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/tests/suite/forge_routes/**", "temper/tests/engine/forge/**", "temper/tests/engine/protocol-forge/**", "temper/tests/real-loop/**", "temper/docs/design/domain/forge.status.md"]
 effort = "high"
 minutes = 110
 +++
@@ -169,3 +169,38 @@ Continue from the pushed branch (`b9fb703577`); keep its work.
   each story change in the report with its reason.
 - Run `old_forms.py` from `temper/` (`python3 -I -B scripts/old_forms.py`),
   as the run found.
+
+2026-11-08. *Extend goal-ci to repair `forge_routes/stall_hold.rs`'s
+`a_stalled_change_holds_its_task_and_wakes_its_idle_goal`, or hand it to a
+follow-up repair?* Extend, as for the two stories before: it is in
+`temper-engine-domain-world`, a touched package whose every test this
+task's acceptance needs, and it fails alone on the branch and passes alone
+on the integration base, so this task's change shifts it.
+`files` now holds `forge_routes/**`, for that story and the same-cause
+repairs below alone. Continue from the
+pushed branch (`91b6070d18`); keep its work.
+
+- Diagnose first: find the input that starts the goal's attempt 3 after
+  `park_after_turn`. The likely shape is a message to the goal arriving
+  after the story took `last_message` as its `read`, one that the goal's
+  CI wake used to bring in, or settle, before the read was taken. Name
+  the input in the report.
+- If it is timing, make the setup reach the boundary it asserts: drive or
+  wait, bounded by `STEPS`, for what that message is before taking `read`,
+  so the park consumes it and the goal is Idle. Keep the Idle assertion,
+  the escalation entry, the new run's attempt and its hearing the
+  escalation strict.
+- If instead the goal is woken by something the design says should not
+  wake a parked goal, or it wakes on its own read, that is a production
+  fault: do not restore goal CI topics and do not weaken the story; stop
+  and report `Question:` with the mechanism and where.
+- Further failures of the same cause: a `forge_routes` story in
+  `temper-engine-domain-world`, outside these three, that fails on the
+  branch and passes alone on the integration base because it leaned on a
+  goal's CI wake for its timing, may be repaired the same way without
+  asking, naming each in the report with the input it now drives. Any
+  other failure, or one needing a production change, is a `Question:`.
+- Then finish the checks left: the full focused `temper-engine-domain-world`
+  and `temper-real-loop-world` runs, the real loop's fuzzy run, and
+  `heavy cargo check -p temper-service -p temper -p temper-system-world -p
+  temper-client-world --tests`.
