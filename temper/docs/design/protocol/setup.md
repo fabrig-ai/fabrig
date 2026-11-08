@@ -2658,11 +2658,12 @@ override.
   kept, and named in serve's log with the grant to add to
   `engine.acts`, the one `temper init --box` writes, until a start's document
   grants it.
-- **Its charters and templates,** the owned example's, but both
-  charters' models end with the scripted model, `demo`: chat, 1, and coding, 2, the one the
-  forge's procedures start agents' work under (kind 3's number 1,
-  configuration.md, 13.2);
-  the templates `chat` and `goal`. A task with no model chosen takes the
+- **Its charters and templates** are the binary's stock
+  (configuration.md, 13.4): charters 1, 2, 4, 5, 6, 9, 10 and 11 and
+  templates `chat`, `goal`, `goal for a draft` and `ask`, numbered
+  1, 2, 4 and 5. Their model choices include the scripted model,
+  `demo`, after their first choices and the rest of the real catalogue.
+  A task with no model chosen takes the
   first of its charter's models whose provider has an account usable for
   its payer (jig's `domain/accounts.md`, 4.3), so in the playground,
   whose project's one account is the scripted one (8.4), a chat and the
@@ -3943,6 +3944,14 @@ it checks of this document:
 ## 15. Later
 
 Each is intended; what it needs is named with it.
+
+- **The reference's combined project settings** (8.3;
+  `configuration.md`, 13.9): its after-landing walk applies
+  `docs/examples/reference/project.json` after making the project,
+  setting both its ways and its main-only rule 1. The stage-one
+  description must ask for that rule as well as the deployment's two;
+  without it the project's stock still asks CI and review on goal
+  branches (`configuration.status.md`, 13.9).
 
 - **The TUI's fresh-box terminal check** (7.2, 8.3): after landing,
   check local sign-in with nothing pasted, then the pasted-link and

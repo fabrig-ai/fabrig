@@ -38,6 +38,8 @@ pub enum Case {
     Payload { tool_payload: u32 },
     /// Record a program conversation with full content capture.
     Events,
+    /// Survey children together, on programs or a direct model.
+    Burst { direct: bool },
     /// Keep an Open conversation across replies and scripted host messages.
     Open,
     /// The main endpoint does not select the configured program.
@@ -53,6 +55,14 @@ pub enum Case {
 }
 
 impl Case {
+    fn workspace(self) -> bool {
+        matches!(self, Self::Tools | Self::Events | Self::Burst { .. } | Self::Transcript | Self::Payload { .. })
+    }
+
+    fn captures(self) -> bool {
+        matches!(self, Self::Events | Self::Burst { .. } | Self::Transcript)
+    }
+
     fn completes(self) -> bool {
         matches!(
             self,
@@ -63,6 +73,7 @@ impl Case {
                 | Self::Waiting
                 | Self::ParkWaiting
                 | Self::Events
+                | Self::Burst { .. }
                 | Self::Transcript
                 | Self::Open
         )
@@ -86,6 +97,7 @@ enum Proc {
     Parent(Box<Parent>),
     Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
     Fake(Box<Fake>),
+    Peer(Box<skein_fake_peers::llm::Peer>),
     Relay { process: Box<smith_agent_shell::relay::Process>, environment: Vec<String> },
 }
 
@@ -95,6 +107,7 @@ impl Delegate for Proc {
             Self::Parent(host) => host.as_ref(),
             Self::Agent(host) => host.as_ref(),
             Self::Fake(host) => host.as_ref(),
+            Self::Peer(peer) => peer.as_ref(),
             Self::Relay { process, .. } => process.as_ref(),
         }
     }
@@ -104,9 +117,115 @@ impl Delegate for Proc {
             Self::Parent(host) => host.as_mut(),
             Self::Agent(host) => host.as_mut(),
             Self::Fake(host) => host.as_mut(),
+            Self::Peer(peer) => peer.as_mut(),
             Self::Relay { process, .. } => process.as_mut(),
         }
     }
+}
+
+fn burst_configuration(direct: bool) -> smith_agent_service::Config {
+    let mut profile = crate::profile();
+    profile.policy.parallel_tools = 8;
+    let mut declarations = crate::declarations(4096);
+    if direct {
+        let mut endpoint = declarations.endpoints[0].clone();
+        endpoint.number = 1;
+        declarations.endpoints = Box::new([declarations.endpoints[0].clone(), endpoint]);
+    }
+    let mut limits = smith_agent_service::profile::derive(&profile, &declarations).expect("survey profile");
+    limits.domain.configured_endpoint_bytes = 4096;
+    limits.llm.translation.client.request = 1_048_576;
+    let mut config = crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits);
+    if direct {
+        direct_endpoint(&mut config);
+    }
+    config
+}
+
+fn direct_endpoint(config: &mut smith_agent_service::Config) {
+    use smith_protocol_llm::{ConfiguredEndpoint, OversizedReasoning};
+    let limits = config.limits;
+    config.llm_endpoints = smith_protocol_llm::Endpoints::new(
+        [0, 1]
+            .into_iter()
+            .map(|number| ConfiguredEndpoint {
+                name: smith_domain::llm::Endpoint(number),
+                connect: Duration::from_secs(1),
+                handshake: Duration::from_secs(1),
+                oversized_reasoning: OversizedReasoning::Fail,
+                destination: skein_llm_connection::Endpoint {
+                    limits: limits.llm.translation.client,
+                    credential: skein_llm::client::CredentialLimits { value: limits.llm.grant_value_bytes },
+                    address: kernel::Addr::from((std::net::Ipv4Addr::LOCALHOST, 443)),
+                    transport: skein_llm_connection::Transport::Plaintext,
+                    llm: skein_llm::Endpoint::openai(),
+                },
+            })
+            .collect::<Vec<_>>()
+            .into(),
+        2,
+    )
+    .expect("survey endpoints");
+    let mut endpoint = config.domain.limits[0].clone();
+    endpoint.endpoint = smith_domain::run::charter::Endpoint(1);
+    config.domain.limits = Box::new([config.domain.limits[0].clone(), endpoint]);
+    config.domain.endpoints =
+        Box::new([smith_domain::run::charter::Endpoint(0), smith_domain::run::charter::Endpoint(1)]);
+    let mut endpoints = skein_lib::List::with_capacity(2);
+    for number in [0, 1] {
+        endpoints
+            .push(smith_protocol_translate::Endpoint {
+                name: if number == 1 { b"direct".as_slice().into() } else { Box::default() },
+                number,
+                dialect: 3,
+            })
+            .expect("endpoint");
+    }
+    config.channel_endpoints = smith_protocol_translate::Endpoints::new(endpoints);
+}
+
+fn direct_peer() -> skein_fake_peers::llm::Peer {
+    use skein_fake_llm_domain::api;
+    crate::fake::configured(
+        (0..6)
+            .map(|index| api::Script {
+                cue: format!("SURVEY-{index}:").into_bytes().into(),
+                turns: Box::new([smith_agent_world::fixture::says(
+                    Box::new([api::Line::Text { text: format!("survey answer {index}").into_bytes().into() }]),
+                    1,
+                )]),
+            })
+            .collect::<Vec<_>>()
+            .into(),
+        crate::fake::credential(false),
+        Duration::from_millis(10),
+    )
+}
+
+fn burst_start(case: Case, charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
+    let frame = tools_start(charter, value);
+    if case != (Case::Burst { direct: true }) {
+        return frame;
+    }
+    crate::wire::edit_start(&frame, |start| {
+        let mut grants = skein_lib::List::with_capacity(2);
+        grants.push(start.grants.as_slice()[0].clone()).expect("main grant");
+        grants
+            .push(
+                smith_channel::Grant::new(
+                    &smith_channel::CEILINGS,
+                    smith_channel::GrantParts {
+                        account: 1,
+                        generation: 1,
+                        valid: Duration::from_secs(7200),
+                        value: crate::bearer(b"token"),
+                    },
+                )
+                .expect("direct grant"),
+            )
+            .expect("child grant");
+        start.grants = grants;
+    })
 }
 
 fn payload_configuration(tool_payload: u32) -> smith_agent_service::Config {
@@ -133,11 +252,12 @@ fn payload_configuration(tool_payload: u32) -> smith_agent_service::Config {
     config
 }
 
-#[expect(clippy::too_many_lines, reason = "keep each scenario's bounds, environment and event wiring together")]
 fn configuration(case: Case) -> smith_agent_service::Config {
-    let mut config = if let Case::Payload { tool_payload } = case {
+    let mut config = if let Case::Burst { direct } = case {
+        burst_configuration(direct)
+    } else if let Case::Payload { tool_payload } = case {
         payload_configuration(tool_payload)
-    } else if matches!(case, Case::Events | Case::Transcript) {
+    } else if case.captures() {
         let mut limits = crate::limits();
         limits.llm.translation.client.request = 1_048_576;
         crate::configuration_with_limits(skein_llm::Provider::OpenAi, &limits)
@@ -163,6 +283,14 @@ fn configuration(case: Case) -> smith_agent_service::Config {
         entropy: Secret::new(Box::new([7; 32])),
         effective_user: 1000,
     });
+    receiving(&mut config, case);
+    config.limits.machine.env_bytes = 4096;
+    config.environment = smith_protocol_machine::Environment::encode(&environment(case), &config.limits.machine)
+        .expect("private test environment");
+    config
+}
+
+fn environment(case: Case) -> Vec<smith_protocol_machine::Variable> {
     let mut variables = vec![
         smith_protocol_machine::Variable {
             name: b"WAIT_PROOF".as_slice().into(),
@@ -201,6 +329,10 @@ fn configuration(case: Case) -> smith_agent_service::Config {
             }),
         );
     }
+    variables
+}
+
+fn receiving(config: &mut smith_agent_service::Config, case: Case) {
     // These worlds offer a 128-byte report or bounded Open text, without host tools.
     // Keep result receiving bounds small enough to exercise the program
     // alongside the unchanged two-gigabyte test deployment.
@@ -210,7 +342,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     config.limits.domain.run.check_tail = config.limits.domain.run.check_tail.min(256);
     config.limits.domain.run.host_reply_bytes = config.limits.domain.run.host_reply_bytes.min(4096);
     config.limits.domain.run.message_bytes = config.limits.domain.run.message_bytes.min(4096);
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if case.workspace() {
         config.limits.domain.run.outcome_bytes = 512;
         config.limits.domain.run.answer_bytes = 512;
         config.limits.domain.run.host_reply_bytes = 512;
@@ -219,11 +351,11 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     }
     config.limits.domain.session.delegated_result_bytes =
         smith_domain::feedback_bound(&config.limits.domain.run).expect("complete bounded feedback");
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if case.workspace() {
         config.limits.events = Some(
             smith_agent_service::event_limits(
                 &config.limits,
-                if matches!(case, Case::Events | Case::Transcript) {
+                if case.captures() {
                     smith_protocol_events::sinks::Capture::Everything
                 } else {
                     smith_protocol_events::sinks::Capture::None
@@ -236,10 +368,6 @@ fn configuration(case: Case) -> smith_agent_service::Config {
             .expect("event bounds"),
         );
     }
-    config.limits.machine.env_bytes = 4096;
-    config.environment = smith_protocol_machine::Environment::encode(&variables, &config.limits.machine)
-        .expect("private test environment");
-    config
 }
 
 fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
@@ -252,10 +380,10 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
         smith_agent_shell::config::Configuration {
             memory: configuration.limits.memory,
             service: configuration,
-            trace: if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+            trace: if case.workspace() {
                 Some(smith_agent_shell::trace::TraceConfig {
                     path: "/home/events.jsonl".into(),
-                    capture: if matches!(case, Case::Events | Case::Transcript) {
+                    capture: if case.captures() {
                         smith_protocol_events::sinks::Capture::Everything
                     } else {
                         smith_protocol_events::sinks::Capture::None
@@ -278,7 +406,7 @@ fn make_agent(spawn: &Spawn, inherited: &Inherited) -> Proc {
             seed: 7,
             pid: 101,
             trace: inherited.appends.first().map(|(_, fd)| *fd),
-            roots: if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+            roots: if case.workspace() {
                 Some(
                     inherited
                         .roots
@@ -444,6 +572,14 @@ struct Judge {
 impl Referee<Proc> for Judge {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         self.waiting.act(now, procs);
+        let exited = procs.iter().any(|process| matches!(process, Proc::Parent(parent) if parent.status.is_some()));
+        if exited {
+            for process in procs.iter_mut() {
+                if let Proc::Peer(peer) = process {
+                    peer.shutdown();
+                }
+            }
+        }
         if self.cancel_with_child
             && procs
                 .iter()
@@ -558,7 +694,7 @@ fn fixture(story: &Story, login: Option<&[u8]>, case: Case) -> (Files, Opened) {
     if let Some(login) = login {
         items.push(Item::file(b"programs/source/fake-claude.login", login).mode(0o600));
     }
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if case.workspace() {
         items.extend([
             Item::file(b"work/repo/a", b"before\n"),
             Item::directory(b"work/repo/src"),
@@ -678,6 +814,9 @@ fn run_scenario(
     host_agent(&mut world, case);
     host_programs(&mut world, case);
     spawn_parent(&mut world, root, case, charter, value, &options);
+    if case == (Case::Burst { direct: true }) {
+        world.spawn(|| Proc::Peer(Box::new(direct_peer())));
+    }
     let mut outcome = world.run();
     let mut run = observe_run(&mut outcome, base, case, options.dumps.is_some());
     outcome.machine.files.close(base);
@@ -709,7 +848,7 @@ fn startup_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
             name: b"programs".as_slice().into(),
             path: b"/programs".as_slice().into(),
         }];
-        if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+        if case.workspace() {
             roots.extend([
                 skein_world::StartupRoot { name: b"cwd".as_slice().into(), path: b"/work/repo".as_slice().into() },
                 skein_world::StartupRoot { name: b"library".as_slice().into(), path: b"/library".as_slice().into() },
@@ -721,7 +860,7 @@ fn startup_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
 
 fn startup_appends(spawn: &Spawn) -> Vec<skein_world::StartupAppend> {
     let case: Case = serde_json::from_slice(&spawn.args[0]).expect("scenario");
-    if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if case.workspace() {
         vec![skein_world::StartupAppend {
             name: b"trace".as_slice().into(),
             root: b"/home".as_slice().into(),
@@ -748,7 +887,7 @@ fn host_programs(world: &mut ProgramWorld, case: Case) {
         program: b"/programs/smith-agent".as_slice().into(),
         make: if case == Case::MissingServer { make_failed_relay } else { make_relay },
         // Main and its inspect-only children each keep a relay.
-        instances: 4,
+        instances: crate::limits().domain.run.conversations,
         operations: smith_agent_shell::relay::operations(),
     });
 }
@@ -770,7 +909,7 @@ fn spawn_parent(
             ParentOptions {
                 message: initial.as_ref(),
                 setup: Setup {
-                    capture: if matches!(case, Case::Events | Case::Transcript) {
+                    capture: if case.captures() {
                         smith_protocol_events::sinks::Capture::Everything
                     } else {
                         smith_protocol_events::sinks::Capture::None
@@ -788,13 +927,13 @@ fn spawn_parent(
         if let Some(dumps) = options.dumps {
             parent.dump_to(dumps);
         }
-        if matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
-            parent.peer = if matches!(case, Case::Payload { .. }) {
+        if case.workspace() {
+            parent.peer = if matches!(case, Case::Payload { .. } | Case::Burst { .. }) {
                 crate::host_with_limits(configuration(case).limits.channel)
             } else {
                 crate::host()
             };
-            parent.peer.play(tools_start(charter, value));
+            parent.peer.play(burst_start(case, charter, value));
             parent.program_host_answers = Some(0);
         }
         if case == Case::Open {
@@ -843,7 +982,7 @@ fn observe_run(
             .iter()
             .filter_map(|process| match process {
                 Proc::Relay { environment, .. } => Some(environment.clone()),
-                Proc::Parent(_) | Proc::Agent(_) | Proc::Fake(_) => None,
+                Proc::Parent(_) | Proc::Agent(_) | Proc::Fake(_) | Proc::Peer(_) => None,
             })
             .collect(),
         events: read_events(&mut outcome.machine.files, base, case),
@@ -866,7 +1005,7 @@ fn run_directories(files: &mut Files, base: Opened) -> Vec<Vec<u8>> {
 }
 
 fn read_events(files: &mut Files, base: Opened, case: Case) -> Vec<smith_events::Record> {
-    if !matches!(case, Case::Tools | Case::Events | Case::Transcript | Case::Payload { .. }) {
+    if !case.workspace() {
         return Vec::new();
     }
     let file = files.open(base, b"home/events.jsonl", How::Read).expect("trace file");
