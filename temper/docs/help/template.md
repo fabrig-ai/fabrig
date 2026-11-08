@@ -11,6 +11,8 @@ never an executor: a client fills it, with what its creator gives, into
 a request for a new task, which temper checks as it checks any request.
 A chat defaults to template 1 and a goal to template 2.
 Template 5 is Ask temper, run by charter 11; `chat start --template 5` starts it.
+Template 6 is a design session, run by charter 12, the drafter;
+`chat start --template 6` starts it.
 `--template` selects another offered template.
 
 A template holds:

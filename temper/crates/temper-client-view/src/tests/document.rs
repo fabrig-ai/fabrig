@@ -72,6 +72,7 @@ fn activity(outcomes: &[&str]) -> c::ActivityPage {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum ProposalState {
     Ordinary,
+    DesignSession,
     DraftOffered,
     EndedDraftOffered,
     UnsendableDraftOffered,
@@ -116,6 +117,11 @@ fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, sta
     let mut out = Queue::uncapped();
     if state != ProposalState::Ordinary {
         let mut me = asking_me(&source);
+        if state == ProposalState::DesignSession {
+            let template = me.projects.get_mut(0).unwrap().templates.get_mut(1).unwrap();
+            template.number = 6;
+            template.executor = c::TemplateExecutor::Charter(12);
+        }
         if state == ProposalState::DraftOffered
             || state == ProposalState::EndedDraftOffered
             || state == ProposalState::UnsendableDraftOffered
@@ -141,7 +147,8 @@ fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, sta
             && state != ProposalState::EndedDraftOffered
             && state != ProposalState::UnsendableDraftOffered
         {
-            task.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+            let charter = if state == ProposalState::DesignSession { 12 } else { 1 };
+            task.chip.executor = c::ChipExecutor::Agent { charter };
         }
         if state == ProposalState::UnsendableDraftOffered {
             task.acts.clear();
@@ -370,14 +377,15 @@ fn chat_draws_no_pane() {
 }
 #[test]
 fn split_draws_the_pane_after_the_conversation() {
-    for (opening, run, words) in [
-        ("Draft, with the user.", Run::Plain, b"Draft, with the user.".as_slice()),
-        ("_Draft, with the user._", Run::Emphasis, b"Draft, with the user."),
-        ("**x**", Run::Strong, b"x"),
-        ("`x`", Run::Code, b"x"),
+    for (state, opening, run, words) in [
+        (ProposalState::Ordinary, "Draft, with the user.", Run::Plain, b"Draft, with the user.".as_slice()),
+        (ProposalState::Ordinary, "_Draft, with the user._", Run::Emphasis, b"Draft, with the user."),
+        (ProposalState::Ordinary, "**x**", Run::Strong, b"x"),
+        (ProposalState::Ordinary, "`x`", Run::Code, b"x"),
+        (ProposalState::DesignSession, "_Draft, with the user._", Run::Emphasis, b"Draft, with the user."),
     ] {
         let body = String::from_utf8_lossy(BODY).replace("Draft, with the user.", opening);
-        let view = view(&root(Some(body.as_bytes()), Mode::Split, &[]), Shell::Browser);
+        let view = view(&document_root(Some(body.as_bytes()), Mode::Split, &[], state), Shell::Browser);
         let nodes = view.tree().nodes();
         let convo = nodes.iter().position(|n| n.styles.as_slice().contains(&look::CONVO)).unwrap();
         let pane = nodes.iter().position(|n| n.styles.as_slice().contains(&look::DOC)).unwrap();
@@ -385,6 +393,8 @@ fn split_draws_the_pane_after_the_conversation() {
         assert_eq!(nodes[pane].role, Role::Region);
         assert_eq!(nodes[pane].name.as_deref(), Some(TITLE));
         assert_eq!(styled(view.tree(), look::MODE_SPLIT).len(), 1);
+        let split = f::find(view.tree(), Role::Button, b"Split").unwrap();
+        assert!(view.tree().find(split).unwrap().states.as_slice().contains(&State::Pressed));
         let muted = styled(view.tree(), look::DOC_MUTED)[0];
         assert_eq!(muted.role, Role::Slot);
         let at = nodes.iter().position(|node| node.id == muted.id).unwrap();

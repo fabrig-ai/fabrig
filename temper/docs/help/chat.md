@@ -19,6 +19,11 @@ A chat is a conversation between a party and an agent in a project: an untracked
   what agents must follow stays in their instructions or in documents
   their charters name. An owner decides the proposal; the agent changes
   nothing itself (temper help settings).
+- **A design session,** template 6 under charter 12 in the stock: the
+  drafter designs one piece of work with you, one question at a time,
+  keeps the draft as the chat's document and starts nothing. You start
+  a goal from the draft. A session opened again goes on from its draft
+  and its open points.
 - **A failed settings proposal** creates no proposal to accept. Its activity
   summary says "failed to propose a change" and counts failed attempts
   separately from successful proposals; expand the activity to read the refusal.

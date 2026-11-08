@@ -801,9 +801,11 @@ keeps (`../protocol/configuration.md`, section 2).
     the bar (`.btn.small`, while `drafts_offered`, *A chat's document,* below)
     moves there. The empty document in Split, `.meta-line` "A chat that writes a
     draft. Say what it should hold.", the placeholder "What should this draft
-    hold?". The first message starts the chat with, under the person's words
-    after a blank line, "Write this up as a draft beside us."; those words are
-    visible as sent. The chat opens in Split.
+    hold?". The first message starts a design session from template 6 where `me`
+    lists it among the project's templates (`../domain/agent.md`, 8.5), and
+    otherwise a chat from the project's chat template, either with, under the
+    person's words after a blank line, "Write this up as a draft beside us.";
+    those words are visible as sent. The chat opens in Split.
 - **Where the focus stands on a chat** (the request `ui-composer-focus` of
   2026-11-06):
   - *Started by sending:* a chat a person has just started opens with its
@@ -844,6 +846,13 @@ keeps (`../protocol/configuration.md`, section 2).
     no Ask temper chat. An Ask temper chat offers "+ Draft" whatever `drafts` says:
     `pages::chat_offers_draft(root, task)`, which the bar and the domain's taking of
     the act both read, is true on an Ask temper chat and otherwise `drafts_offered`.
+  - *A design session* (`../domain/agent.md`, 8.5): a chat whose chip's executor
+    is the charter of template 6 as `me` lists it, as an Ask temper chat is
+    template 5's (*To begin*), `pages::chats::drafting(me, project, executor)`.
+    It reads as any chat with a document, its bar's modes, its tool lines and
+    "Start goal…" with 5.14's ways, and is offered "+ Draft" as any chat is.
+    Opened from a list or a link, it opens in Split rather than Chat, its document
+    read as any chat's, until the person picks a mode on the page.
   - *Read live, with no new watch:* `Read::Notes { scope: NoteScope::Task {
     project, task }, description: None, after: None }`, on the same retries as an
     activity read, once the task's document has arrived, and again when the
@@ -855,7 +864,7 @@ keeps (`../protocol/configuration.md`, section 2).
     was.
   - *Its mode:* `Mode { Chat, Split, Draft }`, the page's state for that chat, kept
     while the page is open; a chat opened again starts in Chat, unless `NewChat {
-    draft }` opened it in Split. Nothing stores it; the terminal's look, which is
+    draft }` opened it in Split or it is a design session (above). Nothing stores it; the terminal's look, which is
     another thing, is kept per browser (*A chat's terminal*, below).
   - *The tool line:* a `note` call whose answer parses (`../domain/agent.md`,
     8.3) is a `.turn-tool` in the conversation: the pen, "Wrote" for a first
@@ -6812,10 +6821,18 @@ measures it (skein's `ui-web.md`, section 7).
   rule opens a chat: a long one opens with at least a screen and a half,
   a short one whole.
 - **Opening history:** a chat follows its first page's older cursor without a
-  scroll event, so a short conversation reaches its opening question even
-  when the reply has already ended. Initial reads stop at the history's end,
-  the window's row or byte bound, a lasting read failure or a cursor that
-  does not advance. A page that would exceed the window leaves its held
+  scroll event, by the rule above: a short conversation reaches its opening
+  question even when the reply has already ended, and a long one stops once
+  a screen and a half is held, its older cursor kept for the next read, which
+  a browser's log asks for as its head comes near, saying "Loading earlier
+  messages" as any read does. The domain measures no screen, so a screen and
+  a half is a weight: the held lines weighing 2,880 bytes or more, a screen
+  and a half of an 80 by 24 terminal, by jig's weight of a line (its bytes,
+  and `LINE_ROOM` for it and for each message, block, object and part it
+  holds; jig's `client/domain/client.md`, section 10). Initial reads stop at
+  whichever comes first: the history's end, that weight held, the window's
+  row or byte bound, a lasting read failure or a cursor that does not
+  advance. A page that would exceed the window leaves its held
   newest rows and older cursor intact. Empty pages spend the same bounded
   initial read count as nonempty pages, at most the window's row capacity.
   Transient failures retry the same read under the conversation's retry rule.
@@ -7689,7 +7706,8 @@ rest*), with nothing pasted and no key pressed:
   in by the printed link, before or after, leaves the file's link
   live.
 - **Any other end** (refused, `link_unknown`, not ready, busy, full, no
-  answer), the reads spent, or the file read finding none: the TUI falls
+  answer; but in front, not ready and busy (6.17) wait for jig's resend),
+  the reads spent, or the file read finding none: the TUI falls
   back to the sign-in screen as it is with no file, which asks the
   browser's approval (7.1) and takes the paste. It says nothing of the
   file: no refusal line is drawn for the file's link, and a fallback
@@ -8368,8 +8386,10 @@ the user's hand-made frames of the look request `tui-box-front`
   jig's `protocol/client.md`, section 8, *A sign-in held is kept*).
   While it signs in, the welcome is drawn, its state "Connecting". It
   ends as 6.14's *Signed in from the engine's link* says: `link_used` or
-  `link_expired` reads the engine's link file a second later, and any
-  other end falls back to the sign-in screen.
+  `link_expired` reads the engine's link file a second later. Not ready
+  and busy wait for jig's resend after its backoff, still "Connecting",
+  because the box starts serve beside the front. Any other end falls
+  back to the sign-in screen.
 - **The seam** (6.13) gains the front's two: `Start.front`, true in
   front, `Start.local` true with it; and `Report::Front(BoxLine)`, a line
   of the box's, read. At `Start` in front the host tells the TUI's state

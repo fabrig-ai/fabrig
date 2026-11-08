@@ -37,9 +37,10 @@
     reached from Home's project rows.
   - 11: `tui.md`, section 3, and `../client/README.md`, 6.14, hold the
     launchpad as the look request `tui-launchpad` drew it, with no Where
-    you left off as listed here, no Team, no Start, no design session or
-    drafter, no side pane and no talking with a role; 11.4's added
-    commands have no design.
+    you left off as listed here, no Team, no Start, no design session in
+    the terminal, no side pane and no talking with a role; 11.4's added
+    commands have no design. The drafter and its session on the web are
+    `../domain/agent.md`, 8.5, and `../client/README.md`, 3.5.
   - 12: `../client/README.md`, 5.13, *The page*, keeps "What the
     project shows" at How work runs' foot as overrides of each page's
     rule; How work runs and Team each decide their parts by one pure
@@ -72,7 +73,8 @@
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
   - 7 and 15: Repositories at How work runs' foot, or in Deployment.
   - 2 and 15: `Chats` kept at its address, or folded away.
-  - 11.2 and 15: the drafter on the web as well as in the terminal.
+  - 11.2 and 15: the drafter on the web as well as in the terminal. The
+    design takes the default, both (`../domain/agent.md`, 8.5).
   - 3 and 15: one brief across projects, written per person: which
     project's period funds it, which project its task belongs to, whether
     it may read other projects' Nows. Default: one brief a project, joined
