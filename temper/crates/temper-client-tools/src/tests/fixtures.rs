@@ -165,7 +165,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show", "rules"],
     &["settings", "show", "landing-rule", "1", "--project", "shop"],
     &["settings", "show", "forge-charter", "1"],
-    &["settings", "show", "project-ways", "shop"],
+    &["settings", "show", "project-classes", "shop"],
     &["revision", "show", "5"],
     &["revision", "list"],
     &["settings", "apply", "FILE", "--against", "5", "--key", "settings-5"],

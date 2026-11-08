@@ -30,12 +30,12 @@ settings show forge-charter NUMBER [--revision REVISION]
   forge-charter (kind): one of forge-charter; required. One of the forge's charters
   NUMBER (number): a number from 1 to 2; required. 1 the change's charter, 2 its reviews'
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
-settings show project-ways|project-questions PROJECT [--revision REVISION]
-  project-ways|project-questions (kind): one of project-ways or project-questions; required. A project's ways or questions
+settings show project-ways|project-questions|project-classes PROJECT [--revision REVISION]
+  project-ways|project-questions|project-classes (kind): one of project-ways, project-questions or project-classes; required. A project's ways, questions or classes
   PROJECT (project): a project's name or number; required. The project by number or name
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 Read one setting's value whole
-Prints: `KIND N, revision R`, or `rules, revision R`, then the value as JSON; temper's settings also show their state
+Prints: `KIND N, revision R`, or `rules, revision R`, then the whole value; project classes in words; temper's settings also show their state
 --json: the record setting.
 Key: none.
 The JSON value is what a settings file's `set` takes.

@@ -28,6 +28,11 @@ A project is where work happens: the repositories adopted into it, one of them i
 - **Its period** holds what its work may spend; each member's pool is
   drawn from it (temper help budget).
 
+A project's `project-classes` setting says when agents decide, then tell you;
+ask you; or ask you even when away. Four kinds always wait: money,
+irreversible acts, rules and other. The project's way sets its classes;
+you can change them as any setting (temper help settings).
+
 ## How it changes
 
 - **Made:** `temper init` makes none. `project make NAME --key KEY` makes

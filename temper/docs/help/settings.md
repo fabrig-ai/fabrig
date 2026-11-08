@@ -7,10 +7,11 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 ## What it is
 
 Settings cover charters, templates, policies, rules, landing rules, forge
-charters and project ways and questions. Name one by kind and number,
-or project for ways and questions; rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
+charters and project ways, questions and classes. Name one by kind and
+number, or project for ways, questions and classes; rules have no number:
+`charter 2`, `template 1`, `policy 1`, `rules`,
 `landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`,
-`project-ways 2`, `project-questions 2`.
+`project-ways 2`, `project-questions 2`, `project-classes 2`.
 
 - A project's ways say whether chats can write drafts and whether Goals,
   Changes and the Away switch show, and which offered template with
@@ -18,6 +19,8 @@ or project for ways and questions; rules have no number: `charter 2`, `template 
   other three and uses 0.
 - A project's questions give a change's question route when its maker
   names none: `none`, `foreman` or `up`. The stock uses `none`.
+- A project's classes say which questions agents decide and tell you about,
+  ask you, or ask you even when away (`temper help project`).
 - A landing rule governs changes landing on matching branches, for the
   deployment or one project: `temper help landing-rule`.
 - The forge's charter 1 selects the change's charter, and 2 its reviews'.
@@ -110,10 +113,10 @@ its default. A stored change still wins over a changed default.
   `settings show landing-rule NUMBER` reads a deployment landing rule;
   add `--project PROJECT` for a project's.
   `settings show forge-charter NUMBER` reads one of the forge's charters.
-  `settings show project-ways PROJECT` and `settings show project-questions
-  PROJECT` read by project number or name, marking the stock when none is
-  stored. Both take `--revision` for an earlier value and print state and
-  value; `--json` gives the form a settings file's `set` takes.
+  `settings show project-ways PROJECT`, `settings show project-questions
+  PROJECT` and `settings show project-classes PROJECT` read by project
+  number or name, marking the stock when none is stored. All take
+  `--revision` for an earlier value and print state and value; `--json` gives the form a settings file's `set` takes.
   `proposal show PROPOSAL` includes proposed values, removals and resets, and a project's current
   and proposed policy, each whole. Each verb's help gives its arguments:
   `temper ctl help settings apply`.
@@ -123,8 +126,9 @@ its default. A stored change still wins over a changed default.
   and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter` and
-  `project-policy`, `project-ways` and `project-questions`, in the settings
-  file's form. Ways and questions require `project` and take no `number`. A landing rule names
+  `project-policy`, `project-ways`, `project-questions` and `project-classes`,
+  in the settings file's form. Ways, questions and classes require `project`
+  and take no `number`. A landing rule names
   its project, or none for the deployment; a project's policy names its
   project and is set alone. The tool reads a named project's policy,
   though the inventory omits it.
