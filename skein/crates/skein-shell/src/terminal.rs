@@ -42,6 +42,18 @@ pub struct Modes {
 pub fn raw_input(input: Fd, keys: Keys) -> Result<Input, Error> {
     crate::system::terminal::raw_input(input, keys)
 }
+/// Opens the process's controlling terminal, `/dev/tty`, for reading and
+/// writing, close-on-exec, never making it a controlling terminal
+/// (shell.md, 6.3). The caller owns the descriptor.
+pub fn open_terminal() -> Result<Fd, Error> {
+    crate::system::terminal::open_terminal()
+}
+/// Makes the caller's process group the foreground group of `terminal`,
+/// with SIGTTOU blocked for the call, so that a background group may take
+/// it (shell.md, 6.3).
+pub fn take_foreground(terminal: Fd) -> Result<(), Error> {
+    crate::system::terminal::take_foreground(terminal)
+}
 /// Blocks the selected signals and opens the signalfd io adopts.
 pub fn open_signals(watch: Watch) -> Result<Fd, i32> {
     crate::system::process::open_signals(watch)

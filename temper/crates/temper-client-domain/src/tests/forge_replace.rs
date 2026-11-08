@@ -77,7 +77,9 @@ fn deliver_rows(root: &mut Domain, watch: Token, rows: List<w::ForgeRow>) {
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap()),
+                        bytes: wire::forges(
+                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
+                        ),
                     },
                 },
             },
