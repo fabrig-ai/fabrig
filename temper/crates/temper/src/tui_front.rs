@@ -1,5 +1,5 @@
 //! The TUI started in front of a box (temper/docs/design/client/README.md, 6.17).
-use crate::{directories, tui};
+use crate::directories;
 use skein_io::kernel::{Error, Exit, Fd};
 use skein_lib::Secret;
 use skein_shell::{Clock, Config, Host, Input, Kernel, Keys, Watch};
@@ -12,6 +12,7 @@ use std::{
 use temper_client_shell_tui::{
     limits,
     run::{Front, Run, Settings},
+    start as tui,
 };
 
 pub(crate) fn handed(bytes: &[u8]) -> Option<Secret> {
@@ -23,7 +24,7 @@ pub(crate) fn handed(bytes: &[u8]) -> Option<Secret> {
 
 pub(crate) fn run(argument: &[u8], clock: &Clock) -> u8 {
     let result = (|| {
-        let engine = tui::address(argument).map_err(|why| why.line())?;
+        let engine = tui::address(argument).map_err(|why| why.line("temper"))?;
         let link = (|| {
             let input = std::fs::File::open("/dev/fd/3").ok()?;
             let mut bytes = Vec::new();
@@ -55,9 +56,9 @@ fn terminal_refusal(why: Error) -> String {
 
 fn start(engine: SocketAddr, link: Secret, terminal: Fd, clock: &Clock) -> Result<u8, String> {
     let environment = skein_shell::environment();
-    let directory = tui::directory(&environment).map_err(|why| why.line())?;
+    let directory = tui::directory(&environment).map_err(|why| why.line("temper"))?;
     let user = skein_shell::effective_user();
-    directories::make_private(&directory, user).map_err(|why| tui::Refused::Directory(why).line())?;
+    directories::make_private(&directory, user).map_err(|why| tui::Refused::Directory(why).line("temper"))?;
     let saved = skein_shell::read_private_file(&directory.join("address"), 64, user)
         .ok()
         .and_then(|bytes| tui::kept(bytes.expose()));
@@ -77,13 +78,14 @@ fn start(engine: SocketAddr, link: Secret, terminal: Fd, clock: &Clock) -> Resul
         let signals = skein_shell::open_signals(Watch::TerminationAndWindow).expect("TUI signals");
         let root = skein_shell::open_root(parent).map_err(|number| {
             skein_shell::close_startup_fd(signals);
-            tui::Refused::Directory(format!("{}: cannot open its parent: errno {number}", directory.display())).line()
+            tui::Refused::Directory(format!("{}: cannot open its parent: errno {number}", directory.display()))
+                .line("temper")
         })?;
         let files = skein_shell::open_root(parent).map_err(|number| {
             skein_shell::close_startup_fd(root);
             skein_shell::close_startup_fd(signals);
             tui::Refused::Directory(format!("{}: cannot open sign-in parent: errno {number}", directory.display()))
-                .line()
+                .line("temper")
         })?;
         #[cfg(feature = "record")]
         let record = Some(skein_shell::open_root(parent).map_err(|number| {
@@ -91,7 +93,7 @@ fn start(engine: SocketAddr, link: Secret, terminal: Fd, clock: &Clock) -> Resul
             skein_shell::close_startup_fd(root);
             skein_shell::close_startup_fd(signals);
             tui::Refused::Directory(format!("{}: cannot open recording parent: errno {number}", directory.display()))
-                .line()
+                .line("temper")
         })?);
         #[cfg(not(feature = "record"))]
         let record = None;
@@ -124,7 +126,7 @@ fn start(engine: SocketAddr, link: Secret, terminal: Fd, clock: &Clock) -> Resul
     kept.restore().expect("restore terminal modes");
     let (run, exit, seed) = result?;
     if run.refused() {
-        return Err(tui::Refused::Directory(format!("{}: cannot open its files", directory.display())).line());
+        return Err(tui::Refused::Directory(format!("{}: cannot open its files", directory.display())).line("temper"));
     }
     if let Some(signed_in) = run.signed_in() {
         let mut bytes = b"http://".to_vec();

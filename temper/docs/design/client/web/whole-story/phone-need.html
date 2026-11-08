@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone, a need</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="whole-story.css">
+</head>
+<body>
+<div class="phone">
+  <header class="ptop">
+    <a href="phone-home.html" style="text-decoration: none">‹ Needs you</a>
+    <span class="muted small">1 of 2</span>
+  </header>
+  <div class="pbody" style="gap: 14px">
+    <p class="from"><span class="chip">vsr</span> membership-handoff · the goal · 1 h ago</p>
+    <h1 class="q" style="font-size: 19px">Count a rejoining witness toward the view-change quorum only once it holds the log suffix?</h1>
+    <p class="small">Prover's test replays the fuzz case: a witness counted before it caught up let the new primary truncate a committed entry. Both fixes pass the test.</p>
+    <p class="small muted">Only once caught up: nothing changes on the wire. With a barrier: one new message.</p>
+    <p class="why">Protocol core always asks you. <a href="#">Stop asking</a></p>
+    <div class="section" style="gap: 8px">
+      <a class="choice rec" href="#">Only once caught up <small>recommended</small></a>
+      <a class="choice" href="#">Count it, add a catch-up barrier</a>
+    </div>
+    <label class="field">Or tell it something else<input type="text" value="" placeholder="Your words, to the goal"></label>
+  </div>
+  <nav class="ptabs" aria-label="temper">
+    <a href="phone-home.html">Home</a>
+    <a class="on" href="phone-need.html">Needs <span class="count">2</span></a>
+    <a href="#">Work</a>
+    <a href="#">Ask</a>
+  </nav>
+</div>
+</body>
+</html>

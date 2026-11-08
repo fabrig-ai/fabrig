@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pair, How work runs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;display=swap">
+<style>body{margin:0;background:#f7f7f5}</style>
+<link rel="stylesheet" href="../whole-story.css">
+</head>
+<body>
+<div class="app">
+  <nav class="rail" aria-label="temper">
+    <a class="brand" href="../index.html" style="text-decoration: none"><b>✦</b>temper</a>
+    <span class="switcher">pocket <small>GitHub</small></span>
+    <div class="nav">
+      <a href="home.html">Home</a>
+      <a href="needs.html">Needs you <span class="count">3</span></a>
+      <a href="work.html">Work</a>
+      <a href="#">Ask temper</a>
+      <span class="sep"></span>
+      <a class="on" href="how.html">How work runs</a>
+    </div>
+    <a class="new" href="#">+ New change</a>
+    <div class="foot">
+      <a href="#">Deployment</a>
+      <a href="#">Owner</a>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="col wide">
+      <header class="intro">
+        <p class="kicker">pocket · How work runs</p>
+        <h1 class="headline">You approve every change</h1>
+        <p class="lede">pocket runs the stock way You approve. You ask in a chat; an agent makes the change; code checks it; an agent reviews it and repairs what the review finds; you approve; code merges exactly the head that was checked. Nothing reaches main without you.</p>
+        <div class="choices"><a class="btn dark" href="#">Ask temper to change this</a><a class="btn" href="#">History · 1 change</a></div>
+      </header>
+
+      <section class="section">
+        <div class="shead"><h2>The path of a change</h2><span>the way: You approve</span></div>
+        <div class="scroll">
+          <div class="path">
+            <div class="h"></div><div class="h">Ask</div><div class="h">Produce</div><div class="h">Check</div><div class="h">Review</div><div class="h">Repair</div><div class="h">Approve</div><div class="h">Merge</div><div class="h">Landed</div>
+            <div class="lane">You</div><div><span class="step p">in a chat</span></div><div></div><div></div><div></div><div></div><div><span class="step p">every change</span></div><div></div><div></div>
+            <div class="lane">Agents</div><div><span class="step a">the chat's agent</span></div><div><span class="step a">a coding agent</span></div><div></div><div><span class="step a">a reviewer</span></div><div><span class="step a">the coding agent again</span></div><div></div><div></div><div></div>
+            <div class="line">authority: no merge tool above this line</div>
+            <div class="lane last">Code</div><div class="last"></div><div class="last"></div><div class="last"><span class="step c">CI on GitHub Actions</span></div><div class="last"></div><div class="last"><span class="step c">checks again</span></div><div class="last"></div><div class="last"><span class="step c">at the checked head</span></div><div class="last"><span class="step c">listed on Home</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>What reaches you</h2><span>on pocket</span></div>
+        <div class="grid3">
+          <div class="box">
+            <span class="who p">Asks you</span>
+            <ul class="small">
+              <li>everything that would reach main</li>
+              <li>a change's questions</li>
+            </ul>
+            <p class="small muted">Approvals wait in Needs you, oldest first.</p>
+          </div>
+          <div class="box">
+            <span class="who a">Agents decide</span>
+            <ul class="small">
+              <li>how to make the change you asked for</li>
+              <li>repairs after a red check or a review</li>
+            </ul>
+            <p class="small muted">You see them on the change before you approve it.</p>
+          </div>
+          <div class="box">
+            <span class="who p">Always waits for you</span>
+            <ul class="small">
+              <li>money past the project's budget</li>
+              <li>what can't be undone</li>
+            </ul>
+            <p class="small muted">Away or not.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>When you want to hand over more</h2><span>suggestions, nothing applied</span></div>
+        <div class="grid2">
+          <div class="box">
+            <h3>Let agents land test-only changes</h3>
+            <p class="small">Changes that touch only tests/ would land on their own once checked and reviewed. You'd see them in Home's list, not in Needs you.</p>
+            <div class="choices"><a class="btn" href="#">Ask temper to propose it</a></div>
+          </div>
+          <div class="box">
+            <h3>Agents review, then land</h3>
+            <p class="small">The stock way Agents review: every change lands once checked and reviewed, and only questions reach you. The next step on the spectrum.</p>
+            <div class="choices"><a class="btn" href="#">See the way</a></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shead"><h2>Budget</h2><span>per week, reset Mondays</span></div>
+        <div class="rows">
+          <div class="row" style="grid-template-columns: 200px minmax(0, 1fr) auto"><span>pocket</span><span class="small muted">chats and their changes</span><span>$8 of $20</span></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

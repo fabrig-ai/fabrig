@@ -5,6 +5,8 @@ mod box_kinds;
 mod box_lifetime;
 #[path = "fake_backends/box_link.rs"]
 mod box_link;
+#[path = "suite/client_binary.rs"]
+mod client_binary;
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
 #[path = "suite/startover.rs"]

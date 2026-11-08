@@ -1164,7 +1164,6 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
-                | top::Request::GoalTopic { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::News { .. }
@@ -2379,8 +2378,6 @@ fn goals_classify_landings_from_their_subtree_heads_and_planned_paths_after_rest
         });
     }
     world.run_for(3);
-    assert!(world.seen().iter().any(|request| matches!(request, top::Request::GoalTopic { goal: 42,
-        topic: top::Topic::Ci { head: subscribed, .. } } if *subscribed == head)));
     world.restart();
     world.run_for(3);
     world.take_seen();
@@ -2426,6 +2423,39 @@ fn goals_classify_landings_from_their_subtree_heads_and_planned_paths_after_rest
         request,
         top::Request::News { task: 42, class: top::Class::Kept, news: top::News::Landing { .. }, .. }
     )));
+}
+
+#[test]
+fn a_restart_drops_goal_ci_topics_and_keeps_tasks_own_ci_subscriptions() {
+    let mut world = World::new(83);
+    world.adopt();
+    world.produce(b"temper/51");
+    let head = translate::commit(world.branch(b"temper/51"));
+    let topic = top::Topic::Ci { repository: REPO, head };
+    for (task, goal_tasks) in [(42, Some(Box::from([51]))), (43, None)] {
+        world.event(top::Event::Subscribe {
+            subscription: top::Subscriber {
+                task,
+                number: task,
+                topic: topic.clone(),
+                own_change: None,
+                goal_tasks,
+                paths: Box::new([]),
+            },
+        });
+        assert!(world.stored().contains_key(&top::Key::Subscription { task, topic: topic.clone() }));
+    }
+    world.take_seen();
+    world.restart();
+    let dropped: Vec<_> = world
+        .seen()
+        .iter()
+        .filter_map(|request| match request {
+            top::Request::GoalUntopic { goal, topic: dropped } => Some((*goal, dropped.clone())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(dropped, [(42, topic)], "drop the goal's core CI topic alone, keeping the task's own interest");
 }
 
 #[test]
