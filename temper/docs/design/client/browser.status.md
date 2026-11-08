@@ -8,6 +8,10 @@
   and `print_writes_every_page_and_the_bundle`. A gallery cost repair owns
   finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
   8.1, question 2); only if that fails do measurements go to the user.
+  7.1's path printed for both widths adds to it: the print test alone took
+  1.483 s of wall time before the second drawing and 4.069 s after
+  (`look-round-24`'s `gallery-narrow`, at `436533537a`); no CPU figure is
+  on record.
 
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
@@ -53,6 +57,18 @@ gone. Story 11's phone Ask row (4.6) shows the tabs and presses "Draft
 first" to its "Use this", in the existing history story; it checks
 neither Agents review's "now" nor the line and the path. The rendered
 comparison follows landing (`README.md`, section 11).
+
+Sections 2.3, 2.5 and 7.1 have no known implementation gap in
+`look-round-24`'s repairs: a path's marks and labels take no stroke but
+their own rules', by one rule under `.temper-ways-path`, skein's rule
+left as it is; the paths `/projects/<project>/settings/roles/<charter>`
+and `/projects/<project>/settings/rules/<kind>/<number>` parse and print
+canonically; and the gallery prints each path across at 720 and down
+the page at 388, its page's style showing the second at 760 px and
+under. The print test counts the drawings and checks their `viewBox`es
+and the rule; neither it nor any test measures a rendered stroke or the
+print at 420, which the render check after landing does (`README.md`,
+section 11).
 
 Section 4.6's history story awaits Closed pressed after reload and All
 pressed after Back by exact button name, each within `WITHIN`, retaining
