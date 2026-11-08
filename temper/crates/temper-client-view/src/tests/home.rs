@@ -222,7 +222,7 @@ fn settings_links_carry_the_forge_and_account_marks_in_both_shells() {
         ),
     ] {
         let (mut root, watch) = f::forge_root_accounts(
-            Address::Settings { project: f::PROJECT },
+            Address::Accounts,
             super::connect_forge::rows(connection, w::Offer::Offered),
         );
         let mut accounts = super::accounts::document(1);

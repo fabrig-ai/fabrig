@@ -18,6 +18,7 @@ mod goal;
 mod goals;
 mod home;
 mod inbox;
+mod members;
 mod paste;
 mod project_pages;
 mod rail;

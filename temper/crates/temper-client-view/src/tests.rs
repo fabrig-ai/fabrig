@@ -181,3 +181,5 @@ mod repository_link;
 mod welcome_copy;
 
 mod views;
+
+mod deployment;

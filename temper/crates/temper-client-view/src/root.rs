@@ -221,7 +221,10 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         builder.open(Role::Main);
         builder.state(skein_ui::State::Busy);
         builder.close();
-    } else if no_project {
+    } else if no_project
+        && root.pages().address() != &temper_client_domain::Address::Members
+        && root.pages().address() != &temper_client_domain::Address::Limits
+    {
         crate::outside::no_project_main(&mut builder, root, &view.forge_words, &mut view.pages);
     } else if let temper_client_domain::Address::Welcome { step } = root.pages().address() {
         crate::pages::welcome::main(
@@ -306,6 +309,10 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::pages::models::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
         crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+    } else if let temper_client_domain::Address::Members = root.pages().address() {
+        crate::pages::deployment::members(&mut builder, root, &view.forge_words, &mut view.pages);
+    } else if let temper_client_domain::Address::Limits = root.pages().address() {
+        crate::pages::deployment::limits(&mut builder, root, &view.forge_words, &mut view.pages);
     } else if let temper_client_domain::Address::Repositories { project }
     | temper_client_domain::Address::Adopt { project } = root.pages().address()
     {
