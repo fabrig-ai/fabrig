@@ -511,8 +511,8 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         match &end {
             End::Parked => crate::EndKind::Parked,
             End::Finished { .. } => crate::EndKind::Finished,
-            End::Exceeded(_) => crate::EndKind::Failed { class: Class::Run },
-            End::Failed(class) => crate::EndKind::Failed { class: *class },
+            End::Exceeded(_) => crate::EndKind::Failed { class: Class::Run, invalid_result: None },
+            End::Failed(class) => crate::EndKind::Failed { class: *class, invalid_result: invalid },
             End::Refused | End::Recheck => crate::EndKind::Refused,
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
         }

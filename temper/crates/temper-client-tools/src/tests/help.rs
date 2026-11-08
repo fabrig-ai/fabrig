@@ -636,3 +636,11 @@ fn public_reading_walk_names_every_figure_and_visibility_remedy() {
         assert!(page.text.contains(words), "walk must name {words}");
     }
 }
+
+#[test]
+fn help_names_invalid_run_end_causes() {
+    let page = temper_docs::find(b"task").expect("task help");
+    for cause in ["broke its contract", "form", "verdict", "words", "change", "followups", "couldn't be read"] {
+        assert!(page.text.contains(cause), "task help must explain {cause}");
+    }
+}

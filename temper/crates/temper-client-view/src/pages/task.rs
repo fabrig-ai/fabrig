@@ -956,10 +956,32 @@ pub(crate) fn owner_activity(b: &mut Builder, event: &c::Activity, words: &Words
         c::Activity::Words { words, .. } => text_node(b, words.bytes()),
         c::Activity::Heard(word) | c::Activity::Notified { word, .. } => text_node(b, word.words.bytes()),
         c::Activity::RunBegan { attempt, .. } => words.text(b, Word::RunBegan, &[Hole::Number(*attempt)]),
-        c::Activity::RunEnded { attempt, .. } => words.text(b, Word::RunEnded, &[Hole::Number(*attempt)]),
+        c::Activity::RunEnded { attempt, end, .. } => run_ended(b, *attempt, *end, words),
         c::Activity::Decided { .. } => words.text(b, Word::DecisionMade, &[]),
         c::Activity::Turn { .. } => words.text(b, Word::UnreadTurn, &[]),
         c::Activity::Kept { .. } => words.text(b, Word::DependencyParked, &[]),
         c::Activity::Milestone { position } => words.text(b, Word::Milestone, &[Hole::Number(*position)]),
+    }
+}
+
+fn run_ended(b: &mut Builder, attempt: u64, end: c::RunEnd, words: &Words) {
+    let (word, kind): (Word, Option<&[u8]>) = match end {
+        c::RunEnd::Failed { invalid_reason: Some(reason), .. } => match reason {
+            c::InvalidReason::Form => (Word::RunEndedInvalid, Some(b"form")),
+            c::InvalidReason::Verdict => (Word::RunEndedInvalid, Some(b"verdict")),
+            c::InvalidReason::Words => (Word::RunEndedInvalid, Some(b"words")),
+            c::InvalidReason::Change => (Word::RunEndedInvalid, Some(b"change")),
+            c::InvalidReason::Followups => (Word::RunEndedInvalid, Some(b"followups")),
+            c::InvalidReason::UnreadableResult => (Word::RunEndedUnreadable, None),
+        },
+        c::RunEnd::Parked
+        | c::RunEnd::Finished
+        | c::RunEnd::Cancelled
+        | c::RunEnd::Refused
+        | c::RunEnd::Failed { invalid_reason: None, .. } => (Word::RunEnded, None),
+    };
+    match kind {
+        Some(kind) => words.text(b, word, &[Hole::Number(attempt), Hole::Name(copy_of(kind))]),
+        None => words.text(b, word, &[Hole::Number(attempt)]),
     }
 }

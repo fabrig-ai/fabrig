@@ -280,10 +280,24 @@ pub(in crate::codec) fn wire_run_end(value: &c::RunEnd, limits: &w::Limits) -> R
         c::RunEnd::Parked => w::RunEnd::Parked,
         c::RunEnd::Finished => w::RunEnd::Finished,
         c::RunEnd::Cancelled => w::RunEnd::Cancelled,
-        c::RunEnd::Failed { class } => w::RunEnd::Failed(w::RunEndFailed::new(
+        c::RunEnd::Failed { class, invalid_reason } => w::RunEnd::Failed(w::RunEndFailed::new(
             limits,
-            w::RunEndFailedParts { class: wire_hold_failure(class, limits)? },
+            w::RunEndFailedParts {
+                class: wire_hold_failure(class, limits)?,
+                invalid_reason: invalid_reason.map(wire_invalid_reason),
+            },
         )?),
         c::RunEnd::Refused => w::RunEnd::Refused,
     })
+}
+
+fn wire_invalid_reason(value: c::InvalidReason) -> w::InvalidReason {
+    match value {
+        c::InvalidReason::Form => w::InvalidReason::Form,
+        c::InvalidReason::Verdict => w::InvalidReason::Verdict,
+        c::InvalidReason::Words => w::InvalidReason::Words,
+        c::InvalidReason::Change => w::InvalidReason::Change,
+        c::InvalidReason::Followups => w::InvalidReason::Followups,
+        c::InvalidReason::UnreadableResult => w::InvalidReason::UnreadableResult,
+    }
 }

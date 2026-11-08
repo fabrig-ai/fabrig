@@ -176,12 +176,6 @@ live names and another holder's reservation answer name taken
 section 4). Finer reasons for key and sign-in acts' not-offered answers
 remain deferred in those documents' open questions.
 
-## Gaps and departures
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief; its implemented path still needs
-  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
-
 Design documents:
 - [`README.md`](README.status.md)
 - [`domain/README.md`](domain/README.status.md)

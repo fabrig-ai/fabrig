@@ -1,29 +1,27 @@
-# ui-ask-drop: the configuring chat goes, as Ask temper takes its place
+# ui-authorize-busy: a cross-site authorization isn't refused as busy under load
 
-The user's word, 2026-11-07, on Ask temper (`temper/docs/design/draft/ask-temper.md`, sections 1 and 9 as `c0ac935335` left them): "just drop the old one". Ask temper is temper's own AI, in the rail, and nothing keeps the configuring chat beside it. `ui-ask-m1` built Ask temper, moved and renamed the client's Configure page into it, and left the engine's side for this plan.
+A red's repair, `red-72`, after `red-71`, same test. `browser_authorize::a_cross_site_authorization_returns_a_code_and_the_links_state` (`temper/tests/client-browser/tests/browser_all/browser_authorize.rs`, near line 106) fails at step 7. It finds no heading "Authorization received", and the page shows `Word::AuthorizeBusy`: "temper couldn't sign you in just now". That word is the service's 503 for a sign-in it can't serve (`temper-service`'s sign-in pages; `temper/crates/temper-service/src/tests/sign_in.rs`, near line 306).
 
-## What goes
+**What's known, from after-landing on 2026-11-08:**
+- It failed at 00:09Z, 00:21Z and 01:23Z (tip `d956d76b6f`), and passed at 00:32Z, 00:44Z and 00:55Z.
+- In the full suite, where it runs third of 12 beside the others, a failing run takes about 12 s. Run alone, it passes in about 2 s. At 00:09Z the rerun alone failed too, at 12.8 s.
+- So it's load and time, not order. Something on the authorize path waits about 10 s, then answers busy. No code between the passing and failing tips touches it.
 
-- **Template 3 and charter 3** leave the stock, with every rule, delegation, policy, default and count that names them. Charter 11 and template 5 take their places where a person's setup needs a configuring agent.
-- **What reaches them:** `Configure`'s act and offer, and anything left in the client, ctl or the welcome that starts template 3. Help pages and their reference say Ask temper.
-- **`temper ctl`'s paths** that start or name template 3 or charter 3 go in this plan too, at temper/migration's word. Its help and words keep their present style, and `plan.md` lists each ctl path changed, for temper/migration to judge after.
-- **The stock's executors after:** `plan.md` states the new list of charters a stock policy grants as executors (today 1, 2, 3, 4, 6 and 9), as generated settings elsewhere grant them by number.
-- **No stored or wire compatibility:** numbers may change in place. Note what changed in `plan.md`.
+The first repair, `ui-authorize-red`, ran it alone, saw it pass, and changed nothing.
 
-## What stays, moved to charter 11
+## One task
 
-The configuring acceptance stays whole. `configuring.md`, section 8, and rung D ask Ask temper, and the gate's scripted runs of charter 3 become charter 11's, with what they check unchanged. A test that only checks charter 3 exists goes with it. A test of the configuring mechanics that now live in `propose_settings` moves to charter 11's tools.
-
-## Its tests
-
-Focused and fuzzy only. Journeys whose recordings the change makes stale are regenerated with `temper-client-journeys again`, as generation. Slow-tier stories that name charter 3 are changed and compiled, not run.
+1. **Find which bound answers busy,** by reading the authorize path: the clients' admission, the engine's gate or readiness, the people store's answer, and a deadline of about 10 s. Then hold that bound in a **focused test**, red first: the authorize arrives while the bound is held, or while its answer is slow past that deadline, and today gets the 503.
+2. **Decide at the lowest place, and say which in `plan.md`:**
+   - If a person could meet it, it's the product's. A box just started or under load refuses a sign-in. Then the authorize waits for the engine within a sign-in's own bound, or its page says temper is starting and retries by itself. It must not refuse as busy while the engine is merely slow.
+   - If only the story's world meets it, it's the story's. It starts the authorize before the box is ready, which a person's box never does. Then the story waits for the readiness a person's client waits for.
+3. **The story's checks stay as they are.** Run it by name, alone, through the build wrapper, as a red's repair may. Run it at least five times under a load you make, such as a parallel focused build, and say how often it passed.
 
 ## Sources
 
-- `temper/docs/design/draft/ask-temper.md`
-- `temper/docs/design/draft/configuring.md`
-- `temper/docs/design/draft/configuring.execution.md`
-- `temper/crates/temper-service/src/stock.rs`
+- `temper/tests/client-browser/tests/browser_all/browser_authorize.rs`
+- `temper/crates/temper-service/src/tests/sign_in.rs`
+- `temper/crates/temper-client-view/src/words.rs`
 
 
 ## For every task of this plan

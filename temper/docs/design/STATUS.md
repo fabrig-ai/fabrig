@@ -61,6 +61,9 @@ Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10).
+`chat-draft` retains the removed stock in its recorded inventory; its
+task numbers changed, so temper/ui renews its walk and recording after
+landing (`client/journeys.md`, section 10).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -302,9 +305,10 @@ the runner was disabled. No separate attacker-review outcome is supplied,
 three laptop baseline cases remain unrepeated, and an intermittent busy
 authorization page without a request is unresolved (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). The cross-site
-authorization restart story's suite-order failure, red-71, also has no
-cause or fix: `ui-authorize-red` supplies two isolated passes and no code
-change, leaving the request's repair outstanding (`protocol/sign-in.md`,
+restart authorization failure is local fetch admission loss: the client
+stopped counting cancelled watch exchanges and cleanup calls before their
+HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
+reply or failure, so authorization waits for room (`protocol/sign-in.md`,
 9.3). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
@@ -673,12 +677,6 @@ client-world story uses a fake worker. The request's broader wording
 for key and sign-in refusals remains deferred because their not-offered
 answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
 `client/README.md`, 5.5 and section 11).
-
-## Gaps and departures
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief; its implemented path still needs
-  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
 
 Design documents:
 - [`README.md`](README.status.md)

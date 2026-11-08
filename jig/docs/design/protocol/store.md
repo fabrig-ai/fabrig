@@ -431,6 +431,10 @@ follow from the limits that bound each kind (5.4).
   and from the generated ones with small total functions, exhaustive both
   ways, so a domain change to a durable field breaks a translation's
   build the day it happens.
+- **A failed run's immutable activity** keeps its failure class and an
+  optional invalid-result kind, independently of the task's current retry
+  context (`../domain/engine.md`, 7.2). Tasks version 9 carries it in
+  place before the first release; its layout fingerprint changes (5.3).
 - **A task's ending authority** is carried in the tasks and people
   families.
 - **Change results** keep an explicit title beside their words in the

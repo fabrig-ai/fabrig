@@ -78,11 +78,6 @@ person's next words, whether the previous run still listens or has parked.
 
 ## Gaps and departures
 
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
-  7.3; this is a design gap, not an absent implementation.
-
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole

@@ -2,6 +2,10 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+Section 5.9's run-ended activity line names the invalid contract kind or
+says its result could not be read. The view's renderer table distinguishes
+these endings. No known gap remains in this line.
+
 Section 5.5's declaration refusals for name taken and not offered, and
 resume's not offered, have their reason and next step in the account
 outcome line. ConnectModel checks the person's own same-provider source

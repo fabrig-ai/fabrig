@@ -548,26 +548,38 @@ reports them for both suites. The three questions in 8.1 govern a
 budget missed, including whether a randomized test belongs in the fuzzy
 suite. Raising a budget is the user's decision, not a fix.
 
-**A test is a process.** nextest runs each test in a process of its own,
-which costs some milliseconds before the test checks anything, more for
-a large binary. The gate
-starts nextest without its double spawn (`NEXTEST_DOUBLE_SPAWN=0`): nextest otherwise
-starts each test through a process of its own first, which doubles that
-cost and guards only a terminal's job control, which a gate never uses. So cases of one behaviour that each cost less than that
-(a golden value per type, a refusal per limit, a check per source file)
-are rows of one table test, which checks every row and names each that
-fails; a group of rows takes a test of its own only to share the work
-across threads. A test is cheaper by its algorithm first: a fixture
-built once per test, not per case; a lookup by key, not a scan; the
-library's own searches, which run optimized in unoptimized builds,
-rather than a loop over bytes.
+**A binary is a process.** The focused and fuzzy suites run each test
+binary's tests in one process, one at a time; binaries run in parallel
+(`tools/tiers/design.md`, 11). A process costs some milliseconds before a
+test checks anything, and more for a large binary, so starting one per test
+would spend most of a suite's budget on starting. **A test leaves the
+process as it found it:** its threads, descendants, files, working
+directory, environment and allocated memory, so that the next test starts
+where it did. The slow tiers run a test per process. A test that cannot yet
+leave its process as it found it runs in a process of its own, by the
+nextest override `tools/tiers/design.md`, 11.3 names, with its reason beside
+it, until its cause is repaired.
 
-**What a test costs the suite.** A test's process costs about 3 ms on the
-development machine before it checks anything, and the gate runs eight
-at once, each two to three times slower than alone. So each test adds
-about 8 ms to the suite's total, and about 1 ms to its wall time, before
-its own work; a fixture built once per process is built once per test. A fixture many tests share is cheap to build, or a constant, and
-cases of one behaviour stay rows of one test.
+Nextest, which runs the slow tiers, starts without its double spawn
+(`NEXTEST_DOUBLE_SPAWN=0`) wherever the gate or `tools/tiers/run` starts it:
+nextest otherwise starts each test through a process of its own first, which
+doubles a test's start and guards only a terminal's job control, which a gate
+never uses. Cases of one behaviour that each cost little (a golden value per
+type, a refusal per limit, a check per source file) are rows of one table
+test, which checks every row and names each that fails; a group of rows takes
+a test of its own only to share the work across threads. A test is cheaper by
+its algorithm first: a fixture built once per test, not per case; a lookup by
+key, not a scan; the library's own searches, which run optimized in
+unoptimized builds, rather than a loop over bytes.
+
+**What a test costs the suite.** In the focused and fuzzy suites a binary's
+process costs about 3 ms on the development machine before its first test
+checks anything, more for a large binary, and the run pays it once per
+binary, or a few times for a binary split across the lanes; a test adds its
+own work and little else. A process of the slow tiers costs the same for each
+test. A fixture is built per test, since a test leaves nothing behind for the
+next: a fixture many tests share is cheap to build, or a constant, and cases
+of one behaviour stay rows of one test.
 
 **A tool is not the code under test.** What a test runs to check a
 repository rather than the code it ships (a check of the sources' names,
@@ -618,9 +630,11 @@ The rule holds wherever they run: at the merge gate for focused and
 fuzzy, after landing, through `tools/tiers/run`, or in anyone's own run.
 Slow tiers never run in the gate.
 
-**The budget is CPU seconds:** user plus system time of each test's
-processes, descendants included, measured per test and summed per suite
-(a tree's tier). The user sets budgets from measured numbers. Until a
+**The budget is CPU seconds:** user plus system time of the tests'
+processes, descendants included, summed per suite (a tree's tier):
+measured per test in the slow tiers, where each test is a process, and per
+process in the focused and fuzzy suites, where a binary's tests share one
+and no test's CPU is measured (`tools/tiers/design.md`, 11). The user sets budgets from measured numbers. Until a
 tier's CPU budget is set, its existing figures stand, including the
 focused and fuzzy suites' 30 s and 120 s idle-machine budgets above.
 Live tests have budgets on the same terms.

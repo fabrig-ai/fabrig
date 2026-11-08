@@ -78,11 +78,7 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
             out.number(*attempt);
             out.put(b" began");
         }
-        c::Activity::RunEnded { attempt, .. } => {
-            out.put(b"run ");
-            out.number(*attempt);
-            out.put(b" ended");
-        }
+        c::Activity::RunEnded { attempt, end, .. } => run_ended(*attempt, *end, out),
         c::Activity::Turn { attempt, turn: number, .. } => {
             out.put(b"turn ");
             turn::name(c::TurnName { attempt: *attempt, number: *number }, out);
@@ -96,6 +92,26 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
         c::Activity::Milestone { .. } => out.put(b"phase changed"),
     }
     out.put(b"\n");
+}
+fn run_ended(attempt: u64, end: c::RunEnd, out: &mut Text) {
+    out.put(b"run ");
+    out.number(attempt);
+    out.put(b" ended");
+    match end {
+        c::RunEnd::Failed { invalid_reason: Some(reason), .. } => out.put(match reason {
+            c::InvalidReason::Form => b": its result broke its contract (form)",
+            c::InvalidReason::Verdict => b": its result broke its contract (verdict)",
+            c::InvalidReason::Words => b": its result broke its contract (words)",
+            c::InvalidReason::Change => b": its result broke its contract (change)",
+            c::InvalidReason::Followups => b": its result broke its contract (followups)",
+            c::InvalidReason::UnreadableResult => b": its result couldn't be read",
+        }),
+        c::RunEnd::Parked
+        | c::RunEnd::Finished
+        | c::RunEnd::Cancelled
+        | c::RunEnd::Refused
+        | c::RunEnd::Failed { invalid_reason: None, .. } => {}
+    }
 }
 fn message_words(kind: &c::MessageKind, words: &c::Text, out: &mut Text) {
     if let c::MessageKind::Result(c::WordResult::Verdict { code, .. }) = kind {
