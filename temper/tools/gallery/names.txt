@@ -11,6 +11,9 @@ accounts-signing-in
 accounts-solo
 accounts-states
 agent-work
+all-home
+all-home-nothing-new
+all-home-one-project
 approve-approved
 approve-asking
 approve-busy
@@ -223,6 +226,10 @@ home-one-need
 home-ready
 home-refused
 home-skip-refused
+home-step-pair
+home-step-scale
+home-step-stock
+home-step-team
 home-try-stopped
 home-with-goals
 how
@@ -259,6 +266,7 @@ needs-reply-open
 needs-saw-open
 needs-second-answered
 needs-tell
+night-all-home
 night-ask
 night-chat-split
 night-home

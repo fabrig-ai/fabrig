@@ -122,6 +122,9 @@ struct Holds {
     parts: &'static [Part],
 }
 enum Part {
+    Projects { rows: &'static [(&'static str, &'static str)] },
+    StyleCount { style: skein_ui::Style, count: usize },
+    HomeCards { primary: &'static [&'static str], projects: &'static [&'static str] },
     HowPath { you: &'static str, agent: &'static str, code: &'static str, verify: bool },
     StyledText { style: skein_ui::Style, text: &'static [&'static str] },
     Current { name: &'static str },
@@ -1096,6 +1099,12 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 3" },
             Part::Text { text: "oldest first" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Decided for you · 3" },
+            Part::StyleCount { style: temper_client_view::look::DECISION, count: 3 },
+            Part::After { first: temper_client_view::look::NEED_ROW, then: temper_client_view::look::DECIDED },
+            Part::Text { text: "Ported it as checked_add." },
+            Part::Text { text: "Split it in two." },
+            Part::Text { text: "Accepted it." },
             Part::Absent { role: Role::Button, name: "Later" },
             Part::Named { role: Role::TextArea, name: "Or tell it something else" },
             Part::Absent { role: Role::Button, name: "Send" },
@@ -1332,6 +1341,144 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "nothing queued" },
             Part::Text { text: "Hello in Rust" },
             Part::Text { text: "07:02" },
+        ],
+    },
+    Holds {
+        name: "all-home",
+        heading: "31 changes landed across three projects. Two things need you.",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Sunday, 08:04 · you last looked 9 hours ago · away 23:10 to 08:00",
+            },
+            Part::StyledText {
+                style: temper_client_view::look::HOME_LEDE,
+                text: &[
+                    "vsr: ",
+                    "vsr landed 12 changes, and its membership-handoff goal is six of nine tasks in.",
+                    " ",
+                    "vsr-rs: ",
+                    "vsr-rs landed 4 ports and is two landings behind vsr, every C test passing on Rust.",
+                    " ",
+                    "fabrig: ",
+                    "fabrig landed 15, proof-6 whole among them.",
+                ],
+            },
+            Part::Named { role: Role::Paragraph, name: "Written by the status agent at 07:52" },
+            Part::Text { text: "The status agent, 07:52" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 2" },
+            Part::HomeCards { primary: &["Only once caught up", "Release"], projects: &["vsr", "vsr-rs"] },
+            Part::Text {
+                text: "Count a rejoining witness toward the view-change quorum only once it holds the log suffix?",
+            },
+            Part::Text { text: "49 of 60 used." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Decided for you · 4" },
+            Part::StyleCount { style: temper_client_view::look::DECISION, count: 4 },
+            Part::Text { text: "vsr · Prover · 02:10" },
+            Part::Text { text: "vsr-rs · Porter · 03:40" },
+            Part::Text { text: "fabrig · a goal · 05:12" },
+            Part::Text { text: "fabrig · UI · 06:30" },
+            Part::Named { role: Role::Button, name: "Overturn" },
+            Part::Text { text: "Fixed the harness." },
+            Part::Text { text: "Ported it as checked_add." },
+            Part::Text { text: "Split it in two." },
+            Part::Text { text: "Accepted it." },
+            Part::Named { role: Role::Link, name: "Decided for you · 4 ›" },
+            Part::Projects { rows: &[("vsr", "main"), ("vsr-rs", "main"), ("cowsql", "main"), ("fabrig", "main red")] },
+            Part::Text { text: "main red" },
+            Part::After { first: temper_client_view::look::HOME_NEEDS, then: temper_client_view::look::DECIDED },
+            Part::After { first: temper_client_view::look::DECIDED, then: temper_client_view::look::PROJECTS },
+            Part::After { first: temper_client_view::look::PROJECTS, then: temper_client_view::look::ASK_LINE },
+            Part::Named { role: Role::TextField, name: "Ask temper" },
+            Part::NoStyle { style: temper_client_view::look::HOME_FACTS },
+            Part::Absent { role: Role::Region, name: "Chats" },
+        ],
+    },
+    Holds {
+        name: "all-home-nothing-new",
+        heading: "The last change landed 10 hours ago. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Sunday, 08:04 · you last looked 9 hours ago" },
+            Part::NoStyle { style: temper_client_view::look::HOME_LEDE },
+            Part::NoStyle { style: temper_client_view::look::HOME_BYLINE },
+            Part::Absent { role: Role::Region, name: "Needs you" },
+            Part::Absent { role: Role::Region, name: "Decided for you" },
+            Part::Projects { rows: &[("vsr", "main"), ("vsr-rs", "main"), ("cowsql", "main"), ("fabrig", "main red")] },
+            Part::Named { role: Role::TextField, name: "Ask temper" },
+        ],
+    },
+    Holds {
+        name: "all-home-one-project",
+        heading: "12 changes landed in vsr. One thing needs you.",
+        parts: &[
+            Part::HomeCards { primary: &["Only once caught up"], projects: &["vsr"] },
+            Part::Absent { role: Role::Region, name: "Projects" },
+            Part::StyleCount { style: temper_client_view::look::DECISION, count: 1 },
+            Part::Named { role: Role::TextField, name: "Ask temper" },
+        ],
+    },
+    Holds {
+        name: "night-all-home",
+        heading: "31 changes landed across three projects. Two things need you.",
+        parts: &[
+            Part::Pressed { name: "Night mode" },
+            Part::Text { text: "vsr · Prover · 02:10" },
+            Part::Named { role: Role::Button, name: "Overturn" },
+            Part::HomeCards { primary: &["Only once caught up", "Release"], projects: &["vsr", "vsr-rs"] },
+            Part::StyleCount { style: temper_client_view::look::DECISION, count: 4 },
+            Part::Projects { rows: &[("vsr", "main"), ("vsr-rs", "main"), ("cowsql", "main"), ("fabrig", "main red")] },
+        ],
+    },
+    Holds {
+        name: "home-step-pair",
+        heading: "One change landed today. Three things need you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Written by the status agent at 19:12" },
+            Part::Text {
+                text: "Monthly totals by category and dark mode are both checked by CI; nothing reaches main until you approve. The budget alerts change asks whether alerts go by email. The CSV import fix you approved this afternoon landed at 16:20.",
+            },
+            Part::HomeCards {
+                primary: &["Only in the app", "Review on GitHub ↗", "Review on GitHub ↗"],
+                projects: &[],
+            },
+            Part::Text { text: "Approve Monthly totals by category on GitHub" },
+            Part::Text { text: "Send budget alerts by email, or only show them in the app?" },
+            Part::Text { text: "main last moved 2 h 54 min ago" },
+            Part::Absent { role: Role::Region, name: "Decided for you" },
+            // Home has no landed-changes list; the brief and Landing foot hold what landed.
+        ],
+    },
+    Holds {
+        name: "home-step-team",
+        heading: "One thing was decided for you.",
+        parts: &[
+            Part::HomeCards { primary: &["Keep them case-insensitive"], projects: &[] },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Decided for you · 1" },
+            Part::Text { text: "A task ran out of turns on the coupon rules." },
+            Part::Text { text: "Split it in two." },
+            Part::Absent { role: Role::Link, name: "Sign off on Forgejo ↗" },
+            // Sign-offs by path and who can still sign have no client read.
+        ],
+    },
+    Holds {
+        name: "home-step-stock",
+        heading: "One thing was decided for you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Its membership-handoff goal is six of nine tasks in." },
+            Part::Named { role: Role::Paragraph, name: "Written by the status agent at 07:52" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Decided for you · 1" },
+            Part::Text { text: "Fixed the harness." },
+            Part::Absent { role: Role::Region, name: "Needs you" },
+        ],
+    },
+    Holds {
+        name: "home-step-scale",
+        heading: "One thing was decided for you.",
+        parts: &[
+            Part::HomeCards { primary: &["Only once caught up", "Release"], projects: &[] },
+            Part::Text { text: "49 of 60 used." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Decided for you · 1" },
+            // Owners' Nows and standing-role weekly budgets have no client read.
         ],
     },
     Holds {
@@ -3674,6 +3821,78 @@ fn each_state_holds_what_its_name_says() {
         let mut described = tree.nodes().iter();
         for part in row.parts {
             match part {
+                Part::Projects { rows } => {
+                    let region = descendants(tree, Role::Region, "Projects", sample.name);
+                    let actual: Vec<_> = region
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, node)| node.role == Role::Item)
+                        .map(|(start, node)| {
+                            let end = start + usize::try_from(node.size).expect("project span");
+                            let row = &region[start..end];
+                            let link = row.iter().find(|node| node.role == Role::Link).expect("project link");
+                            let health = row
+                                .iter()
+                                .position(|node| node.styles.as_slice().contains(&temper_client_view::look::CHIP))
+                                .expect("project health");
+                            let end = health + usize::try_from(row[health].size).expect("health span");
+                            let words: Vec<_> = row[health..end]
+                                .iter()
+                                .flat_map(|node| node.text.iter())
+                                .flat_map(|run| run.text.iter().copied())
+                                .collect();
+                            (
+                                String::from_utf8(link.name.as_deref().expect("project name").to_vec()).expect("UTF-8"),
+                                String::from_utf8(words).expect("UTF-8"),
+                            )
+                        })
+                        .collect();
+                    let expected: Vec<_> =
+                        rows.iter().map(|(name, health)| ((*name).to_owned(), (*health).to_owned())).collect();
+                    assert_eq!(actual, expected, "{}: projects and their health", sample.name);
+                }
+                Part::StyleCount { style, count } => {
+                    let actual = tree.nodes().iter().filter(|node| node.styles.as_slice().contains(style)).count();
+                    assert_eq!(actual, *count, "{}: {style:?} rows", sample.name);
+                }
+                Part::HomeCards { primary, projects } => {
+                    let nodes = tree.nodes();
+                    let cards: Vec<_> = nodes
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, node)| node.styles.as_slice().contains(&temper_client_view::look::NEED_CARD))
+                        .collect();
+                    assert_eq!(cards.len(), primary.len(), "{}: Home cards", sample.name);
+                    for (index, ((start, card), primary)) in cards.iter().zip(*primary).enumerate() {
+                        let end = start + usize::try_from(card.size).expect("card size");
+                        let card = &nodes[*start..end];
+                        if !projects.is_empty() {
+                            assert!(
+                                card.iter().any(|node| node
+                                    .text
+                                    .iter()
+                                    .any(|run| run.text.as_ref() == projects[index].as_bytes())),
+                                "{}: card {index} project",
+                                sample.name
+                            );
+                        }
+                        let acts = card
+                            .iter()
+                            .position(|node| node.styles.as_slice().contains(&temper_client_view::look::NEED_ACTS))
+                            .expect("card acts");
+                        let end = acts + usize::try_from(card[acts].size).expect("acts size");
+                        let first = card[acts..end]
+                            .iter()
+                            .find(|node| matches!(node.role, Role::Button | Role::Link))
+                            .expect("primary act");
+                        assert_eq!(
+                            first.name.as_deref(),
+                            Some(primary.as_bytes()),
+                            "{}: card {index} primary act",
+                            sample.name
+                        );
+                    }
+                }
                 Part::HowPath { you, agent, code, verify } => {
                     let table = descendants(tree, Role::Table, "The path of a change", sample.name);
                     for (lane, stop) in [("You", you), ("Agents", agent), ("Code", code)] {
@@ -3809,8 +4028,11 @@ fn each_state_holds_what_its_name_says() {
                     assert_eq!(&member.role, role, "{}: reader's role", sample.name);
                 }
                 Part::After { first, then } => {
+                    let nodes = tree.nodes();
+                    let start = nodes.iter().position(|node| node.role == Role::Main).expect("main");
+                    let end = start + usize::try_from(nodes[start].size).expect("main span");
                     let at = |style| {
-                        tree.nodes()
+                        nodes[start..end]
                             .iter()
                             .position(|node| node.styles.as_slice().contains(style))
                             .expect("ordered part")
