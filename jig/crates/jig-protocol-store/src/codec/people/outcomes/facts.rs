@@ -604,6 +604,7 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
         domain::Refusal::Unknown => wire::Refusal::Unknown,
         domain::Refusal::Provider => wire::Refusal::Provider,
         domain::Refusal::NotOffered => wire::Refusal::NotOffered,
+        domain::Refusal::ProgramNameReserved => wire::Refusal::ProgramNameReserved,
         domain::Refusal::KeyConflict => wire::Refusal::KeyConflict,
         domain::Refusal::NoEscalationHolder => wire::Refusal::NoEscalationHolder,
         domain::Refusal::Account { account, why } => wire::Refusal::Account(wire::RefusalAccount::new(
@@ -714,6 +715,7 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
         wire::Refusal::Unknown => domain::Refusal::Unknown,
         wire::Refusal::Provider => domain::Refusal::Provider,
         wire::Refusal::NotOffered => domain::Refusal::NotOffered,
+        wire::Refusal::ProgramNameReserved => domain::Refusal::ProgramNameReserved,
         wire::Refusal::KeyConflict => domain::Refusal::KeyConflict,
         wire::Refusal::NoEscalationHolder => domain::Refusal::NoEscalationHolder,
         wire::Refusal::Account(value) => {

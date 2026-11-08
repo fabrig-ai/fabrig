@@ -91,8 +91,11 @@ pub(crate) fn change(
                     out.push(Request::Answer { request, answer: Answer::ProgramDeclared { source, name: kept_name } });
                 }
                 Err(crate::programs::DeclarationRefusal::Account(refusal)) => refuse(request, refusal, out),
-                Err(crate::programs::DeclarationRefusal::Name | crate::programs::DeclarationRefusal::Issued) => {
+                Err(crate::programs::DeclarationRefusal::Name) => {
                     refuse(request, Refusal::Uses, out);
+                }
+                Err(crate::programs::DeclarationRefusal::Issued) => {
+                    refuse(request, Refusal::ProgramNameReserved, out);
                 }
                 Err(crate::programs::DeclarationRefusal::Names) => {
                     refuse(request, Refusal::Limit { bound: Bound::Sources }, out);

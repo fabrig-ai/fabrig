@@ -224,7 +224,11 @@ in a record of its own (3.7).
 - **A program source's name** is 1 to 32 characters of `a-z`, `0-9` and
   `-`, given by its holder as they declare it, unique in the deployment,
   never changed and never reused once removed. A durable reservation keeps
-  its source number, name and original holder after removal. Both shipped
+  its source number, name and original holder after removal. Declaring an
+  issued name refuses with `ProgramNameReserved`, distinct from an invalid
+  name, an unsupported provider and exhausted capacity, and writes nothing.
+  The client says that forgetting its account keeps the name reserved and
+  asks the holder to choose a never-used name. Both shipped
   profiles admit 12 lifetime names. Restoring an existing live source reserves
   its name before admitting changes; a conflicting reservation is a
   writer's bug, a link that cannot be made, and panics (engine.md,
