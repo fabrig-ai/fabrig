@@ -266,9 +266,9 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn home_limits() -> d::Limits {
     let mut limits = f::domain_limits();
-    // Home, goal presence, Goals, standing Needs, trials and a running trial task (README.md, 3.5).
-    limits.client.domain.handles = 17;
-    limits.client.domain.watches = 15;
+    // Home, stock ways, goal presence, Goals, standing Needs, trials and a running trial task (README.md, 3.5).
+    limits.client.domain.handles = 18;
+    limits.client.domain.watches = 16;
     limits.client.domain.reads = 16;
     limits
 }
