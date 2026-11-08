@@ -1704,23 +1704,16 @@ fn decisions_round_trip_and_refuse_trailing_bytes() {
 }
 
 #[test]
-fn away_requests_round_trip_and_validate_kinds() {
+fn away_requests_round_trip() {
     let limits = fixtures::limits();
-    for kinds in [0, 7, 15, 16, u8::MAX] {
-        for on in [false, true] {
-            for until in [None, Some(u64::MAX)] {
-                let value =
-                    v1::SetAway::new(&limits, v1::SetAwayParts { project: u32::MAX, on, until, kinds }).unwrap();
-                let request =
-                    v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::SetAway(value) }).unwrap();
-                let bytes = crate::requesting(&request);
-                if kinds > 15 {
-                    assert_eq!(crate::decode_requesting(&bytes, &limits), None);
-                } else {
-                    assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
-                    assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
-                }
-            }
+    for on in [false, true] {
+        for until in [None, Some(u64::MAX)] {
+            let value = v1::SetAway::new(&limits, v1::SetAwayParts { project: u32::MAX, on, until }).unwrap();
+            let request =
+                v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::SetAway(value) }).unwrap();
+            let bytes = crate::requesting(&request);
+            assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
+            assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
         }
     }
     let value = v1::Overturn::new(&limits, v1::OverturnParts { project: u32::MAX, number: u32::MAX }).unwrap();
@@ -1768,7 +1761,6 @@ fn aways_rows_are_bounded_at_construction_and_decode() {
             project: u32::MAX,
             since: u64::MAX,
             until: Some(u64::MAX),
-            kinds: 15,
             landed: u64::MAX,
             off: Some(u64::MAX),
         },
@@ -1814,13 +1806,26 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
             took: Box::new([b't'; 120]),
             why: Box::new([b'w'; 400]),
             overturned: true,
+            reach: v1::Reach::new(
+                &v1::CEILINGS,
+                v1::ReachParts {
+                    kind: v1::ReachKind::Wording,
+                    class: v1::ReachClass::Decide,
+                    reason: v1::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
+            )
+            .unwrap(),
         },
     )
     .unwrap();
-    for count in [0, 64, 64 + 1] {
+    for count in [0, 128, 128 + 1] {
         let mut rows = List::with_capacity(count);
         let mut writer =
-            skein_lib::Writer::new(10 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
+            skein_lib::Writer::new(15 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
         writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
         writer.put(&u32::MAX.to_be_bytes()).unwrap();
         writer.put(&count.to_be_bytes()).unwrap();
@@ -1828,9 +1833,14 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
             rows.push(row.clone()).unwrap();
             row.encode(&mut writer).unwrap();
         }
+        writer.put(&0_u32.to_be_bytes()).unwrap();
+        writer.put(&[0]).unwrap();
         let bytes = writer.finish();
-        let made = v1::Decisions::new(&limits, v1::DecisionsParts { project: u32::MAX, rows });
-        if count > 64 {
+        let made = v1::Decisions::new(
+            &limits,
+            v1::DecisionsParts { project: u32::MAX, rows, asked: List::with_capacity(0), cut: false },
+        );
+        if count > 128 {
             assert_eq!(
                 made.unwrap_err(),
                 v1::Problem { path: v1::Path::DecisionsRows, reason: skein_codec::Reason::Bound }

@@ -2186,7 +2186,7 @@ pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_doma
                 Some(wall) => Some(wall.as_nanos()),
                 None => None,
             },
-            kinds: 7,
+
             landed: 0,
             off: match off {
                 Some(wall) => Some(wall.as_nanos()),

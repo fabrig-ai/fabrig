@@ -542,7 +542,7 @@ fn proposed(
 fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
-        CallAnswer::Decided { took: choice } => {
+        CallAnswer::Decided { took: choice, .. } => {
             match choice {
                 Some(words) => {
                     text.add(b"Decided: carry on with ")?;

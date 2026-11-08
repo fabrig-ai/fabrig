@@ -101,7 +101,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
-        w::Value::Away(row) => d::Stored::Away(away::decode_away(row)?),
+        w::Value::Away(row) => d::Stored::Away(away::decode_away(row)),
         w::Value::Decided(row) => d::Stored::Decided(away::decode_decided(row)?),
         w::Value::Looked(row) => d::Stored::Looked(status::decode_looked(row)),
         w::Value::Making(row) => d::Stored::Making(making::decode(row)),

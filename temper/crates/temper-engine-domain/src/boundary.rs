@@ -577,7 +577,7 @@ pub enum Application {
     Try { account: u32, again: bool },
     Dismiss { what: forge::PersonFact },
     Looked { project: u32 },
-    SetAway { project: u32, on: bool, until: Option<Wall>, kinds: u8 },
+    SetAway { project: u32, on: bool, until: Option<Wall> },
     Overturn { project: u32, number: u32 },
 }
 /// The family's terminal answer (client/README.md, 4.6).

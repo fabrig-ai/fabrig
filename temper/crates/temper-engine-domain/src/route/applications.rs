@@ -120,16 +120,8 @@ pub(super) fn admitted(
                 .expect("one marker per retained key");
             finished(domain, request, Ok(token));
         }
-        Application::SetAway { project, on, until, kinds } => {
-            domain.work.push(Work::Forge(forge::Event::SetAway {
-                request,
-                token,
-                party: person,
-                project,
-                on,
-                until,
-                kinds,
-            }));
+        Application::SetAway { project, on, until } => {
+            domain.work.push(Work::Forge(forge::Event::SetAway { request, token, party: person, project, on, until }));
         }
         Application::Overturn { project, number } => {
             domain.work.push(Work::Forge(forge::Event::Overturn { request, token, party: person, project, number }));

@@ -1844,7 +1844,6 @@ fn away_row(present: bool, party: u64, project: u32, at: u64) -> forge::Away {
         project,
         since: skein_lib::Wall::from_nanos(at),
         until: present.then_some(skein_lib::Wall::from_nanos(at)),
-        kinds: 15,
         landed: at,
         off: None,
     }
@@ -1862,9 +1861,18 @@ fn decided_row(count: usize, at: u64) -> forge::Decided {
         at: skein_lib::Wall::from_nanos(at),
         question: Box::from([b'q'; forge::DECIDED_QUESTION_BYTES]),
         options: options.into_boxed(),
-        took: u8::try_from(count.checked_sub(1).unwrap()).unwrap(),
+        took: Some(u8::try_from(count.checked_sub(1).unwrap()).unwrap()),
         why: Box::from([b'w'; forge::DECIDED_WHY_BYTES]),
         overturned: false,
+        reach: temper_protocol_reaches::Reach {
+            kind: temper_protocol_reaches::Kind::Wording,
+            class: temper_protocol_reaches::Class::Decide,
+            reason: temper_protocol_reaches::Reason::Kind,
+            under: 0,
+            sets: 0,
+            matched: 0,
+            away: false,
+        },
     }
 }
 #[test]
@@ -1874,9 +1882,16 @@ fn away_and_decided_rows_round_trip_their_options_and_bounds() {
         for until in [false, true] {
             for off in [None, Some(skein_lib::Wall::from_nanos(at))] {
                 let away = forge::Stored::Away(forge::Away { off, ..away_row(until, at, u32::MAX, at) });
-                for count in [2, 6] {
+                for count in [0, 2, 6] {
                     for overturned in [false, true] {
-                        let decided = forge::Stored::Decided(forge::Decided { overturned, ..decided_row(count, at) });
+                        let mut row = decided_row(count.max(2), at);
+                        if count == 0 {
+                            row.took = None;
+                            row.options = Box::new([]);
+                            row.why = Box::new([]);
+                        }
+                        row.overturned = overturned && count != 0;
+                        let decided = forge::Stored::Decided(row);
                         for row in [away.clone(), decided] {
                             let bytes = records::encode(&row);
                             let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
@@ -1889,7 +1904,7 @@ fn away_and_decided_rows_round_trip_their_options_and_bounds() {
     }
 }
 #[test]
-fn rows_refuse_invalid_bits_options_and_keys() {
+fn rows_refuse_invalid_options_and_keys() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for row in [
         forge::Stored::Forge(forge::ForgeRecord {
@@ -1900,9 +1915,8 @@ fn rows_refuse_invalid_bits_options_and_keys() {
             person: Some(forge::Link { user: 71, person: 0 }),
             ..fixtures::forge_record()
         }),
-        forge::Stored::Away(forge::Away { kinds: 16, ..away_row(false, 7, 1, 0) }),
         forge::Stored::Decided(decided_row(1, 0)),
-        forge::Stored::Decided(forge::Decided { took: 2, ..decided_row(2, 0) }),
+        forge::Stored::Decided(forge::Decided { took: Some(2), ..decided_row(2, 0) }),
     ] {
         assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable));
     }

@@ -4489,8 +4489,8 @@ pub(crate) fn outputs(
             forge::Request::LinkNoted { forge, note } => {
                 super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
             }
-            forge::Request::Decided { to, key, took } => {
-                decide_call(domain, &env.limits, decision, to, core_call(key), CallAnswer::Decided { took });
+            forge::Request::Decided { to, key, took, reach } => {
+                decide_call(domain, &env.limits, decision, to, core_call(key), CallAnswer::Decided { took, reach });
             }
 
             forge::Request::MakingCopied { key } => {

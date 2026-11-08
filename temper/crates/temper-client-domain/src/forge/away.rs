@@ -5,14 +5,11 @@ use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as
 use skein_lib::{List, Queue, Wall};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
-pub const DEFAULT_KINDS: u8 = 7;
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct AwayRow {
     pub project: u32,
     pub since: Wall,
     pub until: Option<Wall>,
-    pub kinds: u8,
     pub landed: u64,
     pub off: Option<Wall>,
 }
@@ -78,13 +75,13 @@ pub fn watch(limits: &Limits) -> Option<Watchable> {
 
 /// Set the project's Away row in the project's scope.
 #[must_use]
-pub fn ask(project: u32, on: bool, until: Option<Wall>, kinds: u8, limits: &Limits) -> Option<Ask> {
+pub fn ask(project: u32, on: bool, until: Option<Wall>, limits: &Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
     let until = match until {
         Some(wall) => Some(wall.as_nanos()),
         None => None,
     };
-    let value = w::SetAway::new(&bounds, w::SetAwayParts { project, on, until, kinds }).ok()?;
+    let value = w::SetAway::new(&bounds, w::SetAwayParts { project, on, until }).ok()?;
     let record = w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::SetAway(value) }).ok()?;
     Some(Ask::Family {
         scope: c::Scope::Project(project),
@@ -202,15 +199,8 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[AwayRow]>> {
             Some(wall) => Some(Wall::from_nanos(wall)),
             None => None,
         };
-        rows.push(AwayRow {
-            project: row.project,
-            since: Wall::from_nanos(row.since),
-            until,
-            kinds: row.kinds,
-            landed: row.landed,
-            off,
-        })
-        .expect("wire bounds Away rows");
+        rows.push(AwayRow { project: row.project, since: Wall::from_nanos(row.since), until, landed: row.landed, off })
+            .expect("wire bounds Away rows");
     }
     Some(rows.into_boxed())
 }

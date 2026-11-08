@@ -353,12 +353,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 - **Not yet:** 5.5: no person's fact `KeepAsking`
   (`ui-reaches/keep-asking`).
 
-- **Not yet:** 5.8, 5.9: `Away` keeps `kinds` and `SetAway` carries them;
-  `decided` is judged by those bits, not by the project's classes; a call
-  writes a row only when decided, with no reach; a project keeps 64 rows,
-  the oldest erased whatever its age, by no limit; the document has no
-  `asked` and no `cut` (`ui-reaches/decide-forge`).
-
 - **Not yet:** 5.9: the root finds a person for a goal alone, a tracked
   task, and answers a goal whose words say `Asks: always` itself, handing
   the forge no `always` (`ui-reaches/decide-root`).
