@@ -311,6 +311,47 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
             print: "A model · high",
         },
         Row {
+            name: "roles",
+            shown: Shown::Drawn(Box::new(w::View::Roles(
+                w::RolesView::new(
+                    &w::CEILINGS,
+                    w::RolesViewParts {
+                        roles: List::from_boxed(Box::new([
+                            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 1, card: card() })
+                                .unwrap(),
+                            w::CharterView::new(
+                                &w::CEILINGS,
+                                w::CharterViewParts {
+                                    charter: 9,
+                                    card: w::Card::new(
+                                        &w::CEILINGS,
+                                        w::CardParts {
+                                            name: b"Status agent".as_slice().into(),
+                                            who: b"When you look at Home after landings".as_slice().into(),
+                                            facts: List::from_boxed(Box::new([w::Fact::new(
+                                                &w::CEILINGS,
+                                                w::FactParts {
+                                                    label: b"Can".as_slice().into(),
+                                                    value: b"read the facts in its task; never merge".as_slice().into(),
+                                                },
+                                            )
+                                            .unwrap()])),
+                                        },
+                                    )
+                                    .unwrap(),
+                                },
+                            )
+                            .unwrap(),
+                        ])),
+                    },
+                )
+                .unwrap(),
+            ))),
+            groups: &[b"The coding agent", b"Status agent"],
+            labels: &[],
+            print: "read the facts in its task; never merge",
+        },
+        Row {
             name: "rule",
             shown: Shown::Drawn(Box::new(w::View::Rule(
                 w::RuleView::new(
@@ -376,6 +417,12 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
                 assert!(tree.nodes().iter().enumerate().any(|(i, n)| n.styles.as_slice() == [look::VIEW_MUTED]
                     && f::node_text(&tree, i).as_ref() == b"Agents make the change."));
                 assert_eq!(f::text(&tree).windows(b"now".len()).any(|s| s == b"now"), row.name == "way");
+            }
+            if row.name == "roles" {
+                let text = f::text(&tree);
+                let first = skein_lib::bytes::find(&text, b"The coding agent").unwrap();
+                let last = skein_lib::bytes::find(&text, b"Status agent").unwrap();
+                assert!(first < last);
             }
             if row.name == "charter" {
                 assert!(f::find(&tree, Role::Heading { level: 3 }, b"The coding agent").is_some());

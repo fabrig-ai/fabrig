@@ -157,8 +157,9 @@ record WayView { name: text 64 line: text 256 path: BranchPath current: bool }
 record ProposalView { before: BranchPath after: BranchPath }
 record CharterView { charter: u32 card: Card }
 record RuleView { kind: u32 number: u32 card: Card }
+record RolesView { roles: list 16 CharterView }
 record NotDrawn { words: text 512 }
-enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, not_drawn: NotDrawn }
+enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, roles: RolesView, not_drawn: NotDrawn }
 versioned record ViewAnswer { view: View }
 
 enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead }

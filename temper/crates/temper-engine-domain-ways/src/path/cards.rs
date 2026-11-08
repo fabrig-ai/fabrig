@@ -42,39 +42,45 @@ pub(super) fn agent_card(inputs: &Inputs, charter: u32, who: &[u8], name: &[u8])
         if agent.charter != charter {
             continue;
         }
-        let mut model = List::uncapped();
-        if let Some(value) = &agent.model {
-            append(&mut model, value);
-        }
-        if let Some(value) = &agent.effort {
-            if !model.is_empty() {
-                append(&mut model, " · ".as_bytes());
-            }
-            append(&mut model, value);
-        }
-        if agent.model.is_none() && agent.effort.is_none() {
-            append(&mut model, b"no model");
-        }
-        if !agent.usable {
-            append(&mut model, " · no account runs it now".as_bytes());
-        }
-        let asked = bytes::concat(&[
-            "“".as_bytes(),
-            &cut_on_word(&agent.asked, ASKED.checked_sub("“”".len()).expect("quote room")),
-            "”".as_bytes(),
-        ]);
-        return card(
-            who,
-            name,
-            Box::new([
-                fact(b"Model", model.as_slice()),
-                fact(b"Can", &agent.can),
-                Fact { label: text(b"Asked to", LABEL), value: asked },
-            ]),
-        );
+        return role_card(agent, who, name);
     }
     let value = bytes::concat(&[b"charter ", &number(charter)]);
     card(who, name, Box::new([fact(b"Charter", &value)]))
+}
+
+/// An agent’s role facts (temper/docs/design/domain/forge.md, 8.13).
+#[must_use]
+pub fn role_card(agent: &super::Agent, who: &[u8], name: &[u8]) -> Card {
+    let mut model = List::uncapped();
+    if let Some(value) = &agent.model {
+        append(&mut model, value);
+    }
+    if let Some(value) = &agent.effort {
+        if !model.is_empty() {
+            append(&mut model, " · ".as_bytes());
+        }
+        append(&mut model, value);
+    }
+    if agent.model.is_none() && agent.effort.is_none() {
+        append(&mut model, b"no model");
+    }
+    if !agent.usable {
+        append(&mut model, " · no account runs it now".as_bytes());
+    }
+    let asked = bytes::concat(&[
+        "“".as_bytes(),
+        &cut_on_word(&agent.asked, ASKED.checked_sub("“”".len()).expect("quote room")),
+        "”".as_bytes(),
+    ]);
+    card(
+        who,
+        name,
+        Box::new([
+            fact(b"Model", model.as_slice()),
+            fact(b"Can", &agent.can),
+            Fact { label: text(b"Asked to", LABEL), value: asked },
+        ]),
+    )
 }
 
 pub(super) fn append(out: &mut List<u8>, value: &[u8]) {
