@@ -9,7 +9,11 @@ and `containment: trees` are not built (`domain/README.md`,
 `protocol/agent.md`, `protocol/events.md`, `protocol/hosts.md`,
 `testing.md`). Beside it: live content in one process and a grant
 refreshed while a chat starts (`domain/host.md`), messages mid-work
-and threshold notes (`domain/run.md`), what a program offers read
+and threshold notes (`domain/run.md`), a burst of sub-agents past a
+run's room answered call by call (`domain/run.md`,
+`protocol/limits.md`), a failed agent's panic message kept in its
+detail (`domain/host.md`), an agent's programs dying with it
+(`protocol/programs.md`, `shell.md`), what a program offers read
 from its `system/init` and a live run on Claude Code 2.1.312
 (`protocol/programs.md`), whether the live refresh story passes on a
 main holding it (`testing.md`), the `--account` flag (`shell.md`,

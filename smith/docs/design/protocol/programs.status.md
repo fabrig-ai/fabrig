@@ -20,6 +20,10 @@ fake status supplies it; this does not establish a real-login render check.
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
   7.3; this is a design gap, not an absent implementation.
 
+- **Not yet:** 2, 5.1: each program process started to die with its
+  agent. The agent spawns `claude` directly, in a group of its own with
+  no parent-death signal (`smith-protocol-program/src/backend/start.rs`),
+  so an agent that aborts leaves it and its relay running.
 - **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`
   (`smith-protocol-program/src/backend/stream.rs`) checks its tools and
