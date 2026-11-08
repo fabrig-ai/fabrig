@@ -14,6 +14,8 @@ use smith_protocol_llm::{self as protocol, ToDomain};
 pub(super) const SETTINGS: &[u8] =
     br#"{"permissions":{"allow":["mcp__smith"],"ask":["Read","Glob","Grep","Write","Edit","Bash"]}}"#;
 
+const UNASKED: &[u8] = b"smith: a private file answer the program did not ask for";
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Step {
     Runs,
@@ -322,7 +324,10 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let step = self.files.pending.take().expect("one pending private file request");
+        let Some(step) = self.files.pending.take() else {
+            self.unasked(env, up, below);
+            return;
+        };
         let success = self.files.accept(step, event, descriptor);
         if self.startup.phase() == State::Ending {
             if success && step == Step::CloseRoot {
@@ -408,6 +413,20 @@ impl Backend {
             | Step::RemoveRun
             | Step::CloseRuns
             | Step::CloseRoot => {}
+        }
+    }
+
+    pub(super) fn unasked(
+        &mut self,
+        env: &Env<protocol::ComponentLimits>,
+        up: &mut Queue<ToDomain>,
+        below: &mut Queue<Below>,
+    ) {
+        match self.startup.phase() {
+            State::Ending | State::Ended => {}
+            State::Idle | State::Checking | State::Starting | State::Running => {
+                self.fail(env, llm::Failure::Program { exit: None }, UNASKED, up, below);
+            }
         }
     }
 

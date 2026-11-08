@@ -833,6 +833,7 @@ fn a_whole_native_read_snapshots_before_allow() {
     native_load(&mut backend, &mut below);
     let mut up = Queue::with_capacity(32);
     backend.native_event(
+        &env(0),
         file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"file bytes".as_slice().into() },
         &mut up,
         &mut below,
@@ -872,6 +873,7 @@ fn native_writes_and_edits_snapshot_after_their_results_including_errors() {
             assert!(up.is_empty(), "result waits for snapshot");
             native_load(&mut backend, &mut below);
             backend.native_event(
+                &env(0),
                 file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"stored bytes".as_slice().into() },
                 &mut up,
                 &mut below,
@@ -891,6 +893,7 @@ const SNAPSHOT_ERRORS: [kernel::Error; 3] =
 fn fail_native_load(backend: &mut Backend, failure: kernel::Error, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
     native_load(backend, below);
     backend.native_event(
+        &env(0),
         file::Event::Failed { owner: backend.token(Owner::Native), error: failure, committed: false, residue: None },
         up,
         below,
@@ -912,6 +915,7 @@ fn failed_native_read_snapshots_preserve_allow() {
     native_load(&mut backend, &mut below);
     let mut up = Queue::with_capacity(32);
     backend.native_event(
+        &env(0),
         file::Event::TooLarge { owner: backend.token(Owner::Native), size: OVERSIZED_FILE_BYTES },
         &mut up,
         &mut below,
@@ -984,6 +988,7 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
     assert!(up.is_empty());
     native_load(&mut backend, &mut below);
     backend.native_event(
+        &env(0),
         file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"first version".as_slice().into() },
         &mut up,
         &mut below,
@@ -993,6 +998,7 @@ fn queued_native_snapshots_keep_result_order_and_message_owners() {
     assert!(up.is_empty(), "the second result waits behind its own snapshot");
     native_load(&mut backend, &mut below);
     backend.native_event(
+        &env(0),
         file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"second version".as_slice().into() },
         &mut up,
         &mut below,
@@ -1185,6 +1191,7 @@ fn several_native_reads_in_one_turn_allow_read_only_reviewer_mounts() {
         native_prompt(&mut backend, &index.to_string(), "Read", input.clone(), &mut below);
         assert!(backend.native.is_some(), "whole reads snapshot before allow");
         backend.native_event(
+            &env(0),
             file::Event::Loaded { owner: backend.token(Owner::Native), bytes: b"review text".as_slice().into() },
             &mut up,
             &mut below,
