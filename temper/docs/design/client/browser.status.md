@@ -11,8 +11,6 @@
   finding and fixing the cause (`skein/docs/foundation/testing-strategy.md`,
   8.1, question 2); only if that fails do measurements go to the user.
 
-- **Not yet:** 7.1, *A path printed for both widths*: the gallery prints each path once, across at 720, which a page 420 wide squeezes to 75 pixels high (`look-round-24`, `gallery-narrow`).
-
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day
