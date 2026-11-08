@@ -136,3 +136,15 @@ Resolve both conflicts by preserving both tasks’ deletions:
 Keep covered-entries’ earlier gap deletions intact.
 This supersedes the previous Rebase instruction to retain the section 8 and 5.5 gaps: start-refusals has now closed them.
 Preserve finish-parks’ implementation and integration’s refused-start changes; limit the conflict repair to these status overlaps.
+
+## Rebase (2026-11-08, step merge, foreman wake-faults/finish-parks/foreman-3)
+
+rebase and combine finish-parks’ status deletions with late-reasons’ deletions
+The merge conflicts are in `jig/docs/design/domain/engine.status.md` and `jig/docs/design/domain/tasks.status.md`.
+Integration commit `6cd7312f86` (`Refresh prepared runs when arrivals add wake reasons`) deletes adjacent preparation-to-claim gaps.
+Resolve both conflicts by preserving both tasks’ deletions:
+- In `engine.status.md`, remove the entire **Not yet** entry containing the 7.1 preparation-to-claim gap and 7.4 live-delegate finish gap. Retain 17.12 and subsequent entries.
+- In `tasks.status.md`, remove both the 5.6 live-delegate finish gap and the 8.6 preparation-to-claim message gap. Start the remaining **Not yet** paragraph at 5.9; retain subsequent entries.
+This supersedes the previous Rebase instructions to retain the 7.1 and separate 8.6 gaps: late-reasons has now closed them.
+Keep covered-entries’ and start-refusals’ earlier deletions intact.
+Preserve both tasks’ implementations; limit the conflict repair to these status overlaps.
