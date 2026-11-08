@@ -135,7 +135,11 @@ impl Case {
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                     let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
                         w::Watch::Forges => wire::forges(
-                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: forges(self.repository) }).unwrap(),
+                            &w::Forges::new(
+                                &w::CEILINGS,
+                                w::ForgesParts { forges: forges(self.repository), linked: false },
+                            )
+                            .unwrap(),
                         ),
                         w::Watch::Dismissed => {
                             let mut dismissed = List::with_capacity(wire::DISMISSED);

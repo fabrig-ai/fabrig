@@ -272,6 +272,12 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
 }
 #[must_use]
 pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Row]>> {
+    let (rows, _) = forges_document(bytes, limits)?;
+    Some(rows)
+}
+/// The forge rows and whether the printed link signed in (client/README.md, 4.6).
+#[must_use]
+pub fn forges_document(bytes: &[u8], limits: &w::Limits) -> Option<(Box<[forge::forges::Row]>, bool)> {
     use forge::forges::{Kind, Mode, Offer, Row};
     let record = wire::decode_forges(bytes, limits)?.into_parts();
     let mut rows = List::with_capacity(record.forges.len());
@@ -349,7 +355,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
         })
         .ok()?;
     }
-    Some(rows.into_boxed())
+    Some((rows.into_boxed(), record.linked))
 }
 
 fn installations_from(values: List<w::Installation>) -> Option<Box<[forge::forges::Installation]>> {

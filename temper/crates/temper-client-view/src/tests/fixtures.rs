@@ -447,6 +447,8 @@ pub(super) fn root_at_with_values(
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Models { .. }
         | temper_client_domain::Address::Builders { .. }
+        | temper_client_domain::Address::Role { .. }
+        | temper_client_domain::Address::Rule { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
         | temper_client_domain::Address::Ask { .. }
@@ -613,7 +615,7 @@ pub(super) fn root_at_with_values(
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                             ),
                         },
                     },
@@ -2308,7 +2310,7 @@ impl ReadPage {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                             ),
                         },
                     });

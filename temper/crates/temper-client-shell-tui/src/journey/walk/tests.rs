@@ -88,6 +88,7 @@ impl World {
             background: None,
             boxed: false,
             address: b"127.0.0.1:8367".as_slice().into(),
+            front: false,
             local: false,
             note: None,
             kept: Vec::new(),

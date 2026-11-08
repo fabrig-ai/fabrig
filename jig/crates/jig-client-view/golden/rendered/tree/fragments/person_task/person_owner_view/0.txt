@@ -43,11 +43,10 @@ Person task:
         Project role 4294967295
       Ended at 01:00
       Task 103: source title:
-        Task 103: source title:
-          [5] Task 103: source title
-          Title is incomplete
-          Agent charter 4294967295
-          Project role 4294967295
+        [5] Task 103: source title
+        Title is incomplete
+        Agent charter 4294967295
+        Project role 4294967295
         Completed
         Completion time not supplied
         Result owner details:
@@ -71,11 +70,10 @@ Person task:
     - Stored task 105
       Cancelled
       Task 105: source title:
-        Task 105: source title:
-          [6] Task 105: source title
-          Title is incomplete
-          Agent charter 4294967295
-          Project role 4294967295
+        [6] Task 105: source title
+        Title is incomplete
+        Agent charter 4294967295
+        Project role 4294967295
         Completed
         Completion time not supplied
         Result owner details:

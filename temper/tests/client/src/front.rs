@@ -295,7 +295,11 @@ impl Joint {
     }
 
     pub fn finish_playground_reset(&mut self) {
-        self.callbacks.append(&mut self.held_playground_end);
+        if !self.held_playground_end.is_empty() {
+            self.playground = None;
+            self.callbacks.append(&mut self.held_playground_end);
+            self.publish_playground_forges();
+        }
     }
     /// Hold the next playground read's encoded answer, including its original client and read token.
     /// Arming again lets a story hold a newer answer behind the older one.
@@ -588,7 +592,15 @@ impl Joint {
         joint
     }
 
-    fn offer_printed_link(&mut self, limits: client::Limits) {
+    /// Replaces the fixture's client component, ending its setup clients first.
+    pub(crate) fn offer_printed_link(&mut self, limits: client::Limits) {
+        for who in self.transport.clients() {
+            if let Some(sign_in) = self.transport.sign_in(who) {
+                self.component.sign_out(who, sign_in);
+                self.pump_component();
+            }
+            self.detach(who);
+        }
         self.component = crate::component::Composition::with_printed_link(
             &walking::config(self.seed),
             limits.client.domain,
@@ -1648,7 +1660,9 @@ impl Joint {
             {
                 let outcome = if ending {
                     self.playground_ends.push(*key);
-                    self.playground = None;
+                    if !self.hold_playground_end {
+                        self.playground = None;
+                    }
                     w::Outcome::Reset
                 } else {
                     self.playground_starts.push(*key);
@@ -1962,10 +1976,15 @@ impl Joint {
         self.pump_component();
     }
     fn pump_component(&mut self) {
+        self.component.playground.clone_from(&self.playground);
         loop {
             let packets = self.component.pump(&mut self.transport);
             let events = self.component.effects();
-            let active = !events.is_empty();
+            let linked_changed = self.component.take_linked_changed();
+            if linked_changed {
+                self.engine.root.mark_forges();
+            }
+            let active = linked_changed || !events.is_empty();
             for event in events {
                 self.send(event);
             }
@@ -1994,34 +2013,28 @@ impl Joint {
         }
     }
     fn publish_playground_forges(&mut self) {
-        use jig_client_kit::joint::transport::Watched;
-        use jig_client_test_domain::family::{Kind, Scope, Subject};
-        for watcher in self.transport.watches() {
-            if matches!(
-                self.transport.watch(watcher).map(|route| &route.subject),
-                Some(Watched::Application {
-                    subject: Subject { scope: Scope::Deployment, kind: Kind::Deployment },
-                    ..
-                })
-            ) {
-                self.packet(engine::Request::Party(engine::PartyRequest::Deliver(engine::Delivery::Forges {
-                    watcher,
-                    forges: self.engine.root.forges(),
-                })));
-            }
-        }
+        self.engine.root.mark_forges();
+        self.drain();
     }
     fn playground_forges(&self, event: &mut RootEvent) {
-        use temper_client_protocol_wire::{self as wire, v1 as w};
-        let Some(playground) = &self.playground else { return };
         let RootEvent::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { record, .. } } } =
             event
         else {
             return;
         };
-        let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
+        Self::with_playground_forges(&mut record.bytes, self.playground.as_ref());
+    }
+    pub(crate) fn with_playground_forges(
+        bytes: &mut Box<[u8]>,
+        playground: Option<&temper_client_protocol_wire::v1::PlaygroundAnswer>,
+    ) {
+        use temper_client_protocol_wire::{self as wire, v1 as w};
+        let Some(playground) = playground else { return };
+        let Some(rows) = wire::decode_forges(bytes, &w::CEILINGS) else { return };
+        let rows = rows.into_parts();
+        let linked = rows.linked;
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
-        for row in rows.into_parts().forges.into_boxed() {
+        for row in rows.forges.into_boxed() {
             // A change story can use the engine's fake stand as its playground forge.
             if row.number() != playground.forge() {
                 forges.push(row).expect("scripted deployment row");
@@ -2063,7 +2076,8 @@ impl Joint {
                 .expect("scripted playground forge"),
             )
             .expect("playground row fits");
-        record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("scripted forges"));
+        *bytes =
+            wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked }).expect("scripted forges"));
     }
     // Runtime records have no host-supplied version or password until the setup host reports them.
     fn host_forges(event: &mut RootEvent) {
@@ -2074,8 +2088,10 @@ impl Joint {
             return;
         };
         let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
+        let rows = rows.into_parts();
+        let linked = rows.linked;
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
-        for row in rows.into_parts().forges.into_boxed() {
+        for row in rows.forges.into_boxed() {
             let mut parts = row.into_parts();
             if parts.owned.as_ref().is_some_and(|owned| {
                 owned.forgejo().is_empty() && owned.runner().is_none() && owned.password().is_empty()
@@ -2084,7 +2100,8 @@ impl Joint {
             }
             forges.push(w::ForgeRow::new(&w::CEILINGS, parts).expect("host forge row")).expect("bounded forge rows");
         }
-        record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("host forges"));
+        record.bytes =
+            wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked }).expect("host forges"));
     }
     fn callback(&mut self, client: ClientId, mut event: RootEvent) {
         Self::host_forges(&mut event);
@@ -2141,6 +2158,7 @@ impl Joint {
         }
     }
     fn packet(&mut self, request: engine::Request) {
+        self.component.playground.clone_from(&self.playground);
         self.component.incoming(&mut self.transport, request);
         self.pump_component();
     }

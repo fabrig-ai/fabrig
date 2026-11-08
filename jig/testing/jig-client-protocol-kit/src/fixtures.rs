@@ -63,6 +63,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
         addresses: Box::new([]),
         link: Some(identity(FIRST_OWNER)),
         link_secret: None,
+        local_secret: None,
         approval: false,
         deployment_provider: 2,
         heartbeat: Duration::from_millis(50),

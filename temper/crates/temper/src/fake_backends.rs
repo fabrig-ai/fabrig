@@ -83,7 +83,12 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
     }
     Ok(bundle)
 }
-pub(crate) fn run(source: &Directories, bundle: Option<&Path>, echo: temper_box::host::Echo) -> Result<Exit, String> {
+pub(crate) fn run(
+    source: &Directories,
+    bundle: Option<&Path>,
+    echo: temper_box::host::Echo,
+    no_tui: bool,
+) -> Result<Exit, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     let adapter = sibling(&binary)?;
     let chosen = std::env::var_os(CHOSEN_PORTS).as_deref().map(chosen_ports).transpose()?;
@@ -100,6 +105,7 @@ pub(crate) fn run(source: &Directories, bundle: Option<&Path>, echo: temper_box:
         std::mem::take(&mut listeners.0),
         first,
         echo,
+        no_tui,
         opening,
     );
     drop(lock);
