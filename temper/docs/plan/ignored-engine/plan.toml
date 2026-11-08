@@ -23,3 +23,42 @@ id = 1
 story = "A landing rule and the forge's charter changed then restored, a deleted project's rule left out, replaced rows forgotten, and each kind restored through ctl, all in the focused suite"
 parts = ["restore"]
 walk = false
+
+[[part]]
+id = "change-panel"
+title = "The engine-domain world's three panel stories commit their changes to existing records through the product's events; a change's priority moves with its goal's"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.8"
+
+[[slice]]
+id = 2
+story = "A watched change's own saved record, a change moving ahead by its goal's priority, and a change leaving its queue and coming back each refresh the panels they mark"
+parts = ["change-panel"]
+walk = false
+
+[[part]]
+id = "forge-routes"
+title = "Three forge-route stories run again: a goal's two changes into its branch, a held goal landing released, a change joined by its dependency"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 11.1"
+
+[[slice]]
+id = 3
+story = "A goal's two changes land into its branch one after the other, its held landing lands after a change into the branch, and a change made with a dependency joins its landing before production ends"
+parts = ["forge-routes"]
+walk = false
+
+[[part]]
+id = "github-joint"
+title = "The GitHub joint's two landing stories run again, given a cut after an applied merge and a ruleset on main"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/forge.md, 10"
+
+[[slice]]
+id = 4
+story = "On the GitHub joint, a restart after an applied merge before its confirming read never merges twice, and a ruleset asking an approval refuses the merge and holds the change"
+parts = ["github-joint"]
+walk = false
