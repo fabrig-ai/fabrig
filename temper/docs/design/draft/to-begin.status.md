@@ -5,6 +5,11 @@
 - **Design lags:**
   - 3: step 1, "a setting the project reads holds a change": `../client/README.md`, 3.5 marks it done by any line of the `settings` document that follows a change, another project's own policy among them, and `temper-client-domain`'s `pages/home.rs`, `configured`, reads no line's setting.
 - **Design departs:**
+  - 1, 2: Needs you and Chats with content while To begin shows:
+    `../client/README.md`, 3.5 leaves both sections out until the card
+    goes, even with a chat started elsewhere, by the user's later look
+    request `to-begin-two-steps`, 2026-11-07. The code still draws
+    nonempty sections; that gap is `../client/README.status.md`, 3.5's.
   - 3: the repository step's "Adopt a repository": `../client/README.md`, 3.5: on an owned or managed Forgejo with none to adopt it is "Add a repository", with "Make an empty one" and "Copy a public one", and it says each copy while they run (the request of ui-welcome, 2026-11-05).
   - 3: "as the chats page's offer does": `../client/README.md`, 3.5: the Chats page has no offer, nor has Settings; Home's first step keeps its own, and the rail's "Ask temper" is the way in; the user's request `ui-chats`, 2026-11-05, and `ask-temper.md`, section 9 (the user, 2026-11-07).
   - 2: "Connected and the landing's line wait for "To begin" to go": `../client/README.md`, 3.5: Home has no Connected at all, the user's decision in the look request `home-drops-connected`; the landing's line waits for To begin to go, as here.

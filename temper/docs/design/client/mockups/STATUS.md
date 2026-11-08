@@ -94,8 +94,10 @@ Where the client does otherwise:
   numbers and "Done.". Connected is absent on every Home; rename stays
   in the switcher; Forges, Accounts and Models are in Settings. Models has
   the offered list, picker switches and adding by name (`../README.md`, 3.5).
-  The empty Needs you and Chats sections are left out while To begin shows; a need or chat
-  appears under it once present. Skip hides the card at once and is
+  The empty Needs you and Chats sections are left out while To begin shows;
+  a need or chat appears under it once present. This remains a gap from
+  `to-begin-two-steps`, which asks both sections to stay out even with
+  content (`../README.status.md`, 3.5). Skip hides the card at once and is
   kept per person and project across devices; refused or lost, the
   card returns with "temper couldn't keep that. Try Skip again."
   below the note. Skipped or with every step done, Home's headline
