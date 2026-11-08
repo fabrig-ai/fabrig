@@ -52,6 +52,7 @@ impl Stand {
             deployment_provider: 2,
             link: None,
             link_secret: None,
+            local_secret: None,
             approval: false,
             heartbeat: config.clients.heartbeat,
             rows: 32,

@@ -1,0 +1,24 @@
+╭─ temper · Demo ─────────────────────────────────────────── playground · box ─╮
+│ This is the playground: a scripted model and in-memory forge. Set            │
+│ temper up in your browser when you're ready to leave it.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯ Ask temper
+────────────────────────────────────────────────────────────────────────────────
+ / for commands · playground                            Scripted model · ● Live

@@ -120,7 +120,17 @@ in one drawing laid out by its width, the line's two tones, the scene's
 caret and stops with no ARIA; temper/ui's rendered comparison follows
 landing (`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and
 13.2 to 13.10; `client/README.md`, 3.5, 5.13, 5.16 and 11;
-`client/README.status.md`; `draft/stock-ways.status.md`). Ask temper's
+`client/README.status.md`; `draft/stock-ways.status.md`). Its render
+check's eight misses are repaired by `look-round-24`: a path's marks
+take no outline, under 720 it is the request's picture scaled, an open
+card stands 14 px under it, the gallery prints it down the page at 420,
+a card's "Asked to" is its charter's first sentence whole, CI's card
+names the required checks, every card's link opens a role's or a rule's
+page in Settings, and the terminal prints "Ways of working:" and "The
+way a change goes:" once each. No gallery state draws those two pages,
+and the repairs' render check follows landing (`client/README.status.md`,
+3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
+`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`

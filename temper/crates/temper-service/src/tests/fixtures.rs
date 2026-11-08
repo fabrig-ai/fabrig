@@ -495,6 +495,7 @@ pub fn seeds() -> settings::Seeds {
         seed: 7,
         crypto: Secret::new(Box::new([7; 32])),
         link_secret: None,
+        local_secret: None,
     }
 }
 

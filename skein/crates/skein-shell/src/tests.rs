@@ -15,6 +15,18 @@ fn close(fd: i32) {
 use crate::{Config, Wait};
 
 #[test]
+fn the_foreground_is_refused_off_a_terminal() {
+    let (reader, writer) = crate::keeper::open_signal_pipe().expect("a pipe, not a terminal");
+    let before = crate::posix::terminal::signal_mask();
+    let result = crate::take_foreground(reader);
+    let after = crate::posix::terminal::signal_mask();
+    close(reader.raw());
+    close(writer.raw());
+    assert_eq!(result, Err(skein_io::kernel::Error::Other(libc::ENOTTY)));
+    assert_eq!(after, before, "the calling thread's complete signal mask is restored on refusal");
+}
+
+#[test]
 fn an_iteration_environment_keeps_the_clocks_and_limits() {
     let now = Time::from_nanos(17);
     let wall = Wall::from_nanos(29);

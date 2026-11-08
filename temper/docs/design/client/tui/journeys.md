@@ -117,6 +117,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `address` | `HOST:PORT` as bytes | the start's address |
 | `local` | none | when the start has an engine's link file to read (`../README.md`, 6.13, `Start.local`) |
 | `box` | none | when the start is on a box (`../README.md`, 6.12, *On a box*; `Start.boxed`) |
+| `front` | none | when the TUI is in front of a box (`../README.md`, 6.17, `Start.front`) |
 | `stored` | a small-store record's key and bytes | one per record loaded (shared) |
 | `credential` | the credential's bytes | when the start held one |
 | `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`../README.md`, 6.12) |
@@ -132,6 +133,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
+| `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`../README.md`, 6.17) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
 | `stream` | the credential's bytes or `none` | `Request::OpenStream` |
 | `unstream` | none | `Request::CloseStream` |
@@ -165,11 +167,11 @@ is told from a browser's by its first fact after `clocks`, `screen`.
   `note`, `signed`, `read`, `browse` and `quit`, each when the duty holds
   it.
 - **The start's facts** are in the table's order, `background` after
-  `screen`, `local` after `address`, `box` after `local` and `noted`
-  after `credential`. A recording with none of them reads as a start
-  with no background answered, no engine's link file, not on a box and
-  no note, so one made before them replays as it stands; the version
-  stays `2`.
+  `screen`, `local` after `address`, `box` after `local`, `front` after
+  `box` and `noted` after `credential`. A recording with none of them
+  reads as a start with no background answered, no engine's link file,
+  not on a box, out of front and with no note, so one made before them
+  replays as it stands; the version stays `2`.
 - **Unreadable:** another version, a record out of its place, an unknown
   kind or word, a field missing or over, a number out of its type's
   range; it names the line.
@@ -216,7 +218,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 the run does (`Host::new` with `limits::tui()`, the seed and the
 clocks), then, turn by turn, sets the clocks and gives each report:
 `Start` from the facts, a key as recorded, a transport's event, a
-resize, `Kept`, `Opened`, `Local` with the bytes found. At each mark it
+resize, `Kept`, `Opened`, `Local` with the bytes found, `Front` with a
+`box-line`'s bytes read back by `BoxLine::read`. At each mark it
 yields the host's frame.
 
 ### 4.2 The check
@@ -263,7 +266,10 @@ the TUI's lines.
     wire reads it, the printed link pasted or the engine's link read;
     and the secret of each `found`'s link, as
     `jig-client-protocol-http`'s `printed` reads it, so that a file read
-    and never sent is redacted too;
+    and never sent is redacted too, the handed link of a TUI in front
+    among them; and the secret of each `box-line` record's `link` line, the
+    box's printed link, read alike, which the welcome draws
+    (`../README.md`, 6.17);
   - *given:* each `--redact TEXT`.
 
   The same bytes under two kinds, a credential kept and carried, are
@@ -274,7 +280,7 @@ the TUI's lines.
 - **Where:** every original in every field of every line. A `reply`'s,
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
-  `key`'s bytes and event, `found`'s bytes, `address`, `signed`,
+  `key`'s bytes and event, `found`'s and `box-line`'s bytes, `address`, `signed`,
   `browse`, `mark` and `end` are text (`../journeys.md`, 3.6, *A form's
   size*). A TUI's
   stream records come whole from the native shell, so no pieces are
@@ -283,12 +289,12 @@ the TUI's lines.
   so the take's message holds the redacted secret it was answered, and
   every exchange the redacted credential it kept.
 - **A pasted link's encoding:** the TUI also replaces and scans the
-  link secret's canonical URL-base64 in the pasted address and in a
-  `found`'s, and its decimal byte elements in the `Typed` event's Debug
-  print. Both become
-  those encodings of the redacted secret, so the paste and its event
-  still replay. This is the TUI's addition; the browser's code and
-  encodings stay as `../journeys.md`, 3.6 describes.
+  link secret's canonical URL-base64 in the pasted address, in a
+  `found`'s and in a `box-line` record's `link` URL, and its decimal byte
+  elements in the `Typed` event's Debug print. Each becomes those
+  encodings of the redacted secret, so the paste and its event, and the
+  box's line, still replay. This is the TUI's addition; the browser's
+  code and encodings stay as `../journeys.md`, 3.6 describes.
 - **The last scan** (`../journeys.md`, 3.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's
@@ -489,12 +495,52 @@ ordinary Rust over skein's harness:
 - **A run that stops on a moving screen** is tried again, at most three
   times, each on a fresh fake box.
 
+### 8.3 A box with the TUI in front
+
+What `again` does to record a journey of `temper box` with the TUI in
+front of it (`../README.md`, 6.17; `../../protocol/setup.md`, 7.6),
+where 8.2 says otherwise:
+
+- **The box in the pseudo-terminal:** `temper box --fake-backends` from
+  the scratch copy is itself started in the pseudo-terminal of 80 by 24,
+  in a session of its own, with the TUI's environment of 8.2 but
+  `XDG_RUNTIME_DIR`, the box's, so that the box runs its front there and
+  the front opens that terminal and takes its foreground. The front is
+  the same `temper`, built with `record`, and records into the TUI's
+  directory as bare `temper` does (3.1). No `temper` is started apart,
+  and no approval is walked: the front signs in by the link the box
+  hands it.
+- **The printed link,** which the box writes to no stream `again` reads,
+  is read from the latest save's last `box-line` record holding a `link`
+  line, and opened in the browser, which it signs in; the walk's record
+  `open`, with no field, says when.
+- **The browser's steps, mid-walk:** the journey's `setup` (8.2), from
+  the welcome to the playground, is walked in the signed-in browser at
+  the walk's record `setup`, with no field, while the TUI follows it,
+  rather than before the TUI starts; a `see` after it waits for the
+  frame the steps lead to.
+- **The welcome's link, wrapped:** at 80 columns the welcome draws the
+  printed link over rows. The redaction seeks a `box-line` link's secret in
+  each `mark`'s and the `end`'s print across the rows it wraps over too,
+  the print's rows read as one where the link continues, each row's
+  indentation and line feed left out, and the last scan reads the
+  frames alike, so that the link is redacted in a mark's print across
+  the wrap.
+- **Why not yet:** 8.2's `again` drives `temper` in the pseudo-terminal
+  and the box apart, on pipes, reading the box's printed link from its
+  stdout; a box whose TUI is in front needs the terminal itself and
+  prints no link on a stream. Until 8.3 is built, a recording made by
+  hand whose marks draw the welcome's link wrapped fails its first
+  replay's proof, as a link typed key by key does (section 5), and
+  nothing is written.
+
 ## 9. The journeys
 
 | Name | The walk | Its pages |
 |---|---|---|
 | `sign-in-approved` | on a fresh `temper box --fake-backends`: the browser signed in by the box's printed link; `temper` started at the box's address; the approval's frame; the approval given in the browser; the launchpad, with no project yet | `01`, the approval's frame, "A tab opened in your browser", its code and its address, marked by the mark key; `02`, the launchpad of a box with no project (`../README.md`, 6.14), at the recording's end; its `README.md` says so |
 | `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `after project-landing`, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`../README.md`, 6.14); its `README.md` names each frame |
+| `box-welcome` | on a fresh `temper box --fake-backends` with the TUI in front (8.3): the welcome as the box starts; the printed link opened in the browser; the welcome following the browser's steps to the playground, walked mid-walk; the playground's launchpad; the end | `01`, the welcome before the link is opened; `02`, the steps followed, a step under way; `03`, the playground's launchpad at the recording's end (`../README.md`, 6.17); its `README.md` names each frame |
 
 ## 10. Editing the look
 

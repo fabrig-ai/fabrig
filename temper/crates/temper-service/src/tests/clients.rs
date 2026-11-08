@@ -17,10 +17,19 @@ fn given_secret() -> skein_lib::Secret {
 }
 
 fn with_given_secret() -> crate::Service {
+    with_secrets(None)
+}
+
+fn with_given_secrets() -> crate::Service {
+    with_secrets(Some(skein_lib::Secret::new(Box::new([37; crate::clients::LINK_SECRET_BYTES]))))
+}
+
+fn with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::Service {
     let mut service = super::fixtures::started();
     let settings = super::fixtures::engine();
     let mut seeds = super::fixtures::seeds();
     seeds.link_secret = Some(given_secret());
+    seeds.local_secret = local_secret;
     service.engine.as_mut().expect("engine").clients = crate::clients::Clients::new(
         &jig_protocol_config::Directories::working(),
         &settings.jig,
@@ -76,6 +85,39 @@ fn a_given_secret_prints_no_first_link_and_signs_in() {
 }
 
 #[test]
+fn a_given_local_link_signs_in_and_is_never_kept_or_printed() {
+    let mut service = with_given_secrets();
+    super::fixtures::turn(&mut service);
+    assert!(service.local_links().is_empty(), "the given local link is never kept");
+    assert!(service.links().is_empty(), "the given printed link is never printed again");
+    let local = crate::clients::first_link_url(
+        ([127, 0, 0, 1], 7100).into(),
+        None,
+        &skein_lib::Secret::new(Box::new([37; crate::clients::LINK_SECRET_BYTES])),
+    );
+    let engine = service.engine.as_mut().expect("engine");
+    let jig_client_protocol_wire::v19::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &local) else {
+        panic!("the given local link signs in")
+    };
+    assert_eq!(answer.party(), OWNER_PARTY, "the local link signs in the owner");
+    assert!(answer.token().is_some(), "the sign-in returns a credential");
+    assert!(!forges_linked(engine), "a local sign-in leaves the printed link unused");
+    let next = local_link(&mut service);
+    assert!(next != local && next != given_link(), "the next local link differs from both given links");
+    assert!(service.local_links().is_empty(), "one successor is kept");
+    assert!(service.links().is_empty(), "a local sign-in prints nothing");
+    let engine = service.engine.as_mut().expect("engine");
+    let jig_client_protocol_wire::v19::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &given_link()) else {
+        panic!("the given printed link still signs in")
+    };
+    assert_eq!(answer.party(), OWNER_PARTY);
+    assert!(forges_linked(engine), "the printed link's sign-in is in the forges document");
+    super::fixtures::turn(&mut service);
+    assert!(service.links().is_empty(), "neither given link is printed");
+    assert!(service.local_links().is_empty(), "the printed sign-in leaves the successor alone");
+}
+
+#[test]
 fn a_spent_given_secret_prints_a_fresh_link() {
     let mut service = with_given_secret();
     let local = local_link(&mut service);
@@ -107,6 +149,8 @@ fn the_local_link_is_kept_apart_and_signs_in_in_either_order() {
         assert!(link_route(&local) == link_route(&given), "{row}: the address and route agree");
         assert!(service.local_links().is_empty(), "{row}: exactly one local link");
         assert!(service.links().is_empty(), "{row}: the given link is never printed again");
+        assert!(!forges_linked(service.engine.as_ref().expect("engine")), "{row}: no printed sign-in at start");
+        let mut linked = false;
         let order = if local_first { [(&local, true), (&given, false)] } else { [(&given, false), (&local, true)] };
         for (link, is_local) in order {
             let engine = service.engine.as_mut().expect("engine");
@@ -115,6 +159,8 @@ fn the_local_link_is_kept_apart_and_signs_in_in_either_order() {
             };
             assert_eq!(answer.party(), OWNER_PARTY, "{row}: the link signs in the owner");
             assert!(answer.token().is_some(), "{row}: the sign-in returns a credential");
+            linked |= !is_local;
+            assert_eq!(forges_linked(engine), linked, "{row}: only the printed sign-in sets linked");
             super::fixtures::turn(&mut service);
             if is_local {
                 let next = service.local_links().pop().expect("the next local link");
@@ -873,4 +919,11 @@ fn settings_entrances_refuse_cut_or_trailing_values_naming_item_one() {
             );
         }
     }
+}
+
+fn forges_linked(engine: &crate::engine::Engine) -> bool {
+    let bytes = crate::route::forge_rows(engine, engine.domain.forges()).expect("forges document");
+    temper_client_protocol_wire::decode_forges(&bytes, &temper_client_protocol_wire::v1::CEILINGS)
+        .expect("whole forges document")
+        .linked()
 }

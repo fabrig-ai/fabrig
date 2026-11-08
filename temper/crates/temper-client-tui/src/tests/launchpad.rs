@@ -17,10 +17,10 @@ const PARTY: u64 = 73;
 const CHAT: u64 = 9;
 const ENDED_CHAT: u64 = 10;
 const OLDER_CHAT: u64 = 11;
-// Seventeen read rows, four draw rows, and the headline's rebuild check.
-const FAILURES: u32 = 22;
-// The longest read row: heading, headline, section head, and two needs.
-const LINES: u32 = 5;
+// Twenty read rows, four draw rows, and the headline's rebuild check.
+const FAILURES: u32 = 25;
+// The longest read row: heading, banner, two left-off lines, and three need lines.
+const LINES: u32 = 7;
 // Four review frames; six needs are one past the design's five-line bound.
 const FRAMES: u32 = 4;
 const SIX_NEEDS: u32 = 6;
@@ -66,7 +66,7 @@ fn status(brief: bool) -> w::ProjectStatus {
 fn family(bytes: Box<[u8]>) -> jig_client::Family {
     jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes }
 }
-fn line(task: u64, title: &[u8], activity: u64, ended: bool) -> c::TaskLine {
+pub(super) fn line(task: u64, title: &[u8], activity: u64, ended: bool) -> c::TaskLine {
     let bounds =
         jig_client_protocol_link::Limits::new(f::limits().client.domain, f::limits().client.exchanges).unwrap();
     let mut rows =
@@ -104,19 +104,50 @@ fn inbox() -> c::Inbox {
     }
 }
 // Home's watches and reads use the same public deliveries as the root's fixtures.
-fn home(brief: Option<bool>, chats: &[c::TaskLine]) -> Domain {
+pub(super) fn home(brief: Option<bool>, chats: &[c::TaskLine]) -> Domain {
     home_cards(brief, chats, false)
 }
-#[expect(clippy::too_many_lines, reason = "one fixture answers Home watches and reads through public events")]
 fn home_cards(brief: Option<bool>, chats: &[c::TaskLine], needs: bool) -> Domain {
+    home_read(brief, chats, needs, None)
+}
+pub(super) fn home_read(
+    brief: Option<bool>,
+    chats: &[c::TaskLine],
+    needs: bool,
+    playground: Option<(Option<u32>, w::PlaygroundState)>,
+) -> Domain {
+    home_at(brief, chats, needs, playground, Address::Home { project: PROJECT })
+}
+pub(super) fn question_root() -> Domain {
+    home_at(Some(false), &[], true, None, Address::Chat { task: CHAT })
+}
+#[expect(clippy::too_many_lines, reason = "one fixture answers the page's watches and reads through public events")]
+fn home_at(
+    brief: Option<bool>,
+    chats: &[c::TaskLine],
+    needs: bool,
+    playground: Option<(Option<u32>, w::PlaygroundState)>,
+    address: Address,
+) -> Domain {
+    let chat = address == (Address::Chat { task: CHAT });
+    let mut playground = playground;
     let mut root = f::signed_out();
+    if chat {
+        f::event(
+            &mut root,
+            Event::LookKept {
+                look: d::pages::terminal::Look {
+                    terminal: true,
+                    theme: d::pages::terminal::Theme::Dark,
+                    font: d::pages::terminal::Font::DejaVu,
+                    night: false,
+                },
+            },
+        );
+    }
     let mut out = f::event(
         &mut root,
-        Event::Start {
-            address: Address::Home { project: PROJECT },
-            kept: List::with_capacity(0),
-            with: Some(jig_client::With::Transport),
-        },
+        Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
     );
     append(&mut out, f::client(&mut root, jig_client::Event::Up { up: Up::Served { served: true, versions: None } }));
     while let Some(request) = out.pop() {
@@ -134,8 +165,24 @@ fn home_cards(brief: Option<bool>, chats: &[c::TaskLine], needs: bool) -> Domain
                     }))),
                 }
             }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Task { task }) } => {
+                let mut document = task_document();
+                document.chip.task = task;
+                document.project = PROJECT;
+                document.result = None;
+                document.flags.conversation = true;
+                document.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
+                document.waits_on =
+                    c::WaitsOn::Party { whom: c::Whom::Person(PARTY), task, kind: c::WaitedFor::Question, entries: 1 };
+                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(document))) }
+            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
-                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(inbox()))) }
+                let mut document = inbox();
+                if chat && needs {
+                    document.needs = entries();
+                    document.cached_needs = document.needs.len();
+                }
+                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(document))) }
             }
             jig_client::Down::Open { watch, subject }
                 if Some(&subject) == d::forge::status::watch(PROJECT, &f::limits().forge).as_ref() =>
@@ -144,6 +191,32 @@ fn home_cards(brief: Option<bool>, chats: &[c::TaskLine], needs: bool) -> Domain
                 Up::FamilyDelivered { watch, record: family(wire::project_status(&status(brief))) }
             }
             jig_client::Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::Unknown },
+            jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } }
+                if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Playground =>
+            {
+                let Some((project, state)) = playground.take() else { continue };
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::playground_answer(
+                            &w::PlaygroundAnswer::new(
+                                &w::CEILINGS,
+                                w::PlaygroundAnswerParts {
+                                    state,
+                                    project,
+                                    forge: wire::FORGE,
+                                    provider: 17,
+                                    owner: b"demo".as_slice().into(),
+                                    name: b"demo".as_slice().into(),
+                                    cues: List::with_capacity(0),
+                                },
+                            )
+                            .unwrap(),
+                        )),
+                    },
+                }
+            }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
                 Up::ReadDone {
                     read,
@@ -203,7 +276,11 @@ fn home_cards(brief: Option<bool>, chats: &[c::TaskLine], needs: bool) -> Domain
                                     .unwrap(),
                             ),
                             since: Wall::EPOCH,
-                            acts: List::with_capacity(0),
+                            acts: List::from_boxed(Box::new([c::Offered {
+                                act: c::ActKind::Answer,
+                                admission: c::Admission::Allowed,
+                                effect: None,
+                            }])),
                             ending: None,
                         },
                     )))),
@@ -314,8 +391,53 @@ fn the_launchpad_says_each_state() {
     f::event(&mut second, Event::Went { place: d::Place::Address(Address::Home { project: OTHER_PROJECT }) });
     let mut noted = Tui::new(f::ADDRESS);
     noted.step(Told::Unknown { words: Some(b"/unknown".as_slice().into()) });
+    let playground = home_read(
+        Some(true),
+        &[line(CHAT, b"Away mode", 1, false)],
+        true,
+        Some((Some(PROJECT), w::PlaygroundState::Running)),
+    );
+    let other_playground = home_read(Some(true), &[], false, Some((Some(OTHER_PROJECT), w::PlaygroundState::Running)));
+    let starting_playground = home_read(Some(true), &[], false, Some((Some(PROJECT), w::PlaygroundState::Starting)));
     let header = "temper · Hello127.0.0.1:8367";
     let rows = [
+        (
+            "the playground running in the project",
+            &playground,
+            &ordinary,
+            "temper · Helloplayground · 127.0.0.1:8367",
+            &[
+                "This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it.",
+                "Where you left off",
+                "Away mode · waiting on you",
+                "Needs you",
+                "? csv-export: comma or semicolon?",
+                "• Held task: Held task",
+            ][..],
+            None,
+        ),
+        (
+            "the playground in another project",
+            &other_playground,
+            &ordinary,
+            header,
+            &[
+                "3 changes landed overnight. csv-export is two of three tasks in; one waits on you.",
+                "written by the status agent 07:42",
+            ][..],
+            None,
+        ),
+        (
+            "the playground starting",
+            &starting_playground,
+            &ordinary,
+            header,
+            &[
+                "3 changes landed overnight. csv-export is two of three tasks in; one waits on you.",
+                "written by the status agent 07:42",
+            ][..],
+            None,
+        ),
         (
             "needs read",
             &needs,

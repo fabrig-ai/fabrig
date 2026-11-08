@@ -110,6 +110,7 @@ impl Replay {
                 | Line::Screen { .. }
                 | Line::Background(_)
                 | Line::Box
+                | Line::Front
                 | Line::Local
                 | Line::Noted(_)
                 | Line::Address(_)
@@ -128,6 +129,7 @@ impl Replay {
                 | Line::Saved
                 | Line::Unsaved
                 | Line::Kept { .. }
+                | Line::BoxLine(_)
                 | Line::Found(_)
                 | Line::Opened { .. }
                 | Line::Send { .. }
@@ -200,6 +202,7 @@ impl Replay {
             Line::Unsaved => Report::Heard(jig_client::Event::NotStored),
             Line::Kept { written } => Report::Kept { written: *written },
             Line::Found(bytes) => Report::Local { link: bytes.clone().map(Secret::new) },
+            Line::BoxLine(bytes) => Report::Front(temper_client_tui::BoxLine::read(bytes).expect("validated box line")),
             Line::Opened { opened } => Report::Opened { opened: *opened },
             Line::Journey { .. }
             | Line::Seed(_)
@@ -207,6 +210,7 @@ impl Replay {
             | Line::Screen { .. }
             | Line::Background(_)
             | Line::Box
+            | Line::Front
             | Line::Local
             | Line::Noted(_)
             | Line::Address(_)
@@ -284,6 +288,10 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     if local {
         at += 1;
     }
+    let front = lines.get(at) == Some(&Line::Front);
+    if front {
+        at += 1;
+    }
     let boxed = lines.get(at) == Some(&Line::Box);
     if boxed {
         at += 1;
@@ -316,6 +324,7 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
             boxed,
             address: address.clone(),
             local,
+            front,
             note,
             kept,
             credential,
@@ -325,6 +334,7 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
 }
 
 /// Validate placement before a malformed file can reach the host's assertions.
+#[expect(clippy::too_many_lines, reason = "one envelope validates the ordered facts, reports and duties")]
 fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
     let mut in_turn = false;
     let mut kept = false;
@@ -380,10 +390,16 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Saved
             | Line::Unsaved
             | Line::Kept { .. }
+            | Line::BoxLine(_)
             | Line::Found(_)
             | Line::Opened { .. } => {
                 if !in_turn || !started {
                     return Err(bad());
+                }
+                if let Line::BoxLine(bytes) = line
+                    && temper_client_tui::BoxLine::read(bytes).is_none()
+                {
+                    return Err(Unreadable { line: number(index), why: "unreadable box line" });
                 }
                 kept = true;
                 may_ask = true;
@@ -415,6 +431,7 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Screen { .. }
             | Line::Background(_)
             | Line::Box
+            | Line::Front
             | Line::Local
             | Line::Noted(_)
             | Line::Address(_)
