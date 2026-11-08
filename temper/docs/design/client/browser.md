@@ -2125,8 +2125,8 @@ from the engine's own answers, is where the look is tuned.
 | `night-how` | `how` with the night switch pressed: who acts' colours by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
-| `forges-in-settings` | `Forges` inside Settings' frame |
-| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot at a phone's width alone |
+| `forges-in-settings` | `Forges` inside Deployment's frame |
+| `accounts-in-settings` | `Accounts` inside Deployment's frame, "Sign out" at its foot at a phone's width alone |
 | `forges-empty` | the Forges tab's quiet band, in a world with no forge |
 | `forges-setting-up` | the first run's Forges at step 6: a row setting up |
 | `forges-fetching` | the first run's Forges at step 24: a row fetching Forgejo, its percent in its summary |
