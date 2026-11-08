@@ -224,7 +224,12 @@ fn prepare_with_limits(
     link_secret: Option<Secret>,
     given: &service::stock::Given,
 ) -> Result<(service::Service, Box<[u8]>, u32), String> {
-    if worker.is_none() && service::startup::nearest(bytes) == Some(service::startup::Shape::WorkerAlone) {
+    if worker.is_none()
+        && matches!(
+            service::startup::nearest(bytes),
+            Some(service::startup::Shape::WorkerAlone | service::startup::Shape::Standalone)
+        )
+    {
         return Err(format!("temper.json names a worker, and {binary} runs none"));
     }
     if service::startup::shape_with(bytes, &directories.jig(), given)
