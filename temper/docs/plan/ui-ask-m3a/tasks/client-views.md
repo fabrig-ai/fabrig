@@ -84,3 +84,15 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+### 2026-11-08: Wait for ways-wire to supply its generated View types and wrappers (recommended), or widen this task to repair that dependency's schema/generation here? (ui-ask-m3a/client-views-1, foreman ui-ask-m3a/client-views/foreman-1)
+
+Wait for ways-wire to supply its generated View types and wrappers, then resume client-views within its existing scope.
+The task declares `needs = ["ways-wire"]`.
+Binding `notes/common.md`: “Not to touch: … every other task's owned files below.”
+Its ownership table assigns ways-wire the wire “schema, generated code, goldens and wrappers for paths, ways and views”.
+The ways-wire Answers already settle the collision: “On the wire a path is `BranchPath`, every bound kept”.
+After the completed dependency is merged, resume the pushed client-views work and complete its compilation, tests, mutation checks and required verification.
+Acceptance is still unverified; the task is not accepted as done.
