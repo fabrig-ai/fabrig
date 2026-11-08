@@ -9,7 +9,7 @@
   defers them. Section 3's launchpad, a chat read as the browser's chat
   terminal reads it, and the terminal's commands are
   `../client/README.md`, 6.13 to 6.16, with what they leave out in its
-  section 11. The newest goal, opened call rows, earlier-page loading
+  section 11. Opened call rows, earlier-page loading
   and "Latest ↓", and cards at their calls remain `../client/README.md`,
   section 11's work for temper/tui; the
   read-once requirement remains `chat-reading.status.md`, 3, for temper/ui.

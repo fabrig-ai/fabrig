@@ -9,7 +9,7 @@
 ───────────── Hello / What landed… T2 ──
 ❯ Reply
 ────────────────────────────────────────
- / for commands · 1 needs you    ● Live
+ Hello · ● Live             1 needs you
 --
 ........................................
 ........................................
@@ -22,7 +22,7 @@ bcccccccc...............................
 ddddddddddddddeeeeedddeeeeeeeeeeeecccddd
 bbddddd.................................
 dddddddddddddddddddddddddddddddddddddddd
-.cccccccccccccccccbbbbbbbbbbb....ffffff.
+.cccccdddffffff.............bbbbbbbbbbb.
 --
 a: reverse
 b: fore #E08A68
