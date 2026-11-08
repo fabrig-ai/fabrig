@@ -209,7 +209,7 @@ pub fn fit_start(mut start: smith::Start, limits: &smith_domain_run::Limits, cha
         Some(smith_domain_run::Workspace { directories: directories.into_boxed() })
     };
     let mut charter = start.charter.into_value();
-    temper_engine_smith::fit_brief(&mut charter, workspace.as_ref(), limits);
+    temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), limits);
     start.charter =
         smith::Charter::new(charter, charter_bytes).expect("fitted charter within the admitted ownership bound");
     start

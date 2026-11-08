@@ -146,7 +146,7 @@ fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -
     }
     charter.brief.sections = brief;
     let owned = bound.saturating_sub(fixed_encoded.saturating_sub(fixed_owned));
-    temper_engine_smith::fit_brief_bytes(&mut charter, owned);
+    temper_protocol_brief::fit_brief_bytes(&mut charter, owned);
     let encoded =
         smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
     if skein_lib::len_u64(encoded.len()) > bound || charter.owned_bytes()? > bound {

@@ -64,10 +64,6 @@ are designed and not yet built:
   `crates/temper`'s (`commands.rs`, `directories.rs`, `help.rs`,
   `link_file.rs`), rendered under `temper` alone.
 
-- **Not yet:** 5: `temper-protocol-brief`: the fitter is
-  `temper-engine-smith`'s (`src/start.rs`), and the worker's route calls
-  it there (`temper-service/src/worker_route.rs`).
-
 - **Not yet:** 5: the engine's half of `temper-service` names the
   worker's crates: its limits hold the checkout's and the git
   component's (`limits.rs`, `limits/names.rs`), its checks and
