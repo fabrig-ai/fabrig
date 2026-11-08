@@ -206,6 +206,7 @@ pub struct Domain {
     /// Each forge's git identity, the application credential its runs push
     /// and fetch with (protocol/credentials.md).
     pub(crate) identities: Map<u16, u32>,
+    pub(crate) workflows: crate::workflows::State,
     pub(crate) capabilities: Map<Token, crate::capabilities::Pending>,
     pub(crate) stopping: bool,
     pub(crate) landing: crate::landing::State,
@@ -705,6 +706,7 @@ impl Domain {
             adoptions: Map::with_capacity(l.adoptions),
             application: adoption::State::new(l),
             capabilities: Map::with_capacity(l.repositories),
+            workflows: crate::workflows::State::new(l),
             writers,
             identities: credentials,
             stopping: false,
@@ -1904,7 +1906,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 } else if d.adoptions.contains_key(&owner) {
                     adoption::adoption_read(d, env, owner, result, out);
                 } else if d.landings.contains_key(&owner) {
-                    landing_read(d, owner, result, out);
+                    landing_read(d, env, owner, result, out);
                 } else if d.goal_file_reads.contains_key(&owner) {
                     topics::answer(d, env, owner, result, out);
                 } else if d.makings.contains_key(&owner) {
@@ -1913,6 +1915,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     step_read(d, env, owner, result, out);
                 } else if d.pending_ci.contains_key(&owner) {
                     ci_read(d, owner, result, out);
+                } else if d.workflows.reading(owner) {
+                    crate::workflows::answered(d, env, owner, result, out);
                 } else if crate::is_root_read(owner) {
                     emit(out, Request::Read { owner, result });
                 } else {
@@ -5676,16 +5680,21 @@ fn branch_changed(
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(row.clone()) });
     wake_head_dependents(d, &row.name, previous, commit);
     crate::tiers::observed(d, env, resource.repository, &branch, previous, commit, out);
-    let Some(before) = previous else { return };
+    let Some(before) = previous else {
+        crate::workflows::first_tip(d, env, resource.repository, &branch, commit, out);
+        return;
+    };
     if before == commit {
         return;
     }
-    let topic = Topic::Landings { repository: resource.repository, branch };
+    let topic = Topic::Landings { repository: resource.repository, branch: branch.clone() };
     if d.landings.len() >= env.limits.landings.max(env.limits.client.resources) {
+        crate::workflows::landed(d, env, resource.repository, &branch, commit, None, out);
         publish(d, topic, News::Landing { before, after: commit, files: None }, out);
         return;
     }
     let Some(sequence) = d.sequence.checked_add(1) else {
+        crate::workflows::landed(d, env, resource.repository, &branch, commit, None, out);
         publish(d, topic, News::Landing { before, after: commit, files: None }, out);
         return;
     };
@@ -5706,6 +5715,7 @@ fn branch_changed(
 
 fn landing_read(
     d: &mut Domain,
+    env: &Env<Limits>,
     owner: Token,
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
     out: &mut Queue<Request>,
@@ -5723,6 +5733,14 @@ fn landing_read(
         }
         Ok(_) | Err(_) => None,
     };
+    match &pending.topic {
+        Topic::Landings { repository, branch } => {
+            crate::workflows::landed(d, env, *repository, branch, pending.after, files.as_deref(), out);
+        }
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {
+            unreachable!("landing comparison belongs to a landing")
+        }
+    }
     publish(d, pending.topic, News::Landing { before: pending.before, after: pending.after, files }, out);
 }
 
