@@ -1057,7 +1057,7 @@ pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     for row in value.rows {
         forges.push(forge_row(row, limits)?).ok()?;
     }
-    Some(wire::forges(&w::Forges::new(limits, w::ForgesParts { forges }).ok()?))
+    Some(wire::forges(&w::Forges::new(limits, w::ForgesParts { forges, linked: false }).ok()?))
 }
 fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
     let ended = match row.ended {

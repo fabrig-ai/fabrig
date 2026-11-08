@@ -123,7 +123,7 @@ enum MakingState { waiting, making, made: MakingMade, adopting: MakingMade, fail
 record RepositoryMaking { org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto state: MakingState }
 enum StartsWith { repository, copies: CopyAddresses, nothing }
 record ForgeRow { number: u16 host: bytes 2048 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository starts_with: StartsWith installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool makings: list 64 RepositoryMaking }
-versioned record Forges { forges: list 16 ForgeRow }
+versioned record Forges { forges: list 16 ForgeRow linked: bool }
 
 # The forge's reads (temper/docs/design/client/forge.md, 9).
 record SettingRead { kind: u32 scope: u32 number: u32 }

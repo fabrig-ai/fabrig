@@ -613,7 +613,7 @@ pub(super) fn root_at_with_values(
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                             ),
                         },
                     },
@@ -2296,7 +2296,7 @@ impl ReadPage {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                             ),
                         },
                     });
