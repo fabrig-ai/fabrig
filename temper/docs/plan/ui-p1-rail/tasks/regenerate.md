@@ -3,7 +3,7 @@ id = "regenerate"
 part = "checks"
 kind = "migration"
 needs = ["rail", "work-page", "deployment"]
-files = ["temper/crates/temper-client-shell-terminal/src/tests/golden/**", "temper/docs/design/client/journeys/**"]
+files = ["temper/crates/temper-client-shell-terminal/src/tests/golden/**", "temper/docs/design/client/journeys/**", "temper/crates/temper-client-shell-web/src/journey.rs", "temper/crates/temper-client-shell-web/tests/suite/host.rs", "temper/docs/design/client/journeys.status.md"]
 effort = "medium"
 minutes = 120
 +++
@@ -108,3 +108,28 @@ story. Then `again chat-draft`, with the moving-mark retries as before,
 and acceptance 4's tests. If Chats under `/chats` shows no project's
 "+ New chat" or the draft's "+ Draft" needs the How work runs start, that
 is a question with its log.
+
+2026-11-08. *`again chat-draft` stops at step 2: the replayed save's first
+control giving `NewChat { draft: false }` is the rail's closed menu item
+"Change", not the Chats page's "+ New chat". May the recorder skip it, or is
+chat-draft deferred?* The recorder skips it; chat-draft is not deferred (its
+replay test is this task's acceptance 4). No journey opens a menu
+(`temper/docs/design/client/journeys.md`, 3.4), so a menu's items are no
+control a walk may press; 8.1 now says the first node *outside a menu*
+names the control. This widens the task by one repair, and `files` with it:
+in `temper/crates/temper-client-shell-web/src/journey.rs`, `control` takes
+the first node of `giving` with no `Role::Menu` ancestor in the host's tree
+(a node's subtree is its `size` nodes from it), else `None`; `giving` and
+the replay that uses it stay as they are (any node giving the event replays
+the same). Its docstring says so, citing 8.1. A test beside
+`a_saves_control_is_found_by_its_event` in
+`temper/crates/temper-client-shell-web/tests/suite/host.rs` proves it on a
+save whose page has both a menu item and a link giving one event (a
+project's page with drafts, as `temper-client-view`'s `tests/rail.rs` draws
+it), or, if no walk fixture reaches such a page, a narrower check of the
+skip on a hand-built tree; it names the link. Remove the lag paragraph this
+call added to `temper/docs/design/client/journeys.status.md` when it lands.
+Then `again chat-draft` (moving-mark retries as before), the other stale
+journeys, and acceptance 4. The later "+ Draft" step skips the menu's
+"Draft" the same way; if the Chats page then shows no control giving
+`NewChat { draft: true }`, that is a question with its log.
