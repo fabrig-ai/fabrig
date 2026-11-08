@@ -144,6 +144,31 @@ enum Part {
 }
 static HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "team",
+        heading: "Who owns what on shop",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Two of you." },
+            Part::Named { role: Role::Text, name: "You" },
+            Part::Named { role: Role::Paragraph, name: "Owner of shop" },
+            Part::Named { role: Role::Paragraph, name: "3 things wait on you." },
+            Part::Named { role: Role::Text, name: "Sam" },
+            Part::Named { role: Role::Paragraph, name: "Member" },
+            Part::Named { role: Role::Paragraph, name: "1 question waits on Sam." },
+            Part::Absent { role: Role::Text, name: "Service" },
+        ],
+    },
+    Holds {
+        name: "team-alone",
+        heading: "Who owns what on shop",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Just you." },
+            Part::Named { role: Role::Text, name: "You" },
+            Part::Named { role: Role::Paragraph, name: "Nothing waits on you." },
+            Part::Absent { role: Role::Text, name: "Sam" },
+        ],
+    },
+    Holds { name: "night-team", heading: "Who owns what on shop", parts: &[Part::Pressed { name: "Night mode" }] },
+    Holds {
         name: "chat-view-way",
         heading: "T10 · How changes land",
         parts: &[
