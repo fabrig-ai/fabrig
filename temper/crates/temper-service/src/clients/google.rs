@@ -360,6 +360,19 @@ fn claims_from(token: &[u8], limits: &oauth::Limits) -> Option<Claims> {
     Some(claims)
 }
 impl Clients {
+    fn google_sheet(&self) -> Option<Box<[u8]>> {
+        let bundle = self.bundle.as_ref()?;
+        let parts = [b"/bundle/".as_slice(), &bundle.digest, b"/files/pages.css"];
+        let mut size = 0_usize;
+        for part in parts {
+            size = size.checked_add(part.len()).expect("bounded stylesheet address");
+        }
+        let mut out = Writer::new(size);
+        for part in parts {
+            out.put(part).expect("measured stylesheet address");
+        }
+        Some(out.finish())
+    }
     fn google_via(&self, call: Token) -> mapping::Via {
         match self.google_replies.get(&call) {
             Some(reply) => reply.via,
@@ -379,7 +392,7 @@ impl Clients {
         if head.method != Method::Get {
             self.google_answer(call, 405, None, &[], None);
         } else if self.stopping.is_some() {
-            self.google_answer(call, 503, None, &pages::busy(b"/"), None);
+            self.google_answer(call, 503, None, &pages::busy(self.google_sheet().as_deref(), b"/"), None);
         } else if returned {
             let tag = tag(&head);
             let mut exchange = None;
@@ -406,14 +419,32 @@ impl Clients {
                         None => None,
                     };
                     if !visiting || self.env.now >= pending.deadline || head.header(b"host") != redirect_host {
-                        self.google_answer(call, 400, None, &pages::expired(&pending.then), None);
+                        self.google_answer(
+                            call,
+                            400,
+                            None,
+                            &pages::expired(self.google_sheet().as_deref(), &pending.then),
+                            None,
+                        );
                         if !visiting && self.env.now < pending.deadline {
                             google.keep_pending(exchange, pending);
                         } else if let Some(held) = pending.call {
-                            self.google_answer(held, 400, None, &pages::expired(&pending.then), None);
+                            self.google_answer(
+                                held,
+                                400,
+                                None,
+                                &pages::expired(self.google_sheet().as_deref(), &pending.then),
+                                None,
+                            );
                         }
                     } else if let Some(error) = query(parameters, b"error") {
-                        self.google_answer(call, 400, None, &pages::cancelled(&error, &pending.then), None);
+                        self.google_answer(
+                            call,
+                            400,
+                            None,
+                            &pages::cancelled(self.google_sheet().as_deref(), &error, &pending.then),
+                            None,
+                        );
                     } else {
                         self.server.hold(call, pending.deadline);
                         pending.call = Some(call);
@@ -435,12 +466,14 @@ impl Clients {
                         google.keep_pending(exchange, pending);
                     }
                 }
-                None => self.google_answer(call, 400, None, &pages::expired(b"/"), None),
+                None => {
+                    self.google_answer(call, 400, None, &pages::expired(self.google_sheet().as_deref(), b"/"), None);
+                }
             }
         } else {
             let then = then(parameters);
             if google.pending.len() >= google.limits.pending || self.starting.is_some() {
-                self.google_answer(call, 503, None, &pages::busy(&then), None);
+                self.google_answer(call, 503, None, &pages::busy(self.google_sheet().as_deref(), &then), None);
             } else {
                 let redirect = match &self.public {
                     Some(origin) => origin.base(),
@@ -619,7 +652,13 @@ impl Clients {
                         }
                         forge::BindAnswer::Full => {
                             if let Some(call) = pending.call {
-                                self.google_answer(call, 503, None, &pages::busy(&pending.then), None);
+                                self.google_answer(
+                                    call,
+                                    503,
+                                    None,
+                                    &pages::busy(self.google_sheet().as_deref(), &pending.then),
+                                    None,
+                                );
                             }
                         }
                         forge::BindAnswer::Another => {
@@ -628,7 +667,11 @@ impl Clients {
                                     call,
                                     403,
                                     None,
-                                    &pages::another(&identity.key.subject, &pending.then),
+                                    &pages::another(
+                                        self.google_sheet().as_deref(),
+                                        &identity.key.subject,
+                                        &pending.then,
+                                    ),
                                     None,
                                 );
                             }
@@ -637,7 +680,13 @@ impl Clients {
                 }
                 Phase::Starting | Phase::Visiting | Phase::Exchanging | Phase::Binding(_) | Phase::Minting => {
                     if let Some(call) = pending.call {
-                        self.google_answer(call, 400, None, &pages::expired(&pending.then), None);
+                        self.google_answer(
+                            call,
+                            400,
+                            None,
+                            &pages::expired(self.google_sheet().as_deref(), &pending.then),
+                            None,
+                        );
                     }
                 }
             }
@@ -652,14 +701,14 @@ impl Clients {
         let Some(pending) = pending else { return };
         let Some(call) = pending.call else { return };
         if self.env.now >= pending.deadline {
-            self.google_answer(call, 400, None, &pages::expired(&pending.then), None);
+            self.google_answer(call, 400, None, &pages::expired(self.google_sheet().as_deref(), &pending.then), None);
         } else if let Some((credential, expires)) = answer {
             let life = Duration::from_nanos(expires.as_nanos().saturating_sub(self.env.wall.as_nanos()));
             let cookie =
                 mapping::cookie(&super::http_settings(self.public.as_ref()), self.google_via(call), &credential, life);
             self.google_answer(call, 303, Some(&pending.then), &[], Some(cookie));
         } else {
-            self.google_answer(call, 503, None, &pages::busy(&pending.then), None);
+            self.google_answer(call, 503, None, &pages::busy(self.google_sheet().as_deref(), &pending.then), None);
         }
     }
     #[expect(clippy::too_many_lines, reason = "each OAuth output is handled exhaustively at the composition boundary")]
@@ -706,7 +755,7 @@ impl Clients {
                         call,
                         403,
                         None,
-                        &pages::unverified(claims.email.as_deref(), &pending.then),
+                        &pages::unverified(self.google_sheet().as_deref(), claims.email.as_deref(), &pending.then),
                         None,
                     );
                     return;
@@ -720,15 +769,33 @@ impl Clients {
                     }
                 }
                 let Some(member) = member else {
-                    self.google_answer(call, 403, None, &pages::not_member(&email, &pending.then), None);
+                    self.google_answer(
+                        call,
+                        403,
+                        None,
+                        &pages::not_member(self.google_sheet().as_deref(), &email, &pending.then),
+                        None,
+                    );
                     return;
                 };
                 let Some(subject) = record.subject else {
-                    self.google_answer(call, 400, None, &pages::expired(&pending.then), None);
+                    self.google_answer(
+                        call,
+                        400,
+                        None,
+                        &pages::expired(self.google_sheet().as_deref(), &pending.then),
+                        None,
+                    );
                     return;
                 };
                 if self.starting.is_some() || self.stopping.is_some() {
-                    self.google_answer(call, 503, None, &pages::busy(&pending.then), None);
+                    self.google_answer(
+                        call,
+                        503,
+                        None,
+                        &pages::busy(self.google_sheet().as_deref(), &pending.then),
+                        None,
+                    );
                     return;
                 }
                 let name = match claims.name {
@@ -773,9 +840,21 @@ impl Clients {
                         | oauth::Failure::Cancelled => false,
                     };
                     if unreachable {
-                        self.google_answer(call, 502, None, &pages::unreachable(&pending.then), None);
+                        self.google_answer(
+                            call,
+                            502,
+                            None,
+                            &pages::unreachable(self.google_sheet().as_deref(), &pending.then),
+                            None,
+                        );
                     } else {
-                        self.google_answer(call, 400, None, &pages::expired(&pending.then), None);
+                        self.google_answer(
+                            call,
+                            400,
+                            None,
+                            &pages::expired(self.google_sheet().as_deref(), &pending.then),
+                            None,
+                        );
                     }
                 }
             }
@@ -797,9 +876,21 @@ impl Clients {
             if self.env.now >= pending.deadline || self.stopping.is_some() {
                 if let Some(call) = pending.call {
                     if self.stopping.is_some() {
-                        self.google_answer(call, 503, None, &pages::busy(&pending.then), None);
+                        self.google_answer(
+                            call,
+                            503,
+                            None,
+                            &pages::busy(self.google_sheet().as_deref(), &pending.then),
+                            None,
+                        );
                     } else {
-                        self.google_answer(call, 400, None, &pages::expired(&pending.then), None);
+                        self.google_answer(
+                            call,
+                            400,
+                            None,
+                            &pages::expired(self.google_sheet().as_deref(), &pending.then),
+                            None,
+                        );
                     }
                 }
             } else {
