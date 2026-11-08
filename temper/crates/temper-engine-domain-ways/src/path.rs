@@ -24,9 +24,10 @@ pub enum Step {
     Review,
     Repair,
     Approve,
-    Update,
+    Conflict,
     Resolve,
     Merge,
+    CatchUp,
     Prepare,
     Prove,
     Turn,
@@ -75,6 +76,8 @@ pub struct Stop {
     pub words: Box<[u8]>,
     pub opens: Opens,
     pub card: Card,
+    pub needed: bool,
+    pub over: Box<[u8]>,
 }
 
 /// `repository` is `OWNER/NAME`, none for a project with no repository.
@@ -87,6 +90,7 @@ pub struct Path {
 
 pub const STOPS: usize = 24; // a path's most stops
 pub const FACTS: usize = 4; // a card's most facts
+pub const OVER: usize = 16;
 pub const WORDS: usize = 64; // a stop's words' most bytes
 pub const WHO: usize = 128; // a card's `who`
 pub const NAME: usize = 64; // a card's `name`
@@ -98,7 +102,12 @@ impl Stop {
     /// Compare the drawn stop, ignoring its card.
     #[must_use]
     pub fn same(&self, other: &Stop) -> bool {
-        self.actor == other.actor && self.step == other.step && self.words == other.words && self.opens == other.opens
+        self.actor == other.actor
+            && self.step == other.step
+            && self.words == other.words
+            && self.opens == other.opens
+            && self.needed == other.needed
+            && self.over == other.over
     }
 }
 impl Path {
@@ -171,6 +180,7 @@ pub struct Inputs {
     pub producer: u32, // kind 3 number 1
     pub reviewer: u32, // kind 3 number 2
     pub by: temper_engine_domain_forge_change::Way,
+    pub merge_job: bool,
     pub roles: Box<[Role]>,
     pub agents: Box<[Agent]>, // one per charter the path names
 }

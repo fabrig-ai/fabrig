@@ -222,8 +222,8 @@ fn stop(step: w::PathStep) -> w::Stop {
     use w::{
         Actor::{Agent, Bar, Code, Person},
         PathStep::{
-            Approve, Ask, Branch, Check, Draft, Merge, Plan, Prepare, Produce, ProduceMany, Prove, Repair, Resolve,
-            Review, Turn, Update, Verify,
+            Approve, Ask, Branch, CatchUp, Check, Conflict, Draft, Merge, Plan, Prepare, Produce, ProduceMany, Prove,
+            Repair, Resolve, Review, Turn, Verify,
         },
     };
     let rule = w::Opens::Rule(
@@ -273,7 +273,7 @@ fn stop(step: w::PathStep) -> w::Stop {
                 agent(
                     who,
                     "the coding agent",
-                    "read the code and the forge; change and push its branch; run commands; never merge or update",
+                    "read the code and the forge; change and push its branch; run commands; never merge",
                     "Make the change on its branch and report what changed and what was checked.",
                 ),
             )
@@ -307,14 +307,14 @@ fn stop(step: w::PathStep) -> w::Stop {
             rule,
             card("a person · decides whether it lands", "owner", &[("Role", "owner"), ("Asks", "1 of them")]),
         ),
-        Update => (
+        Conflict => (
             Code,
-            "update",
+            "conflict",
             w::Opens::Queue,
             card(
-                "code · brings the change up to date with its branch",
+                "code · main has moved in a way that clashes with the change",
                 "the queue",
-                &[("Does", "merges the branch's tip into the change, never by an agent")],
+                &[("When", "the change reaches the front of the queue: main is merged into it, never by an agent")],
             ),
         ),
         Merge => (
@@ -333,10 +333,13 @@ fn stop(step: w::PathStep) -> w::Stop {
             card("code · checks what landed", "main checks", &[("Runs", "the tier main checks after each landing")]),
         ),
         Branch => (Bar, "main", w::Opens::Nothing, card("a branch · where the change lands", "main", &[])),
-        Prepare | Prove | Turn => unreachable!("the gallery ways use the queue"),
+        CatchUp | Prepare | Prove | Turn => unreachable!("the gallery ways use the queue"),
     };
-    w::Stop::new(&w::CEILINGS, w::StopParts { actor, step, words: words.as_bytes().into(), opens, card })
-        .expect("path stop")
+    w::Stop::new(
+        &w::CEILINGS,
+        w::StopParts { needed: false, over: Box::default(), actor, step, words: words.as_bytes().into(), opens, card },
+    )
+    .expect("path stop")
 }
 
 fn branch(stops: Vec<w::Stop>) -> w::BranchPath {
@@ -352,13 +355,28 @@ fn branch(stops: Vec<w::Stop>) -> w::BranchPath {
 }
 fn path(index: usize) -> w::BranchPath {
     use w::PathStep::{
-        Approve, Ask, Branch, Check, Draft, Merge, Plan, Produce, ProduceMany, Repair, Resolve, Review, Update, Verify,
+        Approve, Ask, Branch, Check, Conflict, Draft, Merge, Plan, Produce, ProduceMany, Repair, Resolve, Review,
+        Verify,
     };
     let stops = match index {
-        0 => vec![Ask, Produce, Check, Repair, Check, Approve, Update, Resolve, Merge, Branch],
-        1 => vec![Ask, Produce, Check, Review, Repair, Check, Update, Resolve, Merge, Branch],
+        0 => vec![Ask, Produce, Check, Repair, Check, Approve, Conflict, Resolve, Merge, Branch],
+        1 => vec![Ask, Produce, Check, Review, Repair, Check, Conflict, Resolve, Merge, Branch],
         2 => {
-            vec![Draft, Plan, ProduceMany, Merge, Check, Repair, Branch, Check, Update, Resolve, Merge, Verify, Branch]
+            vec![
+                Draft,
+                Plan,
+                ProduceMany,
+                Merge,
+                Check,
+                Repair,
+                Branch,
+                Check,
+                Conflict,
+                Resolve,
+                Merge,
+                Verify,
+                Branch,
+            ]
         }
         _ => unreachable!("three stock ways"),
     };

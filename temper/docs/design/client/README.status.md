@@ -55,8 +55,6 @@ redrawn at a newer revision, drawn as temper's path drawing kind with a
 stop a line as the terminal's fallback.
 
 - **Not yet:**
-  - 4.6 (`path-stops`, `look-round-25`): `PathStep` holds `update` and
-    neither `conflict` nor `catch_up`; `Stop` has no `needed` or `over`.
   - 5.16 (`ways-misses`, `look-round-25`): down the page in a box under
     360 the column is drawn 360 wide and not scaled, so that an open
     card stands lower than the look request's on a phone; the path's
