@@ -1,7 +1,5 @@
-//! How work runs' parts and lanes (temper/docs/design/client/README.md, 5.13).
+//! How work runs' parts (temper/docs/design/client/README.md, 5.13).
 use jig_client::contract as c;
-use skein_lib::List;
-use temper_client_protocol_wire::v1 as w;
 
 /// The project's `ways` read, as the page sees it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -112,36 +110,4 @@ pub fn facts(root: &crate::Domain, project: u32) -> Facts {
         }
     }
     Facts { asking, read, goals, budget }
-}
-
-/// A lane of the path's table.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Lane {
-    You,
-    Agents,
-    Code,
-}
-
-/// A column a stop, in the path's order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Column {
-    Stop { stop: u32, lane: Lane },
-    Bar { stop: u32 },
-}
-
-/// Place every stop once in its actor's lane, and a bar in none.
-#[must_use]
-pub fn lanes(path: &w::BranchPath) -> List<Column> {
-    let mut columns = List::with_capacity(path.stops().len());
-    for (index, stop) in path.stops().iter().enumerate() {
-        let stop_index = u32::try_from(index).expect("wire bounds path stops");
-        let column = match stop.actor() {
-            w::Actor::Person => Column::Stop { stop: stop_index, lane: Lane::You },
-            w::Actor::Agent => Column::Stop { stop: stop_index, lane: Lane::Agents },
-            w::Actor::Code => Column::Stop { stop: stop_index, lane: Lane::Code },
-            w::Actor::Bar => Column::Bar { stop: stop_index },
-        };
-        columns.push(column).expect("one column per bounded stop");
-    }
-    columns
 }

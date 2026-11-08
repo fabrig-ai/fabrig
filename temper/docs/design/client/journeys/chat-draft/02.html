@@ -206,161 +206,115 @@
 ><span
 >An agent makes each change, another reviews it, and code lands it.</span
 ></p
-><div class="temper-how-scroll"
-><table aria-label="The path of a change" class="temper-how-path"
-><tr
-><th scope="col" aria-label="" class="temper-how-head"
+><figure aria-label="The way a change goes" class="temper-ways-path"
+><ul aria-label="The way a change goes"
+><li aria-label="you ask, a person"
+><button type="button"
+>you ask, a person<span
 ><span
+>you ask, a person</span
 ></span
-></th
-><th scope="col" aria-label="Ask" class="temper-how-head"
+></button
+></li
+><li aria-label="produce, an agent"
+><button type="button"
+>produce, an agent<span
 ><span
->Ask</span
-></th
-><th scope="col" aria-label="Produce" class="temper-how-head"
+>produce, an agent</span
+></span
+></button
+></li
+><li aria-label="check, code"
+><button type="button"
+>check, code<span
 ><span
->Produce</span
-></th
-><th scope="col" aria-label="Check" class="temper-how-head"
+>check, code</span
+></span
+></button
+></li
+><li aria-label="review, an agent"
+><button type="button"
+>review, an agent<span
 ><span
->Check</span
-></th
-><th scope="col" aria-label="Review" class="temper-how-head"
+>review, an agent</span
+></span
+></button
+></li
+><li aria-label="repair, an agent, when needed (tests, review)"
+><button type="button"
+>repair, an agent, when needed (tests, review)<span
 ><span
->Review</span
-></th
-><th scope="col" aria-label="Repair" class="temper-how-head"
+>repair, an agent, when needed (tests, review)</span
+></span
+></button
+></li
+><li aria-label="check, code"
+><button type="button"
+>check, code<span
 ><span
->Repair</span
-></th
-><th scope="col" aria-label="Check" class="temper-how-head"
+>check, code</span
+></span
+></button
+></li
+><li aria-label="conflict, code, when needed"
+><button type="button"
+>conflict, code, when needed<span
 ><span
->Check</span
-></th
-><th scope="col" aria-label="Conflict" class="temper-how-head"
+>conflict, code, when needed</span
+></span
+></button
+></li
+><li aria-label="resolve, an agent, when needed"
+><button type="button"
+>resolve, an agent, when needed<span
 ><span
->Conflict</span
-></th
-><th scope="col" aria-label="Resolve" class="temper-how-head"
+>resolve, an agent, when needed</span
+></span
+></button
+></li
+><li aria-label="merge, code"
+><button type="button"
+>merge, code<span
 ><span
->Resolve</span
-></th
-><th scope="col" aria-label="Merge" class="temper-how-head"
+>merge, code</span
+></span
+></button
+></li
+><li aria-label="main, a branch"
 ><span
->Merge</span
-></th
-><th scope="col" aria-label="main" class="temper-how-head temper-how-bar"
 ><span
->main</span
-></th
-></tr
-><tr
-><th scope="row" aria-label="You" class="temper-how-lane"
+>main, a branch</span
+></span
+></li
+></ul
+></figure
+><div class="temper-ways-foot"
+><p aria-label="An agent, an agent when needed, a person, code; no merge tool above the dotted line" class="temper-ways-legend"
+><span class="temper-ways-kind-agent"
 ><span
->You</span
-></th
-><td
-><button type="button" class="temper-how-person"
->you ask</button
-></td
-><td
-></td
-><td
-></td
-><td
-></td
-><td
-></td
-><td
-></td
-><td
-></td
-><td
-></td
-><td
-></td
-><td class="temper-how-bar"
-></td
-></tr
-><tr
-><th scope="row" aria-label="Agents" class="temper-how-lane"
+>agent</span
+></span
+><span class="temper-ways-kind-maybe"
 ><span
->Agents</span
-></th
-><td
-></td
-><td
-><button type="button" class="temper-how-agent"
->the coding agent</button
-></td
-><td
-></td
-><td
-><button type="button" class="temper-how-agent"
->the reviewer</button
-></td
-><td
-><button type="button" class="temper-how-agent"
->the coding agent</button
-></td
-><td
-></td
-><td
-></td
-><td
-><button type="button" class="temper-how-agent"
->the coding agent</button
-></td
-><td
-></td
-><td class="temper-how-bar"
-></td
-></tr
-><tr
-><td colspan="11" class="temper-how-line"
+>when needed</span
+></span
+><span class="temper-ways-kind-person"
 ><span
->authority: no merge tool above this line</span
-></td
-></tr
-><tr
-><th scope="row" aria-label="Code" class="temper-how-lane"
+>person</span
+></span
+><span class="temper-ways-kind-code"
 ><span
->Code</span
-></th
-><td
-></td
-><td
-></td
-><td
-><button type="button" class="temper-how-code"
->CI</button
-></td
-><td
-></td
-><td
-></td
-><td
-><button type="button" class="temper-how-code"
->CI</button
-></td
-><td
-><button type="button" class="temper-how-code"
->the queue</button
-></td
-><td
-></td
-><td
-><button type="button" class="temper-how-code"
->the queue</button
-></td
-><td class="temper-how-bar"
-></td
-></tr
-></table
-></div
+>code</span
+></span
+><span class="temper-ways-kind-line"
+><span
+>no merge tool above</span
+></span
+></p
 ><div class="temper-ways-acts"
 ><button type="button" class="temper-ways-use"
 >Keep it</button
+></div
 ></div
 ></div
 ></div
@@ -407,8 +361,8 @@
 ><span
 >On</span
 ></span
-><input type="checkbox" checked="" class="temper-settings-switch" id="skein-ui-label-196"
-><label for="skein-ui-label-196"
+><input type="checkbox" checked="" class="temper-settings-switch" id="skein-ui-label-173"
+><label for="skein-ui-label-173"
 >Chats can write drafts</label
 ></div
 ></div
@@ -428,8 +382,8 @@
 ><span
 >Hidden</span
 ></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-206"
-><label for="skein-ui-label-206"
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-183"
+><label for="skein-ui-label-183"
 >Goals</label
 ></div
 ></div
@@ -449,8 +403,8 @@
 ><span
 >Hidden</span
 ></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-216"
-><label for="skein-ui-label-216"
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-193"
+><label for="skein-ui-label-193"
 >Changes</label
 ></div
 ></div
@@ -470,8 +424,8 @@
 ><span
 >Hidden</span
 ></span
-><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-226"
-><label for="skein-ui-label-226"
+><input type="checkbox" class="temper-settings-switch" id="skein-ui-label-203"
+><label for="skein-ui-label-203"
 >Away switch</label
 ></div
 ></div
