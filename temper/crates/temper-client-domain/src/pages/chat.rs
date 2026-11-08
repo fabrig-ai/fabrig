@@ -594,7 +594,7 @@ impl Chat {
         };
         if more
             && previous != self.thread.lines.edges.after
-            && (self.initial_pages > 0 || (!filling && empty))
+            && ((self.initial_pages > 0 && weight < OPENING_WEIGHT) || (!filling && empty))
             && self.thread.lines.edges.reaches(End::Before)
             && self.thread.lines.rows.len() < self.thread.limits.lines
             && weight < self.thread.limits.bytes
@@ -1212,6 +1212,7 @@ impl Chat {
         }
         false
     }
+    #[expect(clippy::too_many_lines, reason = "the exhaustive conversation act routing stays in one match")]
     pub(crate) fn act(
         &mut self,
         env: &Env<Limits>,
@@ -1285,6 +1286,8 @@ impl Chat {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::SignOut
+            | Act::AskLine { .. }
+            | Act::AskWith { .. }
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::WayTab { .. }
@@ -1438,6 +1441,10 @@ impl Chat {
         }
     }
 }
+/// A screen and a half as a chat's opening reads hold it: the held lines'
+/// weight, a screen and a half of an 80 by 24 terminal
+/// (temper/docs/design/client/README.md, 5.15).
+pub(crate) const OPENING_WEIGHT: u64 = 2_880;
 #[must_use]
 pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
     let bytes = match limits.window_bytes {

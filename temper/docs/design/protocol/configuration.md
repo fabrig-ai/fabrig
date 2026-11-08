@@ -136,6 +136,18 @@ document says what temper adds. What is open is listed in section 11.
   deployment's own listeners: the clients' and the webhooks', the
   machine's owned and fake `listen` (section 3) and `demo`'s fake LLM's
   (setup.md, 8.4), whose ports it must not share on loopback.
+- **A sign-in's hosts** are resolved once at start, as skein's accounts
+  driver takes them (skein's `oauth.md`, 6.2): its token endpoint's,
+  and the origins of its issuer, its keys and its revocation. One that
+  does not resolve, the default document's `auth.openai.com` on a
+  machine without DNS (setup.md, 8.3), refuses no start: its address is
+  held at `127.0.0.1:0`, which no listener can hold, so each exchange of
+  that provider's sign-in, a sign-in, a refresh or a revocation, fails
+  at its connect as unreachable, until a start that resolves it, as a
+  held forge waits for one (setup.md, 8.3). An address, port, server
+  name or trust file that is wrong still refuses the start, naming its
+  member; Google's sign-in's endpoints (`sign-in.md`, 3.1) still refuse
+  it, naming the host.
 - **`workers`** is a list of jig's worker parts (jig's
   `protocol/configuration.md`, section 4).
 - **`application`** holds temper's members (sections 3 and 4).

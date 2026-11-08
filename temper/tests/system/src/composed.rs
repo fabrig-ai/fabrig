@@ -1214,6 +1214,7 @@ impl World {
                     host::LinkUp::Piece { .. } => self.observed.pieces += 1,
                     host::LinkUp::Call { .. } => self.observed.relays += 1,
                     host::LinkUp::ListRead { .. }
+                    | host::LinkUp::Draining
                     | host::LinkUp::Logins { .. }
                     | host::LinkUp::SignedOut { .. }
                     | host::LinkUp::Activity { .. }

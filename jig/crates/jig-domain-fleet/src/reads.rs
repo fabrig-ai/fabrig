@@ -108,6 +108,7 @@ fn choose(domain: &Domain, endpoint: u32) -> Option<Token> {
         if channel.kind != HostKind::Worker
             || !channel.sources.ready()
             || channel.draining
+            || channel.shutting_down
             || domain.reads.on(channel.token)
         {
             continue;

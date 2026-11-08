@@ -29,7 +29,8 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
                 way.source = Some(*source);
                 out.push(Request::Show { address, replace: true });
             }
-            Address::Inbox { .. }
+            Address::AllHome
+            | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Members

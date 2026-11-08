@@ -4668,12 +4668,9 @@ fn a_decided_proposal_of_another_kind_keeps_its_row_and_draws_no_card() {
     }
 }
 
-// client/README.md, 5.4: all five composers share the message bound.
-fn bounded_composers() -> Box<[temper_client_domain::Domain]> {
-    use temper_client_domain::{
-        Action, Address, Event,
-        pages::{Act, needs},
-    };
+// client/README.md, 5.4: the message composers share the bound.
+fn bounded_composers(browser: bool) -> Box<[temper_client_domain::Domain]> {
+    use temper_client_domain::Address;
     let mut agent = fixtures::task::document();
     agent.chip.task = TASK;
     agent.chip.executor = c::ChipExecutor::Agent { charter: 1 };
@@ -4683,26 +4680,6 @@ fn bounded_composers() -> Box<[temper_client_domain::Domain]> {
     let agent_root = fixtures::task::supplied_root(agent.clone(), false);
     agent.priority = Some(1);
     let goal_root = fixtures::task::supplied_root(agent, false);
-    let object = c::ObjectKey::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION };
-    let mut acts = List::uncapped();
-    acts.push(c::Offered { act: c::ActKind::Answer, admission: c::Admission::Allowed, effect: None }).unwrap();
-    let mut reply = fixtures::reply_composer((
-        c::Read::Question { task: fixtures::INBOX_TASK, message: fixtures::INBOX_QUESTION },
-        c::ReadValue::Question(Box::new(c::Question {
-            task: fixtures::task::document().chip,
-            from: None,
-            message: fixtures::INBOX_QUESTION,
-            words: fixtures::task::document_words(b"Which path?"),
-            since: Wall::EPOCH,
-            acts,
-            ending: None,
-        })),
-    ));
-    fixtures::root_event(
-        &mut reply,
-        Event::Act { action: Action::Pages(Act::Needs(needs::Act::OpenReply { object })) },
-    );
-    assert!(reply.pages().needs().replying(object), "reply opened: {:?}", reply.pages().inbox());
     let mut roots = List::with_capacity(5);
     roots.push(messaging_root()).expect("five composers");
     roots
@@ -4710,7 +4687,11 @@ fn bounded_composers() -> Box<[temper_client_domain::Domain]> {
         .expect("five composers");
     roots.push(agent_root).expect("five composers");
     roots.push(goal_root).expect("five composers");
-    roots.push(reply).expect("five composers");
+    if browser {
+        roots
+            .push(super::needs::fixture("Which path?", false, 1, false, temper_client_domain::address::Filter::ALL))
+            .expect("five composers");
+    }
     roots.into_boxed()
 }
 fn composer_limits() -> temper_client_domain::Limits {
@@ -4754,12 +4735,12 @@ fn composer_edit(root: &mut temper_client_domain::Domain, view: &mut crate::View
 }
 #[test]
 fn past_the_bound_send_is_disabled_and_a_line_says_how_far() {
-    for (index, mut root) in bounded_composers().into_iter().enumerate() {
-        for (excess, line) in [
-            (1, "That's 1 character over what one message holds."),
-            (3200, "That's 3,200 characters over what one message holds."),
-        ] {
-            for browser in [false, true] {
+    for browser in [false, true] {
+        for (index, mut root) in bounded_composers(browser).into_iter().enumerate() {
+            for (excess, line) in [
+                (1, "That's 1 character over what one message holds."),
+                (3200, "That's 3,200 characters over what one message holds."),
+            ] {
                 let mut view = composer_view(&root, browser);
                 let bound = usize::try_from(root.pages().me(root.client()).unwrap().words_bytes).unwrap();
                 let words = composer_words(bound + excess);
@@ -4783,7 +4764,7 @@ fn past_the_bound_send_is_disabled_and_a_line_says_how_far() {
 }
 #[test]
 fn within_the_bound_nothing_changes() {
-    for (index, mut root) in bounded_composers().into_iter().enumerate() {
+    for (index, mut root) in bounded_composers(true).into_iter().enumerate() {
         let mut view = composer_view(&root, true);
         composer_edit(&mut root, &mut view, b"x");
         fixtures::build(&mut view, &root);

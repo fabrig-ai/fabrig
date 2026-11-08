@@ -25,6 +25,7 @@ pub(crate) enum Received {
     Read(client::ReadValue),
     ApplicationSent { key: [u8; 16] },
     Application { key: [u8; 16], answer: temper_client_domain::forge::Answer },
+    PlaygroundStarted { key: [u8; 16] },
 }
 #[derive(Default)]
 struct Connection {
@@ -186,9 +187,17 @@ impl Connection {
                         &temper_client_shell_terminal::limits::native().client.forge,
                     )
                     .expect("family bounds");
-                    let answer = temper_client_domain::forge::family::answer(&record, &bounds, &limits)
-                        .expect("adoption answer");
-                    received.push(Received::Application { key: *keyed.key(), answer });
+                    if let Some(answer) = temper_client_domain::forge::family::answer(&record, &bounds, &limits) {
+                        received.push(Received::Application { key: *keyed.key(), answer });
+                    } else {
+                        let answer = temper_client_domain::forge::playground::answer(
+                            &jig_client::Answered::Family(record),
+                            &temper_client_shell_terminal::limits::native().client.forge,
+                        )
+                        .expect("playground start answer");
+                        assert_eq!(answer, temper_client_domain::forge::playground::StartAnswer::Running);
+                        received.push(Received::PlaygroundStarted { key: *keyed.key() });
+                    }
                 }
             }
             b"/jig/v1/read" => {

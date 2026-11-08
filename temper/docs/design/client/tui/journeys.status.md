@@ -2,11 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-- **Not yet:** 9: `launchpad-chat/04` lacks the person's opening question,
-  a fast chat's fault (finding-465, `post-landing-probes`), so its frame
-  doesn't show the dim person's words of `../README.md`, 6.15; it is
-  recorded again with that repair.
-
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
   link from the box's stdout (8.2), so it cannot drive a box whose TUI is
