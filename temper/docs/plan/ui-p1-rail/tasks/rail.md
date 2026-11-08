@@ -215,3 +215,16 @@ Keep rail’s additions and removals and Deployment’s vocabulary from the prev
 For these combined tips, use `PHRASES = 2137`, `SEGMENTS = 3778`, `ENGLISH_BYTES = 52357`, and `ALL: [Word; 1455]`; the previous Rebase totals omit main’s four words.
 Preserve the other paths’ auto-merged changes.
 Through heavy, run `tests::accounts::english_phrase_declarations_match_the_vocabulary` and `tests::rail::rail_and_tabbar_keep_the_order_addresses_current_states_and_count` individually, then complete the spec’s focused checks.
+
+## Rebase (2026-11-08, step merge, foreman ui-p1-rail/rail/foreman-3)
+
+combine rail and Work vocabulary totals in words.rs
+Resolve `temper/crates/temper-client-view/src/words.rs` against integration `ca5054d70e`, which includes `b975479417` (“Work lists what exists; Goals and Changes are its filters”).
+The conflict is confined to `PHRASES`, `SEGMENTS`, `ENGLISH_BYTES` and `ALL`’s array length.
+Preserve both sides’ variants, IDs, English definitions and `ALL` entries, including rail’s removals, Deployment’s vocabulary and main’s Role/Rule words.
+Retain Work’s 28 added words and its updated `ChangesLede`, which removes the leading “. ”.
+For these combined tips, set `PHRASES = 2165`, `SEGMENTS = 3838`, `ENGLISH_BYTES = 52826`, and `ALL: [Word; 1483]`.
+These replace the previous Rebase totals, which omit Work’s vocabulary.
+Keep rail keys in 4600–4649, Work keys in 4650–4749 and Deployment keys in 4750–4799, per contracts C6.
+Preserve the other paths’ auto-merged changes.
+Through heavy, run `tests::accounts::english_phrase_declarations_match_the_vocabulary` individually in `temper-client-view` with `--lib`, then complete the spec’s focused checks.
