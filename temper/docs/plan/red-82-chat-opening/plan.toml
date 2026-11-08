@@ -1,0 +1,6 @@
+draft = "red-82-chat-opening"
+repo = "fabrig"
+sources = ["temper/docs/plan/red-82-chat-opening/inputs/request.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+priority = true
