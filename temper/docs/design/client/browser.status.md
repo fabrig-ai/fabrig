@@ -14,6 +14,10 @@
   the free space) and draws no end; `look-round-22`'s `welcome-end`
   closes it.
 
+- **Not yet:** 2.3, *A heading drawn after its page*: a new entry with
+  no main yet gets no focus, and its heading none when the main comes;
+  `look-round-22`'s `me-first` closes it.
+
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day
