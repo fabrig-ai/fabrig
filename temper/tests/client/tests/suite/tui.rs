@@ -194,6 +194,110 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     assert!(tui.closed, "/exit asks the shipped host to close");
 }
 
+#[test]
+fn a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered() {
+    const QUESTION: &str = "Comma or semicolon?";
+    const WORDS: &[u8] = b"Comma or semicolon?\nChoice: Semicolon\nChoice: Comma (recommended)";
+    let (mut world, chat) = fixtures::tui_question_world(fixtures::SEED, WORDS);
+    let (question, delegate) = {
+        let task = world.front().engine.task(chat).expect("question's chat");
+        let question = task
+            .inbox
+            .iter()
+            .find(|message| message.kind == jig_domain_tasks::MessageKind::Question && message.words.as_ref() == WORDS)
+            .expect("the engine committed the question");
+        let jig_domain_tasks::Party::Task(delegate) = question.from else { panic!("a delegate asks") };
+        let number = world
+            .front()
+            .engine
+            .task(delegate)
+            .expect("asking delegate")
+            .questions
+            .first()
+            .expect("delegate's question")
+            .number;
+        (number, delegate)
+    };
+    let mut tui = Tui::hello_launchpad(&mut world, TUI);
+    tui.run(&mut world, fixtures::WITHIN);
+    let rows = tui.rows();
+    let needs =
+        rows.iter().position(|row| row == "Needs you").unwrap_or_else(|| panic!("Needs you heading: {}", tui.text()));
+    let need = rows
+        .iter()
+        .position(|row| row.contains("? Hello") && row.contains(QUESTION))
+        .unwrap_or_else(|| panic!("the question's row: {}", tui.text()));
+    assert!(needs < need, "the question stands under Needs you: {}", tui.text());
+    assert!(tui.text().contains("1 needs you · n to walk"), "{}", tui.text());
+
+    tui.walk_needs(&mut world);
+    let rows = tui.rows();
+    let prompt = rows.iter().position(|row| row == QUESTION).expect("the walk's question head");
+    assert_eq!(rows.get(prompt + 1).map(String::as_str), Some("❯ 1. Comma"), "{}", tui.text());
+    assert_eq!(rows.get(prompt + 2).map(String::as_str), Some("2. Semicolon"), "{}", tui.text());
+    tui.press(&mut world, vec![Key::Enter]);
+    // Needs you holds a choice for Undo before sending it to the engine.
+    tui.run(&mut world, client::pages::needs::HOLD.saturating_add(fixtures::WITHIN));
+    let answers: Vec<_> = world
+        .front()
+        .engine
+        .store
+        .rows
+        .values()
+        .filter_map(|record| {
+            if let temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(
+                jig_domain_tasks::Stored::Activity(line),
+            )) = record
+                && line.task == delegate
+                && let jig_domain_tasks::Line::Words {
+                    kind: jig_domain_tasks::MessageKind::Answer { question: number },
+                    words,
+                    ..
+                } = &line.line
+                && *number == question
+            {
+                Some(words.as_ref())
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(answers, [b"Comma".as_slice()], "the engine records the recommended choice's words: {}", tui.text());
+    let rows = tui.rows();
+    assert!(!rows.iter().any(|row| row == "Needs you" || row.contains("? Hello")), "{}", tui.text());
+    assert!(rows.iter().any(|row| row == "Nothing else needs you."), "{}", tui.text());
+}
+
+#[test]
+fn a_change_asked_from_the_launchpad_starts_a_chat() {
+    const REQUEST: &str = "Add a CSV export";
+    let mut world = fixtures::tui_asking_world(fixtures::SEED);
+    let mut tui = Tui::hello_launchpad(&mut world, TUI);
+    let reader = world.client(fixtures::PARTY, fixtures::inbox());
+    tui.run(&mut world, fixtures::WITHIN);
+    let root = world.root(reader).person();
+    let me = root.pages().me(root.client()).expect("the engine's project templates");
+    let template = jig_client::shapes::template(me, 1, jig_client::shapes::CHAT).expect("project's chat template");
+    let jig_client::contract::TemplateExecutor::Charter(charter) = template.executor else {
+        panic!("the chat template supplies its charter")
+    };
+    assert_ne!(charter, 11, "the project's chat and Ask temper have distinct charters");
+    let before = fixtures::chats(&world.front().engine);
+    tui.type_words(&mut world, &format!("/change {REQUEST}"));
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert_eq!(fixtures::chats(&world.front().engine), before + 1, "one new chat");
+    let front = world.front();
+    let assignment = front.assignments.last().expect("the new chat's run");
+    let task = front.engine.task(assignment.task).expect("the engine's new chat");
+    assert_eq!(task.executor, jig_domain_tasks::Executor::Agent { charter });
+    assert_eq!(task.spec.words.as_ref(), REQUEST.as_bytes());
+    let heading =
+        format!("Hello / Add a CSV export T{} on {}", assignment.task, core::str::from_utf8(ADDRESS).expect("address"));
+    assert!(tui.rows().iter().any(|row| row.contains(&heading)), "{}", tui.text());
+    assert!(tui.rows().iter().any(|row| row == &format!("❯ {REQUEST}")), "{}", tui.text());
+}
+
 const FAST_ANSWER: &str = "Hello from the local fake model.";
 
 fn assert_said_before_answer(tui: &mut Tui, question: &str, answer: &str) {
