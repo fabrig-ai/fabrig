@@ -258,10 +258,6 @@ establish no rendered equality.
   "temper", where the shell's is "Home · temper" (`README.md`, 5.1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.
-- **Not yet:** 7.2, *The worlds are the mockups'*: the first run's worlds list the chat
-  template alone, so their pages draw no Ask temper row or tab; the reference world's
-  own way "Plan, then wait for me" is template 5, so its charter 1 chats read as Ask
-  temper's (look-round-18).
 - **Departs:** 2.5: Home uses the greenfield mock's own scale, as the
   project's frame and Goals do, where the general main's scale says
   14/12: its column is 720 px, body 15 px, headline 32 px (25 px on a
