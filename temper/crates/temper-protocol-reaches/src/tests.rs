@@ -119,6 +119,49 @@ fn patterns_match_segments() {
 
 #[test]
 fn stocks_and_away_follow_the_way() {
+    use temper_client_protocol_wire::v1;
+    for classes in [
+        Classes::stock(Way::YouApprove),
+        Classes::stock(Way::AgentsReview),
+        Classes::stock(Way::DraftFirst),
+        largest(),
+        table(&[item(Subject::Set(6), b"keep the wire format", Class::Ask)], &[set(6, &[b"src/**", b"docs/*.md"])]),
+    ] {
+        assert_eq!(classes.check(), Ok(()));
+        let record = classes_record(&classes).unwrap();
+        assert_eq!(classes_from(&record), classes);
+        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut writer).unwrap();
+        assert_eq!(
+            v1::ProjectClasses::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&writer.finish())).unwrap(),
+            record
+        );
+    }
+    for subject in Kind::ALL.map(Subject::Kind).into_iter().chain([Subject::Set(6)]) {
+        let record = subject_record(subject);
+        assert_eq!(subject_from(&record), subject);
+        assert_eq!(subject_record(subject_from(&record)), record);
+    }
+    for (reason, good) in [
+        (Reason::Kind, true),
+        (Reason::Set(1), true),
+        (Reason::Set(6), true),
+        (Reason::Always, true),
+        (Reason::Set(0), false),
+        (Reason::Set(7), false),
+    ] {
+        let reach = Reach {
+            kind: Kind::Dependency,
+            class: Class::AskAway,
+            reason,
+            under: 20,
+            sets: 63,
+            matched: 33,
+            away: true,
+        };
+        assert_eq!(reach_from(&reach_record(&reach)), good.then_some(reach));
+    }
+
     let expected = [
         own(Kind::Wording, Class::Decide),
         own(Kind::Retry, Class::Decide),

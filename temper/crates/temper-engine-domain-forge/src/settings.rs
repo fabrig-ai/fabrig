@@ -12,6 +12,7 @@ pub enum Kind {
     Charters,
     ProjectQuestions,
     ProjectWays,
+    ProjectClasses,
 }
 
 impl Kind {
@@ -23,6 +24,7 @@ impl Kind {
             Self::Charters => 3,
             Self::ProjectQuestions => 6,
             Self::ProjectWays => 7,
+            Self::ProjectClasses => 8,
         }
     }
 
@@ -34,6 +36,7 @@ impl Kind {
             3 => Some(Self::Charters),
             6 => Some(Self::ProjectQuestions),
             7 => Some(Self::ProjectWays),
+            8 => Some(Self::ProjectClasses),
             _ => None,
         }
     }
@@ -79,6 +82,7 @@ pub enum Value {
     Charter(u32),
     Questions(temper_engine_domain_forge_change::Route),
     Ways(ProjectWays),
+    Classes(temper_protocol_reaches::Classes),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
@@ -89,7 +93,7 @@ pub struct SizedValue {
     pub size: u32,
 }
 
-/// The value of a project's kind 6 or 7 with none stored
+/// The value of a project's kind 6, 7 or 8 with none stored
 /// (temper/docs/design/protocol/configuration.md, 13.4).
 #[must_use]
 pub fn project_stock(kind: u32) -> Option<SizedValue> {
@@ -112,6 +116,11 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
             )
             .expect("fixed ways fields");
             Some(SizedValue { value: Value::Ways(ways), size: record.measure() })
+        }
+        8 => {
+            let classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
+            let record = temper_protocol_reaches::classes_record(&classes).expect("stock table fits the record");
+            Some(SizedValue { value: Value::Classes(classes), size: record.measure() })
         }
         _ => None,
     }
@@ -216,6 +225,7 @@ pub enum Refusal {
     Value,
     Replaced,
     Way,
+    Classes(temper_protocol_reaches::Refusal),
 }
 
 impl Refusal {
@@ -232,6 +242,21 @@ impl Refusal {
             Self::Value => b"a value of another kind",
             Self::Replaced => b"the replaced value is no longer kept",
             Self::Way => b"a way that is not a template the project offers",
+            Self::Classes(refusal) => match refusal {
+                temper_protocol_reaches::Refusal::Items => b"more than 20 items in a classes table",
+                temper_protocol_reaches::Refusal::Sets => b"more than 6 path sets in a classes table",
+                temper_protocol_reaches::Refusal::Fixed { .. } => b"an item of a kind that always waits",
+                temper_protocol_reaches::Refusal::Wait { .. } => b"an item whose class always waits",
+                temper_protocol_reaches::Refusal::Words { .. } => b"an item's words past 120 bytes",
+                temper_protocol_reaches::Refusal::NoSet { .. } => b"an item naming a path set the table lacks",
+                temper_protocol_reaches::Refusal::Twice { .. } => b"a second item without words of its subject",
+                temper_protocol_reaches::Refusal::Number { .. } => b"a path set numbered twice or outside 1 to 6",
+                temper_protocol_reaches::Refusal::Name { .. } => b"a path set's name empty or past 40 bytes",
+                temper_protocol_reaches::Refusal::Patterns { .. } => b"a path set with no pattern or more than 6",
+                temper_protocol_reaches::Refusal::Pattern { .. } => {
+                    b"a path set's pattern that is not well formed, empty or past 80 bytes"
+                }
+            },
         }
     }
 }
@@ -243,19 +268,25 @@ fn within(len: usize, bound: u32) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the judgement lists each setting kind and its bounds together")]
 pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
     match kind {
         Kind::DeploymentRules | Kind::Charters if item.scope != 0 => return Err(Refusal::Scope),
-        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays if item.scope == 0 => {
+        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses if item.scope == 0 => {
             return Err(Refusal::Scope);
         }
-        Kind::DeploymentRules | Kind::ProjectRules | Kind::Charters | Kind::ProjectQuestions | Kind::ProjectWays => {}
+        Kind::DeploymentRules
+        | Kind::ProjectRules
+        | Kind::Charters
+        | Kind::ProjectQuestions
+        | Kind::ProjectWays
+        | Kind::ProjectClasses => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
-        Kind::ProjectQuestions | Kind::ProjectWays => 1,
+        Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses => 1,
     };
     if item.number == 0 || item.number > numbers {
         return Err(Refusal::Number);
@@ -263,26 +294,40 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let rule = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => match &item.value {
             Some(Value::Rule(rule)) => rule,
-            Some(Value::Charter(_) | Value::Questions(_) | Value::Ways(_)) => return Err(Refusal::Value),
+            Some(Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_)) => {
+                return Err(Refusal::Value);
+            }
             None => return Ok(()),
         },
         Kind::Charters => {
             return match &item.value {
                 Some(Value::Charter(charter)) if *charter > 0 && *charter <= bounds.charters => Ok(()),
                 Some(Value::Charter(_)) | None => Err(Refusal::Charter),
-                Some(Value::Rule(_) | Value::Questions(_) | Value::Ways(_)) => Err(Refusal::Value),
+                Some(Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_)) => Err(Refusal::Value),
             };
         }
         Kind::ProjectQuestions => {
             return match &item.value {
                 Some(Value::Questions(_)) | None => Ok(()),
-                Some(Value::Rule(_) | Value::Charter(_) | Value::Ways(_)) => Err(Refusal::Value),
+                Some(Value::Rule(_) | Value::Charter(_) | Value::Ways(_) | Value::Classes(_)) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectClasses => {
+            return match &item.value {
+                Some(Value::Classes(classes)) => match classes.check() {
+                    Ok(()) => Ok(()),
+                    Err(refusal) => Err(Refusal::Classes(refusal)),
+                },
+                None => Ok(()),
+                Some(Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_)) => Err(Refusal::Value),
             };
         }
         Kind::ProjectWays => {
             return match &item.value {
                 Some(Value::Ways(_)) | None => Ok(()),
-                Some(Value::Rule(_) | Value::Charter(_) | Value::Questions(_)) => Err(Refusal::Value),
+                Some(Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Classes(_)) => {
+                    Err(Refusal::Value)
+                }
             };
         }
     };

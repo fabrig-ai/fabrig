@@ -400,23 +400,35 @@ fn requires_reads_rules_that_do_not_enforce() {
 fn a_projects_kinds_are_judged() {
     use crate::settings::ProjectWays;
     use temper_engine_domain_forge_change::Route;
+    use temper_protocol_reaches::{self as reaches, Classes, Way};
     for (kind, expected) in [
         (6, Value::Questions(Route::None)),
+        (8, Value::Classes(Classes::stock(Way::AgentsReview))),
         (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 })),
     ] {
         assert_eq!(crate::settings::project_stock(kind).unwrap().value, expected, "stock {kind}");
     }
+    let invalid = Classes {
+        items: Box::new([reaches::Item {
+            subject: reaches::Subject::Kind(reaches::Kind::Money),
+            words: Box::new([]),
+            class: reaches::Class::Ask,
+        }]),
+        sets: Box::new([]),
+    };
     let values = [
-        (6, Value::Questions(Route::None)),
-        (6, Value::Questions(Route::Foreman)),
-        (6, Value::Questions(Route::Up)),
-        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: u32::MAX })),
+        (6, Value::Questions(Route::None), Ok(())),
+        (6, Value::Questions(Route::Foreman), Ok(())),
+        (6, Value::Questions(Route::Up), Ok(())),
+        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: u32::MAX }), Ok(())),
+        (8, Value::Classes(Classes::stock(Way::AgentsReview)), Ok(())),
+        (8, Value::Classes(invalid), Err(Refusal::Classes(reaches::Refusal::Fixed { item: 1 }))),
     ];
-    for (kind, value) in values {
+    for (kind, value, set_result) in values {
         assert_eq!(Kind::of(kind).unwrap().number(), kind);
         let base = Item { kind, scope: PROJECT, number: 1, value: Some(value) };
         for (label, item, expected) in [
-            ("set", base.clone(), Ok(())),
+            ("set", base.clone(), set_result),
             ("scope", Item { scope: 0, ..base.clone() }, Err(Refusal::Scope)),
             ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
             ("two", Item { number: 2, ..base.clone() }, Err(Refusal::Number)),
@@ -426,7 +438,7 @@ fn a_projects_kinds_are_judged() {
         ] {
             assert_eq!(judge(&item, &BOUNDS), expected, "{kind}: {label}");
         }
-        let other = if kind == 6 {
+        let other = if kind == 6 || kind == 8 {
             Value::Ways(ProjectWays { drafts: false, goals: false, changes: false, away: false, way: 0 })
         } else {
             Value::Questions(Route::None)

@@ -30,7 +30,20 @@ fn row(edit: d::Edit) -> forge::Stored {
 }
 #[test]
 fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_key() {
+    use temper_protocol_reaches::{Class, Classes, Item, PathSet, Subject};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let classes = Classes {
+        items: Box::new([Item {
+            subject: Subject::Set(6),
+            words: b"keep the wire format".as_slice().into(),
+            class: Class::Ask,
+        }]),
+        sets: Box::new([PathSet {
+            number: 6,
+            name: b"protocol".as_slice().into(),
+            patterns: Box::new([b"src/**".as_slice().into(), b"docs/*.md".as_slice().into()]),
+        }]),
+    };
     let mut open = rule();
     open.pattern.last = forge::GateLast::Open(Box::from(b"feature".as_slice()));
     for (kind, value) in [
@@ -41,6 +54,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, away: false, way: u32::MAX })),
+        (8, d::Value::Classes(classes.clone())),
     ] {
         for slot in [
             d::SettingSlot::Default,
@@ -76,6 +90,25 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 assert_eq!(records::decode(&trailing.finish(), &bounds), Err(Undecodable));
             }
         }
+    }
+    for invalid in [
+        Classes {
+            items: Box::new([Item {
+                subject: Subject::Kind(temper_protocol_reaches::Kind::Money),
+                words: Box::new([]),
+                class: Class::Ask,
+            }]),
+            ..classes.clone()
+        },
+        Classes { sets: Box::new([]), ..classes },
+    ] {
+        assert_eq!(
+            records::decode(
+                &records::encode(&row(d::Edit::Set(d::SizedValue { value: d::Value::Classes(invalid), size: 1 }))),
+                &bounds
+            ),
+            Err(Undecodable)
+        );
     }
 }
 #[test]

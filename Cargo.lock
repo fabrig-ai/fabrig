@@ -5386,6 +5386,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-protocol-reaches",
 ]
 
 [[package]]
@@ -5566,6 +5567,7 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-ways",
+ "temper-protocol-reaches",
  "temper-settings-form",
 ]
 
@@ -5877,6 +5879,7 @@ name = "temper-protocol-reaches"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "temper-client-protocol-wire",
 ]
 
 [[package]]
@@ -5906,12 +5909,14 @@ dependencies = [
  "skein-kv",
  "skein-lib",
  "skein-world",
+ "temper-client-protocol-wire",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-protocol-reaches",
 ]
 
 [[package]]

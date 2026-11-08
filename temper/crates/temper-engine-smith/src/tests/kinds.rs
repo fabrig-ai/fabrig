@@ -79,6 +79,7 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Charter(_) => 3,
             settings::Value::Questions(_) => 6,
             settings::Value::Ways(_) => 7,
+            settings::Value::Classes(_) => 8,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);
