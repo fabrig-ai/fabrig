@@ -969,6 +969,9 @@ pub struct RepositoryGates {
     pub gates: Box<[landing::Gate]>,
     pub tiers: Box<[Tier]>,
 }
+/// A tier description's byte bound (temper/docs/design/protocol/configuration.md, 3).
+pub const DESCRIPTION_BYTES: usize = 120;
+
 /// A repository's tier and followed branch (temper/docs/design/domain/after-landing.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Tier {
@@ -979,6 +982,7 @@ pub struct Tier {
     pub format: temper_engine_domain_forge_tiers::Format,
     pub follows: Follows,
     pub span: Option<skein_lib::Duration>,
+    pub description: Box<[u8]>,
 }
 /// What a tier follows (temper/docs/design/domain/after-landing.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

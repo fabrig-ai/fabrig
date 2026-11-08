@@ -258,6 +258,7 @@ fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
                     None => Follows::Landing,
                 },
                 span: None,
+                description: Box::default(),
             })
             .expect("fixture tiers");
     }

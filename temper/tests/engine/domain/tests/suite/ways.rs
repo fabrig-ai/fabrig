@@ -356,6 +356,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
                         format: temper_engine_domain_forge_tiers::Format::Junit,
                         follows: forge::Follows::Branch(b"main".as_slice().into()),
                         span_ms: 0,
+                        description: Box::default(),
                     }]),
                 }]),
                 after: engine::AfterLandingCheck { tier_retries: 1, verification_bound_ms: 60_000 },
@@ -698,6 +699,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                 format: temper_engine_domain_forge_tiers::Format::Lines,
                 follows,
                 span_ms: 0,
+                description: Box::default(),
             },
         );
         assert!(

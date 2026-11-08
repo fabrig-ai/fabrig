@@ -104,7 +104,11 @@ fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Reposito
                 continue;
             }
             tiers
-                .push(ways::Tier { name: tier.name.clone(), follows: tier.follows.clone() })
+                .push(ways::Tier {
+                    name: tier.name.clone(),
+                    follows: tier.follows.clone(),
+                    description: tier.description.clone(),
+                })
                 .expect("configured tiers");
         }
     }

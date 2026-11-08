@@ -23,8 +23,8 @@ pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) ->
             gates: if prove { Box::new([b"unit".as_slice().into()]) } else { Box::default() },
             tiers: if tiers {
                 Box::new([
-                    Tier { name: b"slow".as_slice().into(), follows: Follows::Landing },
-                    Tier { name: b"goal".as_slice().into(), follows: Follows::Goals },
+                    Tier { name: b"slow".as_slice().into(), follows: Follows::Landing, description: Box::default() },
+                    Tier { name: b"goal".as_slice().into(), follows: Follows::Goals, description: Box::default() },
                 ])
             } else {
                 Box::default()
@@ -408,6 +408,12 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     let mut stock_review = review.clone();
     let reviewer_sentence = "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.";
     stock_review.agents.get_mut(1).unwrap().asked = reviewer_sentence.as_bytes().into();
+    let mut described = review.clone();
+    described.repository.as_mut().unwrap().tiers.first_mut().unwrap().description =
+        b"the slow suites".as_slice().into();
+    let mut goal_described = inputs(2, true, true, Way::Queue, false);
+    goal_described.repository.as_mut().unwrap().tiers.get_mut(1).unwrap().description =
+        b"the gate without its slowest suites".as_slice().into();
     let approved = inputs(0, false, false, Way::Queue, false);
     let mut deployment = review.clone();
     deployment.rules.first_mut().unwrap().scope = 0;
@@ -555,6 +561,22 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             "code · checks what landed",
             "slow",
             facts(&[("Runs", "the tier slow after each landing")]),
+        ),
+        (
+            &described,
+            Step::Verify,
+            Opens::Tier(b"slow".as_slice().into()),
+            "code · checks what landed",
+            "slow",
+            facts(&[("Runs", "the tier slow after each landing"), ("Checks", "the slow suites")]),
+        ),
+        (
+            &goal_described,
+            Step::Check,
+            Opens::Tier(b"goal".as_slice().into()),
+            "code · checks the goal's branch",
+            "goal",
+            facts(&[("Runs", "the tier goal on the goal's branch"), ("Checks", "the gate without its slowest suites")]),
         ),
     ];
     for (inputs, step, opens, who, name, facts) in rows {

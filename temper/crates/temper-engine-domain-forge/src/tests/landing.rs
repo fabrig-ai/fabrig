@@ -14,6 +14,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         format: Format::Junit,
         follows: Follows::Branch(Box::from(b"release/next".as_slice())),
         span: None,
+        description: Box::default(),
     };
     let repositories = Box::new([
         RepositoryGates {
@@ -108,6 +109,7 @@ fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
         format: Format::Lines,
         follows: Follows::Landing,
         span: None,
+        description: Box::default(),
     };
     let after = AfterLanding {
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
@@ -573,6 +575,7 @@ fn project_tiers_require_a_nonempty_explicit_branch_only() {
                         format: Format::Lines,
                         follows,
                         span: None,
+                        description: Box::default(),
                     }]),
                 }]),
                 AfterLanding {

@@ -174,6 +174,7 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
                 format: temper_engine_domain_forge_tiers::Format::Lines,
                 follows,
                 span_ms: 0,
+                description: Box::default(),
             });
             assert!(
                 config

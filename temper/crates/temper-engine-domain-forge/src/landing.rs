@@ -112,6 +112,7 @@ impl State {
 fn valid_tier(tier: &crate::Tier, limits: &Limits) -> bool {
     if tier.name.is_empty()
         || tier.name.len() > policy::CHECK_NAME_BYTES
+        || tier.description.len() > crate::DESCRIPTION_BYTES
         || tier.workflow.is_empty()
         || tier.workflow.len() > policy::WORKFLOW_BYTES
         || tier.workflow.contains(&b'/')
