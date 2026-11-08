@@ -1,7 +1,10 @@
-//! The owner-run sitting's private relay. Never runs in a default test invocation.
+//! The managed sitting's Ready on the fake (temper/docs/design/domain/testing.md, 2.6)
+//! and its owner-run relay against github.com (temper/docs/design/domain/testing.md, 2.7).
 #![expect(dead_code, reason = "the existing relay also serves other test binaries")]
 #[path = "support/managed_client.rs"]
 mod managed_client;
+#[path = "support/managed_sitting.rs"]
+mod managed_sitting;
 #[path = "support/patience.rs"]
 mod patience;
 #[path = "support/relay.rs"]
@@ -24,13 +27,17 @@ fn write_private(path: &std::path::Path, bytes: &[u8]) {
 }
 
 #[test]
-#[ignore = "owner-run only, through scripts/proof-live-github-managed.sh"]
+#[ignore = "live: github.com, where a person makes and installs the App; scripts/proof-live-github-managed.sh live"]
 fn managed_relay() {
     relay_managed::run().expect("managed relay failed (details deliberately suppressed)");
 }
 
+/// Runs the fake sitting, or its client with the sitting's mode and stdin link
+/// when `TEMPER_MANAGED_CLIENT` is set (temper/docs/design/domain/testing.md, 2.6).
 #[test]
-#[ignore = "fake sitting only, through scripts/proof-live-github-managed.sh"]
 fn managed_ready_client() {
-    managed_client::run();
+    match managed_client::role() {
+        Some(mode) => managed_client::run(mode),
+        None => managed_sitting::run(),
+    }
 }
