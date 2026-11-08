@@ -8,15 +8,17 @@
     How work runs, Deployment or All projects; its phone tab bar is Home,
     Needs you, Goals or Chats, Ask and Settings. `../client/greenfield/README.md`
     names the greenfield mock's rail the target.
-  - 3: `../client/README.md`, 3.5, *Home on any project*, is a project's
-    Home alone, with no Home across projects, no Projects rows and no What
-    follows what; `../domain/forge.md`, 5.7, has the status agent write a
-    project's brief from what the engine keeps, not from owners' Nows, and
-    nothing joins the projects' briefs on All projects.
-  - 4: `../client/README.md`, 3.5, *Needs you*, draws one card at a time
-    on every width, with no why, no "Stop asking" or "Keep asking", no
-    Only you and no Decided for you of its own; an approval's card is
-    `forge-identity.md`, section 8's, not yet a sign-off by path.
+  - 3: `../client/README.md`, 3.5, *Home on All projects*, has no owners'
+    Now on a project's row, no tiers, follow's parity or "owned" chip, and
+    no What follows what; its Decided for you rows name the task, not who
+    decided; `../domain/forge.md`, 5.7, has
+    the status agent write a project's brief from what the engine keeps,
+    not from owners' Nows, and its byline says nothing of them.
+  - 4: `../client/README.md`, 3.5, *Needs you*, has no why, no "Stop
+    asking" or "Keep asking", no "What reaches you" lede, no Only you, no
+    Tell temper at its foot and no terminal command to talk a need
+    through; its from line names no goal, role or asker; an approval's
+    card is `forge-identity.md`, section 8's, not yet a sign-off by path.
   - 5: `../client/README.md`, 3.5, *Goals*, *Changes* and *Chats*, are
     three pages; no design holds Work or its drafts.
   - 6: no design holds Team, an area's owner or a role's card
@@ -37,22 +39,28 @@
     you left off as listed here, no Team, no Start, no design session or
     drafter, no side pane and no talking with a role; 11.4's added
     commands have no design.
-  - 12: `../client/README.md`, 5.13, holds "What the project shows" as
+  - 12: `../client/README.md`, 3.5, *A page's parts*, holds Home's and
+    Needs you's rules alone, without owners' lines, follows or Away;
+    `../client/README.md`, 5.13, holds "What the project shows" as
     switches, not as overrides of what a way shows; no design derives
     Team's showing; 3.5, *Away*, shows Away by `Domain::away_shown`, not
     by the project's classes, and Decided for you by goals' rows alone.
   - 13: the mockups are not on main until `whole-story.execution.md`'s
     M0; `../client/greenfield/README.md` and `../client/mockups/README.md`,
     section 1, don't name them.
-  - 14: `../client/browser.md`, section 7, holds none of these states;
-    no journey records them.
+  - 14: `../client/browser.md`, section 7, holds Home's and Needs you's
+    states, but none of Work, Team, How work runs, Deployment, Tell temper
+    or the phone's tabs; no journey records them.
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off.
   - 4 and 15: Needs you as a list on a wide page, or one card at a time.
+    `../client/README.md`, 3.5, *Needs you*, takes the default: the list,
+    one at a time on a phone.
   - 7 and 15: Repositories at How work runs' foot, or in Deployment.
   - 2 and 15: `Chats` kept at its address, or folded away.
   - 11.2 and 15: the drafter on the web as well as in the terminal.
   - 3 and 15: one brief across projects, written per person: which
     project's period funds it, which project its task belongs to, whether
     it may read other projects' Nows. Default: one brief a project, joined
-    on All projects.
+    on All projects, which `../client/README.md`, 3.5, *Home on All
+    projects*, takes.
