@@ -1,0 +1,6 @@
+draft = "tui-link-colours"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-link-colours/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/AGENTS.md", "temper/docs/design/client/tui/journeys.md", "skein/docs/design/ui-screen.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+priority = true
