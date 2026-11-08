@@ -2,6 +2,12 @@
 
 2026-11-08. Remaining gaps between temper's code and [tools.md](tools.md).
 
+Section 5.3's Ask temper start uses `chat start --template 5`, under
+charter 11, in the help and chat-template fixtures. The joined world
+starts it through ctl, reads with `see` and accepts its settings
+proposal. The command still selects any offered chat template; the
+removed stock template 3 has no special command path.
+
 Section 8.1's sign-in deadline distinguishes the last not-ready refusal
 from busy, names startup or an unanswering core, points to serve's log
 and keeps the link usable until expiry. The CLI's sign-in tests
