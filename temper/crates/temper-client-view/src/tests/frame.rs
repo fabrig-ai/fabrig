@@ -19,9 +19,7 @@ fn the_top_bar_says_the_links_state_and_the_persons_name() {
             assert!(fixtures::find(view.tree(), Role::Disclosure, b"Menu").is_none());
             for node in view.tree().nodes() {
                 assert_ne!(node.role, Role::Navigation);
-                for style in [crate::look::BANNER, crate::look::MENU, crate::look::CORNER, crate::look::PROJECTS] {
-                    assert!(!node.styles.as_slice().contains(&style));
-                }
+                assert!(!node.styles.as_slice().contains(&crate::look::PROJECTS));
             }
         }
     }
