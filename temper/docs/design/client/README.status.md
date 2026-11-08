@@ -2,10 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *A new chat* and *A chat's document*: `NewChat { draft:
-  true }` starts the project's chat template whatever `me` lists, nothing
-  knows a chat as a design session, and one opened again starts in Chat
-  (`temper-client-domain/src/pages/chats.rs`).
 
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and

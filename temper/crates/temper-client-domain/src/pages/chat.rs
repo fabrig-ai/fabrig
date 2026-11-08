@@ -37,6 +37,7 @@ struct CardRead {
 )]
 pub struct Chat {
     pub mode: Mode,
+    opening_mode: Option<Mode>,
     pub restarting: bool,
     pub decided: Option<(u64, Wall)>,
     pub departed_proposal: Option<u64>,
@@ -118,6 +119,7 @@ impl Chat {
         asking.ask(activity, c::Read::Activity { task, before: None }, out);
         Self {
             mode,
+            opening_mode: Some(mode),
             restarting: false,
             decided: None,
             departed_proposal: None,
@@ -223,6 +225,8 @@ impl Chat {
         newest
     }
     pub(crate) fn goal_watch(&mut self, client: &Client, forge: &crate::forge::Side, out: &mut Queue<Request>) {
+        // The page refresh runs after every event, including a later arrival of me.
+        self.opening_mode(client);
         let next = match self.goal_fact(client, forge) {
             Some((goal, _)) => Some(goal),
             None => None,
@@ -239,6 +243,20 @@ impl Chat {
                 handle: self.goal_read,
                 subject: Watchable::Jig(c::Subject::Chips { tasks: List::from_boxed(Box::new([goal])) }),
             }));
+        }
+    }
+    fn opening_mode(&mut self, client: &Client) {
+        let Some(opening) = self.opening_mode else { return };
+        if self.mode != opening {
+            self.opening_mode = None;
+            return;
+        }
+        let Some(task) = self.task(client) else { return };
+        let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return };
+        let drafting = super::chats::drafting(me, task.project, &task.chip.executor);
+        self.opening_mode = None;
+        if drafting && opening == Mode::Chat {
+            self.mode = Mode::Split;
         }
     }
     #[must_use]
@@ -1156,7 +1174,10 @@ impl Chat {
             Act::MessageWords { words } => {
                 (self.words, self.beyond) = super::composer::held(words, env.limits.client.domain.long_text);
             }
-            Act::Mode { mode } => self.mode = mode,
+            Act::Mode { mode } => {
+                self.opening_mode = None;
+                self.mode = mode;
+            }
             Act::ShowSection { line } => {
                 if self.mode == Mode::Chat {
                     self.mode = Mode::Split;
