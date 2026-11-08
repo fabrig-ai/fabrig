@@ -49,9 +49,11 @@ layout (section 7), and what is still open (section 10).
 - **No fake of temper's own components:** the system world runs the real
   engine and worker.
 - **Two suites, and two tiers outside them.** The focused and the fuzzy
-  suites keep their 30 s and 120 s, which nextest enforces; the process
+  suites keep their 30 s and 180 s, which nextest enforces; the process
   and live tiers run by their scripts, never at the gate. The process
-  tier holds only what processes show, within its 6 minutes (2.6).
+  tier holds only what processes show, within its 540 CPU s (2.6). The
+  180 and the 540 are the strategy's 120 and the tier's 6-minute aim,
+  raised by half by the user's word of 11-08, for now, to be revisited.
 
 ## 2. temper's tiers
 
@@ -1113,12 +1115,14 @@ terminal client, the captures and the faults.
   8.1 and its three-question repair rule: a story moves only if what it
   checks belongs in another tier.
 
-  The suite CPU budget remains 360 CPU seconds; its wall hard limit
-  belongs to `tools/tiers/budgets.toml`. Harness waits use `Patience` or
-  skein-world's `Deadline`; product `ctl --timeout` is not their bound.
-  Starved waits pass with their figures after cleanup (testing-strategy.md,
-  2.10). The owned preparation command watches its child with a deadline;
-  the ctl referee reports overdue work to the world's starvation judge.
+  The suite CPU budget is 540 CPU seconds, the 6-minute aim raised by
+  half by the user's word of 11-08, for now, to be revisited; its wall
+  hard limit belongs to `tools/tiers/budgets.toml`. Harness waits use
+  `Patience` or skein-world's `Deadline`; product `ctl --timeout` is not
+  their bound. Starved waits pass with their figures after cleanup
+  (testing-strategy.md, 2.10). The owned preparation command watches its
+  child with a deadline; the ctl referee reports overdue work to the
+  world's starvation judge.
 
 - **Three at a time:** the profile runs three tests at once, a story being
   one thread and one loop as ever, and the tier's budgets stand. A story
@@ -2367,8 +2371,10 @@ The two suites are the strategy's (testing-strategy.md, section 8). In temper:
 - **Fuzzy tests** are each world's `tests/suite/fuzzy/*.rs` modules. A sweep
   settles each random world under every invariant, and reaches every
   ending among them.
-- **Budgets.** The suites' 30 s and 120 s stand until the user sets
-  their CPU budgets from measured numbers; they are separate from the
+- **Budgets.** The focused suite's 30 s stands until the user sets its
+  CPU budget from measured numbers; the fuzzy suite's is 180 s, the
+  strategy's 120 raised by half by the user's word of 11-08, for now, to
+  be revisited (`tools/tiers/budgets.toml`). Both are separate from the
   profiles' wall hard limits. Within them, guides:
   - the worlds below the domain other than the real loop (the protocol,
     machine, client, one-process and reconcile worlds) together at most
@@ -3050,7 +3056,8 @@ scripts/proof-live.sh               the live tier
 
 - **The running box's lifetime stories after landing** (2.6): account
   for the hangup/rebind and killed-box stories within the process tier's
-  existing 360 CPU s suite budget, 60 CPU s per test and wall hard limit.
+  540 CPU s suite budget (360 raised by half by the user's word of 11-08,
+  for now, to be revisited), 60 CPU s per test and wall hard limit.
   The killed-box story starts playground steps and kills their box; the
   existing killed-test story kills their owning test without asking for
   playground steps. Their different ownership links and descendants
@@ -3150,13 +3157,14 @@ scripts/proof-live.sh               the live tier
   are proved by the next after-landing run on main, per the request
   `process-threads` of 2026-11-06, in place of `test-speed`'s three whole
   runs and a loaded one. Only focused and fuzzy run within the plan.
-  The 360 CPU s budget and the profile's 25-minute timeout stand; a red
-  after landing is repaired under 2.6's rule, without raising either.
+  The 540 CPU s budget (360 raised by half by the user's word of 11-08,
+  for now, to be revisited) and the profile's 25-minute timeout stand; a
+  red after landing is repaired under 2.6's rule, without raising either.
 - **The fake box's two walks, after landing** (2.6): the next
   after-landing run on main runs `here_key` and the browser tab and reads
   the tier's CPU without the ten walks whose behaviour went to lower
   worlds (the request `walks-lower` of 2026-11-08), against the same
-  360 CPU s. A plan compiles the walks and runs none; a red after landing
+  540 CPU s. A plan compiles the walks and runs none; a red after landing
   is repaired by name, under 2.6's rule.
 - **jig's referee tests, repeated.** `tests/engine/domain/tests/suite/referee.rs`
   keeps tests of jig's referees that jig's own suites hold:

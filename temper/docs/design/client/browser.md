@@ -1788,7 +1788,8 @@ Not in the tier, each in the lowest world that shows it:
   with the welcome first, and reading's four page loads with anchoring off
   only for the position story. Default: compile during the plan; run in
   Chromium after landing, preserving every assertion, the forty-second
-  run deadline and the whole tier's 85 CPU-second budget. A whole-tier
+  run deadline and the whole tier's 127.5 CPU-second budget, 85 raised by
+  half by the user's word of 11-08, for now, to be revisited. A whole-tier
   run supplies the cost proof; separate story measurements do not.
 - **Reading's test past its run's forty seconds** (4.3; 4.6, 14). Default: it
   becomes two tests, the long chat's apart, and test 15, which shares its setup
