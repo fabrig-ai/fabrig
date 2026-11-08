@@ -988,3 +988,7 @@ frames and simulated opener rows cover the lines and closing; joined
 TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
+
+Section 2's clients' start, one for two binaries, is not yet built:
+
+- **Not yet:** 2, 6.11: the TUI's start and `ctl`'s are `temper`'s own (`crates/temper/src/tui.rs`, `ctl.rs`), an address is read by `temper open`'s (`crates/temper/src/open.rs`), and there is no `temper-client [ADDRESS]`.
