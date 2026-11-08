@@ -144,12 +144,13 @@ pub(super) fn encode_owner_run_end(value: jig_client::contract::RunEnd, out: &mu
         jig_client::contract::RunEnd::Parked => out.string(b"parked"),
         jig_client::contract::RunEnd::Finished => out.string(b"finished"),
         jig_client::contract::RunEnd::Cancelled => out.string(b"cancelled"),
-        jig_client::contract::RunEnd::Failed { class } => {
+        jig_client::contract::RunEnd::Failed { class, invalid_reason } => {
             out.object_start();
             out.key(b"failed");
             out.object_start();
             out.key(b"class");
             super::encode_hold_failure(*(class), out, budget);
+            encode_invalid_reason(*invalid_reason, out);
             out.object_end();
             out.object_end();
         }
@@ -202,4 +203,17 @@ pub(super) fn encode_owner_word(value: &jig_client::contract::Word, out: &mut En
     out.key(b"eligible");
     out.boolean(value.eligible);
     out.object_end();
+}
+
+fn encode_invalid_reason(value: Option<jig_client::contract::InvalidReason>, out: &mut Encoder) {
+    let Some(reason) = value else { return };
+    out.key(b"invalid_reason");
+    out.string(match reason {
+        jig_client::contract::InvalidReason::Form => b"form",
+        jig_client::contract::InvalidReason::Verdict => b"verdict",
+        jig_client::contract::InvalidReason::Words => b"words",
+        jig_client::contract::InvalidReason::Change => b"change",
+        jig_client::contract::InvalidReason::Followups => b"followups",
+        jig_client::contract::InvalidReason::UnreadableResult => b"unreadable result",
+    });
 }

@@ -33,20 +33,14 @@ real-agent landing outcomes remain unestablished and are deferred in
 section 10.
 
 Section 8.1 has no known implementation gap in reading and proposing
-whole model settings in the configuring tools and instructions. Scripted
-stories do not establish a real model following those instructions; that
+whole model settings through the settings read and `propose_settings`.
+Scripted stories do not establish a real model doing so; that
 observation remains in section 10.
 
-Section 8's chat and configuring instructions name the flow subset and
-ask for one where a sequence says more drawn. The stock's phrase tests
-hold both instructions; neither says Mermaid is not drawn. No known
-implementation gap remains for that instruction.
-
-Section 8.1's stock limits forge-identity advice to approvals being asked
-about or proposed; the inventory's fact is unchanged. Phrase assertions
-hold that condition. A real model following it remains unobserved,
-deferred in section 10. Links beyond a box's sole owner remain deferred
-there too.
+Section 8.3's chat instructions name the flow subset and ask for one
+where a sequence says more drawn. The stock's phrase tests hold them;
+they do not say Mermaid is not drawn. No known implementation gap
+remains for that instruction.
 
 Section 8.2 has no known implementation gap in the stock's person-executor
 permissions, the goal paragraph, the Ask answer or the message-reference
@@ -65,11 +59,9 @@ accounts. It takes each forge of the project's repositories once, names
 its host and the person's user or unknown, and marks that forge's writer.
 A person known on no forge is said unknown once. The lookup and rendering
 tables cover a person known on one of two forges and repeated repositories
-on one forge. A box's linked owner is known without adoption; the stock
-proposes that person's own role and reserves collaborator/readoption advice
-for a person still unknown on the repository's forge.
+on one forge. A box's linked owner is known without adoption.
 
-Section 8.1 has no known gap in naming the numbered kinds in both settings
+Section 4.3 has no known gap in naming the numbered kinds in both settings
 schemas or in a failed `settings` read naming the kind and its required
 `number` or `project`. Failed calls remain visible. Proposal-form errors
 keep the shared parser's wording (section 10).
@@ -86,23 +78,19 @@ person's next words, whether the previous run still listens or has parked.
 
 ## Gaps and departures
 
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
-  7.3; this is a design gap, not an absent implementation.
-
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole
-  value. The inventory is filtered and the stock instructions forbid
-  mentioning or proposing unoffered models, but validation checks the
-  configured catalogue alone. No supplied real-model walk proves compliance.
+  value. The inventory is filtered, but validation checks the configured
+  catalogue alone, and Ask temper's instructions, `../draft/ask-temper.md`,
+  section 8, which win there (the user, 2026-11-07), say nothing of models
+  outside the offer.
 
 The remaining gaps concern verdict follow-up tasks,
 what a delivery keeps of a run's history, change-refusal model wording, shell authority for runs that cannot deliver,
-the fake's goal script, who is offered `decided`, what the configuring agent
+the fake's goal script, who is offered `decided`, what Ask temper
 can read to size temper's own way, and what no real model has
-shown: the configuring agent's words, a document built in parts and a receipt's words.
+shown: a document built in parts and a receipt's words.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
 Sections 4.3 and 4.3.1 have no known implementation gap in a goal's
 delivery grant or `change` on its run branch. The real-loop story uses
@@ -123,28 +111,20 @@ and the receipt's width and branch room. Real-model proof remains below.
 Section 7 has no known gap in fresh preparation from unusable history or in
 retaining an unidentified startup fault through cleanup. The joined service
 regression uses scripted peers and valid saved history at 470,054 bytes;
-the trigger of the reported configuring-chat failure remains unobserved.
+the reported failure's trigger remains unobserved.
 Section 8.1 has no known implementation gap in revising a pending proposal
 through a fresh `propose_settings`, preserving it on refusal, or directing a
 person with no account for a requested model to browser Settings, Accounts.
 The engine and joined client stories use scripted tool calls; no supplied
 real-model outcome establishes either instruction in use. That observation
 is deferred to after landing in section 10.
-Section 8.1 has no gap in settings pagination using the host answer allowance.
-Section 8.1 has no gap in note-backed whole settings proposals and decided-call replay.
+Section 4.3 has no gap in settings pagination using the host answer allowance.
+Section 4.3 has no gap in note-backed whole settings proposals and decided-call replay.
 Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
-Section 8.1's stock instructions say that visibility is no setting, never
-to propose it, and, asked, to give the publication words whole and say the
-owner acts outside this chat. None of that chat's tools or proposal items
-offers visibility.
-
-- **Not yet:** 8.1: `configuring_txt_says_what_a_public_project_shows`
-  holds the stock's publication words, but no supplied real-model outcome
-  shows a configuring run giving them whole when asked, without proposing
-  visibility or sending the person to a command. The request `ui-public-3`
-  leaves that observation to after landing; phrase assertions prove the
-  instructions alone.
+Section 8.1: none of Ask temper's tools or proposal items offers
+visibility, and `ask.txt` says it is no setting, done by its owner outside
+the chat.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
@@ -168,14 +148,11 @@ offers visibility.
   where the request asks for nothing lost. The stock's instructions alone
   decide what a model cuts and lists; no tool checks that list.
 - **Design departs:** 6, from the request `parallel-faults` of 2026-11-06, item 4, decided by its plan's cut: a run's local commits still don't reach its next run, and a fold on a saved start is still lost, where the request reports both as faults, because a delivery commits the tree on the worker's own record of the head (`../protocol/git.md`, 4.7), and its receipt names what it pushed. That a run's words name no commit off the branch is asked by the coding charter alone, since those names come from its own transcript or summary, not the host's resume words: nothing refuses such a word, and no walk on record has run a real model on the sentence.
-- **Not yet:** 8.1: the configuring agent's words have phrase assertions and scripted context coverage (`configuring_txt_speaks_the_persons_terms`, `configuring_txt_says_nothing_has_changed_in_one_place`, `configuring_txt_says_who_does_what_in_the_persons_words`, `configuring_txt_says_how_a_pending_proposal_goes`, `temper-service/src/tests/stock.rs`): no walk on record has run a real model on them as they stand, so it is unobserved whether it answers in the person's terms, keeps back the `temper ctl` of the pages it reads, which still speak it, starts who approves from the person, says that nothing has changed only in its one place, says each step of adding a person and whose it is, and says how a proposal that waits goes. That the stock's words, not a tool, make a run repeat that nothing has changed is by reading, not reproduced on a model: `no_answer_a_configuring_run_hears_says_nothing_changed` (`temper/tests/engine/domain/tests/suite/configuring.rs`) holds only that no tool's answer says it. With little room in charter 3 (`the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds`, `temper-service/src/tests/stock_brief.rs`), the words leave what a `note` write's arguments mean to `note`'s schema and a project's ways' values to `settings-fields`, and whether a run manages on those is unobserved too. The request `configuring-words-2` of 2026-11-06 has a walk follow its landing, and no record shows one. The repository-name and proposal-Accept sentences have phrase assertions (`configuring_txt_names_a_repository_by_its_name`, `configuring_txt_says_a_proposal_waits_for_an_accept_without_its_key`, in the same stock tests), but no real-model walk on record shows a run keeping addresses and ports out of instructions and reasons, or telling the person that the proposal waits in this chat for their Accept, an owner's where needed, without its key. The tool still answers with the proposal's key for ctl; the person's wording is the stock's instruction to the model (`temper-engine-smith/src/answers.rs`, `proposed`).
-- **Not yet:** 8.1, *temper's own way*: `configuring.txt` has it size its settings for the deployment's worker slots and account models, but nothing a configuring run is offered reads the slots: `settings`' inventory (`temper-client-tools`'s `jig/render/document/settings.rs`, `inventory_text`), the forge's reads and `read_docs` name no worker's slots, so that fact can only come from the person. The settings inventory names the models its payer can run (`agent.md`, 8.1). Seen by reading. `configuring_txt_starts_from_temper_own_way` (`temper-service/src/tests/stock.rs`) holds the words alone, and no walk on record has run a real model on them, so whether it reads the page, says what the deployment cannot do and keeps temper's own column in "How this project works" is unobserved: the gallery's `configure-chat-document-split` is a script's document.
-- **Design departs:** 8.1, from the request `configuring-words` of 2026-11-06, decided by its plan's cut: a revision may be named in a proposal's outcome too, where the request has a proposal or when asked, because the accepted line names the revision it made.
-- **Design departs:** 4.3, from the same request, decided by its plan's cut: `read_permission`'s login reaches every run with the forge reads, the stock's charters 1, 2, 3, 4 and 6, where the request holds a person's identity to what an agent's authority may read, because it is the forge's own answer about a user of a repository that run may already read (section 10 keeps it open). It is carried through skein's answer and temper's stored record, where the request sizes the work in temper, because adoption seeds a person with an empty login and skein's answer dropped the one its dialects read.
+- **Design departs:** 4.3, from the same request, decided by its plan's cut: `read_permission`'s login reaches every run with the forge reads, the stock's charters 1, 2, 4 and 6, where the request holds a person's identity to what an agent's authority may read, because it is the forge's own answer about a user of a repository that run may already read (section 10 keeps it open). It is carried through skein's answer and temper's stored record, where the request sizes the work in temper, because adoption seeds a person with an empty login and skein's answer dropped the one its dialects read.
 
-Section 8.1 has no gap in project-policy reads or in inventory wording that
+Sections 4.3 and 8.1 have no gap in project-policy reads or in inventory wording that
 separates requester, known forge identity and configured owned-forge account.
-The configuring domain story checks delivered context and stock instructions:
+The configuring domain story checks delivered context:
 a linked box owner is accepted at one approval and refused at two, and a
 second deployment owner clears the link on restart. Without a link it keeps
 the owner-role refusal before and after admin adoption and the fresh

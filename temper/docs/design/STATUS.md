@@ -21,6 +21,10 @@ prints and pseudo-terminal/headless-browser generation are built, with
 The recorder takes Alt+m and Alt+s beside the Shift forms; without a
 recording, both forms reach the host. The user's manual terminal check
 remains later work (`client/tui/journeys.md`, 3.1 and 11).
+The TUI's look requests stack on `tui-requests`, apart from the browser's
+`look-requests`; the same refresh script keeps either checked-out branch
+on `main` with its own lease and push target (`client/tui/journeys.md`,
+10; `client/journeys.md`, 7).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 11; `client/browser.md`, section 5).
 Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
@@ -51,13 +55,17 @@ the larger requested brief remains undecided (`protocol/configuration.md`,
 11 and 13.4). The first
 milestone stands in the code (`README.md`). Ask temper's first milestone
 stands in the code, with its own project page, rail entry and phone tab
-(`draft/ask-temper.execution.md`, M1); charter 3 and template 3 remain in
-the stock. Its walk follows landing. The remaining reads, views and
-preferences belong to M2 to M4 (`draft/ask-temper.status.md`).
+(`draft/ask-temper.execution.md`, M1). Charter 3, template 3, `Configure`
+and Settings' offer are gone by plan `ui-ask-drop`. Its walk follows
+landing. The remaining reads, views and preferences belong to M2 to M4
+(`draft/ask-temper.status.md`).
 Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10).
+`chat-draft` retains the removed stock in its recorded inventory; its
+task numbers changed, so temper/ui renews its walk and recording after
+landing (`client/journeys.md`, section 10).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -129,7 +137,7 @@ The Chats history story awaits Closed and All pressed by name across
 reload and Back; a Drafts button moving Closed as ways arrive remains a
 separate look decision (`client/browser.md`, 4.6 and 5).
 Fresh projects offer drafts;
-configuring chats offer one even with drafts off, and a project holding a
+Ask temper chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so
 the bar supplies the goal's entry. The mock's drafts-off default remains
 a recorded departure; the fake-model `chat-draft` journey starts with
@@ -195,14 +203,16 @@ charter is not a setting. A
 project's policy in a change of settings and a revision restored are
 built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
-`client/tools.md`). The configuring agent, charter 3 and template 3,
-is in the stock and the reference pages it reads are built, but no walk
-on record has run a real model on its words as they stand, nothing it reads names the
-worker slots it is to size temper's own way by (`domain/agent.md`), and a
-charter's `tools` decides only whether its runs are offered the
-settings family (`protocol/configuration.md`). Seven stock models and their
+`client/tools.md`). Ask temper, charter 11 from template 5, configures
+through `see`, `document` and the asking `propose_settings`; its reference
+pages are built, but no walk on record has run a real model on its words
+as they stand. No address of `see` reads workers' slots, so it sizes by
+them only as the person gives them (`domain/agent.md`, 8.1 and 8.4).
+The settings family's own tools remain for a deployment's own charter;
+no stock charter holds that family without asking
+(`protocol/configuration.md`, 13.4). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
-listing and the configuring chat's chooser are built. Model and effort sit
+listing and Ask temper's chooser are built. Model and effort sit
 at every chat's composer, grouped by account with "All models"; their render
 and fake-box press proof is recorded. A closed chat's header and a closed
 agent's taskbar name the last readable completion's model and known effort
@@ -216,7 +226,7 @@ resumable window first asks the window's model for a summary
 (`domain/agent.md`, `client/README.md`). An unusable account's fix remains
 hidden beside a usable one of the same provider (`client/README.md`).
 Forge account subjects and review lookups name both forge and user, and the
-configuring inventory names each forge's known or unknown account. Setup
+Ask temper's inventory names each forge's known or unknown account. Setup
 gives an owned Forgejo its person's login and interprets the GitHub App's
 account with the kept `AppMade` and `AppId` evidence. A box's sole-owner
 link is stored on the forge, eligibility counts per repository's forge,
@@ -231,8 +241,9 @@ story, real human reviews and rendered comparison remain unproved.
 Several members, pasted Apps, second accounts and containment remain
 later work (`domain/testing.md`, section 11; `client/README.md`, section 11;
 `protocol/setup.md`, section 15; `protocol/sign-in.md`, section 10).
-The configuring inventory is filtered, but whole charter reads still name models
-outside the offer and only instructions restrict proposals to it
+Ask temper's inventory is filtered, but whole charter reads still name models
+outside the offer and proposal validation accepts configured models outside it;
+Ask temper's instructions impose no offer restriction
 (`domain/agent.md`, `draft/model-catalogue.md`). Numbered model settings live
 in the store, with binary stock defaults and endpoint limits in place of
 worker model lists; Settings has Models, with picker switches,
@@ -296,9 +307,10 @@ the runner was disabled. No separate attacker-review outcome is supplied,
 three laptop baseline cases remain unrepeated, and an intermittent busy
 authorization page without a request is unresolved (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). The cross-site
-authorization restart story's suite-order failure, red-71, also has no
-cause or fix: `ui-authorize-red` supplies two isolated passes and no code
-change, leaving the request's repair outstanding (`protocol/sign-in.md`,
+restart authorization failure is local fetch admission loss: the client
+stopped counting cancelled watch exchanges and cleanup calls before their
+HTTP terminals. `jig-client-protocol-link` keeps their transport credit until
+reply or failure, so authorization waits for room (`protocol/sign-in.md`,
 9.3). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
@@ -354,10 +366,8 @@ commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.
 Publication help and ctl's completed answer say that chat words may show
-in titles; ctl has no preceding acknowledgement (`client/tools.md`). The
-configuring stock instructs a run to say the words when asked, with no
-real-model outcome supplied (`domain/agent.md`). Landings is underlined
-at a row's size, and a landing draws no zero stale-proof count
+in titles; ctl has no preceding acknowledgement (`client/tools.md`).
+Landings is underlined at a row's size, and a landing draws no zero stale-proof count
 (`client/browser.md`).
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
@@ -620,7 +630,7 @@ drafts, the reference drafts' statuses hold two departures decided
 2026-11-03, a foreman's LLM choice and a red of a goal branch's tier
 that wakes its goal only when new, and a lag, the coordinator's
 decide, propose, subscribe and recall families, which the
-reference's profile does not grant and configuring's stage 1 follows
+reference's profile does not grant and Ask temper's stage 1 follows
 (`draft/reference-code-production.md`); `draft/serve-without-box.md`'s
 status holds a departure the user has not answered, the deployment's
 read's `owned`, and `draft/to-begin.md`'s four, a dismissal erased
@@ -660,12 +670,6 @@ not-ready line. The accepted distinct watch not-ready refusal and its
 ctl deadline line are absent; wire reasons and the browser membership
 check remain later work (`protocol/README.status.md`, 8.2;
 `client/tools.status.md`, 6.3; `client/tools.md`, section 14).
-
-## Gaps and departures
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief; its implemented path still needs
-  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
 
 Design documents:
 - [`README.md`](README.status.md)

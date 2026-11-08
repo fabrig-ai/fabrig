@@ -1,6 +1,6 @@
 # look-requests: status
 
-2026-11-07. Where the design lags or departs from [look-requests.md](look-requests.md).
+2026-11-08. Where the design lags or departs from [look-requests.md](look-requests.md).
 
 The landing/account and after-landing comparison agree with
 `../client/journeys.md`, 7. The `connect-flows` account at `9164d33492`
@@ -16,4 +16,6 @@ it claims no rendered equality.
     later fix. Its account includes named states, as the draft requires.
   - 4: `../client/journeys.md`, 7, asks for the render check and leaves how to this draft; the journeys' test compares the reprint with the committed pages alone (`../client/journeys.md`, 6).
   - 6: what is not the look's has no path in `../client/journeys.md`, 7.
+- **Design departs:**
+  - 1, 2: the TUI's requests stack on a branch of their own, `tui-requests`, named `tui-…`, apart from the browser's on `look-requests`, where this draft keeps every request on one branch; the same `look-refresh.sh` keeps each on `main` (`../client/tui/journeys.md`, 10; `../client/journeys.md`, 7), so that the TUI's look and the web's are asked for in parallel (the user, 2026-11-08).
 - **Open:** none.

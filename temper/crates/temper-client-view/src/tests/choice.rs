@@ -133,7 +133,7 @@ pub(super) fn provider_byline_root(
     let (mut root, me_watch, task_watch, _, accounts_watch) =
         fixtures::root_at_full(address, &fixtures::limits(), b"Shop");
     let sample = fixtures::playground_root(Address::NewChat { draft: false }, fixtures::PROJECT, true);
-    let mut me = fixtures::configuring_me(sample.pages().me(sample.client()).unwrap().clone());
+    let mut me = fixtures::asking_me(sample.pages().me(sample.client()).unwrap().clone());
     me.providers = List::with_capacity(2);
     let mut doc = super::accounts::document(0);
     doc.cut = false;
@@ -1002,7 +1002,7 @@ fn task_lines_take_their_own_templates_preview_and_offered_effort() {
         (Some(model_choice("gpt-6-astra", Some("low"))), None, 1, "GPT-6 Astra · low", "GPT-6 Astra · low"),
         (None, None, 37, "Using the default model", "the default model"),
     ] {
-        let mut task = super::chat::configuring_task();
+        let mut task = super::chat::asking_task();
         task.chip.executor = c::ChipExecutor::Agent { charter };
         task.activity = 1;
         task.llm = own;

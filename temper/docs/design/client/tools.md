@@ -347,7 +347,7 @@ agent must name.
 
 | Tool | What it does | jig's | K |
 |---|---|---|---|
-| `chat start --project PROJECT [--template TEMPLATE] TEXT` | starts a chat from TEMPLATE, the project's chat template when none is named: template 3 is the configuring chat (`../domain/agent.md`, 8.1); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
+| `chat start --project PROJECT [--template TEMPLATE] TEXT` | starts a chat from TEMPLATE, the project's chat template when none is named: template 5 is Ask temper (`../domain/agent.md`, 8.4); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
 | `task message TASK TEXT` | words to a task | `Message` | yes |
 | `chat close TASK [--move TASK]... [--reason TEXT]` | closes a chat: its live delegates cancelled, or moved to the party where named; the reason empty unless given, as jig's reference UI sends it | `shapes::close_chat`, a compound request | yes |
 | `repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY [--ids IDS] --landing BRANCH [--role owned\|fork\|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]...` | adopts a repository | the forge family's request (`README.md`, 4.4) | yes |
@@ -974,6 +974,23 @@ The table grows area by area, each with its stories (section 11).
      configuration. Skip it where the programs directory's NAME is
      already signed in. Then `account verify ACCOUNT --source program`,
      ACCOUNT as `account list` shows it.
+   - **A refused account act says why and what next,** where jig's
+     refusal of that act has one reason a person can act on (jig's
+     `domain/accounts.md`, section 5), rather than the refusal's word
+     alone. Text prints, exit 2, `TOOL: WHY`, then the next step on a
+     line of its own; JSON keeps the refusal and adds the next step as
+     `next`:
+
+     | Act, refused | WHY | Next step |
+     |---|---|---|
+     | `account declare`, *name taken* | `program name NAME is taken` | `Declare under another name. If account list shows a source of yours named NAME, check its login instead: account verify ACCOUNT --source program` |
+     | `account declare`, *not offered* | `provider P offers you no program login` | `me prints each provider's ways; declare with a provider whose line names programs` |
+     | `account retry`, *not offered* | `the source is not limited, so there is nothing to resume` | `account list shows its state and what it needs` |
+
+     NAME and P are the declaration's own. A forgotten program source's
+     name is declared again by the person who held it, as jig's
+     `domain/accounts.md`, 3.4, has it, and is answered as a first
+     declaration is.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
      LLM choice, the template's choice or what each run's check takes without them (jig's
@@ -1326,18 +1343,18 @@ digest: task 7c1e09a2b44f0d13
   milliseconds as `N ms`:
 
   ```
-  next run: refused, no worker takes it: agent turns too few for charter 3
+  next run: refused, no worker takes it: agent turns too few for charter 11
     no worker can take this: its charter asks 100000 turns, and the largest worker takes 800
   ```
 
   With no bound named, `next run: refused, no worker takes it` and `no
   worker can take this: each falls short of another bound its charter
   asks`. A refused hello with figures keeps its code line and says the
-  same of its worker, `no worker can take this: charter 3 asks 100000
+  same of its worker, `no worker can take this: charter 11 asks 100000
   turns, and the worker refused at 10:42 takes 800` (its UTC clock), in
   place of `its host refused this start: …`; every other refusal keeps
   that line. A shortfall of turns, time or waiting names its charter as
-  checks does, `agent turns too few for charter 3`, and the checks'
+  checks does, `agent turns too few for charter 11`, and the checks'
   pointer is `see temper help settings for held revisions`.
 - **The deadline** has its date and its zone: `deadline 2026-10-24
   17:00 UTC`, or `no deadline`.
@@ -1408,6 +1425,13 @@ digest: task 7c1e09a2b44f0d13
   milestone's, `phase changed`: the activity names only the position of
   the task's history row that says which phase, and no tool reads that
   history (section 15).
+  An invalid run's end prints `run N ended: its result broke its
+  contract (KIND)`, where KIND is form, verdict, words, change or
+  followups. An invalid end with no recorded contract kind prints
+  `run N ended: its result couldn't be read`. JSON preserves the cause
+  as the failed end's optional `invalid_reason`, with `unreadable result`
+  for the latter. Other failure classes omit the cause. These words do
+  not change the class or the retry counts (jig's `protocol/client.md`, 3).
   A heard `QuestionAnswered` notice prints `POSITION · You answered
   question N in your inbox`, including when its words are empty.
 - **Acts as calls,** without the `temper ctl DIRECTORY` prefix; a keyed

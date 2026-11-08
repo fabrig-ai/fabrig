@@ -4,7 +4,7 @@ use jig_client::{contract as c, shapes};
 use skein_lib::List;
 
 const TEMPLATE_CHAT: &[&str] =
-    &["chat", "start", "--project", "shop", "--template", "3", "hello", "--key", "template-chat"];
+    &["chat", "start", "--project", "shop", "--template", "5", "hello", "--key", "template-chat"];
 
 fn template_me() -> c::Me {
     let mut me = f::choice_me(f::CHAT_BUDGET);
@@ -14,18 +14,18 @@ fn template_me() -> c::Me {
     goal.number = 2;
     goal.name = f::document_text(b"Goal");
     goal.flags.conversation = false;
-    let mut configuring = chat.clone();
-    configuring.number = 3;
-    configuring.name = f::document_text(b"Configuring");
-    configuring.executor = c::TemplateExecutor::Charter(3);
+    let mut asking = chat.clone();
+    asking.number = 5;
+    asking.name = f::document_text(b"Ask temper");
+    asking.executor = c::TemplateExecutor::Charter(11);
     let mut templates = List::with_capacity(3);
     templates.push(chat).expect("chat");
     templates.push(goal).expect("goal");
-    templates.push(configuring).expect("configuring chat");
+    templates.push(asking).expect("asking chat");
     project.templates = templates;
     let mut charters = List::with_capacity(2);
     charters.push(1).expect("chat charter");
-    charters.push(3).expect("configuring charter");
+    charters.push(11).expect("asking charter");
     project.creating.as_mut().expect("creating offer").within.charters = charters;
     me
 }
@@ -33,11 +33,11 @@ fn template_me() -> c::Me {
 #[test]
 fn chat_start_names_a_chat_template() {
     let me = template_me();
-    let expected = shapes::chat_from(&me, f::PROJECT, 3, f::call_words(TEMPLATE_CHAT, 2)).expect("named shape");
+    let expected = shapes::chat_from(&me, f::PROJECT, 5, f::call_words(TEMPLATE_CHAT, 2)).expect("named shape");
     let mut root = f::choice_root(me);
     let call = root.submit(TEMPLATE_CHAT);
     assert_eq!(f::act_ask(&root, call), &expected);
-    assert_eq!(f::chat_task(&root, call).executor, c::Executor::Agent { charter: 3 });
+    assert_eq!(f::chat_task(&root, call).executor, c::Executor::Agent { charter: 11 });
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn chat_start_refuses_a_goal_template() {
     refused(
         template_me(),
         "2",
-        b"template 2 is no chat template of this project; its chat templates: 1 chat, 3 Configuring\n",
+        b"template 2 is no chat template of this project; its chat templates: 1 chat, 5 Ask temper\n",
     );
 }
 
@@ -72,14 +72,14 @@ fn chat_start_refuses_a_template_not_offered() {
     refused(
         template_me(),
         "9",
-        b"template 9 is no chat template of this project; its chat templates: 1 chat, 3 Configuring\n",
+        b"template 9 is no chat template of this project; its chat templates: 1 chat, 5 Ask temper\n",
     );
 }
 
 #[test]
 fn chat_start_names_a_template_and_a_model() {
     let me = template_me();
-    let mut expected = shapes::chat_from(&me, f::PROJECT, 3, f::call_words(TEMPLATE_CHAT, 2)).expect("named shape");
+    let mut expected = shapes::chat_from(&me, f::PROJECT, 5, f::call_words(TEMPLATE_CHAT, 2)).expect("named shape");
     let c::Ask::Create { tasks, .. } = &mut expected else { panic!("chat creates") };
     tasks.get_mut(0).expect("chat").llm.as_mut().expect("template choice").main =
         f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME));
@@ -90,7 +90,7 @@ fn chat_start_names_a_template_and_a_model() {
         "--project",
         "shop",
         "--template",
-        "3",
+        "5",
         "hello",
         "--model",
         "chosen-model",
@@ -117,10 +117,10 @@ fn chat_start_lists_chat_templates_in_me_order() {
     let mut me = template_me();
     let project = me.projects.get_mut(0).expect("project");
     let mut templates = List::with_capacity(2);
-    templates.push(project.templates.get(2).expect("configuring").clone()).expect("first");
+    templates.push(project.templates.get(2).expect("asking").clone()).expect("first");
     templates.push(project.templates.get(0).expect("chat").clone()).expect("second");
     project.templates = templates;
-    refused(me, "9", b"template 9 is no chat template of this project; its chat templates: 3 Configuring, 1 chat\n");
+    refused(me, "9", b"template 9 is no chat template of this project; its chat templates: 5 Ask temper, 1 chat\n");
 }
 
 #[test]
@@ -128,7 +128,7 @@ fn chat_start_refuses_a_template_number_past_u32() {
     refused(
         template_me(),
         "4294967296",
-        b"template 4294967296 is no chat template of this project; its chat templates: 1 chat, 3 Configuring\n",
+        b"template 4294967296 is no chat template of this project; its chat templates: 1 chat, 5 Ask temper\n",
     );
 }
 

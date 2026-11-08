@@ -16,5 +16,12 @@ user's frame refinement, real-box journeys and other deferred choices.
 The committed frames establish no real-terminal look or macOS runtime
 result; section 11 also keeps the user's manual Meta-key check.
 
+Section 10 has no known gap: the TUI's requests stack on `tui-requests`,
+with names starting `tui-`, apart from the browser's `look-requests`.
+The shared `scripts/look-refresh.sh` refreshes the checked-out branch
+with its own lease and push target; its existing test table covers
+both branches and the refusal naming both. The branch change leaves
+no deferred work; section 11's choices remain as written.
+
 - **Not yet:** 9: `sign-in-approved` recorded to the launchpad, and
   `launchpad-chat`, neither recorded.

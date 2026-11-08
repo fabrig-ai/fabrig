@@ -94,9 +94,7 @@ pub(crate) fn change(
                 Err(crate::programs::DeclarationRefusal::Name) => {
                     refuse(request, Refusal::Uses, out);
                 }
-                Err(crate::programs::DeclarationRefusal::Issued) => {
-                    refuse(request, Refusal::ProgramNameReserved, out);
-                }
+                Err(crate::programs::DeclarationRefusal::Taken) => refuse(request, Refusal::NameTaken, out),
                 Err(crate::programs::DeclarationRefusal::Names) => {
                     refuse(request, Refusal::Limit { bound: Bound::Sources }, out);
                 }

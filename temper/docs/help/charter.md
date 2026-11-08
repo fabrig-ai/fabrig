@@ -33,12 +33,13 @@ whose `on` meets why it runs. A charter holds:
   how long it waits idle, and the timeout of its calls to temper's
   tools.
 
-The stock offers six charters: 1 for chats, 2 for coding, 3 for the
-configuring agent, 4 for reviews, 6 for foremen and 9 for the status agent. The configuring
-agent turns how a person describes their work into a proposal of
-settings (`temper help chat`). The status agent writes the few lines at the top
+The stock holds seven charters: 1 for chats, 2 for coding, 4 for reviews,
+6 for foremen, 9 for the status agent, 10 for a model's trial and 11 for
+Ask temper. Ask temper explains temper and turns how a person describes
+their work into a proposal of settings (`temper help chat`).
+The status agent writes the few lines at the top
 of a project's Home from the facts in its task, with no tools.
-The stock also holds charter 10 for a model's trial: one short turn,
+Charter 10 runs one short turn,
 with no tools, paid by the person. It is never offered as an executor;
 the stock's rules still offer six charter executors and three procedures.
 
@@ -57,8 +58,8 @@ Each member, with its type and bound, is in
 ### Documents from a repository
 
 Put rules in a charter's `documents` when its runs should read them from
-an adopted repository. In a configuring chat, call `settings` without
-members: `project repositories` lists readable adopted repositories in the
+an adopted repository. In Ask temper, call `see` with address `settings`:
+`project repositories` lists readable adopted repositories in the
 chat's project, with each canonical host and OWNER/NAME. Copy that host
 into the document's `forge` and OWNER/NAME into `repository`.
 
@@ -140,10 +141,12 @@ Tasks made before keep it, on their revision.
 
 - `temper ctl`: `settings show` reads one, as the newest revision or a
   held one has it; `settings apply` and `settings propose` change it.
-- A run reads charters with the host tool `settings` only when its
-  charter names the settings family and its task's authority holds it:
-  charter 3 alone in the stock. That family also offers
-  `propose_settings`; it changes nothing until an owner accepts.
+- Ask temper reads charters with `see settings charter 1`, using the
+  charter number it needs, and proposes with `propose_settings`.
+  A charter of a deployment's own that names the settings family and
+  not asking reads with `settings` when its task's authority holds that
+  family. The family also offers `propose_settings`; it changes nothing
+  until an owner accepts.
 
 ## Limits
 

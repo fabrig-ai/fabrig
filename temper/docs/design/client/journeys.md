@@ -596,7 +596,9 @@ python3 -m http.server 8766
   script stops with the rebase in progress, naming the request; the
   person settles it and finishes the rebase (`git rebase --continue`),
   then runs the script again, which refuses while a rebase is in
-  progress.
+  progress. It takes the TUI's branch, `tui-requests` (`tui/journeys.md`,
+  10), alike, with that branch's lease, requests and push; any other
+  branch is refused.
 - **Never landed:** the journeys' test refuses a request's pages, which
   differ from the reprint, and its overlay (section 6), so `main`'s
   overlay stays empty.
@@ -762,7 +764,7 @@ and in its `README.md`; none is yet (3.5).
 The `configure-chat-draft` request's hand-made `configure-chat/02.html`
 through `04.html` and its README are not journeys to reprint or land
 (section 7). Its document pane and modes are shared with `chat-draft`;
-the configuring proposal states, Start over and the rail strip are also
+Ask temper's proposal states, Start over and the rail strip are also
 drawn by the gallery (`browser.md`, 7.2). Its drawing and figure are a flow
 (`skein/docs/design/ui.md`, 10.1), drawn in the client; the gallery measures
 no box, so a print shows its fallback.
@@ -829,6 +831,15 @@ words (`browser.md`, 7.2). The fonts are the bundle's (`browser.md`, 2.5).
 the requests with main after landing (`../draft/look-requests.md`, 4).
 
 ## 10. Open questions
+
+- **Renewing `chat-draft` after stock removal** (8, 9): temper/ui walks
+  it anew after landing, following the Draft link to the chat the goal
+  names, then adds the whole recording and its prints. Removing the
+  configuring chat changes task numbers, so the old walk's task 2 is
+  no longer the return target. Default: retain the replayable recording
+  until that renewal, including its old stock inventory; offering Ask
+  temper in its prints does not establish removal of template 3 and
+  charter 3 from its recorded answers.
 
 - **Ask temper's first-run prints** (9): temper/ui compares
   `project-landing`, `chat-draft` and `welcome-playground` with the

@@ -2,12 +2,15 @@
 
 2026-11-08. Where jig's code lags or departs from [engine.md](engine.md).
 
+Section 7.2's immutable failed run end retains the invalid-result kind
+computed for its attempt. No known gap remains in this field.
+
 Section 7.3's asking-family routing and run proposal read are present.
 `reads/settings.rs` checks settings authority and project scope before
 reading, and checks them and the current attempt after loading a stored
 row. `reads/vocabulary.rs` restricts retained task proposals to the
-reader's project and settings actions. The `proposal-read` design gap
-below is separate from this implemented path.
+reader's project and settings actions. Section 7.3 carries the contract
+for this read; reading as the person remains deferred in section 16.
 
 Sections 17.9 and 17.11 have no known gap in the stored-policy size
 refusal or a charter's selected effort. Size facts include parts and
@@ -69,11 +72,6 @@ and catalogue-number reuse remain section 16's open questions.
 
 
 ## Gaps and departures
-
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
-  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read

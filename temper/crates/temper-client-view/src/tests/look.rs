@@ -594,7 +594,7 @@ fn the_settings_controls_have_their_own_names_and_small_element() {
 }
 
 #[test]
-fn configuring_opening_and_needs_have_their_css_names() {
+fn asking_opening_and_needs_have_their_css_names() {
     for (style, name) in [
         (STARTER_LEDE, b"temper-starter-lede".as_slice()),
         (STARTER_SETS, b"temper-starter-sets"),

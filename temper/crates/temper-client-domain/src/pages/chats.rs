@@ -37,7 +37,7 @@ pub struct Chats {
     pub words: Box<[u8]>,
     pub beyond: u64,
     pub start: Option<Key>,
-    /// The reference's mode beside Configure, once opened; the page's alone (client/README.md, 3.5).
+    /// The reference's mode beside Ask temper, once opened; the page's alone (client/README.md, 3.5).
     pub reference: Option<Mode>,
     pub page: Option<TaskPage>,
     pub refusal: Option<jig_client::shapes::NotOffered>,
@@ -612,12 +612,12 @@ pub fn asking(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
 fn count_rows(rows: &List<c::TaskLine>, me: Option<&Me>, project: u32, counts: &mut (bool, bool)) {
     for row in rows {
         if row.project == project {
-            let configuring = match me {
+            let asking = match me {
                 Some(me) => asking(me, project, &row.chip.executor),
                 None => false,
             };
-            counts.0 |= configuring;
-            counts.1 |= !configuring;
+            counts.0 |= asking;
+            counts.1 |= !asking;
         }
     }
 }

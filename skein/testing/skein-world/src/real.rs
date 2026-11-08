@@ -27,7 +27,7 @@ use skein_shell::{Backend, Clock, Kernel, Now, Wait};
 
 use crate::Host;
 pub(crate) use crate::deadline::Sched;
-use crate::deadline::{Deadline, Expired, Figures, sched_elapsed, thread_sched};
+use crate::deadline::{Deadline, Expired, Figures, sched_elapsed, starved_passes, thread_sched};
 use crate::heap::Heap;
 use crate::program::Startup;
 pub use crate::referee::Controls;
@@ -554,7 +554,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         };
         let diagnostic = self.deadline_diagnostic(figures, iterations, now, last_word);
         match expired {
-            Expired::Starved(starved) if std::env::var_os("NEXTEST").is_some() => {
+            Expired::Starved(starved) if starved_passes() => {
                 self.forced_cleanup(kernel);
                 starved.pass();
             }
@@ -571,7 +571,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
         };
         let diagnostic = referee_diagnostic(now.saturating_since(deadline.start()), why, Some(figures));
         match expired {
-            Expired::Starved(starved) if std::env::var_os("NEXTEST").is_some() => {
+            Expired::Starved(starved) if starved_passes() => {
                 self.forced_cleanup(kernel);
                 starved.pass();
             }

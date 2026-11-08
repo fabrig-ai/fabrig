@@ -6,7 +6,7 @@ Change a deployment's settings while it runs: read them, write a settings file, 
 
 ## Before you start
 
-Or describe how you work to the configuring chat: temper help chat.
+Or describe how you work to Ask temper: temper help chat.
 
 - A running deployment and `DIR` signed in (temper help box, steps 1 to 3).
   Owners apply settings; other parties propose them (step 3).

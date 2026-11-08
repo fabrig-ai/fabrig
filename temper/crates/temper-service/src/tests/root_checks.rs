@@ -10,8 +10,8 @@
 use super::fixtures;
 use crate::startup::{Problems, checks, lines};
 
-// The stock catalogue holds eight charters.
-const ENGINE_OVERRIDES: &str = r#""tasks.charters":8,"core.templates":4,"authority.executors":13,"tasks.executor_kinds":13,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
+// The stock catalogue holds seven charters.
+const ENGINE_OVERRIDES: &str = r#""tasks.charters":7,"core.templates":3,"authority.executors":12,"tasks.executor_kinds":12,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
 const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
 
 fn started(document: &[u8]) -> Box<[u8]> {

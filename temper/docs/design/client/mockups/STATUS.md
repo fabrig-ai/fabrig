@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-07. How far temper's client is from its mockups
+Revised 2026-11-08. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -134,22 +134,20 @@ Where the client does otherwise:
 
   | Page | Where the client does otherwise, or what is left |
   |---|---|
-  | The configuring chat's page (`chat.html?id=new&configure=1`) | In the project's frame, with Settings current, at `/projects/<project>/settings/configure` (`../browser.md`, 2.3); a configuring chat keeps that layout at `/chats/<task>` (`../README.md`, 3.5). The rail stays on a wide page; on a phone it and the tabs go so the composer keeps the foot. The page is named "Configure temper": its opening is a page in a column at most 720 px wide, the project's question, lede, what it sets, three starter cards and the fourth starter as a link in the section’s head, then the card "At scale, as temper builds itself", its steps and its two buttons, above the focused composer. "See how it works" opens the stock reference "How temper builds temper" beside the page in Split, with the rail folded; Chat keeps the mode group and folds the reference. On a phone the reference stands alone as Draft, above the composer. The opening, turns and composer share their edges, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. Settings' first link, "Configure temper", opens the newest configuring chat not closed in its delivered rows, or this opening. Chats tags it "Configuring"; its offer and To begin keep "Tell temper how you work". |
+  | Ask temper's page (`chat.html?id=new&configure=1`) | In the project's frame, through no Settings, at `/projects/<project>/ask` (`../browser.md`, 2.3), the rail's "Ask temper" and the tab bar's "Ask" current (the look request `ask-temper-place`); an Ask temper chat keeps that layout at `/chats/<task>` (`../README.md`, 3.5). The rail stays on a wide page; on a phone it and the tabs go so the composer keeps the foot. The page is named "Ask temper": its opening is a page in a column at most 720 px wide, the project's question, lede, what it sets, three starter cards and the fourth starter as a link in the section’s head, then the card "At scale, as temper builds itself", its steps and its two buttons, above the focused composer. "See how it works" opens the stock reference "How temper builds temper" beside the page in Split, with the rail folded; Chat keeps the mode group and folds the reference. On a phone the reference stands alone as Draft, above the composer. The opening, turns and composer share their edges, with both scrollbar gutters on a wide page and 16 px in on a phone. Typing, sending, refusal and reopening keep their words and controls. The rail's "Ask temper", the tab bar's "Ask" and To begin's "Start" open the newest Ask temper chat not closed in their delivered rows, or this opening; Settings offers none. Chats tags it "Ask temper"; To begin keeps "Tell temper how you work". |
 
   The model line names the first usable account's kind and the first
   model `me` serves for the project (`../README.md`, 3.5), rather than
-  claiming the configuring role's first model: a template's `llm` may
+  claiming Ask temper's charter's first model: a template's `llm` may
   be its charter's default, which the client is not given. The gallery
   draws `gpt-6.1-sol` where its facts serve it. Opening focus is built
   in both shells; the static gallery omits focus by its contract
-  (`../browser.md`, 7.1). Settings' first link is "Configure temper",
-  ahead of Forges, Accounts and Adopt a repository (`../README.md`,
-  3.5, *Settings*). Before its rows arrive, or when the configuring chat
-  is past the watch's window, the link opens the page before its first
-  words. A proposal review's "Change
+  (`../browser.md`, 7.1). Before the chats' rows arrive, or when the
+  Ask temper chat is past the watch's window, the rail's link opens the
+  page before its first words (`../README.status.md`, 3.5). A proposal
+  review's "Change
   something" awaits the client's proposal view
-  (`../README.status.md`, 3.5 and 5.13). The configuring chat is docked
-  beside nothing, the user's decision (`../README.md`, 5.13).
+  (`../README.status.md`, 3.5 and 5.13).
   With a document it shares every chat's Chat, Split and Draft controls and
   Markdown pane, and has "Start over" in place of "Start goal…". Split
   folds the rail to a 56 px strip; "Show the rail" opens it over the page.
@@ -387,8 +385,8 @@ examples of separate states, not extra content appended to a page.
 
 Settings has Models between Accounts and Builders, following `model-picker`'s
 hand-made page 07 at `47c23ff6ed` (`../journeys.md`, 9). Its offered rows,
-what pays, default effort, picker switches, adding by name and Configure
-temper link are built; unknown prices read "estimated prices". A provider
+what pays, default effort, picker switches, adding by name and the link to
+Ask temper are built; unknown prices read "estimated prices". A provider
 without a usable account has its Connect or fix line and no model rows.
 
 Where the client does otherwise: the address is under the project; one

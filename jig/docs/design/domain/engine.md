@@ -848,6 +848,10 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   heard and the decisions made about it, kept in the order they
   committed, so a client reads a conversation whole after its words have
   been taken from the inbox (`../client/domain/contract.md`, section 6).
+  A failed run's end retains its class and the optional invalid-result
+  kind computed for that attempt (tasks.md, 5.6), beside the task record's
+  current reason. Starting another attempt clears the current reason,
+  never the ended run's activity.
   A message is a line in the activity of the task that hears it
   (tasks.md, 8.1): a party's answer to a question a task heard is that
   task's own line; a task's answer to the delegate that asked is the
@@ -1716,8 +1720,8 @@ Nothing the core decides depends on a view arriving.
   is offered; a program's source needs a connected host that has reported
   its login usable. A
   provider with no such account gives no model, whatever is configured of
-  it. The configuring agent's inventory names the same list for its task's
-  payer, through the same function. It is an observation, as the preview is;
+  it. An application's agent that proposes settings, as temper's Ask temper,
+  may name the same list for its task's payer, through the same function. It is an observation, as the preview is;
   a run's own check decides.
 - **Marked** as any of it moves. A pool's amount left moves with spend;
   account and source changes, a program's login reported on a host, a host
@@ -2204,7 +2208,7 @@ section 5).
 - **A list's reach past the first page and past a name's arrival:** a
   provider's later pages, and a known name's window, efforts or shown name
   changing on its list (17.12). Default: one request, and a name's figures are
-  what its first read gave, the configuring chat changing them.
+  what its first read gave, a change of settings changing them.
 - **What a model is good at:** a description in configuration, or
   structured capabilities a planning agent could filter on. Default: a
   description (section 9).

@@ -253,7 +253,7 @@ replay says the same clocks (`README.md`, 5.12).
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Repositories { project }` | `/projects/<project>/settings/repositories` |
   | `Builders { project }` | `/projects/<project>/settings/builders` |
-  | `Configure { project }` | `/projects/<project>/settings/configure` |
+  | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
   | `Chats { filter }` | `/chats`, and its filter's query |
   | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
@@ -660,7 +660,7 @@ replay says the same clocks (`README.md`, 5.12).
   by a rule scoped under the row, so those pages keep their look. `Builders`
   adds `.empty`, and `Adopt` takes the `.col`, `.text` and `.btn`. No rule
   under the `--temper-*` tokens reaches these pages: the old rows' and pages'
-  rules go, rather than being overridden. A flow's path takes `Configure`'s
+  rules go, rather than being overridden. A flow's path takes `Ask`'s
   crumbs' values, its "‹" alone at 760 px and under.
 - **The project's frame** is the greenfield mock's `home.html`, in
   the welcome's paper, ink and IBM Plex from temper's files
@@ -671,7 +671,10 @@ replay says the same clocks (`README.md`, 5.12).
   column. On a phone, at 760 px and under, the column is one, the rail
   a top bar of the switcher alone, the brand's star before the
   project's name, its menu at least 220 px wide, and the tab bar fixed
-  at the foot, four links, the page leaving it room. The link's state
+  at the foot, five links in five columns as wide as their words, each on
+  one line at any phone's width, a "Needs you" count included, and four
+  while `me` offers no Ask temper (the look request `ask-temper-place`),
+  the page leaving it room. The link's state
   shows at the rail's foot, with its dot, while it is not live. The person's
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
   `temper.css` hides over 760 px, stands at that width alone (`README.md`, 3.5
@@ -1526,7 +1529,7 @@ Not in the tier, each in the lowest world that shows it:
   reason remains until another sign-in; reload to use the cookie.
 
 - **The fresh project's draft flow** (`README.md`, 3.5, 5.3, 5.13):
-  the real-box check of the configuring chat's offer and the draft-to-goal
+  the real-box check of an Ask temper chat's draft offer and the draft-to-goal
   flow, including Goals in the phone tab bar, is after-landing work
   (`README.md`, section 11). Default: the view tables and fake-model
   `chat-draft` journey, with no browser or render check during the plan.
@@ -1761,7 +1764,7 @@ from the engine's own answers, is where the look is tuned.
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
 | `settings-away` | *How work runs* with the section `#away`, the defaults ticked |
 | `home-three-left` | hand-made Home deliveries: all three steps left; first repository offered |
-| `home-two-left` | hand-made Home deliveries: repository adopted; configuring and first chat left |
+| `home-two-left` | hand-made Home deliveries: repository adopted; Ask temper's step and the first chat left |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
 | `home-accounts-both` | hand-made Home deliveries: ChatGPT plan and Claude subscription; link offers another account |
 | `home-accounts-key` | hand-made Home deliveries: an API key; link offers another account |
@@ -1805,20 +1808,25 @@ from the engine's own answers, is where the look is tuned.
 | `home-morning-card` | hand-made Home deliveries: three needs in the line form, the first as its card with its choices, the others as lines |
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
-| `configure` | the configuring page before its first words, template 3 listed |
-| `configure-reference` | "See how it works" pressed: the stock reference beside the page, in Split, the rail folded, no chat made |
-| `configure-reference-draft` | `configure-reference` in Draft: the reference alone, the composer under it |
-| `configure-typing` | words entered; Send enabled |
-| `configure-sending` | the configuring start out; starters and Send disabled, words kept |
-| `configure-refused` | the start refused; jig's words below the composer, the words kept |
-| `configure-chat` | the solo world’s T10 as a configuring chat, conversation and proposal in the Settings layout |
-| `configure-chat-proposal` | `configure-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
-| `configure-chat-accepted` | that proposal accepted: "✓ Accepted · new work follows it" |
-| `configure-chat-replaced` | that proposal dimmed, "Replaced by the proposal below", the later one under it |
+| `ask` | the solo world's Ask temper page before its first words: its heading, the form "Ask temper" and its empty text area |
+| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed: "Ways to begin", Send disabled while the words are empty |
+| `ask-reference` | "See how it works" pressed: the stock reference beside the page, in Split, the rail folded, no chat made |
+| `ask-reference-draft` | `ask-reference` in Draft: the reference alone, the composer under it |
+| `ask-typing` | words entered; Send enabled |
+| `ask-sending` | the Ask temper start out; starters and Send disabled, words kept |
+| `ask-refused` | the start refused; jig's words below the composer, the words kept |
+| `ask-chat` | the solo world’s T10 as an Ask temper chat, conversation and proposal in its layout, its path through Ask temper |
+| `ask-chat-proposal` | `ask-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
+| `ask-chat-proposal-deployment` | that proposal of the deployment's settings: "How temper will run your projects" and "Accept" |
+| `ask-chat-proposal-two-projects` | that proposal of two projects' settings: "How temper will run tally and 2" and "Accept" |
+| `ask-chat-accepted` | that proposal accepted: "✓ Accepted · new work follows it" |
+| `ask-chat-rejected` | that proposal rejected: "Rejected · nothing changes", its items kept, no "Accept" and no "Change something" |
+| `ask-chat-replaced` | that proposal dimmed, "Replaced by the proposal below", the later one under it |
+| `ask-chat-withdrawn` | that proposal withdrawn as stale: "Withdrawn · nothing changes", its items kept, no "Accept" and no "Change something" |
 | `settings` | hand-made settings deliveries: How work runs with every part of kind 7 shown |
 | `settings-all-hidden` | hand-made settings deliveries: every switch of kind 7 off, the mock's `settings.html?project=hello` |
 | `settings-goals` | hand-made settings deliveries: Goals shown, its ways of working with one the default |
-| `settings-chat-open` | hand-made settings deliveries: a configuring chat open, "Go on" |
+| `settings-chat-open` | hand-made settings deliveries: an Ask temper chat open; How work runs offers no "Start" and no "Go on", and the rail's "Ask temper" opens that chat |
 | `settings-drafts-off` | `settings` with "Chats can write drafts" off |
 | `settings-goals-off` | `settings` with Goals hidden: no ways of working, and the rail without "Goals" |
 | `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
@@ -1835,7 +1843,7 @@ from the engine's own answers, is where the look is tuned.
 | `forges-failed` | the first run's Forges at step 9: a set up failed, with "Set up again" |
 | `forges-replacing` | the solo world's Forges, a row's Replace open on its private key |
 | `forges-removing` | the first run's Forges at step 7: a row's removal asking first |
-| `models` | Settings, Models: offered models by provider, what pays, default efforts, picker switches and Configure temper |
+| `models` | Settings, Models: offered models by provider, what pays, default efforts, picker switches and the last line's link to Ask temper |
 | `models-add` | an owner adding a model by provider and name |
 | `models-off` | a model switched off, still in the list |
 | `models-added` | a person's model: "added by you" and "estimated prices" |
@@ -1851,7 +1859,7 @@ from the engine's own answers, is where the look is tuned.
 | `builders` | the Builders tab, its hosts connected, draining and not connected |
 | `builders-not-owner` | the Builders tab for a person with no role in the deployment |
 | `builders-none` | the Builders tab with no host connected |
-| `configure-chats-tag` | the solo world’s chats with T10 tagged Configuring beside ordinary chats |
+| `ask-chats-tag` | the solo world’s chats with T10 tagged Ask temper beside ordinary chats |
 | `chats-solo` | the solo world's chats |
 | `chats-live` | `chats-solo` under "Live" |
 | `chats-closed` | `chats-solo` under "Closed" |
@@ -1884,7 +1892,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-started-model-open` | a started chat, its picker open: "A change applies from the next turn." |
 | `chat-started-model-changing` | a started chat with a change sent, its picker open: "Changing…" |
 | `chat-started-model-refused` | a started chat with a change refused, its picker open: why |
-| `configure-model-open` | Configure temper, its picker open |
+| `ask-model-open` | Ask temper's page, its picker open |
 | `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
 | `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
 | `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
@@ -1899,12 +1907,12 @@ from the engine's own answers, is where the look is tuned.
 | `chat-terminal-light` | the terminal in its light theme and IBM Plex Mono, its draft beside it |
 | `chat-terminal-closed` | a closed chat in the terminal: the box for commands, "/new starts another chat" |
 | `chat-terminal-question` | a chat whose goal asked the person: the question's list under the box |
-| `chat-terminal-proposal` | a configuring chat's proposal in the terminal: its one line and its acts |
+| `chat-terminal-proposal` | an Ask temper chat's proposal in the terminal: its one line and its acts |
 | `chat-start-goal-refused` | the same sheet, refused in jig's words |
 | `chat-goal-linked` | a chat with its goal started: "Goal TITLE →", and its line |
 | `chats-drafts` | the Chats page under Drafts: "writes away-mode.md" |
-| `configure-chat-document` | a configuring chat in Chat, its document written |
-| `configure-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
+| `ask-chat-document` | an Ask temper chat in Chat, its document written |
+| `ask-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
 | `rail-new-menu` | the rail's "+ New chat" with its menu open |
 | `rail-person-menu` | the rail's person with its menu open |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
@@ -2044,7 +2052,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
 | `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
 | `chat-paused` | a chat its person paused: "Paused", Resume and Close, and the composer's hint "Sending resumes this chat." |
-| `chat-closing-start-over` | a configuring chat's Start over confirmation |
+| `chat-closing-start-over` | an Ask temper chat's Start over confirmation |
 | `task-closing` | an agent's task Close confirmation, with a task below it |
 | `task-paused` | an agent's task its person paused: "Paused", Resume and Close, and no own held card |
 | `proposal-accepting` | a proposal's Accept confirmation |

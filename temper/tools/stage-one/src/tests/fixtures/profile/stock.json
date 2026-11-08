@@ -12,7 +12,7 @@
     {"setting": {"kind": "forge-charter", "number": 1}, "set": 2},
     {"setting": {"kind": "forge-charter", "number": 2}, "set": 4},
     {"setting": {"kind": "charter", "number": 1}, "set": {"number": 1, "instructions": "The stock coordinator."}},
-    {"setting": {"kind": "charter", "number": 3}, "set": {"number": 3, "instructions": "The configuring agent."}},
+    {"setting": {"kind": "charter", "number": 11}, "set": {"number": 11, "instructions": "Ask temper."}},
     {"setting": {"kind": "charter", "number": 4}, "set": {"number": 4, "instructions": "The stock reviewer."}}
   ]
 }

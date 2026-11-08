@@ -85,7 +85,7 @@ fn the_cluster_offers_every_stock_charter_but_the_trial() {
     let frame = stock_frame(&engine);
     let expected: Vec<_> =
         engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect();
-    assert_eq!(expected.len(), 7, "stock chat, producer, configuring, reviewer, foreman, status and asking");
+    assert_eq!(expected.len(), 6, "stock chat, producer, reviewer, foreman, status and asking");
     assert_eq!(offered(&frame), expected);
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
     let words = jig_client::contract::Text::new(b"Hello".as_slice().into(), engine.limits.core.people.words)
@@ -124,7 +124,7 @@ fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
     let engine = configured_engine(&value);
-    assert_eq!(engine.charters.len(), 8);
+    assert_eq!(engine.charters.len(), 7);
     assert_eq!(
         offered(&stock_frame(&engine)),
         engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect::<Vec<_>>()

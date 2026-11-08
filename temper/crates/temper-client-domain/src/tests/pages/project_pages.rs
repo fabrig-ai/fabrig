@@ -108,7 +108,7 @@ fn unlisted_project_addresses_keep_the_open_project() {
 }
 
 #[test]
-fn switching_projects_keeps_home_settings_configure_or_chats() {
+fn switching_projects_keeps_home_settings_ask_or_chats() {
     for (address, shown) in [
         (Address::Home { project: fixtures::PROJECT }, Some(Address::Home { project: OTHER })),
         (Address::Changes { project: fixtures::PROJECT }, Some(Address::Changes { project: OTHER })),

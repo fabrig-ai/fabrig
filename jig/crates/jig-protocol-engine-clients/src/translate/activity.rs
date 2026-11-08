@@ -75,11 +75,26 @@ fn end(value: t::EndKind, limits: &w::Limits) -> Result<w::RunEnd, w::Problem> {
         t::EndKind::Parked => w::RunEnd::Parked,
         t::EndKind::Finished => w::RunEnd::Finished,
         t::EndKind::Cancelled => w::RunEnd::Cancelled,
-        t::EndKind::Failed { class } => {
-            w::RunEnd::Failed(w::RunEndFailed::new(limits, w::RunEndFailedParts { class: chips::class(class)? })?)
-        }
+        t::EndKind::Failed { class, invalid_result } => w::RunEnd::Failed(w::RunEndFailed::new(
+            limits,
+            w::RunEndFailedParts { class: chips::class(class)?, invalid_reason: invalid_reason(class, invalid_result) },
+        )?),
         t::EndKind::Refused => w::RunEnd::Refused,
     })
+}
+
+fn invalid_reason(class: t::Class, reason: Option<t::InvalidResult>) -> Option<w::InvalidReason> {
+    match class {
+        t::Class::Invalid => Some(match reason {
+            Some(t::InvalidResult::Form) => w::InvalidReason::Form,
+            Some(t::InvalidResult::Verdict) => w::InvalidReason::Verdict,
+            Some(t::InvalidResult::Words) => w::InvalidReason::Words,
+            Some(t::InvalidResult::Change) => w::InvalidReason::Change,
+            Some(t::InvalidResult::Followups) => w::InvalidReason::Followups,
+            None => w::InvalidReason::UnreadableResult,
+        }),
+        t::Class::Transient | t::Class::Permanent | t::Class::Run | t::Class::Agent | t::Class::Lost => None,
+    }
 }
 
 pub fn page_turn(

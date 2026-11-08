@@ -1,7 +1,7 @@
-//! Configuring chats through ctl and scripted runs in the joined world
-//! (temper/docs/design/domain/agent.md, 8.1; temper/docs/design/domain/testing.md, 6.3 and 6.4).
+//! Ask temper chats through ctl and scripted runs in the joined world
+//! (temper/docs/design/domain/agent.md, 8.4; temper/docs/design/domain/testing.md, 6.3 and 6.4).
 use jig_client_kit::harness::{App, ClientId, Front, World};
-use jig_domain_core::{SettingsAnswer, SettingsRead, settings as s};
+use jig_domain_core::{SettingsAnswer, settings as s};
 use jig_domain_tasks as tasks;
 use skein_lib::Duration;
 use temper_client_domain::{Action, Address, Event, pages::Act};
@@ -25,7 +25,7 @@ fn the_page_starts_the_asking_chat() {
         [vec![Act::ChatWords { words: WORKFLOW.into() }, Act::StartChat], vec![Act::Starter { words: WORKFLOW.into() }]]
             .map(|acts| (choose, acts))
     }) {
-        let mut front = Joint::with_configuring(fixtures::SEED, fixtures::domain_limits(), false);
+        let mut front = Joint::with_asking(fixtures::SEED, fixtures::domain_limits(), false);
         let mut root = temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(
             &fixtures::domain_limits(),
             fixtures::SEED,
@@ -34,9 +34,10 @@ fn the_page_starts_the_asking_chat() {
         // The domain-only pump joins the real client and engine without drawing Ask temper.
         account_acts::event(&mut front, &mut root, Temper::start(Address::Ask { project: PROJECT }, Vec::new(), 0));
         let person = root.person();
-        if jig_client::shapes::template(person.pages().me(person.client()).expect("me"), PROJECT, 5).is_none() {
-            continue;
-        }
+        assert!(
+            jig_client::shapes::template(person.pages().me(person.client()).expect("me"), PROJECT, 5).is_some(),
+            "the joined world offers Ask temper template 5"
+        );
         if choose {
             account_acts::event(
                 &mut front,
@@ -53,10 +54,10 @@ fn the_page_starts_the_asking_chat() {
         for act in acts {
             account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(act) }.into());
         }
-        let assignment = front.assignments.last().expect("configuring run assigned");
+        let assignment = front.assignments.last().expect("Ask temper run assigned");
         assert_eq!(assignment.charter, 11);
-        assert!(assignment.workspace.repositories.is_empty(), "the configuring chat names no repository");
-        let task = front.engine.task(assignment.task).expect("configuring chat");
+        assert!(assignment.workspace.repositories.is_empty(), "Ask temper names no repository");
+        let task = front.engine.task(assignment.task).expect("Ask temper chat");
         assert_eq!(task.spec.words.as_ref(), WORKFLOW);
         assert!(task.llm.is_none(), "the default model's row preserves omitted intent in Create");
         let task = assignment.task;
@@ -90,10 +91,10 @@ fn text(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> String {
 }
 
 pub(super) fn propose(member: bool, items: Option<Box<[s::Item]>>) -> (ClientWorld, ClientId, u64, String) {
-    propose_in(fixtures::configuring_world(fixtures::SEED, member), items)
+    propose_in(fixtures::asking_world(fixtures::SEED, member), items)
 }
 fn propose_in(mut world: ClientWorld, items: Option<Box<[s::Item]>>) -> (ClientWorld, ClientId, u64, String) {
-    let agent = fixtures::configuring_agent(&mut world);
+    let agent = fixtures::asking_agent(&mut world);
     let started = call(
         &mut world,
         agent,
@@ -103,32 +104,25 @@ fn propose_in(mut world: ClientWorld, items: Option<Box<[s::Item]>>) -> (ClientW
             b"--project",
             b"1",
             b"--template",
-            b"3",
+            b"5",
             b"Let chats wait two seconds; keep running work on its revision.",
             b"--key",
-            b"configure",
+            b"ask",
         ],
     );
     assert_eq!(started.status, 0, "{started:?}");
     let task = fixtures::done_task(&started);
     let front = world.front();
-    let assignment = front.assignments.last().expect("configuring run assigned");
-    assert_eq!((assignment.task, assignment.charter), (task, 3));
+    let assignment = front.assignments.last().expect("Ask temper run assigned");
+    assert_eq!((assignment.task, assignment.charter), (task, 11));
     assert_ne!(assignment.run.policy.tools.0 & jig_domain_core::ToolFamilies::JIG.settings, 0);
-    let inventory = front.host_tool(task, 1, engine::Tool::Settings { read: SettingsRead::Inventory, from: 0 });
-    let HostAnswer::Settings(inventory) = inventory else { panic!("settings inventory: {inventory:?}") };
-    let SettingsAnswer::Inventory(inventory) = *inventory else { panic!("settings inventory") };
+    let SettingsAnswer::Inventory(inventory) = read_settings(front, task, 1, b"settings") else {
+        panic!("settings inventory")
+    };
     assert_eq!(inventory.newest, 1);
-    let charter = front.host_tool(
-        task,
-        2,
-        engine::Tool::Settings {
-            read: SettingsRead::Setting { setting: s::Setting::Charter(1), revision: inventory.newest },
-            from: 0,
-        },
-    );
-    let HostAnswer::Settings(charter) = charter else { panic!("settings charter: {charter:?}") };
-    let SettingsAnswer::Setting(charter) = *charter else { panic!("whole charter") };
+    let SettingsAnswer::Setting(charter) = read_settings(front, task, 2, b"settings charter 1") else {
+        panic!("whole charter")
+    };
     assert_eq!(charter.revision, 1);
     let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter 1") };
     assert_eq!(charter.policy.waiting, Duration::from_secs(1));
@@ -154,6 +148,13 @@ fn propose_in(mut world: ClientWorld, items: Option<Box<[s::Item]>>) -> (ClientW
     (world, agent, task, format!("t{task}/{proposal}"))
 }
 
+fn read_settings(front: &mut Joint, task: u64, completion: u32, address: &[u8]) -> SettingsAnswer {
+    let answer = front.host_tool(task, completion, engine::Tool::See { line: address.into(), from: 0 });
+    let HostAnswer::See(answer) = answer else { panic!("see settings: {answer:?}") };
+    let engine::SeeAnswer::Settings(settings) = *answer else { panic!("see settings: {answer:?}") };
+    settings.answer
+}
+
 pub(super) fn accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u8]) {
     let expected = if let Some(task) = proposal.strip_prefix('t') {
         let (task, _) = task.split_once('/').expect("task proposal");
@@ -172,7 +173,7 @@ pub(super) fn accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, k
 }
 
 #[test]
-fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
+fn an_asking_chat_started_through_ctl_proposes_and_an_owner_accepts() {
     let (mut world, agent, task, proposal) = propose(false, None);
     let inbox = text(&mut world, agent, &[b"inbox", b"--kind", b"proposals"]);
     assert!(inbox.contains(&proposal), "{inbox}");
@@ -183,9 +184,9 @@ fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
     assert!(review.contains("\"waiting\":1000"), "{review}");
     assert!(review.contains(" · would be {"), "{review}");
     assert!(review.contains("\"waiting\":2000"), "{review}");
-    accept(&mut world, agent, &proposal, b"accept-configuring");
+    accept(&mut world, agent, &proposal, b"accept-asking");
     let front = world.front();
-    let run = front.engine.task(task).expect("configuring chat");
+    let run = front.engine.task(task).expect("Ask temper chat");
     assert!(
         run.inbox.iter().any(|word| matches!(
             word.kind,
@@ -193,7 +194,7 @@ fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
         )),
         "the run hears accepted: revision 2 made"
     );
-    front.configuring_reply(task, ACCEPTED);
+    front.asking_reply(task, ACCEPTED);
     let shown = text(&mut world, agent, &[b"chat", b"show", task.to_string().as_bytes()]);
     assert!(shown.contains(std::str::from_utf8(ACCEPTED).expect("reply UTF-8")), "{shown}");
     let settings = text(&mut world, agent, &[b"settings", b"show"]);
@@ -201,7 +202,7 @@ fn a_configuring_chat_started_through_ctl_proposes_and_an_owner_accepts() {
 }
 
 #[test]
-fn a_configuring_proposal_is_named_and_titled_in_the_inbox() {
+fn an_asking_proposal_is_named_and_titled_in_the_inbox() {
     let (mut world, agent, _, _) = propose(false, None);
     let inbox = text(&mut world, agent, &[b"inbox", b"--kind", b"proposals"]);
     let title = REASON.lines().next().expect("proposal title");
@@ -215,7 +216,7 @@ fn a_configuring_proposal_is_named_and_titled_in_the_inbox() {
 }
 
 #[test]
-fn a_members_configuring_proposal_waits_for_an_owner() {
+fn a_members_asking_proposal_waits_for_an_owner() {
     let (mut world, agent, _, proposal) = propose(true, None);
     let caller = world.front().caller;
     let roles: Vec<_> = world
@@ -255,7 +256,7 @@ fn a_members_configuring_proposal_waits_for_an_owner() {
 }
 
 #[test]
-fn a_stale_configuring_proposal_is_withdrawn() {
+fn a_stale_asking_proposal_is_withdrawn() {
     let (mut world, agent, task, proposal) = propose(false, None);
     let charter = text(&mut world, agent, &[b"settings", b"show", b"charter", b"1", b"--json"]);
     let value = charter.trim_end().split_once(",\"value\":").expect("shown charter value").1;
@@ -286,7 +287,7 @@ fn a_stale_configuring_proposal_is_withdrawn() {
     let review = text(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     assert!(review.contains("withdrawn"), "{review}");
     assert!(review.contains("against revision 1"), "{review}");
-    let run = world.front().engine.task(task).expect("configuring chat");
+    let run = world.front().engine.task(task).expect("Ask temper chat");
     assert!(
         run.inbox.iter().any(|word| matches!(
             word.kind,
@@ -300,35 +301,34 @@ fn a_stale_configuring_proposal_is_withdrawn() {
 fn start_over_closes_and_opens_a_fresh_ask() {
     use jig_client::contract as c;
     let mut limits = fixtures::domain_limits();
-    // The stock configuring task includes its settings authority and charter words.
+    // The stock Ask temper task includes its settings authority and charter words.
     limits.client.domain.text = 4096;
     limits.client.domain.long_text = 4096;
     limits.client.domain.turn_text = 4096;
-    let mut front = Joint::with_configuring(fixtures::SEED, limits, false);
+    let mut front = Joint::with_asking(fixtures::SEED, limits, false);
     let mut root =
         temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, fixtures::SEED)));
     front.bind(ClientId(0), fixtures::PARTY);
     account_acts::event(&mut front, &mut root, Temper::start(Address::Ask { project: PROJECT }, Vec::new(), 0));
     let person = root.person();
-    if jig_client::shapes::template(person.pages().me(person.client()).expect("me"), PROJECT, 5).is_none() {
-        return;
-    }
+    assert!(
+        jig_client::shapes::template(person.pages().me(person.client()).expect("me"), PROJECT, 5).is_some(),
+        "the joined world offers Ask temper template 5"
+    );
     account_acts::event(
         &mut front,
         &mut root,
         Event::Act { action: Action::Pages(Act::Starter { words: WORKFLOW.into() }) }.into(),
     );
-    let assignment = front.assignments.last().expect("configuring run").clone();
+    let assignment = front.assignments.last().expect("Ask temper run").clone();
     let task = assignment.task;
     let body = b"# How this project works\n\nOne checked change at a time.\n";
-    let input = format!(
-        "{{\"scope\":{{\"kind\":\"goal\",\"project\":{PROJECT},\"goal\":{task}}},\"description\":\"How this project works\",\"body\":\"# How this project works\\n\\nOne checked change at a time.\\n\"}}"
-    );
+    let input = br##"{"action":"write","body":"# How this project works\n\nOne checked change at a time.\n"}"##;
     let (written, failed) =
-        temper_engine_domain_world::host_tool::host_tool(&mut front.engine, &assignment, 1, b"note", input.as_bytes());
+        temper_engine_domain_world::host_tool::host_tool(&mut front.engine, &assignment, 1, b"document", input);
     assert!(!failed, "{}", String::from_utf8_lossy(&written));
     let reply = b"I have written how we work.";
-    front.configuring_reply(task, reply);
+    front.asking_reply(task, reply);
     // Reopening reads the durable document and committed conversation together.
     account_acts::event(&mut front, &mut root, Temper::went(Address::Settings { project: PROJECT }));
     account_acts::event(&mut front, &mut root, Temper::went(Address::Chat { task }));
@@ -347,7 +347,7 @@ fn start_over_closes_and_opens_a_fresh_ask() {
         Event::Act { action: Action::Pages(Act::Starter { words: b"A fresh way of working".as_slice().into() }) }
             .into(),
     );
-    let fresh = front.assignments.last().expect("fresh configuring run");
+    let fresh = front.assignments.last().expect("fresh Ask temper run");
     assert_ne!(fresh.task, task);
     assert_eq!(fresh.charter, 11);
     let fresh = root.person().pages().chat().expect("fresh chat");
@@ -400,7 +400,7 @@ fn project_inbox(project: u32) -> Address {
     }
 }
 #[test]
-fn a_configuring_proposal_of_a_projects_ways_reaches_its_needs_and_its_rail() {
+fn an_asking_proposal_of_a_projects_ways_reaches_its_needs_and_its_rail() {
     use jig_client::contract as c;
     let value = temper_engine_domain_forge::settings::Value::Ways(temper_engine_domain_forge::settings::ProjectWays {
         drafts: true,
@@ -457,7 +457,7 @@ fn a_deployments_proposal_shows_in_each_project_its_owner_owns() {
     let mut limits = fixtures::domain_limits();
     limits.client.domain.text = 4096;
     limits.client.domain.long_text = 4096;
-    let front = Joint::with_configuring_projects(fixtures::SEED, limits, false, 3);
+    let front = Joint::with_asking_projects(fixtures::SEED, limits, false, 3);
     let world = World::new(jig_client_kit::harness::Settings { seed: fixtures::SEED, ..Default::default() }, front);
     let (mut world, agent, _, _) = propose_in(world, None);
     let driver = &mut world.front().engine;
@@ -559,7 +559,7 @@ fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
     reject_under_needs(&mut world, person, reason);
     let review = text(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     assert!(review.contains("rejected"), "{review}");
-    let run = world.front().engine.task(task).expect("configuring chat").clone();
+    let run = world.front().engine.task(task).expect("Ask temper chat").clone();
     assert!(run.proposal.is_none(), "the rejected proposal no longer waits");
     assert!(
         run.inbox.iter().any(|word| matches!(
@@ -643,24 +643,17 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
     use jig_client::{contract as c, thread::Line};
     use skein_ui::Role;
     let (mut world, agent, task, first) = propose(false, None);
-    world.front().configuring_reply(task, b"First reply");
+    world.front().asking_reply(task, b"First reply");
     let task_words = task.to_string();
     text(&mut world, agent, &[b"task", b"message", task_words.as_bytes(), b"Tell me more", b"--key", b"more"]);
-    world.front().configuring_reply(task, b"Second reply");
+    world.front().asking_reply(task, b"Second reply");
     let person = world.client(fixtures::PARTY, Address::Chat { task });
     see(&mut world, person, skein_fake_person::Find::exactly_named(Role::Button, b"Accept"));
     read_chat_start(&mut world, person);
     accept(&mut world, agent, &first, b"accept-first-card");
-    let charter = world.front().host_tool(
-        task,
-        1,
-        engine::Tool::Settings {
-            read: SettingsRead::Setting { setting: s::Setting::Charter(1), revision: 2 },
-            from: 0,
-        },
-    );
-    let HostAnswer::Settings(charter) = charter else { panic!("charter read") };
-    let SettingsAnswer::Setting(charter) = *charter else { panic!("charter") };
+    let SettingsAnswer::Setting(charter) = read_settings(world.front(), task, 1, b"settings charter 1") else {
+        panic!("charter")
+    };
     let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter value") };
     charter.policy.waiting = Duration::from_secs(3);
     let items: Box<[s::Item]> =
@@ -675,13 +668,13 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
         panic!("second proposal: {proposed:?}")
     };
     // Commit the tool's completion before the words of the next run, as a model does.
-    world.front().configuring_reply(task, b"");
+    world.front().asking_reply(task, b"");
     text(
         &mut world,
         agent,
         &[b"task", b"message", task_words.as_bytes(), b"Explain the revision", b"--key", b"explain"],
     );
-    world.front().configuring_reply(task, b"Third reply");
+    world.front().asking_reply(task, b"Third reply");
     see(&mut world, person, skein_fake_person::Find::text(b"Third reply"));
     // Read the older pages as a person does; the first page is deliberately thin.
     read_chat_start(&mut world, person);
@@ -722,7 +715,7 @@ fn change_something_replaces_the_card_below() {
     use skein_ui::Role;
     use skein_world::domain::Verdict;
     let (mut world, agent, task, first) = propose(false, None);
-    world.front().configuring_reply(task, b"The proposal waits for your Accept.");
+    world.front().asking_reply(task, b"The proposal waits for your Accept.");
     let person = world.client(fixtures::PARTY, Address::Chat { task });
     see(&mut world, person, Find::exactly_named(Role::Button, b"Change something"));
     let old = world.root(person).person().pages().chat().expect("chat").cards.get(0).expect("first card").object;
@@ -739,16 +732,9 @@ fn change_something_replaces_the_card_below() {
         ],
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
-    let charter = world.front().host_tool(
-        task,
-        1,
-        engine::Tool::Settings {
-            read: SettingsRead::Setting { setting: s::Setting::Charter(1), revision: 1 },
-            from: 0,
-        },
-    );
-    let HostAnswer::Settings(charter) = charter else { panic!("charter read") };
-    let SettingsAnswer::Setting(charter) = *charter else { panic!("charter") };
+    let SettingsAnswer::Setting(charter) = read_settings(world.front(), task, 1, b"settings charter 1") else {
+        panic!("charter")
+    };
     let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter value") };
     charter.policy.waiting = Duration::from_secs(3);
     let items: Box<[s::Item]> =
@@ -768,7 +754,7 @@ fn change_something_replaces_the_card_below() {
     let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal: fresh, .. }) = proposed else {
         panic!("fresh proposal: {proposed:?}")
     };
-    world.front().configuring_reply(task, b"");
+    world.front().asking_reply(task, b"");
     let replaced = Find::exactly_named(Role::Paragraph, b"Replaced by the proposal below");
     see(&mut world, person, replaced.clone());
     read_chat_start(&mut world, person);
@@ -846,13 +832,13 @@ fn a_decided_proposal_stands_after_a_reload() {
     use skein_fake_person::Find;
     use skein_ui::Role;
     let (mut world, agent, task, _) = propose(false, None);
-    world.front().configuring_reply(task, b"First reply");
+    world.front().asking_reply(task, b"First reply");
     text(
         &mut world,
         agent,
         &[b"task", b"message", task.to_string().as_bytes(), b"Tell me more", b"--key", b"reload-more"],
     );
-    world.front().configuring_reply(task, b"Second reply");
+    world.front().asking_reply(task, b"Second reply");
     let owner = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
     reject_under_needs(&mut world, owner, b"Keep the settings");
     let reload = world.client(fixtures::PARTY, Address::Chat { task });

@@ -36,28 +36,54 @@ fn declare(
 #[test]
 fn a_declaration_saves_its_reservation_atomically() {
     let mut world = fresh();
-    assert_eq!(
-        declare(&mut world, HOLDER, PROVIDER, None, b"personal"),
-        (
-            Ok(1),
-            vec![
-                Request::Save { record: held(0, b"") },
-                Request::Save { record: issued(1, b"personal") },
-                Request::Save { record: program(0, 1, 0, b"personal") },
-                Request::Save { record: Stored::Next { number: 2 } },
-                Request::Programs {
-                    names: Box::new([jig_domain_accounts::Program {
-                        name: jig_domain_link::SourceName::new(b"personal".as_slice()).expect("admitted fixture name"),
-                        cleanup: false
-                    }])
-                },
-                Request::Granted { grant: named_grant(1, 2) },
-            ]
-        )
-    );
+    assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, b"personal"), (Ok(1), declaration_requests(0, 1, 2)));
     let account = world.domain.account(0).expect("kept account");
     assert!(account.plan());
     assert!(account.subject().is_empty());
+}
+fn declaration_requests(account: u32, source: u32, next: u32) -> Vec<Request> {
+    vec![
+        Request::Save { record: held(account, b"") },
+        Request::Save { record: issued(source, b"personal") },
+        Request::Save { record: program(account, source, 0, b"personal") },
+        Request::Save { record: Stored::Next { number: next } },
+        Request::Programs {
+            names: Box::new([jig_domain_accounts::Program {
+                name: jig_domain_link::SourceName::new(b"personal").expect("admitted fixture name"),
+                cleanup: false,
+            }]),
+        },
+        Request::Granted { grant: named_grant(source, u64::from(next)) },
+    ]
+}
+fn forget(world: &mut World) -> Vec<Request> {
+    world.step(Event::Change {
+        request: skein_lib::Token::new(92),
+        holder: HOLDER,
+        change: jig_domain_accounts::Change::Remove { account: 0 },
+    })
+}
+#[test]
+fn a_forgotten_program_name_is_declared_again_by_its_holder() {
+    let mut world = fresh();
+    let mut store = std::collections::BTreeMap::new();
+    let (_, first) = declare(&mut world, HOLDER, PROVIDER, None, b"personal");
+    jig_accounts_world::commit(&mut store, &first);
+    jig_accounts_world::commit(&mut store, &forget(&mut world));
+    jig_accounts_world::commit(&mut store, &targets(&mut world, &[0]));
+    jig_accounts_world::commit(&mut store, &ended(&mut world, 0, jig_domain_accounts::ProgramResult::SignedOut));
+    let mut expected = declaration_requests(2, 3, 4);
+    expected.insert(1, Request::Erase { key: jig_domain_accounts::Key::Issued { number: 1 } });
+    expected.push(Request::CheckProgram {
+        name: jig_domain_link::SourceName::new(b"personal").expect("admitted fixture name"),
+    });
+    let (result, requests) = declare(&mut world, HOLDER, PROVIDER, None, b"personal");
+    assert_eq!((result, &requests), (Ok(3), &expected));
+    assert_eq!(programs::issued(&world.domain, b"personal"), Some((3, HOLDER)));
+    jig_accounts_world::commit(&mut store, &requests);
+    let mut again = World::with_start(LIMITS, configured(), &store.into_values().collect::<Vec<_>>());
+    again.step(Event::Want);
+    assert_eq!(programs::issued(&again.domain, b"personal"), Some((3, HOLDER)));
 }
 #[test]
 fn a_program_joins_at_the_last_source_place() {
@@ -113,36 +139,48 @@ fn names_accept_the_exact_length_bound() {
     assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, &[b'a'; 32]).0, Ok(1));
 }
 #[test]
-fn a_live_name_cannot_be_declared_twice() {
-    let mut world = fresh();
-    assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, b"personal").0, Ok(1));
-    assert_eq!(
-        declare(&mut world, OTHER, PROVIDER, None, b"personal"),
-        (Err(programs::DeclarationRefusal::Issued), vec![])
-    );
-    assert_eq!(world.domain.next_number(), 2);
-}
-#[test]
-fn retired_names_survive_restart() {
-    let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &[issued(50_000, b"retired")]);
-    world.step(Event::Want);
-    assert_eq!(
-        declare(&mut world, HOLDER, PROVIDER, None, b"retired"),
-        (Err(programs::DeclarationRefusal::Issued), vec![])
-    );
-    assert_eq!(declare(&mut world, OTHER, PROVIDER, None, b"fresh").0, Ok(50_002));
+fn reservations_admit_only_their_retired_names_holder() {
+    use programs::DeclarationRefusal::Taken;
+    let live = vec![held(0, b""), program(0, 1, 0, b"personal"), issued(1, b"personal")];
+    let retired = vec![issued(50_000, b"retired")];
+    for (label, records, holder, name, expected, next, reservation) in [
+        ("live holder", live.clone(), HOLDER, b"personal".as_slice(), Err(Taken), 2, Some((1, HOLDER))),
+        ("live other", live, OTHER, b"personal", Err(Taken), 2, Some((1, HOLDER))),
+        ("retired other", retired.clone(), OTHER, b"retired", Err(Taken), 50_001, Some((50_000, HOLDER))),
+        ("retired holder", retired.clone(), HOLDER, b"retired", Ok(50_002), 50_003, Some((50_002, HOLDER))),
+        ("fresh other", retired, OTHER, b"fresh", Ok(50_002), 50_003, Some((50_002, OTHER))),
+    ] {
+        let mut world = World::with_start(LIMITS, configured(), &records);
+        world.step(Event::Want);
+        let (result, requests) = declare(&mut world, holder, PROVIDER, None, name);
+        assert_eq!(result, expected, "{label}");
+        if expected.is_err() {
+            assert!(requests.is_empty(), "{label}: refused without outputs");
+        }
+        assert_eq!(world.domain.next_number(), next, "{label}");
+        assert_eq!(programs::issued(&world.domain, name), reservation, "{label}");
+    }
 }
 #[test]
 fn the_lifetime_name_bound_refuses_before_allocating() {
     let rows = (0..LIMITS.program_names).map(|n| issued(n, format!("old-{n}").as_bytes())).collect::<Vec<_>>();
-    let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &rows);
+    let mut world = World::with_start(LIMITS, configured(), &rows);
     world.step(Event::Want);
-    assert_eq!(
-        declare(&mut world, HOLDER, PROVIDER, None, b"fresh"),
-        (Err(programs::DeclarationRefusal::Names), vec![])
-    );
-    assert_eq!(world.domain.accounts(), 0);
-    assert_eq!(world.domain.next_number(), LIMITS.program_names);
+    let next = LIMITS.program_names;
+    for (name, expected, accounts, counter) in [
+        (b"fresh".as_slice(), Err(programs::DeclarationRefusal::Names), 0, next),
+        (b"old-0", Ok(next + 1), 1, next + 2),
+        (b"fresh", Err(programs::DeclarationRefusal::Names), 1, next + 2),
+    ] {
+        let (result, requests) = declare(&mut world, HOLDER, PROVIDER, None, name);
+        assert_eq!(result, expected, "{name:?}");
+        if expected.is_err() {
+            assert!(requests.is_empty(), "{name:?}: refused without outputs");
+        }
+        assert_eq!(world.domain.accounts(), accounts, "{name:?}");
+        assert_eq!(world.domain.next_number(), counter, "{name:?}");
+    }
+    assert_eq!(programs::issued(&world.domain, b"old-0"), Some((next + 1, HOLDER)));
 }
 
 fn sign_out(world: &mut World, holder: Holder) -> Vec<Request> {
@@ -296,22 +334,38 @@ fn removing_a_program_account_retains_cleanup_evidence() {
 fn a_change_answers_a_program_declaration() {
     let mut world = fresh();
     let request = skein_lib::Token::new(41);
-    let rows = world.step(Event::Change {
-        request,
-        holder: HOLDER,
-        change: jig_domain_accounts::Change::DeclareProgram {
-            provider: PROVIDER,
-            join: None,
-            name: b"personal".as_slice().into(),
-        },
-    });
-    assert_eq!(
-        rows.last(),
-        Some(&Request::Answer {
+    for answer in [
+        jig_domain_accounts::Answer::ProgramDeclared { source: 1, name: b"personal".as_slice().into() },
+        jig_domain_accounts::Answer::Refused { refusal: Refusal::NameTaken },
+    ] {
+        let rows = world.step(Event::Change {
             request,
-            answer: jig_domain_accounts::Answer::ProgramDeclared { source: 1, name: b"personal".as_slice().into() }
-        })
+            holder: HOLDER,
+            change: jig_domain_accounts::Change::DeclareProgram {
+                provider: PROVIDER,
+                join: None,
+                name: b"personal".as_slice().into(),
+            },
+        });
+        assert_eq!(rows.last(), Some(&Request::Answer { request, answer }));
+        assert_eq!(world.domain.next_number(), 2);
+    }
+}
+#[test]
+fn a_pending_removal_blocks_reviving_its_program_name() {
+    let mut world = fresh();
+    declare(&mut world, HOLDER, PROVIDER, None, b"personal").0.expect("first declaration");
+    forget(&mut world);
+    targets(&mut world, &[0]);
+    assert_eq!(
+        declare(&mut world, HOLDER, PROVIDER, None, b"personal"),
+        (
+            Err(programs::DeclarationRefusal::Account(Refusal::Limit { bound: jig_domain_accounts::Bound::Sources })),
+            vec![]
+        )
     );
+    assert_eq!(world.domain.next_number(), 2);
+    assert_eq!(programs::issued(&world.domain, b"personal"), Some((1, HOLDER)));
 }
 #[test]
 fn a_foreign_check_emits_no_host_command() {
@@ -688,7 +742,7 @@ fn declaration_change(world: &mut World, key: u64, name: &[u8]) -> Vec<Request> 
 }
 
 #[test]
-fn a_retired_name_declaration_reports_its_reservation() {
+fn a_retired_name_declaration_refuses_another_holder() {
     let mut world = fresh();
     declaration_change(&mut world, 100, b"claude-6");
     world.step(Event::Change {
@@ -699,13 +753,21 @@ fn a_retired_name_declaration_reports_its_reservation() {
     targets(&mut world, &[0]);
     ended(&mut world, 0, jig_domain_accounts::ProgramResult::SignedOut);
     assert!(world.views().is_empty(), "forgotten account is absent from the list");
-    let refused = declaration_change(&mut world, 102, b"claude-6");
+    let refused = world.step(Event::Change {
+        request: skein_lib::Token::new(102),
+        holder: OTHER,
+        change: jig_domain_accounts::Change::DeclareProgram {
+            provider: PROVIDER,
+            join: None,
+            name: b"claude-6".as_slice().into(),
+        },
+    });
     let [Request::Answer { request, answer: jig_domain_accounts::Answer::Refused { refusal } }] = refused.as_slice()
     else {
         panic!("a reserved name must answer without writes: {refused:?}")
     };
     assert_eq!(*request, skein_lib::Token::new(102));
-    assert_eq!(*refusal, Refusal::ProgramNameReserved);
+    assert_eq!(*refusal, Refusal::NameTaken);
     assert_eq!(world.domain.accounts(), 0);
     assert!(world.views().is_empty());
     assert_eq!(world.domain.next_number(), 2);
