@@ -48,8 +48,8 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     // Admit stock policy 1's fourteen grants and thirteen executor kinds.
     for (name, count) in [
         ("core.policy_bytes", 8192),
-        // Charter 11 with both fixture providers owns 8,222 bytes.
-        ("core.run_bytes", 8222),
+        // Charter 11 with both fixture providers owns 8,415 bytes.
+        ("core.run_bytes", 8415),
         ("authority.grants", 16),
         ("authority.executors", 13),
         ("tasks.authority_grants", 16),
