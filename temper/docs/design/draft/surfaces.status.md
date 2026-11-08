@@ -90,18 +90,6 @@
     and `../client/journeys.md` records none of this section's four
     journeys.
 - **Design departs:**
-  - 10 and 13: on a phone, `../client/README.md`, 5.3, reaches Team, How
-    work runs and Deployment by the switcher's menu alone, where this
-    section has Team and How work runs from Home's project rows too and
-    Deployment from the person's menu: `phone-home.html` draws no
-    project rows and no phone draws a person's menu, and the mockups'
-    parts bind (13). Decided by the cut of `ui-p5a-phone`.
-  - 10: `../client/browser.md`, 2.5, *What a phone presses*, holds every
-    target at 44 pixels on the frame and the four tabs' pages, Ask
-    temper's chats among them; a goal's, a task's, another chat's and How
-    work runs' controls keep the greenfield mock's sizes, as the request
-    `ui-phone` of 2026-11-05 has them (`../client/browser.status.md`).
-    Decided by the cut of `ui-p5a-phone`: section 10 draws the four tabs.
   - 11.1, 13 and 15: `../client/README.md`, 6.14, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and
@@ -117,6 +105,18 @@
     mockups names neither. The code also lacks the blank row under the
     header that the mockups and the design draw
     (`../client/README.status.md`, 6.14).
+  - 10 and 13: on a phone, `../client/README.md`, 5.3, reaches Team, How
+    work runs and Deployment by the switcher's menu alone, where this
+    section has Team and How work runs from Home's project rows too and
+    Deployment from the person's menu: `phone-home.html` draws no
+    project rows and no phone draws a person's menu, and the mockups'
+    parts bind (13). Decided by the cut of `ui-p5a-phone`.
+  - 10: `../client/browser.md`, 2.5, *What a phone presses*, holds every
+    target at 44 pixels on the frame and the four tabs' pages, Ask
+    temper's chats among them; a goal's, a task's, another chat's and How
+    work runs' controls keep the greenfield mock's sizes, as the request
+    `ui-phone` of 2026-11-05 has them (`../client/browser.status.md`).
+    Decided by the cut of `ui-p5a-phone`: section 10 draws the four tabs.
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
     design takes `/chats N` (above).
