@@ -249,6 +249,7 @@ replay says the same clocks (`README.md`, 5.12).
   |---|---|
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
+  | `AllHome` | `/home` (`README.md`, 3.5, *Home on All projects*) |
   | `Changes { project }` | `/projects/<project>/changes` |
   | `Work { project, filter }` | `/projects/<project>/work`, and its filter's query |
   | `Settings { project }` | `/projects/<project>/settings` |
@@ -2008,6 +2009,19 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
+| `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red; the whole story's `home.html`, and `phone-home.html` at a phone's width |
+| `all-home-nothing-new` | the four projects with nothing landed since the last look, no brief new and no need: the kicker, "The last change landed SPAN ago.", "Nothing needs you." and Projects |
+| `all-home-one-project` | one project read: no Projects, the headline "N changes landed in PROJECT." |
+| `night-all-home` | `all-home` by night |
+| `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗" and a question (`../draft/surfaces.md`, 12, Pair) |
+| `home-step-team` | a project's Home with Decided for you and a question (12, Team) |
+| `home-step-stock` | a project's Home with a brief and Decided for you, no need (12, Stock) |
+| `home-step-scale` | a project's Home with a question and a funds card (12, At scale) |
+| `needs-list` | Needs you across two projects, three open: the first open, the others closed rows; Decided for you under them; the whole story's `needs.html`, and `phone-need.html` at a phone's width |
+| `needs-list-second` | `needs-list` with its second row opened |
+| `needs-tell` | `needs-list` with words written in "Or tell it something else" and Send shown |
+| `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first |
+| `night-needs` | `needs-list` by night |
 | `home-try-stopped` | a failed trial below Home's intro: "WHO didn’t answer when tried" and Try again; no change to its counts |
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
@@ -2099,8 +2113,8 @@ from the engine's own answers, is where the look is tuned.
 | `night-how` | `how` with the night switch pressed: who acts' colours by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
-| `forges-in-settings` | `Forges` inside Settings' frame |
-| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot at a phone's width alone |
+| `forges-in-settings` | `Forges` inside Deployment's frame |
+| `accounts-in-settings` | `Accounts` inside Deployment's frame, "Sign out" at its foot at a phone's width alone |
 | `forges-empty` | the Forges tab's quiet band, in a world with no forge |
 | `forges-setting-up` | the first run's Forges at step 6: a row setting up |
 | `forges-fetching` | the first run's Forges at step 24: a row fetching Forgejo, its percent in its summary |
