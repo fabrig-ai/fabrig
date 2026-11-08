@@ -145,7 +145,7 @@ pub fn can(inspect: bool, modify: bool, shell: bool, agents: bool) -> &'static [
 pub fn first_sentence(instructions: &[u8]) -> &[u8];   // to the first ". " or ".\n", trimmed, at most VALUE bytes at a char's end
 
 /// The watched subject of a project's ways: outside every other subject's bits.
-pub const fn subject(project: u32) -> u64 { (1 << 62) | (1 << 38) | project as u64 }  // written without `as` in the code
+pub fn subject(project: u32) -> u64 { (1 << 62) | (1 << 38) | u64::from(project) }  // a plain fn, as `changes_subject` is
 
 pub struct WayEntry { pub name: Box<[u8]>, pub line: Box<[u8]>, pub path: Path, pub items: Box<[Item]>, pub delegation: bool }
 pub struct WaysDocument { pub project: u32, pub ways: Box<[WayEntry]>, pub current: Option<u32>, pub own: Path, pub may_change: bool }
@@ -215,7 +215,7 @@ new variants last in their enums:
 ```
 # A branch's path (temper/docs/design/domain/forge.md, 8.13; client/README.md, 4.6).
 enum Actor { person, agent, code, bar }
-enum Step { ask, draft, plan, produce, produce_many, check, review, repair, approve, update, resolve, merge, prepare, prove, turn, verify, branch }
+enum PathStep { ask, draft, plan, produce, produce_many, check, review, repair, approve, update, resolve, merge, prepare, prove, turn, verify, branch }
 record OpensCharter { charter: u32 }
 record OpensRule { kind: u32 scope: u32 number: u32 }
 record OpensGate { number: u32 }
@@ -223,12 +223,12 @@ record OpensTier { name: bytes 32 }
 enum Opens { nothing, charter: OpensCharter, rule: OpensRule, gate: OpensGate, tier: OpensTier, queue, turn }
 record Fact { label: text 32 value: text 384 }
 record Card { who: text 128 name: text 64 facts: list 4 Fact }
-record Stop { actor: Actor step: Step words: text 64 opens: Opens card: Card }
+record Stop { actor: Actor step: PathStep words: text 64 opens: Opens card: Card }
 record Path { repository: option bytes 2048 branch: bytes 1024 stops: list 32 Stop }
 # A project's stock ways, watched (client/README.md, 4.6; configuration.md, 13.10).
-record Way { name: text 64 line: text 256 path: Path items: list 8 ProposalItem delegation: bool }
+record StockWay { name: text 64 line: text 256 path: Path items: list 8 ProposalItem delegation: bool }
 record WaysSubject { project: u32 }
-versioned record WaysPanel { project: u32 ways: list 4 Way current: option u32 own: Path may_change: bool }
+versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: Path may_change: bool }
 # A view, read when shown (client/README.md, 4.6 and 5.16).
 record ViewRead { project: u32 address: text 512 }
 record WayView { name: text 64 line: text 256 path: Path current: bool }
@@ -242,7 +242,7 @@ versioned record ViewAnswer { view: View }
 `enum Watch` gains `ways: WaysSubject`, last; `enum Read` gains `view:
 ViewRead`, last. `lib.rs` gains `ways_panel` / `decode_ways_panel` and
 `view_answer` / `decode_view_answer`, as `changes_panel` /
-`decode_changes_panel` are. A `Way`'s `items` are what "Use this" sends:
+`decode_changes_panel` are. A `StockWay`'s `items` are what "Use this" sends:
 each `ProposalItem`'s `edit` `set` with the kind's value encoded as
 `temper_engine_smith::kinds::encode` encodes it, or `removed`.
 

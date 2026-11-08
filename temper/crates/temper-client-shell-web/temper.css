@@ -1567,6 +1567,15 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+/* Paths: judgement above the dotted authority boundary, code below. */
+#app .temper-ways-base { fill: none; stroke: var(--gf-line-2); stroke-width: 1.5; }
+#app .temper-ways-auth { stroke: var(--gf-line-2); stroke-width: 1; stroke-dasharray: 1.5 5; opacity: .6; }
+#app .temper-ways-person { fill: var(--gf-paper); stroke: var(--gf-signal); stroke-width: 2; }
+#app .temper-ways-agent { fill: var(--gf-signal); }
+#app .temper-ways-code { fill: var(--gf-line-2); }
+#app .temper-ways-bar { fill: var(--gf-ink); }
+#app .temper-ways-words { fill: var(--gf-muted); font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; }
+
 /* model-picker: the model and effort sit at the composer, on every chat. */
 #app > :is(.temper-session, .temper-agent-page) .temper-session-foot { position: relative; z-index: 5; overflow: visible; }
 #app > :is(.temper-session, .temper-agent-page) .temper-foot-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; max-width: 720px; margin: 6px auto 0; }
