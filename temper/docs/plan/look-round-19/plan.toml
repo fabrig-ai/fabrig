@@ -23,3 +23,29 @@ id = 1
 story = "Start on a new project's Home opens Ask temper's page before a first message, as the request ask-temper-start draws it, its account committed"
 parts = ["start"]
 walk = false
+
+[[part]]
+id = "to-begin"
+title = "To begin in two steps, the repository first; the rail and tab bar cut to Home, Ask temper and Settings while it shows"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "night"
+title = "A night look, tokens first, its switch at the rail's foot, kept per browser"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 2
+story = "A new project's Home shows To begin's two steps, the repository first, and the rail on Home and Ask temper holds Home, Ask temper and Settings until the card goes"
+parts = ["to-begin"]
+walk = false
+
+[[slice]]
+id = 3
+story = "The night switch at the rail's foot turns every page to fabrig.ai's night colours, kept across reloads"
+parts = ["night"]
+walk = false
