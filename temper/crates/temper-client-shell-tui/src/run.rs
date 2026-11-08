@@ -9,13 +9,13 @@ use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Op, Submit},
 };
-use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall, stream};
 use skein_shell::Host;
 use skein_ui_screen::Size;
 #[cfg(any(test, feature = "record"))]
 use skein_ui_screen_terminal::Key;
 use skein_ui_screen_terminal::{Background, Depth, Terminal};
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{BoxLine, Note, Scheme};
 
 const TAG: u64 = 1 << 61;
 const ROOM: u32 = 64;
@@ -35,6 +35,16 @@ pub struct Settings {
     pub limits: limits::Limits,
     pub opener: Option<Opener>,
     pub record: Option<Fd>,
+    /// The box's handed link and lines.
+    pub front: Option<Front>,
+}
+
+/// The box's inputs (temper/docs/design/client/README.md, 6.17).
+pub struct Front {
+    /// The local link's URL the box handed on fd 3.
+    pub link: skein_lib::Secret,
+    /// The box's lines, fd 4.
+    pub lines: skein_io::kernel::Fd,
 }
 
 #[expect(
@@ -62,6 +72,10 @@ pub struct Run {
     start: Option<(Option<Scheme>, Box<[u8]>)>,
     loaded: Option<(Option<Secret>, Vec<jig_client::Record>)>,
     boxed: bool,
+    front: bool,
+    handed: Option<Secret>,
+    lines: Option<BoxPipe>,
+    box_lines: Queue<BoxLine>,
     link_file: Option<Box<[u8]>>,
     local: LocalFile,
     note: Option<Note>,
@@ -73,6 +87,12 @@ pub struct Run {
     refused: bool,
     #[cfg(any(test, feature = "record"))]
     recording: Option<Recording>,
+}
+
+struct BoxPipe {
+    pipe: Token,
+    reading: bool,
+    skipping: bool,
 }
 
 impl Run {
@@ -100,11 +120,11 @@ impl Run {
         terminal.adopt(input, output)?;
         let read = temper_client_shell_terminal::limits::terminal().read;
         let limits = io::Limits {
-            sockets: 2,
+            sockets: 3,
             names: 0,
             refusals: 1,
-            intake: read,
-            receive: read,
+            intake: read.max(u32::try_from(BoxLine::MOST).expect("box line bound")),
+            receive: read.max(u32::try_from(BoxLine::MOST).expect("box line bound")),
             output: read,
             sends: 1,
             accepts: 1,
@@ -114,6 +134,13 @@ impl Run {
         };
         let mut io = io::Io::new(&limits);
         let signals = io.adopt_signals(signals)?;
+        let front = settings.front.is_some();
+        let (handed, lines) = if let Some(front) = settings.front {
+            let pipe = io.adopt_read_pipe(front.lines)?;
+            (Some(front.link), Some(BoxPipe { pipe, reading: false, skipping: false }))
+        } else {
+            (None, None)
+        };
         #[cfg(any(test, feature = "record"))]
         let recording = settings.record.map(|root| Recording::new(root, user, seed, settings.files == Some(root)));
         #[cfg(any(test, feature = "record"))]
@@ -152,6 +179,10 @@ impl Run {
             start: Some((settings.scheme, settings.address.clone())),
             loaded: None,
             boxed: settings.boxed,
+            front,
+            handed,
+            lines,
+            box_lines: Queue::uncapped(),
             link_file: settings.link_file,
             local: LocalFile::new(root, user),
             note: settings.note,
@@ -249,7 +280,10 @@ impl Run {
                 self.down(io::Request::Abort { entity: self.child.expect("spawned opener") });
             }
             io::Event::Closed { owner } => {
-                if self.signals == Some(*owner) {
+                if self.lines.as_ref().is_some_and(|lines| lines.pipe == *owner) {
+                    self.lines = None;
+                    self.close();
+                } else if self.signals == Some(*owner) {
                     self.signals = None;
                 } else if self.child == Some(*owner) || *owner == OPENER {
                     self.child = None;
@@ -257,14 +291,64 @@ impl Run {
                 }
             }
             io::Event::Resized => self.terminal.resized(),
-            io::Event::Stream { .. }
-            | io::Event::Output { .. }
+            io::Event::Stream { owner, up } => {
+                assert!(
+                    self.lines.as_ref().is_some_and(|lines| lines.pipe == *owner),
+                    "the box's pipe owns the stream"
+                );
+                self.box_line(up);
+            }
+            io::Event::Output { .. }
             | io::Event::Listening { .. }
             | io::Event::Accepted { .. }
             | io::Event::Connecting { .. }
             | io::Event::Connected { .. }
             | io::Event::Usage { .. }
-            | io::Event::Window { .. } => unreachable!("the run's io owns signals and an opener"),
+            | io::Event::Window { .. } => unreachable!("the run's io owns signals, the box's lines and an opener"),
+        }
+    }
+
+    fn box_line(&mut self, up: &stream::Up) {
+        match up {
+            stream::Up::Bytes(bytes) => {
+                let pipe = self.lines.as_mut().expect("box pipe");
+                pipe.reading = false;
+                if let Some(line) = bytes.strip_suffix(b"\n") {
+                    if !pipe.skipping
+                        && let Some(line) = BoxLine::read(line)
+                    {
+                        self.box_lines.push(line);
+                    }
+                    pipe.skipping = false;
+                } else {
+                    // Scan gives a whole line or MOST bytes, except the final piece.
+                    pipe.skipping = true;
+                }
+            }
+            stream::Up::End | stream::Up::Failed(_) => self.close(),
+            stream::Up::Room => unreachable!("the box's lines are read only"),
+        }
+    }
+
+    fn read_lines(&mut self) {
+        if !self.closing
+            && self.io.takes()
+            && self.raw.room() >= io::MAX_OUT_DOWN.submissions
+            && let Some(pipe) = &mut self.lines
+            && !pipe.reading
+        {
+            pipe.reading = true;
+            let stream = pipe.pipe;
+            self.down(io::Request::Stream {
+                stream,
+                down: stream::Down::Demand {
+                    read: stream::Read::Scan {
+                        until: stream::Delimiter::LF,
+                        max: u32::try_from(BoxLine::MOST).expect("box line bound"),
+                    },
+                    room: 0,
+                },
+            });
         }
     }
 
@@ -282,6 +366,9 @@ impl Run {
             self.terminal.close();
         }
         self.shell.close();
+        if let Some(lines) = &self.lines {
+            self.down(io::Request::Abort { entity: lines.pipe });
+        }
         self.opens.clear();
         if let Some(entity) = self.child {
             self.down(io::Request::Abort { entity });
@@ -334,7 +421,9 @@ impl Run {
             self.close();
         }
         if duties.local {
-            if let Some(path) = &self.link_file {
+            if let Some(link) = self.handed.take() {
+                self.report(host::Report::Local { link: Some(link) });
+            } else if let Some(path) = &self.link_file {
                 self.local.pending = Some(path.clone());
             } else {
                 self.report(host::Report::Local { link: None });
@@ -373,10 +462,11 @@ impl Run {
             background,
             boxed: self.boxed,
             address,
-            local: self.link_file.is_some(),
+            local: self.front || self.link_file.is_some(),
             kept,
             credential,
             note: self.note,
+            front: self.front,
         };
         #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
@@ -390,6 +480,7 @@ impl Run {
                 boxed: start.boxed,
                 address: start.address.clone(),
                 local: start.local,
+                front: start.front,
                 note: start.note,
                 kept: start.kept.clone(),
                 credential: start.credential.clone(),
@@ -427,6 +518,10 @@ impl Run {
             }
             if let Some(written) = self.shell.kept() {
                 self.report(host::Report::Kept { written });
+                reported = true;
+            }
+            while let Some(line) = self.box_lines.pop() {
+                self.report(host::Report::Front(line));
                 reported = true;
             }
             while let Some(event) = self.shell.events().pop() {
@@ -591,6 +686,7 @@ impl Host for Run {
         }
         self.io.reclaim();
         self.open();
+        self.read_lines();
         self.publish();
     }
 
@@ -605,7 +701,9 @@ impl Host for Run {
         if self.recording.as_ref().is_some_and(|recording| recording.save.pending() || recording.save.io.is_due(now)) {
             return true;
         }
-        self.local.pending()
+        self.lines.as_ref().is_some_and(|lines| !lines.reading && !self.closing)
+            || (!self.box_lines.is_empty() && self.size.is_some())
+            || self.local.pending()
             || self.local.io.is_due(now)
             || self.notes.as_ref().is_some_and(|notes| notes.pending() || notes.io.is_due(now))
             || !self.complete.is_empty()
@@ -1032,6 +1130,7 @@ mod tests {
             limits: limits::tui(),
             opener: None,
             record: None,
+            front: None,
         };
         let mut run = Run::new(settings, Fd::new(3), 1000, 7, Fd::new(0), Fd::new(1), Fd::new(4))
             .expect("adopt synthetic descriptors without kernel calls");
