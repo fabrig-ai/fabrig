@@ -210,6 +210,8 @@ pub enum FromAgent {
     Started { owner: Token, agent: Token },
     /// The agent refused its start, before any run began.
     StartRefused { cause: StartCause, owner: Token, why: Box<[u8]> },
+    /// The agent had no room for the run's start, before any run began.
+    StartBusy { owner: Token },
     /// The agent could not take an inbound event for the run.
     Refused { owner: Token, name: Token, reason: MessageRefusal },
     /// The run waits for its next inbound event.
@@ -607,6 +609,7 @@ impl FromAgent {
             | FromAgent::Finished { .. }
             | FromAgent::Started { .. }
             | FromAgent::StartRefused { .. }
+            | FromAgent::StartBusy { .. }
             | FromAgent::Refused { .. }
             | FromAgent::Yielded { .. }
             | FromAgent::Faulted { .. }

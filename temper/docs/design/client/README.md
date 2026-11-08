@@ -413,6 +413,8 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | the fifth tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | the sixth tab: the deployment's hosts, each with its slots and its connection, read-only (*Settings,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
+| `Role { project, charter }` | none: the look request `ask-temper-ways`'s card names the role it opens | one role of the project, a charter: its name, who it is and its facts, as Ask temper's `charter N` view draws it (*A role's or a rule's page,* below) | `me`; the forge's read `View` of `charter N` in the project (4.6) | none |
+| `Rule { project, kind, number }` | none, as `Role`'s | one landing rule, of the deployment (kind 1) or the project (kind 2): what it covers and asks, as the view `rule K/N` draws it (*A role's or a rule's page,* below) | `me`; the forge's read `View` of `rule K/N` in the project (4.6) | none |
 | `Ask { project }` | the greenfield mock's `chat.html?id=new&configure=1`, out of Settings, as the look request `ask-temper-place` places it | Ask temper before its first words, in the project's frame, through no Settings: the ways to pick, drawn (*Ask temper's page,* below) | `me`; the project's chats' `tasks{query}`, as `Chats` reads them; To begin's facts, as Home reads them, for the rail (*Home,* below); the project's `ways` (4.6) | start an Ask temper chat from its composer; show a way's tab and a stop's card in place; "Use this" or "Keep it", jig's `ChangeSettings` (5.13) |
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
@@ -2892,7 +2894,10 @@ keeps (`../protocol/configuration.md`, section 2).
       `who` beside it in grey ("an agent · holds a change until it
       approves"), and, where the stop opens a charter, a gate or a rule,
       a link "Open NAME ›" at its right, NAME the card's `name` ("the
-      reviewer"), to the project's Settings; then its `facts`, each label
+      reviewer"), to what it opens: a charter's role,
+      `Role { project, charter }`, a gate's its reviews' charter's role,
+      the gate's `charter`, and a rule's page, `Rule { project, kind,
+      number }` (*A role's or a rule's page,* below); then its `facts`, each label
       small, faint and in mono over against its value ("Model", "Can",
       "Asked to"; a person's role and what they decide; code's checks,
       the queue or the turn). A bar opens no card.
@@ -2943,6 +2948,21 @@ keeps (`../protocol/configuration.md`, section 2).
   like any other there; refused, jig's words stay under the composer, the
   words kept. The chat names no repository. A way's act starts no chat:
   it changes the settings at once (5.13).
+- **A role's or a rule's page:** `Role { project, charter }` and `Rule {
+  project, kind, number }`, what a stop's card opens, each a page in
+  Settings' frame with How work runs' tab current, reading the forge's
+  `View` (4.6) of `charter N` or `rule K/N` in the project, the same
+  read and the same card a reply's view draws (5.16): its heading, level
+  1, the card's `name` with a capital ("The reviewer", "The project's
+  rule 1"); its `who` under it, muted; then its `facts`, each label
+  small, faint and in mono over against its value, as a stop's card's
+  are. On a phone, "‹", a link named "How work runs" to `Settings {
+  project }`, alone before the heading. Until the read answers the page
+  says "Reading NAME…" (NAME "role N" or "rule K/N"); a `not_drawn`
+  answer, a refusal or a failed read says, muted, in a line, that it
+  can't be read now, and the address. It has no act: a role's or a
+  rule's change is a proposal, Ask temper's. The terminal prints its
+  heading, `who` and facts, as any page.
 - **temper's own way,** the stock page `how-temper-builds-temper`
   (`../protocol/documentation.md`, 2.2), has no way in from this page
   (the look request `ask-temper-ways`, the user, 2026-11-08): the client
@@ -4024,7 +4044,13 @@ the person to check existence and grant the repository to the App.
   forge's words (at most 256 bytes); and its
   offer, the forge domain's (`../domain/forge.md`, 4.1): offered, not
   under the box, or not offered, which is what "Set up a Forgejo here", "Set up again"
-  and the words without the box follow (`forge.md`, 5.4). The read of the forges, the
+  and the words without the box follow (`forge.md`, 5.4). Beside the rows,
+  `linked`, whether the printed link has signed a person in since the
+  engine started (jig's `protocol/client.md`, section 8, `LinkSignedIn`):
+  the clients' component's memory alone, as `app` is the forge domain's, so
+  false after a restart; the engine delivers the document again when it
+  turns true. A TUI in front of a box reads it for its welcome's "Signed in
+  as the owner" (6.17). The read of the forges, the
   tools' `forge list` (`tools.md`, 5.5, area 6), is the watch's first
   document. Text prints `host: HOST`, and JSON carries `host` unchanged
   for a charter document's `forge` (`../protocol/configuration.md`, 13.7).
@@ -4151,13 +4177,18 @@ the person to check existence and grant the repository to the App.
   - `words`, at most 64 bytes, as the path draws them ("you ask",
     "produce ×n", "an owner approves", "main");
   - `opens`, `Opens`: `nothing`, `charter` (`charter`), `rule` (`kind`,
-    `scope`, `number`), `gate` (`number`), `tier` (`name`), `queue` or
+    `scope`, `number`), `gate` (`number`, and `charter`, its reviews'
+    charter, the role its card opens), `tier` (`name`), `queue` or
     `turn`;
   - `card`, `Card`: `who`, at most 128 bytes, as "an agent · holds a
     change until it approves"; `name`, at most 64, as "the reviewer",
     "owner", "CI" or "main"; `facts`, at most 4, each a `Fact`, `label`
-    at most 32 bytes and `value` at most 128, as "Model" and "Opus 5.5 ·
-    high", "Can", "Asked to".
+    at most 32 bytes and `value` at most 184, as "Model" and "Opus 5.5 ·
+    high", "Can", "Asked to": the engine makes every value at most 128
+    bytes but an agent's "Asked to", its instructions' first sentence
+    in quotes, at most 184 (`../domain/forge.md`, 8.13), so that the worst
+    ways document and the worst view answer still fit one decision's
+    delivery in the smallest profile.
 - **A project's ways, the subject `ways`:** of the project's scope, for a
   party with a role there, its window unused; on the wire `Watching`'s
   `ways`, `WaysSubject`: `project`. The root makes its document, since
@@ -4183,7 +4214,8 @@ the person to check existence and grant the repository to the App.
   party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,
   a `WayView`, `name`, `line`, `path` and `current`; `path`, a `BranchPath`;
   `proposal`, a `ProposalView`, `before` and `after`; `charter`, a
-  `CharterView`, `charter` and its `card`; or `not_drawn`, `words`, at
+  `CharterView`, `charter` and its `card`; `rule`, a `RuleView`, `kind`,
+  `number` and its `card`; or `not_drawn`, `words`, at
   most 512 bytes, saying in a line why it is not drawn.
 - **A proposal's items, the read `ProposalItems`:** its answer,
   `ProposalItemsAnswer`, holds the items and `owned_approval`, whether one of
@@ -4239,7 +4271,10 @@ client removes no account and closes no chat of its own.
   (4.6) when the link first becomes live, again each time it becomes
   live after it was not, again once a start or a reset it sent is
   answered, and again while its answer reads starting or resetting,
-  until it reads running or none. It keeps the last answer, and drops
+  until it reads running or none; and again whenever the `forges` watch
+  (4.6) gains or loses the playground's fake row, a row of mode fake, so
+  that a start or a reset another client made reaches it (6.17). It
+  keeps the last answer, and drops
   the answer of a read it has replaced. None, and no answer yet, both
   mean no playground is shown. *The playground is read* while its last
   answer names one, starting, running or resetting; *it runs* while
@@ -6501,8 +6536,10 @@ terminal draw the same path.
   [BRANCH]`, a repository of the chat's project, its landing branch when
   left out; `proposal tN/K`, a waiting proposal's path before and after
   over the project's home repository's landing branch; `charter N`, a
-  role. A path or a charter takes `@revision N`, drawn when N is the
-  newest revision; an older one is not drawn yet, and says so.
+  role; `rule K/N`, a landing rule, K 1 for the deployment's and 2 for
+  the chat's project's, N its number. A path or a charter takes
+  `@revision N`, drawn when N is the newest revision; an older one is not
+  drawn yet, and says so.
 - **Read when shown:** the chat page reads each address it shows once,
   through the forge's read `View` in the chat's project (4.6), equal
   addresses sharing one read, and again when the session's `settings`
@@ -6517,19 +6554,24 @@ terminal draw the same path.
   end; each stop its mark, an agent's a four-point star, a person's a
   ring, code's a small square, and its words. A way draws its name and
   line over its path; a proposal its two paths, "Before" and "After"; a
-  charter its card, `who`, `name` and `facts`, as a list of terms; a
-  `not_drawn` its words. The drawing's fallback, which the terminal
+  charter or a rule its card, `who`, `name` and `facts`, as a list of
+  terms; a `not_drawn` its words. The drawing's fallback, which the terminal
   prints, is a stop a line, its words and its actor in words ("produce,
   an agent").
 - **Its layout,** of the box's width `W` alone:
-  - *across,* 140 pixels high, where `W` is 560 or more and its stops
-    stand at least 48 pixels apart: the dotted line
+  - *across,* where `W` is 560 or more and its stops would stand at
+    least 48 pixels apart in it (`W − 80` over the gaps between the stops
+    before the last bar): a scene `A` wide and 140 high, `A` being `W`
+    from 720 up and 720 under it, so that in a box under 720 the scene
+    says its width and is scaled to the box, keeping its proportions, as
+    the look request's picture is, 658 by 127.94 in a box 658 wide
+    (skein's `ui.md`, 11.2): the dotted line
     at 72; a person's and an agent's marks at 40, their words over them
     at 22; code's at 106, its words under it at 131; the stops before the
-    last bar evenly from 12 to `W − 68`, the first's words anchored at its
+    last bar evenly from 12 to `A − 68`, the first's words anchored at its
     start, the others' at their middle; a goal's branch's bar in a stop's
     place, dimmer, its words over the dotted line at 88; the landing
-    branch's bar at `W − 8`, its words ending there at 88. The line runs
+    branch's bar at `A − 8`, its words ending there at 88. The line runs
     along the base row through code's stops and the bars, rising to each
     judgement over 0.42 of a step and falling back over as much, a cubic
     curve each way, and ends at the landing branch's bar: above the
@@ -6549,15 +6591,18 @@ terminal draw the same path.
   below it across, a row 28 high down the page, carries its act, so that
   a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);
   the open stop has a pale ring of 15 behind its mark and its words in
-  ink, bold, and, across, the scene grows 14 pixels at its foot for its
-  card's caret, a point under the open stop whose base meets the card's
-  top edge, the card following the drawing with no gap (3.5); down the
-  page there is no caret. Its fallback's lines are then buttons doing the same,
+  ink, bold, and the scene grows at its foot by what is 14 pixels in the
+  box (14 × `A` / `W` across, rounded to a whole pixel of the scene; 14
+  down the page), so that the card, following the drawing with no gap of
+  its own (3.5), stands 14 pixels under it as the request's does: across,
+  that room holds the card's caret, a point under the open stop 6 pixels
+  of the box high and 12 wide, its base on the scene's foot, where the
+  card's top edge is; down the page there is no caret. Its fallback's lines are then buttons doing the same,
   expanded while their card shows, for the keyboard, a screen reader and
   the fake person. In a reply nothing is pressed.
 - **Left to M3b** (`../draft/ask-temper.execution.md`): a stop pressed
   in a reply opening its card, the views `queue`, `task N tree` and
-  `task N timeline`, and the TUI's drawing of views, temper/tui's.
+  `task N timeline`. The TUI prints views: `../draft/surfaces.md`, 11.5.
 
 ## 6. The terminal shells
 
@@ -6844,6 +6889,9 @@ it (6.14). `temper open` stays the tests' line client
 - **One argument at most,** an address: a first word that is no
   address and no command is no command, as before
   (`temper: no command WORD; temper --help lists them`).
+- **Started by a box, too:** `temper box` in a terminal runs the TUI in
+  front of its services, `temper internal tui --box http://HOST:PORT`,
+  signed in by a link the box hands it (6.17).
 - **Exit status:** 0 once the TUI closed (6.16); 1 when it cannot
   start, with one line on stderr:
 
@@ -7093,14 +7141,19 @@ it (6.14). `temper open` stays the tests' line client
     projects in `me`'s order, after the report in which the link is live
     with `me` read and naming a project while the root is still at its
     start's address; until then, and while `me` names none, the root
-    stays there and the TUI draws the launchpad with no project (6.14);
+    stays there and the TUI draws the launchpad with no project (6.14),
+    or in front of a box the welcome (6.17);
   - *where the root asks:* a `Request::Show` or a replacing one, a chat
     started, a chat chosen from `/chats`, is followed at once as `Went`
     to that address, as the browser's host follows it, within the same
     report; an address the TUI draws no page for, `Ask { project }` after
     Start over among them, is followed to `Home` of its project, or of
     the root's;
-  - *by `/new`:* `Went(Home { project })`, the root's project.
+  - *by `/new`:* `Went(Home { project })`, the root's project;
+  - *back to the start's address,* `Went(Inbox { filter: ALL })`, after
+    the report in which `me` no longer names the root's project, the
+    playground's reset among them (6.17), so that the next project `me`
+    names is gone to as at the start.
   Every other duty of the root's but its requests to the native shell,
   `KeepLook` and `Screen` among them, is the browser's and is dropped,
   as `temper open` drops them.
@@ -7130,9 +7183,10 @@ it (6.14). `temper open` stays the tests' line client
   (`tui/journeys.md`, 3.3). Words typed on the launchpad, and leaving
   it, clear the selection.
 - **The seam's shape:** `Start` carries the start's facts, the
-  terminal's background and whether the TUI is on a box among them
-  (the user's requests of 2026-11-08); `Report` and `Duties` gain no
-  field. Following a `Show`, the look, `/theme`, `/new` and `/exit` are
+  terminal's background, whether the TUI is on a box and whether it is
+  in front of one among them (6.17; the user's requests of 2026-11-08);
+  `Report` gains `Front` (6.17), and `Duties` gains no field. Following a
+  `Show`, the look, `/theme`, `/new` and `/exit` are
   the host's own steps on the root and the TUI's state, and closing is
   the duty `close` it has; nothing new crosses to the run.
 - **Shaped for the recording now:** a recording is the start's facts,
@@ -7159,7 +7213,10 @@ from the user's hand-made frames of the look request `tui-launchpad`
 browser's chat terminal's (3.5, *A chat's terminal*), and a chat reads
 as `../draft/chat-reading.md` says. Every frame below is illustrative:
 its words and look are refined on the recording (`../draft/tui.md`,
-section 5).
+section 5). In front of a box, the welcome stands in the no-project
+launchpad's place, the playground's project says so, Ctrl+C and
+`/exit` ask first while work runs, and the box's state and `/log` join
+the foot and the commands (6.17).
 
 - **The TUI's state,** `temper-client-tui`'s `Tui`, holds what the root
   does not: the address, the link field's value, the no-project command
@@ -7848,7 +7905,8 @@ Answer csv-export's question with "Comma"?
   `temper open`'s; skein's full-screen terminal on stdin and stdout
   (skein's `ui-screen.md`, section 8); and SIGINT, SIGTERM and SIGWINCH
   from skein-shell's `open_signals` with `Watch::TerminationAndWindow`,
-  adopted by an io of its own. A completion goes by its tag: the
+  adopted by an io of its own, which in front of a box reads the box's
+  lines too (6.17). A completion goes by its tag: the
   terminal's (`Terminal::owns`), the signals' (bit 61), else the native
   shell's.
 - **Its settings,** `temper-client-shell-tui`'s `limits`: the client's
@@ -7885,7 +7943,9 @@ Answer csv-export's question with "Comma"?
   taken and no frame drawn before `Start`.
 - **Time and the seed** are skein-shell's, as `temper open`'s (6.2).
 - **Closing:** `/exit`, Ctrl+C anywhere, the input's
-  end, SIGINT or SIGTERM. The TUI doesn't sign out. The terminal
+  end, SIGINT or SIGTERM; in front of a box, the end of the box's lines
+  too, and `/exit` and Ctrl+C ask first while work runs (6.17). The TUI
+  doesn't sign out. The terminal
   finishes the write it began and writes its `LEAVE`; the native shell
   finishes the small store's last write, then closes its connections
   and files; the binary sets the terminal's modes back, writes the
@@ -7906,6 +7966,364 @@ Answer csv-export's question with "Comma"?
   alone.
 
 Its tests are section 10's; its later passes, section 11's.
+
+### 6.17 In front of a box
+
+`temper box`, run in a terminal, runs its services and the TUI in front
+of them: a small front end for the box, started by it, which quitting
+stops (`../protocol/setup.md`, 7.6). The TUI is the one of 6.11 to
+6.16 but where this section says otherwise. Its pages are drawn from
+the user's hand-made frames of the look request `tui-box-front`
+(2026-11-08), at 80 by 24 in the dark theme, and are illustrative, as
+6.14's are.
+
+- **Its start:** the box spawns `temper internal tui --box
+  http://HOST:PORT`, HOST:PORT the clients' listener, on loopback, never
+  the configured public origin, which is the TUI's address
+  (`../protocol/setup.md`, 7.6); the handed link is made there too. Its stdin is
+  the null device, and its stdout and stderr pipes the box reads into
+  the front's log, `tui.log`, beside `box.log`. It
+  reads two descriptors the box gives it: descriptor 3, the local link's
+  URL, written whole by the box and closed, read to its end at start, at
+  most 4,096 bytes; and descriptor 4, the box's lines (below), until the
+  box exits. Its directory, note, scheme and depth are bare `temper`'s
+  (6.12, 6.15), and so are its exit and its exit status (6.11, 6.16). No
+  argument, variable or file holds its link.
+- **Its terminal:** it opens the process's controlling terminal and takes
+  its foreground before it reads the terminal or sets its modes
+  (skein's `shell.md`, 6.3, `open_terminal` and `take_foreground`), then
+  runs on that descriptor, its input and its output, as bare `temper`
+  runs on 0 and 1 (6.16): raw, with Ctrl+C a key, and its `LEAVE` given
+  to the fail-stop hook. The box gives it no descriptor of its terminal
+  and writes nothing there while it runs.
+- **Signed in by the handed link,** with nothing to read, paste or
+  press. The local link's first secret is the box's, given to serve
+  before it starts and to the TUI on descriptor 3 (jig's
+  `protocol/client.md`, section 8, *The local link*;
+  `../protocol/setup.md`, 7.1). The run answers the host's first duty
+  `local` with it, `Report::Local`, and every later one from the
+  engine's link file, as 6.12 says. In front the host signs in by it at
+  `Start`, whatever credential the directory holds and whatever its note
+  says: the root starts holding no credential, and the link's sign-in
+  carries the one held, `SignIn { with: Link { secret, held } }`, so
+  that a sign-in the engine still holds is kept and no new one is made,
+  and a credential the engine does not hold signs in afresh (section 7;
+  jig's `protocol/client.md`, section 8, *A sign-in held is kept*).
+  While it signs in, the welcome is drawn, its state "Connecting". It
+  ends as 6.14's *Signed in from the engine's link* says: `link_used` or
+  `link_expired` reads the engine's link file a second later, and any
+  other end falls back to the sign-in screen.
+- **The seam** (6.13) gains the front's two: `Start.front`, true in
+  front, `Start.local` true with it; and `Report::Front(BoxLine)`, a line
+  of the box's, read. At `Start` in front the host tells the TUI's state
+  it is in front.
+- **The box's lines,** one a line on descriptor 4 (`../protocol/setup.md`,
+  7.6): a word, one space, a field that runs to the line feed, bytes with
+  spaces and no escapes, never empty; at most 8,192 bytes with the line
+  feed, `BoxLine::MOST`. A line past it, with an unknown word, or with no
+  field after its word and a space is dropped. `temper_client_tui::BoxLine` reads one and
+  prints it back:
+
+  | Line | The TUI |
+  |---|---|
+  | `link URL` | the printed link, the latest replacing the one before (*The welcome*) |
+  | `log TEXT` | one of the box's last lines, at most 50 kept, `limits::BOX_LOG`, the oldest dropped (*`/log`*) |
+  | `restarting STEP` | the box restarts STEP (*The box's state*) |
+  | `running STEP` | STEP runs again |
+  | `gave-up STEP` | the box gave up, for good |
+
+  The run reads them on its own io, beside its signals, as they come,
+  since the box holds at most 256 the front has not taken, and reports
+  each as `Report::Front` in the order read, once `Start` was given, after the
+  credential's write and before the transport's events. The end of
+  descriptor 4, the box gone, closes the run as SIGTERM does (6.16). The
+  TUI's state keeps the printed link, the last lines, the step
+  restarting and the step given up, in memory alone; of them the printed
+  link alone is a secret, and it is drawn on the welcome, nowhere else.
+- **Its pages:** the welcome while `me` names no project, then the
+  launchpad and a chat as 6.14 draws them, with the playground's words
+  where the project is the playground's. The sign-in screen only where
+  the handed link's sign-in fell back.
+
+**The welcome**, illustrative (the request's 01, before the person
+signed in, and 02, after):
+
+```
+╭─ temper ─────────────────────────────────────────────────────────────── box ─╮
+│ temper box · on this machine, to try it                                      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+ Welcome. Set temper up in your browser: open this link on this machine.
+
+   http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…
+
+   It signs you in as this temper's owner, once, within 2 hours.
+
+ In the browser
+   1 Welcome · 2 Forge · 3 Model · 4 Ready
+```
+
+```
+ Setting temper up in your browser
+   ✓ Signed in as the owner
+   ✓ 1 Welcome
+   ▸ 2 Forge · connecting GitHub…
+   · 3 Model
+   · 4 Ready
+
+ The steps are the browser's; this screen follows them.
+```
+
+- **When:** in front, from the first frame, while the sign-in screen is
+  not drawn and `me`, read or not, names no project: in the no-project
+  launchpad's place (6.14, *No project yet*), "Connecting" included.
+  Once `me` names a project the host goes to its launchpad (6.13, *Its
+  pages*), and once it names none again, the welcome stands again.
+- **Its header,** the region `tui-top`, as the launchpad's: "temper" in
+  its border and, at the border's end, the place (*The place*, below),
+  with no project; inside it, temper box's line, "temper box"
+  (`tui-name`; the view's word, 3.5, *The welcome*, *Its frame*), " · "
+  (`tui-faint`) and "on this machine, to try it" (`tui-hint`), the
+  browser's line with its links left out. Out of date, the view's line
+  stands in its place, as on the launchpad.
+- **Before the person signed in** by the printed link
+  (`welcome::signed_in`, below), its sections (`tui-sections`,
+  `tui-spaced`):
+  - "Welcome. Set temper up in your browser: open this link on this
+    machine."; under it, two columns in, the printed link, the URL of
+    the box's latest `link` line, drawn whole and wrapped at the
+    window's columns; and "It signs you in as this temper's owner, once,
+    within 2 hours." (`tui-hint`), the box's own words for it
+    (`../protocol/setup.md`, 7.2). Before the box's first `link` line,
+    the link and its line are left out. The TUI never opens the link nor
+    gives it to its opener: the person opens it, in a browser on this
+    machine.
+  - "In the browser" (`tui-head`) and, two columns in, the welcome's four
+    steps on one line, numbered, none started, "1 Welcome · 2 Forge · 3
+    Model · 4 Ready" (`tui-hint`), their labels the view's (3.5, *The
+    welcome*, *Its steps*).
+- **After,** "Setting temper up in your browser" (`tui-head`) and, two
+  columns in, a list: "Signed in as the owner", ticked; then the four
+  steps, numbered, each marked as `welcome::step_marks` marks it at the
+  step `welcome::decision` reaches (3.5, *The store's state*): Welcome
+  while the store is empty, the step left undone while it is unfinished,
+  Ready once whole. A step ticked is "✓" (`tui-step-done`), the current
+  one "▸" (`tui-step-now`), any other "·" (`tui-step-ahead`); before the
+  decision's facts are in, every step is "·". Then "The steps are the
+  browser's; this screen follows them." (`tui-hint`).
+  - *Read-only:* the TUI follows the steps and takes none. Setup runs in
+    the browser alone: the forge is chosen and set up there, a Forgejo
+    fetched, GitHub connected or the playground. The step under way is
+    the decision's, the first not done, never the step the browser's tab
+    shows, which lives in its address, so a person who goes back to an
+    earlier step there is not followed.
+  - *The forge under way:* on Forge, after its label, " · " and what the
+    `forges` watch says of the first real forge in number order, the
+    playground's left out (4.6, 4.8), in `tui-hint`: while it is under
+    way (`connect::underway`), "fetching Forgejo…" while it fetches,
+    "setting up Forgejo…" while it prepares or runs, "connecting
+    Forgejo…" or "connecting GitHub…" while it connects or while
+    GitHub's installation waits to be accepted, and "making its first
+    repository…" while that is made; its set up or its first repository
+    failed, "stopped: the browser says why"; else nothing.
+- **`welcome::signed_in`** (`temper-client-domain`): the person signed in
+  by the printed link: the forges document says so (`linked`, 4.6;
+  `Side::linked`), or the welcome's decision is past its first step,
+  unfinished or whole, or `me` names a project. The two last hold after
+  the engine restarts, when `linked` reads false again: a store set up
+  so far says someone signed in.
+- **Its foot** is the no-project launchpad's: the box takes commands
+  alone, its placeholder "/ for commands", then the quiet line. Its notes
+  follow its sections, as the launchpad's do.
+
+**The playground**, illustrative (the request's 03):
+
+```
+╭─ temper · Demo ─────────────────────────────────────────── playground · box ─╮
+│ This is the playground: a scripted model and in-memory forge. Set            │
+│ temper up in your browser when you're ready to leave it.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+...
+────────────────────────────────────────────────────────────────────────────────
+❯ Ask temper
+────────────────────────────────────────────────────────────────────────────────
+ / for commands · playground                            Scripted model · ● Live
+```
+
+- **Where:** wherever the TUI's project, the launchpad's or the open
+  chat's, is the running playground's (4.8: its read's `project` while
+  it runs), in front of a box or not. The TUI works in it as in any
+  project.
+- **The header,** on the launchpad: at the border's end, before the
+  place, "playground" (`tui-playground`) and " · " (`tui-end-faint`),
+  the three left out whole together where the border lacks the room
+  (skein's `ui-screen.md`, 5.2). Inside it, in the place of Home's brief
+  and headline, which are not drawn while the playground runs, the TUI's
+  "This is the playground: a scripted model and in-memory forge. Set
+  temper up in your browser when you're ready to leave it.": the
+  browser's banner (5.6), whose way out is the browser's. Its project is
+  a demonstration, and the banner is what the person needs of it.
+  "Connecting", out of date and a sign-in not kept are drawn as on any
+  launchpad, and the sections below as on any project.
+- **The quiet line,** on the launchpad and a chat: " · " and
+  "playground" (`tui-hint`) after the box's state, if any, and before
+  the needs' count (6.14, *The quiet line*). A chat's top line is as on
+  any chat.
+- **Read again:** a playground another client started reaches the TUI
+  through the forge's side, which reads the playground again whenever
+  the `forges` watch gains or loses the playground's fake row (4.8);
+  `me` then names its project, and the host goes to its launchpad
+  (6.13, *Its pages*). Reset from the browser, `me` names the project no
+  more: the host goes back to the start's address, and in front the
+  welcome stands again, at its step.
+
+**Quitting**, illustrative (the request's 04):
+
+```
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+Stop the box? csv-export's running task stops with it.
+❯ 1. Stop the box
+  2. Don't quit
+```
+
+- **Ctrl+C or `/exit`, in front:** with the question standing, the TUI
+  closes; else, while work runs (`work_runs`, below), the question
+  stands; else the TUI closes at once. The box stops when its front
+  exits, draining as its first termination signal does
+  (`../protocol/setup.md`, 7.6).
+- **The question,** a list under the box in the quiet line's place
+  (`tui-list`), before any other list: its head (`tui-list-head`)
+  "Stop the box? TITLE's running task stops with it." while one chat
+  works, TITLE its title, "Stop the box? N running tasks stop with it."
+  while more do, and "Stop the box?" once none does; then "1. Stop the
+  box" and "2. Don't quit" (`tui-option`), the first active. While it
+  stands the box keeps the focus: Up and Down move the active choice,
+  Enter takes it, Esc is "Don't quit", and Ctrl+C or `/exit` again
+  closes. "Stop the box" closes; "Don't quit" lowers it.
+- **`work_runs`,** `temper_client_tui::work_runs`, from what the root
+  already reads, no fact of the engine's added: a chat of the TUI's
+  project works, of Home's chats (3.5, *Home*, `Chats::live`) while they
+  are read, or the open chat. A chat works while it has not ended and
+  its status (`jig_client::facts::chat_status`) is starting, writing, a
+  tool's call, working or retrying, or while a delegate of it lives
+  (its chip's `live_delegates`). The open chat's title, else the newest
+  working chat's, is the head's TITLE.
+- **Given up:** once the box gave up (below), Ctrl+C and `/exit` close at
+  once, asking nothing: nothing runs.
+- **Out of front,** Ctrl+C and `/exit` close as 6.16 says, and a box run
+  on its own goes on running.
+- **Their words in front:** `/exit`'s, "Close temper and stop the box";
+  `/help`'s key, "Ctrl+C closes temper and stops the box".
+
+**The box's state and `/log`**, illustrative (the request's 05):
+
+```
+ Where you left off
+   csv-export, draft · working
+
+ /log
+   10:41:02 forgejo exited 1: database is locked
+   10:41:03 forgejo restarting, 2 of 5 within 10 min
+   10:41:05 forgejo listening on 127.0.0.1:8368
+
+────────────────────────────────────────────────────────────────────────────────
+❯ Ask temper
+────────────────────────────────────────────────────────────────────────────────
+ / for commands · forgejo-3 restarting          Claude Opus 5.5 · high · ● Live
+```
+
+- **The box's state,** on the quiet line, right after the hint: " · "
+  and "STEP restarting" (`tui-signal`) from the box's `restarting` line
+  until its `running` line for that step, for the step it last said
+  restarting; once it gave up, "STEP gave up" (`tui-down`). STEP is as
+  the box names it, its bytes read as UTF-8 with a replacement for each
+  invalid one (`forge::words::lossy`) and cut at 64 bytes,
+  `limits::STEP`.
+- **A give up:** the box stops its steps, says `gave-up`, and waits for
+  its front (`../protocol/setup.md`, 7.6). The TUI stays open and says
+  so in a note of its own, after the others and standing for good: "The
+  box gave up: STEP. /log shows why; Ctrl+C closes." (`tui-refused`).
+  The link goes offline as the engine stops.
+- **`/log`,** a command of the TUI's own, never the root's: offered in
+  front alone, after `/help` and before `/exit`, its words "The box's
+  recent log"; in the commands' list and in `/help`'s note there.
+  Pressed, or sent whole or begun, it never reaches the root: the box's
+  words are cleared (`terminal::Act::Dismiss`) and its note stands until
+  the next send or screen, as the TUI's unknown command's note does.
+  The note, after the others: the head "/log" (`tui-head`) and, two
+  columns in, the box's last lines, oldest first, each as the box wrote
+  it, read as UTF-8 with a replacement for each invalid byte and cut at
+  512 bytes, `limits::LOG_LINE` (`tui-note`); with none kept yet,
+  "Nothing yet." in their place. The lines are a log (skein's `ui.md`,
+  3.2) whose end request is the TUI's state's revision, so that it moves
+  as the note opens and as lines come while it stands, and the body
+  shows its end, the newest lines, as many as fit; PgUp reads back the
+  rest until the next change (skein's `ui-screen.md`, 5.2).
+
+**The place.** In front, the TUI is on a box: it names its place
+"box" at the default port, 8367, and "box:PORT" at another,
+`temper_client_tui::place(address, true)`, as the look request
+`tui-chat-title-below` names a box's; the welcome draws it at its
+header's border end with no project, as the frames show.
+
+**Its state, events, words and tokens:**
+
+- **The TUI's state** (6.14) holds, beside the rest: whether it is in
+  front; the printed link; the box's last lines; the step restarting;
+  the step given up; whether the quit question stands; and whether
+  `/log`'s note stands. `Tui::box_state` says running, restarting or
+  given up, given up winning.
+- **Its events,** beside 6.13's:
+
+  | Event | Does |
+  |---|---|
+  | `Stop` | "Stop the box" taken: closes |
+  | `Stay` | "Don't quit" taken, or Esc on the question: the question lowered |
+  | `Log` | `/log` pressed or sent: its note stands, the box's words cleared |
+
+  Each marks the frame it acts on in a recording, as any key with an
+  event but typing does (`tui/journeys.md`, 3.3).
+- **Its words,** every one quoted in this section, are the TUI's own,
+  under its owner (skein's `ui.md`, section 9), but "temper box" and the
+  steps' labels, the view's.
+- **Its tokens,** under the TUI's owner, after 6.15's, in its table's
+  form:
+
+  | Token | Paint | Else | Carried by |
+  |---|---|---|---|
+  | `tui-step-done` | none | the mark `✓`, good | "Signed in as the owner", a step ticked |
+  | `tui-step-now` | bold | the mark `▸`, accent | the step under way |
+  | `tui-step-ahead` | dim | the mark `·`, faint | a step not reached |
+  | `tui-playground` | accent | aligned to the end | "playground" in a title |
+  | `tui-end-faint` | faint | aligned to the end | " · " between it and the place |
+
+  The rest is 6.15's: `tui-signal` carries a step restarting too,
+  `tui-down` a step given up, `tui-refused` the give up's note, and
+  `tui-head`, `tui-hint` and `tui-note` what this section says.
+- **The recording:** the start fact `front` and the record `box-line`,
+  a line of the box's as `BoxLine::print` prints it; the secret of a
+  `box-line` record's `link` is a *link* original (`tui/journeys.md`, 3.2
+  and 5). A journey of a box with the TUI in front is
+  `tui/journeys.md`, 8.3.
+- **Its tests,** beside section 10's: golden frames at 80 by 24, dark,
+  of the welcome before and after the sign-in, the playground's
+  launchpad, the question, and the box's state with `/log`'s note; rows
+  of the state for each line of the box's and the question; of the view
+  for each step's mark and the forge under way, the playground's
+  header and quiet line, and `/log` offered in front alone; of the
+  host, for the handed link with and without a credential held, each
+  line told, Ctrl+C and `/exit` with and without work and after a give
+  up, `/log` sent, and the host back at the start's address; of the run,
+  for the lines read and their end closing it; of the recording's codec
+  and redaction, for `front`; of the domain, for `signed_in` and the
+  playground read again; and the joint world's (`../domain/testing.md`,
+  6.3): a TUI in front signed in from its handed link with no key,
+  drawing the welcome; the printed link signing a browser in, which
+  ticks "Signed in as the owner"; the playground started in the browser,
+  in the TUI's header and quiet line; and lines of the box's, its state
+  and `/log`.
 
 ## 7. Signing in and the small store
 
@@ -8760,8 +9178,15 @@ own tests:
   at 1440, 1000 and 420 px (`../draft/look-requests.md`, 4): each tab, a
   stop's card open on an agent, a person and code, "Yours", a refusal, a
   member with no act, "Keep it" gone once To begin's step is done, at
-  night, and the terminal's print. Owner: temper/ui. Default: each
-  difference a finding filed back under the request's trailer.
+  night, and the terminal's print. With them, the repairs of its first
+  render check: the path's marks and labels with no outline
+  (`browser.md`, 2.5), the path at 1000 px 658 by 127.94, the open card
+  14 px under it at every width, the gallery's print at 420 down the page
+  (`browser.md`, 7.1), the reviewer's "Asked to" whole and CI's checks;
+  and a walk from each card's "Open NAME ›" to its role's or rule's page
+  (*A role's or a rule's page*), which no request draws and no gallery
+  state prints. Owner: temper/ui. Default: each difference a finding
+  filed back under the request's trailer.
 - **The two-step Home and night look after landing** (3.5, 5.3): temper/ui
   compares `ask-temper-start`, `to-begin-two-steps` and `night-mode` with
   main at 1440, 1000 and 420 px, with menus and disclosures open and
@@ -8791,7 +9216,7 @@ own tests:
   instructions. The other views, sketches and preferences join at M3b and M4 of
   `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
-  way, a proposal's two paths and a charter's card in a reply and in the
+  way, a proposal's two paths and a charter's or a rule's card in a reply and in the
   chat's document at 1440, 1000 and 420 px, across and down the page,
   against the look request's pages, and walks a real Ask temper
   chat asked to show a way. M3b adds a stop pressed in a reply opening
@@ -8820,12 +9245,11 @@ own tests:
   deployment and overriding local sign-in or the scheme wait for the
   user's command-line design. The environment names the local deployment.
 - **On a box, told by the box** (6.12, *On a box*; 6.14, *The rule
-  above the box*): the engine's link file names an engine of this
-  machine, so `temper serve` run alone reads as a box too, where the
-  user's request of 2026-11-08 names "box" for a temper box. Default: the
-  file, until `temper box` starting the TUI in front tells it, a later
-  plan's, which draws the place in the box's header by `place`. Owner:
-  temper/tui.
+  above the box*): in front, the box tells the TUI it is one (6.17, *The
+  place*); bare `temper` reads the engine's link file, which names an
+  engine of this machine, so `temper serve` run alone reads as a box
+  too, where the user's request of 2026-11-08 names "box" for a temper
+  box. Default: the file, for bare `temper`. Owner: temper/tui.
 - **The TUI's design location:** sections 6.11 to 6.16 and 7.1 stay
   here; moving them under `client/tui/`, as `../README.md`, section 6
   assigns them, is a later cleanup that must preserve their citations.
@@ -8856,6 +9280,17 @@ own tests:
   (`../draft/look-requests.md`, sections 4 and 5). Simulated closing, client-world
   stories and a recorded pseudo-terminal establish no real terminal's
   look or macOS runtime.
+- **The TUI in front of a box after landing** (6.17): run `temper box`
+  in a real terminal, Linux and macOS, and check the foreground taken
+  and given back, Ctrl+C with and without work, a restart and a give up
+  on the quiet line, `/log`, and the welcome's link copied whole from
+  its wrapped rows; the look request `tui-box-front` is checked against
+  its frames, the light theme among them (`../draft/look-requests.md`,
+  sections 4 and 5). Left open: the question counts the TUI's project's
+  chats alone, not work in other projects; two steps restarting at once
+  show the one last said; a box over SSH is the person's tunnel, with
+  no front of its own. Default: so, until the user asks otherwise on a
+  recorded frame.
 - **The TUI's address kept at closing** (6.12): the binary writes it once
   the loop has ended, so a TUI killed outright keeps the address it
   read. Default: so, though the run now writes the note at once with

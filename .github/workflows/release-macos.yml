@@ -1,6 +1,7 @@
 # Apple Silicon's file for the site (temper/docs/design/release.md, 5.1):
-# temper built for release at the dispatched commit, checked, and left as
-# the run's artifact. It writes nothing to the repository and uses no secret.
+# temper built for release at the dispatched commit, stripped and signed
+# again ad hoc, checked, and left as the run's artifact. It writes nothing
+# to the repository and uses no secret.
 name: release-macos
 
 on:
@@ -57,6 +58,22 @@ jobs:
 
       - name: The build, under the release profile as the workspace has it
         run: TEMPER_BUNDLE=embed cargo build --release --locked -p temper --bin temper
+
+      # Stripping invalidates the linker's ad hoc signature, without which
+      # Apple Silicon runs no file; codesign makes it again, in place, so
+      # the checks and the artifact below take the stripped file.
+      - name: Stripped by Xcode's strip, and signed again ad hoc
+        run: |
+          xcrun --find strip
+          ls -l target/release/temper
+          xcrun strip target/release/temper
+          ls -l target/release/temper
+          codesign --force --sign - target/release/temper
+          if ! codesign --verify --verbose target/release/temper; then
+              echo "::error title=codesign::target/release/temper's signature does not verify after the strip"
+              exit 1
+          fi
+          codesign --display --verbose=2 target/release/temper
 
       - name: An arm64 Mach-O executable
         run: |

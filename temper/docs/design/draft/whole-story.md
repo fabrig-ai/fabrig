@@ -123,10 +123,10 @@ areas to standing roles.
 2. Ask temper's opening offers the ways as pictures; they pick You
    approve (`stock-ways.md`, section 2).
 3. In the terminal, or a chat on the web, they ask for a change. The
-   chat delegates it; agents produce it, CI and a reviewer check it,
-   and failures are repaired.
+   chat delegates it; an agent produces it, CI checks it, and failures
+   are repaired.
 4. On their phone, Needs you shows the change waiting for their
-   approval, with the review's line and CI's state. One tap opens the
+   approval, with CI's state. One tap opens the
    forge's review, where they approve (`forge-identity.md`, section 8).
 5. Home says what landed; Work lists the chat and its change.
 6. Once enough has landed, How work runs suggests the next step: test
@@ -166,10 +166,11 @@ Team, for Prover's and Porter's Nows; How work runs, to tune what
 reaches them. Drawn as the at-scale set (section 9).
 
 What it needs beyond today: rules by path, standing roles, follows,
-goals whose changes span two projects' repositories, and workers whose
-machine builds the project: vsr needs a C toolchain, and Linux 6.18 or
-newer for its io_uring tests (`../domain/worker.md`, 4.4, for what a
-job runs).
+and workers whose machine builds the project: vsr needs a C toolchain,
+and Linux 6.18 or newer for its io_uring tests (`../domain/worker.md`,
+4.4, for what a job runs). Goals whose changes span two projects'
+repositories are later (the user, 2026-11-08): until then, work on vsr
+and on cowsql runs as a goal per repository.
 
 ### 5.3 A project's own development moving in
 
@@ -247,11 +248,11 @@ execution's M0.
   `../client/web/whole-story/`: `index.html` (the shape), `home.html`,
   `needs.html`, `work.html`, `team.html`, `how.html`,
   `phone-home.html`, `phone-need.html`, `phone-tell.html`, with
-  `whole-story.css`. `../client/tui/whole-story/`: `launchpad.html`,
+  `whole-story.css` and `whole-story.js`. `../client/tui/whole-story/`: `launchpad.html`,
   `design-session.html`, `role.html`.
 - **Pair:** one person, one project, You approve.
-  `../client/web/whole-story/pair/`: `home.html`, `needs.html`,
-  `work.html`, `how.html`, `phone-home.html`;
+  `../client/web/whole-story/pair/`: `first-run.html`, `home.html`,
+  `needs.html`, `work.html`, `how.html`, `phone-home.html`;
   `../client/tui/whole-story/pair/launchpad.html`.
 - **Team:** three people, one project, Agents review with sign-offs by
   path. `../client/web/whole-story/team/`: `home.html`, `needs.html`,

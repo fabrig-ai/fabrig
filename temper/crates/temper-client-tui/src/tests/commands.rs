@@ -276,5 +276,44 @@ fn the_tui_offers_its_commands() {
             failures.push((name, found)).unwrap();
         }
     }
+    front_commands(&words);
     assert!(failures.is_empty(), "command rows: {failures:?}");
+}
+
+fn front_commands(words: &crate::words::Words) {
+    for (name, front, prefix, expected) in [
+        ("in front", true, "/", &["/new", "/chats", "/theme", "/help", "/log", "/exit"][..]),
+        ("log prefix", true, "/l", &["/log"][..]),
+        ("out of front", false, "/", &["/new", "/chats", "/theme", "/help", "/exit"][..]),
+        ("log out of front", false, "/l", &[][..]),
+    ] {
+        let mut root = root(true, false, false, false, false, false);
+        f::event(
+            &mut root,
+            Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: prefix.as_bytes().into() }) },
+        );
+        let mut tui = crate::Tui::new(f::ADDRESS);
+        if front {
+            tui.step(crate::Told::Front);
+        }
+        let part = crate::view::foot::read(&root, &tui, words, f::NOW);
+        let items = match &part.list {
+            Some(list) => list.items.as_ref(),
+            None => &[][..],
+        };
+        assert_eq!(items.len(), expected.len(), "{name}");
+        for (item, expected) in items.iter().zip(expected) {
+            assert_eq!(item.name.as_ref(), expected.as_bytes(), "{name}");
+            if *expected == "/log" {
+                assert_eq!(item.words.as_ref(), b"The box's recent log");
+                assert_eq!(item.event, crate::Event::Log);
+            }
+            if *expected == "/exit" {
+                assert_eq!(
+                    item.words.as_ref(),
+                    if front { b"Close temper and stop the box".as_slice() } else { b"Close temper".as_slice() }
+                );
+            }
+        }
+    }
 }

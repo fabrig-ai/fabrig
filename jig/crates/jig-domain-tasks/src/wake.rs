@@ -305,47 +305,11 @@ pub(crate) fn after_step(domain: &mut Domain, env: &Env<Limits>, number: u64, ou
     }
 }
 
-/// Remember exact escalation entries read in committed turns (jig/docs/design/domain/tasks.md, 8.2).
-pub(crate) fn read_escalations(domain: &mut Domain, number: u64, read: Option<u64>, outstanding: &[u64]) {
-    let Some(fence) = read else { return };
-    let row = record(domain, number).expect("reading holder live");
-    let id = *domain.names.get(&number).expect("reading holder indexed");
-    let previous = &domain.tasks.get(id).expect("reading holder live").read_escalations;
-    let mut read = skein_lib::List::with_capacity(domain.names.len());
-    for word in crate::escalation::waiting_for(domain, number) {
-        if !row.refused.contains(&word.number)
-            && (previous.contains(&word.number) || word.number <= fence && outstanding.contains(&word.number))
-        {
-            read.push(word.number).expect("one read per pending escalation");
-        }
-    }
-    task_mut(domain, number).expect("reading holder live").read_escalations = read.into_boxed();
-}
-
-fn awaits_person(domain: &Domain, number: u64) -> bool {
-    for delegate in &record(domain, number).expect("holder live").delegates {
-        let row = record(domain, *delegate).expect("live delegate");
-        let person = match row.executor {
-            crate::Executor::Person(_) => true,
-            crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => false,
-        };
-        let pending = match row.phase {
-            Phase::Waiting | Phase::Active(_) | Phase::Held { .. } => row.person_answer.is_none(),
-            Phase::Closing(_) | Phase::Ended(_) => false,
-        };
-        if person && pending {
-            return true;
-        }
-    }
-    false
-}
-
 /// An attempt's refusals end with it; unread messages keep their wake policy.
 pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     let task = task_mut(domain, number).expect("answered task live");
     let refused = core::mem::replace(&mut task.record.refused, Box::new([]));
-    let read = task.read_escalations.clone();
-    let awaiting_person = awaits_person(domain, number);
+    let offered = task.record.offered;
     if record(domain, number).expect("answered task live").phase == Phase::Active(Active::Idle) {
         after_step(domain, env, number, out);
     }
@@ -353,14 +317,12 @@ pub(crate) fn after_run(domain: &mut Domain, env: &Env<Limits>, number: u64, out
         return;
     }
     // Only an idle task judges its entries again: a live run already heard them.
-    for (escalation, entries) in
-        [(false, crate::proposals::waiting_for(domain, number)), (true, crate::escalation::waiting_for(domain, number))]
-    {
+    for entries in [crate::proposals::waiting_for(domain, number), crate::escalation::waiting_for(domain, number)] {
         for word in entries {
             if record(domain, number).expect("decision holder live").phase != Phase::Active(Active::Idle) {
                 return;
             }
-            if escalation && awaiting_person && read.contains(&word.number) && !refused.contains(&word.number) {
+            if crate::reasons::covered(&word, offered) && !refused.contains(&word.number) {
                 continue;
             }
             after_message(domain, env, number, None, word, out);

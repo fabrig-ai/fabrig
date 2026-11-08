@@ -51,6 +51,17 @@ after an accent "❯"; up to three left-off chats reached by Up and Down;
 `/effort` on the launchpad; a Markdown bullet's "•"; and a chat's title,
 number and place ("box" from the engine's link file) in the rule above
 the box (`client/README.md`, 6.12 to 6.15; `draft/tui.status.md`).
+`temper box` in a terminal runs the TUI in front, by the look request
+`tui-box-front`: signed in by a link the box hands it, the welcome
+following the browser's steps, "Signed in as the owner" from the forges
+document's `linked`, the playground's header and quiet line, a quit that
+asks while work runs and stops the box, and the box's state and `/log`,
+with goldens, joint-world stories and a focused box story on a
+pseudo-terminal; `--no-tui` and a box off a terminal run as before
+(`client/README.md`, 6.17; `protocol/setup.md`, 7.6). Its journey waits
+for `again` to start the box in the pseudo-terminal
+(`client/tui/journeys.status.md`, 8.3), and its real-terminal check
+follows landing (`client/README.md`, section 11).
 Its recording build, replay, shared redaction and scan, themed frame
 prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames and `launchpad-chat`'s four frames
@@ -120,7 +131,17 @@ in one drawing laid out by its width, the line's two tones, the scene's
 caret and stops with no ARIA; temper/ui's rendered comparison follows
 landing (`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and
 13.2 to 13.10; `client/README.md`, 3.5, 5.13, 5.16 and 11;
-`client/README.status.md`; `draft/stock-ways.status.md`). Ask temper's
+`client/README.status.md`; `draft/stock-ways.status.md`). Its render
+check's eight misses are repaired by `look-round-24`: a path's marks
+take no outline, under 720 it is the request's picture scaled, an open
+card stands 14 px under it, the gallery prints it down the page at 420,
+a card's "Asked to" is its charter's first sentence whole, CI's card
+names the required checks, every card's link opens a role's or a rule's
+page in Settings, and the terminal prints "Ways of working:" and "The
+way a change goes:" once each. No gallery state draws those two pages,
+and the repairs' render check follows landing (`client/README.status.md`,
+3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
+`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
@@ -133,9 +154,9 @@ rendered comparison follows landing (`client/browser.md`, section 5;
 `client/journeys.md`, section 10). On a phone, Ask temper's composer and
 model picker stand above its three tabs by a selector browsers accept,
 and the five first-run Ask gallery states draw To begin's restricted rail
-and tabs; the history story's phone row has no supplied passing run, and
-the gallery's tests exceed their 1 CPU s budget until a cost repair
-(`client/browser.status.md`, 2.5 and 7.3).
+and tabs, and the history story, with its phone row, passes its runs
+alone; the gallery's tests exceed their 1 CPU s budget until a cost
+repair (`client/browser.status.md`, 2.5, 4.6 and 7.3).
 `chat-draft` retains the removed stock in its recorded inventory; its
 task numbers changed, so temper/ui renews its walk and recording after
 landing (`client/journeys.md`, section 10).
@@ -400,7 +421,8 @@ work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
-(`domain/root.md`). A live delegate counts no stall and a stall's hold reaches its
+(`domain/root.md`); how the engine is to learn its workers' reply bound is the
+design owner's decision (`domain/agent.md`, section 10). A live delegate counts no stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
@@ -417,6 +439,11 @@ its staged files. The parked producer's proof uses fake git and disk, with a del
 as its first commit; the `resume-told` request's real-checkout proof and deployment
 replay are not on record. Parking with markers still loses that run's own edits,
 while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+A start smith refuses as busy spends no try, but `temper help task` still
+says an "invalid results" hold may mean a start refused before any turn,
+which spends a permanent try (`domain/worker.md`). Template 4's report
+reaches its run as at most 1,024 bytes, jig's contract text bound, where
+the reference gives it 63,738 (`protocol/configuration.md`).
 Saved work in the task's saved set
 is deleted through its release, and a clean update's repair names its failed
 check and carries its output before the base's contents; their real-deployment
@@ -765,6 +792,17 @@ client-world story uses a fake worker. The request's broader wording
 for key and sign-in refusals remains deferred because their not-offered
 answer combines several causes (`client/tools.md`, 5.5, 11.2 and 14;
 `client/README.md`, 5.5 and section 11).
+
+The deployment's client, `temper-client`, is built (M1 of
+`draft/deployment-binaries.execution.md`): its table of `help`, `[ADDRESS]`
+and `ctl`, run by the box's code from the shells both binaries link, its
+help, refusals and `--version`, on `temper-shell`, which the box's `temper`
+prints its table from. Its ctl story runs the box's `temper serve` as the
+engine until `temper-engine` is built, and runs after landing. It links jig's
+accounts protocol and engine-side crates through an unused line of ctl's
+manifest, and no test yet holds its closure: the boundary test is M5's
+(`protocol/README.status.md`, 4; `client/README.status.md`, 2). The `commands`
+page names no command's binary (`draft/deployment-binaries.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)

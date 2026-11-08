@@ -558,6 +558,9 @@ fn clients_pass(engine: &mut Engine) {
         engine.clients.secrets_step(&mut engine.store);
     }
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    if engine.clients.take_linked_changed() {
+        engine.domain.mark_forges();
+    }
 }
 pub(crate) fn release(engine: &mut Engine) {
     if engine.end.is_none() && engine.room() && !dispatch(engine) {

@@ -23,7 +23,10 @@ pub struct Composition {
     approval_signers: BTreeMap<Token, ClientId>,
     signing_identities: BTreeMap<ClientId, people::Identity>,
     authenticated: BTreeMap<ClientId, (people::Identity, u64)>,
-    linked: BTreeMap<ClientId, Vec<jig_client::Event>>,
+    heard: BTreeMap<ClientId, Vec<jig_client::Event>>,
+    pub(crate) linked: bool,
+    pub(crate) playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
+    linked_changed: bool,
     link_out: BTreeMap<ClientId, Queue<link::Request>>,
     receiving: BTreeMap<ClientId, link::Limits>,
     exchanges: BTreeMap<Token, (ClientId, Token)>,
@@ -107,6 +110,7 @@ impl Composition {
             addresses: Box::new([]),
             link: identity,
             link_secret: secret.clone(),
+            local_secret: None,
             approval,
             deployment_provider: 2,
             heartbeat: skein_lib::Duration::from_secs(3600),
@@ -184,7 +188,10 @@ impl Composition {
             approval_signers: BTreeMap::new(),
             signing_identities: BTreeMap::new(),
             authenticated: BTreeMap::new(),
-            linked: BTreeMap::new(),
+            heard: BTreeMap::new(),
+            linked: false,
+            playground: None,
+            linked_changed: false,
             link_out: BTreeMap::new(),
             receiving: BTreeMap::new(),
             exchanges: BTreeMap::new(),
@@ -209,6 +216,10 @@ impl Composition {
         token
     }
 
+    pub fn take_linked_changed(&mut self) -> bool {
+        std::mem::take(&mut self.linked_changed)
+    }
+
     pub fn effects(&mut self) -> Vec<root::Event> {
         std::mem::take(&mut self.events)
     }
@@ -229,11 +240,14 @@ impl Composition {
                 return;
             }
             root::PartyRequest::Deliver(root::Delivery::Forges { watcher, forges }) => {
+                let mut record =
+                    temper_service::family::forges(forges, self.linked, &temper_client_protocol_wire::v1::CEILINGS)
+                        .expect("forge document");
+                crate::front::Joint::with_playground_forges(&mut record, self.playground.as_ref());
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
                     family: temper_client_protocol_wire::FORGE,
-                    record: temper_service::family::forges(forges, &temper_client_protocol_wire::v1::CEILINGS)
-                        .expect("forge document"),
+                    record,
                 }))
             }
             root::PartyRequest::Deliver(root::Delivery::Ways { watcher, document }) => {
@@ -354,11 +368,11 @@ impl Composition {
 
     pub fn link_client(&mut self, client: ClientId, limits: jig_client::DomainLimits) {
         self.receiving(client, limits);
-        self.linked.entry(client).or_default();
+        self.heard.entry(client).or_default();
     }
 
     pub fn heard(&mut self, client: ClientId) -> Vec<jig_client::Event> {
-        std::mem::take(self.linked.get_mut(&client).expect("linked client"))
+        std::mem::take(self.heard.get_mut(&client).expect("linked client"))
     }
 
     pub fn carry(&mut self, client: ClientId, request: jig_client::Request) {
@@ -399,7 +413,7 @@ impl Composition {
                 }
             }
             jig_client::Request::Save { .. } | jig_client::Request::Erase { .. } => {
-                self.linked.get_mut(&client).expect("linked client's store").push(jig_client::Event::Stored);
+                self.heard.get_mut(&client).expect("linked client's store").push(jig_client::Event::Stored);
             }
             jig_client::Request::Told { .. }
             | jig_client::Request::Approval(_)
@@ -409,7 +423,7 @@ impl Composition {
     }
 
     fn link(&mut self, client: ClientId, event: link::Event) {
-        if let Some(heard) = self.linked.get_mut(&client) {
+        if let Some(heard) = self.heard.get_mut(&client) {
             heard.push(match event {
                 link::Event::Reply { exchange, message } => jig_client::Event::Reply { exchange, message },
                 link::Event::Lost { exchange } => jig_client::Event::Lost { exchange },
@@ -548,7 +562,7 @@ impl Composition {
             self.link(client, link::Event::SignIn { with: link::With::Held(credential) });
         }
         self.link_out.remove(&client);
-        self.linked.remove(&client);
+        self.heard.remove(&client);
         self.exchanges.retain(|_, (owner, _)| *owner != client);
     }
 
@@ -654,6 +668,24 @@ impl Composition {
     }
 
     fn application(&mut self, request: clients::ToApplication, transport: &mut Transport) {
+        use temper_client_protocol_wire::{self as wire, v1 as w};
+        let request = match request {
+            clients::ToApplication::Read { reply, family, version, record, .. }
+                if self.playground.is_some()
+                    && family == wire::FORGE
+                    && version == wire::CLIENT_VERSION
+                    && wire::decode_reading(&record, &w::CEILINGS)
+                        .is_some_and(|reading| *reading.read() == w::Read::Playground) =>
+            {
+                self.event(Event::Application(clients::FromApplication::Read {
+                    reply,
+                    family,
+                    record: self.playground.as_ref().map(wire::playground_answer),
+                }));
+                return;
+            }
+            request => request,
+        };
         match temper_service::family::to_root(
             &jig_protocol_config::Directories::working(),
             request,
@@ -792,6 +824,12 @@ impl Composition {
             }
             Request::Link { secret } => self.latest_link = Some(secret),
             Request::LocalLink { secret } => self.local_link = Some(secret),
+            Request::LinkSignedIn => {
+                if !self.linked {
+                    self.linked = true;
+                    self.linked_changed = true;
+                }
+            }
             Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }

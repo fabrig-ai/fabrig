@@ -74,7 +74,7 @@ fn forge_list_encodes_the_repository_resource_host() {
         false,
     )
     .unwrap();
-    let bytes = family::forges(domain.forges(), &w::CEILINGS).unwrap();
+    let bytes = family::forges(domain.forges(), false, &w::CEILINGS).unwrap();
     let rows = wire::decode_forges(&bytes, &w::CEILINGS).expect("forge rows");
     assert_eq!(rows.forges().get(0).unwrap().host(), b"git.example:3000", "resource host missing from wire");
     assert_eq!(rows.forges().get(0).unwrap().host(), family::host(b"https://git.example:3000/git").as_ref());
@@ -1088,7 +1088,7 @@ fn a_row_s_fetched_reaches_the_wire() {
             forge::Offer::Offered,
         );
         row.fetched = Some(forge::SetUpFetched { binary, done: 10, total });
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, &w::CEILINGS).unwrap();
+        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let w::Connection::SettingUp(setup) = rows.forges().get(0).unwrap().connection() else { panic!("setting up") };
         assert_eq!(setup.step(), &Some(w::SetUpStep::Fetch));
@@ -1115,13 +1115,13 @@ fn forges_encode_the_domains_rows_without_settings() {
         let mut failure = value.clone();
         failure.rows[0].connection = forge::Connection::SetUpFailed { why: b"stopped".as_slice().into() };
         failure.rows[0].failed = failed;
-        let bytes = family::forges(failure, &w::CEILINGS).unwrap();
+        let bytes = family::forges(failure, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
         let w::Connection::SetUpFailed(failure) = rows.get(0).unwrap().connection() else { panic!("setup failure") };
         assert_eq!(failure.at(), &expected);
         assert_eq!(failure.why(), b"stopped");
     }
-    let bytes = family::forges(value, &w::CEILINGS).unwrap();
+    let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
     let rows = temper_client_protocol_wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
     let expected = [
         (
@@ -1299,7 +1299,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
         );
         row.first = Some(first);
         let value = forge::Forges { rows: Box::new([row]) };
-        let bytes = family::forges(value, &w::CEILINGS).unwrap();
+        let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
         let first = rows.get(0).unwrap().first().as_ref().unwrap();
         assert_eq!((first.org(), first.repository()), (b"team".as_slice(), b"widget".as_slice()));
@@ -1556,6 +1556,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
                 ended_stop: Some(forge::AdminStop::Refused { status: 403, stage: forge::SetupStage::Token }),
             }]),
         },
+        false,
         &w::CEILINGS,
     )
     .unwrap();
@@ -1630,7 +1631,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
                 ended_stop: None,
             }]),
         };
-        let bytes = family::forges(value, &w::CEILINGS).expect("the row is still available");
+        let bytes = family::forges(value, false, &w::CEILINGS).expect("the row is still available");
         let rows = temper_client_protocol_wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(rows.forges().len(), 1);
         let owned = rows.forges().as_slice()[0].owned();
@@ -2698,7 +2699,7 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
             copying: true,
             state,
         }]);
-        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, &w::CEILINGS).unwrap();
+        let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let forges = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let making = forges.forges().get(0).unwrap().makings().get(0).unwrap();
         assert_eq!((making.org(), making.name()), (b"work".as_slice(), b"copied".as_slice()));
@@ -3406,7 +3407,10 @@ fn the_worst_small_ways_document_fits_its_decision() {
         facts: Box::new([
             ways::Fact { label: b"Model".as_slice().into(), value: repeated(b'm', value_bytes) },
             ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true).into() },
-            ways::Fact { label: b"Asked to".as_slice().into(), value: repeated(b'a', value_bytes) },
+            ways::Fact {
+                label: b"Asked to".as_slice().into(),
+                value: repeated(b'a', u32::try_from(ways::ASKED).unwrap()),
+            },
         ]),
     };
     let mut stops = List::uncapped();

@@ -1,5 +1,5 @@
-//! Home's launchpad (temper/docs/design/client/README.md, 6.14, The launchpad).
-use super::{Binds, foot, text};
+//! Home's launchpad (temper/docs/design/client/README.md, 6.14 and 6.17, The launchpad).
+use super::{Binds, foot, front, text};
 use crate::{
     Tui, look,
     words::{Word, Words},
@@ -24,6 +24,7 @@ use temper_client_view::{
 pub(crate) struct Launchpad {
     pub project: Option<Box<[u8]>>,
     pub address: Box<[u8]>,
+    pub playground: bool,
     pub lines: List<Line>,
     pub left_off: List<LeftOff>,
     pub selected: Option<u64>,
@@ -65,6 +66,8 @@ fn project(root: &Domain, me: &c::Me) -> Option<u32> {
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
         | Address::Repositories { .. }
         | Address::Adopt { .. } => {
             let first = me.projects.get(0)?;
@@ -129,22 +132,24 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
         return;
     }
     let facts = home::facts(root, project, wall);
-    if let Some(brief) = facts.brief() {
-        push(&mut part.lines, Role::Paragraph, &concat(&[brief.sentence(), b" ", brief.lede()]), None);
-        let (clock, _) = words.view().time(TimeForm::Clock, Wall::from_nanos(brief.at()), wall);
-        push(&mut part.lines, Role::Paragraph, &words.say(Word::Byline, &[Hole::Name(clock)]), Some(look::BYLINE));
-    } else {
-        match facts.needs {
-            home::Needs::Unknown => {}
-            home::Needs::Count { .. } => {
-                let (line, tick) = shared::home_headline(
-                    words.view(),
-                    part.project.as_deref().expect("project has a name"),
-                    &facts,
-                    wall,
-                );
-                push(&mut part.lines, Role::Paragraph, &line, None);
-                part.tick = tick;
+    if !part.playground {
+        if let Some(brief) = facts.brief() {
+            push(&mut part.lines, Role::Paragraph, &concat(&[brief.sentence(), b" ", brief.lede()]), None);
+            let (clock, _) = words.view().time(TimeForm::Clock, Wall::from_nanos(brief.at()), wall);
+            push(&mut part.lines, Role::Paragraph, &words.say(Word::Byline, &[Hole::Name(clock)]), Some(look::BYLINE));
+        } else {
+            match facts.needs {
+                home::Needs::Unknown => {}
+                home::Needs::Count { .. } => {
+                    let (line, tick) = shared::home_headline(
+                        words.view(),
+                        part.project.as_deref().expect("project has a name"),
+                        &facts,
+                        wall,
+                    );
+                    push(&mut part.lines, Role::Paragraph, &line, None);
+                    part.tick = tick;
+                }
             }
         }
     }
@@ -175,7 +180,8 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
     };
     let mut part = Launchpad {
         project,
-        address: copy_of(tui.address()),
+        address: crate::place(tui.address(), tui.front()),
+        playground: front::playground(root, number),
         lines: List::with_capacity(3),
         left_off: List::with_capacity(3),
         selected: tui.left_off(),
@@ -189,18 +195,26 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
         if let Some(number) = number {
             if part.project.is_some() {
                 home(&mut part, root, number, me, words, wall);
+                if part.playground {
+                    push(&mut part.lines, Role::Paragraph, &words.say(Word::PlaygroundBanner, &[]), None);
+                }
             }
         } else {
             push(&mut part.lines, Role::Paragraph, &words.view().say(Shared::NoProjectYet, &[]), None);
             push(
                 &mut part.lines,
                 Role::Paragraph,
-                &words.say(Word::NoProject, &[Hole::Name(part.address.clone())]),
+                &words.say(Word::NoProject, &[Hole::Name(copy_of(tui.address()))]),
                 None,
             );
         }
     } else {
-        push(&mut part.lines, Role::Paragraph, &words.say(Word::Connecting, &[Hole::Name(part.address.clone())]), None);
+        push(
+            &mut part.lines,
+            Role::Paragraph,
+            &words.say(Word::Connecting, &[Hole::Name(copy_of(tui.address()))]),
+            None,
+        );
     }
     if tui.unkept() {
         push(&mut part.lines, Role::Alert, &words.say(Word::NotKept, &[]), Some(look::REFUSED));
@@ -254,8 +268,16 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
         }
         b.close();
     }
-    b.close();
+    if part.notes.log.is_some() {
+        b.open(Role::Group);
+    } else {
+        b.close();
+    }
     foot::draw_notes(b, &part.notes, words);
+    if part.notes.log.is_some() {
+        b.close();
+        b.close();
+    }
     b.close();
 }
 pub(crate) fn draw(b: &mut Builder, part: &Launchpad, words: &Words, _binds: &mut Binds) {
@@ -267,6 +289,10 @@ pub(crate) fn draw(b: &mut Builder, part: &Launchpad, words: &Words, _binds: &mu
     if let Some(project) = &part.project {
         text(b, Role::Text, &words.say(Word::Separator, &[]), Some(look::FAINT));
         text(b, Role::Text, project, Some(look::NAME));
+        if part.playground {
+            text(b, Role::Text, &words.say(Word::Playground, &[]), Some(look::PLAYGROUND));
+            text(b, Role::Text, &words.say(Word::Separator, &[]), Some(look::END_FAINT));
+        }
         text(b, Role::Text, &part.address, Some(look::ADDRESS));
     }
     b.close();

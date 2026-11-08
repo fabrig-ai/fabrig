@@ -21,14 +21,12 @@ pub(crate) struct Task {
     pub alarm: Option<Alarm>,
     pub grace_alarm: Option<Alarm>,
     pub procedure_offered: Option<u64>,
-    /// Exact escalation entries read by this attempt; restart offers them afresh.
-    pub read_escalations: Box<[u64]>,
     pub observed_hold: Option<crate::Hold>,
     pub observed_phase: Option<Phase>,
 }
 
 impl Task {
-    /// Start a live row with no transient offers, reads, alarms or published observations.
+    /// Start a live row with no transient offers, alarms or published observations.
     pub(crate) fn new(record: TaskRecord) -> Self {
         Self {
             published: None,
@@ -36,7 +34,6 @@ impl Task {
             alarm: None,
             grace_alarm: None,
             procedure_offered: None,
-            read_escalations: Box::new([]),
             observed_hold: None,
             observed_phase: None,
         }
