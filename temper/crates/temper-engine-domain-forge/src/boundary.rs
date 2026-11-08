@@ -1710,6 +1710,11 @@ pub enum Event {
     Change {
         row: ChangeRow,
     },
+    /// A change's goal's priority moved (domain/forge.md, 9).
+    Priority {
+        task: u64,
+        priority: i32,
+    },
     /// Commit the deployment repair identity beside the task creation decision.
     QueueRepairStarted {
         owner: u64,

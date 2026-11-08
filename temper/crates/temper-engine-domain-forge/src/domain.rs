@@ -1557,6 +1557,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::Change { row } => register_change(d, env, row, out),
+        Event::Priority { task, priority } => d.priority(env, task, priority, out),
         Event::QueueRepairStarted { owner, repair } => {
             if let Some(row) = d.changes.get_mut(&owner)
                 && !row.base_repair
