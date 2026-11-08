@@ -9,6 +9,14 @@ minutes, that the file Xcode's `strip` leaves verifies under the
 signature `codesign` remakes, or that its checks pass on that file on
 the runner. Its first dispatch follows landing.
 
+Section 3's `temper-version` is present: its build script reads the
+commit and whether tracked files differ, and reruns on `HEAD`, the
+branch it names, the packed refs and the index, a worktree's included;
+its library holds `VERSION`, `COMMIT` and `line`, and its tests hold
+the commit's word and the watched paths. `temper-engine --version`
+prints from it. `temper-client --version` prints from a build script of
+its own (`protocol/README.status.md`, 4).
+
 - **Not yet:** 2: the release's file, its symbol check and checksum. 3:
   `temper --version` and `temper version`: the box's binary prints no
   version. 4: `temper box`'s check of git, `/usr/bin/rg` and `/bin/sh` at

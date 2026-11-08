@@ -1319,8 +1319,8 @@ Then `temper serve`, and the printed command, once, on Forgejo's host.
   puts no secret (6.3). A source added by Forgejo's command line while
   Forgejo runs works at once, so the order costs a person nothing.
 - **Its code:** the command, and the key's and the secret's making, in
-  `temper`'s `forge_sign_in.rs`, dispatched from `forge.rs`; the printed
-  bytes in `temper-forge-setup`'s `sign_in.rs`.
+  `temper-engine-shell`'s `forge_sign_in.rs`, dispatched from its
+  `forge.rs`; the printed bytes in `temper-forge-setup`'s `sign_in.rs`.
 
 ## 7. The box: wiring only
 
@@ -3646,7 +3646,7 @@ temper-fake-git              ordinary Rust: the fake git program's core, temper 
 temper-engine-shell          ordinary Rust: temper forge fetch|prepare|run|sign-in|source|remove and
 │                              internal forge-child, their rows and the checks they make, for both
 │                              binaries below (README.md, 4.1)
-├── temper-forge-setup-shell, temper-forge-setup, temper-box
+├── temper-forge-setup-shell, temper-forge-setup, temper-box, temper-fake (the demo member's check)
 └── temper-service, temper-shell
 temper                       the box's binary: the forge's commands through temper-engine-shell,
                                temper box, temper init, temper fake llm|forge|git; Claude Code's
@@ -3657,8 +3657,9 @@ temper-engine                the engine's binary: the forge's commands through t
 
 - **The engine runs the setup host** in its protocol layer (5.1):
   temper-service maps each forge's setup onto the plans' given values
-  through `temper-forge-setup` (section 5), and depends on neither
-  `temper-forge-setup-shell` nor `temper-box`.
+  through `temper-forge-setup` (section 5), and depends on no
+  `temper-forge-setup-shell`, and on `temper-box` only for the `box.`
+  limits' reference page (`temper-service/src/limits/reference.rs`).
 - **The binary checks the machine's part and its limits** for every
   command, `temper serve`'s included, the box's and the engine's
   through `temper-engine-shell`: `temper-forge-setup` checks
