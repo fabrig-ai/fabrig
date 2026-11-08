@@ -5,19 +5,15 @@ use crate::{
     words::{Word, Words},
 };
 use alloc::boxed::Box;
-use skein_lib::{
-    List,
-    bytes::{concat, copy_of},
-};
-use skein_ui::{Builder, Role, Run, Spans, State, phrases::Hole};
+use skein_lib::bytes::{concat, copy_of};
+use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     pages::{
         Act,
-        how::{self, Budget, Column, Head, Lane, Path},
+        how::{self, Budget, Head, Path},
     },
 };
-use temper_client_protocol_wire::v1 as wire;
 
 pub(crate) fn head(root: &Domain, w: &Words, project: u32) -> (Box<[u8]>, Box<[u8]>) {
     let change = w.say(Word::HowChange, &[]);
@@ -87,137 +83,21 @@ pub(crate) fn path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         if !tab.line.is_empty() {
             text(b, Role::Paragraph, &tab.line, look::WAYS_SAYS);
         }
-        table(b, &tab.path, ways.open(), w, bindings, project);
+        super::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
         if let Some(open) = ways.open()
             && let Some(stop) = tab.path.stops().get(open)
         {
             super::ways::card(b, stop, w, bindings, project);
         }
+        b.open(Role::Slot);
+        b.style(look::WAYS_FOOT);
+        super::ways::legend(b, w);
         super::ways::act(b, ways, index, w, bindings, project);
+        b.close();
         super::ways::refused(b, ways, w);
         b.close();
     }
     b.close();
-}
-fn table(
-    b: &mut Builder,
-    path: &wire::BranchPath,
-    open: Option<u32>,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-) {
-    let columns = how::lanes(path);
-    b.open(Role::Slot);
-    b.style(look::HOW_SCROLL);
-    b.open(Role::Table);
-    b.name(&w.say(Word::HowPath, &[]));
-    b.style(look::HOW_PATH);
-    b.open(Role::Row);
-    text(b, Role::ColumnHeader, &[], look::HOW_HEAD);
-    for column in &columns {
-        let (index, bar) = match column {
-            Column::Stop { stop, lane: _ } => (*stop, false),
-            Column::Bar { stop } => (*stop, true),
-        };
-        let stop = path.stops().get(index).expect("lanes names a path stop");
-        b.open(Role::ColumnHeader);
-        b.style(look::HOW_HEAD);
-        if bar {
-            b.style(look::HOW_BAR);
-        }
-        let words = step(w, stop);
-        b.name(&words);
-        b.text(Run::Plain, &words);
-        b.close();
-    }
-    b.close();
-    lane(b, path, &columns, Lane::You, open, w, bindings, project);
-    lane(b, path, &columns, Lane::Agents, open, w, bindings, project);
-    b.open(Role::Row);
-    b.open(Role::Cell);
-    b.spans(Spans {
-        rows: 1,
-        columns: u16::try_from(columns.len().checked_add(1).expect("bounded path plus lane header"))
-            .expect("wire bounds columns"),
-    });
-    b.style(look::HOW_LINE);
-    b.text(Run::Plain, &w.say(Word::HowAuthority, &[]));
-    b.close();
-    b.close();
-    lane(b, path, &columns, Lane::Code, open, w, bindings, project);
-    b.close();
-    b.close();
-}
-#[expect(clippy::too_many_arguments, reason = "each lane draws the same path columns with its actor and open card")]
-fn lane(
-    b: &mut Builder,
-    path: &wire::BranchPath,
-    columns: &List<Column>,
-    lane: Lane,
-    open: Option<u32>,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-) {
-    let (word, style) = match lane {
-        Lane::You => (Word::HowYou, look::HOW_PERSON),
-        Lane::Agents => (Word::HowAgents, look::HOW_AGENT),
-        Lane::Code => (Word::HowCode, look::HOW_CODE),
-    };
-    b.open(Role::Row);
-    text(b, Role::RowHeader, &w.say(word, &[]), look::HOW_LANE);
-    for column in columns {
-        b.open(Role::Cell);
-        match column {
-            Column::Bar { stop: _ } => b.style(look::HOW_BAR),
-            Column::Stop { stop: index, lane: actor } => {
-                if *actor == lane {
-                    let stop = path.stops().get(*index).expect("lanes names a path stop");
-                    let words = match lane {
-                        Lane::You => stop.words(),
-                        Lane::Agents | Lane::Code => stop.card().name(),
-                    };
-                    b.open(Role::Button);
-                    b.name(words);
-                    if w.shell == crate::words::Shell::Terminal {
-                        b.text(Run::Plain, words);
-                    }
-                    b.style(style);
-                    b.bind(bindings.insert(Act::WayStop { project, stop: *index }));
-                    if open == Some(*index) {
-                        b.state(State::Current);
-                    }
-                    b.close();
-                }
-            }
-        }
-        b.close();
-    }
-    b.close();
-}
-fn step(w: &Words, stop: &wire::Stop) -> Box<[u8]> {
-    use wire::PathStep as S;
-    let word = match stop.step() {
-        S::Ask => Word::HowAskStep,
-        S::Draft => Word::HowDraft,
-        S::Plan => Word::HowPlan,
-        S::Produce | S::ProduceMany => Word::HowProduce,
-        S::Check => Word::HowCheck,
-        S::Review => Word::HowReview,
-        S::Repair => Word::HowRepair,
-        S::Approve => Word::HowApprove,
-        S::Conflict => Word::HowConflict,
-        S::CatchUp => Word::HowCatchUp,
-        S::Resolve => Word::HowResolve,
-        S::Merge => Word::HowMerge,
-        S::Prepare => Word::HowPrepare,
-        S::Prove => Word::HowProve,
-        S::Turn => Word::HowTurn,
-        S::Verify => Word::HowVerify,
-        S::Branch => return copy_of(stop.words()),
-    };
-    w.say(word, &[])
 }
 pub(crate) fn budgets(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
     let Some(budget) = how::parts(&how::facts(root, project)).budget else { return };
