@@ -2567,7 +2567,7 @@ each behaviour in the lowest world that owns it, and one smoke above:
 | the engine's domain world, a box's approval identities (`agent.md`, 8.1; `forge.md`, 4.6) | on a box whose owned Forgejo's `Reconcile` answered the person's id, and on one whose manifest-made App's account is the person's: the inventory names the person's forge account by the link; their owner-role rule with `people: 1` is accepted, and `people: 2` refused naming the forge; a link cleared when the deployment has a second owner, and the rule then refused. On a deployment of several members, and on a pasted App, the requester without a forge identity is refused as before, and accepted once a human collaborator is adopted as admin. The script checks context and outcomes, not a real model's judgement | within the domain world's focused budget |
 | the engine's domain world, a box's approval waiting (`forge.md`, 8.12) | on a box whose forge links its person and whose rule of theirs is accepted, as in the box's approval identities, on each forge it links: a change made and stepped to its merge waits on the person's approval; the person's `approvals` document holds its row, theirs to give, while a second party of another project reads none; the linked user's review approving it at the head is posted on the fake forge; the row goes as the merge is admitted, and the change lands. The read's rows by state, head and role are the root's and the forge's step tables | within the domain world's focused budget, steps of an existing story |
 | the engine's domain world, a charter's documents (`../protocol/configuration.md`, 13.7) | through the core's plan, the root's binding and the forge's gather: a run of a charter naming a document gets its section at the branch's head; after a change lands that edits the file, the next run's section has the new text; a heading's part alone; a missing file, heading or repository, a section saying so and the run going on. The gather's own cases (a heading's bounds, a cut at a line end, each section saying why) are the forge crate's step tests | about 0.1 s, four stories |
-| fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 120 s, measured with it; no new binary |
+| fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 180 s (6.1), measured with it; no new binary |
 | the client and the engine, joined (6.3) | Ask temper's page, and `chat start --template 5` through ctl, starting Ask temper, whose run of charter 11 proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
 | the one-process world (2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
 | the real loop (2.4) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling, |
@@ -3051,6 +3051,12 @@ scripts/proof-live.sh               the live tier
   the request's roughly 15 CPU s saving and reliable headroom require
   further evidence. Budgets and enforcement settings remain separate
   user decisions.
+
+- **The budgets raised for now** (1, 2.6, 6.1): the fuzzy suite's 180 s
+  and the process tier's 540 CPU s are the strategy's 120 and the tier's
+  6-minute aim raised by half by the user's word of 11-08, for now.
+  Revisiting them, and to what, is the user's, as it is for the browser
+  tier's 127.5 (`../client/browser.md`, 5).
 
 - **The second printed link's cause** (2.6): a serve restart draws a new
   link; a retry whose earlier sign-in spent its secret can also ask for

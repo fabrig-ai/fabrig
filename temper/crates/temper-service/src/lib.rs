@@ -27,16 +27,27 @@ pub mod accounts;
 pub mod assignment;
 pub mod clients;
 pub mod family;
+#[cfg(feature = "worker")]
 pub mod identities;
+#[cfg(feature = "worker")]
 pub mod program_sources;
 pub use jig_protocol_engine_clients_http::server;
 pub mod translate;
 pub mod values;
+#[cfg(feature = "worker")]
 mod worker;
+#[cfg(feature = "worker")]
 mod worker_git;
+#[cfg(feature = "worker")]
 pub mod worker_route;
+#[cfg(feature = "worker")]
 pub mod worker_settings;
+#[cfg(feature = "worker")]
 pub use worker::{Worker, WorkerRuntime};
+#[cfg(not(feature = "worker"))]
+mod unbuilt;
+#[cfg(not(feature = "worker"))]
+pub use unbuilt::{Worker, WorkerRuntime};
 pub mod workers;
 pub use accounts::AccountsRuntime;
 mod core_wait;

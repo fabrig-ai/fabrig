@@ -2,16 +2,21 @@
 pub(crate) mod application;
 pub mod members;
 mod reference;
+#[cfg(feature = "worker")]
+mod worker;
 pub use crate::limits::{engine_reference, reference};
 pub use reference::{configuration_reference, engine_configuration_reference};
+#[cfg(feature = "worker")]
+pub use worker::{WorkerPart, worker_alone, worker_part};
 #[cfg(test)]
+#[path = "tests/startup_calls.rs"]
 mod calls_tests;
 pub(crate) mod checks;
 mod problems;
 #[cfg(test)]
 #[path = "tests/welcome_policy.rs"]
 mod welcome_policy;
-use crate::{AccountsRuntime, Service, Worker, WorkerRuntime, settings};
+use crate::{AccountsRuntime, Service, WorkerRuntime, settings};
 use alloc::boxed::Box;
 pub use application::sign_in::{Endpoints, SignIn, url as sign_in_url};
 pub use application::{Forge, Identity, Transport, USER_BYTES, User};
@@ -28,16 +33,39 @@ pub enum Shape {
     EngineAlone,
     WorkerAlone,
 }
+/// Refuse a shape this build does not serve (protocol/README.md, 4.1 and 15.1).
+#[must_use]
+pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
+    if worker {
+        return None;
+    }
+    match shape {
+        Shape::Standalone | Shape::WorkerAlone => {
+            Some(Problem { path: Path::root().member(b"workers"), what: What::UnbuiltWorker, file: None })
+        }
+        Shape::EngineAlone => None,
+    }
+}
 fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> Option<u32> {
     read::Object::new(document, at).ok()?.member(document, name)
 }
-fn nearest(document: &skein_json::Document) -> Shape {
+fn nearest_document(document: &skein_json::Document) -> Shape {
     let Some(engine) = member(document, 0, b"engine") else { return Shape::WorkerAlone };
     let Some(hosts) = member(document, engine, b"hosts") else { return Shape::Standalone };
     let Some(at) = member(document, hosts, b"listener") else { return Shape::Standalone };
     let Ok(listeners) = read::list(document, at, document.len()) else { return Shape::Standalone };
     let Some(first) = listeners.get(0) else { return Shape::Standalone };
     if member(document, *first, b"socket").is_some() { Shape::EngineAlone } else { Shape::Standalone }
+}
+/// The document's nearest shape (protocol/README.md, 15.1), read from its
+/// members alone; `None` when the bytes are no JSON document whose root is an object.
+#[must_use]
+pub fn nearest(input: &[u8]) -> Option<Shape> {
+    let length = u32::try_from(input.len()).ok()?;
+    let document =
+        config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: length, depth: 32 }).ok()?;
+    read::Object::new(&document, 0).ok()?;
+    Some(nearest_document(&document))
 }
 /// Read and check the shape before opening any named file.
 pub fn shape_with(
@@ -112,6 +140,15 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
     };
     redirect_ports(&redirects, port, Listener::Webhooks, problems);
 }
+#[derive(Debug)]
+pub struct NamedWorker {
+    pub root: Box<[u8]>,
+    pub agent: Box<[u8]>,
+}
+fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
+    NamedWorker { root: own.root.clone(), agent: worker.agent.configuration.clone() }
+}
+
 /// The files and directories the binary reads and opens before startup.
 #[derive(Debug)]
 pub struct Named {
@@ -137,11 +174,6 @@ pub struct Named {
     pub bundle_limits: crate::limits::Clients,
     pub webhooks: Option<application::Webhooks>,
     pub overrides: Box<[(Box<[u8]>, u64)]>,
-}
-#[derive(Debug)]
-pub struct NamedWorker {
-    pub root: Box<[u8]>,
-    pub agent: Box<[u8]>,
 }
 /// The limits serve opens the deployment's store at, for a reader of a copy of it.
 #[derive(Debug)]
@@ -251,14 +283,14 @@ impl CallAnswer {
     }
     fn compose(self, limits: &mut config::Limits, agent: &settings::Agent) -> Result<(), What> {
         match self {
-            Self::Profile => limits.core.call_answer_bytes = limits.core.call_answer_bytes.max(agent.tool_payload),
+            Self::Profile => limits.core.call_answer_bytes = limits.core.call_answer_bytes.max(agent.tool_payload()),
             Self::Explicit => {
-                if limits.core.call_answer_bytes < agent.tool_payload {
+                if limits.core.call_answer_bytes < agent.tool_payload() {
                     return Err(What::CallInput {
                         bytes: u64::from(limits.core.call_answer_bytes),
-                        input: u64::from(agent.tool_payload),
-                        ask: u64::from(agent.limits.bodies.host_ask_input),
-                        reply: u64::from(agent.limits.bodies.host_reply_text),
+                        input: u64::from(agent.tool_payload()),
+                        ask: u64::from(agent.host_ask_input()),
+                        reply: u64::from(agent.host_reply_text()),
                     });
                 }
             }
@@ -392,13 +424,16 @@ fn load_document(
     check_start: bool,
     given: &crate::stock::Given,
 ) -> Result<(Shape, Option<Parsed>), Problems> {
-    let shape = nearest(document);
-    let mut problems = Problems::empty();
-    let mut found = config::Problems::empty();
     let mut whole = match members::object(document, 0, "document") {
         Ok(object) => object,
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
+    let shape = nearest_document(document);
+    if let Some(found) = unbuilt(shape, cfg!(feature = "worker")) {
+        return Err(problem(found.path, found.what));
+    }
+    let mut problems = Problems::empty();
+    let mut found = config::Problems::empty();
     let root = Path::root();
     // Keep the empty object's established missing-member diagnostics.
     let engine_at = if document.len() == 2 {
@@ -625,10 +660,9 @@ pub fn named_with(
         llm: parsed.engine.llm,
         projects: parsed.engine.projects,
         worker: match parsed.workers.first() {
-            Some(worker) => Some(NamedWorker {
-                root: parsed.application.workers.first().expect("one application worker checked").root.clone(),
-                agent: worker.agent.configuration.clone(),
-            }),
+            Some(worker) => {
+                Some(named_worker(worker, parsed.application.workers.first().expect("one application worker checked")))
+            }
             None => None,
         },
     })
@@ -668,9 +702,10 @@ pub fn check(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), Problems> {
+    #[cfg(feature = "worker")]
     if shape(document, directories)? == Shape::WorkerAlone {
         let mut part = worker_part(document, directories)?;
-        check_worker_part(&mut part, files, agent)?;
+        worker::check_worker_part(&mut part, files, agent)?;
         return Ok(());
     }
     checked_start(document, directories, files, Some(agent), seeds, forges, setup)?;
@@ -737,7 +772,7 @@ pub(crate) fn checked_start_with(
     );
     let mut host_part = None;
     if let Some(agent) = agent {
-        let measured = temper_engine_smith::room::host_part(&agent.run_limits);
+        let measured = temper_engine_smith::room::host_part(agent.run_limits());
         checks::agent(&parsed.engine, agent, &mut problems);
         checks::room(&parsed.engine, measured, &mut problems);
         host_part = Some(measured);
@@ -755,25 +790,14 @@ pub(crate) fn checked_start_with(
         return Err(problems);
     }
     let not_set_up = List::with_capacity(0);
-    let worker = if let Some(agent) = agent {
-        let worker = parsed.workers.into_iter().next().expect("one worker checked");
-        let own = parsed.application.workers.into_iter().next().expect("one application worker checked");
-        let worker = settings::Worker { jig: worker, root: own.root, git: own.git };
-        checks::worker(&crate::worker_settings::root_limits(&worker, agent, &parsed.application.limits), &mut problems);
-        checks::grants(&parsed.engine, &worker.jig.limits, agent, &mut problems);
-        if !problems.is_empty() {
-            return Err(problems);
-        }
-        if let Err(found) = crate::worker_settings::prepare(&worker, agent, &parsed.application.limits) {
-            return Err(Problems::jig(found, &Path::root()));
-        }
-        Some(worker)
-    } else {
-        None
-    };
+    #[cfg(feature = "worker")]
+    let worker =
+        worker::checked(parsed.workers, parsed.application.workers, &parsed.engine, &parsed.application.limits, agent)?;
+    #[cfg(not(feature = "worker"))]
+    let worker: Option<settings::Worker> = None;
     let mut engine = settings::Engine {
         host_reply_bytes: match agent {
-            Some(agent) => Some(agent.limits.bodies.host_reply_text),
+            Some(agent) => Some(agent.host_reply_text()),
             None => None,
         },
         host_part,
@@ -806,7 +830,7 @@ pub(crate) fn checked_start_with(
     }
     let mut turn = None;
     if let Some(agent) = agent {
-        turn = Some(agent.limits.bodies.turn_body);
+        turn = Some(agent.turn_body());
     }
     checked_store(&root, &engine.jig.limits.store, turn)?;
     let io = match &worker {
@@ -890,19 +914,15 @@ pub fn with_setup_given(
     let CheckedStart { mut engine, worker, io, forges, not_set_up } =
         checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
     engine.program_environment = program_environment;
-    let worker = match worker {
-        Some(worker) => match Worker::new(
-            &worker,
-            agent.expect("checked local agent"),
-            &engine.limits,
-            files,
-            runtime.ok_or(problem(indexed(0), What::Standalone))?,
-            seeds.seed,
-        ) {
-            Ok(worker) => Some(worker),
-            Err(found) => return Err(Problems::jig(found, &Path::root())),
-        },
-        None => None,
+    #[cfg(feature = "worker")]
+    let worker = worker::build(worker, agent, &engine.limits, files, runtime, seeds.seed)?;
+    #[cfg(not(feature = "worker"))]
+    let worker = {
+        drop(worker);
+        match runtime {
+            Some(runtime) => match runtime {},
+            None => None,
+        }
     };
     match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes, program_login) {
         Ok(mut service) => {
@@ -956,98 +976,4 @@ fn prepare_forges(
         Ok(settings) => Ok(settings),
         Err(found) => Err(Problems::jig(found, &Path::root())),
     }
-}
-
-/// The worker-only document, with no deployment or engine declarations.
-#[derive(Debug)]
-#[expect(
-    clippy::partial_pub_fields,
-    reason = "the shell reads the worker handover; raw override provenance stays service-private"
-)]
-pub struct WorkerPart {
-    call_answer: CallAnswer,
-    pub worker: settings::Worker,
-    pub limits: crate::limits::Limits,
-    pub named: NamedWorker,
-    pub files: Box<[config::File]>,
-}
-/// Read exactly a worker's part for serve and program-login (protocol/README.md, 15.1).
-pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
-    if shape(input, directories)? != Shape::WorkerAlone {
-        return Err(problem(Path::root(), What::WorkerAlone));
-    }
-    let document = config::document(
-        input,
-        &config::DocumentLimits {
-            bytes: 1_048_576,
-            tokens: u32::try_from(input.len()).expect("checked document"),
-            depth: 32,
-        },
-    )
-    .expect("checked shape document");
-    let at = member(&document, 0, b"workers").expect("checked workers");
-    let ats = read::list(&document, at, document.len()).expect("checked worker list");
-    let jig = config::worker(&document, *ats.get(0).expect("one worker"), directories).expect("checked worker");
-    let mut problems = Problems::empty();
-    let (own, limits) = application::worker_alone(
-        &document,
-        member(&document, 0, b"application").expect("checked application"),
-        directories,
-        &mut problems,
-    )
-    .expect("checked worker part");
-    let mut files = config::worker_files(&jig);
-    for file in &mut files {
-        let mut path = indexed(0);
-        for segment in &file.at.segments {
-            path = path.child(segment.clone());
-        }
-        file.at = path;
-    }
-    Ok(WorkerPart {
-        call_answer: CallAnswer::read(&document, *ats.get(0).expect("one worker")),
-        named: NamedWorker { root: own.root.clone(), agent: jig.agent.configuration.clone() },
-        worker: settings::Worker { jig, root: own.root, git: own.git },
-        limits,
-        files,
-    })
-}
-/// Construct a worker-only service.
-pub fn worker_alone(
-    mut part: WorkerPart,
-    files: &settings::Files,
-    agent: &settings::Agent,
-    runtime: WorkerRuntime,
-    seed: u64,
-) -> Result<Service, Problems> {
-    check_worker_part(&mut part, files, agent)?;
-    match Service::worker_alone(&part.worker, &part.limits, agent, files, runtime, seed) {
-        Ok(service) => Ok(service),
-        Err(found) => Err(Problems::jig(found, &Path::root())),
-    }
-}
-
-fn check_worker_part(part: &mut WorkerPart, files: &settings::Files, agent: &settings::Agent) -> Result<(), Problems> {
-    let mut problems = Problems::empty();
-    if let Err(what) = part.call_answer.compose(&mut part.worker.jig.limits, agent) {
-        problems.push(call_input_path(indexed(0)), what);
-    }
-    checks::call_answer(indexed(0), part.worker.jig.limits.core.call_answer_bytes, &mut problems);
-    if !problems.is_empty() {
-        return Err(problems);
-    }
-    for file in &part.files {
-        match files.contents(&file.path) {
-            Some(bytes) if bytes.len() <= usize::try_from(file.max).expect("file bound") => {}
-            Some(_) => problems.push(file.at.clone(), What::Jig(config::What::Bound)),
-            None => problems.push(file.at.clone(), What::Jig(config::What::Unreadable)),
-        }
-    }
-    checks::worker(&crate::worker_settings::root_limits(&part.worker, agent, &part.limits), &mut problems);
-    checks::turns(None, core::slice::from_ref(&part.worker.jig), &part.limits, Some(agent), &mut problems);
-    checks::agent_answer(agent, &mut problems);
-    if !problems.is_empty() {
-        return Err(problems);
-    }
-    Ok(())
 }
