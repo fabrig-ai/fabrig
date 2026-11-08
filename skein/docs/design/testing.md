@@ -472,7 +472,7 @@ of their own, `tests/protocol`. The gate runs formatting, the lints as errors,
 clippy's lints as errors for `wasm32-unknown-unknown` over the portable
 crates (section 10) and the UI example's view and browser shell, since the
 parts' platform halves compile only there (ui-web.md, section 14); then
-the focused suite and the fuzzy suite, with nextest (section 7), and
+the focused suite and the fuzzy suite, with their profiles (section 7), and
 nothing slower. The browser tier, outside the gate, is
 `tools/tiers/run skein browser`: the UI example's
 bundle, made with `skein-ui-bundle` from a module built with the dev
@@ -541,6 +541,11 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
 
 ## 9. Open questions
 
+- **One-process adoption and suite costs** (5, 6, 7). Switching a
+  caller's focused and fuzzy steps is that caller's separate change,
+  tree by tree (`tools/tiers/design.md`, 8). Measure suite CPU per
+  process after that switch; per-test CPU in a shared process is not
+  measured. A run that checks outcomes establishes no CPU margin.
 - **Further scenario and product costs** (2, 7). KV's CRC-32C and row
   copying, LLM replay conversion, real TLS and RSA, HTTP byte and chunk
   decoding, protocol generation, conformance pattern generation, GitHub
