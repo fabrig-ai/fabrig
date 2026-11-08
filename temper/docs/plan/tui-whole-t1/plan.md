@@ -43,11 +43,26 @@ files; the drafts' status (`surfaces.status.md`, 11 and 15;
 
 ## Batch 3: the launchpad drawn, walked and opened
 
-Being written: `tui-launchpad` (the header, rows, marks, Start, the quiet
-line, every golden), `tui-walk` (the walk's prompt, the commands' list and
-`/help`), `shell-launchpad` (the host's commands, `n`, the walk, the
-opener), `world-launchpad` (the joined story), `journeys`
-(`launchpad-chat` again, `launchpad-drawn`).
+| Part | Task | Crates (files) | Needs | Minutes |
+|---|---|---|---|---|
+| `launchpad` | `tui-launchpad` | temper-client-tui (`view/launchpad.rs`, the quiet line in `view/foot.rs`, every golden it moves, the TUI's journey prints) | `tui-surface`, `view-needs`, `tui-views` | 180 |
+| `walk` | `tui-walk` | temper-client-tui (`view/foot/lists.rs`, `view/foot/notes.rs`, the walk's goldens) | `tui-launchpad`, `tui-surface`, `view-needs` | 140 |
+| `host` | `shell-launchpad` | temper-client-shell-tui (`host.rs`, `run.rs`) | `tui-surface` | 150 |
+| `world` | `world-launchpad` | temper-client-world (`tests/suite/tui.rs`, `src/tui.rs`) | `shell-launchpad`, `tui-walk` | 90 |
+| `journeys` | `journeys` | the TUI's journeys, temper-fake's cue | `tui-launchpad`, `tui-walk`, `shell-launchpad`, `tui-views` | 120 |
+
+- **The goldens in sequence:** the quiet line and the placeholder reach
+  every TUI golden, and the launchpad's body reaches the foot's, so
+  `tui-launchpad` regenerates them all after `tui-views` has added its
+  own, and `tui-walk` follows it. `shell-launchpad` changes no golden and
+  runs beside both.
+- **`tui-surface` and `tui-views` share temper-client-tui** in one wave, a
+  stated departure from one writer per crate: their files are disjoint
+  but for `view.rs`, where `tui-views` adds one `mod` line.
+- **Journeys:** each look change reprints the TUI's journey pages
+  (`temper-client-journeys` with no argument), which the focused check
+  reads; `journeys` records `launchpad-chat` again on a fresh fake box and
+  adds `launchpad-drawn`.
 
 ## Decisions
 
@@ -78,8 +93,23 @@ opener), `world-launchpad` (the joined story), `journeys`
 
 ## Critical path
 
-`tui-surface` (130) → `tui-launchpad` → `tui-walk` → `journeys`; `tui-views`
-and `view-needs` run beside `tui-surface`, `shell-launchpad` after it.
+`tui-surface` (130) → `tui-launchpad` (180) → `tui-walk` (140) →
+`journeys` (120): about 9.5 implementer-hours. `tui-views` (120) and
+`view-needs` (75) run beside `tui-surface`; `shell-launchpad` (150) after
+it, beside `tui-launchpad`; `world-launchpad` (90) after `tui-walk` and
+`shell-launchpad`, beside `journeys`.
+
+## The launchpad's walks' layout faults
+
+The repository's status files record none for the launchpad's layout:
+the one walk fault they name, `launchpad-chat/04` lacking the person's
+opening question (finding-465, `tui/journeys.status.md`), is a chat's,
+repaired by `post-landing-probes`, and `journeys` drops its bullet only
+where the new recording shows the question. Walk findings filed outside
+the repository were not read by this cut; this plan redraws the whole
+launchpad, header, sections and quiet line, so any open finding against
+the old launchpad's layout is this plan's and is closed against its
+landing.
 
 ## Overlaps
 

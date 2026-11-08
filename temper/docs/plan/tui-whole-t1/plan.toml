@@ -42,3 +42,50 @@ id = 2
 story = "The view reads each need's mark and prompt, and the TUI holds every name the launchpad as drawn is built on, nothing drawn changing"
 parts = ["needs", "surface"]
 walk = false
+
+[[part]]
+id = "launchpad"
+title = "The launchpad drawn: the brief's sentence and /brief, Where you left off with projects, kinds, times and the newest goal, Needs you's marks, Start, the box and the quiet line"
+mode = "direct"
+needs = ["surface", "needs", "views"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[part]]
+id = "walk"
+title = "The walk's prompt under the box, the TUI's own commands in the list and /help, and the walk's and opener's notes"
+mode = "direct"
+needs = ["launchpad", "surface", "needs"]
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[part]]
+id = "host"
+title = "The host carries /change, /ask, /brief, /needs, /open, /chats N, n and the walk to the root and the opener"
+mode = "direct"
+needs = ["surface"]
+design = "temper/docs/design/client/README.md, 6.13"
+
+[[slice]]
+id = 3
+story = "The launchpad as drawn: the brief, the conversations to go back to, what needs the person marked and walked with n, Start with /change and /ask, and the object in focus opened on the web"
+parts = ["launchpad", "walk", "host"]
+walk = false
+
+[[part]]
+id = "world"
+title = "The joined story: a need the engine asks walked from the launchpad and answered, and /change starting a chat"
+mode = "direct"
+needs = ["host", "walk"]
+design = "temper/docs/design/client/README.md, 10"
+
+[[part]]
+id = "journeys"
+title = "launchpad-chat recorded again and the journey launchpad-drawn, a fake box's chat asking the person and the walk answering it"
+mode = "direct"
+needs = ["launchpad", "walk", "host", "views"]
+design = "temper/docs/design/client/tui/journeys.md, 9"
+
+[[slice]]
+id = 4
+story = "Against the real engine and on a fresh fake box, a need asked is walked from the launchpad and answered, a change asked with /change starts its chat, and the launchpad as drawn is recorded for the user"
+parts = ["world", "journeys"]
+walk = false
