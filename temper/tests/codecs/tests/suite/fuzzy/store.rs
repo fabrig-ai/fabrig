@@ -69,6 +69,7 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one seed sweeps the durable families and their keys")]
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
@@ -142,8 +143,19 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             outcome: Some(skein_forge_client::Outcome::Queued),
         },
         forge::CallPayload::Read(Box::new(Ok(skein_forge::api::Answer::Queued))),
-        forge::CallPayload::Decided { took: None },
-        forge::CallPayload::Decided { took: Some(Box::from(b"Small".as_slice())) },
+        forge::CallPayload::Decided { took: None, reach: None },
+        forge::CallPayload::Decided {
+            took: Some(Box::from(b"Small".as_slice())),
+            reach: Some(temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            }),
+        },
         forge::CallPayload::Read(Box::new(Err(skein_forge::api::Error::NotInstalled))),
     ] {
         let row =
@@ -476,7 +488,6 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         project,
         since: Wall::from_nanos(rng.next_u64()),
         until: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
-        kinds: u8::try_from(rng.below(16)).expect("four bits"),
         landed: rng.next_u64(),
         off: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
     });
@@ -494,9 +505,38 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         at: Wall::from_nanos(rng.next_u64()),
         question: temper_codecs_world::drawn(rng, 400).into_boxed_slice(),
         options: options.into_boxed_slice(),
-        took: u8::try_from(rng.below(count)).expect("option index"),
+        took: Some(u8::try_from(rng.below(count)).expect("option index")),
         why: temper_codecs_world::drawn(rng, 400).into_boxed_slice(),
         overturned: rng.below(2) == 0,
+        reach: temper_protocol_reaches::Reach {
+            kind: *temper_protocol_reaches::Kind::ALL
+                .get(usize::try_from(rng.below(10)).expect("kind index fits"))
+                .expect("drawn kind exists"),
+            class: temper_protocol_reaches::Class::Decide,
+            reason: if rng.below(2) == 0 {
+                temper_protocol_reaches::Reason::Kind
+            } else {
+                temper_protocol_reaches::Reason::Always
+            },
+            under: u8::try_from(rng.below(21)).expect("item number fits"),
+            sets: u8::try_from(rng.below(64)).expect("six bits"),
+            matched: u8::try_from(rng.below(64)).expect("six bits"),
+            away: rng.below(2) == 0,
+        },
     });
     row_and_key(&row, rng, bounds);
+    if let forge::Stored::Decided(mut row) = row {
+        row.took = None;
+        row.options = Box::new([]);
+        row.why = Box::new([]);
+        row.overturned = false;
+        row.reach.class = temper_protocol_reaches::Class::AskAway;
+        row.reach.away = rng.below(2) == 0;
+        row.reach.reason =
+            temper_protocol_reaches::Reason::Set(u8::try_from(rng.below(6) + 1).expect("set number fits"));
+        row.reach.sets = u8::try_from(rng.below(64)).expect("six bits");
+        row.reach.matched = u8::try_from(rng.below(64)).expect("six bits");
+        row.reach.under = u8::try_from(rng.below(21)).expect("item number fits");
+        row_and_key(&forge::Stored::Decided(row), rng, bounds);
+    }
 }

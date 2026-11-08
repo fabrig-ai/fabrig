@@ -11,7 +11,7 @@ use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 use skein_lib::Wall;
-const WHAT: AwayRow = AwayRow { project: f::PROJECT, since: Wall::EPOCH, until: None, kinds: 7, landed: 0, off: None };
+const WHAT: AwayRow = AwayRow { project: f::PROJECT, since: Wall::EPOCH, until: None, landed: 0, off: None };
 const OTHER: AwayRow = AwayRow { project: 17, ..WHAT };
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
@@ -68,7 +68,6 @@ fn row_record(values: &[AwayRow]) -> Family {
                     project: row.project,
                     since: row.since.as_nanos(),
                     until: nanos(row.until),
-                    kinds: row.kinds,
                     landed: row.landed,
                     off: nanos(row.off),
                 },
@@ -136,8 +135,7 @@ fn rows_are_delivered_by_project() {
     let (mut root, watch, _) = opened();
     assert_eq!(root.forge().away(WHAT.project), None);
     let shown = forge::shown(root.forge());
-    let row =
-        AwayRow { since: minute(3), until: Some(minute(500)), kinds: 9, landed: 42, off: Some(minute(6)), ..WHAT };
+    let row = AwayRow { since: minute(3), until: Some(minute(500)), landed: 42, off: Some(minute(6)), ..WHAT };
     up(&mut root, Up::FamilyDelivered { watch, record: row_record(&[row, OTHER]) });
     assert_eq!(root.forge().away(WHAT.project), Some(row));
     assert_eq!(root.forge().away(OTHER.project), Some(OTHER));
@@ -326,30 +324,28 @@ fn toggle_on_sends_defaults_and_the_next_eight() {
     let mut root = ready(&[]);
     root.set_zone_minutes(120);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(359)));
-    assert_eq!(send, w::SetAwayParts { project: f::PROJECT, on: true, until: Some(minute(360).as_nanos()), kinds: 7 });
+    assert_eq!(send, w::SetAwayParts { project: f::PROJECT, on: true, until: Some(minute(360).as_nanos()) });
     assert!(root.pages().away_busy());
     assert_eq!(root.pages().needs().toast(), None, "toast waits for the answer");
     assert!(!root.away_on(f::PROJECT, minute(359)), "no optimistic row");
 }
 #[test]
 fn toggle_on_keeps_a_row_whose_until_is_none() {
-    let mut root = ready(&[AwayRow { off: Some(minute(1)), kinds: 12, ..WHAT }]);
+    let mut root = ready(&[AwayRow { off: Some(minute(1)), ..WHAT }]);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(500)));
-    assert_eq!((send.on, send.until, send.kinds), (true, None, 12));
+    assert_eq!((send.on, send.until), (true, None));
 }
 #[test]
 fn toggle_off_keeps_the_row() {
-    let mut root = ready(&[AwayRow { until: Some(minute(480)), kinds: 8, ..WHAT }]);
+    let mut root = ready(&[AwayRow { until: Some(minute(480)), ..WHAT }]);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(479)));
-    assert_eq!((send.on, send.until, send.kinds), (false, Some(minute(480).as_nanos()), 8));
+    assert_eq!((send.on, send.until), (false, Some(minute(480).as_nanos())));
 }
 #[test]
 fn a_second_toggle_waits() {
     let mut root = ready(&[]);
     act(&mut root, A::Toggle { project: f::PROJECT }, Wall::EPOCH);
-    for next in
-        [A::Toggle { project: f::PROJECT }, A::Kinds { project: 17, kinds: 4 }, A::Until { project: 17, eight: false }]
-    {
+    for next in [A::Toggle { project: f::PROJECT }, A::Until { project: 17, eight: false }] {
         assert!(act(&mut root, next, Wall::EPOCH).is_empty());
     }
     assert!(root.pages().away_busy());
@@ -359,24 +355,12 @@ fn a_second_toggle_waits() {
     assert!(sent(&act(&mut root, A::Toggle { project: f::PROJECT }, Wall::EPOCH)).on);
 }
 #[test]
-fn kinds_keep_on_as_it_reads() {
-    for (row, wall, on, until) in [
-        (Some(AwayRow { until: Some(minute(480)), ..WHAT }), minute(479), true, Some(minute(480))),
-        (Some(AwayRow { until: Some(minute(480)), ..WHAT }), minute(480), false, Some(minute(480))),
-        (Some(AwayRow { off: Some(minute(1)), ..WHAT }), minute(2), false, None),
-        (None, minute(479), false, Some(minute(480))),
-    ] {
-        let mut root = ready(row.as_slice());
-        let send = sent(&act(&mut root, A::Kinds { project: f::PROJECT, kinds: 10 }, wall));
-        assert_eq!((send.on, send.until, send.kinds), (on, nanos(until), 10));
-    }
-}
-#[test]
 fn until_sends_the_choice() {
     for row in [
         None,
         Some(WHAT),
-        Some(AwayRow { off: Some(minute(1)), kinds: 12, ..WHAT }),
+        Some(AwayRow { until: Some(minute(481)), ..WHAT }),
+        Some(AwayRow { off: Some(minute(1)), ..WHAT }),
         Some(AwayRow { until: Some(minute(480)), ..WHAT }),
     ] {
         for eight in [true, false] {
@@ -391,21 +375,14 @@ fn until_sends_the_choice() {
                 }
             );
             assert_eq!(send.until, if eight { Some(minute(780).as_nanos()) } else { None });
-            assert_eq!(
-                send.kinds,
-                match row {
-                    Some(row) => row.kinds,
-                    None => 7,
-                }
-            );
         }
     }
 }
 #[test]
 fn past_until_toggle_turns_on() {
-    let mut root = ready(&[AwayRow { until: Some(minute(480)), kinds: 3, ..WHAT }]);
+    let mut root = ready(&[AwayRow { until: Some(minute(480)), ..WHAT }]);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(480)));
-    assert_eq!((send.on, send.until, send.kinds), (true, Some(minute(1920).as_nanos()), 3));
+    assert_eq!((send.on, send.until), (true, Some(minute(1920).as_nanos())));
 }
 #[test]
 fn the_toast_follows_the_answer() {

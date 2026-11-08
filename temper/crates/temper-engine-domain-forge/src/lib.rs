@@ -40,9 +40,9 @@ pub use status::{
 };
 mod away;
 pub use away::{
-    AWAY_SUBJECT, Away, AwaysView, DECIDED_OPTION_BYTES, DECIDED_OPTIONS, DECIDED_PER_PROJECT, DECIDED_QUESTION_BYTES,
-    DECIDED_WHY_BYTES, Decided, DecidedCall, DecisionKind, DecisionView, DecisionsView, OverturnAnswer, SetAwayAnswer,
-    decided_subject,
+    AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
+    DECIDED_QUESTION_BYTES, DECIDED_WHY_BYTES, DECISIONS_SHOWN, Decided, DecidedCall, DecisionView, DecisionsView,
+    OverturnAnswer, SetAwayAnswer, decided_subject,
 };
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
@@ -480,7 +480,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
-            CallPayload::Decided { took } => Some(match took {
+            CallPayload::Decided { took, .. } => Some(match took {
                 Some(words) => skein_lib::len_u64(words.len()),
                 None => 0,
             }),

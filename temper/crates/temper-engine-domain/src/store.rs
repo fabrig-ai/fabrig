@@ -53,7 +53,7 @@ impl Changed {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallAnswer {
     /// The named decision keeps the taken option, or asks the person (domain/forge.md, 5.9).
-    Decided { took: Option<Box<[u8]>> },
+    Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> },
     /// A fresh task read; it never becomes a durable call part.
     TaskRead(Box<Result<jig_domain_core::reads::run_task::TaskRead, jig_domain_tasks::Refusal>>),
     /// Settings proposal admission failed before mutation.
@@ -1013,7 +1013,7 @@ fn decision_bytes(decision: &jig_domain_people::EscalationDecision) -> u64 {
 
 pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
     match answer {
-        CallAnswer::Decided { took } => Some(match took {
+        CallAnswer::Decided { took, .. } => Some(match took {
             Some(words) => skein_lib::len_u64(words.len()),
             None => 0,
         }),

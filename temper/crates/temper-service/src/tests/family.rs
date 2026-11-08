@@ -3528,12 +3528,12 @@ fn away_answer(answer: Option<root::ApplicationAnswer>) -> w::Outcome {
 #[test]
 fn set_away_reads_as_the_forges_event() {
     const PROJECT: u32 = 9; // Deliberately differs from the envelope's project 7.
-    for (on, until, kinds) in [(true, Some(123), 15), (false, None, 0)] {
+    for (on, until) in [(true, Some(123)), (false, None)] {
         assert_eq!(
             away_request(w::Request::SetAway(
-                w::SetAway::new(&w::CEILINGS, w::SetAwayParts { project: PROJECT, on, until, kinds },).unwrap()
+                w::SetAway::new(&w::CEILINGS, w::SetAwayParts { project: PROJECT, on, until },).unwrap()
             )),
-            root::Application::SetAway { project: PROJECT, on, until: away_wall(until), kinds }
+            root::Application::SetAway { project: PROJECT, on, until: away_wall(until) }
         );
     }
     for (answer, expected) in [
@@ -3613,6 +3613,7 @@ fn away_and_decided_subjects_are_scoped() {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks Away and both decision lists through the family encoder")]
 fn their_documents_encode() {
     const PROJECT: u32 = 9;
     const PARTY: u64 = 3;
@@ -3622,7 +3623,6 @@ fn their_documents_encode() {
             project: PROJECT,
             since: skein_lib::Wall::from_nanos(11),
             until: away_wall(until),
-            kinds: 15,
             landed: 4,
             off: away_wall(off),
         };
@@ -3635,11 +3635,8 @@ fn their_documents_encode() {
         let got = wire::decode_aways(&bytes, &w::CEILINGS).unwrap().into_parts();
         assert_eq!(
             got.rows.as_slice(),
-            &[w::AwayRow::new(
-                &w::CEILINGS,
-                w::AwayRowParts { project: PROJECT, since: 11, until, kinds: 15, landed: 4, off }
-            )
-            .unwrap()]
+            &[w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: PROJECT, since: 11, until, landed: 4, off })
+                .unwrap()]
         );
     }
     for overturned in [false, true] {
@@ -3651,15 +3648,60 @@ fn their_documents_encode() {
             took: b"First".as_slice().into(),
             why: b"Fits".as_slice().into(),
             overturned,
+            reach: temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            },
         };
         let bytes = family::document(
-            forge::Document::Decisions(forge::DecisionsView { project: PROJECT, rows: Box::new([row]) }),
+            forge::Document::Decisions(forge::DecisionsView {
+                project: PROJECT,
+                rows: Box::new([row]),
+                asked: Box::new([forge::AskedView {
+                    number: 13,
+                    task: 52,
+                    at: skein_lib::Wall::from_nanos(45),
+                    reach: temper_protocol_reaches::Reach {
+                        kind: temper_protocol_reaches::Kind::Wording,
+                        class: temper_protocol_reaches::Class::Decide,
+                        reason: temper_protocol_reaches::Reason::Kind,
+                        under: 0,
+                        sets: 0,
+                        matched: 0,
+                        away: false,
+                    },
+                }]),
+                cut: overturned,
+            }),
             &fixtures::forge_table(&[]),
             &w::CEILINGS,
         )
         .unwrap();
         let got = wire::decode_decisions(&bytes, &w::CEILINGS).unwrap().into_parts();
         assert_eq!(got.project, PROJECT);
+        assert_eq!(got.cut, overturned);
+        assert_eq!(got.asked.len(), 1);
+        assert_eq!(
+            (got.asked.as_slice()[0].number(), got.asked.as_slice()[0].task(), got.asked.as_slice()[0].at()),
+            (13, 52, 45)
+        );
+        assert_eq!(
+            got.asked.as_slice()[0].reach(),
+            &temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false
+            })
+        );
         assert_eq!(
             got.rows.as_slice(),
             &[w::Decision::new(
@@ -3672,6 +3714,19 @@ fn their_documents_encode() {
                     took: b"First".as_slice().into(),
                     why: b"Fits".as_slice().into(),
                     overturned,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: w::ReachKind::Wording,
+                            class: w::ReachClass::Decide,
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: false
+                        }
+                    )
+                    .unwrap(),
                 }
             )
             .unwrap()]
@@ -3683,7 +3738,12 @@ fn their_documents_encode() {
             .unwrap();
     assert!(wire::decode_aways(&bytes, &w::CEILINGS).unwrap().rows().is_empty());
     let bytes = family::document(
-        forge::Document::Decisions(forge::DecisionsView { project: PROJECT, rows: Box::new([]) }),
+        forge::Document::Decisions(forge::DecisionsView {
+            project: PROJECT,
+            rows: Box::new([]),
+            asked: Box::new([]),
+            cut: false,
+        }),
         &forges,
         &w::CEILINGS,
     )

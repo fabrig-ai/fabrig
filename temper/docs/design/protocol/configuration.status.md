@@ -7,9 +7,6 @@
   project's scope takes it, and no agent's `settings` or
   `propose_settings` names `project-classes` (`ui-reaches/classes-kind`).
 
-- **Not yet:** 7: no limit `forge.decided_per_project`
-  (`ui-reaches/decide-forge`).
-
 - **Not yet:** 13.10: no stock way lays kind 8 (`ui-reaches/classes-ways`).
 
 - **Not yet:** 13.2, 13.4: kind 7's `ProjectWays` still holds `away`, in

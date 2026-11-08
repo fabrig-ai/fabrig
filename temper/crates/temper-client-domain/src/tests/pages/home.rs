@@ -1901,8 +1901,7 @@ fn task_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
 fn spell(f: &mut Fixture, off: Option<u64>, until: Option<u64>, landed: u64) {
     let mut rows = List::with_capacity(1);
     rows.push(
-        w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: f::PROJECT, since: 10, until, off, landed, kinds: 7 })
-            .unwrap(),
+        w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: f::PROJECT, since: 10, until, off, landed }).unwrap(),
     )
     .unwrap();
     up(

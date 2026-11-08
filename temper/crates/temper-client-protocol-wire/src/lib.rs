@@ -343,7 +343,6 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         }
         v1::Request::Accept(value) if value.installation() == 0 => return None,
         v1::Request::Reachable(value) if value.page() == 0 => return None,
-        v1::Request::SetAway(value) if value.kinds() > 15 => return None,
         v1::Request::Reachable(_)
         | v1::Request::Accept(_)
         | v1::Request::Install(_)

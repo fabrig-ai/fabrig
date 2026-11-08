@@ -342,7 +342,6 @@ pub fn to_root(
                                 Some(until) => Some(Wall::from_nanos(until)),
                                 None => None,
                             },
-                            kinds: value.kinds,
                         },
                     }));
                 }
@@ -1519,7 +1518,6 @@ fn aways(value: forge::AwaysView, limits: &w::Limits) -> Option<Box<[u8]>> {
                         Some(at) => Some(at.as_nanos()),
                         None => None,
                     },
-                    kinds: row.kinds,
                     landed: row.landed,
                     off: match row.off {
                         Some(at) => Some(at.as_nanos()),
@@ -1549,13 +1547,32 @@ fn decisions(value: forge::DecisionsView, limits: &w::Limits) -> Option<Box<[u8]
                     took: row.took,
                     why: row.why,
                     overturned: row.overturned,
+                    reach: temper_protocol_reaches::reach_record(&row.reach),
                 },
             )
             .ok()?,
         )
         .ok()?;
     }
-    let document = w::Decisions::new(limits, w::DecisionsParts { project: value.project, rows }).ok()?;
+    let mut asked = List::with_capacity(u32::try_from(value.asked.len()).ok()?);
+    for row in value.asked {
+        asked
+            .push(
+                w::Asked::new(
+                    limits,
+                    w::AskedParts {
+                        number: row.number,
+                        task: row.task,
+                        at: row.at.as_nanos(),
+                        reach: temper_protocol_reaches::reach_record(&row.reach),
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    let document =
+        w::Decisions::new(limits, w::DecisionsParts { project: value.project, rows, asked, cut: value.cut }).ok()?;
     Some(wire::decisions(&document))
 }
 
