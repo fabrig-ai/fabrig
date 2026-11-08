@@ -5129,6 +5129,7 @@ dependencies = [
  "skein-ui-screen",
  "skein-ui-screen-terminal",
  "temper-client-domain",
+ "temper-client-protocol-wire",
  "temper-client-shell-terminal",
  "temper-client-shell-web",
  "temper-client-tui",
