@@ -50,7 +50,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
         (
             Address::Settings { project: f::PROJECT },
             "How work runs in Shop.",
-            "Everything the other pages do for this project comes from here, so each project, and each person, can work its own way.",
+            "Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.",
             0,
         ),
         (repositories(), "What Shop works on.", "The repositories chats and goals in Shop read and change.", 1),
@@ -850,44 +850,6 @@ fn no_used_by_with_no_template_recorded() {
     assert!(!text.contains("Used by"));
 }
 #[test]
-fn disabled_sections_say_so_once_and_their_controls_are_disabled() {
-    let root = how(Some(SHOWN));
-    for browser in [false, true] {
-        let view = how_view(&root, browser);
-        for (title, labels, values) in [
-            (
-                "Status",
-                vec!["Status lines and reports", "Rewritten", "The brief on Home"],
-                vec!["Written by each goal’s agent", "When someone opens it", "On"],
-            ),
-            ("Telling you", vec!["Notifications", "Quiet hours"], vec!["Off", "None"]),
-        ] {
-            let section = section_nodes(view.tree(), title.as_bytes());
-            let facts: Vec<_> =
-                section.iter().filter(|n| n.styles.as_slice().contains(&look::SETTINGS_FACTS)).collect();
-            assert_eq!(facts.len(), 1);
-            assert_eq!(facts[0].name.as_deref(), Some(b"Not built yet: this is what temper does today.".as_slice()));
-            assert_eq!(section.last().unwrap().id, subtree(view.tree(), facts[0].id).last().unwrap().id);
-            for (label, value) in labels.into_iter().zip(values) {
-                let id = find(view.tree(), Role::Select, label.as_bytes());
-                assert!(node(view.tree(), id).states.as_slice().contains(&State::Disabled));
-                assert_eq!(selected(view.tree(), label.as_bytes()), value.as_bytes());
-                assert_eq!(subtree(view.tree(), id).iter().filter(|n| n.role == Role::Option).count(), 1);
-            }
-        }
-    }
-}
-#[test]
-fn funds_says_so_in_its_small() {
-    let root = how(Some(SHOWN));
-    let view = how_view(&root, true);
-    let row = setting_row(view.tree(), b"Funds");
-    assert!(row.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)
-        && n.name.as_deref() == Some(b"Not built yet: this is what temper does today.")));
-    assert_eq!(selected(view.tree(), b"Funds"), b"Ask when a budget is used up");
-    assert!(node(view.tree(), find(view.tree(), Role::Select, b"Funds")).states.as_slice().contains(&State::Disabled));
-}
-#[test]
 fn until_read_the_switches_are_disabled_and_show_stock() {
     for root in f::pair(how(None), f::root_with_refused_ways(settings())) {
         for browser in [false, true] {
@@ -1164,7 +1126,7 @@ fn the_section_follows_what_needs_you() {
             .collect();
         let at = headings.iter().position(|name| *name == AWAY_TITLE.as_bytes()).unwrap();
         assert_eq!(headings[at - 1], b"What needs you");
-        assert_eq!(headings[at + 1], b"Telling you");
+        assert_eq!(headings[at + 1], b"What the project shows");
         assert_eq!(
             section_nodes(view.tree(), AWAY_TITLE.as_bytes())
                 .iter()
@@ -1458,7 +1420,7 @@ fn dismissal_refusals_stay_in_the_repository_row() {
             family: f::FORGE,
             version: temper_client_protocol_wire::CLIENT_VERSION,
             bytes: temper_client_protocol_wire::forges(
-                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
             ),
         };
         drive(

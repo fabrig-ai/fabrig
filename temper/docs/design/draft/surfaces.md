@@ -52,8 +52,9 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   "Needs you", with the count across what it shows in the signal colour,
   left out at zero; "Work"; "Team", while the project shows it (section
   12); "Ask temper"; a hairline; "How work runs"; then "+ New draft or
-  change". At its foot: the Away switch, while it shows; "Deployment";
-  the person's menu; the night switch, as today (`../client/README.md`,
+  change". At its foot: the Away switch, while it shows; on All
+  projects it sets every project the person is in, and reads "Away on 2
+  of 4" while they differ; "Deployment"; the person's menu; the night switch, as today (`../client/README.md`,
   5.3).
 - **All projects** is the switcher's first row, once the person has a
   second project. On Home and Needs you it is where a sign-in lands. Work,
@@ -91,8 +92,9 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   · away 23:10 to 08:00", the Away span while one ended since the last
   look; the headline, what landed across the projects and the needs
   sentence, "31 changes landed across four projects. Two things need
-  you."; the brief, the status agent's lede; and its byline, "Written by
-  the status agent at 07:52, from each owner's Now".
+  you."; the brief, the status agent's lede; and its byline, on All
+  projects "Each project's brief, its first line · the newest, vsr's, by
+  the status agent at 07:52".
 - **The brief rolls up the owners.** The status agent writes it from
   each area's owner's Now and report (`standing-roles.md`, section 7) and
   what the engine keeps, on the triggers it has today, a look with
@@ -156,9 +158,9 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   to the forge's review page, as `forge-identity.md`, section 8, has it,
   and the mockups draw it. Approving in place, temper posting the review
   as the person, is later (section 16).
-- **Only you:** what no one else can do, a sign-in or a login about to
-  expire, with its act alone and "Remind me tomorrow"
-  (`what-reaches-you.md`, section 8). Work goes on around it.
+- **Only you:** what no one else can do, a sign-in or a login its
+  account reads as expiring, with its act alone (`what-reaches-you.md`,
+  section 8). Work goes on around it.
 - **Decided for you:** the rows Home has, for a day; then they live in
   each task's history.
 - **Tell temper** at its foot (section 9).
@@ -196,15 +198,17 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 ## 6. Team
 
 - **A project's areas and their owners.** The intro: "Who owns what on
-  PROJECT", and a lede saying that a finding, a red or a question goes to
-  its area's owner, who asks the person as How work runs says.
-- **The areas,** a table: the area's name; its paths, repositories and
-  paths in them, and finding labels; its owner, the person, a member or a
-  standing role, as a chip in who-acts colours; the owner's Now in a
-  line; this week's spend of the owner's budget. Findings with no area
-  have an owner too, the project's triager (`../domain/findings.md`,
-  section 6). "+ Hand an area to a role" at the head's right proposes a
-  role, from the stock or written with Ask temper.
+  PROJECT", and a lede saying that the project's triager hands a finding or
+  a red to its area's owner, who asks the person as How work runs says.
+- **The areas,** a table: the area's name; what it covers, in words; its
+  owner, the person, a member or a standing role, as a chip in who-acts
+  colours; the owner's Now in a line; this week's spend of the owner's
+  budget. What fits no area has an owner too, the project's triager
+  (`../domain/findings.md`, section 6). "+ Hand an area to a role" at the
+  head's right proposes a role, from the stock or written with Ask temper.
+- **Who routes,** under the table: the project's triager, as a chip, which
+  reads what comes in against the areas' words (`standing-roles.md`,
+  section 4), changed by proposal.
 - **A person's line** is what waits on them: "Two questions wait on
   you." A person writes no Now.
 - **A role's card,** opened from its row (`standing-roles.md`, section 2):
@@ -254,6 +258,15 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **What follows a landing:** each follow the project starts
   (`follows.md`), and its tiers on main, each with its who-acts chips:
   "code hears the landing", "an agent ports", "code checks".
+- **Roles,** every agent the project's work runs, whether or not the
+  path draws it: each charter its ways, templates, follows and standing
+  roles start, with the chat's and Ask temper's, but not the deployment's
+  model trial. A row each: its name, what it does and when, and the model
+  a run of it would take now; opened, what it may do, what it is asked
+  and its instructions (`../client/README.md`, 5.13, *Roles*). The path
+  draws a typical run, and this is where the rest is, the foreman and the
+  status agent among them. What it does is words saved with its charter
+  (`whole-story.execution.md`, P3e).
 - **Budgets,** per week: each role's, and what a goal is given when it
   starts.
 - **At its foot:** the project's repositories, today's Repositories tab,
@@ -351,7 +364,7 @@ stays the web's.
 - **One question at a time,** as a prompt with numbered choices, the
   recommended first with its reason, "Tell it something else" last.
 - **Sittings:** a session is kept, and one opened again resumes from its
-  draft and its open points, listed on the launchpad.
+  draft and its conversation, listed on the launchpad.
 - **`/goal` starts a goal from the draft,** its choices the project's
   ways of working, kind 7's tracked templates, as the web's "Start goal…"
   offers them (`../client/README.md`, 3.5, *Ways*, and 5.14).
@@ -430,7 +443,7 @@ them, shows exactly its parts, and moving along it never flips a page.
 | Step | The rail | Home | Needs you | Work |
 |---|---|---|---|---|
 | Pair | Home, Needs you, Work, Ask temper, How work runs | the brief, what landed, what needs you | approvals, each a review on the forge, and questions | chats and their changes |
-| Team | Team, for people; Away | whose turn it is; Decided for you | sign-offs, each its person | changes |
+| Team | Team, for people; Away | who can still sign; Decided for you | sign-offs, each with who can still sign | changes |
 | Stock | Away, without Team | the brief; Decided for you | questions alone | changes |
 | At scale | as Stock | as Stock | questions and money | drafts and goals first |
 | Standing roles | Team, for standing roles beside people | the brief from owners' Nows; What follows what | what passes what reaches you | goals, and follows' changes |
@@ -532,8 +545,7 @@ Focused and fuzzy tests only; a walk and a render check follow landing.
 
 - **`/chats` or `/resume N`** for Where you left off. Default: `/chats`,
   the user's request of 2026-11-08 (`tui.status.md`), its list numbered
-  as the launchpad numbers them; the mockup's `/resume 1` is
-  illustrative.
+  as the launchpad numbers them, as the mockups draw it.
 - **Needs you on a wide page:** a list with the first card open, or
   today's one card at a time. Default: the list, one at a time on a
   phone.

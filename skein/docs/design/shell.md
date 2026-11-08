@@ -355,6 +355,22 @@ the ring adapter's:
   looks stays ignored and is not watched, as `nohup` asks: a blocked signal
   reaches a signalfd whatever its disposition, so startup must look. A
   service that does not ask keeps the default, and a hangup ends it at once.
+- **The terminal's foreground.** A child starts in a process group of its
+  own (io.md, 6), a background group on its parent's terminal, where the
+  kernel stops a group that reads the terminal or sets its modes. A front
+  end a service starts as its child, to stand at the person's terminal in
+  its place, takes the terminal itself: `open_terminal` opens the process's
+  controlling terminal, `/dev/tty`, for reading and writing, close-on-exec,
+  never making a terminal controlling, and the caller owns the descriptor;
+  `take_foreground(terminal)` makes the caller's process group the
+  terminal's foreground group, `SIGTTOU` blocked for the call so that a
+  background group may take it, the signal mask restored after. The child
+  takes the foreground before it reads the terminal or sets its modes; the
+  service that started it takes it back, the same way, once the child has
+  ended and before it writes to the terminal again, so that a second
+  interrupt reaches the service. A process with no controlling terminal
+  can open none, and a terminal that is not the caller's controlling one
+  refuses the foreground: each is the call's error. Linux and macOS alike.
 
 Raw input and window sizing are asked for only at a terminal; a line
 pipe needs neither. A service may request hangup handling with or without

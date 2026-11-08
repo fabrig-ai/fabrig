@@ -208,7 +208,6 @@ fn release(world: &mut World, goal: &engine::Assignment, landing: u64) {
 }
 
 #[test]
-#[ignore = "restart oracle changes Deployment.messages after the released goal landing"]
 fn a_goals_landing_held_past_its_repairs_lands_after_a_change_into_its_branch() {
     // The reference's main asks CI and up to date, with no gates; g asks neither.
     let mut world = world();
@@ -268,5 +267,14 @@ fn a_goals_landing_held_past_its_repairs_lands_after_a_change_into_its_branch() 
     assert_eq!(branch_tip(&mut world, &branch), released_head);
     assert_eq!(world.merges, 3);
     assert_eq!(writer(&world, &branch), None);
+    let before = super::news_count(&world, goal.task);
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(b"main".as_slice().into()),
+            key: None,
+        },
+    })));
+    super::await_new_forge_news(&mut world, goal.task, before);
     world.close();
 }

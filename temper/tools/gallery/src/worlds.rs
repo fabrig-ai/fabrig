@@ -415,7 +415,9 @@ fn world_in_layout(
     copies: bool,
 ) -> (Domain, Option<Token>) {
     let view = goals.filter(|name| name.starts_with("chat-view-"));
-    let to_begin = settings.is_some_and(|name| name == "ask-first-run" || name.starts_with("ask-ways-"));
+    let how = settings.is_some_and(ways::is_how);
+    let to_begin = (how && settings != Some("how-draft"))
+        || settings.is_some_and(|name| name == "ask-first-run" || name.starts_with("ask-ways-"));
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
     let goals = if agent_work { Some("chat-work-running") } else { goals };
@@ -452,6 +454,9 @@ fn world_in_layout(
                     let document = match subject {
                         c::Subject::Me => {
                             let mut me = frame(w, connecting, asking);
+                            if let Some(name) = settings.filter(|name| ways::is_how(name)) {
+                                ways::frame(&mut me, name);
+                            }
                             if matches!(then, Then::Sheet(Confirmation::CloseWork | Confirmation::CloseFailed)) {
                                 me.projects
                                     .get_mut(0)
@@ -689,7 +694,13 @@ fn world_in_layout(
                                 project_ways(&mut root, read, drafts, goals.is_some(), false, false, &mut out);
                                 continue;
                             }
-                            let bytes = settings.map(|name| settings_bytes(name, setting.kind()));
+                            let bytes = settings.map(|name| {
+                                if how && setting.kind() == 7 {
+                                    ways::setting(name)
+                                } else {
+                                    settings_bytes(name, setting.kind())
+                                }
+                            });
                             let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: bytes })
                                 .expect("stock setting");
                             step(
@@ -857,7 +868,7 @@ fn world_in_layout(
                             }
                             continue;
                         }
-                        w::Watch::Ways(subject) if asking && !asking_chat => {
+                        w::Watch::Ways(subject) if (asking || how) && !asking_chat => {
                             ways::deliver(&mut root, watch, subject.project(), settings, &mut out);
                             continue;
                         }
@@ -909,7 +920,7 @@ fn world_in_layout(
     {
         finish_settings_proposal(&mut root, settings_chat_watch.expect("settings chat watch"), name, &mut out);
     }
-    if let Some(name) = settings.filter(|name| name.starts_with("ask-ways-")) {
+    if let Some(name) = settings.filter(|name| name.starts_with("ask-ways-") || ways::is_how(name)) {
         ways::press(&mut root, name, settings_watch.expect("ways settings watch"), &mut out);
     }
     (root, accounts_watch)
@@ -1028,7 +1039,9 @@ fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("making rows")),
+        bytes: wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).expect("making rows"),
+        ),
     };
     step(
         root,
@@ -1055,7 +1068,9 @@ fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("Ready rows")),
+        bytes: wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).expect("Ready rows"),
+        ),
     };
     step(
         root,
@@ -1288,7 +1303,7 @@ fn forges(world: World) -> Box<[u8]> {
         )
         .expect("forge row");
     }
-    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows }).expect("gallery forges"))
+    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows, linked: false }).expect("gallery forges"))
 }
 fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::ChangePanel> {
     use temper_client_protocol_wire::v1 as w;

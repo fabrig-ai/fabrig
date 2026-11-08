@@ -375,7 +375,7 @@ pub fn home_root(
     goals: bool,
 ) -> (temper_client_domain::Domain, Token, Token, Token, Token, Token) {
     let (root, me, _, _, accounts, _, settings, needs, away) = root_at_with_values(
-        temper_client_domain::Address::Settings { project: PROJECT },
+        temper_client_domain::Address::Models { project: PROJECT },
         limits,
         b"Shop",
         None,
@@ -615,7 +615,7 @@ pub(super) fn root_at_with_values(
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                             ),
                         },
                     },
@@ -2310,7 +2310,7 @@ impl ReadPage {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
                             ),
                         },
                     });

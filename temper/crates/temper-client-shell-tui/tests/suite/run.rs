@@ -41,6 +41,7 @@ struct World {
     input: Fd,
     output: Fd,
     signals: Fd,
+    lines: Option<Fd>,
     run: Run,
     now: Time,
     bytes: Vec<u8>,
@@ -85,6 +86,26 @@ impl World {
         notes: bool,
         note: Option<Note>,
     ) -> Self {
+        Self::front_options(refuse, approval, opener, outcome, record, scheme, link, notes, note, false)
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        clippy::fn_params_excessive_bools,
+        reason = "the simulated front adds an independent inherited pipe"
+    )]
+    fn front_options(
+        refuse: bool,
+        approval: bool,
+        opener: bool,
+        outcome: Outcome,
+        record: Recording,
+        scheme: Option<Scheme>,
+        link: Option<&[u8]>,
+        notes: bool,
+        note: Option<Note>,
+        front: bool,
+    ) -> Self {
         let mut files = Machine::for_user(USER);
         let root = files.lay(&[Item::directory(b"tui").mode(if refuse { 0o755 } else { 0o700 })]);
         let mut sim = Sim::new(SEED, Config::calm());
@@ -105,8 +126,13 @@ impl World {
         let output = sim.open_inherited_write(pid);
         let signals = sim.open_signal_source(pid);
         let engine = approval.then(|| Engine::new(&mut sim));
+        let lines = front.then(|| sim.open_inherited_read(pid));
         let settings = Settings {
             record: recording,
+            front: lines.map(|lines| temper_client_shell_tui::run::Front {
+                link: skein_lib::Secret::new(HANDED_LINK.into()),
+                lines,
+            }),
             engine: skein_io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
@@ -128,6 +154,7 @@ impl World {
             input,
             output,
             signals,
+            lines,
             run,
             now: Time::ZERO,
             bytes: Vec::new(),
@@ -286,6 +313,8 @@ enum WayOut {
     ControlC,
     Termination,
     Refused,
+    BoxLinesEnd,
+    BoxLinesEndBeforeStart,
 }
 
 #[test]
@@ -296,12 +325,38 @@ fn every_way_out_leaves_the_terminal_as_it_was_found() {
     } else {
         [Recording::None].as_slice()
     };
-    for (way, record) in [WayOut::End, WayOut::ControlC, WayOut::Termination, WayOut::Refused]
-        .into_iter()
-        .flat_map(|way| recording.iter().map(move |record| (way, *record)))
+    for (way, front, record) in [
+        (WayOut::End, false),
+        (WayOut::ControlC, false),
+        (WayOut::Termination, false),
+        (WayOut::Refused, false),
+        (WayOut::BoxLinesEnd, true),
+        (WayOut::BoxLinesEndBeforeStart, true),
+        (WayOut::ControlC, true),
+        (WayOut::Termination, true),
+    ]
+    .into_iter()
+    .flat_map(|(way, front)| recording.iter().map(move |record| (way, front, *record)))
     {
         let began = clock.now().now;
-        let mut world = World::recording(matches!(way, WayOut::Refused), false, false, Outcome::Success, record);
+        let mut world = World::front_options(
+            matches!(way, WayOut::Refused),
+            false,
+            false,
+            Outcome::Success,
+            record,
+            Some(Scheme::Dark),
+            None,
+            false,
+            None,
+            front,
+        );
+        if matches!(way, WayOut::BoxLinesEndBeforeStart) {
+            world.sim.peer_close(world.pid, world.lines.expect("box pipe before Start"));
+            world.settle();
+            world.drained(false);
+            continue;
+        }
         world.settle();
         if matches!(way, WayOut::Refused) {
             assert!(!world.bytes.windows(SIGN_IN.len()).any(|part| part == SIGN_IN), "no Start on refusal");
@@ -310,18 +365,21 @@ fn every_way_out_leaves_the_terminal_as_it_was_found() {
             continue;
         }
         assert!(world.bytes.starts_with(ENTER), "{way:?}: ENTER");
-        assert!(world.bytes.windows(SIGN_IN.len()).any(|part| part == SIGN_IN), "{way:?}: Start drawn");
+        if !front {
+            assert!(world.bytes.windows(SIGN_IN.len()).any(|part| part == SIGN_IN), "{way:?}: Start drawn");
+        }
         assert_eq!(world.run.exit(), None);
         world.leave_after = usize::from(record == Recording::Root);
         match way {
             WayOut::End => world.sim.peer_close(world.pid, world.input),
+            WayOut::BoxLinesEnd => world.sim.peer_close(world.pid, world.lines.expect("the box’s lines end")),
             WayOut::ControlC => {
                 assert_eq!(world.sim.peer_feed(world.pid, world.input, b"\x03\rignored"), 9);
             }
             WayOut::Termination => {
                 world.sim.deliver_service_signal(world.pid, world.signals, ServiceSignal::Terminate, None);
             }
-            WayOut::Refused => unreachable!("refusal checked above"),
+            WayOut::Refused | WayOut::BoxLinesEndBeforeStart => unreachable!("early closing checked above"),
         }
         world.settle();
         #[cfg(feature = "record")]
@@ -359,6 +417,7 @@ struct Engine {
     denied: usize,
     bodies: std::collections::BTreeSet<Token>,
     discarding: std::collections::BTreeSet<Token>,
+    link_answer: Option<jig_client_protocol_wire::v19::SignInAnswer>,
     link_sign_ins: usize,
     approvals: usize,
 }
@@ -381,6 +440,7 @@ impl Engine {
             denied: 0,
             bodies: std::collections::BTreeSet::new(),
             discarding: std::collections::BTreeSet::new(),
+            link_answer: None,
             link_sign_ins: 0,
             approvals: 0,
         };
@@ -487,8 +547,14 @@ impl Engine {
             self.respond(owner, approval_response());
         } else if bytes.starts_with(b"POST /jig/v1/sign-in/link ") {
             self.link_sign_ins += 1;
-            self.signed_in = true;
-            self.respond(owner, sign_in_response());
+            if let Some(answer) = self.link_answer.take() {
+                let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
+                answer.encode(&mut writer).expect("answer");
+                self.respond(owner, http_response(&writer.finish()));
+            } else {
+                self.signed_in = true;
+                self.respond(owner, sign_in_response());
+            }
         } else {
             assert!(
                 self.signed_in || bytes.starts_with(b"POST /jig/v1/sign-in/approval "),
@@ -1102,4 +1168,89 @@ fn http_response(body: &[u8]) -> Box<[u8]> {
         format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
     response.extend_from_slice(body);
     response.into_boxed_slice()
+}
+
+const HANDED_LINK: &[u8] =
+    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+#[test]
+#[cfg(feature = "record")]
+fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_lines() {
+    use temper_client_shell_tui::journey::Line;
+    use temper_client_tui::BoxLine;
+    let mut world = World::front_options(
+        false,
+        true,
+        false,
+        Outcome::Success,
+        Recording::Root,
+        Some(Scheme::Dark),
+        Some(b"printed-link"),
+        false,
+        Some(Note::SignedOut),
+        true,
+    );
+    let root = world.files.reopen_root(0);
+    let file =
+        world.files.open(root, b"printed-link", skein_fake_machine::How::Create { mode: 0o600 }).expect("local file");
+    world.files.write(file, 0, LOCAL_LINK).expect("file's link");
+    world.files.close(file);
+    world.files.close(root);
+    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v19::SignInAnswer::LinkUsed);
+    world.horizon = Time::ZERO;
+    let pipe = world.lines.expect("front pipe");
+    assert_eq!(
+        world.sim.peer_feed(world.pid, pipe, b"restarting forge\nlog split"),
+        b"restarting forge\nlog split".len()
+    );
+    world.settle();
+    world.horizon = Time::ZERO.saturating_add(limits::BACKGROUND).saturating_add(Duration::from_millis(40));
+    assert_eq!(
+        world.sim.peer_feed(world.pid, pipe, b" across writes\nrunning forge\n"),
+        b" across writes\nrunning forge\n".len()
+    );
+    world.settle();
+    let mut past = b"log ".to_vec();
+    past.extend(vec![b'x'; BoxLine::MOST - b"log ".len()]);
+    past.extend_from_slice(b"log forged\nunknown word\nlog after dropped line\n");
+    assert_eq!(world.sim.peer_feed(world.pid, pipe, &past), past.len());
+    world.settle();
+    world.horizon = world.now.saturating_add(Duration::from_secs(2));
+    world.settle();
+    world.keys(b"\x1bS");
+    let lines = replay(&world.recording_file().expect("front recording").0);
+    assert!(lines.contains(&Line::Front), "front fact kept");
+    let found: Vec<_> = lines
+        .iter()
+        .filter_map(|line| if let Line::Found(link) = line { Some(link.as_deref()) } else { None })
+        .collect();
+    assert!(found == vec![Some(HANDED_LINK), Some(LOCAL_LINK)], "handed link first, file on the next duty");
+    // Read box-line records directly; their parser is also exercised by replay above.
+    let boxed: Vec<_> = lines
+        .iter()
+        .filter_map(|line| if let Line::BoxLine(bytes) = line { Some(bytes.as_ref()) } else { None })
+        .collect();
+    assert!(
+        boxed
+            == vec![
+                b"restarting forge".as_slice(),
+                b"log split across writes",
+                b"running forge",
+                b"log after dropped line"
+            ],
+        "only readable whole lines, in order"
+    );
+    assert_eq!(world.engine.as_ref().expect("engine").approvals, 0);
+    // An unfinished final piece is discarded when the writer closes.
+    assert_eq!(world.sim.peer_feed(world.pid, pipe, b"log unfinished"), 14);
+    world.sim.peer_close(world.pid, pipe);
+    world.draining = true;
+    world.settle();
+    let lines = replay(&world.recording_file().expect("closing front recording").0);
+    assert_eq!(lines.iter().filter(|line| matches!(line, Line::BoxLine(_))).count(), 4);
+    assert!(world.bytes.ends_with(LEAVE));
+    assert_eq!(world.run.exit(), Some(Exit::Code(0)));
+    world.sim.assert_no_open_fds(world.pid);
+    world.sim.assert_quiescent(world.pid);
+    assert_eq!(world.files.open_handles(), 0);
 }

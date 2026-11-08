@@ -128,8 +128,9 @@ impl Frame {
                 .expect("valid setup fixture"),
             )
             .expect("valid setup fixture");
-        let document =
-            owned(wire::forges(&f::Forges::new(&f::CEILINGS, f::ForgesParts { forges }).expect("valid setup fixture")));
+        let document = owned(wire::forges(
+            &f::Forges::new(&f::CEILINGS, f::ForgesParts { forges, linked: false }).expect("valid setup fixture"),
+        ));
         let event = w::StreamEvent::Delivery(
             w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: self.wait_task.expect("forge watch"), document })
                 .expect("valid setup fixture"),

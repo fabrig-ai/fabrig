@@ -132,6 +132,7 @@ pub struct Launch {
 pub struct Hosted {
     pub name: Box<[u8]>,
     pub stdio: [Option<Fd>; 3],
+    pub front_fds: [Option<Fd>; 2],
     pub parent_pipes: Box<[Fd]>,
     pub pid: Pid,
     pub descriptors: Box<[Fd]>,
@@ -183,6 +184,7 @@ pub struct Opening {
     pub link_form: crate::terminal::LinkForm,
     pub log_lines: Box<[Box<[u8]>]>,
     pub first_link: Option<crate::host::FirstLink>,
+    pub front: Option<crate::host::Front>,
     pub after_block: Box<[u8]>,
 }
 impl Harness {
@@ -242,6 +244,7 @@ impl Harness {
                 parent: None,
                 link_form: crate::terminal::LinkForm::Bare,
                 log_lines,
+                front: None,
                 first_link: None,
                 after_block: Box::new([]),
             },
@@ -279,6 +282,7 @@ impl Harness {
             word: b"temper".as_slice().into(),
             link_form: opening.link_form,
             log_lines: opening.log_lines,
+            front: opening.front,
             first_link: opening.first_link,
             after_block: opening.after_block,
             echo,
@@ -417,7 +421,13 @@ impl Harness {
                 let mut input = None;
                 let mut output = None;
                 let mut stdio = [None; 3];
+                let mut front_fds = [None; 2];
                 for (number, fd) in inherited {
+                    if let Some(index) = number.checked_sub(3)
+                        && let Some(slot) = front_fds.get_mut(usize::try_from(index).unwrap())
+                    {
+                        *slot = Some(fd);
+                    }
                     if let Some(slot) = stdio.get_mut(usize::try_from(number).unwrap()) {
                         *slot = Some(fd);
                     }
@@ -449,6 +459,7 @@ impl Harness {
                     .push(Hosted {
                         name: spawn.args.last().unwrap().clone(),
                         stdio,
+                        front_fds,
                         parent_pipes: parent_pipes.into_boxed(),
                         pid,
                         descriptors: descriptors.into_boxed(),
@@ -713,6 +724,11 @@ impl Harness {
     pub fn read_stdin(&mut self, index: u32, most: u32) -> Box<[u8]> {
         let child = self.hosted.get(index).unwrap();
         self.read_pipe(child.pid, child.stdio[0].unwrap(), most)
+    }
+    pub fn read_fd(&mut self, index: u32, number: usize, most: u32) -> Box<[u8]> {
+        let child = self.hosted.get(index).unwrap();
+        let fd = child.front_fds.get(number.checked_sub(3).unwrap()).unwrap().unwrap();
+        self.read_pipe(child.pid, fd, most)
     }
     fn read_pipe(&mut self, pid: Pid, fd: Fd, most: u32) -> Box<[u8]> {
         let mut submissions = Queue::with_capacity(1);

@@ -901,7 +901,7 @@ fn paste_ended(service: &mut crate::Service, connected: bool, pem: &[u8]) -> Opt
                     assert_eq!((request, actual), (Token::new(90), connected));
                     let rows = paste_row(&engine.env.limits.forge, request, actual, why.clone());
                     assert_eq!(rows.rows[0].ended, why);
-                    let bytes = crate::family::forges(rows, &temper_client_protocol_wire::v1::CEILINGS).unwrap();
+                    let bytes = crate::family::forges(rows, false, &temper_client_protocol_wire::v1::CEILINGS).unwrap();
                     assert!(!contains(&bytes, pem));
                     last_end = why;
                     ended = ended.checked_add(1).unwrap();

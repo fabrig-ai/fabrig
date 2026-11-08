@@ -123,7 +123,7 @@ fn deliver(root: &mut f::Harness, states: &[w::MakingState], listed: bool) {
     let record = client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap()),
+        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
     };
     let subject = forge::forges::watch(&root.limits.domain.forge).unwrap();
     let watch = root.watch_token(&subject);

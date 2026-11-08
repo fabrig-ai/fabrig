@@ -65,7 +65,7 @@ areas to standing roles.
 | Step | The person says | What appears |
 |---|---|---|
 | Pair | "nothing reaches main until I've approved it" | a chat makes a change; Needs you holds approvals, each one tap from the forge's review; Work lists chats and their changes; Home's brief; no Team, no Away, no Decided for you |
-| Team | "agents review, one of us signs off; payments/ needs two of us" | sign-offs by path, and whose turn it is, in Needs you; Team lists people by area; Decided for you and Away, since agents now decide wording and retries |
+| Team | "agents review, one of us signs off; payments/ needs two of us" | sign-offs by path, and who can still sign, in Needs you; Team lists people and the area each owns; Decided for you and Away, since agents now decide wording and retries |
 | Stock | "what do you do by default?" | agents review and land; Needs you holds questions alone |
 | At scale | "a draft becomes a goal, landed whole" | drafts and goals in Work |
 | Standing roles | "Prover owns the tests, Porter the port" | standing roles beside people on Team; follows; the brief rolled up from owners' Nows |
@@ -166,10 +166,11 @@ Team, for Prover's and Porter's Nows; How work runs, to tune what
 reaches them. Drawn as the at-scale set (section 9).
 
 What it needs beyond today: rules by path, standing roles, follows,
-goals whose changes span two projects' repositories, and workers whose
-machine builds the project: vsr needs a C toolchain, and Linux 6.18 or
-newer for its io_uring tests (`../domain/worker.md`, 4.4, for what a
-job runs).
+and workers whose machine builds the project: vsr needs a C toolchain,
+and Linux 6.18 or newer for its io_uring tests (`../domain/worker.md`,
+4.4, for what a job runs). Goals whose changes span two projects'
+repositories are later (the user, 2026-11-08): until then, work on vsr
+and on cowsql runs as a goal per repository.
 
 ### 5.3 A project's own development moving in
 
@@ -275,9 +276,10 @@ execution's M0.
 
 ## 11. v0.1.0
 
-- **All of it is in v0.1.0** (the user, 2026-11-08): `v0.1.0.md`,
+- **All of it is in v0.1.0, by rank** (the user, 2026-11-08): `v0.1.0.md`,
   section 5 lists the part, and each draft's acceptance section says
-  its bar.
+  its bar. A milestone ranked nice in `whole-story.execution.md`,
+  section 3, is built last and may follow v0.1.0.
 - **E and V stand beside the ladder,** as the TUI's first pass does
   (`v0.1.0.md`, section 5): neither waits for the rung below it.
 - **E, the whole story,** on a box, through `temper ctl`, walked after
@@ -315,6 +317,14 @@ execution's M0.
   section 6).
 
 ## 13. Later
+
+- **From the mockups' audit** (the user, 2026-11-08), drawn nowhere now:
+  raising a role's budget for one week alone; pausing it until a day;
+  "Remind me tomorrow"; nudging a person; sign-offs by named people or
+  overlapping groups, beyond a role's count; inviting a person from the
+  client; suggestions backed by counts; a budget's week starting on a
+  set day, and a tier on a schedule; one brief across projects written
+  per person; when a login ends, from its provider.
 
 - **Approving in place:** an approval or a sign-off given from Needs you and posted on
   the forge as the person, with a forge credential they signed in with,

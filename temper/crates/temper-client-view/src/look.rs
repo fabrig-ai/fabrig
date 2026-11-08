@@ -1316,6 +1316,18 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-acts",
         b"temper-ways-use",
         b"temper-ways-refused",
+        b"temper-how-wide",
+        b"temper-how-way",
+        b"temper-how-scroll",
+        b"temper-how-path",
+        b"temper-how-head",
+        b"temper-how-lane",
+        b"temper-how-person",
+        b"temper-how-agent",
+        b"temper-how-code",
+        b"temper-how-bar",
+        b"temper-how-line",
+        b"temper-how-row",
     ],
     regions: &[b"temper-link"],
 };
@@ -1729,6 +1741,20 @@ pub const WAYS_KIND_LINE: Style = Style { owner: owner(), token: 642 };
 pub const WAYS_ACTS: Style = Style { owner: owner(), token: 643 };
 pub const WAYS_USE: Style = Style { owner: owner(), token: 644 };
 pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
+
+/// How work runs (temper/docs/design/client/browser.md, 2.5).
+pub const HOW_WIDE: Style = Style { owner: owner(), token: 646 };
+pub const HOW_WAY: Style = Style { owner: owner(), token: 647 };
+pub const HOW_SCROLL: Style = Style { owner: owner(), token: 648 };
+pub const HOW_PATH: Style = Style { owner: owner(), token: 649 };
+pub const HOW_HEAD: Style = Style { owner: owner(), token: 650 };
+pub const HOW_LANE: Style = Style { owner: owner(), token: 651 };
+pub const HOW_PERSON: Style = Style { owner: owner(), token: 652 };
+pub const HOW_AGENT: Style = Style { owner: owner(), token: 653 };
+pub const HOW_CODE: Style = Style { owner: owner(), token: 654 };
+pub const HOW_BAR: Style = Style { owner: owner(), token: 655 };
+pub const HOW_LINE: Style = Style { owner: owner(), token: 656 };
+pub const HOW_ROW: Style = Style { owner: owner(), token: 657 };
 
 #[cfg(test)]
 mod tests {

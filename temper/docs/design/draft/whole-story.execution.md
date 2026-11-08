@@ -12,6 +12,11 @@ or the nearest thing, and says so in that draft's status.
 
 - **M0 first, small and alone:** the mockups join the design
   (`whole-story.md`, section 9).
+- **Must, should, nice** (the user, 2026-11-08), each milestone's rank
+  in section 3: must, as E's and V's bars stand on it; should, cheap and
+  keeping a page true; nice, built last, and it may follow v0.1.0. From
+  the mockups' audit, which also added N4 to N6, P3e, P3f, P7 and P8 and
+  sent the rest Later (`whole-story.md`, section 13).
 - **Incremental, not a big bang** (the user, 2026-11-08): five steps
   (section 4), each ending in something a person uses on a box. The
   first asks nothing new of the engine, and each later one adds what
@@ -57,40 +62,47 @@ or the nearest thing, and says so in that draft's status.
 
 ## 3. The milestones
 
-| | Milestone | Executes | Needs | Owner | State |
-|---|---|---|---|---|---|
-| M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | done |
-| P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | in flight |
-| P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | in flight |
-| P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `stock-ways.md`, 4 | M0 | temper/ui | not started |
-| P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | not started |
-| P3c | How work runs: Rules by path, and the path's stops for a path set, "if core" and "one of you" | `surfaces.md`, 7; `what-reaches-you.md`, 7 | P3a, N2 | temper/ui | not started |
-| P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | not started |
-| P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | not started |
-| P4b | Team: a role's card, but for "Talk to it" | `surfaces.md`, 6 | P4a, R1 | temper/ui | not started |
-| P4c | Team: areas and their owners, "Hand an area to a role" and "Talk to it" | `surfaces.md`, 6 | P4b, R2; R3 for "Talk to it" | temper/ui | not started |
-| P5a | The phone, Ask, and Tell temper filing for the project's triager | `surfaces.md`, 9, 10 | P2 | temper/ui | not started |
-| P5b | Tell temper's routing to an area's owner | `surfaces.md`, 9 | P5a, R2 | temper/ui | not started |
-| P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | in flight |
-| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | in flight |
-| N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | not started |
-| N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | not started |
-| N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | not started |
-| R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | in flight |
-| R2 | Areas, routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | not started |
-| R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | not started |
-| F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | in flight |
-| F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | not started |
-| G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | not started |
-| T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | not started |
-| T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | not started |
-| T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | not started |
-| E | The whole story on a box, a part for each step (section 4) | `whole-story.md`, 11 | each part, its step's milestones | each owner writes its part of the story | not started |
-| V1 | The pilot, vsr alone: adopted, its way Draft first, its checks as CI, a goal from a draft | `whole-story.md`, 5.2 | GitHub's rungs (`v0.1.0.md`, 2.2); a worker with vsr's C toolchain | temper/migration, with the user | not started |
-| V2 | The pilot: vsr's protocol core waiting for the person's sign-off | `whole-story.md`, 5.2 | V1, N2 | temper/migration, with the user | not started |
-| V3 | The pilot: Prover owns vsr's tests and triage | `whole-story.md`, 5.2 | V1, R2 | temper/migration, with the user | not started |
-| V4 | The pilot: vsr-rs follows vsr, Porter owning it | `whole-story.md`, 5.2 | V1, F1, R2 | temper/migration, with the user | not started |
-| V5 | The pilot: cowsql, and a week of the person's use | `whole-story.md`, 5.2 and 11 | V1 to V4, F2, G1 | temper/migration, with the user | not started |
+| | Milestone | Executes | Needs | Owner | Rank | State |
+|---|---|---|---|---|---|---|
+| M0 | The mockups join the design | `whole-story.md`, 9; `surfaces.md`, 13 | | temper/draft/ux | must | done |
+| P1 | The rail and Work | `surfaces.md`, 2, 5, 8 | M0 | temper/ui | must | in flight |
+| P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | must | in flight |
+| P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `stock-ways.md`, 4 | M0 | temper/ui | must | not started |
+| P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | nice | not started |
+| P3c | How work runs: Rules by path, and the path's stops for a path set, "if core" and "one of you" | `surfaces.md`, 7; `what-reaches-you.md`, 7 | P3a, N2 | temper/ui | should | not started |
+| P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | not started |
+| P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | not started |
+| P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `stock-ways.md`, 4; its entry below | P3a | temper/ui | should | not started |
+| P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | not started |
+| P4b | Team: a role's card, but for "Talk to it" | `surfaces.md`, 6 | P4a, R1 | temper/ui | must | not started |
+| P4c | Team: areas and their owners, "Hand an area to a role" and "Talk to it" | `surfaces.md`, 6 | P4b, R2; R3 for "Talk to it" | temper/ui | nice | not started |
+| P5a | The phone, Ask, and Tell temper filing for the project's triager | `surfaces.md`, 9, 10 | P2 | temper/ui | should | not started |
+| P5b | Tell temper's routing to an area's owner | `surfaces.md`, 9 | P5a, R2 | temper/ui | nice | not started |
+| P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | in flight |
+| P7 | A change's size on its approval card: its files, additions and deletions at the head reviewed | `surfaces.md`, 4; its entry below | P2 | temper/ui | nice | not started |
+| P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | not started |
+| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | in flight |
+| N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | not started |
+| N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | not started |
+| N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
+| N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge.md`, 8.3; its entry below | | temper/migration | should | not started |
+| N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | not started |
+| N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
+| R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | in flight |
+| R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | must | not started |
+| R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | must for talking, nice for reports | not started |
+| F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | in flight |
+| F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | not started |
+| G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | later | low priority, not for v0.1.0 |
+| T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | not started |
+| T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | must | not started |
+| T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | nice | not started |
+| E | The whole story on a box, a part for each step (section 4) | `whole-story.md`, 11 | each part, its step's milestones | each owner writes its part of the story | must | not started |
+| V1 | The pilot, vsr alone: adopted, its way Draft first, its checks as CI, a goal from a draft | `whole-story.md`, 5.2 | GitHub's rungs (`v0.1.0.md`, 2.2); a worker with vsr's C toolchain | temper/migration, with the user | must | not started |
+| V2 | The pilot: vsr's protocol core waiting for the person's sign-off | `whole-story.md`, 5.2 | V1, N2 | temper/migration, with the user | must | not started |
+| V3 | The pilot: Prover owns vsr's tests and triage | `whole-story.md`, 5.2 | V1, R2 | temper/migration, with the user | must | not started |
+| V4 | The pilot: vsr-rs follows vsr, Porter owning it | `whole-story.md`, 5.2 | V1, F1, R2 | temper/migration, with the user | must | not started |
+| V5 | The pilot: cowsql, and a week of the person's use | `whole-story.md`, 5.2 and 11 | V1 to V4, F2 | temper/migration, with the user | must | not started |
 
 ### M0. The mockups join the design
 
@@ -172,6 +184,36 @@ or the nearest thing, and says so in that draft's status.
 - **Walk:** on a box, each screen against its mockup, in a real
   terminal.
 
+### N4 to N6, P3e, P3f, P7 and P8. From the mockups' audit
+
+Each fills what the mockups draw and no draft delivered (the user,
+2026-11-08). Its milestone writes its design, as the others do.
+
+- **N4:** a person who asks for changes on the forge's review page holds
+  the change today (`../domain/forge.md`, 8.3). Their remarks become a
+  repair's brief, as a blocking review's are, so You approve's loop closes
+  on the forge.
+- **N5:** a sign-off counts people of one role (`../domain/forge.md`, 8.3).
+  The card names who can still give the next one: the role's members with
+  a forge identity, less those who signed this head. It replaces "whose
+  turn", which nothing assigns.
+- **N6:** the reviews counted at a change's landing kept with it: the
+  person, the head and when. Work's "signed by", Team's counts and the
+  brief read them.
+- **P3e:** words a person or Ask temper writes with a setting, kept with
+  it: a charter's line on Roles, How work runs' headline and lede, and a
+  tier's description. Without one, Roles shows the instructions' first
+  sentence.
+- **P3f:** a goal's template says whether its coordinator designs first
+  and whether it makes a close-out, so the path draws "design" and
+  "close-out" from the settings rather than guessing from instructions.
+- **P7:** the forge's own counts of a change's files, additions and
+  deletions at the head reviewed, kept with the change; a count that is
+  cut says so.
+- **P8:** a draft landed in a repository, named with its repository,
+  path and commit, its chat and its goal once started, and ready when
+  its writer says so.
+
 ### E and V. The stories
 
 - **E** is written into `../../development/acceptance.md` by the owners
@@ -194,15 +236,25 @@ lands when it's ready.
 
 | Step | Milestones, in order | What a person can do then | Its part of E, and of V |
 |---|---|---|---|
-| 1. The new shape, on today's engine | P1, P2, P3a, P4a, P5a, P6, T1, T2 | Move around the new rail; read Home and Needs you across projects; find any work in Work; read a project's real path on How work runs, from its settings as they stand; see its people on Team; use the phone; write a draft in a design session in the terminal, and start a goal from it | E: Pair. V1 |
+| 1. The new shape, on today's engine | P1, P2, P3a, P3e, P3f, P4a, P5a, P6, T1, T2, P7, P8 | Move around the new rail; read Home and Needs you across projects; find any work in Work; read a project's real path on How work runs, from its settings as they stand; see its people on Team; use the phone; write a draft in a design session in the terminal, and start a goal from it | E: Pair. V1 |
 | 2. What reaches you | N1, N3a, P3b, N3b | See why a need reached them, and stop asking; go Away; read what was decided for them, on any task; see what only they can do; read What reaches you on How work runs; then get a push for a blocking need | E: what reaches a person |
-| 3. Sign-offs by path | N2, P3c | Say that some paths need their sign-off, see that stop on the path, and watch a change wait for it while others land | E: Team. V2 |
+| 3. Sign-offs by path | N2, N4, N5, P3c, N6 | Say that some paths need their sign-off, see that stop on the path, and watch a change wait for it while others land | E: Team. V2 |
 | 4. Standing roles | R1, P4b, R2, P4c, P5b, R3, T3 | Start a role and read its Now on Team; hand it an area, and see a red reach it and get repaired; have Tell temper file with an area's owner; talk with a role | E: standing roles. V3 |
-| 5. Follows | F1, P3d, F2, G1 | Have one project follow another, and see a landing become a change there, its lag back at zero; start one goal whose changes land in two projects' repositories | E: follows. V4, then V5 |
+| 5. Follows | F1, P3d, F2 | Have one project follow another, and see a landing become a change there, its lag back at zero | E: follows. V4, then V5 |
 
+- **By rank within each step** (section 3): must and should first. A
+  nice milestone starts once places are free of the must ones, in any
+  step, and may land after v0.1.0.
 - **Each milestone is usable alone:** one that finishes early shows
   through today's pages, as N1's why and Stop asking do before P3b draws
   its columns.
+- **G1 is low priority** (the user, 2026-11-08): it doesn't block
+  v0.1.0, and runs if there's room. Until it has, work on vsr and on
+  cowsql runs as a goal per repository.
+- **Routing by path is Later** (the user, 2026-11-08; `standing-roles.md`,
+  section 13): in R2 the project's triager routes by judgement, from the
+  areas' words. Sign-offs by path stay, in step 3: a landing's rule can't
+  be left to judgement.
 - **Then:** E whole, once its five parts have been walked; V, part by
   part, as its needs land.
 - **Seams told before they change:** temper-engine-domain and
@@ -242,19 +294,24 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P2 | in flight | `ui-p2-home` |
 | P3a | waits | temper/ui's `look-round-24`, the ways page's drawing, which How work runs takes over |
 | P3b, P3c, P3d | wait | P3a, and N1, N2 or F1 and R1, by their needs |
+| P3e, P3f | wait | P3a |
 | P4a | starts | |
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
 | P5a | waits | P2, by its needs |
 | P5b | waits | P5a and R2, by its needs |
 | P6 | in flight | `ui-drafter` |
+| P7 | waits | P2 |
+| P8 | waits | P1 and P6 |
 | N1 | in flight | `ui-reaches` |
 | N2 | waits | N1, by its needs |
 | N3a, N3b | wait | N1, by their needs |
+| N4 | starts | |
+| N5, N6 | wait | N2 |
 | R1 | in flight | goal 101 |
 | R2, R3 | wait | R1, by their needs |
 | F1 | in flight | goal 102 |
 | F2 | waits | F1, by its needs |
-| G1 | waits | its draft, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; F1 |
+| G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
 | T2 | waits | T1 and P6, by its needs; finding-465's repair, a chat losing its opening question |
 | T3 | waits | T1, R2 and R3, by its needs |
