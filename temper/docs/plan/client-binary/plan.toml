@@ -1,0 +1,5 @@
+draft = "client-binary"
+repo = "fabrig"
+sources = ["temper/docs/plan/client-binary/inputs/request.md", "temper/docs/design/draft/deployment-binaries.md", "temper/docs/design/draft/deployment-binaries.execution.md", "temper/docs/design/draft/deployment-binaries.status.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
