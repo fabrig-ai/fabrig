@@ -2,12 +2,6 @@
 
 2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 7.2: `ask-first-run`, `ask-typing`, `ask-sending`,
-  `ask-refused` and `night-ask` draw the first run's whole rail, Needs you,
-  Chats, "+ New chat" and More ways to start work, and no tabs at 420: their
-  world delivers no unfinished To begin (`look-round-21`, task
-  `ask-begin-states`).
-
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day
