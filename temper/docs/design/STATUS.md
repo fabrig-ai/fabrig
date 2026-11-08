@@ -52,6 +52,10 @@ stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1); charter 3 and template 3 remain in
 the stock. Its walk follows landing. The remaining reads, views and
 preferences belong to M2 to M4 (`draft/ask-temper.status.md`).
+Ask temper's bar tag and the first-run gallery's offered templates are
+present, and the three first-run journeys draw its navigation; temper/ui's
+rendered comparison follows landing (`client/browser.md`, section 5;
+`client/journeys.md`, section 10).
 Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -551,10 +555,8 @@ answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
 and scans before it writes, but no real box's recording has been through it,
 `welcome-set-up` keeps its fake box's link secret until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
-directories, not every path; no run on record has `again` walk `project-landing`'s
-setup through a sign-in's new tab, and its words still say the page returns
-(`client/journeys.md`). Conversations are read by their log's edges
-(`client/README.md`, 5.15). A browser's agent page, including a goal's
+directories, not every path (`client/journeys.md`). Conversations are read
+by their log's edges (`client/README.md`, 5.15). A browser's agent page, including a goal's
 untracked page, scrolls its log with the brief through plan inside it;
 focused stylesheet and view tables hold that shape. The keys and layout
 rewalk follows landing, including opening at the end; a PgUp at the head

@@ -730,7 +730,8 @@ replay says the same clocks (`README.md`, 5.12).
   taken back so that its own " · " is the only space and the two read
   "T9 · Ask temper". At 760 px and under, where the number goes, the tag
   stays without its " · " (the look request `ask-temper-place`). The bar's
-  right holds no other paragraph, and no rule hides one there.
+  spend paragraph stays hidden: the hiding rule excepts only the number's
+  `.temper-byline` and the tag's `.temper-chats-tag`.
 - **A chat's document** (`README.md`, 3.5) is `configure-chat-draft`'s rules, in
   `temper.css` under the same marker: `temper-mode-chat`, `-split` and `-draft` on
   the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
@@ -1435,6 +1436,16 @@ Not in the tier, each in the lowest world that shows it:
   one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
+
+- **Ask temper's repaired bar and first-run gallery** (2.5, 7.2):
+  temper/ui compares the `ask-temper-place` tag at 1440 and 1000 px as
+  "T9 · Ask temper", and at 420 px as "Ask temper" alone, with the
+  spend paragraph still hidden. Include the first-run states' rail row
+  and phone tab, and reference chats without a false Ask temper tag or
+  current row (`../draft/look-requests.md`, section 4). Default: the
+  stylesheet and gallery fixtures; their checks establish no rendered
+  equality. The Ask page's secondary heading, "How should temper run
+  Hello?", stays until a later look round with the user.
 
 - **The terminal approval page after landing** (2.3 to 2.5, 7.2):
   check `/terminal` in a signed-in browser on a fresh box, its typed-code
