@@ -382,6 +382,22 @@ fn a_decision_with_more_outputs_than_the_door_releases_them_all_in_order() {
 }
 
 #[test]
+fn a_refused_commit_stops_the_root_once() {
+    for number in [0, 1, u64::MAX] {
+        let (mut domain, env) = resume_fixture::root();
+        let mut out = Queue::uncapped();
+        crate::step(&mut domain, &env, crate::Event::Store(crate::StoreInput::Committed { number, fill: 0 }));
+        crate::release(&mut domain, &env, &mut out);
+        assert_eq!(out.pop(), Some(crate::Request::Stop), "refused commit {number}");
+        assert!(out.is_empty());
+        assert_eq!(domain.journal_stop(), Some(crate::JournalStop::Refused { commit: number, sent: 0, durable: 0 }));
+        crate::step(&mut domain, &env, crate::Event::Store(crate::StoreInput::Committed { number, fill: 0 }));
+        crate::release(&mut domain, &env, &mut out);
+        assert!(out.is_empty(), "the stopped root emits Stop once");
+    }
+}
+
+#[test]
 fn a_root_store_edge_overrun_releases_only_stop_and_discards_immediate_outputs() {
     let (mut domain, env) = resume_fixture::root();
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -399,6 +415,7 @@ fn a_root_store_edge_overrun_releases_only_stop_and_discards_immediate_outputs()
     crate::release(&mut domain, &env, &mut out);
     assert!(out.is_empty(), "nothing from the failed decision or after it leaves");
     assert!(domain.journal.stopped());
+    assert_eq!(domain.journal_stop(), Some(crate::JournalStop::PastEdge { writes: env.limits.journal.writes }));
 }
 
 #[test]
