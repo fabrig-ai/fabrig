@@ -1518,6 +1518,12 @@ pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
 
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps page replies beside their request owners")]
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if let Told::Changed { handle } = &told
+        && *handle == crate::forge::ways::handle()
+        && let Some(chat) = &mut pages.chat
+    {
+        return chat.told(env.now, client, told, out);
+    }
     if let Some(page) = &mut pages.connect_model {
         if page.environment_told(&told) {
             return true;
