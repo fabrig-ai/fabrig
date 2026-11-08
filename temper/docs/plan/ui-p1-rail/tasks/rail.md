@@ -186,3 +186,14 @@ Follow the implementer's text. Also give the rules you broke and the failures yo
 saw; the words added and removed with their keys; the style slots taken; and,
 under `## Left`, each stale golden and each story in another package that presses
 an old entry, by file and line.
+
+## Rebase (2026-11-08, step merge, foreman ui-p1-rail/rail/foreman-1)
+
+combine rail and Deployment vocabulary counts in words.rs
+Resolve `temper/crates/temper-client-view/src/words.rs` against integration commit `bf66c99c4d` (“Move deployment tabs from project Settings into Deployment's frame”).
+The conflict is in shared vocabulary totals: both tasks changed `PHRASES`, `SEGMENTS`, `ENGLISH_BYTES` and `ALL`’s array length.
+Preserve both tasks’ variants, IDs, English phrases and `ALL` entries, including rail’s removals and Deployment’s updated wording.
+For the refused tips combined, set `PHRASES = 2133`, `SEGMENTS = 3762`, `ENGLISH_BYTES = 52250`, and `ALL: [Word; 1451]`.
+Keep rail keys in 4600–4649 and Deployment keys in 4750–4799, as contracts C6 requires.
+Verify the combined totals through the existing `english_declarations()` assertion in `src/tests/accounts.rs`, then complete the spec’s focused checks.
+The other paths in the refusal auto-merged; preserve their combined changes.
