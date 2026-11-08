@@ -19,6 +19,8 @@ mod notes;
 mod peers;
 mod restart;
 mod sign_in;
+#[path = "../support/mod.rs"]
+mod support;
 mod template_bounds;
 mod terminal;
 mod tools;

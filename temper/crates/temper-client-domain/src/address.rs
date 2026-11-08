@@ -24,6 +24,9 @@ pub enum Address {
     Rule { project: u32, kind: u32, number: u32 },
     Ask { project: u32 },
     Adopt { project: u32 },
+    Work { project: u32, filter: WorkFilter },
+    Members,
+    Limits,
 }
 /// The welcome's query names its step (client/browser.md, 2.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -76,6 +79,12 @@ pub enum GoalsFilter {
     Live,
     Ended,
 }
+/// Work's own filters; Goals and Changes have their own addresses (temper/docs/design/client/browser.md, 2.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WorkFilter {
+    All,
+    Drafts,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Filter {
     pub project: Option<u32>,
@@ -110,7 +119,7 @@ pub enum Place {
 }
 
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
-/// `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/roles/<charter>`, `/projects/<project>/settings/rules/<kind>/<number>`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
+/// `/projects/<project>/work`, `/deployment/members`, `/deployment/limits`, `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/roles/<charter>`, `/projects/<project>/settings/rules/<kind>/<number>`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
@@ -128,6 +137,8 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Forges => (b"forges".as_slice(), None, b"".as_slice()),
         Address::ConnectModel { way } => return print_way(b"/accounts/connect", *way, b"?"),
         Address::Accounts => (b"accounts".as_slice(), None, b"".as_slice()),
+        Address::Members => (b"deployment/members".as_slice(), None, b"".as_slice()),
+        Address::Limits => (b"deployment/limits".as_slice(), None, b"".as_slice()),
         Address::Chats { filter } => {
             return match filter {
                 ChatsFilter::All => b"/chats".as_slice().into(),
@@ -142,6 +153,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Chat { task } => (b"chats".as_slice(), Some(*task), b"".as_slice()),
         Address::Task { task } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
+        Address::Work { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"work".as_slice()),
         Address::Goals { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"goals".as_slice()),
         Address::Changes { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"changes".as_slice()),
         Address::Settings { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice()),
@@ -191,6 +203,11 @@ pub fn print(address: &Address) -> Box<[u8]> {
             GoalsFilter::Needs => b"?state=needs".as_slice(),
             GoalsFilter::Live => b"?state=live".as_slice(),
             GoalsFilter::Ended => b"?state=ended".as_slice(),
+        }
+    } else if let Address::Work { filter, .. } = address {
+        match filter {
+            WorkFilter::All => b"".as_slice(),
+            WorkFilter::Drafts => b"?show=drafts".as_slice(),
         }
     } else {
         b"".as_slice()
@@ -244,6 +261,8 @@ pub fn parse(path: &[u8]) -> Place {
         (b"forges", b"", b"") => Address::Forges,
         (b"forges", b"connect", b"") => Address::ConnectForge { forge: forge_choice(fields) },
         (b"accounts", b"", b"") => Address::Accounts,
+        (b"deployment", b"members", b"") => Address::Members,
+        (b"deployment", b"limits", b"") => Address::Limits,
         (b"accounts", b"connect", b"") => Address::ConnectModel { way: parse_way(fields) },
         (b"welcome", b"", b"") => Address::Welcome { step: welcome_step(fields) },
         (b"chats", b"", b"") => Address::Chats { filter: parse_chats(fields) },
@@ -263,6 +282,10 @@ pub fn parse(path: &[u8]) -> Place {
         (b"projects", _, b"") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Home { project }
+        }
+        (b"projects", _, b"work") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Work { project, filter: parse_work(fields) }
         }
         (b"projects", _, b"goals") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
@@ -340,6 +363,22 @@ fn parse_chats(query: &[u8]) -> ChatsFilter {
         }
     }
     filter
+}
+
+fn parse_work(query: &[u8]) -> WorkFilter {
+    let mut rest = query;
+    for _ in 0..query.len() {
+        if rest.is_empty() {
+            break;
+        }
+        let end = skein_lib::bytes::find(rest, b"&").unwrap_or(rest.len());
+        let field = rest.get(..end).expect("separator in query");
+        rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
+        if field == b"show=drafts" {
+            return WorkFilter::Drafts;
+        }
+    }
+    WorkFilter::All
 }
 
 fn parse_goals(query: &[u8]) -> GoalsFilter {

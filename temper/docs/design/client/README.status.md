@@ -762,6 +762,27 @@ read's head explicit.
   `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
   `rename-row` has opening the form on such a page not panic; no reason is recorded
   for this site. Seen by reading; no test holds it.
+- **Not yet:** 5.3, *The rail's parts*: Team is never shown. No read gives the
+  rail a project's members (jig's `Read::Project` is the Members tab's) or a
+  standing role (`../draft/standing-roles.md`), and Team has no page
+  (`../draft/surfaces.md`, section 6), so `rail::facts` gathers neither.
+- **Not yet:** 3.5, *Work*, *What the reads lack*: no read lists a landed
+  draft ready to start a goal; a chat's card holds its changes, not its other
+  delegates; a change's card names no maker.
+- **Not yet:** 3.5, *Members*: the deployment's own members. jig's `me` gives
+  the person's `deployment_role` alone, and no read lists the deployment's
+  roster (jig's `domain/people.md`, section 3).
+- **Not yet:** 3.5, *Limits*: the configuration's profile and overrides
+  (`../protocol/configuration.md`, section 7) have no read and an owner's
+  change of them no act; the tab draws the `deployment` document's capacities
+  alone.
+- **Not yet:** 5.3, *All projects*: on a page across projects, the rail's
+  "Needs you" counts the open project's needs and "Home" opens the open
+  project's Home, until Needs you and Home read across projects
+  (`../draft/surfaces.md`, sections 3 and 4).
+- **Not yet:** 5.3, the person's menu: "What temper remembers about you" has
+  no page yet (`../draft/whole-story.execution.md`, M4), so its place is
+  empty.
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
