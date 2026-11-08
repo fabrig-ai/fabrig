@@ -1063,6 +1063,7 @@ dependencies = [
  "jig-engine-clients-kit",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
+ "jig-tasks-kit",
  "jig-test-connector",
  "jig-test-domain",
  "jig-test-service",

@@ -247,7 +247,7 @@ fn owner_activity_closed_run_causes_and_ends_keep_all_six_failure_classes_and_co
     ]);
     for class in classes {
         let tree = build(
-            &activity(Activity::RunEnded { attempt: 7, end: RunEnd::Failed { class }, spent: 0 }),
+            &activity(Activity::RunEnded { attempt: 7, end: RunEnd::Failed { class, invalid_reason: None }, spent: 0 }),
             normal_words(),
         );
         goldens.check(&tree);

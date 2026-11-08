@@ -1408,6 +1408,13 @@ digest: task 7c1e09a2b44f0d13
   milestone's, `phase changed`: the activity names only the position of
   the task's history row that says which phase, and no tool reads that
   history (section 15).
+  An invalid run's end prints `run N ended: its result broke its
+  contract (KIND)`, where KIND is form, verdict, words, change or
+  followups. An invalid end with no recorded contract kind prints
+  `run N ended: its result couldn't be read`. JSON preserves the cause
+  as the failed end's optional `invalid_reason`, with `unreadable result`
+  for the latter. Other failure classes omit the cause. These words do
+  not change the class or the retry counts (jig's `protocol/client.md`, 3).
   A heard `QuestionAnswered` notice prints `POSITION · You answered
   question N in your inbox`, including when its words are empty.
 - **Acts as calls,** without the `temper ctl DIRECTORY` prefix; a keyed
