@@ -690,10 +690,19 @@ words keeps them whole, and a run can answer in one call's worth:
   declared values together, their names and cells among them, so a field's
   own bound may be near it and leave the rest to the others. A host's
   `outcome_bytes` takes it, and the host's own bound must hold it.
+- **A sub-agent's answer,** `answer_bytes`, is the outcome's room, the
+  larger of 4,096 and `tool_payload`. A child's answer is its run's result
+  to its asker, so it has the room one `finish` has, and a survey a run
+  asks for comes back in one call's worth. The child is told it in its
+  share, and an answer past it is cut (domain/run.md, 5.3). `smith check`
+  prints it as `run.answer_bytes` (section 9).
 
 Each enters T through a sub-agent's feedback, which holds four times the
 larger of them (domain/run.md, section 5): up to a `tool_payload` of 32,768
 the allowance stays 65,536, the outcome stays below it, and T doesn't move.
+The answer's feedback, the answer at `answer_bytes` with its cut's words
+and its usage line, is within that feedback, so the answer moves no bound
+the outcome doesn't, and `render-in-result` holds it (section 4).
 
 ## 4. Checked at startup
 
@@ -721,7 +730,7 @@ Anthropic's output within what its route accepts. smith checks the rest:
 | `resume-holds-window` | the resume limit holds the most a session holds in one window |
 | `turn-in-transcript` | the largest turn fits the transcript schema's ceilings |
 | `turn-in-channel` | the largest turn, start and message fit the channel's frame ceilings |
-| `render-in-result` | every tool's outcome at its caps, a host's answer, a message and a sub-agent's result render uncut within one rendered result's bound: the cut is a safeguard, never what a cap relies on (llm.md, section 5). A bound held below the derived render bound by any other limit breaks it |
+| `render-in-result` | every tool's outcome at its caps, a host's answer, a message and a sub-agent's result (its answer at `run.answer_bytes`, its cut's words and its usage line, 3.10) render uncut within one rendered result's bound: the cut is a safeguard, never what a cap relies on (llm.md, section 5). A bound held below the derived render bound by any other limit breaks it |
 | `read-in-payload` | `read_window` is at most `tool_payload` |
 | `payload-in-file` | `tool_payload` is at most `file_bytes` |
 | `machine-holds-tools` | the machine's output, file, scan, search and path limits hold the tools', and its processes hold the listings, searches, commands and checks that run at once, and `jobs` for each of `conversations` beside them (3.5) |
@@ -792,6 +801,7 @@ reserve against the budget.
 |---|---|
 | a tool call whose arguments pass one call's input | the call arrives as an oversize block with its byte count; the completion completes; the model is told the size, the bound, and how to make it fit (llm.md, section 4) |
 | a rendered result past its bound | cut at a character's boundary with an explicit marker saying how many bytes were left out; the request goes (llm.md, section 5) |
+| a sub-agent's answer past `answer_bytes` | kept to it, cut at a character's boundary, with words saying how many bytes were left out and that a new sub-agent, asked narrower, reads them: the child has closed, so nothing continues it (domain/run.md, 5.3) |
 | a call that finds the pool's connections or memory at capacity | it waits, in order of arrival, bounded by `conversations`, within its deadline (llm.md, section 6) |
 | a reasoning item past `reasoning_item` | a typed limit failure, unless the model's declaration drops it (2.1) |
 | a tool call cut off by the output limit | marked by skein; the session keeps a note and an error result in its place (llm.md, section 4) |
@@ -961,6 +971,10 @@ losslessly by count.
 
 ## 13. Open questions
 
+- **A cut sub-agent answer's rest** (3.10, 6): retaining it for a
+  continuation is domain/run.md, section 15's question. Default: keep
+  only the capped answer and tell its asker to ask a new child, narrower;
+  no additional retained-answer room is declared.
 - **Calls past `calls_per_response`:** whether skein marks the calls
   beyond the bound as calls of their own, answered as not run, so the
   completion completes, as an oversized call's does.

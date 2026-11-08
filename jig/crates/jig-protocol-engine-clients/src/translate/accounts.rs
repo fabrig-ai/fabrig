@@ -106,6 +106,7 @@ pub fn refusal(value: a::Refusal, limits: &w::Limits) -> Result<w::AccountRefusa
         a::Refusal::Unknown => w::AccountRefusal::Unknown,
         a::Refusal::NotLimited => w::AccountRefusal::NotLimited,
         a::Refusal::Uses => w::AccountRefusal::Uses,
+        a::Refusal::ProgramNameReserved => w::AccountRefusal::ProgramNameReserved,
         a::Refusal::NotKept { why } => w::AccountRefusal::NotKept(w::AccountRefusalNotKept::new(
             limits,
             w::AccountRefusalNotKeptParts { why: key_failure(why) },

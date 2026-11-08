@@ -344,6 +344,7 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::Ended { .. }
         | Refusal::Unknown
         | Refusal::NameTaken
+        | Refusal::ProgramNameReserved
         | Refusal::NotOffered
         | Refusal::KeyConflict
         | Refusal::Llm { .. } => {}
@@ -379,6 +380,7 @@ fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::Moved { .. }
         | Refusal::Ended { .. }
         | Refusal::Unknown
+        | Refusal::ProgramNameReserved
         | Refusal::NotOffered
         | Refusal::KeyConflict
         | Refusal::Circle { .. }

@@ -1,6 +1,6 @@
 # accounts: status
 
-2026-11-07. Where jig's code lags or departs from [accounts.md](accounts.md).
+2026-11-08. Where jig's code lags or departs from [accounts.md](accounts.md).
 
 Section 3.7 has no known implementation gap in the separate facts record,
 sign-in and refresh reports, program-status email, or audience filtering.
