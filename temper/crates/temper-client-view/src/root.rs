@@ -197,13 +197,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         && let Some(origin) = &view.sign_in.origin
     {
         crate::sign_in::main(&mut builder, root, &view.forge_words, origin, &view.forge_sign_in);
-    } else if crate::frame::unavailable(root).is_some() {
-        builder.open(Role::Main);
-        builder.style(crate::look::MAIN);
-        builder.open(Role::Paragraph);
-        builder.style(crate::look::UNAVAILABLE);
+    } else if let Some(heading) = crate::frame::unavailable(root) {
+        crate::outside::column(&mut builder, &view.forge_words.say(heading, &[]), &[]);
         crate::frame::unavailable_main(&mut builder, root, &view.forge_words);
-        builder.close();
         if let Some(page) = root.pages().task()
             && page.document(root.client()).is_none()
         {

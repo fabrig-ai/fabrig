@@ -185,12 +185,63 @@ fn a_page_behind_says_behind_after_the_links_state() {
 #[test]
 fn signed_out_the_main_says_so_and_nothing_else() {
     let view = fixtures::page_view(&fixtures::signed_out());
-    assert_eq!(&*fixtures::main_text(view.tree()), b"Signed out.");
+    let nodes = view.tree().nodes();
+    let mut main = None;
+    for (index, node) in nodes.iter().enumerate() {
+        if node.role == Role::Main {
+            let start = index.checked_add(1).expect("heading follows main");
+            let end = index.checked_add(usize::try_from(node.size).expect("main size")).expect("main end");
+            main = Some((start, end));
+            break;
+        }
+    }
+    let (start, end) = main.expect("main");
+    let mut content = skein_lib::List::with_capacity(2);
+    for (index, node) in nodes.iter().enumerate().take(end).skip(start) {
+        if node.role != Role::Text {
+            content
+                .push((node.role, node.name.as_deref(), fixtures::node_text(view.tree(), index)))
+                .expect("heading and paragraph");
+        }
+    }
+    assert_eq!(
+        content.as_slice(),
+        [(Role::Heading { level: 1 }, Some(b"Signed out".as_slice()), Box::from(b"Signed out".as_slice()))]
+    );
 }
 #[test]
 fn signed_out_the_browser_main_says_how_to_sign_in() {
     let view = fixtures::browser_page_view(&fixtures::signed_out());
-    assert_eq!(&*fixtures::main_text(view.tree()), b"Signed out. To sign in, open a sign-in link temper printed.",);
+    let nodes = view.tree().nodes();
+    let mut main = None;
+    for (index, node) in nodes.iter().enumerate() {
+        if node.role == Role::Main {
+            let start = index.checked_add(1).expect("heading follows main");
+            let end = index.checked_add(usize::try_from(node.size).expect("main size")).expect("main end");
+            main = Some((start, end));
+            break;
+        }
+    }
+    let (start, end) = main.expect("main");
+    let mut content = skein_lib::List::with_capacity(2);
+    for (index, node) in nodes.iter().enumerate().take(end).skip(start) {
+        if node.role != Role::Text {
+            content
+                .push((node.role, node.name.as_deref(), fixtures::node_text(view.tree(), index)))
+                .expect("heading and paragraph");
+        }
+    }
+    assert_eq!(
+        content.as_slice(),
+        [
+            (Role::Heading { level: 1 }, Some(b"Signed out".as_slice()), Box::from(b"Signed out".as_slice())),
+            (
+                Role::Paragraph,
+                Some(b"To sign in, open a sign-in link temper printed.".as_slice()),
+                Box::from(b"To sign in, open a sign-in link temper printed.".as_slice())
+            )
+        ]
+    );
 }
 #[test]
 fn a_full_link_says_the_pool_and_both_moments_in_either_shell() {
@@ -269,14 +320,68 @@ fn assert_link_main(answer: jig_client_protocol_wire::SignInAnswer, expected: &[
                 shell,
                 crate::sign_in::Ways { google, origin: Some(Box::from(b"https://temper.example.com".as_slice())) },
             );
-            assert_eq!(&*fixtures::main_text(view.tree()), expected, "{shell:?}, google={google}");
+            let nodes = view.tree().nodes();
+            let mut main = None;
+            for (index, node) in nodes.iter().enumerate() {
+                if node.role == Role::Main {
+                    let start = index.checked_add(1).expect("heading follows main");
+                    let end = index.checked_add(usize::try_from(node.size).expect("main size")).expect("main end");
+                    main = Some((start, end));
+                    break;
+                }
+            }
+            let (start, end) = main.expect("main");
+            let mut content = List::with_capacity(2);
+            for (index, node) in nodes.iter().enumerate().take(end).skip(start) {
+                if node.role != Role::Text {
+                    content
+                        .push((node.role, node.name.as_deref(), fixtures::node_text(view.tree(), index)))
+                        .expect("heading and paragraph");
+                }
+            }
+            assert_eq!(
+                content.as_slice(),
+                [
+                    (Role::Heading { level: 1 }, Some(b"Signed out".as_slice()), Box::from(b"Signed out".as_slice())),
+                    (Role::Paragraph, Some(expected), Box::from(expected))
+                ]
+            );
         }
     }
 }
 #[test]
 fn out_of_date_the_browser_main_keeps_its_words() {
     let view = fixtures::browser_page_view(&fixtures::out_of_date());
-    assert_eq!(&*fixtures::main_text(view.tree()), b"This temper is out of date: run the temper the engine runs.");
+    let nodes = view.tree().nodes();
+    let mut main = None;
+    for (index, node) in nodes.iter().enumerate() {
+        if node.role == Role::Main {
+            let start = index.checked_add(1).expect("heading follows main");
+            let end = index.checked_add(usize::try_from(node.size).expect("main size")).expect("main end");
+            main = Some((start, end));
+            break;
+        }
+    }
+    let (start, end) = main.expect("main");
+    let mut content = skein_lib::List::with_capacity(2);
+    for (index, node) in nodes.iter().enumerate().take(end).skip(start) {
+        if node.role != Role::Text {
+            content
+                .push((node.role, node.name.as_deref(), fixtures::node_text(view.tree(), index)))
+                .expect("heading and paragraph");
+        }
+    }
+    assert_eq!(
+        content.as_slice(),
+        [
+            (Role::Heading { level: 1 }, Some(b"Out of date".as_slice()), Box::from(b"Out of date".as_slice())),
+            (
+                Role::Paragraph,
+                Some(b"Run the temper the engine runs.".as_slice()),
+                Box::from(b"Run the temper the engine runs.".as_slice())
+            )
+        ]
+    );
 }
 #[test]
 fn the_browser_words_fit_the_views_limits() {
@@ -302,7 +407,36 @@ fn signed_out_the_page_offers_no_navigation() {
 #[test]
 fn an_engine_not_serving_jigs_version_says_temper_is_out_of_date() {
     let view = fixtures::page_view(&fixtures::out_of_date());
-    assert_eq!(&*fixtures::main_text(view.tree()), b"This temper is out of date: run the temper the engine runs.");
+    let nodes = view.tree().nodes();
+    let mut main = None;
+    for (index, node) in nodes.iter().enumerate() {
+        if node.role == Role::Main {
+            let start = index.checked_add(1).expect("heading follows main");
+            let end = index.checked_add(usize::try_from(node.size).expect("main size")).expect("main end");
+            main = Some((start, end));
+            break;
+        }
+    }
+    let (start, end) = main.expect("main");
+    let mut content = skein_lib::List::with_capacity(2);
+    for (index, node) in nodes.iter().enumerate().take(end).skip(start) {
+        if node.role != Role::Text {
+            content
+                .push((node.role, node.name.as_deref(), fixtures::node_text(view.tree(), index)))
+                .expect("heading and paragraph");
+        }
+    }
+    assert_eq!(
+        content.as_slice(),
+        [
+            (Role::Heading { level: 1 }, Some(b"Out of date".as_slice()), Box::from(b"Out of date".as_slice())),
+            (
+                Role::Paragraph,
+                Some(b"Run the temper the engine runs.".as_slice()),
+                Box::from(b"Run the temper the engine runs.".as_slice())
+            )
+        ]
+    );
 }
 #[test]
 fn out_of_date_the_banner_says_the_links_state_alone() {
@@ -1071,7 +1205,29 @@ fn terminal_with_google_keeps_its_signed_out_main() {
         crate::words::Shell::Terminal,
         crate::sign_in::Ways { google: true, origin: Some(Box::from(b"https://temper.example.com".as_slice())) },
     );
-    assert_eq!(&*fixtures::main_text(view.tree()), b"Signed out.");
+    let nodes = view.tree().nodes();
+    let mut main = None;
+    for (index, node) in nodes.iter().enumerate() {
+        if node.role == Role::Main {
+            let start = index.checked_add(1).expect("heading follows main");
+            let end = index.checked_add(usize::try_from(node.size).expect("main size")).expect("main end");
+            main = Some((start, end));
+            break;
+        }
+    }
+    let (start, end) = main.expect("main");
+    let mut content = skein_lib::List::with_capacity(2);
+    for (index, node) in nodes.iter().enumerate().take(end).skip(start) {
+        if node.role != Role::Text {
+            content
+                .push((node.role, node.name.as_deref(), fixtures::node_text(view.tree(), index)))
+                .expect("heading and paragraph");
+        }
+    }
+    assert_eq!(
+        content.as_slice(),
+        [(Role::Heading { level: 1 }, Some(b"Signed out".as_slice()), Box::from(b"Signed out".as_slice()))]
+    );
 }
 
 #[test]

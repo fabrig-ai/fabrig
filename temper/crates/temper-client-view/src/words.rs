@@ -1196,6 +1196,7 @@ pub enum Word {
     SignInLinkExpired,
     SignInLinkUnknown,
     OutOfDateMain,
+    OutOfDateHow,
     InboxNeedsEmpty,
     InboxUpdatesEmpty,
     Kind,
@@ -1543,7 +1544,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2099;
+const PHRASES: u32 = 2100;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1570,10 +1571,10 @@ const PHRASES: u32 = 2099;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3684;
+const SEGMENTS: u32 = 3685;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 51851;
-const ALL: [Word; 1417] = [
+const ENGLISH_BYTES: u32 = 51870;
+const ALL: [Word; 1418] = [
     Word::NightMode,
     Word::CloseTitle,
     Word::CloseChat,
@@ -2724,6 +2725,7 @@ const ALL: [Word; 1417] = [
     Word::SignInLinkExpired,
     Word::SignInLinkUnknown,
     Word::OutOfDateMain,
+    Word::OutOfDateHow,
     Word::InboxNeedsEmpty,
     Word::InboxUpdatesEmpty,
     Word::Kind,
@@ -3960,6 +3962,7 @@ impl Word {
             Self::SignInLinkExpired => 1918,
             Self::SignInLinkUnknown => 1919,
             Self::OutOfDateMain => 183,
+            Self::OutOfDateHow => 184,
             Self::BylineTask => 1505,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
@@ -6208,7 +6211,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ContinueGoogle => (&[b"Continue with Google"], &[]),
         Word::SignedOutMain => match shell {
             Shell::Terminal => (&[b"Signed out."], &[]),
-            Shell::Browser => (&[b"Signed out. To sign in, open a sign-in link temper printed."], &[]),
+            Shell::Browser => (&[b"To sign in, open a sign-in link temper printed."], &[]),
         },
         Word::SignInFull => (&[b"All ", b" sign-ins are in use; the earliest ends ", b" UTC. This link stays usable until ", b" UTC; after that, opening it has temper serve print a fresh one."], &[Number, HoleKind::Moment, HoleKind::Moment]),
         Word::SignInBusy => (&[b"temper is busy. This link stays usable until it expires: open it again in a moment."], &[]),
@@ -6216,6 +6219,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignInLinkUsed => (&[b"This link was already used. A fresh one is in your terminal."], &[]),
         Word::SignInLinkExpired => (&[b"This link has expired. A fresh one is in your terminal."], &[]),
         Word::SignInLinkUnknown => (&[b"This link isn't from this temper. Use the one its terminal printed."], &[]),
+        Word::OutOfDateHow => (&[b"Run the temper the engine runs."], &[]),
         Word::OutOfDateMain => (&[b"This temper is out of date: run the temper the engine runs."], &[]),
         Word::Connecting => (&[b"Connecting"], &[]),
         Word::Behind => (&[b"Behind"], &[]),

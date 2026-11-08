@@ -13,6 +13,14 @@ fn the_frame_carries_its_tokens() {
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
     for (token, name) in [
+        (TOP, b"temper-top".as_slice()),
+        (TOP_END, b"temper-top-end".as_slice()),
+        (OUTSIDE, b"temper-outside".as_slice()),
+        (OUTSIDE_PRIMARY, b"temper-outside-primary".as_slice()),
+        (OUTSIDE_SECONDARY, b"temper-outside-secondary".as_slice()),
+        (OUTSIDE_ACTS, b"temper-outside-acts".as_slice()),
+        (OUTSIDE_QUIET, b"temper-outside-quiet".as_slice()),
+        (APPROVE_FIELD, b"temper-approve-field".as_slice()),
         (PUBLIC_PAGE, b"temper-public-page".as_slice()),
         (PUBLIC_INTRO, b"temper-public-intro".as_slice()),
         (PUBLIC_LEDE, b"temper-public-lede".as_slice()),
@@ -318,7 +326,7 @@ fn each_pages_main_carries_the_main_token() {
     let builds: [fn() -> temper_client_domain::Domain; 2] = [fixtures::signed_out, fixtures::out_of_date];
     for build in builds {
         let view = fixtures::page_view(&build());
-        assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN])]);
+        assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([OUTSIDE])]);
     }
     let view = fixtures::page_view(&fixtures::chats_root());
     assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([MAIN, CHATS_PAGE])]);
