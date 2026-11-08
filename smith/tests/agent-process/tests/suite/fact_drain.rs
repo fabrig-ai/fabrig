@@ -101,7 +101,11 @@ fn every_answer_kind_reaches_the_trace_with_its_terminal_fact_once() {
         let answer = world.answer().expect("one answer crossed the host channel");
         let ended = &terminal(&world).status;
         match case {
-            TraceCase::Accepted | TraceCase::ChildAnswered | TraceCase::ThreeChildren | TraceCase::StoppedReasoning => {
+            TraceCase::Accepted
+            | TraceCase::ChildAnswered
+            | TraceCase::LongChildAnswered
+            | TraceCase::ThreeChildren
+            | TraceCase::StoppedReasoning => {
                 assert!(
                     matches!(answer.result(), RunResult::Accepted(_)),
                     "answer={:?}; records={:?}",
@@ -260,4 +264,32 @@ fn a_child_usage_line_tells_the_budget_record_naming_its_call() {
     let usage = child_usage(&world, child.parent.expect("the child names its parent"), call);
     let expected = format!("; ordinary left {turns} turns and {seconds} seconds.");
     assert!(usage.contains(&expected));
+}
+
+#[test]
+fn a_childs_answer_of_three_thousand_bytes_reaches_main_whole() {
+    let mut world = World::new(19, &charter());
+    world.capture(smith_protocol_events::sinks::Capture::Everything);
+    world.observe_facts(TraceCase::LongChildAnswered, 4);
+    assert!(world.settle());
+    assert!(matches!(world.answer().expect("host answer").result(), RunResult::Accepted(_)));
+    let child = world
+        .records()
+        .iter()
+        .filter_map(|record| if let Event::ConversationOpened(child) = &record.event { Some(child) } else { None })
+        .find(|child| child.kind == smith_events::ConversationKind::Child)
+        .expect("one child");
+    let call = child.call.as_ref().expect("provider call");
+    let result = child_usage(&world, child.parent.expect("the child names its parent"), call);
+    let answer = smith_agent_process_world::long_child_answer();
+    assert!(result.starts_with(&answer), "the whole answer reaches main: {result}");
+    assert!(!result.contains("[child-result"), "the answer fits without a cut marker");
+    let completed = world
+        .records()
+        .iter()
+        .filter_map(|record| if let Event::ToolCompleted(completed) = &record.event { Some(completed) } else { None })
+        .find(|completed| &completed.call == call && Some(completed.conversation) == child.parent)
+        .expect("the sub_agent call completed");
+    assert_eq!(completed.omitted_bytes, 0, "the answer fits its tool cap");
+    world.assert_agent_clean();
 }

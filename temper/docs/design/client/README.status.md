@@ -2,6 +2,14 @@
 
 2026-11-08. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
+in the rail after Chats and as Ask in the phone tabs, returning to the
+newest open Ask temper chat. Template 5 starts its chat; without it no
+chat starts. Section 5.13 offers neither configuring chat nor Ask temper
+on Settings. The opening retains the configuring page's starters and
+reference, as the renamed-page draft specifies. The post-landing walk,
+views and preferences remain section 11's work.
+
 Sections 2 and 6.11 to 6.16 have no known implementation gap in the
 TUI's crates, command, private directory, host seam, pasted-link sign-in,
 live first screen, themes and closing. Section 10's frame goldens,
@@ -70,6 +78,13 @@ section 11). The ground, scrollbar and foot repairs are recorded in
 `browser.status.md`, 2.5. The ordinary bar's two-row title at 1000 px
 remains intentional: `>_` and the status words leave the path less than
 its 320 px, as the user accepted in `look-round-17`.
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief. Its landed run proposal read needs
+  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
+  7.3; this is a design gap, not an absent implementation.
 
 - **Departs:** 3.5, *A chat's terminal*: the quiet line says "N spent · of B",
   because `temper-client-view`'s `pages/terminal.rs`, `under`, reuses
@@ -341,12 +356,10 @@ read's head explicit.
   decided by the answer that day to `goal-sheet-state`: `drafts_offered` reads kind
   7's `drafts`, true in the stock (5.13), where the request has it true while `me`
   lists a tracked template with no conversation flag. So a project can turn the offer off.
-- **Not yet:** 10, the joint world's Ask temper chat: `temper/tests/client`'s
-  `Joint::with_configuring` and `fixtures::configuring_world` load stock charter 3 and
-  template 3, not template 5, so `tests/suite/configuring_chat.rs`'s
-  `the_page_starts_the_asking_chat` and `start_over_closes_and_opens_a_fresh_ask` find no
-  template 5 in `me` and return having checked nothing; the same file's proposal stories,
-  through `propose_in`, start `chat start --template 3` and run charter 3.
+- **Departs:** 3.5 and 5.3, from the mock (`greenfield/`):
+  Ask temper has its own project page, rail entry and phone tab, and
+  Settings has no configuring offer. The user's draft, 2026-11-07
+  (`../draft/ask-temper.md`, section 9).
 - **Design departs:** 3.5, *A chat's document*, 5.13, from the mock (`greenfield/`), whose
   fresh projects have `drafts` false (`data.js`) and whose "+ Draft" follows it on every
   chat (`app.js`): a fresh project's chats write drafts, and an Ask temper chat offers

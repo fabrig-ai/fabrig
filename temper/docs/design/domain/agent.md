@@ -1701,6 +1701,11 @@ host:
 
 ## 10. Open questions
 
+- **Ask temper after M1** (8.4): M2 supplies the remaining reads and
+  person-scoped access; M3 supplies views and sketches; M4 supplies preferences
+  (`../draft/ask-temper.execution.md`, section 3). The ChatGPT and Claude Code walk and the
+  user's judgement of `ask.txt` follow landing.
+
 - **A real chat choosing `change`** (4.3 and 4.3.2): the owned-forge
   landing story requires the chat's own successful `change`, rather than
   a goal's change. Observe whether `goal`'s declaration steers a plain
