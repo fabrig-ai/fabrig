@@ -1531,15 +1531,18 @@ temper box
   2.8).
 - **The first link's secret** (7.2) reaches `temper internal serve`'s
   first start on its standard input, a pipe of its own: the box writes
-  the secret's 32 bytes, nothing around them, and closes it. `--box` tells
+  the secret's 32 bytes, nothing around them, and closes it; with its TUI
+  in front, the printed link's 32 bytes and then the first local
+  link's 32, which the box hands its front. `--box` tells
   serve to read its standard input to its end before it starts anything,
-  and it gives what it read to jig's sign-in component (jig's
-  `protocol/client.md`, section 8, *A secret given*). No argument and no
+  and it gives what it read to jig's sign-in component, the first 32 bytes
+  as the printed link's `link_secret` and the next 32 as the local link's
+  `local_secret` (jig's `protocol/client.md`, section 8, *A secret given*). No argument and no
   environment entry carries it, and no log holds it. Every later start
   has no such pipe, its standard input is the null device, and its
   component draws its own first secret, so a restart never replays a
   spent one. The box gives the secret at serve's first spawn whatever
-  becomes of that start. Serve refuses any length but none or 32 bytes,
+  becomes of that start. Serve refuses any length but none, 32 or 64 bytes,
   `--box: stdin: expected the first link's secret`. Linux and macOS read it
   alike, as the pipe's own descriptors are made alike: skein's `Spawn` makes
   a pipe at a child's descriptor 0 as at any other, and fills what no pipe

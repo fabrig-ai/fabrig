@@ -66,6 +66,9 @@ its end and serve's drained end. No known implementation gap remains in
 that ordering. Programs surviving a forced agent-group kill remain
 section 15's contained-tree work.
 
+- **Not yet:** 7.1, *The first link's secret*: serve reading 64 bytes, the
+  first local link's secret given to jig as `local_secret` (`serve-sign-in`,
+  `tui-box-front`).
 - **Not yet:** 7.2, *Its children*: the owned-forge Claude Code landing
   story (`crates/temper/tests/live.rs`,
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`) has no
