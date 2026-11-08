@@ -19,32 +19,50 @@ pub(crate) fn read_call(
     repository: Repository,
     read: Read,
 ) {
-    if let Err((layer, reason, answer)) = admit(domain, env, key, repository, &read) {
-        refused(domain, key, layer, reason, &answer);
-        return super::super::host_route::read(domain, to, *answer);
-    }
-    let next = match domain.next_effect_owner.checked_add(1) {
-        Some(serial) => match forge::root_read(serial) {
-            Some(owner) => Some((serial, owner)),
+    Domain::read_forge_call(domain, &env.limits, to, key, repository, read);
+}
+
+impl Domain {
+    /// Admit and correlate a fresh forge read (domain/forge.md, 5.3).
+    pub(crate) fn read_forge_call(
+        domain: &mut Domain,
+        limits: &Limits,
+        to: ReplyTo,
+        key: CallKey,
+        repository: Repository,
+        read: Read,
+    ) {
+        if let Err((layer, reason, answer)) = admit(domain, limits, key, repository, &read) {
+            refused(domain, key, layer, reason, &answer);
+            return super::super::host_route::read(domain, to, *answer);
+        }
+        let next = match domain.next_effect_owner.checked_add(1) {
+            Some(serial) => match forge::root_read(serial) {
+                Some(owner) => Some((serial, owner)),
+                None => None,
+            },
             None => None,
-        },
-        None => None,
-    };
-    let Some((serial, owner)) = next else {
-        let answer = CallAnswer::ForgeRead(Box::new(Err(Error::Busy)));
-        refused(domain, key, "forge-route", "read correlation exhausted", &answer);
-        return super::super::host_route::read(domain, to, answer);
-    };
-    domain.next_effect_owner = serial;
-    assert!(domain.forge_reading.insert(owner, (to, key)) == Ok(None), "one fresh read correlation");
-    domain.work.push(Work::Forge(forge::Event::Client(skein_forge_client::Event::Read { owner, repository, read })));
+        };
+        let Some((serial, owner)) = next else {
+            let answer = CallAnswer::ForgeRead(Box::new(Err(Error::Busy)));
+            refused(domain, key, "forge-route", "read correlation exhausted", &answer);
+            return super::super::host_route::read(domain, to, answer);
+        };
+        domain.next_effect_owner = serial;
+        assert!(domain.forge_reading.insert(owner, (to, key)) == Ok(None), "one fresh read correlation");
+        domain.work.push(Work::Forge(forge::Event::Client(skein_forge_client::Event::Read {
+            owner,
+            repository,
+            read,
+        })));
+    }
 }
 
 fn local(reason: &'static str, error: Error) -> Refusal {
     ("forge-route", reason, Box::new(CallAnswer::ForgeRead(Box::new(Err(error)))))
 }
 
-fn admit(domain: &Domain, env: &Env<Limits>, key: CallKey, repository: Repository, read: &Read) -> Result<(), Refusal> {
+fn admit(domain: &Domain, limits: &Limits, key: CallKey, repository: Repository, read: &Read) -> Result<(), Refusal> {
     let Some(adopted) = domain.forge.repository(repository) else {
         return Err(local("repository not adopted", Error::Missing));
     };
@@ -57,7 +75,7 @@ fn admit(domain: &Domain, env: &Env<Limits>, key: CallKey, repository: Repositor
     if !adopted.kinds.read {
         return Err(local("repository reads disabled", Error::Forbidden));
     }
-    let Some(name) = read_name(adopted, read, env.limits.authority.segments) else {
+    let Some(name) = read_name(adopted, read, limits.authority.segments) else {
         return Err(local("read name exceeds authority bounds", Error::Forbidden));
     };
     let mut findings = Queue::uncapped();

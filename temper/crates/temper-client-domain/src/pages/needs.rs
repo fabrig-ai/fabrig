@@ -303,7 +303,7 @@ impl Session {
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
-            | Address::Configure { .. }
+            | Address::Ask { .. }
             | Address::Adopt { .. } => self.at = None,
         }
     }
@@ -701,7 +701,7 @@ pub(crate) fn act(
                 | Address::Builders { .. }
                 | Address::Repositories { .. }
                 | Address::Settings { .. }
-                | Address::Configure { .. }
+                | Address::Ask { .. }
                 | Address::Adopt { .. } => None,
             };
             out.push(Request::Show { address: Address::Inbox { filter: Filter { project, ..Filter::ALL } } });

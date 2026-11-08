@@ -39,6 +39,143 @@ pub enum SettingsAnswer {
     Unknown,
 }
 
+/// One proposal of settings, as a run reads it (engine.md, 7.3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::large_enum_variant, reason = "the proposal read contract keeps both documents inline")
+)]
+pub enum ProposalRead {
+    /// Waiting, with its review, as a party's live proposal read gives it, with no acts.
+    Waiting(crate::documents::Proposal),
+    /// Decided, withdrawn or replaced, as its history row keeps it.
+    Decided(crate::reads::Ended),
+    /// None, not settings, or a task's of another project.
+    Unknown,
+}
+
+pub(crate) fn run_proposal(
+    core: &mut Core,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    key: crate::CallKey,
+    proposer: people::Proposer,
+    number: u64,
+) -> Queue<Request> {
+    if let Some(part) = core.authorize_tool(key, crate::ToolKind::Settings) {
+        return refused(to, key, part);
+    }
+    if !proposal_scope(core, key.task, proposer) {
+        return proposal_answer(to, key, Answer::None(Why::Unknown));
+    }
+    match crate::documents::run_proposal(core, &env.limits, proposer, number, env.wall) {
+        Ok(value) => {
+            return proposal_answer(
+                to,
+                key,
+                Answer::Document(Box::new(crate::documents::Document::Proposal(Box::new(value)))),
+            );
+        }
+        Err(crate::documents::Missing::NotAllowed) => return proposal_answer(to, key, Answer::None(Why::Unknown)),
+        Err(crate::documents::Missing::TooLarge) => return refused(to, key, crate::CallPart::Unavailable),
+        Err(crate::documents::Missing::Ended | crate::documents::Missing::Unknown) => {}
+    }
+    if core.reads.is_full() || core.reads.len() >= env.limits.load_slots {
+        return refused(to, key, crate::CallPart::Unavailable);
+    }
+    let range = Range {
+        // The range's party selects a physical owner key; run visibility is checked separately.
+        party: match proposer {
+            people::Proposer::Party(party) => party,
+            people::Proposer::Task(_) => 0,
+        },
+        scope: Scope::Proposal { proposer, proposal: number },
+        after: None,
+        backwards: false,
+        rows: env.limits.documents.rows,
+        bytes: env.limits.load_bytes,
+    };
+    let pending = super::Pending {
+        destination: super::Destination::Proposal { to, key },
+        sign_in: 0,
+        party: 0,
+        range: range.clone(),
+        tasks: None,
+    };
+    let load = core.reads.insert(pending).expect("proposal read room checked").token();
+    let mut out = Queue::uncapped();
+    out.push(Request::Held(Box::new(crate::Held::ReadLoad { load, range: Box::new(range) })));
+    out
+}
+
+fn proposal_scope(core: &Core, caller: u64, proposer: people::Proposer) -> bool {
+    let Some(reader) = core.tasks.task(caller) else { return false };
+    match proposer {
+        people::Proposer::Task(task) => match core.tasks.task(task) {
+            Some(owner) => owner.project == reader.project,
+            // A retained owner is checked with the history row when it loads.
+            None => true,
+        },
+        people::Proposer::Party(_) => true,
+    }
+}
+
+fn proposal_answer(to: ReplyTo, key: crate::CallKey, value: Answer) -> Queue<Request> {
+    let answer = match value {
+        Answer::Document(document) => {
+            let crate::documents::Document::Proposal(value) = *document else { unreachable!("proposal document") };
+            ProposalRead::Waiting(*value)
+        }
+        Answer::Ended(value) => ProposalRead::Decided(*value),
+        Answer::None(Why::Busy) => return refused(to, key, crate::CallPart::Unavailable),
+        Answer::None(_) => ProposalRead::Unknown,
+        Answer::Setting(_)
+        | Answer::Revision(_)
+        | Answer::Revisions(_)
+        | Answer::TaskText(_)
+        | Answer::Tasks(_)
+        | Answer::Page(_) => unreachable!("proposal read answer"),
+    };
+    let mut out = Queue::uncapped();
+    out.push(Request::Now(Box::new(crate::Now::ProposalRead { to, key, answer: Box::new(answer) })));
+    out
+}
+
+pub(super) fn proposal_loaded(
+    core: &mut Core,
+    env: &Env<Limits>,
+    name: skein_lib::Id<super::Pending>,
+    result: super::Loaded,
+) -> Queue<Request> {
+    let pending = core.reads.get_mut(name).expect("pending proposal load");
+    let super::Destination::Proposal { to, key } =
+        core::mem::replace(&mut pending.destination, super::Destination::Done)
+    else {
+        unreachable!("proposal destination")
+    };
+    let range = pending.range.clone();
+    core.reads.retire(name);
+    if !core.current_proof(key.task, key.attempt) {
+        return Queue::uncapped();
+    }
+    if let Some(part) = core.authorize_tool(key, crate::ToolKind::Settings) {
+        return refused(to, key, part);
+    }
+    let Scope::Proposal { proposer, .. } = range.scope else { unreachable!("proposal scope") };
+    if !proposal_scope(core, key.task, proposer) {
+        return proposal_answer(to, key, Answer::None(Why::Unknown));
+    }
+    let project = core.tasks.task(key.task).expect("current reading task").project;
+    let value = match result {
+        super::Loaded::Busy | super::Loaded::TooLinked { .. } => Answer::None(Why::Busy),
+        super::Loaded::Gone | super::Loaded::TurnProblem { .. } => Answer::None(Why::Unknown),
+        super::Loaded::Page { rows, next } => {
+            super::rows::proposal_from_store(core, &env.limits, &range, rows, next, env.wall, project)
+        }
+    };
+    proposal_answer(to, key, value)
+}
+
 struct Recipient {
     destination: super::Destination,
     sign_in: u64,
@@ -84,6 +221,7 @@ pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Re
             super::Destination::Watch(_)
             | super::Destination::Erase
             | super::Destination::Restore
+            | super::Destination::Proposal { .. }
             | super::Destination::Settings { .. }
             | super::Destination::RunTask { .. }
             | super::Destination::Done => unreachable!("settings read destination"),

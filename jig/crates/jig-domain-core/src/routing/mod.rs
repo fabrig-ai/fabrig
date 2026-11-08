@@ -225,6 +225,7 @@ impl Core {
             | ToolKind::Subscribe
             | ToolKind::Effect
             | ToolKind::Read
+            | ToolKind::Ask
             | ToolKind::Settings => authority::Call::Tool,
         };
         let mut why = Queue::uncapped();
@@ -261,6 +262,7 @@ impl Core {
             ToolKind::Recall { .. } => self.settings.tools.recall,
             ToolKind::Read => self.settings.tools.read,
             ToolKind::Settings => authority::Tools(self.settings.tools.settings),
+            ToolKind::Ask => self.settings.tools.ask,
         }
     }
 

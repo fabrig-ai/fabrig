@@ -151,6 +151,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
         }
         core::Now::TaskRead { to, key: _, answer } => super::host_route::read(domain, to, CallAnswer::TaskRead(answer)),
+        core::Now::ProposalRead { to, key: _, answer } => super::see::proposal::answered(domain, to, answer),
         core::Now::SettingsAnswer { to, key: _, answer } => super::host_route::settings(domain, to, answer),
         core::Now::EffectAnswer { to, key: _, part } => {
             let answer = CallAnswer::from_core(&part).expect("effect wait answer");
@@ -243,6 +244,7 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: 
                 | Read::Transcript { .. }
                 | Read::GoalWords(_)
                 | Read::InputCheck(_)
+                | Read::Document(_)
                 | Read::SettingsNote { .. }
                 | Read::Notes { .. },
             )

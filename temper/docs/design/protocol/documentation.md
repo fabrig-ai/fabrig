@@ -144,7 +144,10 @@ on.
 
 ## 5. `read_docs`, for agents
 
-- **Declared in every charter** by `temper-engine-smith`, beside the
+- **Declared in every charter but an asking charter (asking, with settings
+  at most; `../domain/agent.md`, 4.3),** whose
+  runs read the same pages through `see help` (`../domain/agent.md`, 4.3
+  and 8.4), by `temper-engine-smith`, beside the
   forge's reads (`../domain/agent.md`, 4.3): `read_docs` with either
   `{"topic": NAME, "from": OFFSET}`, `from` 0 when absent, or
   `{"search": "WORDS"}`, never both. A topic is a page.
@@ -184,6 +187,10 @@ None is a story of the real loop or of the process tier, and none adds
 to a suite's time beyond milliseconds.
 
 ## 7. Open questions
+
+- **The `see` reference page** (`../domain/agent.md`, 8.4.1): generated from
+  its address table once M2 completes the reads. Until then `ask.txt` names
+  every address and unbuilt addresses answer not yet.
 
 - **Translations.** Default: English only.
 - **The site.** The user's: whatever it renders of `docs/help/`.

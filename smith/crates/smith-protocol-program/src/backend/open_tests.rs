@@ -142,7 +142,8 @@ fn an_open_final_request_enters_the_wind_down() {
 
 #[test]
 fn an_open_launch_has_no_result_schema() {
-    let arguments = start::arguments(b"fake", None, b"instructions", b"mcp", b"", 8, b"session", b"").expect("argv");
+    let arguments =
+        start::arguments(b"fake", None, b"instructions", b"mcp", b"", 8, b"session", b"", false).expect("argv");
     assert!(!arguments.iter().any(|argument| argument.as_ref() == b"--json-schema"));
 }
 

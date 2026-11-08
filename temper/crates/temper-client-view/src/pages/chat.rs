@@ -92,7 +92,7 @@ pub(crate) fn main(
                 words,
                 bindings,
                 Some(task.project),
-                if configuring { super::session::Path::Settings } else { super::session::Path::Chats },
+                if configuring { super::session::Path::Ask } else { super::session::Path::Chats },
                 super::session::Heading::Chat { whole: &whole, short: &short, numbered: &numbered, hint },
             );
             super::session::right(b);
@@ -101,6 +101,13 @@ pub(crate) fn main(
                 super::session::closed_number(b, words, task.chip.task, line.as_deref());
             } else {
                 super::session::number(b, words, task.chip.task);
+            }
+            if configuring {
+                b.open(Role::Paragraph);
+                b.style(look::CHATS_TAG);
+                words.text(b, Word::ToolSeparator, &[]);
+                words.text(b, Word::Configuring, &[]);
+                b.close();
             }
             super::document::seg(b, chat, words, bindings);
             if chat.draft.is_none()
@@ -360,7 +367,7 @@ pub(crate) fn configuring(root: &Domain) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
     let Some(me) = root.pages().me(root.client()) else { return false };
-    temper_client_domain::pages::chats::configuring(me, task.project, &task.chip.executor)
+    temper_client_domain::pages::chats::asking(me, task.project, &task.chip.executor)
 }
 fn bar_status(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words, _times: &mut Times) {
     if task.result.is_some() || super::chats::ended(&task.chip) {

@@ -105,14 +105,22 @@ pub(crate) fn proposal(
     name: run::CallName,
     bytes: &[u8],
     configured: &[s::CatalogueModel],
+    repositories: &[engine::RepositoryIdentity],
 ) -> Result<Decoded, Problem> {
     let value = crate::json::parse(bytes)?;
-    only(&value, &[b"against", b"items", b"note", b"reason"], b"propose_settings")?;
+    only(&value, &[b"against", b"items", b"note", b"reason", b"more"], b"propose_settings")?;
+    let more = match value.field(b"more")? {
+        Some(more) => more.boolean(b"more")?,
+        None => false,
+    };
     let against = positive(value.required(b"against")?, b"against")?;
     let reason = value.required(b"reason")?.text(b"reason")?;
     if let Some(note) = value.field(b"note")? {
         if value.field(b"items")?.is_some() {
             return Err(Problem::Range(b"items"));
+        }
+        if value.field(b"more")?.is_some() {
+            return Err(Problem::Range(b"more"));
         }
         only(note, &[b"name", b"revision"], b"note")?;
         let note_name = note.required(b"name")?.number(b"name")?;
@@ -132,8 +140,18 @@ pub(crate) fn proposal(
     }
     value.required(b"items")?;
     let limits = settings_form::Limits::standard();
-    let items = settings_form::file::proposal_items(bytes, &limits);
-    proposal_items(name.completion, name.position, against, reason, items, configured)
+    let mut identities = List::with_capacity(u32::try_from(repositories.len()).expect("bounded repositories"));
+    for repository in repositories {
+        identities
+            .push(settings_form::file::Repository {
+                host: &repository.host,
+                owner: &repository.owner,
+                name: &repository.name,
+            })
+            .expect("one resolver per repository");
+    }
+    let items = settings_form::file::proposal_items_in(bytes, &limits, Some(identities.as_slice()));
+    proposal_items(name.completion, name.position, against, reason, items, configured, more)
 }
 
 /// Decode an authorized, revision-checked note's whole settings file through
@@ -143,7 +161,7 @@ pub fn settings_note(call: engine::Call, bytes: &[u8], configured: &[s::Catalogu
         return Err(Problem::Range(b"note"));
     };
     let items = settings_form::file::decode(bytes, &settings_form::Limits::standard());
-    proposal_items(call.completion, call.position, against, reason, items, configured)
+    proposal_items(call.completion, call.position, against, reason, items, configured, false)
 }
 
 fn proposal_items(
@@ -153,6 +171,7 @@ fn proposal_items(
     reason: Box<[u8]>,
     items: Result<List<c::SettingItem>, Box<[u8]>>,
     configured: &[s::CatalogueModel],
+    more: bool,
 ) -> Result<Decoded, Problem> {
     let limits = settings_form::Limits::standard();
     let items = match items {
@@ -177,7 +196,7 @@ fn proposal_items(
     Ok(Decoded::Call(engine::Call {
         completion,
         position,
-        tool: engine::Tool::ProposeSettings { against, items, reason, kinds },
+        tool: engine::Tool::ProposeSettings { against, items, reason, kinds, more },
     }))
 }
 
@@ -328,6 +347,37 @@ fn settings_page(
     offer: &[engine::OfferedModel],
     maximum: u32,
 ) -> Result<run::HostAnswer, &'static [u8]> {
+    match settings_whole(answer, requested, models, application, repositories, people, forge_people, offer) {
+        Ok(text) => match settings_form::page::page_bounded(&text, from, maximum) {
+            Ok(body) => {
+                let error = match answer {
+                    SettingsAnswer::Unknown => true,
+                    SettingsAnswer::Inventory(_)
+                    | SettingsAnswer::Setting(_)
+                    | SettingsAnswer::Revision(_)
+                    | SettingsAnswer::Revisions(_) => false,
+                };
+                Ok(run::HostAnswer::new(body, error).expect("settings page bound"))
+            }
+            Err(settings_form::page::Error::Offset) => Err(b"from: not a UTF-8 text offset"),
+            Err(settings_form::page::Error::TooLarge) => Err(b"settings: host answer limit cannot hold a page"),
+        },
+        Err(message) => Err(message),
+    }
+}
+
+/// The whole settings text, including an inventory's read context, before its page.
+#[expect(clippy::too_many_arguments, reason = "inventory context travels beside the settings read")]
+pub(crate) fn settings_whole(
+    answer: &SettingsAnswer,
+    requested: Option<u64>,
+    models: &[s::CatalogueModel],
+    application: Option<&temper_engine_domain_forge::settings::SizedValue>,
+    repositories: &[engine::RepositoryIdentity],
+    people: &[engine::ProjectPerson],
+    forge_people: &[engine::ForgePerson],
+    offer: &[engine::OfferedModel],
+) -> Result<Box<[u8]>, &'static [u8]> {
     let enriched;
     let answer = if let (SettingsAnswer::Setting(document), Some(value)) = (answer, application) {
         let mut document = document.clone();
@@ -338,26 +388,7 @@ fn settings_page(
         answer
     };
     match settings_text(answer, requested, models) {
-        Ok(text) => {
-            match settings_form::page::page_bounded(
-                &repository_text(answer, text, repositories, people, forge_people, offer),
-                from,
-                maximum,
-            ) {
-                Ok(body) => {
-                    let error = match answer {
-                        SettingsAnswer::Unknown => true,
-                        SettingsAnswer::Inventory(_)
-                        | SettingsAnswer::Setting(_)
-                        | SettingsAnswer::Revision(_)
-                        | SettingsAnswer::Revisions(_) => false,
-                    };
-                    Ok(run::HostAnswer::new(body, error).expect("settings page bound"))
-                }
-                Err(settings_form::page::Error::Offset) => Err(b"from: not a UTF-8 text offset"),
-                Err(settings_form::page::Error::TooLarge) => Err(b"settings: host answer limit cannot hold a page"),
-            }
-        }
+        Ok(text) => Ok(repository_text(answer, text, repositories, people, forge_people, offer)),
         Err(_) => Err(b"settings: document limit"),
     }
 }
@@ -607,6 +638,80 @@ fn malformed_setting(
             None => None,
         },
     }
+}
+
+/// Render unrecorded parts in the contract's words (domain/agent.md, 8.4.2).
+pub(crate) fn parts(text: &mut crate::answers::Text, parts: &engine::PartsAnswer) -> Result<bool, Problem> {
+    use engine::PartsAnswer as P;
+    text.add(b"propose_settings: ")?;
+    match parts {
+        P::Holding { count, total, against, dropped } => {
+            text.add(b"holding ")?;
+            part_items(text, *count)?;
+            text.add(b" for revision ")?;
+            text.number(u64::from(*against))?;
+            text.add(b", ")?;
+            text.number(u64::from(*total))?;
+            text.add(b" in all; ")?;
+            match dropped {
+                Some((count, revision)) => {
+                    text.add(b"the ")?;
+                    text.number(u64::from(*count))?;
+                    text.add(b" held for revision ")?;
+                    text.number(u64::from(*revision))?;
+                    text.add(b" were dropped. Nothing is proposed until a call without more.")?;
+                }
+                None => text.add(b"nothing is proposed until a call without more.")?,
+            }
+            return Ok(false);
+        }
+        P::Held { setting } => {
+            let setting = match setting {
+                s::Setting::Charter(number) => c::Setting::Charter(c::SettingNumber { number: *number }),
+                s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
+                s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
+                s::Setting::Model(number) => c::Setting::Model(c::SettingNumber { number: *number }),
+                s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
+                s::Setting::Rules => c::Setting::Rules,
+                s::Setting::Application { kind, scope, number } => c::Setting::Application { kind: *kind, scope: *scope, number: *number },
+            };
+            let mut measure = settings_form::Text::measure();
+            settings_form::render::setting_text(setting, &mut measure);
+            let mut out = settings_form::Text::writing_exact(measure);
+            settings_form::render::setting_text(setting, &mut out);
+            text.add(&out.finish())?;
+            text.add(b" is held already, from an earlier part; nothing was added.")?;
+        }
+        P::PastBound { most, would } => {
+            text.add(b"a proposal holds at most ")?;
+            part_items(text, *most)?;
+            text.add(b", and this call would make ")?;
+            text.number(u64::from(*would))?;
+            text.add(b"; nothing was added.")?;
+        }
+        P::Revision { held, against, named } => {
+            text.add(b"the ")?;
+            part_items(text, *held)?;
+            text.add(b" held are for revision ")?;
+            text.number(u64::from(*against))?;
+            text.add(b", and this call names ")?;
+            text.number(u64::from(*named))?;
+            text.add(b"; nothing was proposed, and they were dropped. Give the whole set again against ")?;
+            text.number(u64::from(*named))?;
+            text.add(b".")?;
+        }
+        P::Restarted => text.add(b"temper restarted during this run, so parts it gave may be lost; nothing was proposed. Give the whole set again, in parts if it is large.")?,
+        P::NotOffered => text.add(b"more is not offered to this charter; give the whole set in one call, or from a note.")?,
+        P::Approvals { why } => {
+            text.add(b"not proposed, as acceptance would refuse it: ")?;
+            text.add(why)?;
+        }
+    }
+    Ok(true)
+}
+fn part_items(text: &mut crate::answers::Text, count: u32) -> Result<(), Problem> {
+    text.number(u64::from(count))?;
+    text.add(if count == 1 { b" item" } else { b" items" })
 }
 
 #[cfg(test)]

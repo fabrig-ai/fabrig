@@ -13,7 +13,6 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::length::len_u64;
-use std::fmt::Write as _;
 use support::*;
 
 fn project_proposals_configuration() -> (root::Config, root::Limits) {
@@ -1043,46 +1042,6 @@ fn a_replaced_proposal_stays_gone_after_a_restart() {
     world.close();
 }
 
-fn run_propose(world: &mut World, against: u32, items: Box<[settings::Item]>) -> core::CallPart {
-    run_propose_reason(world, against, items, "Please review these settings")
-}
-fn run_propose_reason(world: &mut World, against: u32, items: Box<[settings::Item]>, reason: &str) -> core::CallPart {
-    let (config, mut limits) = run_configuration();
-    // The fake transport carries names up to its schema ceiling; admission is the core's.
-    limits.core.authority.segments = jig_protocol_store::settings_v1::CEILINGS.document_name;
-    limits.core.authority.segment_bytes = jig_protocol_store::settings_v1::CEILINGS.segment_bytes;
-    let models = settings::model_names(&config.core.settings.models);
-    let bytes = jig_protocol_store::codec::settings::encode(
-        &settings::Record::Proposal {
-            proposer: people::Proposer::Task(1),
-            proposal: 1,
-            value: settings::Proposal { key: None, applications: Box::default(), against, items },
-        },
-        &jig_protocol_store::codec::settings::limits(&limits.core).expect("settings codec limits"),
-        &models,
-    )
-    .expect("encoded whole settings set");
-    let mut encoded = String::new();
-    for byte in &bytes {
-        write!(&mut encoded, "{byte:02x}").expect("hex string");
-    }
-    let input = format!("{{\"against\":{against},\"set\":\"{encoded}\",\"reason\":\"{reason}\"}}");
-    world.tool_call(b"propose_settings", input.as_bytes(), true);
-    world
-        .answers
-        .last()
-        .unwrap_or_else(|| {
-            panic!(
-                "typed tool answer; input bytes {}; host answers {:?}; host calls {:?}; busy {:?}",
-                input.len(),
-                world.host_answers,
-                world.host_calls,
-                world.busy_calls
-            )
-        })
-        .2
-        .clone()
-}
 fn run_proposed(part: &core::CallPart) -> u64 {
     let core::CallPart::Proposed { proposal, holder } = part else { panic!("proposed: {part:?}") };
     assert_eq!(

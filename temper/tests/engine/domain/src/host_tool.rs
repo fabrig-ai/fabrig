@@ -71,7 +71,7 @@ fn render(driver: &mut Driver, to: ReplyTo, body: engine::Call, name: &[u8], too
         if !driver.protocol.pending_renders.is_empty()
             || driver.delivered.iter().any(|delivery| {
                 matches!(delivery,
-                    Delivery::Host(value) if matches!(value.as_ref(), engine::HostDelivery::Settings { .. })
+                    Delivery::Host(value) if matches!(value.as_ref(), engine::HostDelivery::Settings { .. } | engine::HostDelivery::See { .. })
                 )
             })
         {
@@ -146,12 +146,13 @@ fn decode(
     let engine::HostRequest::Decode { to, call, .. } = *request else { panic!("decode") };
     assert_eq!(call.name.as_ref(), name);
     let input = smith_domain_run::HostInput::attested(call.input).expect("host input");
-    let decoded = temper_engine_smith::call_configured(
+    let decoded = temper_engine_smith::call_in(
         smith_domain_run::CallName { activation: run.attempt, completion, position: 0 },
         &call.tool,
         &input,
         driver.root.models(),
         &driver.root.catalogue(),
+        &driver.root.repository_identities(run.task),
     )
     .expect("valid host call");
     (to, decoded)
@@ -161,7 +162,7 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
     let mut settings_delivery = None;
     for (index, delivery) in driver.delivered.iter().enumerate() {
         if let Delivery::Host(delivery) = delivery
-            && matches!(delivery.as_ref(), engine::HostDelivery::Settings { .. })
+            && matches!(delivery.as_ref(), engine::HostDelivery::Settings { .. } | engine::HostDelivery::See { .. })
         {
             settings_delivery = Some(index);
             break;
@@ -169,6 +170,18 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
     }
     if let Some(index) = settings_delivery {
         let Delivery::Host(delivery) = driver.delivered.remove(index) else { panic!("settings delivery") };
+        if let engine::HostDelivery::See { to, line, from, answer } = *delivery {
+            return Some((
+                to,
+                temper_engine_smith::see_answer(
+                    &line,
+                    from,
+                    &answer,
+                    &driver.root.catalogue(),
+                    driver.env.limits.call_answer_bytes.saturating_sub(3),
+                ),
+            ));
+        }
         let engine::HostDelivery::Settings {
             to,
             answer,

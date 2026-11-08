@@ -18,6 +18,7 @@ pub(super) const SETTINGS: &[u8] =
 enum Step {
     Runs,
     Run,
+    Work,
     Instructions,
     Mcp,
     Settings,
@@ -25,17 +26,20 @@ enum Step {
     RemoveMcp,
     RemoveInstructions,
     CloseRun,
+    RemoveWork,
     RemoveRun,
     CloseRuns,
     CloseRoot,
 }
 
+#[expect(clippy::struct_excessive_bools, reason = "each created target is owned until its removal completes")]
 pub(super) struct Files {
     runs: Option<Token>,
     runs_descriptor: Option<kernel::Fd>,
     run_descriptor: Option<kernel::Fd>,
     run: Option<Token>,
     pending: Option<Step>,
+    work: bool,
     instructions: bool,
     mcp: bool,
     remove_run: bool,
@@ -52,6 +56,7 @@ impl Files {
             run_descriptor: None,
             run: None,
             pending: None,
+            work: false,
             instructions: false,
             mcp: false,
             remove_run: false,
@@ -78,32 +83,25 @@ impl Files {
                     self.remove_run = true;
                     true
                 }
-                Step::Instructions
+                Step::Work
+                | Step::Instructions
                 | Step::Mcp
                 | Step::Settings
                 | Step::RemoveResidue
                 | Step::RemoveMcp
                 | Step::RemoveInstructions
                 | Step::CloseRun
+                | Step::RemoveWork
                 | Step::RemoveRun
                 | Step::CloseRuns
                 | Step::CloseRoot => false,
             },
+            file::Event::Made { .. } if step == Step::Work => {
+                self.work = true;
+                true
+            }
             file::Event::Stored { .. } => {
-                match step {
-                    Step::Instructions => self.instructions = true,
-                    Step::Mcp => self.mcp = true,
-                    Step::Runs
-                    | Step::Run
-                    | Step::Settings
-                    | Step::RemoveResidue
-                    | Step::RemoveMcp
-                    | Step::RemoveInstructions
-                    | Step::CloseRun
-                    | Step::RemoveRun
-                    | Step::CloseRuns
-                    | Step::CloseRoot => {}
-                }
+                self.stored(step);
                 true
             }
             file::Event::Removed { .. } | file::Event::Closed { .. } => {
@@ -120,9 +118,14 @@ impl Files {
                 }
                 if error == kernel::Error::NotFound
                     && match step {
-                        Step::RemoveResidue | Step::RemoveMcp | Step::RemoveInstructions | Step::RemoveRun => true,
+                        Step::RemoveResidue
+                        | Step::RemoveMcp
+                        | Step::RemoveInstructions
+                        | Step::RemoveWork
+                        | Step::RemoveRun => true,
                         Step::Runs
                         | Step::Run
+                        | Step::Work
                         | Step::Instructions
                         | Step::Mcp
                         | Step::Settings
@@ -161,11 +164,13 @@ impl Files {
             Step::Mcp => self.mcp = true,
             Step::Runs
             | Step::Run
+            | Step::Work
             | Step::Settings
             | Step::RemoveResidue
             | Step::RemoveMcp
             | Step::RemoveInstructions
             | Step::CloseRun
+            | Step::RemoveWork
             | Step::RemoveRun
             | Step::CloseRuns
             | Step::CloseRoot => {}
@@ -177,9 +182,11 @@ impl Files {
             Step::RemoveMcp => self.mcp = false,
             Step::RemoveInstructions => self.instructions = false,
             Step::CloseRun => self.run = None,
+            Step::RemoveWork => self.work = false,
             Step::RemoveRun => self.remove_run = false,
             Step::CloseRuns => self.runs = None,
-            Step::Runs | Step::Run | Step::Instructions | Step::Mcp | Step::Settings | Step::CloseRoot => {}
+            Step::Runs | Step::Run | Step::Work | Step::Instructions | Step::Mcp | Step::Settings | Step::CloseRoot => {
+            }
         }
     }
 }
@@ -344,7 +351,18 @@ impl Backend {
                 env.now,
                 below,
             ),
-            Step::Run => self.prepare_invocation(env, up, below),
+            Step::Run if self.settings.workspace.is_none() => self.file(
+                Step::Work,
+                file::Request::MakeDirectory {
+                    owner: self.token(Owner::Files),
+                    root: self.files.run.expect("private run root"),
+                    path: b"work".as_slice().into(),
+                    mode: 0o700,
+                },
+                env.now,
+                below,
+            ),
+            Step::Run | Step::Work => self.prepare_invocation(env, up, below),
             Step::Instructions if self.compaction() => self.launch(env, up, below),
             Step::Instructions => {
                 let bytes = self.mcp_configuration();
@@ -386,6 +404,7 @@ impl Backend {
             | Step::RemoveMcp
             | Step::RemoveInstructions
             | Step::CloseRun
+            | Step::RemoveWork
             | Step::RemoveRun
             | Step::CloseRuns
             | Step::CloseRoot => {}
@@ -449,6 +468,18 @@ impl Backend {
                     root: self.files.run_descriptor.expect("opened run descriptor"),
                     name: b"instructions.md".as_slice().into(),
                     directory: false,
+                },
+                now,
+                below,
+            );
+        } else if self.files.work {
+            self.file(
+                Step::RemoveWork,
+                file::Request::Remove {
+                    owner: self.token(Owner::Files),
+                    root: self.files.run_descriptor.expect("opened run descriptor"),
+                    name: b"work".as_slice().into(),
+                    directory: true,
                 },
                 now,
                 below,

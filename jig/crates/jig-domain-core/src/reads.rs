@@ -30,7 +30,7 @@ mod vocabulary;
 pub(crate) mod watches;
 
 pub use rows::row_key;
-pub use settings::{SettingsAnswer, SettingsRead};
+pub use settings::{ProposalRead, SettingsAnswer, SettingsRead};
 pub use vocabulary::{
     Answer, Cursor, Ended, EndedGroup, EndedValue, Filter, Group, Loaded, Page, PageRow, PageTurn, Position, Range,
     Read, RevisionAnswer, RevisionEdit, RevisionItemHead, RevisionRow, RevisionsPage, Row, Scope, SettingDocument,
@@ -134,6 +134,7 @@ enum Destination {
     Erase,
     Restore,
     Settings { to: ReplyTo, key: crate::CallKey },
+    Proposal { to: ReplyTo, key: crate::CallKey },
     RunTask { to: ReplyTo, key: crate::CallKey, read: run_task::Read },
     Done,
 }
@@ -146,6 +147,7 @@ impl Pending {
             | Destination::Erase
             | Destination::Watch(_)
             | Destination::RunTask { .. }
+            | Destination::Proposal { .. }
             | Destination::Settings { .. }
             | Destination::Done => {
                 unreachable!("a pending read owns its reply")
@@ -645,6 +647,7 @@ pub(crate) fn loaded(
     };
     match &pending.destination {
         Destination::Watch(watcher) => return watch_loaded(core, env, name, *watcher, result),
+        Destination::Proposal { .. } => return settings::proposal_loaded(core, env, name, result),
         Destination::Settings { .. } => return settings::run_loaded(core, env, name, result),
         Destination::RevisionMetadata { .. } => return settings::metadata_loaded(core, env, name, result),
         Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
@@ -730,16 +733,18 @@ fn task_live(
 pub fn answer_bound(limits: &Limits, kinds: &[crate::settings::Kind]) -> Option<u64> {
     let document = documents::document_with_context_bound(limits, kinds)?;
     // Run settings answers own the same documents, in an inline sum carrier.
-    u64::try_from(size_of::<Answer>().max(size_of::<SettingsAnswer>())).ok()?.checked_add(
-        document
-            .checked_mul(u64::from(limits.documents.rows).checked_add(3)?)?
-            .checked_add(limits.load_bytes.checked_mul(2)?)?
-            .checked_add(List::<PageRow>::price(limits.documents.rows)?)?
-            .checked_add(u64::try_from(size_of::<Page>()).ok()?)?
-            .checked_add(query_bound(limits)?)?
-            .checked_add(run_task::answer_bound(limits)?)?
-            .checked_add(settings::load_bytes(limits, limits.documents.rows)?.checked_mul(2)?)?,
-    )
+    u64::try_from(size_of::<Answer>().max(size_of::<SettingsAnswer>()).max(size_of::<ProposalRead>()))
+        .ok()?
+        .checked_add(
+            document
+                .checked_mul(u64::from(limits.documents.rows).checked_add(3)?)?
+                .checked_add(limits.load_bytes.checked_mul(2)?)?
+                .checked_add(List::<PageRow>::price(limits.documents.rows)?)?
+                .checked_add(u64::try_from(size_of::<Page>()).ok()?)?
+                .checked_add(query_bound(limits)?)?
+                .checked_add(run_task::answer_bound(limits)?)?
+                .checked_add(settings::load_bytes(limits, limits.documents.rows)?.checked_mul(2)?)?,
+        )
 }
 
 // Resource pattern segments and literal bytes, plus one description query.

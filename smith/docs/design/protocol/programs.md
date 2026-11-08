@@ -184,7 +184,7 @@ open is section 9.
 
 | smith's run | Claude Code |
 |---|---|
-| the charter's instructions and brief | `--append-system-prompt-file`, keeping Claude Code's own prompt |
+| the charter's instructions and brief | `--append-system-prompt-file`, keeping Claude Code's own prompt; for a run with no workspace, `--system-prompt-file`, in its place (below) |
 | the main LLM's model and effort | `--model`, `--effort` |
 | host tools, `finish`, `deliver` and `wait` | the agent's own MCP server (5.3), given with `--mcp-config` and `--strict-mcp-config` |
 | the result contract | `--json-schema`, the outcome read from `structured_output` when no `finish` was accepted (5.5) |
@@ -204,7 +204,23 @@ open is section 9.
   prompt into a denial, nor `bypassPermissions`.
 - **Where it runs:** in main's working directory, the start's first
   directory (domain/tools.md, section 2), with the run's environment
-  (agent.md, section 4) as 4.2 changes it.
+  (agent.md, section 4) as 4.2 changes it; a run with no workspace in a
+  directory of its own (below).
+- **A run with no workspace replaces Claude Code's prompt:**
+  `--system-prompt-file` in place of `--append-system-prompt-file`,
+  `--tools ""` whatever its charter grants (5.3), and
+  `--disable-slash-commands`, in `work`, an empty private directory
+  beside the run's own files below, made with them and removed with
+  them, which is no repository. So the program's own prompt, its file
+  tools' text, a git status and its commands are absent from what it
+  sends: seen on 2.1.312 with no MCP server, a billing line, its SDK's
+  line ("You are a Claude agent, built on Anthropic's Claude Agent
+  SDK.") and a message of about 0.9 KB naming the directory, the
+  platform, the model and the date. A subscription's login takes such a
+  request (checked 2026-11-07, 2.1.312). Its summary session (5.8)
+  starts as its run does, and a resume keeps the run's arguments. A run
+  with a workspace keeps Claude Code's prompt, as above (the user,
+  2026-11-07).
 - **The run's own files for the program,** its instructions, its MCP
   configuration and its outcome's schema, are private files (skein's
   `io.md`, 5.3) in a directory of the run's own outside its workspace,
@@ -242,7 +258,9 @@ open is section 9.
 
   `--tools` names exactly these for the run's granted families, so the
   program's other built-in tools, its sub-agents, web access and task
-  lists among them, are absent. A run with a result contract, which
+  lists among them, are absent. A run with no workspace names none,
+  `--tools ""`, whatever its families, since it has nothing to read,
+  write or run a shell in (5.1). A run with a result contract, which
   asks `--json-schema`, also has the program's `StructuredOutput`: the
   program lists it and the model calls it to give its outcome, which
   comes back as the turn's `structured_output` (5.5); its call is the
@@ -711,11 +729,18 @@ conditions. smith keeps each as a rule of its own:
     expects, and acts on the answer, and calls `finish`, host tools and
     `wait` as the story's model does;
   - SIGINT ending a turn, and SIGTERM exiting 143;
-  - observations: its arguments, its environment's names (never a
+  - `--system-prompt-file` in place of `--append-system-prompt-file`,
+    and `--disable-slash-commands`, each a flag it takes and records;
+  - observations: its arguments, its working directory and whether it
+    held anything at the start, its environment's names (never a
     value), the settings it found, and each prompt and its answer.
 - **Its stories:**
   - a run that finishes through `finish`, and one through
     `structured_output`;
+  - a run with no workspace: its prompt replaced, `--tools ""` and
+    `--disable-slash-commands` among its arguments, in an empty working
+    directory that is no repository, and its summary session started
+    alike; a run with a workspace, its prompt appended, as a row beside it;
   - a built-in call allowed, and one denied for a path outside the
     workspace;
   - a built-in tool not granted, listed by `system/init`, failing the
@@ -764,6 +789,12 @@ note is the child's next user message, so its scripted answer belongs to
 the next turn of that same cued script (decided 2026-11-02).
 
 ## 9. Open questions
+
+- **Claude Code's own request with MCP attached** (5.1): record its overhead
+  once with smith's server, including tool search's placeholder and prefixed
+  tool names. The 2.1.312 subscription check establishes prompt replacement;
+  its about 1.1 KB figure was measured without MCP. The application's request bound
+  excludes this program-owned part.
 
 - **Anthropic's terms for a product:** whether a product that runs the
   person's own Claude Code falls under the allowance for a person's own

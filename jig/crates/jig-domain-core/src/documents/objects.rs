@@ -533,10 +533,35 @@ pub(super) fn proposal(
     number: u64,
     decision: Wall,
 ) -> Result<Proposal, Missing> {
+    proposal_for(core, limits, Some(party), proposer, number, decision)
+}
+
+pub(crate) fn run_proposal(
+    core: &Core,
+    limits: &Limits,
+    proposer: Proposer,
+    number: u64,
+    decision: Wall,
+) -> Result<Proposal, Missing> {
+    proposal_for(core, limits, None, proposer, number, decision)
+}
+
+#[expect(clippy::too_many_lines, reason = "one live builder keeps party and run proposal documents identical")]
+fn proposal_for(
+    core: &Core,
+    limits: &Limits,
+    party: Option<u64>,
+    proposer: Proposer,
+    number: u64,
+    decision: Wall,
+) -> Result<Proposal, Missing> {
     let (project, reason, mut made, as_holder, waiting) = match proposer {
         Proposer::Task(task) => {
             let row = core.tasks.task(task).ok_or(Missing::Ended)?;
             let value = row.proposal.as_ref().ok_or(Missing::Ended)?;
+            if party.is_none() && value.number != number {
+                return Err(Missing::Ended);
+            }
             let made = reviewed_task_action(core, limits, party, task, value)?;
             if value.number != number {
                 return Err(Missing::Ended);
@@ -551,7 +576,10 @@ pub(super) fn proposal(
         }
         Proposer::Party(person) => {
             let value = core.tasks.person_proposal(person, number).ok_or(Missing::Ended)?;
-            if !party_proposal_visible(core, party, person, value.project) {
+            if match party {
+                Some(party) => !party_proposal_visible(core, party, person, value.project),
+                None => !value.action.is_settings(),
+            } {
                 return Err(Missing::NotAllowed);
             }
             let since = match value.state {
@@ -563,7 +591,7 @@ pub(super) fn proposal(
                     return Err(Missing::Ended);
                 }
             };
-            let (action, kind) = reviewed_party_action(core, limits, party, &value)?;
+            let (action, kind) = reviewed_party_action(core, limits, party.unwrap_or(0), &value)?;
             (
                 value.project,
                 proposal_reason(&value.reason, &action, limits),
@@ -574,7 +602,7 @@ pub(super) fn proposal(
         }
     };
     let mut offers = List::with_capacity(limits.documents.lines);
-    let source = holder_source(core, party, project, waiting.holder);
+    let source = holder_source(core, party.unwrap_or(0), project, waiting.holder);
     let widening = match &mut made {
         ProposalAction::Batch(batch) => {
             let mut needed = 0_u64;
@@ -619,7 +647,12 @@ pub(super) fn proposal(
     };
     Ok(Proposal {
         projects,
-        acts: super::offers::subject(core, limits, party, &super::Subject::Proposal { proposer, number }, decision)?,
+        acts: match party {
+            Some(party) => {
+                super::offers::subject(core, limits, party, &super::Subject::Proposal { proposer, number }, decision)?
+            }
+            None => List::with_capacity(0),
+        },
         proposer,
         number,
         project,
@@ -1034,18 +1067,29 @@ fn history_action(limits: &Limits, value: &tasks::Proposal) -> Result<RetainedAc
 fn reviewed_task_action(
     core: &Core,
     limits: &Limits,
-    party: u64,
+    party: Option<u64>,
     task: u64,
     value: &tasks::Proposal,
 ) -> Result<ProposalAction, Missing> {
-    if let tasks::ProposalAction::Settings { .. } = value.action {
-        if core.people.role(party, jig_domain_people::DEPLOYMENT) != Some(jig_domain_people::Role::Owner) {
-            return Err(Missing::NotAllowed);
+    match value.action {
+        tasks::ProposalAction::Settings { .. } => {
+            if let Some(party) = party
+                && core.people.role(party, jig_domain_people::DEPLOYMENT) != Some(jig_domain_people::Role::Owner)
+            {
+                return Err(Missing::NotAllowed);
+            }
         }
-    } else {
-        super::small::visible(core, party, task)?;
+        tasks::ProposalAction::Batch(_)
+        | tasks::ProposalAction::Effect { .. }
+        | tasks::ProposalAction::ProcedureEffect { .. }
+        | tasks::ProposalAction::Amend { .. }
+        | tasks::ProposalAction::Widen { .. }
+        | tasks::ProposalAction::Release { .. }
+        | tasks::ProposalAction::ReleasePlaced { .. } => {
+            super::small::visible(core, party.ok_or(Missing::NotAllowed)?, task)?;
+        }
     }
-    let mut made = action(core, limits, party, value.number, &value.action)?;
+    let mut made = action(core, limits, party.unwrap_or(0), value.number, &value.action)?;
     if let ProposalAction::Settings { review, .. } = &mut made {
         *review = super::settings_review::review(core, limits, Proposer::Task(task), value.number);
     }

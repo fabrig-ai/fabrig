@@ -9,7 +9,7 @@ pub use kinds::kinds;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{
-    Charter, ConfiguredPolicy, Model, RunPolicy, Template,
+    Charter, ConfiguredPolicy, Model, RunPolicy, Template, ToolFamilies,
     settings::{CatalogueModel, Defaults, ModelSource, Setting},
 };
 use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
@@ -217,13 +217,15 @@ pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 /// Control (a goal's `change` names its plan's members; temper/docs/design/domain/agent.md, 4.3.1),
 /// Note and Recall (a chat keeps its document, a goal writes its report; temper/docs/design/domain/agent.md, 8.3),
 /// Read (the forge's reads), and Settings (the configuring chat reads settings and
-/// proposes), jig's families (jig's `domain/authority.md`);
+/// proposes), and Ask (Ask temper reads by address), jig's families (jig's `domain/authority.md`);
 /// protocol/configuration.md, 13.4.
-const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024);
+const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
 
 const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
 const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
 const CONFIGURING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1920);
+const ASK_TOOLS: jig_domain_tasks::Tools =
+    jig_domain_tasks::Tools(ToolFamilies::JIG.ask.0 | ToolFamilies::JIG.settings);
 const REVIEWING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const FOREMAN_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const STATUS_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
@@ -354,6 +356,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
         foreman(&models),
         status(&models),
         trial(&models),
+        ask_charter(&models),
     ]);
     // jig prices the costliest completion; one reserve turn plus one is 2C.
     let mut completion = 0;
@@ -373,7 +376,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
     for charter in charters.iter_mut() {
         charter.spend = run;
     }
-    let templates = Box::new([chat(result_bytes), goal(result_bytes), configuring(result_bytes)]);
+    let templates = Box::new([chat(result_bytes), goal(result_bytes), configuring(result_bytes), ask(result_bytes)]);
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
@@ -520,6 +523,7 @@ fn charter(
                 6 => FOREMAN_TOOLS,
                 9 => STATUS_TOOLS,
                 10 => TRIAL_TOOLS,
+                11 => ASK_TOOLS,
                 _ => unreachable!("stock charter number"),
             },
         },
@@ -529,6 +533,15 @@ fn configuring_charter(models: &[CatalogueModel]) -> Charter {
     let mut value =
         charter(3, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/configuring.txt"), models, CONFIGURING_FIRST_CHOICES);
     value.policy.modify = false;
+    value.policy.agents = false;
+    value
+}
+fn ask_charter(models: &[CatalogueModel]) -> Charter {
+    let mut value =
+        charter(11, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/ask.txt"), models, CONFIGURING_FIRST_CHOICES);
+    value.policy.inspect = false;
+    value.policy.modify = false;
+    value.policy.shell = false;
     value.policy.agents = false;
     value
 }
@@ -589,6 +602,7 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Charter(4),
                 authority::Executor::Charter(6),
                 authority::Executor::Charter(9),
+                authority::Executor::Charter(11),
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
@@ -628,6 +642,9 @@ fn configuring(result_bytes: u32) -> Template {
         executor: TemplateExecutor::Charter(3),
         ..chat(result_bytes)
     }
+}
+fn ask(result_bytes: u32) -> Template {
+    Template { number: 5, name: bytes::copy_of(b"ask"), executor: TemplateExecutor::Charter(11), ..chat(result_bytes) }
 }
 fn goal(result_bytes: u32) -> Template {
     Template {

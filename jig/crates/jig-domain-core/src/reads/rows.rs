@@ -6,7 +6,7 @@ use crate::{
     documents::{self, Document, Missing, Proposer},
     reads::{
         Answer, Cursor, Ended, EndedValue, Filter, Group, Page, PageRow, Position, Range, Read, Row, Scope, Why,
-        vocabulary::{row_bytes, row_owner, row_visible},
+        vocabulary::{read_row_visible, row_bytes, row_owner},
     },
 };
 use alloc::boxed::Box;
@@ -416,8 +416,20 @@ pub(super) fn from_store(
         | Scope::Inbox { .. }
         | Scope::Notes { .. }
         | Scope::ScopedNotes { .. }
-        | Scope::Spend { .. } => owner_rows(core, limits, range, raw, next, wall),
+        | Scope::Spend { .. } => owner_rows(core, limits, range, raw, next, wall, None),
     }
+}
+
+pub(super) fn proposal_from_store(
+    core: &Core,
+    limits: &Limits,
+    range: &Range,
+    raw: Box<[Row]>,
+    next: Option<Position>,
+    wall: skein_lib::Wall,
+    project: u32,
+) -> Answer {
+    owner_rows(core, limits, range, raw, next, wall, Some(project))
 }
 
 fn owner_rows(
@@ -427,6 +439,7 @@ fn owner_rows(
     raw: Box<[Row]>,
     next: Option<Position>,
     wall: skein_lib::Wall,
+    run_project: Option<u32>,
 ) -> Answer {
     if raw.len() > skein_lib::length::usize_of(range.rows) {
         return Answer::None(Why::Busy);
@@ -478,12 +491,7 @@ fn owner_rows(
         page.next = Some(Cursor::Store { scope: range.scope.clone(), after: Some(after) });
     }
     for row in raw {
-        if let Some(owner) = row_owner(&row)
-            && !core.open_project(owner.project)
-        {
-            continue;
-        }
-        if !row_visible(core, range.party, &row) {
+        if !read_row_visible(core, range.party, &row, run_project) {
             continue;
         }
         if is_page(&range.scope) {

@@ -183,6 +183,8 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             Tool::Decided(_)
             | Tool::Goal { .. }
             | Tool::ReadTask { .. }
+            | Tool::See { .. }
+            | Tool::Document { .. }
             | Tool::Settings { .. }
             | Tool::ProposeSettings { .. }
             | Tool::ProposeSettingsNote { .. }
@@ -220,6 +222,8 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
         Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
+        | Tool::See { .. }
+        | Tool::Document { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -265,6 +269,8 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
         Tool::Goal { agree, .. } => *agree,
         Tool::Decided(_)
         | Tool::ReadTask { .. }
+        | Tool::See { .. }
+        | Tool::Document { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -305,6 +311,7 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive tool-shape match keeps bounded admission together")]
 pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::Refusal> {
     match tool {
         Tool::Propose { action, reason, .. } => proposal_shape(action, reason, limits),
@@ -323,6 +330,8 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
+        | Tool::See { .. }
+        | Tool::Document { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -454,6 +463,7 @@ fn proposal_shape(action: &ProposedAction, reason: &[u8], limits: &tasks::Limits
 
 pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
     Some(match tool {
+        Tool::See { .. } | Tool::Document { .. } => jig_domain_core::ToolKind::Ask,
         Tool::Settings { .. } | Tool::ProposeSettings { .. } | Tool::ProposeSettingsNote { .. } => {
             jig_domain_core::ToolKind::Settings
         }
@@ -554,6 +564,8 @@ pub(crate) fn keep_connector_answer(
         | CallAnswer::DelegationRefused(_)
         | CallAnswer::NoteWritten { .. }
         | CallAnswer::NoteRecalled { .. }
+        | CallAnswer::Parts(_)
+        | CallAnswer::Document(_)
         | CallAnswer::NoteRefused(_)
         | CallAnswer::SettingsRefused(_)
         | CallAnswer::HoldOwner { .. }
@@ -568,8 +580,9 @@ pub(crate) fn keep_connector_answer(
 
 pub(crate) fn is_core_read(tool: &Tool) -> bool {
     match tool {
-        Tool::ReadTask { .. } | Tool::Settings { .. } => true,
-        Tool::ProposeSettings { .. }
+        Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => true,
+        Tool::Document { .. }
+        | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
         | Tool::Decided(_)
         | Tool::Goal { .. }

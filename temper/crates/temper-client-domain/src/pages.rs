@@ -27,7 +27,7 @@ pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
 #[must_use]
 pub fn chat_offers_draft(root: &crate::Domain, task: &jig_client::contract::Task) -> bool {
     let configuring = match root.pages.me(&root.client) {
-        Some(me) => chats::configuring(me, task.project, &task.chip.executor),
+        Some(me) => chats::asking(me, task.project, &task.chip.executor),
         None => false,
     };
     configuring || drafts_offered(root, task.project)
@@ -55,6 +55,13 @@ pub(crate) enum PlaygroundChoice {
     Idle,
     Waiting,
 }
+// A page reserves its rail reads until me offers Ask temper.
+#[derive(Clone, Copy, Debug)]
+enum RailHandles {
+    None,
+    Pending,
+    Reserved(u64),
+}
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent session and page-open flags")]
 #[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
@@ -74,6 +81,7 @@ pub struct Pages {
     pub home: Option<home::Home>,
     changes: Option<changes::Changes>,
     chats: Option<chats::Chats>,
+    rail_handles: RailHandles,
     goals: Option<goals::Goals>,
     has_goals: goals::HasGoals,
     start: Option<start_goal::StartGoal>,
@@ -312,6 +320,7 @@ impl Pages {
             home: None,
             changes: None,
             chats: None,
+            rail_handles: RailHandles::None,
             goals: None,
             has_goals: goals::HasGoals::new(),
             start: None,
@@ -626,6 +635,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Left => {
+            pages.rail_handles = RailHandles::None;
             pages.start = None;
             pages.switcher.close();
             if let Some(inbox) = pages.inbox.take() {
@@ -669,15 +679,15 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
         Event::Act { act: Act::Starter { words } } => {
-            if let Address::Configure { project } = pages.address {
+            if let Address::Ask { project } = pages.address {
                 let me = pages.me(client);
                 if let Some(chats) = &mut pages.chats {
-                    chats.configure_chat(env, me, Some(project), words, &pages.choice, &mut pages.serial, out);
+                    chats.ask_chat(env, me, Some(project), words, &pages.choice, &mut pages.serial, out);
                 }
             }
         }
         Event::Act { act: Act::ShowReference } => {
-            if let Address::Configure { .. } = pages.address
+            if let Address::Ask { .. } = pages.address
                 && let Some(chats) = &mut pages.chats
             {
                 chats.reference = Some(chat::document::Mode::Split);
@@ -881,7 +891,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Models { .. } => out.push(Request::Show { address: Address::Models { project } }),
                 Address::Builders { .. } => out.push(Request::Show { address: Address::Builders { project } }),
                 Address::Repositories { .. } => out.push(Request::Show { address: Address::Repositories { project } }),
-                Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
+                Address::Ask { .. } => out.push(Request::Show { address: Address::Ask { project } }),
                 Address::Inbox { .. }
                 | Address::Chats { .. }
                 | Address::NewChat { .. }
@@ -976,10 +986,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
-            | Address::Configure { .. }
+            | Address::Ask { .. }
             | Address::Adopt { .. } => true,
         };
     pages.needs.configure(showing, &env.limits, out);
+    prepare_rail_chats(pages, client);
     let me = pages.me(client);
     pages.has_goals.configure(me, pages.project, out);
     if let Address::Home { project } = pages.address
@@ -997,7 +1008,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
     }
     let project = conversation_project(pages);
-    if let Some(chats) = &mut pages.chats {
+    let chats_offered = !rail_chats(&pages.address)
+        || match (me, project) {
+            (Some(me), Some(project)) => jig_client::shapes::template(me, project, chats::ASKING_TEMPLATE).is_some(),
+            (Some(_), None) | (None, Some(_) | None) => false,
+        };
+    if let Some(chats) = &mut pages.chats
+        && chats_offered
+    {
         chats.configure(me, project, &env.limits, out);
         if let Address::Chats { .. } = pages.address
             && let Some(project) = project
@@ -1154,6 +1172,74 @@ fn conversation_project(pages: &Pages) -> Option<u32> {
     address_project(&pages.address).or(pages.project)
 }
 
+// The rail waits for Ask's offer and keeps the page's existing handles.
+fn prepare_rail_chats(pages: &mut Pages, client: &Client) {
+    let reserved = match pages.rail_handles {
+        RailHandles::None => return,
+        RailHandles::Pending => None,
+        RailHandles::Reserved(first) => Some(first),
+    };
+    if pages.chats.is_some() {
+        return;
+    }
+    let (Some(me), Some(project)) = (pages.me(client), conversation_project(pages)) else { return };
+    if jig_client::shapes::template(me, project, chats::ASKING_TEMPLATE).is_none() {
+        return;
+    }
+    let mut first = reserved.unwrap_or(pages.next);
+    if reserved.is_none() {
+        if let Some(chat) = &pages.chat {
+            first = first.max(chat.next);
+        }
+        if let Some(task) = &pages.task {
+            first = first.max(task.next);
+        }
+        if let Some(inbox) = &pages.inbox {
+            first = first.max(inbox.next);
+        }
+        if let Some(goals) = &pages.goals {
+            first = first.max(goals.report.number.checked_add(1).expect("goal handles fit"));
+        }
+    }
+    let next = first.checked_add(4).expect("rail chat handles fit");
+    if let Some(chat) = &mut pages.chat {
+        chat.next = chat.next.max(next);
+    }
+    if let Some(task) = &mut pages.task {
+        task.next = task.next.max(next);
+    }
+    if let Some(inbox) = &mut pages.inbox {
+        inbox.next = inbox.next.max(next);
+    }
+    pages.chats = Some(chats::Chats::new(first));
+    pages.next = pages.next.max(next);
+    pages.rail_handles = RailHandles::None;
+}
+
+fn rail_chats(address: &Address) -> bool {
+    match address {
+        Address::Home { .. }
+        | Address::Settings { .. }
+        | Address::Ask { .. }
+        | Address::NewChat { .. }
+        | Address::Chats { .. }
+        | Address::Welcome { .. } => false,
+        Address::Inbox { .. }
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Goals { .. }
+        | Address::Changes { .. }
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Repositories { .. }
+        | Address::Adopt { .. } => true,
+    }
+}
+
 fn contains(me: &Me, project: Option<u32>) -> bool {
     for row in &me.projects {
         if Some(row.project) == project {
@@ -1249,7 +1335,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Repositories { .. }
-            | Address::Configure { .. }
+            | Address::Ask { .. }
             | Address::Adopt { .. } => false,
         };
         let checking_ready = if let Some(page) = &pages.connect_model {
@@ -1293,6 +1379,12 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.next = pages.next.max(goals.leave(out));
         }
         leave_conversations(pages, out);
+        pages.rail_handles = if rail_chats(&address) { RailHandles::Pending } else { RailHandles::None };
+        if let Address::Changes { .. } = address {
+            // Changes owns a growing range; the rail reserves the preceding handles.
+            pages.rail_handles = RailHandles::Reserved(pages.next);
+            pages.next = pages.next.checked_add(4).expect("rail chat handles fit");
+        }
         if let Address::Goals { filter, .. } = address {
             let mut page = goals::Goals::new(pages.next);
             page.filter = filter;
@@ -1323,7 +1415,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
                 out,
             ));
         }
-        if let Address::Settings { .. } | Address::Configure { .. } | Address::NewChat { .. } = address {
+        if let Address::Settings { .. } | Address::Ask { .. } | Address::NewChat { .. } = address {
             pages.chats = Some(chats::Chats::new(pages.next));
         }
         if let Address::Chats { filter, .. } = address {
@@ -1362,7 +1454,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
-            | Address::Configure { .. }
+            | Address::Ask { .. }
             | Address::Adopt { .. } => None,
         };
         page.request.return_from(source);
@@ -1526,7 +1618,7 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
                 && seen_answered(outcome)
                 && let Some(task) = chat.task(client)
             {
-                out.push(Request::Show { address: Address::Configure { project: task.project } });
+                out.push(Request::Show { address: Address::Ask { project: task.project } });
             }
             chat.restarting = false;
         }
@@ -1685,7 +1777,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
                     let Some(document) = client.document(me_handle()) else { return };
                     let Some(me) = document.latest else { return };
                     let Latest::Jig(Delivery::Me(me)) = me else { return };
-                    if chat.draft.is_none() || !chats::configuring(me, task.project, &task.chip.executor) {
+                    if chat.draft.is_none() || !chats::asking(me, task.project, &task.chip.executor) {
                         return;
                     }
                 }
@@ -1824,7 +1916,7 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Models { project }
         | Address::Builders { project }
         | Address::Repositories { project }
-        | Address::Configure { project } => Some(*project),
+        | Address::Ask { project } => Some(*project),
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
@@ -2005,8 +2097,8 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
 fn start_chat(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
     let me = pages.me(client);
     if let Some(chats) = &mut pages.chats {
-        if let Address::Configure { project } = pages.address {
-            chats.configure_chat(env, me, Some(project), chats.words.clone(), &pages.choice, &mut pages.serial, out);
+        if let Address::Ask { project } = pages.address {
+            chats.ask_chat(env, me, Some(project), chats.words.clone(), &pages.choice, &mut pages.serial, out);
         } else {
             let draft = pages.address == (Address::NewChat { draft: true });
             chats.start(env, me, pages.project, &pages.choice, draft, &mut pages.serial, out);
@@ -2043,7 +2135,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
-        | Address::Configure { .. }
+        | Address::Ask { .. }
         | Address::Adopt { .. } => return,
     }
     page.request.return_from(None);

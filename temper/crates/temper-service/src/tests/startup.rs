@@ -430,7 +430,7 @@ fn the_standalone_example_reads_into_its_members() {
 fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
     let jig = fixtures::engine().jig;
     let labels: Box<[u32]> = jig.templates.iter().map(|template| template.label).collect();
-    assert_eq!(*labels, [1, 2, 1], "chat, goal and configuring templates, in order");
+    assert_eq!(*labels, [1, 2, 1, 1], "chat, goal, configuring and asking templates, in order");
     assert_eq!(jig.templates[0].number, 1);
     assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
     assert_eq!(jig.templates[1].flags.ended_by, jig_domain_tasks::EndedBy::Result);

@@ -123,21 +123,39 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
 #[test]
 fn start_goes_to_configure_and_go_on_to_the_open_chat() {
     let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let start = find(view.tree(), Role::Link, b"Start");
-        assert_eq!(crate::href(&mut view, start).as_deref(), Some(b"/projects/1/settings/configure".as_slice()));
-        assert_eq!(
-            crate::act(&mut view, start, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go { address: Address::Configure { project: f::PROJECT } }))
-        );
-        let row = styled(view.tree(), look::SETTINGS_SETTING);
-        assert!(row.iter().any(|n| n.name.as_deref() == Some(b"Configure temper")));
-        assert!(row.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL) && n.name.as_deref() == Some(b"Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept.")));
-        assert!(row.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_END)));
-        assert!(!main(view.tree()).iter().any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Sign out")));
-    }
     let template = f::chat::messaging_root();
-    f::deliver_me(&mut root, me_watch, f::configuring_me(template.pages().me(template.client()).unwrap().clone()));
+    let offered = f::configuring_me(template.pages().me(template.client()).unwrap().clone());
+    let mut absent = offered.clone();
+    let project = absent.projects.get_mut(0).unwrap();
+    project.templates =
+        List::from_boxed(project.templates.iter().filter(|template| template.number != 5).cloned().collect());
+    f::deliver_me(&mut root, me_watch, absent);
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Ask temper")));
+    }
+    f::deliver_me(&mut root, me_watch, offered);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let links: Vec<_> = view
+            .tree()
+            .nodes()
+            .iter()
+            .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Ask temper"))
+            .map(|n| n.id)
+            .collect();
+        assert!(!links.is_empty());
+        for start in links {
+            assert_eq!(crate::href(&mut view, start).as_deref(), Some(b"/projects/1/ask".as_slice()));
+            assert_eq!(
+                crate::act(&mut view, start, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: Address::Ask { project: f::PROJECT } }))
+            );
+        }
+        assert!(
+            !main(view.tree())
+                .iter()
+                .any(|n| n.name.as_deref() == Some(b"Configure temper") || n.name.as_deref() == Some(b"Ask temper"))
+        );
+    }
     drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
     let mut out =
         drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
@@ -171,14 +189,24 @@ fn start_goes_to_configure_and_go_on_to_the_open_chat() {
         },
     );
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let go = find(view.tree(), Role::Link, b"Go on");
-        assert_eq!(crate::href(&mut view, go), Some(d::address::print(&Address::Chat { task })));
-        assert_eq!(
-            crate::act(&mut view, go, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go { address: Address::Chat { task } }))
-        );
+        let links: Vec<_> = view
+            .tree()
+            .nodes()
+            .iter()
+            .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Ask temper"))
+            .map(|n| n.id)
+            .collect();
+        assert!(!links.is_empty());
+        for go in links {
+            assert_eq!(crate::href(&mut view, go), Some(d::address::print(&Address::Chat { task })));
+            assert_eq!(
+                crate::act(&mut view, go, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: Address::Chat { task } }))
+            );
+        }
     }
 }
+
 fn forge_rows() -> List<w::ForgeRow> {
     let mut rows = List::with_capacity(3);
     for (number, kind, mode, repos) in [
@@ -208,6 +236,7 @@ fn forge_rows() -> List<w::ForgeRow> {
     }
     rows
 }
+
 #[test]
 fn repositories_lists_the_projects_and_no_others() {
     let root = f::forge_root(repositories(), forge_rows());

@@ -1,6 +1,6 @@
 # Status
 
-2026-11-07. Where temper's code lags or departs from its design, and
+2026-11-08. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live first screen, with golden frames,
@@ -18,6 +18,9 @@ prints and pseudo-terminal/headless-browser generation are built, with
 `sign-in-approved`'s two frames committed (`client/tui/journeys.md`).
 The user's look at those frames and the terminal and web checks follow
 landing (`client/README.md`, section 11; `client/browser.md`, section 5).
+Sub-agent answers take smith's payload-derived room, 63,740 bytes on the
+reference and 10,662 on the stock, with guidance on cuts; continuation
+remains deferred (`protocol/configuration.md`, 13.8 and 11).
 The reference merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
@@ -41,7 +44,12 @@ follows landing (`domain/testing.md`, 2.7 and 11).
 The standard brief follows the declarations at 354,988 bytes;
 the larger requested brief remains undecided (`protocol/configuration.md`,
 11 and 13.4). The first
-milestone stands in the code (`README.md`). Markdown flows draw in chats
+milestone stands in the code (`README.md`). Ask temper's first milestone
+stands in the code, with its own project page, rail entry and phone tab
+(`draft/ask-temper.execution.md`, M1); charter 3 and template 3 remain in
+the stock. Its walk follows landing. The remaining reads, views and
+preferences belong to M2 to M4 (`draft/ask-temper.status.md`).
+Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
 reference keeps its numbered words without figures (`client/README.md`,
@@ -278,7 +286,11 @@ are built, with native browser clicks at 1440 and Settings links at 420;
 the runner was disabled. No separate attacker-review outcome is supplied,
 three laptop baseline cases remain unrepeated, and an intermittent busy
 authorization page without a request is unresolved (`protocol/setup.md`,
-`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
+`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). The cross-site
+authorization restart story's suite-order failure, red-71, also has no
+cause or fix: `ui-authorize-red` supplies two isolated passes and no code
+change, leaving the request's repair outstanding (`protocol/sign-in.md`,
+9.3). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
@@ -630,6 +642,12 @@ form; the others
 record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap.
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief; its implemented path still needs
+  design coverage reconciliation (`jig/docs/design/domain/engine.md`, 7.3).
 
 Design documents:
 - [`README.md`](README.status.md)

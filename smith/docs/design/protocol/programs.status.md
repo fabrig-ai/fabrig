@@ -1,10 +1,24 @@
 # programs: status
 
-2026-11-07. Where smith's code lags or departs from [programs.md](programs.md).
+2026-11-08. Where smith's code lags or departs from [programs.md](programs.md).
+
+Sections 5.1, 5.3 and 8 have no known implementation gap in a run with no
+workspace replacing the prompt, disabling built-in tools and slash commands,
+and starting in its private empty `work` directory, including its summary
+session. A workspace run keeps the appended prompt. The fake program records
+these arguments and the initial directory; the MCP-attached size measurement
+remains section 9's work.
 
 Section 3 has no known gap in reading a usable status's optional email,
 bounded to 255 bytes, without making usability depend on it. Section 8's
 fake status supplies it; this does not establish a real-login render check.
+
+## Gaps and departures
+
+- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
+  according to the retirement brief. Its landed run proposal read needs
+  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
+  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`
