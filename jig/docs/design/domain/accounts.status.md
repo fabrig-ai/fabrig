@@ -2,6 +2,14 @@
 
 2026-11-08. Where jig's code lags or departs from [accounts.md](accounts.md).
 
+Sections 3.4 and 5 have no known gap in declaring a removed program
+source's name again for its original holder. The reservation moves to
+the new source in the declaration's decision without consuming another
+lifetime name, and each host is asked to check its login. A live name
+or another holder's reservation answers name taken; a pending removal
+blocks revival. The accounts world's rows cover these cases, the full
+lifetime-name bound and restoration after revival.
+
 Section 3.7 has no known implementation gap in the separate facts record,
 sign-in and refresh reports, program-status email, or audience filtering.
 Reports for kinds 3 to 7 remain section 7's deferred work.

@@ -7901,6 +7901,13 @@ own tests:
 
 ## 11. Open questions
 
+- **Other account-act refusal reasons** (5.5): key and sign-in acts can
+  answer not offered for several core causes. Saying why and what to do
+  needs jig's account refusals and client contract to distinguish them
+  (jig's `client/domain/contract.md`, section 11). Default: their generic
+  words; declaration's name taken and not offered, and resume's not
+  offered, have the specific words of 5.5.
+
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
   instructions. The opening keeps the configuring page's starters and reference;
