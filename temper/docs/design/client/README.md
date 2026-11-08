@@ -4935,6 +4935,24 @@ The words for each offered source are:
   not.
 - **Plain words:** temper says that it runs Claude Code, and names no
   page, button or feature after it (jig's `domain/providers.md`, 3.2).
+- **A refused account act** says why and what to do, where jig's
+  refusal of that act has one reason a person can act on (jig's
+  `domain/accounts.md`, section 5), as the tools do (`tools.md`, 5.5,
+  *A refused account act says why and what next*), in the act's
+  outcome line, rather than the refusal's word alone:
+  - a declaration refused *name taken*: "The name NAME is taken.
+    Choose another name for this login.", NAME the declaration's; but
+    where the person's own source of that LLM provider holds NAME,
+    `ConnectModel` checks that source's login instead, as after its
+    declaration (3.5, `ConnectModel`), and draws no refusal;
+  - a declaration refused *not offered*: "This provider offers you no
+    program login. Choose another way to connect.";
+  - a resume refused *not offered*: "This source isn't limited, so
+    there's nothing to resume. Its state above is current."
+
+  A forgotten program login's name is declared again by the person who
+  held it (jig's `domain/accounts.md`, 3.4), and the panel goes on as
+  after a first declaration.
 
 ### 5.6 The first run's words: the playground and the welcome
 
