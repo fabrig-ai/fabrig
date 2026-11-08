@@ -97,15 +97,6 @@ and catalogue-number reuse remain section 16's open questions.
   reason. The offer remains available as this section requires.
 
 
-- **Not yet:** 8: a draining worker leaving placement: no worker says
-  it drains, and `jig-domain-fleet`'s channel `draining`, set by a
-  refusal as busy, lifts as a slot leaves the channel
-  (`src/attempt.rs`, `follow`), so a retry can be placed on a shutting
-  worker's still-linked channel, be refused busy and then journaled as a
-  further attempt refused by its recheck (`hosts.status.md`, 6.7).
-  temper's cluster story of a restarted workstation stays ignored for it
-  (`temper/docs/design/domain/testing.status.md`).
-
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.

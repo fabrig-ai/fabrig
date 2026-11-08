@@ -2065,7 +2065,7 @@ exec "$@"
 // The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
 // until after the ended chat's watch joins; the oracle checks both attempts.
 #[test]
-#[ignore = "waits on jig's fleet: a retry placed on a stopping worker's still-linked channel is rechecked and journaled as an extra refused attempt (3 in 85 runs since the waiting read, all under load); jig is to take a worker out of placement as it drains, before its runs end"]
+#[ignore = "4.6 process fixture expects engine.llm.models in startup configuration after models moved to settings (temper/docs/design/domain/testing.md, 5.3; temper/docs/design/protocol/configuration.md, section 2 and 13.4)"]
 fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace()
 {
     use temper_real_loop_world::case::{self, acts, oracle};
