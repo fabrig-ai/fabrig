@@ -112,3 +112,13 @@ Pre-approved options:
 As the implementer's text says: the first line, the commit pushed, each
 run with its count, the rule broken by hand and what failed, and the
 minutes.
+
+## Rebase (2026-11-08, step merge, foreman ui-ways-rules/reference-rules/foreman-1)
+
+resolve the status conflict by preserving both tasks’ adjacent deletions
+The merge conflicts only in `temper/docs/design/protocol/configuration.status.md`.
+Commit `6837c2d7ed` deletes the 13.9 gap beginning “`docs/examples/reference/project.json` holds the project's kind 7 alone”.
+Integration commit `940f27188e` deletes the adjacent 13.4 gap beginning “charter 5 and template 4 are not in the stock”.
+Resolve with both bullets absent. Keep the following 13.9 stage-one golden gap unchanged.
+Preserve integration’s other status updates, including the main changes incorporated by `aae6d4c8a2`; do not replace the whole file with the task’s version.
+Keep the reference project, README and test changes. The log reports automatic merges for both Rust test files, with no conflict there.
