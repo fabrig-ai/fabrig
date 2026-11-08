@@ -2,6 +2,13 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Section 7 has no known gap in refreshing either request branch:
+`scripts/look-refresh.sh` takes `look-requests` and `tui-requests`, using
+the checked-out branch's remote-tracking lease, requests over
+`origin/main` and push target. It refuses any other branch with a
+message naming both. The existing script test has a row for each
+request branch and checks the refusal on `main` and a detached head.
+
 Section 9 has no known implementation gap in `ask-temper-place`'s
 first-run recordings: `project-landing`, `chat-draft` and
 `welcome-playground` offer Ask temper in their prints. The setup passes
