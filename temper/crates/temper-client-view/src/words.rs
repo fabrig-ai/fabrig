@@ -16,6 +16,7 @@ pub enum Word {
     HowChange,
     HowOwn,
     HowOwnLine,
+    HowStockLine,
     HowAsk,
     HowWay,
     HowItsOwn,
@@ -1625,7 +1626,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2178;
+const PHRASES: u32 = 2179;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1652,14 +1653,15 @@ const PHRASES: u32 = 2178;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3859;
+const SEGMENTS: u32 = 3864;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52741;
-const ALL: [Word; 1496] = [
+const ENGLISH_BYTES: u32 = 52762;
+const ALL: [Word; 1497] = [
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
     Word::HowOwnLine,
+    Word::HowStockLine,
     Word::HowAsk,
     Word::HowWay,
     Word::HowItsOwn,
@@ -3272,6 +3274,7 @@ impl Word {
             Self::HowChange => 4900,
             Self::HowOwn => 4901,
             Self::HowOwnLine => 4902,
+            Self::HowStockLine => 5200,
             Self::HowAsk => 4903,
             Self::HowWay => 4904,
             Self::HowItsOwn => 4905,
@@ -5206,6 +5209,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowChange => (&[b"Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it."], &[]),
         Word::HowOwn => (&[b"A way of its own"], &[]),
         Word::HowOwnLine => (&[b"", b" runs settings of its own, drawn below."], &[Name]),
+        Word::HowStockLine => (&[b"", b" runs the stock way ", b"."], &[Name, Name]),
         Word::HowAsk => (&[b"Ask temper to change this"], &[]),
         Word::HowWay => (&[b"the way: ", b""], &[Name]),
         Word::HowItsOwn => (&[b"its own"], &[]),

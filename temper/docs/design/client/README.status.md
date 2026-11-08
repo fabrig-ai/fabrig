@@ -306,8 +306,6 @@ its 320 px, as the user accepted in `look-round-17`.
   (`ui-p3e-words`: `words-wire` puts them on the wire, `way-headlines`
   fills the one and `project-words-read` the other, and deletes this).
 
-- **Not yet:** 5.13: How work runs' heading and lede from a stock way's
-  headline and the project's words (`ui-p3e-words`'s `how-words`).
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
