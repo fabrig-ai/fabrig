@@ -18,6 +18,8 @@ use temper_client_domain::{self as client, Event as RootEvent, Request};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
+pub mod ways;
+
 pub const PRINTED: [u8; 32] = [9; 32];
 
 #[must_use]
@@ -44,6 +46,7 @@ pub struct Joint {
     status_looks: BTreeMap<ClientId, usize>,
     /// The ctl caller in this world; existing stories use person 1.
     pub caller: u64,
+    sign_in_identity: Option<jig_domain_people::Identity>,
     pub leaves: Vec<Box<[u8]>>,
     pub tabs: Vec<client::Tab>,
     pub shows: Vec<(client::Address, bool)>,
@@ -1414,6 +1417,7 @@ impl Joint {
             dismissal_sends: 0,
             status_looks: BTreeMap::new(),
             caller: fixtures::PARTY,
+            sign_in_identity: None,
             leaves: Vec::new(),
             tabs: Vec::new(),
             shows: Vec::new(),
@@ -2366,11 +2370,11 @@ impl Front<Temper> for Joint {
         self.transport.bind(
             who,
             party,
-            jig_domain_people::Identity {
+            self.sign_in_identity.clone().unwrap_or_else(|| jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
-            },
+            }),
         );
         self.callbacks.push((
             who,
@@ -2380,11 +2384,11 @@ impl Front<Temper> for Joint {
         ));
         self.component.sign_in(
             who,
-            jig_domain_people::Identity {
+            self.sign_in_identity.clone().unwrap_or_else(|| jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
-            },
+            }),
         );
         self.pump_component();
     }
@@ -2545,11 +2549,11 @@ impl Front<Temper> for Joint {
         ));
         self.component.sign_in(
             who,
-            jig_domain_people::Identity {
+            self.sign_in_identity.clone().unwrap_or_else(|| jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
-            },
+            }),
         );
         self.pump_component();
     }

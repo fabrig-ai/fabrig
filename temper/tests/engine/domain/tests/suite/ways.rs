@@ -577,3 +577,243 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
         driver.settle();
     }
 }
+
+// The stock paths cross the root's settings, adoption and watch boundaries.
+#[expect(clippy::too_many_lines, reason = "the fixture names the stock, adoption and restored tiers together")]
+fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
+    let mut limits = kinds::limits();
+    limits.tasks.charters = 5;
+    limits.tasks.spec_bytes = 512;
+    limits.tasks.parameters = 4;
+    limits.people.requests = 8; // Adoption, chat and the owner's settings change.
+    let mut config = kinds::configuration(&limits);
+    let models = config
+        .core
+        .settings
+        .models
+        .iter()
+        .enumerate()
+        .map(|(at, model)| core_settings::CatalogueModel {
+            first_read: None,
+            number: u32::try_from(at).expect("fixture models") + 1,
+            model: model.clone(),
+            shown: None,
+            description: None,
+            picker: true,
+            withdrawn: false,
+            source: core_settings::ModelSource::Stock,
+            estimated: false,
+        })
+        .collect();
+    config.core.defaults.rules.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.ask.0;
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.tools.0 |= jig_domain_core::ToolFamilies::JIG.ask.0;
+    policy.roles[0].authority.tools.0 |= jig_domain_core::ToolFamilies::JIG.ask.0;
+    let stock = temper_service::stock::with_models(models, limits.tasks.result_bytes);
+    let mut charters = config.core.defaults.charters.into_vec();
+    let mut coordinator = charters[0].clone();
+    coordinator.number = 5;
+    charters.push(coordinator);
+    config.core.defaults.charters = charters.into_boxed_slice();
+    let mut template = stock.templates.iter().find(|template| template.number == 4).expect("stock draft goal").clone();
+    template.resources[0].connector = config.core.connectors[0];
+    let mut templates = config.core.defaults.templates.into_vec();
+    templates.push(template);
+    config.core.defaults.templates = templates.into_boxed_slice();
+    if equal_paths {
+        config.ways_stock[0] = config.ways_stock[1].clone();
+    }
+    if ci_and_tiers {
+        let tiers = [(b"slow".as_slice(), forge::Follows::Landing), (b"goal".as_slice(), forge::Follows::Goals)].map(
+            |(name, follows)| engine::TierCheck {
+                name: name.into(),
+                workflow: name.into(),
+                ignored: Box::new([]),
+                artifact: b"tests".as_slice().into(),
+                format: temper_engine_domain_forge_tiers::Format::Lines,
+                follows,
+                span_ms: 0,
+            },
+        );
+        assert!(
+            config
+                .landings
+                .insert(
+                    PROJECT,
+                    engine::ProjectLanding {
+                        by: engine::Way::Queue,
+                        merge_job: None,
+                        repositories: Box::new([engine::RepositoryChecks {
+                            repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
+                            gates: Box::new([]),
+                            tiers: Box::new(tiers),
+                        }]),
+                        after: engine::AfterLandingCheck { tier_retries: 0, verification_bound_ms: 1000 },
+                    }
+                )
+                .is_ok()
+        );
+    }
+    let restart = temper_engine_domain_world::oracle::config::copy(&config);
+    config.landings = skein_lib::Map::with_capacity(1);
+    let accounts = fixtures::account_rows(&config.core.settings.llm_providers);
+    let bootstrap = temper_engine_domain_world::oracle::config::copy(&config);
+    let mut cold = Driver::cold(Store::with_limits(&limits), bootstrap, &limits);
+    cold.settle();
+    let mut store = cold.take_store();
+    store.seed(accounts, Box::new([]));
+    let mut driver = Driver::cold(store, config, &limits);
+    driver.forge = Some(ForgeStand::new());
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    let adoption = fixtures::adoption(FORGE);
+
+    driver.send(Event::Party(PartyInput::Application {
+        scope: people::ApplicationScope::Project(PROJECT),
+        reply_to: ReplyTo::new(Token::new(30)),
+        sign_in: driver.session(),
+        key: [30; 16],
+        digest: [30; 32],
+        carried: None,
+        request: engine::Application::Forge(forge::Ask::Adopt(adoption)),
+    }));
+    driver.settle();
+    // Restore the adopted repository before the configured tiers start following it.
+    let mut store = driver.take_store();
+    if !ci_and_tiers {
+        // Adoption asks replacement checks; this saved snapshot exercises neither kind of check.
+        let saved = store
+            .rows
+            .values()
+            .find_map(|record| match record {
+                engine::Record::Forge { row } => match row.as_ref() {
+                    forge::Stored::Repository(repository) => {
+                        let mut repository = repository.clone();
+                        repository.ci = false;
+                        Some(engine::Record::Forge { row: Box::new(forge::Stored::Repository(repository)) })
+                    }
+                    _ => None,
+                },
+                engine::Record::Core(_) => None,
+            })
+            .expect("adopted repository");
+        store.seed(Box::new([saved]), Box::new([]));
+    }
+    let mut driver = Driver::cold(store, restart, &limits);
+    driver.forge = Some(ForgeStand::new());
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    driver.send(Event::Credential { number: 1, generation: 1, valid: skein_lib::Duration::from_secs(3600) });
+    driver.settle();
+    let session = driver.session();
+    watch(&mut driver, session);
+    driver.settle();
+    driver
+}
+
+fn path_words(path: &ways::Path) -> String {
+    path.stops.iter().map(|stop| std::str::from_utf8(&stop.words).expect("path words")).collect::<Vec<_>>().join(", ")
+}
+
+#[test]
+fn stock_ways_paths_follow_the_projects_ci_and_tiers() {
+    for (ci_and_tiers, expected) in [
+        (
+            true,
+            [
+                "you ask, produce, check, repair, check, you approve, update, resolve, merge, verify, main",
+                "you ask, produce, check, review, repair, check, update, resolve, merge, verify, main",
+                "draft, plan, produce ×n, merge, check, repair, goal branch, check, update, resolve, merge, verify, main",
+            ],
+        ),
+        (
+            false,
+            [
+                "you ask, produce, you approve, update, resolve, merge, main",
+                "you ask, produce, review, repair, update, resolve, merge, main",
+                "draft, plan, produce ×n, merge, goal branch, update, resolve, merge, main",
+            ],
+        ),
+    ] {
+        let driver = path_driver(ci_and_tiers, false);
+        let document = documents(&driver).last().copied().expect("ways document");
+        assert_eq!(document.current, Some(1), "Agents review: {ci_and_tiers}");
+        assert_eq!(document.ways.len(), STOCK_WAYS);
+        assert_eq!(document.own.repository.as_deref(), Some(b"org/repo".as_slice()));
+        for (way, expected) in document.ways.iter().zip(expected) {
+            assert_eq!(path_words(&way.path), expected, "{}: {ci_and_tiers}", String::from_utf8_lossy(&way.name));
+        }
+    }
+}
+
+fn see_ways(driver: &mut Driver, completion: u32) -> String {
+    let run = driver.last_assignment();
+    driver.call(
+        Token::new(7),
+        run.task,
+        run.attempt,
+        u64::from(completion),
+        engine::Call { completion, position: 0, tool: engine::Tool::See { line: b"ways".as_slice().into(), from: 0 } },
+    );
+    driver.pump();
+    let at = driver
+        .delivered
+        .iter()
+        .rposition(|delivery| {
+            matches!(delivery,
+                Delivery::Host(delivery) if matches!(delivery.as_ref(), engine::HostDelivery::See { .. })
+            )
+        })
+        .expect("chat person's see ways");
+    let Delivery::Host(delivery) = driver.delivered.remove(at) else { unreachable!() };
+    let engine::HostDelivery::See { to, answer, .. } = *delivery else { unreachable!() };
+    let rendered = temper_engine_smith::see_answer(b"ways", 0, &answer, &[], 8192);
+    let text = std::str::from_utf8(rendered.text()).expect("see text").to_owned();
+    assert!(!rendered.error(), "{text}");
+    driver.send(Event::Worker(engine::WorkerInput::RenderedHostCall {
+        to,
+        answer: jig_domain_core::SettledAnswer::Host { error: false, body: text.as_bytes().into() },
+    }));
+    driver.settle();
+    text
+}
+
+#[test]
+fn ways_current_is_the_first_equal_path_and_see_ways_marks_yours() {
+    for equal_paths in [false, true] {
+        let mut driver = path_driver(true, equal_paths);
+        let document = documents(&driver).last().copied().expect("ways document");
+        assert_eq!(document.current, Some(u32::from(!equal_paths)), "the first equal path is current");
+        assert_eq!(document.ways[0].path.same(&document.ways[1].path), equal_paths);
+        driver.hello(Token::new(7));
+        driver.settle();
+        driver.send(Event::Party(PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(1001)),
+            sign_in: driver.session(),
+            key: [31; 16],
+            ask: driver.chat_ask(PROJECT, b"How do we work?"),
+        }));
+        driver.settle();
+        let text = see_ways(&mut driver, 1);
+        assert!(text.contains("Agents review · now\n"), "{text}");
+        assert_eq!(text.starts_with("Agents review · now\n"), equal_paths, "{text}");
+        assert_eq!(text.matches(" · now").count(), 1, "only the first equal way: {text}");
+        ack(&mut driver);
+        let mut own = rule();
+        own.pattern.last = forge::GateLast::Open(Box::new([]));
+        own.up_to_date = true;
+        own.gates =
+            Box::new([settings::RuleGate { number: 1, blocking: true, freshness: forge::JudgeFreshness::Clean }]);
+        change(&mut driver, 40, Box::new([kinds::item(2, PROJECT, 1, &settings::Value::Rule(own))]));
+        driver.settle();
+        let document = documents(&driver).last().copied().expect("changed ways");
+        assert_eq!(document.current, None, "CI removed from the project's rule");
+        assert!(!document.own.stops.iter().any(|stop| stop.words.as_ref() == b"check"));
+        let text = see_ways(&mut driver, 2);
+        assert!(text.contains("\n\nYours · now\n"), "{text}");
+        assert_eq!(text.matches(" · now").count(), 1, "only Yours: {text}");
+    }
+}
