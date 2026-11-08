@@ -5,11 +5,11 @@ use crate::{
     worlds,
 };
 use jig_client::contract as c;
-use skein_lib::{Duration, List, Queue, Wall};
+use skein_lib::{Duration, List, Queue, Wall, Writer};
 use temper_client_domain::{
     Action, Address, Domain, Event, Request,
     address::Filter,
-    pages::{Act, needs},
+    pages::{Act, needs, stop_asking},
 };
 use temper_fixtures::client_documents as documents;
 const FIRST: &str = "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local but leaves jig’s behaviour as it is.\n\nSaw: The box test reproduces it every time: the store’s write lands, then the watch closes before the answer comes. The test and its log are on the goal.\nChoice: In jig’s store (recommended)\nChoice: In temper serve";
@@ -54,6 +54,8 @@ pub fn domain(name: &str) -> Domain {
     let source = worlds::world(World::Solo, Address::Inbox { filter: Filter::ALL }, Then::Shown).0;
     let mut me = source.pages().me(source.client()).expect("fixture me").clone();
     me.projects.get_mut(0).expect("project").name = text("fabrig");
+    me.projects.get_mut(0).expect("project").role =
+        if name == "needs-stop-asking-set" { c::HeldRole::Member } else { c::HeldRole::Owner };
     me.needs_total = if name.starts_with("needs-approval") { 0 } else { 3 };
     me.needs = c::Needs {
         questions: if name.starts_with("needs-approval") {
@@ -105,6 +107,55 @@ pub fn domain(name: &str) -> Domain {
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
                 driver::deliver(&mut root, watch, c::Delivery::Me(Box::new(me.clone())), &mut out);
             }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Settings) }
+                if name == "needs-why" || name.starts_with("needs-stop-asking") =>
+            {
+                driver::deliver(
+                    &mut root,
+                    watch,
+                    c::Delivery::Settings(Box::new(c::SettingsDocument {
+                        newest: 1,
+                        settings: List::from_boxed(Box::new([c::SettingLine {
+                            setting: c::Setting::Application { kind: 8, scope: 1, number: 1 },
+                            name: None,
+                            follows: c::SettingFollows::Change,
+                            last: Some(1),
+                            application: None,
+                        }])),
+                        held: List::with_capacity(0),
+                        pending: List::with_capacity(0),
+                    })),
+                    &mut out,
+                );
+            }
+            jig_client::Down::Open { watch, subject }
+                if Some(&subject)
+                    == temper_client_domain::forge::dismissed::watch(&driver::limits().forge).as_ref()
+                    && (name == "needs-why" || name.starts_with("needs-stop-asking")) =>
+            {
+                use temper_client_protocol_wire::{self as wire, v1 as w};
+                let document = w::Dismissals::new(
+                    &w::CEILINGS,
+                    w::DismissalsParts { dismissed: List::with_capacity(0) },
+                )
+                .expect("empty dismissals");
+                driver::step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::dismissals(&document),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } => {
                 driver::deliver(
                     &mut root,
@@ -151,14 +202,18 @@ pub fn domain(name: &str) -> Domain {
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let mut asked = List::with_capacity(1);
-                if name == "needs-why" {
+                if name == "needs-why" || name.starts_with("needs-stop-asking") {
                     let reach = temper_protocol_reaches::Reach {
                         kind: temper_protocol_reaches::Kind::Implementation,
                         class: temper_protocol_reaches::Class::Ask,
-                        reason: temper_protocol_reaches::Reason::Kind,
+                        reason: if name == "needs-stop-asking-set" {
+                            temper_protocol_reaches::Reason::Set(1)
+                        } else {
+                            temper_protocol_reaches::Reason::Kind
+                        },
                         under: 0,
-                        sets: 0,
-                        matched: 0,
+                        sets: u8::from(name == "needs-stop-asking-set"),
+                        matched: u8::from(name == "needs-stop-asking-set"),
                         away: false,
                     };
                     let task = match prototype.from {
@@ -201,6 +256,15 @@ pub fn domain(name: &str) -> Domain {
                     },
                     &mut out,
                 );
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } }
+                if temper_client_protocol_wire::decode_reading(
+                    &record.bytes,
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .is_some_and(|reading| matches!(reading.read(), temper_client_protocol_wire::v1::Read::Setting(setting) if setting.kind() == 8)) =>
+            {
+                classes(&mut root, read, name, &mut out);
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) } => {
                 let rows = if group == c::InboxReadGroup::Needs { entries(name) } else { List::with_capacity(0) };
@@ -264,6 +328,11 @@ pub fn domain(name: &str) -> Domain {
 
 fn actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
     match name {
+        "needs-stop-asking" | "needs-stop-asking-set" => driver::step(
+            root,
+            Event::Act { action: Action::Pages(Act::StopAsking(stop_asking::Act::Open { object: object(1) })) },
+            out,
+        ),
         "needs-reply-open" => act(root, needs::Act::OpenReply { object: object(1) }, out),
         "needs-second-answered" => {
             act(root, needs::Act::Choose { object: object(1), words: "In jig’s store".as_bytes().into() }, out);
@@ -343,4 +412,38 @@ fn approval(name: &str) -> temper_client_protocol_wire::v1::Approvals {
     .expect("approval fixture");
     w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows: List::from_boxed(Box::new([row])), more: 0 })
         .expect("approval document")
+}
+
+fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    use temper_protocol_reaches::{Class, Classes, Item, PathSet, Subject, Way, classes_record};
+    let mut classes = Classes::stock(Way::AgentsReview);
+    if name == "needs-stop-asking-set" {
+        classes.items = Box::new([Item { subject: Subject::Set(1), words: Box::default(), class: Class::Ask }]);
+        classes.sets = Box::new([PathSet {
+            number: 1,
+            name: Box::from(b"protocol core".as_slice()),
+            patterns: Box::new([Box::from(b"src/wire/**".as_slice()), Box::from(b"src/store/**".as_slice())]),
+        }]);
+    }
+    let record = classes_record(&classes).expect("gallery classes");
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("classes bytes"));
+    record.encode(&mut writer).expect("measured classes");
+    let document = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
+        .expect("classes answer");
+    driver::step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::setting_answer(&document)),
+                    },
+                },
+            },
+        },
+        out,
+    );
 }
