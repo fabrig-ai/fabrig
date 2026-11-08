@@ -7,9 +7,6 @@
   other run that isn't asking (`temper-engine-domain/src/route/forge_route.rs`,
   `run_workspace`).
 
-- **Not yet:** 4.3: the delegate family's `goal`, `change` and `delegate`
-  are declared whatever the charter names (`temper-engine-smith/src/calls.rs`,
-  `tools_for`).
 
 - **Not yet:** 8.5: the stock holds no drafter's charter and no design
   session (`temper-service/src/stock.rs`).
