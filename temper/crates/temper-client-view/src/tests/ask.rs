@@ -11,29 +11,27 @@ use jig_client::contract as c;
 use skein_ui::{Act, Node, Role, State, Style, Tree};
 use temper_client_domain::{self as d, Address, pages};
 
-const TITLE: &[u8] = b"Ask temper";
 const ENTRY: &[u8] = b"Ask temper, or tell it how you work";
-const STARTERS: [&[u8]; 4] = [
-    b"Not sure yet. What can temper do?",
-    b"I work alone on small changes: one chat per change, landed once CI passes.",
-    b"I write a design draft first; agents plan its tasks and land them together once checked.",
-    b"Set Shop up the way temper builds itself, sized for this machine.",
-];
-const QUESTION: &str = "How should temper run Shop?";
-const LEDE: &str = "Tell it how you work, in your own words or by pointing at a document.";
-const NOTE: &str = "It proposes the settings; nothing changes until you accept.";
-const SETS: [(&str, &str); 3] = [
-    ("How work runs", "how chats and goals start, are checked and land"),
-    ("Models", "which plan or model each role runs on"),
-    ("Approvals", "what waits for you, and what lands on its own"),
-];
-const CARDS: [(&str, &str); 2] = [
-    ("Small changes, alone", "One chat per change, landed once CI passes."),
-    ("A design draft first", "Agents plan its tasks; they land together."),
-];
-const UNSURE: &str = "Not sure yet? Ask what temper can do.";
+const LEDE: &str = "Pick a way for Shop, or ask temper to build your own.";
 const DRAFT: &[u8] = b"My way of working";
 const UNKNOWN: u32 = 99;
+// The request has three stock ways; its fourth tab is Yours.
+const STOCK: u32 = 3;
+const CURRENT: u32 = 1;
+const REVIEW: u32 = 3;
+const NEWEST: u32 = 8;
+// Exactly one tab is current, and only the shown tab has a panel (contracts, 3).
+const ONE_PANEL: usize = 1;
+const ONE_NOW: usize = 1;
+const NAMES: [&[u8]; 3] = [b"You approve", b"Agents review", b"Draft first"];
+const LINES: [&[u8]; 3] = [
+    b"An agent makes each change; nothing reaches main until you approve it.",
+    b"An agent makes each change, another reviews it, and code lands it.",
+    b"You and an agent write a design draft; agents build it on its own branch, and it lands whole.",
+];
+use jig_client::{Down, Up};
+use skein_lib::{List, Queue, Token};
+use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn root() -> d::Domain {
     f::playground_root(Address::Ask { project: f::PROJECT }, f::PROJECT, true)
@@ -70,12 +68,6 @@ fn disabled(node: &Node) -> bool {
     node.states.as_slice().contains(&State::Disabled)
 }
 
-fn starters(tree: &Tree) -> Vec<&Node> {
-    styled(tree, look::STARTER_WAYS)
-        .iter()
-        .filter(|n| n.role == Role::Button && n.name.as_deref() != Some(b"See how it works"))
-        .collect()
-}
 fn subtree<'a>(tree: &'a Tree, node: &Node) -> &'a [Node] {
     let at = tree.nodes().iter().position(|n| n.id == node.id).unwrap();
     let end = at.checked_add(usize::try_from(node.size).unwrap()).unwrap();
@@ -91,160 +83,793 @@ fn leaves(tree: &Tree, node: &Node) -> Vec<Vec<u8>> {
         .collect()
 }
 
+struct Ways {
+    root: d::Domain,
+    watch: Token,
+    settings: Token,
+}
+fn event(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
+    let mut out = Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        event,
+        &mut out,
+    );
+    out
+}
+fn up(root: &mut d::Domain, up: Up) -> Queue<d::Request> {
+    event(root, d::Event::Client { event: jig_client::Event::Up { up } })
+}
+fn loading_fixture(configured: bool) -> Ways {
+    let (mut root, me, _, _, _, _, settings, _, _) = f::root_at_with_values(
+        Address::Home { project: f::PROJECT },
+        &f::domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        None,
+        false,
+        false,
+    );
+    let asking = f::asking_me(root.pages().me(root.client()).unwrap().clone());
+    f::deliver_me(&mut root, me, asking);
+    up(
+        &mut root,
+        Up::FamilyServed {
+            family: wire::FORGE,
+            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
+        },
+    );
+    let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Ask { project: f::PROJECT }) });
+    let wanted = d::forge::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
+    let watch = out
+        .iter()
+        .find_map(|r| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
+            } = r
+                && *subject == wanted
+            {
+                Some(*watch)
+            } else {
+                None
+            }
+        })
+        .expect("ways watch");
+    let mut f = Ways { root, watch, settings: settings.expect("settings watch") };
+    settings_document(&mut f, configured);
+    f
+}
+fn fixture(current: Option<u32>, may_change: bool, configured: bool) -> Ways {
+    let mut f = loading_fixture(configured);
+    show(&mut f, &panel(current, may_change));
+    f
+}
+fn settings_document(f: &mut Ways, configured: bool) {
+    let mut settings = List::uncapped();
+    if configured {
+        settings
+            .push(c::SettingLine {
+                setting: c::Setting::Application { kind: 2, scope: f::PROJECT, number: 1 },
+                name: None,
+                last: Some(NEWEST),
+                follows: c::SettingFollows::Change,
+                application: None,
+            })
+            .unwrap();
+    }
+    up(
+        &mut f.root,
+        Up::Watched {
+            watch: f.settings,
+            event: c::WatchEvent::Delivered(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                newest: NEWEST,
+                settings,
+                held: List::uncapped(),
+                pending: List::uncapped(),
+            }))),
+        },
+    );
+}
+fn show(f: &mut Ways, panel: &w::WaysPanel) {
+    up(
+        &mut f.root,
+        Up::FamilyDelivered {
+            watch: f.watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::ways_panel(panel),
+            },
+        },
+    );
+}
+fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
+    let ways = NAMES
+        .into_iter()
+        .zip(LINES)
+        .enumerate()
+        .map(|(index, (name, line))| {
+            w::StockWay::new(
+                &w::CEILINGS,
+                w::StockWayParts {
+                    name: name.into(),
+                    line: line.into(),
+                    path: path(index),
+                    items: List::from_boxed(Box::new([w::ProposalItem::new(
+                        &w::CEILINGS,
+                        w::ProposalItemParts { kind: 7, scope: f::PROJECT, number: 1, edit: w::SettingEdit::Removed },
+                    )
+                    .unwrap()])),
+                    delegation: false,
+                },
+            )
+            .unwrap()
+        })
+        .collect();
+    w::WaysPanel::new(
+        &w::CEILINGS,
+        w::WaysPanelParts { project: f::PROJECT, ways: List::from_boxed(ways), current, own: path(0), may_change },
+    )
+    .unwrap()
+}
+#[expect(clippy::too_many_lines, reason = "the three paths keep their stops and supplied cards in one fixture")]
+fn path(index: usize) -> w::BranchPath {
+    use w::{
+        Actor::{Agent, Bar, Code, Person},
+        PathStep as S,
+    };
+    let paths: [&[(w::Actor, S, &[u8])]; 3] = [
+        &[
+            (Person, S::Ask, b"you ask"),
+            (Agent, S::Produce, b"produce"),
+            (Code, S::Check, b"check"),
+            (Agent, S::Repair, b"repair"),
+            (Code, S::Check, b"check"),
+            (Person, S::Approve, b"you approve"),
+            (Code, S::Update, b"update"),
+            (Agent, S::Resolve, b"resolve"),
+            (Code, S::Merge, b"merge"),
+            (Bar, S::Branch, b"main"),
+        ],
+        &[
+            (Person, S::Ask, b"you ask"),
+            (Agent, S::Produce, b"produce"),
+            (Code, S::Check, b"check"),
+            (Agent, S::Review, b"review"),
+            (Agent, S::Repair, b"repair"),
+            (Code, S::Check, b"check"),
+            (Code, S::Update, b"update"),
+            (Agent, S::Resolve, b"resolve"),
+            (Code, S::Merge, b"merge"),
+            (Bar, S::Branch, b"main"),
+        ],
+        &[
+            (Person, S::Draft, b"draft"),
+            (Agent, S::Plan, b"plan"),
+            (Agent, S::ProduceMany, "produce ×n".as_bytes()),
+            (Code, S::Merge, b"merge"),
+            (Code, S::Check, b"check"),
+            (Agent, S::Repair, b"repair"),
+            (Bar, S::Branch, b"goal branch"),
+            (Code, S::Check, b"check"),
+            (Code, S::Update, b"update"),
+            (Agent, S::Resolve, b"resolve"),
+            (Code, S::Merge, b"merge"),
+            (Code, S::Verify, b"verify"),
+            (Bar, S::Branch, b"main"),
+        ],
+    ];
+    let stops = paths[index]
+        .iter()
+        .enumerate()
+        .map(|(at, (actor, step, words))| {
+            let code = match step {
+                S::Merge => Some((
+                    w::Opens::Queue,
+                    "code · lands the change",
+                    "the queue",
+                    "Does",
+                    "merges exactly the commit its checks saw",
+                )),
+                S::Check if index == 2 && at == 4 => Some((
+                    w::Opens::Tier(
+                        w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: b"slow".as_slice().into() }).unwrap(),
+                    ),
+                    "code · checks the goal's branch",
+                    "slow",
+                    "Runs",
+                    "the tier slow on the goal's branch",
+                )),
+                S::Check => Some((
+                    w::Opens::Rule(
+                        w::OpensRule::new(&w::CEILINGS, w::OpensRuleParts { kind: 1, scope: 0, number: 1 }).unwrap(),
+                    ),
+                    "code · holds a change until CI passes",
+                    "CI",
+                    "Checks",
+                    "the repository's CI, at the change's head",
+                )),
+                S::Prove => {
+                    Some((w::Opens::Turn, "code · runs the test gates at the candidate", "the turn", "Gates", "unit"))
+                }
+                S::Update => Some((
+                    w::Opens::Queue,
+                    "code · brings the change up to date with its branch",
+                    "the queue",
+                    "Does",
+                    "merges the branch's tip into the change, never by an agent",
+                )),
+                S::Verify => Some((
+                    w::Opens::Tier(
+                        w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: b"slow".as_slice().into() }).unwrap(),
+                    ),
+                    "code · checks what landed",
+                    "slow",
+                    "Runs",
+                    "the tier slow after each landing",
+                )),
+                S::Ask
+                | S::Draft
+                | S::Plan
+                | S::Produce
+                | S::ProduceMany
+                | S::Review
+                | S::Repair
+                | S::Approve
+                | S::Resolve
+                | S::Prepare
+                | S::Turn
+                | S::Branch => None,
+            };
+            let code = if *actor == Code { code } else { None };
+            w::Stop::new(
+                &w::CEILINGS,
+                w::StopParts {
+                    actor: actor.clone(),
+                    step: step.clone(),
+                    words: (*words).into(),
+                    opens: if let Some((opens, ..)) = &code {
+                        opens.clone()
+                    } else if *step == S::Review {
+                        w::Opens::Gate(w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1 }).unwrap())
+                    } else {
+                        w::Opens::Nothing
+                    },
+                    card: if let Some((_, who, name, label, value)) = code {
+                        w::Card::new(
+                            &w::CEILINGS,
+                            w::CardParts {
+                                who: who.as_bytes().into(),
+                                name: name.as_bytes().into(),
+                                facts: List::from_boxed(Box::new([w::Fact::new(
+                                    &w::CEILINGS,
+                                    w::FactParts { label: label.as_bytes().into(), value: value.as_bytes().into() },
+                                )
+                                .unwrap()])),
+                            },
+                        )
+                        .unwrap()
+                    } else {
+                        w::Card::new(
+                            &w::CEILINGS,
+                            w::CardParts {
+                                who: "an agent · holds a change until it approves".as_bytes().into(),
+                                name: b"the reviewer".as_slice().into(),
+                                facts: List::from_boxed(
+                                    [
+                                        (b"Model".as_slice(), "Claude Opus 5.5 · high".as_bytes()),
+                                        (b"Can", b"read the change and its checks; never edit, push or merge"),
+                                        (b"Asked to", b"Review the change at the named head."),
+                                    ]
+                                    .into_iter()
+                                    .map(|(label, value)| {
+                                        w::Fact::new(
+                                            &w::CEILINGS,
+                                            w::FactParts { label: label.into(), value: value.into() },
+                                        )
+                                        .unwrap()
+                                    })
+                                    .collect(),
+                                ),
+                            },
+                        )
+                        .unwrap()
+                    },
+                },
+            )
+            .unwrap()
+        })
+        .collect();
+    w::BranchPath::new(
+        &w::CEILINGS,
+        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::from_boxed(stops) },
+    )
+    .unwrap()
+}
+fn tab(tree: &Tree, index: usize) -> &Node {
+    children(styled(tree, look::WAYS_TABS))[index]
+}
+fn press(root: &mut d::Domain, browser: bool, role: Role, label: &[u8]) {
+    let mut view = if browser { f::browser_page_view(root) } else { f::page_view(root) };
+    let id = named(view.tree(), role, label).id;
+    let action = crate::act(&mut view, id, Act::Press).expect("press action");
+    f::root_event(root, d::Event::Act { action });
+}
+
 #[test]
-#[expect(clippy::too_many_lines, reason = "the requested page order is checked in both shells as one tree")]
-fn requested_main_keeps_order_classes_and_phone_parts() {
-    let root = root();
-    for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+fn requested_opening_keeps_order_roles_and_tokens() {
+    let f = fixture(Some(CURRENT), true, false);
+    for view in [f::page_view(&f.root), f::browser_page_view(&f.root)] {
         let tree = view.tree();
-        assert_eq!(styled(tree, look::SESSION)[0].styles.as_slice(), [look::MAIN, look::SESSION]);
         for (style, expected) in [
-            (look::SESSION, vec![(Role::Slot, vec![look::SESSION_TOP]), (Role::Region, vec![look::CONVO])]),
-            (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Slot, vec![look::SESSION_RIGHT])]),
-            (
-                look::CRUMBS,
-                vec![
-                    (Role::Link, vec![look::BACK]),
-                    (Role::Slot, vec![look::TRAIL]),
-                    (Role::Heading { level: 1 }, vec![]),
-                ],
-            ),
-            (look::TRAIL, vec![(Role::Link, vec![])]),
-            (look::CONVO, vec![(Role::Slot, vec![look::THREAD]), (Role::Form, vec![look::SESSION_FOOT])]),
-            (look::THREAD, vec![(Role::Slot, vec![look::STARTER])]),
             (
                 look::STARTER,
                 vec![
-                    (Role::Heading { level: 2 }, vec![]),
-                    (Role::Paragraph, vec![look::STARTER_LEDE]),
-                    (Role::List, vec![look::STARTER_SETS]),
-                    (Role::Paragraph, vec![look::STARTER_NOTE]),
-                    (Role::Region, vec![look::STARTER_WAYS]),
+                    (Role::Paragraph, vec![look::STARTER_LEDE, look::WAYS_LEDE]),
+                    (Role::Region, vec![look::STARTER_WAYS, look::WAYS]),
                 ],
             ),
-            (look::STARTER_SETS, vec![(Role::Item, vec![]); 3]),
             (
-                look::STARTER_WAYS,
+                look::WAYS,
                 vec![
-                    (Role::Slot, vec![look::STARTER_HEAD]),
-                    (Role::List, vec![look::STARTERS]),
-                    (Role::Group, vec![look::STARTER_OWN]),
+                    (Role::Tabs, vec![look::WAYS_TABS]),
+                    (Role::Paragraph, vec![look::WAYS_AXIS]),
+                    (Role::Group, vec![look::WAYS_PANEL]),
                 ],
             ),
             (
-                look::STARTER_HEAD,
-                if browser {
-                    vec![(Role::Heading { level: 3 }, vec![]), (Role::Button, vec![look::STARTER_UNSURE])]
-                } else {
-                    vec![(Role::Button, vec![look::STARTER_UNSURE])]
-                },
+                look::WAYS_PANEL,
+                vec![
+                    (Role::Paragraph, vec![look::WAYS_SAYS]),
+                    (Role::Drawing, vec![look::WAYS_PATH]),
+                    (Role::Slot, vec![look::WAYS_FOOT]),
+                ],
             ),
+            (look::WAYS_FOOT, vec![(Role::Paragraph, vec![look::WAYS_LEGEND]), (Role::Slot, vec![look::WAYS_ACTS])]),
             (
-                look::STARTER_OWN,
-                vec![(Role::Slot, vec![look::STARTER_OWN_TEXT]), (Role::Slot, vec![look::STARTER_OWN_ACTS])],
+                look::WAYS_LEGEND,
+                vec![
+                    (Role::Text, vec![look::WAYS_KIND_AGENT]),
+                    (Role::Text, vec![look::WAYS_KIND_PERSON]),
+                    (Role::Text, vec![look::WAYS_KIND_CODE]),
+                    (Role::Text, vec![look::WAYS_KIND_LINE]),
+                ],
             ),
-            (
-                look::STARTER_OWN_TEXT,
-                vec![(Role::Paragraph, vec![look::STARTER_OWN_TITLE]), (Role::List, vec![look::STARTER_OWN_STEPS])],
-            ),
-            (look::STARTER_OWN_STEPS, vec![(Role::Item, vec![]); 5]),
-            (look::STARTER_OWN_ACTS, vec![(Role::Button, vec![]); 2]),
-            (look::STARTERS, vec![(Role::Item, vec![]), (Role::Item, vec![])]),
-            (look::SESSION_FOOT, vec![(Role::Slot, vec![look::SESSION_COMPOSER]), (Role::Slot, vec![look::FOOT_ROW])]),
-            (look::SESSION_COMPOSER, vec![(Role::TextArea, vec![]), (Role::Button, vec![])]),
+            (look::WAYS_ACTS, vec![(Role::Button, vec![look::WAYS_USE])]),
         ] {
             assert_eq!(parts(tree, style), expected, "{style:?}");
         }
+        assert_eq!(leaves(tree, &styled(tree, look::WAYS_LEDE)[0]), [LEDE.as_bytes()]);
         for (style, name) in [
-            (look::SESSION, b"temper-session".as_slice()),
-            (look::SESSION_TOP, b"temper-session-top"),
-            (look::SESSION_FOOT, b"temper-session-foot"),
-            (look::SESSION_COMPOSER, b"temper-session-composer"),
-            (look::SESSION_HINT, b"temper-session-hint"),
-            (look::CONVO, b"temper-convo"),
-            (look::CRUMBS, b"temper-crumbs"),
-            (look::BACK, b"temper-back"),
-            (look::TRAIL, b"temper-trail"),
-            (look::BYLINE, b"temper-byline"),
-            (look::STARTER, b"temper-starter"),
-            (look::STARTERS, b"temper-starters"),
-            (look::STARTER_LEDE, b"temper-starter-lede"),
-            (look::STARTER_SETS, b"temper-starter-sets"),
-            (look::STARTER_NOTE, b"temper-starter-note"),
-            (look::STARTER_WAYS, b"temper-starter-ways"),
-            (look::STARTER_UNSURE, b"temper-starter-unsure"),
-            (look::THREAD, b"temper-thread"),
+            (look::WAYS, b"Ways of working".as_slice()),
+            (look::WAYS_TABS, b"Ways of working"),
+            (look::WAYS_AXIS, b"From more of you to more of your agents"),
+            (look::WAYS_PANEL, b"Agents review"),
+            (look::WAYS_PATH, b"The way a change goes"),
+            (look::WAYS_LEGEND, b"An agent, a person, code; no merge tool above the dotted line"),
         ] {
-            assert_eq!(look::NAMES.style(style), Some(name));
+            assert_eq!(styled(tree, style)[0].name.as_deref(), Some(name));
         }
-        assert_eq!(styled(tree, look::CRUMBS)[0].name.as_deref(), Some(b"Where".as_slice()));
-        assert_eq!(styled(tree, look::CONVO)[0].name.as_deref(), Some(b"Conversation".as_slice()));
-        assert_eq!(styled(tree, look::STARTERS)[0].name, None);
-        assert_eq!(styled(tree, look::STARTER_WAYS)[0].name.as_deref(), Some(b"Ways to begin".as_slice()));
-        assert_eq!(styled(tree, look::STARTER_SETS)[0].name.as_deref(), Some(b"What it sets".as_slice()));
-        for (style, words) in [(look::STARTER_LEDE, LEDE), (look::STARTER_NOTE, NOTE)] {
-            let paragraph = &styled(tree, style)[0];
-            assert_eq!(paragraph.name, None);
-            assert_eq!(leaves(tree, paragraph), [words.as_bytes()]);
-        }
-        assert_eq!(styled(tree, look::SESSION_FOOT)[0].name.as_deref(), Some(TITLE));
-        assert_eq!(named(tree, Role::Heading { level: 1 }, TITLE).name.as_deref(), Some(TITLE));
-        assert_eq!(styled(tree, look::STARTER)[1].name.as_deref(), Some(QUESTION.as_bytes()));
-        assert_eq!(
-            styled(tree, look::SESSION_HINT)[0].name.as_deref(),
-            Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
-        );
-        assert_eq!(starters(tree).len(), 4);
-        for node in starters(tree) {
-            assert!(!disabled(node));
-        }
-        assert_eq!(named(tree, Role::Button, UNSURE.as_bytes()).styles.as_slice(), [look::STARTER_UNSURE]);
-        assert!(f::find(tree, Role::Disclosure, b"Model").is_some());
-    }
-    let (mut absent, watch, _) = f::root_at(Address::Ask { project: f::PROJECT }, &f::domain_limits());
-    let mut me = absent.pages().me(absent.client()).unwrap().clone();
-    let project = me.projects.get_mut(0).unwrap();
-    project.templates = skein_lib::List::from_boxed(
-        project.templates.iter().filter(|template| template.number != 5).cloned().collect(),
-    );
-    f::deliver_me(&mut absent, watch, me);
-    input(&mut absent, pages::Act::ChatWords { words: b"How does temper work?".as_slice().into() });
-    for view in [f::page_view(&absent), f::browser_page_view(&absent)] {
-        let tree = view.tree();
-        assert!(disabled(named(tree, Role::Button, b"Send")));
-        assert!(disabled(named(tree, Role::TextArea, ENTRY)));
-        assert!(String::from_utf8_lossy(&f::text(tree)).contains("Ask temper isn't set up in this project."));
+        assert!(tree.nodes().iter().all(|n| n.role != Role::Heading { level: 2 }));
     }
 }
 
 #[test]
-fn starters_composer_and_path_emit_the_requested_acts() {
-    let mut root = root();
-    input(&mut root, pages::Act::ChatWords { words: DRAFT.into() });
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let buttons: Vec<_> = starters(view.tree()).iter().map(|n| n.id).collect();
-        for (node, words) in buttons.into_iter().zip(STARTERS) {
+fn tabs_draw_in_read_order_with_only_the_shown_panel() {
+    for browser in [false, true] {
+        let mut f = fixture(Some(CURRENT), true, false);
+        let paths: [&[&[u8]]; 3] = [
+            &[
+                b"you ask, a person",
+                b"produce, an agent",
+                b"check, code",
+                b"repair, an agent",
+                b"check, code",
+                b"you approve, a person",
+                b"update, code",
+                b"resolve, an agent",
+                b"merge, code",
+                b"main, a branch",
+            ],
+            &[
+                b"you ask, a person",
+                b"produce, an agent",
+                b"check, code",
+                b"review, an agent",
+                b"repair, an agent",
+                b"check, code",
+                b"update, code",
+                b"resolve, an agent",
+                b"merge, code",
+                b"main, a branch",
+            ],
+            &[
+                b"draft, a person",
+                b"plan, an agent",
+                "produce ×n, an agent".as_bytes(),
+                b"merge, code",
+                b"check, code",
+                b"repair, an agent",
+                b"goal branch, a branch",
+                b"check, code",
+                b"update, code",
+                b"resolve, an agent",
+                b"merge, code",
+                b"verify, code",
+                b"main, a branch",
+            ],
+        ];
+        for (index, (name, expected)) in NAMES.into_iter().zip(paths).enumerate() {
+            let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+            let tabs = children(styled(view.tree(), look::WAYS_TABS));
+            assert_eq!(tabs.len(), usize::try_from(STOCK).unwrap());
+            for (at, (node, word)) in tabs.into_iter().zip(NAMES).enumerate() {
+                assert_eq!(node.role, Role::Tab);
+                assert_eq!(node.name, None);
+                let expected = if at == usize::try_from(CURRENT).unwrap() {
+                    if browser { b"Agents reviewnow".as_slice() } else { b"Agents review, now".as_slice() }
+                } else {
+                    word
+                };
+                assert_eq!(
+                    f::node_text(view.tree(), view.tree().nodes().iter().position(|n| n.id == node.id).unwrap())
+                        .as_ref(),
+                    expected
+                );
+            }
+            let id = tab(view.tree(), index).id;
+            let action = crate::act(&mut view, id, Act::Press).unwrap();
             assert_eq!(
-                crate::act(&mut view, node, Act::Press),
-                Some(d::Action::Pages(pages::Act::Starter { words: words.into() }))
+                action,
+                d::Action::Pages(pages::Act::WayTab { project: f::PROJECT, tab: u32::try_from(index).unwrap() })
+            );
+            f::root_event(&mut f.root, d::Event::Act { action });
+            let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+            assert_eq!(styled(view.tree(), look::WAYS_PANEL)[0].name.as_deref(), Some(name));
+            assert_eq!(
+                view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&look::WAYS_PANEL)).count(),
+                ONE_PANEL
+            );
+            for (at, node) in children(styled(view.tree(), look::WAYS_TABS)).into_iter().enumerate() {
+                assert_eq!(node.states.as_slice().contains(&State::Selected), at == index);
+            }
+            assert_eq!(leaves(view.tree(), &styled(view.tree(), look::WAYS_SAYS)[0]), [LINES[index]]);
+            assert_eq!(
+                styled(view.tree(), look::WAYS_PATH)
+                    .iter()
+                    .filter(|n| n.role == Role::Item)
+                    .map(|n| n.name.as_deref().unwrap())
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            assert_eq!(
+                view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&look::WAYS_NOW)).count(),
+                ONE_NOW
             );
         }
-        let entry = named(view.tree(), Role::TextArea, ENTRY).id;
-        assert_eq!(
-            crate::act(&mut view, entry, Act::Input { value: b"Changed".as_slice().into() }),
-            Some(d::Action::Pages(pages::Act::ChatWords { words: b"Changed".as_slice().into() }))
-        );
-        assert_eq!(crate::act(&mut view, entry, Act::Submit), Some(d::Action::Pages(pages::Act::StartChat)));
-        let send = named(view.tree(), Role::Button, b"Send").id;
-        assert_eq!(crate::act(&mut view, send, Act::Press), Some(d::Action::Pages(pages::Act::StartChat)));
-        let links: Vec<_> = children(styled(view.tree(), look::TRAIL)).into_iter().map(|n| n.id).collect();
-        let back = styled(view.tree(), look::BACK)[0].id;
-        for (node, address) in
-            [(back, Address::Home { project: f::PROJECT }), (links[0], Address::Home { project: f::PROJECT })]
-        {
-            assert_eq!(crate::href(&mut view, node).as_deref(), Some(d::address::print(&address).as_ref()));
-            assert_eq!(crate::act(&mut view, node, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "the existing interaction rows cover agent and code cards in both shells")]
+fn stop_presses_open_move_close_and_tabs_close_cards() {
+    for browser in [false, true] {
+        let mut f = fixture(Some(CURRENT), true, false);
+        let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+        let drawing = styled(view.tree(), look::WAYS_PATH)[0].id;
+        for data in [vec![], vec![0, 1]] {
+            assert_eq!(crate::act(&mut view, drawing, Act::Drawing { data: data.into() }), None);
         }
+        let action =
+            crate::act(&mut view, drawing, Act::Drawing { data: Box::new([u8::try_from(REVIEW).unwrap()]) }).unwrap();
+        assert_eq!(action, d::Action::Pages(pages::Act::WayStop { project: f::PROJECT, stop: REVIEW }));
+        f::root_event(&mut f.root, d::Event::Act { action });
+        let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+        assert_eq!(styled(view.tree(), look::WAYS_ZOOM)[0].name.as_deref(), Some(b"Review".as_slice()));
+        assert_eq!(
+            parts(view.tree(), look::WAYS_ZOOM),
+            [(Role::Slot, vec![look::WAYS_ZOOM_HEAD]), (Role::Group, vec![])]
+        );
+        assert_eq!(
+            parts(view.tree(), look::WAYS_ZOOM_HEAD),
+            [(Role::Heading { level: 3 }, vec![]), (Role::Text, vec![]), (Role::Link, vec![])]
+        );
+        for (role, words) in [
+            (Role::Term, b"Model".as_slice()),
+            (Role::Description, "Claude Opus 5.5 · high".as_bytes()),
+            (Role::Term, b"Can"),
+            (Role::Description, b"read the change and its checks; never edit, push or merge"),
+            (Role::Term, b"Asked to"),
+            (Role::Description, b"Review the change at the named head."),
+        ] {
+            named(view.tree(), role, words);
+        }
+        let open = named(view.tree(), Role::Link, "Open the reviewer ›".as_bytes()).id;
+        assert_eq!(crate::href(&mut view, open).as_deref(), Some(b"/projects/1/settings".as_slice()));
+        let review = named(view.tree(), Role::Button, b"review, an agent");
+        assert!(review.states.as_slice().contains(&State::Expanded));
+        let id = review.id;
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(pages::Act::WayStop { project: f::PROJECT, stop: REVIEW }))
+        );
+        for (label, heading) in [
+            (b"produce, an agent".as_slice(), Some(b"Produce".as_slice())),
+            (b"produce, an agent", None),
+            (b"review, an agent", Some(b"Review".as_slice())),
+        ] {
+            press(&mut f.root, browser, Role::Button, label);
+            let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+            assert_eq!(
+                view.tree()
+                    .nodes()
+                    .iter()
+                    .find(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM))
+                    .and_then(|n| n.name.as_deref()),
+                heading
+            );
+        }
+        for (label, heading, who, fact, value, link) in [
+            (
+                b"check, code".as_slice(),
+                b"Check".as_slice(),
+                "code · holds a change until CI passes",
+                b"Checks".as_slice(),
+                b"the repository's CI, at the change's head".as_slice(),
+                Some("Open CI ›"),
+            ),
+            (
+                b"merge, code",
+                b"Merge",
+                "code · lands the change",
+                b"Does",
+                b"merges exactly the commit its checks saw",
+                None,
+            ),
+        ] {
+            press(&mut f.root, browser, Role::Button, label);
+            let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+            assert_eq!(styled(view.tree(), look::WAYS_ZOOM)[0].name.as_deref(), Some(heading));
+            let head = children(styled(view.tree(), look::WAYS_ZOOM_HEAD));
+            assert_eq!(head[0].role, Role::Heading { level: 3 });
+            assert_eq!(head[0].name.as_deref(), Some(heading));
+            assert_eq!(head[1].role, Role::Text);
+            assert_eq!(
+                head[1].text.iter().flat_map(|run| run.text.iter().copied()).collect::<Vec<_>>(),
+                who.as_bytes()
+            );
+            let card = styled(view.tree(), look::WAYS_ZOOM);
+            let facts: Vec<_> = card.iter().filter(|n| n.role == Role::Term || n.role == Role::Description).collect();
+            assert_eq!(facts.len(), 2);
+            assert_eq!((facts[0].role, facts[0].name.as_deref()), (Role::Term, Some(fact)));
+            assert_eq!((facts[1].role, facts[1].name.as_deref()), (Role::Description, Some(value)));
+            let links: Vec<_> = card.iter().filter(|n| n.role == Role::Link).collect();
+            assert_eq!(links.len(), usize::from(link.is_some()));
+            if let Some(link) = link {
+                let id = named(view.tree(), Role::Link, link.as_bytes()).id;
+                assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/settings".as_slice()));
+            }
+        }
+        let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+        let id = tab(view.tree(), 0).id;
+        let action = crate::act(&mut view, id, Act::Press).unwrap();
+        f::root_event(&mut f.root, d::Event::Act { action });
+        let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM)));
+    }
+}
+
+#[test]
+fn acts_follow_current_permission_and_configuration() {
+    for (current, may_change, configured, shown, expected) in [
+        (Some(CURRENT), true, false, 0, Some(b"Use this".as_slice())),
+        (Some(CURRENT), true, false, CURRENT, Some(b"Keep it".as_slice())),
+        (None, true, false, STOCK, None),
+        (Some(CURRENT), false, false, 0, None),
+        (Some(CURRENT), true, true, CURRENT, None),
+    ] {
+        let mut f = fixture(current, may_change, configured);
+        input(&mut f.root, pages::Act::WayTab { project: f::PROJECT, tab: shown });
+        for mut view in [f::page_view(&f.root), f::browser_page_view(&f.root)] {
+            let act = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&look::WAYS_USE));
+            assert_eq!(
+                act.and_then(|n| n.name.as_deref()),
+                expected,
+                "current={current:?}, may_change={may_change}, configured={configured}"
+            );
+            if let Some(node) = act {
+                let id = node.id;
+                let act = crate::act(&mut view, id, Act::Press);
+                let expected = if shown == CURRENT {
+                    pages::Act::KeepWay { project: f::PROJECT }
+                } else {
+                    pages::Act::UseWay { project: f::PROJECT, way: shown }
+                };
+                assert_eq!(act, Some(d::Action::Pages(expected)));
+            }
+            if current.is_none() {
+                assert_eq!(styled(view.tree(), look::WAYS_PANEL)[0].name.as_deref(), Some(b"Yours".as_slice()));
+                assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_SAYS)));
+            }
+        }
+    }
+}
+
+#[test]
+fn pending_way_acts_stay_visible_disabled_and_refuse_in_words() {
+    for (tab, label, act) in [
+        (0, b"Use this".as_slice(), pages::Act::UseWay { project: f::PROJECT, way: 0 }),
+        (CURRENT, b"Keep it".as_slice(), pages::Act::KeepWay { project: f::PROJECT }),
+    ] {
+        let mut f = fixture(Some(CURRENT), true, false);
+        input(&mut f.root, pages::Act::WayTab { project: f::PROJECT, tab });
+        let sent = event(&mut f.root, d::Event::Act { action: d::Action::Pages(act) });
+        for mut view in [f::page_view(&f.root), f::browser_page_view(&f.root)] {
+            let node = named(view.tree(), Role::Button, label);
+            assert!(disabled(node));
+            let id = node.id;
+            assert_eq!(crate::act(&mut view, id, Act::Press), None);
+        }
+        let out = event(&mut f.root, d::Event::Client { event: jig_client::Event::Stored });
+        let attempt = sent
+            .iter()
+            .chain(out.iter())
+            .find_map(|r| {
+                if let d::Request::Unlinked {
+                    request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } },
+                } = r
+                {
+                    Some(*attempt)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        let why = b"Forge 2: owner approval asks 2 people; only 1 can approve.";
+        up(
+            &mut f.root,
+            Up::Answer {
+                attempt,
+                envelope: skein_lib::RequestEnvelope::Final,
+                why: None,
+                answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                    refusal: c::Refusal::Judged {
+                        at: 0,
+                        setting: c::Setting::Application { kind: 7, scope: f::PROJECT, number: 1 },
+                        why: c::Text::new(why.as_slice().into(), 128).unwrap(),
+                    },
+                    at: None,
+                })),
+            },
+        );
+        for view in [f::page_view(&f.root), f::browser_page_view(&f.root)] {
+            let refusal = styled(view.tree(), look::WAYS_REFUSED);
+            assert_eq!(refusal[0].role, Role::Alert);
+            assert!(f::text(view.tree()).windows(why.len()).any(|s| s == why));
+            assert!(!disabled(named(view.tree(), Role::Button, label)));
+            assert_eq!(children(styled(view.tree(), look::WAYS_PANEL)).last().unwrap().id, refusal[0].id);
+        }
+    }
+}
+
+#[test]
+fn loading_and_ended_ways_keep_the_lede_and_composer() {
+    let mut f = loading_fixture(false);
+    let watch = f.watch;
+    for (ended, expected) in [(false, vec![]), (true, vec![(Role::Paragraph, vec![look::WAYS_SAYS])])] {
+        if ended {
+            up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded });
+        }
+        for view in [f::page_view(&f.root), f::browser_page_view(&f.root)] {
+            assert_eq!(parts(view.tree(), look::WAYS), expected);
+            if ended {
+                assert_eq!(
+                    leaves(view.tree(), &styled(view.tree(), look::WAYS_SAYS)[0]),
+                    [b"The ways can't be read now."]
+                );
+            }
+            named(view.tree(), Role::TextArea, ENTRY);
+            assert_eq!(leaves(view.tree(), &styled(view.tree(), look::WAYS_LEDE)[0]), [LEDE.as_bytes()]);
+        }
+    }
+}
+
+#[test]
+fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
+    let mut f = fixture(Some(CURRENT), true, false);
+    input(&mut f.root, pages::Act::WayStop { project: f::PROJECT, stop: REVIEW });
+    let view = f::page_view(&f.root);
+    let out = print(&view);
+    let text = String::from_utf8_lossy(out.text.as_slice());
+    let mut rest = text.as_ref();
+    for word in [
+        "== Ask temper ==",
+        LEDE,
+        "Ways of working:",
+        "You approve",
+        "Agents review, now",
+        "Draft first",
+        "more of you",
+        "more of your agents",
+        core::str::from_utf8(LINES[1]).unwrap(),
+        "you ask, a person",
+        "produce, an agent",
+        "check, code",
+        "review, an agent",
+        "repair, an agent",
+        "check, code",
+        "update, code",
+        "resolve, an agent",
+        "merge, code",
+        "main, a branch",
+        "Review",
+        "an agent · holds a change until it approves",
+        "Open the reviewer ›",
+        "Model",
+        "Claude Opus 5.5 · high",
+        "Can",
+        "Asked to",
+        "agent",
+        "person",
+        "code",
+        "no merge tool above",
+        "Keep it",
+        core::str::from_utf8(ENTRY).unwrap(),
+        "Send",
+    ] {
+        let at = rest.find(word).unwrap_or_else(|| panic!("missing or out of order {word}: {text}"));
+        rest = &rest[at + word.len()..];
+    }
+    for removed in [
+        "How should temper run",
+        "Tell it how you work, in your own words",
+        "What it sets",
+        "Ways to begin",
+        "Small changes, alone",
+        "A design draft first",
+        "Models by role",
+        "Not sure yet?",
+        "At scale, as temper builds itself",
+        "See how it works",
+        "Start from it",
+        "How temper builds temper, beside the chat",
+    ] {
+        assert!(!text.contains(removed), "{removed}: {text}");
+    }
+}
+
+#[test]
+fn lede_uses_the_project_name() {
+    for name in [b"Hello".as_slice(), b"Another project"] {
+        let (root, _, _, _, _) = f::root_at_full(Address::Ask { project: f::PROJECT }, &f::domain_limits(), name);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(
+                leaves(view.tree(), &styled(view.tree(), look::WAYS_LEDE)[0]),
+                [format!("Pick a way for {}, or ask temper to build your own.", String::from_utf8_lossy(name))
+                    .as_bytes()]
+            );
+        }
+    }
+}
+
+#[test]
+fn pending_start_disables_send_and_keeps_words() {
+    let mut root = root();
+    input(&mut root, pages::Act::ChatWords { words: DRAFT.into() });
+    input(&mut root, pages::Act::StartChat);
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let send = named(view.tree(), Role::Button, b"Send");
+        assert!(disabled(send));
+        let id = send.id;
+        assert_eq!(crate::act(&mut view, id, Act::Press), None);
+        let entry = named(view.tree(), Role::TextArea, ENTRY);
+        assert_eq!(entry.value.as_ref().unwrap().text.as_ref(), DRAFT);
+        let id = entry.id;
+        assert_eq!(crate::act(&mut view, id, Act::Submit), None);
     }
 }
 
@@ -265,48 +890,10 @@ fn empty_composer_is_focused_with_send_disabled() {
 }
 
 #[test]
-fn pending_starts_disable_starters_and_send_keep_the_words() {
-    for (start, expected) in
-        [(pages::Act::StartChat, DRAFT), (pages::Act::Starter { words: STARTERS[0].into() }, STARTERS[0])]
-    {
-        let mut root = root();
-        input(&mut root, pages::Act::ChatWords { words: DRAFT.into() });
-        input(&mut root, start);
-        assert!(root.pages().chats().unwrap().start.is_some());
-        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-            let buttons: Vec<_> = starters(view.tree())
-                .iter()
-                .map(|n| {
-                    assert!(disabled(n), "{n:?}");
-                    n.id
-                })
-                .collect();
-            assert_eq!(buttons.len(), 4);
-            for id in buttons {
-                assert_eq!(crate::act(&mut view, id, Act::Press), None);
-            }
-            let see = named(view.tree(), Role::Button, b"See how it works");
-            assert!(!disabled(see));
-            let id = see.id;
-            assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(pages::Act::ShowReference)));
-            let send = named(view.tree(), Role::Button, b"Send");
-            assert!(disabled(send));
-            let id = send.id;
-            assert_eq!(crate::act(&mut view, id, Act::Press), None);
-            let entry = named(view.tree(), Role::TextArea, ENTRY);
-            assert_eq!(entry.value.as_ref().unwrap().text.as_ref(), expected);
-            assert!(!entry.states.as_slice().contains(&State::SubmitsOnEnter));
-            let id = entry.id;
-            assert_eq!(crate::act(&mut view, id, Act::Submit), None);
-        }
-    }
-}
-
-#[test]
 fn refused_start_keeps_words_and_puts_refusal_under_composer() {
     let mut root = root();
     input(&mut root, pages::Act::ChatWords { words: DRAFT.into() });
-    let mut out = skein_lib::Queue::uncapped();
+    let mut out = Queue::uncapped();
     d::step(
         &mut root,
         &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
@@ -322,7 +909,7 @@ fn refused_start_keeps_words_and_puts_refusal_under_composer() {
     let mut sent = None;
     for request in &out {
         if let d::Request::Unlinked {
-            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } },
         } = request
         {
             sent = Some(*attempt);
@@ -333,7 +920,7 @@ fn refused_start_keeps_words_and_puts_refusal_under_composer() {
         &mut root,
         d::Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::Answer {
+                up: Up::Answer {
                     attempt,
                     envelope: skein_lib::RequestEnvelope::Final,
                     why: None,
@@ -353,83 +940,6 @@ fn refused_start_keeps_words_and_puts_refusal_under_composer() {
         assert_eq!(foot.last().unwrap().role, Role::Status);
         assert!(String::from_utf8_lossy(&f::main_text(view.tree())).contains("not offered"));
     }
-}
-
-#[test]
-fn browser_pairs_are_two_leaves_and_terminal_pairs_are_one_line() {
-    let root = root();
-    for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
-        let tree = view.tree();
-        let items = children(styled(tree, look::STARTER_SETS));
-        let buttons: Vec<_> = styled(tree, look::STARTERS).iter().filter(|n| n.role == Role::Button).collect();
-        for (node, (term, line)) in items.into_iter().zip(SETS).chain(buttons.into_iter().zip(CARDS)) {
-            assert_eq!(node.name, None);
-            let expected = if browser {
-                vec![term.as_bytes().to_vec(), line.as_bytes().to_vec()]
-            } else {
-                vec![format!("{term}: {line}").into_bytes()]
-            };
-            assert_eq!(leaves(tree, node), expected);
-        }
-    }
-}
-
-#[test]
-fn question_uses_the_project_name() {
-    for name in [b"Hello".as_slice(), b"Another project"] {
-        let (root, _, _, _, _) = f::root_at_full(Address::Ask { project: f::PROJECT }, &f::domain_limits(), name);
-        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-            let name = String::from_utf8_lossy(name);
-            let question = format!("How should temper run {name}?");
-            named(view.tree(), Role::Heading { level: 2 }, question.as_bytes());
-            let start = named(view.tree(), Role::Button, b"Start from it").id;
-            let words = format!("Set {name} up the way temper builds itself, sized for this machine.");
-            assert_eq!(
-                crate::act(&mut view, start, Act::Press),
-                Some(d::Action::Pages(pages::Act::Starter { words: words.as_bytes().into() }))
-            );
-        }
-    }
-}
-
-#[test]
-fn terminal_prints_the_path_opening_starters_and_composer_in_order() {
-    let root = root();
-    let view = f::page_view(&root);
-    let out = print(&view);
-    let text = String::from_utf8_lossy(out.text.as_slice());
-    let numbered = |node: &Node, words: &str| {
-        let number = out.numbers.as_slice().iter().position(|id| *id == node.id).unwrap() + 1;
-        format!("[{number}] {words}")
-    };
-    // skein-ui-text prints the level-1 heading as the page title.
-    let mut expected = vec!["== Ask temper ==".to_owned(), "Where:".to_owned()];
-    for node in children(styled(view.tree(), look::TRAIL)) {
-        expected.push(numbered(node, &String::from_utf8_lossy(node.name.as_deref().unwrap())));
-    }
-    expected.extend(["Conversation:", QUESTION, LEDE, "What it sets:"].map(str::to_owned));
-    expected.extend(SETS.map(|(term, line)| format!("{term}: {line}")));
-    expected.extend([NOTE, "Ways to begin:"].map(str::to_owned));
-    expected.push(numbered(named(view.tree(), Role::Button, UNSURE.as_bytes()), UNSURE));
-    let cards = styled(view.tree(), look::STARTERS).iter().filter(|n| n.role == Role::Button);
-    for (node, (title, line)) in cards.zip(CARDS) {
-        expected.push(numbered(node, &format!("{title}: {line}")));
-    }
-    expected.extend(
-        ["At scale, as temper builds itself", "Draft", "The cut", "Coding agents", "Goal’s branch", "main"]
-            .map(str::to_owned),
-    );
-    for words in ["See how it works", "Start from it"] {
-        expected.push(numbered(named(view.tree(), Role::Button, words.as_bytes()), words));
-    }
-    expected.extend([String::from_utf8_lossy(ENTRY).into_owned(), "Send".to_owned()]);
-    let mut remaining = text.as_ref();
-    for words in expected {
-        let at = remaining.find(&words).unwrap_or_else(|| panic!("missing or out of order {words}: {text}"));
-        remaining = &remaining[at + words.len()..];
-    }
-    assert_eq!(text.matches("Ways to begin:").count(), 1, "{text}");
-    assert!(!text.contains("temper’s configuring agent"));
 }
 
 #[test]
@@ -481,10 +991,8 @@ fn unlisted_project_says_what_home_says_in_both_shells() {
 const CLAUDE: u32 = 18;
 const PLAN: u32 = 17;
 const KEY: u32 = 19;
-const UNKNOWN_ACCOUNT: u32 = 20;
 
 fn ask_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::Domain {
-    use skein_lib::List;
     let (sample, _) = super::choice::provider_byline_root(
         Address::NewChat { draft: false },
         [c::Readiness::Usable, c::Readiness::Usable],
@@ -548,7 +1056,7 @@ fn ask_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::Domain
         &mut root,
         d::Event::Client {
             event: jig_client::Event::Up {
-                up: jig_client::Up::Watched {
+                up: Up::Watched {
                     watch: accounts_watch.unwrap(),
                     event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(document))),
                 },
@@ -603,67 +1111,6 @@ fn ask_picker_buttons_edit_the_draft() {
 }
 
 #[test]
-fn models_by_role_names_the_first_two_distinct_offered_accounts() {
-    for (offers, held, line, sent) in [
-        (
-            vec![(CLAUDE, &[CLAUDE][..]), (PLAN, &[CLAUDE, PLAN, KEY][..])],
-            vec![CLAUDE, PLAN, KEY],
-            "Claude for reviews, my ChatGPT plan for the rest.",
-            "Use Claude for reviews and my ChatGPT plan for everything else.",
-        ),
-        (
-            vec![(PLAN, &[PLAN, KEY][..]), (CLAUDE, &[CLAUDE][..])],
-            vec![CLAUDE, PLAN, KEY],
-            "my ChatGPT plan for reviews, my OpenAI API key for the rest.",
-            "Use my ChatGPT plan for reviews and my OpenAI API key for everything else.",
-        ),
-        (
-            vec![(PLAN, &[UNKNOWN_ACCOUNT][..]), (CLAUDE, &[CLAUDE][..])],
-            vec![CLAUDE],
-            "OpenAI for reviews, Claude for the rest.",
-            "Use OpenAI for reviews and Claude for everything else.",
-        ),
-    ] {
-        let root = ask_root(&offers, &held, b"gpt-6-astra");
-        for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
-            let button = styled(view.tree(), look::STARTERS)
-                .iter()
-                .find(|node| {
-                    node.role == Role::Button
-                        && leaves(view.tree(), node).iter().any(|leaf| leaf.starts_with(b"Models by role"))
-                })
-                .expect("models starter");
-            let expected = if browser {
-                vec![b"Models by role".to_vec(), line.as_bytes().to_vec()]
-            } else {
-                vec![format!("Models by role: {line}").into_bytes()]
-            };
-            assert_eq!(leaves(view.tree(), button), expected);
-            let id = button.id;
-            assert_eq!(
-                crate::act(&mut view, id, Act::Press),
-                Some(d::Action::Pages(pages::Act::Starter { words: sent.as_bytes().into() })),
-            );
-        }
-    }
-}
-
-#[test]
-fn models_by_role_needs_two_distinct_offered_accounts() {
-    for offers in [
-        vec![],
-        vec![(CLAUDE, &[][..])],
-        vec![(CLAUDE, &[CLAUDE][..])],
-        vec![(CLAUDE, &[CLAUDE][..]), (CLAUDE, &[CLAUDE][..])],
-    ] {
-        let root = ask_root(&offers, &[CLAUDE, PLAN], b"claude-opus-5-5");
-        for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            assert!(!String::from_utf8_lossy(&f::main_text(view.tree())).contains("Models by role"));
-        }
-    }
-}
-
-#[test]
 fn asking_chat_picker_applies_to_its_next_run() {
     use pages::choice::Act as Choice;
     let mut task = super::chat::asking_task();
@@ -671,11 +1118,11 @@ fn asking_chat_picker_applies_to_its_next_run() {
         later: None,
         account: None,
         main: c::ModelEffort { model: f::first_run::text(b"chosen"), effort: None },
-        subagents: skein_lib::List::with_capacity(0),
+        subagents: List::with_capacity(0),
     });
     let mut acts = task.acts.as_slice().to_vec();
     acts.push(c::Offered { act: c::ActKind::Amend, admission: c::Admission::Allowed, effect: None });
-    task.acts = skein_lib::List::from_boxed(acts.into_boxed_slice());
+    task.acts = List::from_boxed(acts.into_boxed_slice());
     for browser in [false, true] {
         let mut root = super::chat::asking_task_root(task.clone(), true, 37);
         let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
@@ -694,43 +1141,42 @@ fn asking_chat_picker_applies_to_its_next_run() {
 }
 
 #[test]
-fn the_own_way_card_offers_its_two_acts() {
-    let stock = f::root_with_ways(Address::Ask { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
-    let populated = root();
-    for root in [&populated, &stock] {
-        for mut view in [f::page_view(root), f::browser_page_view(root)] {
-            let card = &styled(view.tree(), look::STARTER_OWN)[0];
-            assert_eq!(card.role, Role::Group);
-            assert_eq!(card.name.as_deref(), Some("temper’s own way".as_bytes()));
-            assert_eq!(
-                leaves(view.tree(), &styled(view.tree(), look::STARTER_OWN_TITLE)[0]),
-                [b"At scale, as temper builds itself"]
-            );
-            let steps = &styled(view.tree(), look::STARTER_OWN_STEPS)[0];
-            assert_eq!(steps.name.as_deref(), Some(b"Its steps: designers cut a draft into parts, coding agents make them in parallel, the goal lands whole".as_slice()));
-            let steps: Vec<_> = children(styled(view.tree(), look::STARTER_OWN_STEPS))
-                .into_iter()
-                .map(|n| leaves(view.tree(), n))
-                .collect();
-            assert_eq!(
-                steps,
-                ["Draft", "The cut", "Coding agents", "Goal’s branch", "main"]
-                    .map(|step| vec![step.as_bytes().to_vec()])
-            );
-            for (label, act) in [
-                (b"See how it works".as_slice(), pages::Act::ShowReference),
-                (
-                    b"Start from it",
-                    pages::Act::Starter {
-                        words: b"Set Shop up the way temper builds itself, sized for this machine.".as_slice().into(),
-                    },
-                ),
-            ] {
-                let button = named(view.tree(), Role::Button, label);
-                assert!(!disabled(button));
-                let id = button.id;
-                assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(act)));
-            }
+fn composer_and_path_emit_the_requested_acts() {
+    let mut root = root();
+    input(&mut root, pages::Act::ChatWords { words: DRAFT.into() });
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let entry = named(view.tree(), Role::TextArea, ENTRY).id;
+        assert_eq!(
+            crate::act(&mut view, entry, Act::Input { value: b"Changed".as_slice().into() }),
+            Some(d::Action::Pages(pages::Act::ChatWords { words: b"Changed".as_slice().into() }))
+        );
+        assert_eq!(crate::act(&mut view, entry, Act::Submit), Some(d::Action::Pages(pages::Act::StartChat)));
+        let send = named(view.tree(), Role::Button, b"Send").id;
+        assert_eq!(crate::act(&mut view, send, Act::Press), Some(d::Action::Pages(pages::Act::StartChat)));
+        let links: Vec<_> = children(styled(view.tree(), look::TRAIL)).into_iter().map(|n| n.id).collect();
+        let back = styled(view.tree(), look::BACK)[0].id;
+        for (node, address) in
+            [(back, Address::Home { project: f::PROJECT }), (links[0], Address::Home { project: f::PROJECT })]
+        {
+            assert_eq!(crate::href(&mut view, node).as_deref(), Some(d::address::print(&address).as_ref()));
+            assert_eq!(crate::act(&mut view, node, Act::Press), Some(d::Action::Pages(pages::Act::Go { address })));
         }
+    }
+}
+
+#[test]
+fn absent_asking_template_disables_the_composer() {
+    let (mut absent, watch, _) = f::root_at(Address::Ask { project: f::PROJECT }, &f::domain_limits());
+    let mut me = absent.pages().me(absent.client()).unwrap().clone();
+    let project = me.projects.get_mut(0).unwrap();
+    project.templates =
+        List::from_boxed(project.templates.iter().filter(|template| template.number != 5).cloned().collect());
+    f::deliver_me(&mut absent, watch, me);
+    input(&mut absent, pages::Act::ChatWords { words: b"How does temper work?".as_slice().into() });
+    for view in [f::page_view(&absent), f::browser_page_view(&absent)] {
+        let tree = view.tree();
+        assert!(disabled(named(tree, Role::Button, b"Send")));
+        assert!(disabled(named(tree, Role::TextArea, ENTRY)));
+        assert!(String::from_utf8_lossy(&f::text(tree)).contains("Ask temper isn't set up in this project."));
     }
 }

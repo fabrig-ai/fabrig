@@ -21,10 +21,7 @@ const WORKFLOW: &[u8] = b"One chat per change, landed once CI passes.";
 
 #[test]
 fn the_page_starts_the_asking_chat() {
-    for (choose, acts) in [false, true].into_iter().flat_map(|choose| {
-        [vec![Act::ChatWords { words: WORKFLOW.into() }, Act::StartChat], vec![Act::Starter { words: WORKFLOW.into() }]]
-            .map(|acts| (choose, acts))
-    }) {
+    for choose in [false, true] {
         let mut front = Joint::with_asking(fixtures::SEED, fixtures::domain_limits(), false);
         let mut root = temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(
             &fixtures::domain_limits(),
@@ -51,7 +48,7 @@ fn the_page_starts_the_asking_chat() {
                 .into(),
             );
         }
-        for act in acts {
+        for act in [Act::ChatWords { words: WORKFLOW.into() }, Act::StartChat] {
             account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(act) }.into());
         }
         let assignment = front.assignments.last().expect("Ask temper run assigned");
@@ -315,11 +312,9 @@ fn start_over_closes_and_opens_a_fresh_ask() {
         jig_client::shapes::template(person.pages().me(person.client()).expect("me"), PROJECT, 5).is_some(),
         "the joined world offers Ask temper template 5"
     );
-    account_acts::event(
-        &mut front,
-        &mut root,
-        Event::Act { action: Action::Pages(Act::Starter { words: WORKFLOW.into() }) }.into(),
-    );
+    for act in [Act::ChatWords { words: WORKFLOW.into() }, Act::StartChat] {
+        account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(act) }.into());
+    }
     let assignment = front.assignments.last().expect("Ask temper run").clone();
     let task = assignment.task;
     let body = b"# How this project works\n\nOne checked change at a time.\n";
@@ -341,12 +336,9 @@ fn start_over_closes_and_opens_a_fresh_ask() {
     assert_eq!(root.person().pages().address(), &Address::Ask { project: PROJECT });
     assert!(root.person().pages().chat().is_none());
     assert!(front.engine.task(task).is_none(), "the old chat has closed");
-    account_acts::event(
-        &mut front,
-        &mut root,
-        Event::Act { action: Action::Pages(Act::Starter { words: b"A fresh way of working".as_slice().into() }) }
-            .into(),
-    );
+    for act in [Act::ChatWords { words: b"A fresh way of working".as_slice().into() }, Act::StartChat] {
+        account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(act) }.into());
+    }
     let fresh = front.assignments.last().expect("fresh Ask temper run");
     assert_ne!(fresh.task, task);
     assert_eq!(fresh.charter, 11);

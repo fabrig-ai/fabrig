@@ -544,27 +544,11 @@ read's head explicit.
   An agent's task's Close is drawn at each width by its gallery state, the walk of the
   request `ui-walk-3` of 2026-11-06 having tried the fake box for it first, and no walk
   on record presses it.
-- **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
-  or "Start from it", and no test presses them on a box: the view's tests and the gallery's
-  `ask-reference` and `ask-reference-draft` alone draw them. The walk of the request
-  `ui-walk-3` pressed both at each width, on a first project and a fresh one, by hand. The fake model
-  answers their words with its fallback, so no walk on record has an Ask temper run
-  follow them.
-- **Design departs:** 3.5, *Ask temper's page* and *temper's own way, beside the page*,
-  from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
-  request's plan's cut. The picture and the table's Workers and QA stand in
-  `../draft/own-way.status.md`. Beside them:
-  - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
-    has them, where the request's page has a small level 3 title over large level 2 sections;
-  - its section 3 says of a goal's branch "whose tests run along the way", where the request has
-    it checked "by CI and a review on the way": the reference's goal branches have neither
-    (`../draft/reference-code-production.md`, sections 6 and 10);
-  - a table's row name is bold in a cell, where the request's rule is `th[scope=row]`, since
-    skein's reader draws no row header;
+- **Design departs:** 3.5, *Ask temper's page*, from the request
+  `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
+  request's plan's cut:
   - the thread's padding of 28 and 8 reaches the opening alone, at wide widths, where the request's
     rule reaches every chat; a phone keeps its 20 and 16;
-  - the card's steps are a list with no marker and the pane a region of slots, where the request's
-    page has an `ol`, an `article` and `section`s;
   - a phone hides the composer's hint, by the rule every session has there, where the request's page
     shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).

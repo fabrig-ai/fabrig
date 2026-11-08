@@ -57,118 +57,355 @@ fn bounds() -> skein_ui::Limits {
     crate::Limits::of(&f::domain_limits(), &f::words()).unwrap().tree
 }
 
-fn tree(stops: &[Stop<'_>]) -> skein_ui::Tree {
+fn tree(stops: &[Stop<'_>], pressed: Option<&paths::Pressed<'_>>) -> skein_ui::Tree {
     let mut builder = Builder::new(&bounds());
-    paths::path(&mut builder, b"The way a change goes", stops).unwrap();
+    paths::path(&mut builder, b"The way a change goes", stops, pressed).unwrap();
     builder.finish()
 }
 
+fn binding(index: u64) -> skein_ui::Binding {
+    skein_ui::Binding { owner: crate::frame::owner(), token: skein_lib::Token::new(index) }
+}
+
+fn styled(scene: &Scene, style: skein_ui::Style) -> Vec<u32> {
+    (0..u32::try_from(scene.marks().len()).unwrap()).filter(|i| scene.styles(*i).contains(&style)).collect()
+}
+
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table checks the three paths, their stop geometry and fallback words")]
+#[expect(clippy::too_many_lines, reason = "the request's three paths share geometry, acts and fallback assertions")]
 fn the_three_look_paths_keep_judgement_above_code_and_each_stop_in_words() {
     for rows in [APPROVE, REVIEW, DRAFT] {
         let stops: Vec<_> = rows.iter().map(|(mark, words)| Stop { mark: *mark, words }).collect();
-        let tree = tree(&stops);
-        let data = &tree.nodes()[0].drawing.as_ref().unwrap().data;
-        assert_eq!(tree.nodes()[1].role, Role::List);
-        assert_eq!(tree.nodes()[1].name.as_deref(), Some(b"The way a change goes".as_slice()));
-        let mut print = skein_ui_text::Print::new(&bounds()).unwrap();
-        skein_ui_text::render(&tree, b"", None, &mut print);
-        let printed = String::from_utf8_lossy(print.text.as_slice());
-        let mut scene = Scene::new(&bounds());
-        assert!(paths::draw(paths::KIND, data, 640, 0, &mut scene));
-        assert_eq!(scene.height(), Some(140));
-        assert_eq!(scene.marks().len(), 2 + 2 * rows.len());
-        assert_eq!(scene.marks()[0], SceneMark::Line { from: Point { x: 0, y: 72 }, to: Point { x: 640, y: 72 } });
-        assert_eq!(scene.styles(0), &[look::WAYS_AUTH]);
-        assert_eq!(scene.styles(1), &[look::WAYS_BASE]);
-        assert_eq!(scene.marks()[1], SceneMark::Path { commands: u32::try_from(1 + 3 * (rows.len() - 1)).unwrap() });
-        let mut line = skein_lib::Reader::new(scene.data(1));
-        assert_eq!(line.u8(), Some(b'M'));
-        assert_eq!(read_point(&mut line), Point { x: 12, y: 40 });
-        for (i, (mark, words)) in rows.iter().enumerate() {
-            let x = u16::try_from(12 + 616 * i / (rows.len() - 1)).unwrap();
-            let upper = *mark == Mark::Person || *mark == Mark::Agent;
-            let mark_index = u32::try_from(2 + 2 * i).unwrap();
-            let expected = match mark {
-                Mark::Person => SceneMark::Circle { centre: Point { x, y: 40 }, radius: 7 },
-                Mark::Agent => SceneMark::Path { commands: 6 },
-                Mark::Code => {
-                    SceneMark::Rectangle { corner: Point { x: x - 5, y: 101 }, size: Point { x: 10, y: 10 }, radius: 2 }
-                }
-                Mark::Bar => {
-                    SceneMark::Rectangle { corner: Point { x: x - 1, y: 95 }, size: Point { x: 3, y: 22 }, radius: 1 }
-                }
-            };
-            assert_eq!(scene.marks()[usize::try_from(mark_index).unwrap()], expected, "{i}: {mark:?}");
-            let (style, name, actor) = match mark {
-                Mark::Person => (look::WAYS_PERSON, b"temper-ways-person".as_slice(), "a person"),
-                Mark::Agent => (look::WAYS_AGENT, b"temper-ways-agent".as_slice(), "an agent"),
-                Mark::Code => (look::WAYS_CODE, b"temper-ways-code".as_slice(), "code"),
-                Mark::Bar => (look::WAYS_BAR, b"temper-ways-bar".as_slice(), "a branch"),
-            };
-            assert_eq!(scene.styles(mark_index), &[style]);
-            assert_eq!(look::NAMES.style(style), Some(name));
-            if *mark == Mark::Agent {
-                let mut star = skein_lib::Reader::new(scene.data(mark_index));
-                assert_eq!(star.u8(), Some(b'M'));
-                assert_eq!(read_point(&mut star), Point { x, y: 31 });
-                for tip in
-                    [Point { x: x + 9, y: 40 }, Point { x, y: 49 }, Point { x: x - 9, y: 40 }, Point { x, y: 31 }]
-                {
-                    assert_eq!(star.u8(), Some(b'Q'));
-                    let _control = read_point(&mut star);
-                    assert_eq!(read_point(&mut star), tip);
-                }
-                assert_eq!(star.u8(), Some(b'Z'));
-                assert!(star.is_empty());
-            }
-            let y = if upper {
-                22
-            } else if *mark == Mark::Bar {
-                88
-            } else {
-                131
-            };
-            let anchor = if i == 0 {
-                Anchor::Start
-            } else if i + 1 == rows.len() {
-                Anchor::End
-            } else {
-                Anchor::Middle
-            };
+        let bindings: Vec<_> = rows
+            .iter()
+            .enumerate()
+            .map(|(i, (mark, _))| (*mark != Mark::Bar).then_some(binding(u64::try_from(i).unwrap())))
+            .collect();
+        for pressed in [None, Some(paths::Pressed { drawing: binding(99), stops: &bindings, open: Some(3) })] {
+            let tree = tree(&stops, pressed.as_ref());
+            let node = &tree.nodes()[0];
+            let data = &node.drawing.as_ref().unwrap().data;
             assert_eq!(
-                scene.marks()[usize::try_from(mark_index + 1).unwrap()],
-                SceneMark::Text { at: Point { x: if i == 0 { 2 } else { x }, y }, anchor }
+                &data[..3],
+                &[
+                    u8::try_from(rows.len()).unwrap(),
+                    u8::from(pressed.is_some()),
+                    if pressed.is_some() { 3 } else { 255 }
+                ]
             );
-            assert_eq!(scene.data(mark_index + 1), *words);
-            assert_eq!(scene.styles(mark_index + 1), &[look::WAYS_WORDS]);
-            assert!(
-                printed.lines().any(|line| line.contains(&format!("{}, {actor}", String::from_utf8_lossy(words)))),
-                "{printed}"
+            assert_eq!(node.styles.as_slice(), &[look::WAYS_PATH]);
+            assert_eq!(node.binding, pressed.as_ref().map(|p| p.drawing));
+            assert_eq!(tree.nodes()[1].role, Role::List);
+            assert_eq!(tree.nodes()[1].name.as_deref(), Some(b"The way a change goes".as_slice()));
+            let buttons: Vec<_> = tree.nodes().iter().filter(|n| n.role == Role::Button).collect();
+            assert_eq!(
+                buttons.len(),
+                if pressed.is_some() { rows.len() - rows.iter().filter(|r| r.0 == Mark::Bar).count() } else { 0 }
             );
-            if i != 0 {
-                assert_eq!(line.u8(), Some(b'C'));
-                let _control = read_point(&mut line);
-                assert_eq!(read_point(&mut line).y, 106);
-                assert_eq!(read_point(&mut line).y, 106);
-                assert_eq!(line.u8(), Some(b'L'));
-                assert_eq!(read_point(&mut line).y, 106);
-                assert_eq!(line.u8(), Some(b'C'));
-                assert_eq!(read_point(&mut line).y, 106);
-                let _control = read_point(&mut line);
-                assert_eq!(read_point(&mut line), Point { x, y: if upper { 40 } else { 106 } });
+            if pressed.is_some() {
+                for (button, (i, _)) in buttons.iter().zip(rows.iter().enumerate().filter(|(_, r)| r.0 != Mark::Bar)) {
+                    assert_eq!(button.binding, bindings[i]);
+                    assert_eq!(button.states.as_slice().contains(&skein_ui::State::Expanded), i == 3);
+                }
+            }
+            let mut print = skein_ui_text::Print::new(&bounds()).unwrap();
+            skein_ui_text::render(&tree, b"", None, &mut print);
+            let printed = String::from_utf8_lossy(print.text.as_slice());
+            for width in [720, 388] {
+                let across = width == 720;
+                let mut scene = Scene::new(&bounds());
+                assert!(paths::draw(paths::KIND, data, width, 0, &mut scene));
+                let height =
+                    if across { if pressed.is_some() { 154 } else { 140 } } else { 68 + 40 * (rows.len() - 2) };
+                assert_eq!(scene.height(), Some(u16::try_from(height).unwrap()));
+                assert_eq!(
+                    scene.marks()[0],
+                    if across {
+                        SceneMark::Line { from: Point { x: 0, y: 72 }, to: Point { x: 720, y: 72 } }
+                    } else {
+                        SceneMark::Line {
+                            from: Point { x: 192, y: 0 },
+                            to: Point { x: 192, y: u16::try_from(height - 14).unwrap() },
+                        }
+                    }
+                );
+                assert_eq!(scene.styles(0), &[look::WAYS_AUTH]);
+                for (style, above) in [(look::WAYS_BASE, false), (look::WAYS_RISE, true)] {
+                    let indices = styled(&scene, style);
+                    assert_eq!(indices.len(), 1);
+                    let commands = commands(scene.data(indices[0]));
+                    assert!(!commands.is_empty());
+                    for command in &commands {
+                        let points = match command {
+                            skein_ui::scene::Command::Move(p) | skein_ui::scene::Command::Line(p) => vec![*p],
+                            skein_ui::scene::Command::Cubic(a, b, c) => vec![*a, *b, *c],
+                            skein_ui::scene::Command::Quadratic(..) | skein_ui::scene::Command::Close => {
+                                panic!("line contains moves, lines and cubics")
+                            }
+                        };
+                        for p in points {
+                            if across {
+                                assert!(if above { p.y <= 72 } else { p.y >= 72 });
+                            } else {
+                                assert!(if above { p.x >= 192 } else { p.x <= 192 });
+                            }
+                        }
+                    }
+                    if !above {
+                        // The first judgement falls over 0.42 of one step.
+                        let step = 64000 / (rows.len() - 2);
+                        let foot = if across {
+                            Point { x: u16::try_from((1200 + step * 42 / 100) / 100).unwrap(), y: 106 }
+                        } else {
+                            Point { x: 164, y: 32 }
+                        };
+                        assert!(commands.iter().any(|command| match command {
+                            skein_ui::scene::Command::Cubic(_, _, end) => *end == foot,
+                            skein_ui::scene::Command::Move(_)
+                            | skein_ui::scene::Command::Line(_)
+                            | skein_ui::scene::Command::Quadratic(..)
+                            | skein_ui::scene::Command::Close => false,
+                        }));
+                    }
+                }
+                let texts = styled(&scene, look::WAYS_WORDS);
+                assert_eq!(texts.len(), rows.len());
+                for (i, (mark, words)) in rows.iter().enumerate() {
+                    let upper = *mark == Mark::Person || *mark == Mark::Agent;
+                    let bar = *mark == Mark::Bar;
+                    let end = i + 1 == rows.len();
+                    let along = if across {
+                        if end { 71200 } else { 1200 + 64000 * i / (rows.len() - 2) }
+                    } else {
+                        if end { (height - 14) * 100 } else { (16 + 40 * i) * 100 }
+                    };
+                    let (x, y) = if across {
+                        (along, if upper { 4000 } else { 10600 })
+                    } else {
+                        (if upper { 22000 } else { 16400 }, along)
+                    };
+                    let style = match mark {
+                        Mark::Person => look::WAYS_PERSON,
+                        Mark::Agent => look::WAYS_AGENT,
+                        Mark::Code => look::WAYS_CODE,
+                        Mark::Bar => look::WAYS_MAIN,
+                    };
+                    let text_index = texts[i];
+                    let mark_index = text_index - 1;
+                    assert_eq!(scene.styles(mark_index), &[style]);
+                    let expected = match mark {
+                        Mark::Person => SceneMark::Circle {
+                            centre: Point { x: u16::try_from(x / 100).unwrap(), y: u16::try_from(y / 100).unwrap() },
+                            radius: 7,
+                        },
+                        Mark::Agent => SceneMark::Path { commands: 6 },
+                        Mark::Code => SceneMark::Rectangle {
+                            corner: Point {
+                                x: u16::try_from((x - 500) / 100).unwrap(),
+                                y: u16::try_from((y - 500) / 100).unwrap(),
+                            },
+                            size: Point { x: 10, y: 10 },
+                            radius: 2,
+                        },
+                        Mark::Bar => SceneMark::Rectangle {
+                            corner: Point {
+                                x: u16::try_from((x - if across { 150 } else { 1100 }) / 100).unwrap(),
+                                y: u16::try_from((y - if across { 1100 } else { 150 }) / 100).unwrap(),
+                            },
+                            size: if across { Point { x: 3, y: 22 } } else { Point { x: 22, y: 3 } },
+                            radius: 1,
+                        },
+                    };
+                    assert_eq!(scene.marks()[usize::try_from(mark_index).unwrap()], expected, "{width}, {i}: {mark:?}");
+                    if *mark == Mark::Agent {
+                        let star = commands(scene.data(mark_index));
+                        assert_eq!(
+                            star[0],
+                            skein_ui::scene::Command::Move(Point {
+                                x: u16::try_from(x / 100).unwrap(),
+                                y: u16::try_from((y - 900) / 100).unwrap()
+                            })
+                        );
+                        assert_eq!(
+                            star[1],
+                            skein_ui::scene::Command::Quadratic(
+                                Point {
+                                    x: u16::try_from((x + 180) / 100).unwrap(),
+                                    y: u16::try_from((y - 180) / 100).unwrap()
+                                },
+                                Point {
+                                    x: u16::try_from((x + 900) / 100).unwrap(),
+                                    y: u16::try_from(y / 100).unwrap()
+                                }
+                            )
+                        );
+                        for (command, tip) in star.iter().skip(2).take(3).zip([
+                            Point { x: u16::try_from(x / 100).unwrap(), y: u16::try_from((y + 900) / 100).unwrap() },
+                            Point { x: u16::try_from((x - 900) / 100).unwrap(), y: u16::try_from(y / 100).unwrap() },
+                            Point { x: u16::try_from(x / 100).unwrap(), y: u16::try_from((y - 900) / 100).unwrap() },
+                        ]) {
+                            match command {
+                                skein_ui::scene::Command::Quadratic(_, end) => assert_eq!(*end, tip),
+                                skein_ui::scene::Command::Move(_)
+                                | skein_ui::scene::Command::Line(_)
+                                | skein_ui::scene::Command::Cubic(..)
+                                | skein_ui::scene::Command::Close => panic!("each star has four curved tips"),
+                            }
+                        }
+                        assert_eq!(star.last(), Some(&skein_ui::scene::Command::Close));
+                    }
+                    let (at, anchor) = if across {
+                        (
+                            Point {
+                                x: if i == 0 { 2 } else { u16::try_from(x / 100).unwrap() },
+                                y: if upper {
+                                    22
+                                } else if bar {
+                                    88
+                                } else {
+                                    131
+                                },
+                            },
+                            if end {
+                                Anchor::End
+                            } else if i == 0 {
+                                Anchor::Start
+                            } else {
+                                Anchor::Middle
+                            },
+                        )
+                    } else {
+                        (
+                            Point {
+                                x: if upper {
+                                    237
+                                } else if end {
+                                    146
+                                } else {
+                                    147
+                                },
+                                y: u16::try_from((y + 400) / 100).unwrap(),
+                            },
+                            if upper { Anchor::Start } else { Anchor::End },
+                        )
+                    };
+                    assert_eq!(scene.marks()[usize::try_from(text_index).unwrap()], SceneMark::Text { at, anchor });
+                    assert_eq!(scene.data(text_index), *words);
+                    assert_eq!(scene.styles(text_index).contains(&look::WAYS_OPEN), pressed.is_some() && i == 3);
+                    assert_eq!(scene.styles(text_index).contains(&look::WAYS_END), bar);
+                    let actor = match mark {
+                        Mark::Person => "a person",
+                        Mark::Agent => "an agent",
+                        Mark::Code => "code",
+                        Mark::Bar => "a branch",
+                    };
+                    assert!(
+                        printed.lines().any(|l| l.contains(&format!("{}, {actor}", String::from_utf8_lossy(words)))),
+                        "{printed}"
+                    );
+                }
+                let landing = styled(&scene, look::WAYS_LANDING);
+                assert_eq!(landing.len(), usize::from(rows == DRAFT));
+                for i in landing {
+                    assert_eq!(
+                        scene.marks()[usize::try_from(i).unwrap()],
+                        SceneMark::Group { offset: Point { x: 0, y: 0 }, marks: 2 }
+                    );
+                    assert_eq!(scene.styles(i + 1), &[look::WAYS_MAIN]);
+                }
+                let open_x = u16::try_from(12 + 640 * 3 / (rows.len() - 2)).unwrap();
+                let groups = styled(&scene, look::WAYS_STOP);
+                let hits = styled(&scene, look::WAYS_HIT);
+                assert_eq!(groups.len(), buttons.len());
+                assert_eq!(hits.len(), buttons.len());
+                for ((group, hit), (i, (mark, _))) in
+                    groups.iter().zip(&hits).zip(rows.iter().enumerate().filter(|(_, r)| r.0 != Mark::Bar))
+                {
+                    let act = [u8::try_from(i).unwrap()];
+                    assert_eq!(scene.mark_act(*group), Some(act.as_slice()));
+                    assert_eq!(scene.mark_act(*hit), Some(act.as_slice()));
+                    assert_eq!(
+                        scene.marks()[usize::try_from(*group).unwrap()],
+                        SceneMark::Group { offset: Point { x: 0, y: 0 }, marks: if i == 3 { 4 } else { 3 } }
+                    );
+                    let mut resolved = skein_lib::List::with_capacity(1);
+                    assert!(scene.act_at(&[texts[i]], Point { x: 0, y: 0 }, &mut resolved));
+                    assert_eq!(resolved.as_slice(), act);
+                    let upper = *mark == Mark::Person || *mark == Mark::Agent;
+                    if i == 3 {
+                        assert_eq!(
+                            scene.marks()[usize::try_from(*hit).unwrap()],
+                            SceneMark::Rectangle {
+                                corner: if across {
+                                    Point { x: open_x - 30, y: if upper { 6 } else { 94 } }
+                                } else {
+                                    Point { x: if upper { 208 } else { 24 }, y: 122 }
+                                },
+                                size: if across {
+                                    Point { x: 60, y: if upper { 52 } else { 44 } }
+                                } else {
+                                    Point { x: if upper { 150 } else { 152 }, y: 28 }
+                                },
+                                radius: 0
+                            }
+                        );
+                    }
+                }
+                let halos = styled(&scene, look::WAYS_HALO);
+                assert_eq!(halos.len(), usize::from(pressed.is_some()));
+                if let Some(halo) = halos.first() {
+                    assert_eq!(
+                        scene.marks()[usize::try_from(*halo).unwrap()],
+                        SceneMark::Circle {
+                            centre: if across {
+                                Point { x: open_x, y: if rows == DRAFT { 106 } else { 40 } }
+                            } else {
+                                Point { x: if rows == DRAFT { 164 } else { 220 }, y: 136 }
+                            },
+                            radius: 15
+                        }
+                    );
+                }
+                let carets = styled(&scene, look::WAYS_CARET);
+                assert_eq!(carets.len(), usize::from(pressed.is_some() && across), "caret across alone");
+                if let Some(caret) = carets.first() {
+                    assert_eq!(
+                        scene.data(*caret),
+                        [open_x - 6, 154, open_x, 148, open_x + 6, 154]
+                            .into_iter()
+                            .flat_map(u16::to_le_bytes)
+                            .collect::<Vec<_>>()
+                    );
+                }
+                if pressed.is_none() {
+                    for i in 0..scene.marks().len() {
+                        assert!(scene.mark_act(u32::try_from(i).unwrap()).is_none());
+                    }
+                }
+                let mut same = Scene::new(&bounds());
+                assert!(paths::draw(paths::KIND, data, width, u16::try_from(height).unwrap(), &mut same));
+                assert_eq!(same.to_string(), scene.to_string());
             }
         }
-        assert!(line.is_empty());
-        let before = scene.to_string();
-        let mut same = Scene::new(&bounds());
-        assert!(paths::draw(paths::KIND, data, 640, 140, &mut same));
-        assert_eq!(same.to_string(), before);
-        scene.clear();
-        assert!(!paths::draw(paths::KIND, data, 240, 0, &mut scene));
-        assert!(scene.marks().is_empty());
     }
+}
+
+fn commands(data: &[u8]) -> Vec<skein_ui::scene::Command> {
+    use skein_ui::scene::Command;
+    let mut reader = skein_lib::Reader::new(data);
+    let mut result = Vec::new();
+    while !reader.is_empty() {
+        let c = match reader.u8().unwrap() {
+            b'M' => Command::Move(read_point(&mut reader)),
+            b'L' => Command::Line(read_point(&mut reader)),
+            b'Q' => Command::Quadratic(read_point(&mut reader), read_point(&mut reader)),
+            b'C' => Command::Cubic(read_point(&mut reader), read_point(&mut reader), read_point(&mut reader)),
+            b'Z' => Command::Close,
+            _ => panic!("known command"),
+        };
+        result.push(c);
+    }
+    result
 }
 
 fn read_point(reader: &mut skein_lib::Reader<'_>) -> Point {
@@ -179,20 +416,38 @@ fn read_point(reader: &mut skein_lib::Reader<'_>) -> Point {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks path data, layout thresholds and exact scene bounds")]
 fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
     let maximum = vec![Stop { mark: Mark::Agent, words: &[b'x'; 64] }; 32];
-    let tree = tree(&maximum);
-    let data = &tree.nodes()[0].drawing.as_ref().unwrap().data;
+    let bindings = vec![Some(binding(1)); 32];
+    let pressed = paths::Pressed { drawing: binding(99), stops: &bindings, open: Some(3) };
+    let maximum_tree = tree(&maximum, Some(&pressed));
+    let data = &maximum_tree.nodes()[0].drawing.as_ref().unwrap().data;
     assert_eq!(data.len(), usize::try_from(paths::DATA).unwrap());
+    assert_eq!(bounds().drawing_bytes, paths::DATA);
+    assert_eq!(bounds().scene_marks, paths::MARKS);
+    assert_eq!(bounds().scene_bytes, paths::SCENE_BYTES);
     let mut maximum_bounds = bounds();
     maximum_bounds.scene_marks = paths::MARKS;
     maximum_bounds.scene_bytes = paths::SCENE_BYTES;
     let mut scene = Scene::new(&maximum_bounds);
-    assert!(paths::draw_any(paths::KIND, data, 1512, 0, &mut scene));
+    assert!(paths::draw_any(paths::KIND, data, 1568, 0, &mut scene));
     assert_eq!(scene.marks().len(), usize::try_from(paths::MARKS).unwrap());
     assert!(!scene.refused());
     scene.clear();
-    assert!(!paths::draw(paths::KIND, data, 1511, 0, &mut scene));
+    assert!(paths::draw(paths::KIND, data, 1567, 0, &mut scene));
+    assert_eq!(scene.height(), Some(1280));
+    scene.clear();
+    for (bytes, expected) in [(&[][..], None), (&[3][..], Some(3)), (&[3, 0][..], None), (&[255][..], Some(255))] {
+        assert_eq!(paths::pressed_stop(bytes), expected);
+    }
+    for (width, rows, height) in [(559, APPROVE, 388), (560, APPROVE, 140), (607, DRAFT, 508), (608, DRAFT, 140)] {
+        let stops: Vec<_> = rows.iter().map(|(mark, words)| Stop { mark: *mark, words }).collect();
+        let t = tree(&stops, None);
+        assert!(paths::draw(paths::KIND, &t.nodes()[0].drawing.as_ref().unwrap().data, width, 0, &mut scene));
+        assert_eq!(scene.height(), Some(height));
+        scene.clear();
+    }
     for (stops, expected) in [
         (vec![], paths::Problem::Stops),
         (vec![Stop { mark: Mark::Code, words: b"x" }; 33], paths::Problem::Stops),
@@ -200,14 +455,49 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
         (vec![Stop { mark: Mark::Code, words: &[b'x'; 65] }], paths::Problem::Words),
     ] {
         let mut builder = Builder::new(&bounds());
-        assert_eq!(paths::path(&mut builder, b"Path", &stops), Err(expected));
+        assert_eq!(paths::path(&mut builder, b"Path", &stops, None), Err(expected));
         assert!(builder.finish().nodes().is_empty());
     }
-    for data in
-        [b"".as_slice(), &[0], &[33], &[1, 4, 1, b'x'], &[1, 0, 0], &[1, 0, 65], &[1, 0, 2, b'x'], &[1, 0, 1, b'x', 0]]
-    {
+    for data in [
+        b"".as_slice(),
+        &[0],
+        &[33],
+        &[1, 0, 255, 4, 1, b'x'],
+        &[1, 0, 255, 0, 0],
+        &[1, 0, 255, 0, 65],
+        &[1, 0, 255, 0, 2, b'x'],
+        &[1, 0, 255, 0, 1, b'x', 0],
+        &[1, 2, 255, 0, 1, b'x'],
+        &[1, 0, 0, 0, 1, b'x'],
+        &[1, 1, 1, 0, 1, b'x'],
+        &[1, 1, 0, 3, 1, b'x'],
+    ] {
         assert!(!paths::draw(paths::KIND, data, 640, 0, &mut scene));
         assert!(scene.marks().is_empty());
+    }
+    for open in [None, Some(0), Some(9), Some(32)] {
+        let stops: Vec<_> = APPROVE.iter().map(|(mark, words)| Stop { mark: *mark, words }).collect();
+        let bindings: Vec<_> = APPROVE.iter().map(|(mark, _)| (*mark != Mark::Bar).then_some(binding(1))).collect();
+        let pressed = paths::Pressed { drawing: binding(99), stops: &bindings, open };
+        let tree = tree(&stops, Some(&pressed));
+        let bytes = &tree.nodes()[0].drawing.as_ref().unwrap().data;
+        assert_eq!(bytes[2], if open == Some(0) { 0 } else { 255 });
+        let mut state = Scene::new(&bounds());
+        assert!(paths::draw(paths::KIND, bytes, 720, 0, &mut state));
+        assert_eq!(styled(&state, look::WAYS_HALO).len(), usize::from(open == Some(0)));
+        assert_eq!(state.height(), Some(if open == Some(0) { 154 } else { 140 }));
+    }
+    for field in ["scene_marks", "scene_bytes"] {
+        let mut tight = maximum_bounds;
+        if field == "scene_marks" {
+            tight.scene_marks -= 1;
+        } else {
+            tight.scene_bytes -= 1;
+        }
+        let mut short = Scene::new(&tight);
+        assert!(!paths::draw(paths::KIND, data, 1568, 0, &mut short), "{field} is tight");
+        assert!(short.refused());
+        assert!(short.marks().is_empty());
     }
     for field in ["scene_marks", "scene_bytes"] {
         let mut tiny = bounds();
@@ -217,7 +507,7 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
             tiny.scene_bytes = 1;
         }
         let mut scene = Scene::new(&tiny);
-        assert!(!paths::draw(paths::KIND, data, 1512, 0, &mut scene));
+        assert!(!paths::draw(paths::KIND, data, 1568, 0, &mut scene));
         assert!(scene.refused());
         assert!(scene.marks().is_empty());
     }
