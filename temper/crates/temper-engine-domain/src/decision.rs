@@ -295,6 +295,17 @@ pub struct Decision {
 pub type Journal = SkeinJournal<Write, crate::Output>;
 
 impl Decision {
+    pub(crate) fn stop_reason(&self, counters: &Counters, persist_header: bool) -> Option<crate::JournalStop> {
+        let writing = (persist_header && counters.dirty()) || !self.writes.is_empty();
+        if self.overrun {
+            Some(crate::JournalStop::PastEdge { writes: self.limits.writes })
+        } else if writing && counters.deployment().commits == u64::MAX {
+            Some(crate::JournalStop::Counter)
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn overrun(&self) -> bool {
         self.overrun
     }
@@ -570,7 +581,7 @@ pub fn accept_routed(
     // write edge, or the commit counter at its end. Accepting the empty
     // batch then closes its open decision without emitting anything, including older outputs.
     let writing = (persist_header && counters.dirty()) || !decision.writes.is_empty();
-    if decision.overrun || (writing && counters.deployment().commits == u64::MAX) {
+    if decision.stop_reason(counters, persist_header).is_some() {
         // A stopped root activates nothing again, so drops of charged writes
         // and assignments here (and in the stopped journal) need no byte adjustment.
         journal.stop();
@@ -616,7 +627,7 @@ pub fn commit(journal: &mut Journal, limits: &Limits) -> Option<Output> {
 
 /// A cumulative store answer only makes outputs ready. The ready pass releases one per call; it
 /// never drains all of them inside the store step. The store echoes an issued `u64` commit number.
-/// Duplicate/older terminals are inert; a number beyond issued commits is a caller error.
+/// An answer at or below durable, or beyond sent, is an owner error and stops the journal.
 pub fn committed(journal: &mut Journal, number: u64) {
     journal.committed(number);
 }
