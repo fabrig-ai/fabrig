@@ -7,7 +7,7 @@ mod words;
 use skein_lib::{List, Stack};
 use skein_ui::{Node, Role, State, Tree};
 
-use crate::{Align, Arrange, Cell, Focus, Frame, Paint, Place, RegionLook, Size};
+use crate::{Align, Arrange, Cell, Focus, Frame, Mark, Paint, Place, RegionLook, Size};
 use canvas::{Canvas, Viewport};
 
 #[derive(Clone, Copy, Debug)]
@@ -19,6 +19,19 @@ struct Info {
     align: Align,
     band: Option<Paint>,
     label: bool,
+    mark: Option<Mark>,
+    described: Option<Paint>,
+    region_paint: Paint,
+    spaced: bool,
+}
+
+impl Info {
+    fn description_paint(&self) -> Paint {
+        match self.described {
+            Some(paint) => paint.over(self.region_paint),
+            None => self.paint,
+        }
+    }
 }
 
 fn look(node: &Node, theme: &crate::Theme) -> Option<RegionLook> {
@@ -58,17 +71,21 @@ fn information(tree: &Tree, theme: &crate::Theme) -> List<Info> {
         tokens = styles(node, theme).over(tokens);
         let parent = parents.last().copied();
         let paint = tokens.over(region);
-        let (mut align, mut band, mut label) = match parent {
+        let (mut align, mut band, mut label, mut mark, mut described) = match parent {
             Some(parent) => {
                 let data = out.get(parent).expect("parent information exists");
-                (data.align, data.band, data.label)
+                (data.align, data.band, data.label, data.mark, data.described)
             }
-            None => (Align::Start, None, true),
+            None => (Align::Start, None, true, None, None),
         };
+        let mut spaced = false;
         for token in &node.styles {
             for look in &theme.styles {
                 if *token == look.style {
                     label = look.label;
+                    mark = look.mark.or(mark);
+                    described = look.described.or(described);
+                    spaced = spaced || look.spaced;
                     if look.align == Align::End {
                         align = Align::End;
                     }
@@ -78,7 +95,20 @@ fn information(tree: &Tree, theme: &crate::Theme) -> List<Info> {
                 }
             }
         }
-        out.push(Info { parent, paint, look: placed, title: false, align, band, label }).expect("one entry per node");
+        out.push(Info {
+            parent,
+            paint,
+            look: placed,
+            title: false,
+            align,
+            band,
+            label,
+            mark,
+            described,
+            region_paint: region,
+            spaced,
+        })
+        .expect("one entry per node");
         parents.push(at).expect("ancestors fit nodes");
     }
     for at in 0..tree.len() {
@@ -319,6 +349,10 @@ struct Parent {
     indent: u16,
     next: Option<u64>,
     region: Option<RegionLook>,
+    spaced: bool,
+    children: bool,
+    start: u32,
+    region_paint: Paint,
 }
 
 #[expect(clippy::too_many_lines, reason = "the preorder walk keeps region entry, role layout and region exit together")]
@@ -347,6 +381,7 @@ fn walk(
             }
             let parent = parents.pop().expect("ancestor exists");
             out.finish_annotated(tree, info, frame);
+            out.cancel_gap(parent.end);
             if let Some(region) = parent.region {
                 out.leave_region(region, frame);
             }
@@ -363,6 +398,17 @@ fn walk(
                 skip = until;
                 continue;
             }
+        }
+        if let Some(parent) = parents.top_mut()
+            && parent.spaced
+        {
+            if parent.children {
+                out.finish_annotated(tree, info, frame);
+                if out.rows() > parent.start {
+                    out.gap(parent.end, parent.region_paint);
+                }
+            }
+            parent.children = true;
         }
         let indent = match parents.top() {
             Some(p) => p.indent,
@@ -421,7 +467,18 @@ fn walk(
                     descriptions(tree, at, at.saturating_add(1), described_indent, info, theme, focus, out, frame);
                 }
                 let next = ordered(n);
-                parents.push(Parent { end: until, indent, next, region }).expect("parents fit nodes");
+                parents
+                    .push(Parent {
+                        end: until,
+                        indent,
+                        next,
+                        region,
+                        spaced: data.spaced,
+                        children: false,
+                        start: out.rows(),
+                        region_paint: data.region_paint,
+                    })
+                    .expect("parents fit nodes");
             }
             None => {
                 let indent = if n.role == Role::Row && roles::empty_header_row(tree, at) {
@@ -440,6 +497,7 @@ fn walk(
     for _ancestor in 0..parents.len() {
         let parent = parents.pop().expect("ancestor exists");
         out.finish_annotated(tree, info, frame);
+        out.cancel_gap(parent.end);
         if let Some(region) = parent.region {
             out.leave_region(region, frame);
         }
@@ -731,7 +789,7 @@ fn descriptions(
             out.finish(frame);
             out.start(description_indent);
             let focused = focus.node == Some(n.id);
-            let mut paint = info.get(at).expect("node information exists").paint;
+            let mut paint = info.get(at).expect("node information exists").description_paint();
             if focused {
                 paint = theme.focus.over(paint);
             }
@@ -779,6 +837,8 @@ fn options_menu(
         }
     }
     let indent = out.indent();
+    let start = out.rows();
+    let spaced = info.get(at).expect("menu information exists").spaced;
     for item in at.saturating_add(1)..end {
         let node = tree.get(item).expect("menu descendant exists");
         if node.role != Role::MenuItem {
@@ -790,6 +850,9 @@ fn options_menu(
         let mut paint = data.paint;
         if active {
             paint = theme.focus.over(theme.active.over(paint));
+        }
+        if spaced && out.rows() > start {
+            out.gap(end, info.get(at).expect("menu information exists").region_paint);
         }
         out.start(indent);
         out.looks(Align::Start, band);
@@ -808,12 +871,17 @@ fn options_menu(
             for _space in 0..longest.saturating_sub(width).saturating_add(3) {
                 out.safe(b" ", paint, false, frame);
             }
-            out.safe(first_line(description), paint, false, frame);
+            let mut described = data.description_paint();
+            if active {
+                described = theme.focus.over(theme.active.over(described));
+            }
+            out.safe(first_line(description), described, false, frame);
         }
         words::option_states(node, paint, out, frame);
         out.finish(frame);
         out.clip_line(false);
     }
+    out.cancel_gap(end);
     out.looks(Align::Start, None);
 }
 
@@ -918,7 +986,16 @@ fn first_child_line(
                 }
                 let next = ordered(n);
                 parents
-                    .push(Parent { end: child.saturating_add(n.size), indent, next, region: None })
+                    .push(Parent {
+                        end: child.saturating_add(n.size),
+                        indent,
+                        next,
+                        region: None,
+                        spaced: false,
+                        children: false,
+                        start: 0,
+                        region_paint: theme.base,
+                    })
                     .expect("ancestors fit nodes");
             }
             None => {

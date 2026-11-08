@@ -15,9 +15,6 @@ simulated-terminal test rows for readable, unreadable, late and absent
 answers. The application's choice of dark or light stays outside this
 terminal, as section 8 requires.
 
-- **Not yet:** 3 and 5.3: `mark`, `described` and `spaced` on a token's
-  look: an item's mark, a description's own paint, one blank row
-  between children.
 - **Departs:** 6.2: PageUp and PageDown move the body's scroll by nine
   rows, rather than its visible rows less one: the key reader has no body
   height in its inputs, and the screen-keys task permits a fixed ten-row

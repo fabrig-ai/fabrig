@@ -25,7 +25,14 @@ pub(super) fn named(
         {
             out.continuation(indent.saturating_add(2));
             out.safe(b" ", paint, focused, frame);
-            out.content(description, paint, focused, tree, info, frame);
+            out.content(
+                description,
+                info.get(at).expect("description information exists").description_paint(),
+                focused,
+                tree,
+                info,
+                frame,
+            );
         }
         words::states(n, paint, out, frame);
         out.finish_annotated(tree, info, frame);
@@ -52,6 +59,10 @@ pub(super) fn item(
     if let Some(number) = number {
         out.safe(skein_lib::Decimal::of(number).as_bytes(), paint, focused, frame);
         out.safe(b". ", paint, focused, frame);
+    } else if let Some(mark) = info.get(at).expect("item information exists").mark {
+        let mut bytes = [0; 4];
+        out.safe(mark.glyph.encode_utf8(&mut bytes).as_bytes(), mark.paint.over(paint), focused, frame);
+        out.safe(b" ", paint, focused, frame);
     } else {
         out.safe(b"- ", paint, focused, frame);
     }
