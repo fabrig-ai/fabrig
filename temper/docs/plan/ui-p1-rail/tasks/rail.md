@@ -197,3 +197,21 @@ For the refused tips combined, set `PHRASES = 2133`, `SEGMENTS = 3762`, `ENGLISH
 Keep rail keys in 4600–4649 and Deployment keys in 4750–4799, as contracts C6 requires.
 Verify the combined totals through the existing `english_declarations()` assertion in `src/tests/accounts.rs`, then complete the spec’s focused checks.
 The other paths in the refusal auto-merged; preserve their combined changes.
+
+## Rebase (2026-11-08, step merge, foreman ui-p1-rail/rail/foreman-2)
+
+merge Role and Rule address handling and vocabulary into the rewritten rail
+Resolve conflicts in `temper/crates/temper-client-view/src/frame.rs`, `src/tests/rail.rs` and `src/words.rs`.
+Integration gained main’s `f358753b09` (“Give roles and landing rules their own Settings pages”), through `d184a71b65` (“Merge main while preserving Deployment and role/rule pages”).
+Preserve the branch’s rail drawn from `rail::parts`, new box, switcher, tab bar and Deployment foot.
+In `frame.rs`, handle `Address::Role` and `Address::Rule` explicitly in all three exhaustive address matches:
+- `all_projects`: use `Filter::ALL`, clearing its project as for other non-Inbox pages.
+- `shown`: make “How work runs” current, alongside Settings, Repositories and Adopt.
+- `deployment_link`: return false for both; they belong to Settings, not Deployment.
+This preserves the Role/Rule Settings frame described in `temper/docs/design/client/README.md`, 3.5, “A role’s or a rule’s page”.
+In `tests/rail.rs`, retain the rewritten order/current table and add Role and Rule rows expecting “How work runs”; retain exhaustive handling wherever an address match remains.
+In `words.rs`, preserve main’s `RoleReading`, `RoleUnreadable`, `RoleRuleReading` and `RoleRuleUnreadable` in the enum, `ALL`, IDs 3560–3563 and English definitions.
+Keep rail’s additions and removals and Deployment’s vocabulary from the previous resolution.
+For these combined tips, use `PHRASES = 2137`, `SEGMENTS = 3778`, `ENGLISH_BYTES = 52357`, and `ALL: [Word; 1455]`; the previous Rebase totals omit main’s four words.
+Preserve the other paths’ auto-merged changes.
+Through heavy, run `tests::accounts::english_phrase_declarations_match_the_vocabulary` and `tests::rail::rail_and_tabbar_keep_the_order_addresses_current_states_and_count` individually, then complete the spec’s focused checks.
