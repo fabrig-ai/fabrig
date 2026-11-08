@@ -373,6 +373,7 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
                 .into(),
             current,
             own: branch_path(),
+            words: None,
             may_change,
         };
         let own = if own.is_empty() { String::new() } else { format!("\n{own}{PATH}\n") };

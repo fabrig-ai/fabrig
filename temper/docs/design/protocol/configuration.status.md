@@ -173,8 +173,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
   10, 11 and 12 (`ui-p3e-words`'s `charter-lines`).
 
 
-- **Not yet:** 13.10: the `ways` read carries no project's words
-  (`ui-p3e-words`'s `project-words-read`).
 
 - **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
   reference's roles) names the deployment's two landing rules and not

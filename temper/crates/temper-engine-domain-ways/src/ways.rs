@@ -51,6 +51,7 @@ pub struct WaysDocument {
     pub ways: Box<[WayEntry]>,
     pub current: Option<u32>,
     pub own: Path,
+    pub words: Option<temper_engine_domain_forge::settings::ProjectWords>,
     pub may_change: bool,
 }
 
