@@ -13,6 +13,3 @@ runner. Its first dispatch follows landing.
   its start; only `temper init` warns of a missing git
   (`crates/temper/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.
-
-- **Not yet:** 3: `temper-version` doesn't exist: no build script reads
-  the commit, and nothing holds `VERSION` or `COMMIT`.
