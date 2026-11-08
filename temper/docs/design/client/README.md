@@ -570,8 +570,10 @@ keeps (`../protocol/configuration.md`, section 2).
       it touched, not its calls: `read_docs` is "read N docs", its distinct
       topics, each search one, a call whose input can't be read one
       ("read 1 doc"); `settings` is "checked settings N×", once "checked
-      settings"; `propose_settings` is "proposed a change N×", once
-      "proposed a change", and under way "proposing a change", none of them
+      settings"; successful `propose_settings` calls are "proposed a change N×", once
+      "proposed a change"; failed calls are "failed to propose a change N×",
+      once "failed to propose a change", grouped separately from successes
+      in the order each outcome first occurs. Under way it is "proposing a change", none of them
       naming its input; `read` and `Read` are "read N files", `list` and `Glob`
       "listed N folders", `write` and `Write` "wrote N files", `edit` and
       `Edit` "edited N files" and `remove` "removed N files", each its

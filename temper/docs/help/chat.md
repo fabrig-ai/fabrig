@@ -20,6 +20,9 @@ A chat is a conversation between a party and an agent in a project: an untracked
   nothing itself (temper help settings).
 - **Ask temper,** template 5 under charter 11 in the stock, explains temper
   and this project's settings, proposing changes for an owner to accept.
+- **A failed settings proposal** creates no proposal to accept. Its activity
+  summary says "failed to propose a change" and counts failed attempts
+  separately from successful proposals; expand the activity to read the refusal.
 - **Its conversation** is what `chat show` reads: each turn's words, from
   the party and from the agent, the brief supplied to each run, and each
   run's start and end.

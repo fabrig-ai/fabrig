@@ -1,6 +1,12 @@
 # README: status
 
-2026-11-07. Where temper's code lags or departs from [README.md](README.md).
+2026-11-08. Where temper's code lags or departs from [README.md](README.md).
+
+Section 3.5's settings-proposal call names distinguish failed attempts from
+created proposals, including mixed outcomes. The view's
+`failed_settings_proposals_do_not_claim_a_change` holds single, repeated
+and mixed calls and failures after two or eight reads, with failure
+descriptions and rows retained. No known gap remains in that wording.
 
 Sections 2 and 6.11 to 6.16 have no known implementation gap in the
 TUI's crates, command, private directory, host seam, pasted-link sign-in,
