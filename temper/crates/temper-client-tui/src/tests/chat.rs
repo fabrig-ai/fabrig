@@ -225,11 +225,17 @@ fn view() -> crate::View {
     let page = temper_client_view::Limits::of(&f::limits(), words.view()).unwrap();
     crate::View::new(&crate::limits(&f::limits(), &page.tree, 512).unwrap(), words)
 }
-fn draw(part: Chat, list: Option<foot::Options>) -> crate::View {
+fn draw(part: Chat, list: Option<foot::Options>, columns: u16) -> crate::View {
     let mut view = view();
     let root = f::live(Some(f::me(&[b"Hello"]))).0;
     let mut foot = foot::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW);
-    foot.columns = part.columns;
+    foot.columns = columns;
+    foot.rule = Some(foot::Rule {
+        project: b"Hello".as_slice().into(),
+        title: chat::cut(&shared::heading(REQUEST), &f::words()),
+        task: TASK,
+        place: f::ADDRESS.into(),
+    });
     foot.closed = Some("Claude Opus 5.5 · high".as_bytes().into());
     foot.needs = d::pages::needs::Count { count: 1, cut: false };
     foot.composer.as_mut().unwrap().placeholder = b"Reply".as_slice().into();
@@ -239,41 +245,20 @@ fn draw(part: Chat, list: Option<foot::Options>) -> crate::View {
     view::signed(&mut view, &view::Signed { body: view::Body::Chat(part), foot }, &mut Queue::uncapped());
     view
 }
-fn data(entries: Box<[Entry]>, columns: u16) -> Chat {
-    Chat {
-        project: b"Hello".as_slice().into(),
-        title: REQUEST.into(),
-        task: TASK,
-        address: f::ADDRESS.into(),
-        columns,
-        to_end: 1,
-        entries,
-        notes: foot::Notes { lines: Box::default() },
-    }
+fn data(entries: Box<[Entry]>) -> Chat {
+    Chat { to_end: 1, entries, notes: foot::Notes { lines: Box::default() } }
 }
 struct Row {
     name: &'static str,
     input: Option<Input>,
     data: Option<Chat>,
-    columns: u16,
     entries: &'static [(Style, &'static str)],
     end: usize,
     ordered: Option<u32>,
-    address: bool,
     failed: bool,
 }
 fn row(name: &'static str, input: Input, entries: &'static [(Style, &'static str)]) -> Row {
-    Row {
-        name,
-        input: Some(input),
-        data: None,
-        columns: 80,
-        entries,
-        end: 0,
-        ordered: None,
-        address: true,
-        failed: false,
-    }
+    Row { name, input: Some(input), data: None, entries, end: 0, ordered: None, failed: false }
 }
 #[test]
 #[expect(
@@ -284,6 +269,20 @@ fn row(name: &'static str, input: Input, entries: &'static [(Style, &'static str
     reason = "one table inspects semantic trees and formats per-row failure diagnostics"
 )]
 fn the_chat_draws_each_entry() {
+    for (title, expected) in [
+        ("", ""),
+        ("A short title", "A short title"),
+        ("12345678901234567890", "12345678901234567890"),
+        ("What can you tell me about Hello?", "What can you tell…"),
+        ("123456789 123456789 next", "123456789 123456789…"),
+        ("123456789 123456789  next", "123456789 123456789…"),
+        ("123456789012345678901", "1234567890123456789…"),
+        ("ééééééééé ééééééééé next", "ééééééééé ééééééééé…"),
+        ("界界界界界界界界界界界界界界界界界界界界界", "界界界界界界界界界界界界界界界界界界界…"),
+    ] {
+        assert_eq!(chat::cut(title.as_bytes(), &f::words()).as_ref(), expected.as_bytes(), "{title}");
+    }
+    request_rule();
     let mut rows = [
         row(
             "request and later words",
@@ -382,28 +381,22 @@ fn the_chat_draws_each_entry() {
         Row {
             name: "card lines",
             input: None,
-            data: Some(data(
-                Box::new([
-                    Entry::Delegation(shared::DelegationLine {
-                        kind: "T7 · Change".as_bytes().into(),
-                        title: b"csv-export".as_slice().into(),
-                        state: b"Landed".as_slice().into(),
-                    }),
-                    Entry::Proposal(b"Change the settings".as_slice().into()),
-                ]),
-                80,
-            )),
-            columns: 80,
+            data: Some(data(Box::new([
+                Entry::Delegation(shared::DelegationLine {
+                    kind: "T7 · Change".as_bytes().into(),
+                    title: b"csv-export".as_slice().into(),
+                    state: b"Landed".as_slice().into(),
+                }),
+                Entry::Proposal(b"Change the settings".as_slice().into()),
+            ]))),
             entries: &[
                 (look::AGENT, "T7 · Change · csv-export · Landed"),
                 (look::AGENT, "Proposal Change the settings"),
             ],
             end: 0,
             ordered: None,
-            address: true,
             failed: false,
         },
-        row("narrow top", Input::empty(), &[(look::SAID, "What landed overnight?")]),
         row(
             "requester cancellation is hidden",
             Input {
@@ -418,20 +411,17 @@ fn the_chat_draws_each_entry() {
     rows[7].end = 1;
     rows[7].ordered = Some(1);
     rows[8].ordered = Some(1);
-    rows[11].columns = 40;
-    rows[11].address = false;
     let words = f::words();
     let mut failures = List::uncapped();
     for mut row in rows {
         let part = if let Some(input) = row.input {
             let root = root(&input);
-            let mut tui = Tui::new(f::ADDRESS);
-            tui.step(Told::Size { columns: row.columns });
+            let tui = Tui::new(f::ADDRESS);
             chat::read(&root, &tui, &words, f::NOW)
         } else {
             row.data.take().unwrap()
         };
-        let view = draw(part, None);
+        let view = draw(part, None, 80);
         let tree = view.tree();
         let entries: Vec<_> = tree
             .nodes()
@@ -446,28 +436,53 @@ fn the_chat_draws_each_entry() {
             row.entries.iter().map(|(style, words)| (*style, Box::<[u8]>::from(words.as_bytes()))).collect();
         let end = tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::END)).count();
         let ordered = tree.nodes().iter().find_map(|n| n.ordered);
-        let address = tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::ADDRESS));
         let failed = tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::RUN_FAILED));
-        let top = tree.nodes().iter().find(|n| n.region == Some(look::CHAT_TOP));
-        let heading =
-            top.is_some_and(|n| f::text(tree, n).starts_with("✦ Hello / What landed overnight? T2".as_bytes()));
         let log = tree.nodes().iter().find(|n| n.role == Role::Log);
         let unbound = log.is_some_and(|n| {
             let at = f::index(tree, n.id);
             tree.nodes()[at..at + usize::try_from(n.size).unwrap()].iter().all(|n| n.binding.is_none())
         });
-        if entries != expected
-            || end != row.end
-            || ordered != row.ordered
-            || address != row.address
-            || failed != row.failed
-            || !unbound
-            || !heading
-        {
-            failures.push(format!("{}: entries {entries:?}, expected {expected:?}; end {end}/{}, ordered {ordered:?}/{:?}, address {address}/{}, failed {failed}/{}, unbound {unbound}, heading {heading}", row.name,row.end,row.ordered,row.address,row.failed)).unwrap();
+        if entries != expected || end != row.end || ordered != row.ordered || failed != row.failed || !unbound {
+            failures.push(format!("{}: entries {entries:?}, expected {expected:?}; end {end}/{}, ordered {ordered:?}/{:?}, failed {failed}/{}, unbound {unbound}", row.name,row.end,row.ordered,row.failed)).unwrap();
         }
     }
     assert!(failures.is_empty(), "{}", failures.as_slice().join("\n"));
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "the request's frame rows are compared as text"
+)]
+fn request_rule() {
+    use skein_ui_screen::{Focus, Frame, Size, render};
+    let request = b"What can you tell me about Hello?";
+    let mut task = task();
+    task.chip.title = c::DocumentText::complete(c::Text::new(request.as_slice().into(), 64).unwrap());
+    task.spec.specification.words = c::DocumentText::complete(c::Text::new(request.as_slice().into(), 64).unwrap());
+    let root = root(&Input { task: Some(Box::new(task)), ..Input::empty() });
+    for (boxed, expected) in [
+        (true, "Hello / What can you tell… T2 on box:40691"),
+        (false, "Hello / What can you tell… T2 on 127.0.0.1:40691"),
+    ] {
+        let mut tui = Tui::new(b"127.0.0.1:40691");
+        tui.step(Told::Size { columns: 80 });
+        if boxed {
+            tui.step(Told::Boxed);
+        }
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        for scheme in [Scheme::Dark, Scheme::Light] {
+            let size = Size { columns: 80, rows: 24 };
+            let mut frame = Frame::new(size);
+            render(view.tree(), &crate::theme(scheme, None), size, &mut Focus::default(), &mut frame);
+            let printed = String::from_utf8(frame.print().into_vec()).unwrap();
+            assert_eq!(printed.lines().next(), Some("❯ What can you tell me about Hello?"));
+            let rule = printed.lines().find(|line| line.starts_with('─')).unwrap();
+            assert_eq!(rule.trim_matches('─').trim(), expected);
+            assert!(rule.ends_with(" ──"), "{rule}");
+        }
+    }
 }
 
 #[test]
@@ -527,7 +542,7 @@ fn the_chats_are_their_goldens() {
         } else {
             None
         };
-        views.push(draw(data(entries.into_boxed(), size.columns), list)).unwrap();
+        views.push(draw(data(entries.into_boxed()), list, size.columns)).unwrap();
     }
     let mut checks = List::uncapped();
     for ((name, size, _, band, want), view) in rows.iter().zip(&views) {
@@ -559,10 +574,10 @@ fn agent_markdown_bullets_keep_their_own_mark_at_every_depth() {
         ["✦ Here is how:", "  • How temper works: a box.", "    • nested", "  • second", "  1. one", "  2. two"];
     let size = Size { columns: 80, rows: 24 };
     for growing in [false, true] {
-        let view = draw(data(Box::new([Entry::Agent { words: bytes.as_slice().into(), growing }]), 80), None);
+        let view = draw(data(Box::new([Entry::Agent { words: bytes.as_slice().into(), growing }])), None, 80);
         let mut frame = Frame::new(size);
         render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut Focus::default(), &mut frame);
-        let lines: Vec<String> = (1..size.rows)
+        let lines: Vec<String> = (0..size.rows)
             .map(|row| frame.row(row).unwrap().iter().map(|cell| cell.glyph).collect::<String>().trim_end().into())
             .filter(|row: &String| !row.is_empty())
             .take(expected.len())

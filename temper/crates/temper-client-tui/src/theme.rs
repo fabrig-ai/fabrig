@@ -111,10 +111,9 @@ pub fn theme(scheme: Scheme, background: Option<Rgb>) -> Theme {
         regions: Box::new([
             region(look::TOP, Place::Top, Arrange::Lines, 1, Some(border)),
             region(look::BOTTOM, Place::Bottom, Arrange::Spread, 1, None),
-            region(look::CHAT_TOP, Place::Top, Arrange::Spread, 1, None),
             region(look::SECTIONS, Place::Body, Arrange::Lines, 1, None),
             region(look::WORKING, Place::Bottom, Arrange::Lines, 0, None),
-            region(look::BOX, Place::Bottom, Arrange::Lines, 0, Some(Border { title: false, sides: false, ..border })),
+            region(look::BOX, Place::Bottom, Arrange::Lines, 0, Some(Border { title: true, sides: false, ..border })),
             region(look::LIST, Place::Bottom, Arrange::Lines, 0, None),
         ]),
         styles: styles(dim, faint, accent, good, back),
@@ -138,7 +137,6 @@ fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, back: Option<Rgb>) -> Bo
         StyleLook { align: Align::End, ..style(look::BYLINE, fore(dim)) },
         style(look::HEAD, bold),
         style(look::SIGNAL, fore(accent)),
-        style(look::STAR, fore(accent)),
         StyleLook {
             band: back.is_some(),
             mark: Some(Mark { glyph: '❯', paint: fore(if back.is_some() { dim } else { accent }) }),

@@ -45,6 +45,7 @@ pub enum Word {
     ApprovalNotAskedDown,
     Separator,
     Between,
+    On,
     Byline,
     LeftOff,
     NeedsYou,
@@ -68,7 +69,7 @@ pub enum Word {
     Dots,
     Numbered,
 }
-pub(crate) const ALL: [Word; 57] = [
+pub(crate) const ALL: [Word; 58] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -104,6 +105,7 @@ pub(crate) const ALL: [Word; 57] = [
     Word::ApprovalNotAskedDown,
     Word::Separator,
     Word::Between,
+    Word::On,
     Word::Byline,
     Word::LeftOff,
     Word::NeedsYou,
@@ -205,6 +207,7 @@ impl Word {
             Self::ApprovalNotAskedDown => 35,
             Self::Separator => 36,
             Self::Between => 37,
+            Self::On => 60,
             Self::Byline => 38,
             Self::LeftOff => 39,
             Self::NeedsYou => 40,
@@ -236,6 +239,7 @@ impl Word {
         match self {
             Self::Separator => (&[b" \xc2\xb7 "], &[]),
             Self::Between => (&[b" / "], &[]),
+            Self::On => (&[b" on "], &[]),
             Self::Byline => (&[b"written by the status agent ", b""], &[Slot::Clock]),
             Self::LeftOff => (&[b"Where you left off"], &[]),
             Self::NeedsYou => (&[b"Needs you"], &[]),

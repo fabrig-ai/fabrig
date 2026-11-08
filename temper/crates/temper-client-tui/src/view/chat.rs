@@ -9,7 +9,7 @@ use skein_lib::{Wall, Writer};
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::Domain;
 use temper_client_view::{
-    shared::{self, DelegationLine, RunLine, TerminalWord},
+    shared::{self, DelegationLine, RunLine},
     words::Word as Shared,
 };
 
@@ -17,11 +17,6 @@ mod read;
 
 #[derive(Debug)]
 pub(crate) struct Chat {
-    pub project: Box<[u8]>,
-    pub title: Box<[u8]>,
-    pub task: u64,
-    pub address: Box<[u8]>,
-    pub columns: u16,
     pub to_end: u64,
     pub entries: Box<[Entry]>,
     pub notes: foot::Notes,
@@ -37,30 +32,9 @@ pub(crate) enum Entry {
     Proposal(Box<[u8]>),
 }
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Chat {
-    let mut part = Chat {
-        project: Box::default(),
-        title: Box::default(),
-        task: 0,
-        address: tui.address().into(),
-        columns: tui.columns(),
-        to_end: 0,
-        entries: Box::default(),
-        notes: foot::read_notes(root, tui, words),
-    };
+    let mut part = Chat { to_end: 0, entries: Box::default(), notes: foot::read_notes(root, tui, words) };
     if let Some(chat) = root.pages().chat() {
-        part.task = chat.task;
         part.to_end = chat.to_end();
-        if let Some(task) = chat.task(root.client()) {
-            part.title = shared::heading(task.chip.title.bytes());
-            if let Some(me) = root.pages().me(root.client()) {
-                for project in &me.projects {
-                    if project.project == task.project {
-                        part.project = project.name.bytes().into();
-                        break;
-                    }
-                }
-            }
-        }
         part.entries = read::entries(root, words);
     }
     part
@@ -76,38 +50,33 @@ fn join(parts: &[&[u8]]) -> Box<[u8]> {
     }
     out.finish()
 }
-#[expect(clippy::disallowed_methods, reason = "width walks the view words already admitted as UTF-8")]
-fn width(bytes: &[u8]) -> u32 {
-    let mut columns = 0_u32;
-    for character in core::str::from_utf8(bytes).expect("view words are UTF-8").chars() {
-        columns = columns.saturating_add(u32::from(skein_ui_screen::width(character)));
+/// The rule's short title (temper/docs/design/client/README.md, 6.14, The rule above the box).
+#[expect(clippy::disallowed_methods, reason = "the title's validated UTF-8 is cut at scalar boundaries")]
+pub(crate) fn cut(title: &[u8], words: &Words) -> Box<[u8]> {
+    let title = core::str::from_utf8(title).expect("view words are UTF-8");
+    if title.chars().count() <= 20 {
+        return title.as_bytes().into();
     }
-    columns
-}
-fn top(b: &mut Builder, part: &Chat, words: &Words) {
-    let star = join(&[&shared::say(words.view(), TerminalWord::Star), b" "]);
-    let between = words.say(Word::Between, &[]);
-    let number = join(&[b" ", &words.view().say(Shared::Chat, &[Hole::Number(part.task)])]);
-    let total = width(&star)
-        .saturating_add(width(&part.project))
-        .saturating_add(width(&between))
-        .saturating_add(width(&part.title))
-        .saturating_add(width(&number))
-        .saturating_add(width(&part.address))
-        .saturating_add(4);
-    b.open(Role::Region);
-    b.region(look::CHAT_TOP);
-    b.open(Role::Paragraph);
-    text(b, Role::Text, &star, Some(look::STAR));
-    text(b, Role::Text, &part.project, Some(look::NAME));
-    text(b, Role::Text, &between, Some(look::FAINT));
-    text(b, Role::Text, &part.title, Some(look::NAME));
-    text(b, Role::Text, &number, Some(look::HINT));
-    b.close();
-    if part.columns == 0 || total <= u32::from(part.columns) {
-        text(b, Role::Paragraph, &part.address, Some(look::ADDRESS));
+    let mut end = 0;
+    let mut word_end = None;
+    let mut previous_end = 0;
+    for (count, (at, character)) in title.char_indices().enumerate() {
+        if character.is_whitespace() {
+            word_end = Some(previous_end);
+        }
+        if count == 19 {
+            end = at;
+            break;
+        }
+        if !character.is_whitespace() {
+            previous_end = at.checked_add(character.len_utf8()).expect("title fits memory");
+        }
     }
-    b.close();
+    let end = match word_end {
+        Some(end) => end,
+        None => end,
+    };
+    join(&[title.as_bytes().get(..end).expect("title boundary"), &words.say(Word::Dots, &[])])
 }
 fn paragraphs(b: &mut Builder, bytes: &[u8], prefix: &[u8]) {
     let mut start = 0;
@@ -183,7 +152,6 @@ fn entry(b: &mut Builder, entry: &Entry, words: &Words) {
 }
 pub(crate) fn draw(b: &mut Builder, part: &Chat, words: &Words, _binds: &mut Binds) {
     b.open(Role::Main);
-    top(b, part, words);
     b.open(Role::Log);
     b.end_request(part.to_end);
     b.open(Role::List);
