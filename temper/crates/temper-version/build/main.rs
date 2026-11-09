@@ -15,6 +15,7 @@ fn answer(output: Option<Output>) -> Option<Vec<u8>> {
     output.filter(|output| output.status.success()).map(|output| output.stdout)
 }
 
+#[expect(clippy::disallowed_methods, reason = "build script: Cargo's CARGO_MANIFEST_DIR locates the build commit")]
 fn main() {
     let package = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"));
     let git_dir = answer(git(&package, &["rev-parse", "--git-dir"])).and_then(|bytes| String::from_utf8(bytes).ok());

@@ -65,6 +65,10 @@ pub(crate) struct Opening {
 }
 
 /// Runs a document already retained in its effective directories. Owns all supplied listeners.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment supplies child processes and the running word; temper-box's table will pass it"
+)]
 pub(crate) fn run_configuration(
     directories: &super::Directories,
     bytes: &[u8],
