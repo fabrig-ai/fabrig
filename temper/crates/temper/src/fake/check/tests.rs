@@ -1,4 +1,5 @@
 use super::*;
+use crate::directories::jig_directories;
 use crate::directories::tests::scratch;
 use std::fs;
 
@@ -394,7 +395,7 @@ fn verb() {
             Copy::Store { format, rows } => {
                 let limits = temper_service::startup::store_limits(
                     bytes.as_ref().expect("seed document"),
-                    &directories.jig(),
+                    &jig_directories(&directories),
                     Some(&agent),
                 )
                 .expect("store limits");

@@ -13,6 +13,13 @@ pub mod serve;
 pub mod setup;
 const CONFIG_BYTES: u32 = 1 << 20;
 
+/// jig's form of the three directories (temper/docs/design/protocol/README.md, section 5).
+#[must_use]
+pub fn jig_directories(directories: &Directories) -> config::Directories {
+    config::Directories::given(&directories.config, &directories.data, &directories.cache)
+        .expect("resolved absolute bounded directories")
+}
+
 fn prefixed(command: &str, why: &str) -> String {
     let mut lines = String::new();
     for line in why.lines() {

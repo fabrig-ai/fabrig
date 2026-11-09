@@ -1,4 +1,5 @@
 //! Forge commands and slot removal (temper/docs/design/protocol/setup.md, 7.1).
+use crate::jig_directories;
 use std::{
     ffi::OsString,
     fs,
@@ -217,7 +218,7 @@ fn start_with_binary(
     let listener = which.map(inherited_listener).transpose().map_err(refused)?.flatten();
     let bytes = directories.read().map_err(refused)?;
     let super::setup::Deployment { named, checked, .. } =
-        super::setup::check(&bytes, &directories.jig()).map_err(refused)?;
+        super::setup::check(&bytes, &jig_directories(directories)).map_err(refused)?;
     if verb == "sign-in" {
         return super::forge_sign_in::run(directories, &bytes, &named, number).map_err(refused);
     }
@@ -404,7 +405,7 @@ pub fn entry(
         }
         machine::BoxKind::Owned
     };
-    machine::entry(machine, number, kind, &directories.jig()).ok_or("the machine has no entry for it".into())
+    machine::entry(machine, number, kind, &jig_directories(directories)).ok_or("the machine has no entry for it".into())
 }
 
 fn group_kind(directories: &super::Directories, number: u16) -> Result<temper_forge_setup::machine::BoxKind, String> {

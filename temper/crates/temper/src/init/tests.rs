@@ -1,4 +1,5 @@
 use super::*;
+use crate::directories::jig_directories;
 use std::{fs, net::TcpListener, os::unix::fs::PermissionsExt};
 
 fn scratch(row: &str) -> PathBuf {
@@ -334,7 +335,8 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     let env = environment(&root, true);
     let written = write(&dirs, &env, &root.join("bin/temper"), [0, 0, 0, 0, 0]).expect("init");
     let bytes = fs::read(dirs.document()).expect("document");
-    let deployment = crate::setup::check(&bytes, &dirs.jig()).expect("init document passes setup and named");
+    let deployment =
+        crate::setup::check(&bytes, &jig_directories(&dirs)).expect("init document passes setup and named");
     let machine = crate::box_command::machine(&bytes, &dirs).expect("machine");
     assert!(machine.owned.is_some());
     assert!(machine.fake.is_some());
@@ -383,7 +385,8 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         let env = environment(&root, claude);
         let written = write_bare(&dirs, &env, &root.join("bin/temper"), [0; 2]).expect("bare init");
         let bytes = fs::read(dirs.document()).expect("document");
-        let deployment = crate::setup::check(&bytes, &dirs.jig()).expect("bare document passes setup and named");
+        let deployment =
+            crate::setup::check(&bytes, &jig_directories(&dirs)).expect("bare document passes setup and named");
         let machine = crate::box_command::machine(&bytes, &dirs).expect("machine");
         assert!(machine.owned.is_none());
         assert!(machine.fake.is_none());

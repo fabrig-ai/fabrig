@@ -1,6 +1,7 @@
 //! Terminal program login without deployment resources (protocol/credentials.md, 3).
 //! A pre-exec failure adds one `temper program-login:` line. Smith's checked
 //! configuration reader may first emit its own secret-free `smith:` diagnostics.
+use crate::directories::jig_directories;
 use std::{
     ffi::OsStr,
     os::unix::{ffi::OsStrExt, process::CommandExt},
@@ -19,16 +20,16 @@ fn command(
 ) -> Result<std::process::Command, String> {
     let name = source_name(name)?;
     let bytes = directories.read()?;
-    let agent = match temper_service::startup::shape(&bytes, &directories.jig())
+    let agent = match temper_service::startup::shape(&bytes, &jig_directories(directories))
         .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
     {
         temper_service::startup::Shape::WorkerAlone => {
-            let part = temper_service::startup::worker_part(&bytes, &directories.jig())
+            let part = temper_service::startup::worker_part(&bytes, &jig_directories(directories))
                 .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
             super::agent::preflight_worker(&part.named)?
         }
         temper_service::startup::Shape::Standalone | temper_service::startup::Shape::EngineAlone => {
-            let super::setup::Deployment { named, .. } = super::setup::check(&bytes, &directories.jig())?;
+            let super::setup::Deployment { named, .. } = super::setup::check(&bytes, &jig_directories(directories))?;
             super::agent::preflight(&named)?
         }
     };
