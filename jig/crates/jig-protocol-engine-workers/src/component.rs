@@ -276,14 +276,44 @@ impl Component {
             self.dropped_down = self.dropped_down.saturating_add(1);
             return;
         };
+        // Fit the translated record before encoding the frame the room measures
+        // (jig/docs/design/protocol/channel.md, 9 and 11).
+        let (record, past) = match record {
+            crate::translate::Down::Assign(record) => {
+                let (record, fitted) = jig_protocol_worker_wire::fit::fit(record, &self.codec, self.limits.room);
+                let past = match fitted {
+                    jig_protocol_worker_wire::fit::Fitted::Whole
+                    | jig_protocol_worker_wire::fit::Fitted::Cut { .. } => None,
+                    jig_protocol_worker_wire::fit::Fitted::Past { bytes } => Some(bytes),
+                };
+                (crate::translate::Down::Assign(record), past)
+            }
+            crate::translate::Down::ReadList(_)
+            | crate::translate::Down::Sources(_)
+            | crate::translate::Down::Check(_)
+            | crate::translate::Down::SignOut(_)
+            | crate::translate::Down::AssignJob(_)
+            | crate::translate::Down::Message(_)
+            | crate::translate::Down::Relayed(_)
+            | crate::translate::Down::TurnKept(_)
+            | crate::translate::Down::TurnBusy(_)
+            | crate::translate::Down::Acknowledge(_)
+            | crate::translate::Down::Cancel(_)
+            | crate::translate::Down::Grant(_) => (record, None),
+        };
         let kind = record.kind();
-        let frame = record.frame();
-        let sending = Sending { kind, bytes: frame.wire_len(), reply };
         let mut state = self.connections.remove(&connection).expect("heard channel exists");
+        let frame = if past.is_none() { Some(record.frame()) } else { None };
+        let bytes = match past {
+            Some(bytes) => bytes,
+            None => frame.as_ref().expect("a fitting record encoded").wire_len(),
+        };
+        let sending = Sending { kind, bytes, reply };
         if sending.bytes > self.limits.room {
             self.unsent(now, &mut state, sending, Bound::Room(self.limits.room), out);
         } else {
             self.sending = Some(sending);
+            let frame = frame.expect("a fitting record encoded");
             state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
             self.progress(now, connection, &mut state, out);
             assert!(self.sending.is_none(), "send answered within its entrance");

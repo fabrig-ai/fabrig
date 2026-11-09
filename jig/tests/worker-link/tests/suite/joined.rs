@@ -368,3 +368,161 @@ fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
     );
     world.finish();
 }
+
+fn resumed_call(index: u32, bytes: u32, delivery: bool, cut: bool) -> jig_domain_host::AnsweredCall {
+    use jig_domain_host::{AnsweredCall, DeliveryOutcome, SettledAnswer};
+    let answer = if delivery && index == 0 {
+        SettledAnswer::Delivery { outcome: DeliveryOutcome::Delivered, evidence: b"delivery".as_slice().into() }
+    } else {
+        let body = if cut {
+            jig_protocol_worker_wire::fit::cut_words(bytes)
+        } else {
+            vec![u8::try_from(index).expect("few calls"); usize::try_from(bytes).expect("answer bytes")].into()
+        };
+        SettledAnswer::Host { error: index.is_multiple_of(2), body }
+    };
+    AnsweredCall { name: format!("call-{index:03}").into_bytes().into(), tool: b"read".as_slice().into(), answer }
+}
+
+fn resumed_assignment(calls: u32, answer: u32, delivery: bool) -> jig_domain_host::Assignment {
+    use jig_worker_link_world::fixtures;
+    let mut assignment = fixtures::assignment();
+    assignment.assignment.workspace = None;
+    assignment.assignment.grants = Box::new([]);
+    assignment.messages = Box::new([]);
+    assignment.answered = (0..calls).map(|index| resumed_call(index, answer, delivery, false)).collect();
+    assignment
+}
+
+fn resumed_answer() -> jig_domain_host::LinkUp {
+    use jig_domain_host as host;
+    use jig_worker_link_world::fixtures;
+    host::LinkUp::Answer {
+        run: fixtures::RUN_SEVEN,
+        attempt: fixtures::ATTEMPT_TWO,
+        answer: host::RunAnswer {
+            read: None,
+            refused: Box::new([]),
+            turns: 1,
+            spent: 3,
+            ending: host::Ending::Ended {
+                outcome: b"result".as_slice().into(),
+                work: host::Work { left: None, saved: None },
+            },
+        },
+    }
+}
+
+fn resumed_continues(world: &mut joined::Joined) {
+    use jig_domain_host as host;
+    use jig_protocol_engine_workers as engine;
+    use jig_protocol_worker_link::Request;
+    use jig_worker_link_world::fixtures;
+    world.worker_up(fixtures::turn(), Box::new([]));
+    world.run();
+    world.worker_up(resumed_answer(), Box::new([]));
+    world.run();
+    assert_eq!(world.engine_turns(), [1]);
+    assert!(world.engine_root.iter().any(|r| matches!(r, engine::Request::Up { up, .. } if *up == fixtures::turn())));
+    assert!(world.engine_root.iter().any(|r| matches!(r, engine::Request::Up { up, .. } if *up == resumed_answer())));
+    assert!(world.worker_root.iter().any(|r| matches!(r, Request::Down { down: host::LinkDown::TurnKept { run, attempt, turn: 1 }, .. } if (*run, *attempt) == (fixtures::RUN_SEVEN, fixtures::ATTEMPT_TWO))));
+    assert!(world.worker_root.iter().any(|r| matches!(r, Request::Down { down: host::LinkDown::Acknowledge { run, attempt }, .. } if (*run, *attempt) == (fixtures::RUN_SEVEN, fixtures::ATTEMPT_TWO))));
+}
+
+// Both real sides keep a resumed producer going within io's room
+// (jig/docs/design/protocol/channel.md, 9, 11 and 12).
+#[test]
+fn a_resumed_start_fits_the_room_on_each_stock_profile() {
+    use jig_domain_host as host;
+    use jig_protocol_config::{Profile, profile};
+    use jig_protocol_engine_workers as engine;
+    use jig_protocol_worker_link::{Limits, Request};
+    use jig_protocol_worker_wire::fit::cut_words;
+    use jig_worker_link_world::fixtures;
+    use skein_lib::Duration;
+    // Fixed65 + charter7 + a two-turn window16; a call's fields14,
+    // name8 and tool4; delivery evidence8. The oldest call is a delivery.
+    const BASE: u32 = 88;
+    const CALL: u32 = 26;
+    const DELIVERY: u32 = CALL + 8;
+    const FEW: u32 = 3;
+    const EXCESS: u32 = 2;
+    let mut failures = Vec::new();
+    for p in [Profile::Small, Profile::Standard] {
+        let config = profile(p);
+        let engine = jig_test_service::limits::for_profile(p, &config).workers;
+        // The world's worker fixtures keep their deadlines and entrances;
+        // its wire sizes are the profile's, with io's room capping its pipe.
+        let limits = Limits { sizes: engine.sizes, chunk: engine.chunk, ..fixtures::joined_limits() };
+        let answer = config.core.call_answer_bytes;
+        let room = config.io.largest_room();
+        let words = cut_words(answer);
+        let word_bytes = u32::try_from(words.len()).expect("cut words length");
+        let past = room / (answer + CALL) + EXCESS;
+        for (name, calls, delivery, whole) in [
+            ("few calls", FEW, false, FEW),
+            (
+                "past the room by its calls",
+                past,
+                true,
+                (room - BASE - DELIVERY - (past - 1) * (CALL + word_bytes)) / (answer - word_bytes),
+            ),
+        ] {
+            let mut world = joined::Joined::with_limits(&limits, engine, 1);
+            world.run();
+            let assignment = resumed_assignment(calls, answer, delivery);
+            world.engine_down(host::LinkDown::Assign { assignment }, Box::new([]), Box::new([]));
+            world.run();
+            let assignments: Vec<_> = world
+                .worker_root
+                .iter()
+                .filter_map(|r| {
+                    if let Request::Down { down: host::LinkDown::Assign { assignment }, .. } = r {
+                        Some(assignment)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if assignments.len() != 1 {
+                failures.push(format!("{p:?}, {name}, {calls} calls: no assignment; engine {:?}", world.engine_root));
+                world.finish();
+                continue;
+            }
+            let assignment = assignments[0];
+            assert_eq!(assignment.turns, fixtures::assignment().turns, "{p:?}, {name}: window");
+            assert_eq!(assignment.answered.len(), usize::try_from(calls).expect("calls"));
+            for (index, call) in assignment.answered.iter().enumerate() {
+                let index = u32::try_from(index).expect("few calls");
+                let expected = resumed_call(index, answer, delivery, index < calls - whole);
+                assert_eq!(*call, expected, "{p:?}, {name}, call {index}");
+            }
+            let bytes = BASE
+                + u32::from(delivery) * DELIVERY
+                + (calls - u32::from(delivery) - whole) * (CALL + word_bytes)
+                + whole * (CALL + answer);
+            assert_eq!(world.assignment_bytes(), [bytes], "{p:?}, {name}: frame");
+            assert!(bytes <= room);
+            eprintln!("{p:?}, {name}: {calls} calls, {whole} host answers whole, frame {bytes}/{room}");
+            resumed_continues(&mut world);
+            for second in 1..=120 {
+                world.advance(Duration::from_secs(1));
+                assert!(
+                    !world.worker_root.iter().any(|r| matches!(r, Request::Lost | Request::Fact { .. })),
+                    "{p:?}, {name}: worker lost at {second}"
+                );
+                assert!(
+                    !world
+                        .engine_root
+                        .iter()
+                        .any(|r| matches!(r, engine::Request::Lost { .. } | engine::Request::Unsent { .. })),
+                    "{p:?}, {name}: engine failed at {second}"
+                );
+                assert!(world.engine_ended.is_empty());
+            }
+            assert!(world.ping_counts().into_iter().all(|count| count > 0), "{p:?}, {name}: pings both ways");
+            world.finish();
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}

@@ -294,6 +294,11 @@ remain section 11's deferred work.
   262,144-byte vocabulary bound cited here
   (`smith/docs/design/protocol/limits.status.md`, 2.4). This does not
   refuse the reference's fallback.
+- **Not yet:** 7, the turn's check, and 13.8: a worker whose turn's frame
+  passes its `io.output` is refused `workers[0].limits: past its bound`,
+  as its link's limits are not valid (`temper-service/src/worker_settings.rs`,
+  `prepare`), naming neither `io.output` nor the frame it must hold;
+  the start checks no such bound of their own (`startup/checks.rs`).
 - **Departs:** 13.8: smith's host input admits 1,048,576 rather than the
   cited 262,144, matching its channel and transcript ceilings; the
   deployment's receiving limit still applies
