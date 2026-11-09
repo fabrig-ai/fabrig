@@ -362,7 +362,7 @@ impl Joined {
             }
             engine::Request::Ended { .. } => self.engine_ended.push(request),
             engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
-                self.engine_root.push(request)
+                self.engine_root.push(request);
             }
         }
     }
