@@ -216,8 +216,3 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   `model_document`), because its scripts are static, so on `temper box
   --fake-backends` a fresh box's first chat's goal alone writes a report: a
   later goal is refused its note and ends with none.
-- **Not yet:** 4.3, *The brief fits the room its charter leaves*: the engine
-  fits a charter to `hub.charter_bytes` alone, so under `standard` it sends up to
-  262,144 bytes, which a worker on the stock agent refuses at decoding past its
-  65,536 (`temper-service/src/workers.rs`, `Workers::configured`;
-  `assignment.rs`, `fitted_charter`).

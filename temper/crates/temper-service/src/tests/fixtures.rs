@@ -61,6 +61,7 @@ pub fn engine() -> settings::Engine {
 
     settings::Engine {
         host_reply_bytes: None,
+        agent_charter_bytes: None,
         machine: machine(),
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -755,6 +756,21 @@ pub fn assignment_with(repository: temper_engine_domain::ForgeRepository) -> tem
     let settings = engine();
     assignment_with_settings(repository, &settings)
 }
+/// A resolution carrying both sides of a large file in its pull section.
+pub fn resolution_with_pull(bytes: usize) -> temper_engine_domain::Assignment {
+    let mut repository = repository(7, b"acme", b"shop");
+    repository.start =
+        temper_engine_domain::ForgeStart::Merge { branch: b"temper/task-7".as_slice().into(), base: [7; 32] };
+    let mut assignment = assignment_with(repository);
+    let mut body = skein_lib::bytes::zeroed(bytes);
+    body.fill(b'x');
+    assignment.sections = Box::new([temper_engine_domain::BriefSection {
+        kind: temper_engine_domain::BriefKind::Forge(temper_engine_domain::ForgeBriefKind::Pull),
+        body: temper_engine_domain::BriefBody::Text(body),
+    }]);
+    assignment
+}
+
 pub fn assignment_with_settings(
     repository: temper_engine_domain::ForgeRepository,
     settings: &settings::Engine,
@@ -823,7 +839,10 @@ pub fn encoding(settings: &settings::Engine) -> crate::assignment::Encoding {
         limits: wire_limits(),
         endpoints: smith_protocol_channel::Endpoints::new(entries),
         deployment: [7; 16],
-        charter_bytes: settings.jig.limits.hub.charter_bytes,
+        charter_bytes: crate::assignment::charter_bound(
+            settings.jig.limits.hub.charter_bytes,
+            settings.agent_charter_bytes,
+        ),
     }
 }
 pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
