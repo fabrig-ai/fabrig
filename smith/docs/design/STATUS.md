@@ -32,9 +32,7 @@ without a run slot (`protocol/agent.md`, 6.1; `protocol/hosts.md`, section 2).
 Sub-agent answers have the outcome's room, with UTF-8 boundary cuts and
 guidance to ask a new child, narrower; retaining the rest for a
 continuation remains deferred (`domain/run.md`, 5.3 and 15;
-`protocol/limits.md`, 3.10 and 13). The agent's document without the
-agent, `smith-agent-profile` and `smith-agent-document`, isn't built
-(`shell.md`). smith has no drafts.
+`protocol/limits.md`, 3.10 and 13). smith has no drafts.
 
 Failed checks name their repository, convention path and given time,
 with their exit and retained output tail. A silent check still has no

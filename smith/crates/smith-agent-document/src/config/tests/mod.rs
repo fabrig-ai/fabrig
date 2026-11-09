@@ -1,10 +1,9 @@
 use skein_llm as shared;
-use smith_agent_service::profile::Per;
+use smith_agent_profile::profile::Per;
 
 mod native;
 mod programs;
 mod prompt_line;
-mod readme;
 
 use super::*;
 use prompt_line::assert_native_prompt_line;
@@ -25,20 +24,6 @@ fn document() -> Document {
         environment: vec![],
         trace: None,
         programs: std::collections::BTreeMap::new(),
-    }
-}
-
-fn resources() -> crate::Resources {
-    crate::Resources {
-        input: skein_io::kernel::Fd::new(0),
-        output: skein_io::kernel::Fd::new(1),
-        signals: skein_io::kernel::Fd::new(2),
-        seed: 1,
-        pid: 1,
-        trace: None,
-        error: None,
-        roots: None,
-        programs: None,
     }
 }
 
@@ -107,18 +92,6 @@ fn a_machine_bundle_past_its_certificate_bound_is_refused_naming_the_bound() {
 }
 
 #[test]
-fn named_endpoint_resolves_and_its_tls_trust_builds_before_start() {
-    let mut document = document();
-    let endpoint = &mut document.endpoints[0];
-    endpoint.transport = "tls".into();
-    endpoint.server_name = Some("example.test".into());
-    endpoint.trust_der =
-        Some(skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string());
-    let configuration = build(document).expect("resolved endpoint");
-    service::Service::new(configuration.service, 1).expect("LLM and channel endpoints");
-}
-
-#[test]
 fn a_dialect_name_and_number_must_match() {
     let rows = [
         ("openai", 3, None),
@@ -164,16 +137,6 @@ fn static_cache_keys_are_unknown_endpoint_fields() {
     endpoint["cache_key"] = "static".into();
     let error = serde_json::from_value::<Endpoint>(endpoint).err().expect("removed field is rejected");
     assert!(error.to_string().contains("unknown field `cache_key`"));
-}
-
-#[test]
-fn plaintext_endpoints_admit_loopback_addresses() {
-    for address in ["127.0.0.1:8080", "[::1]:8080"] {
-        let mut document = shaped_document();
-        document["endpoints"][0]["address"] = address.into();
-        let configuration = parse_value(&document).expect("loopback plaintext configuration");
-        service::Service::new(configuration.service, 1).expect("loopback plaintext service");
-    }
 }
 
 #[test]
@@ -270,17 +233,6 @@ fn omitted_memory_uses_the_standard_process_declaration() {
     document["profile"]["declared"].as_object_mut().expect("declarations").remove("memory");
     let configuration = parse_value(&document).expect("default memory is accepted");
     assert_eq!(configuration.memory, 2_281_701_376);
-}
-
-#[test]
-fn a_declared_memory_of_one_byte_starts() {
-    let mut document = shaped_document();
-    document["profile"]["declared"]["memory"] = 1.into();
-    let configuration = from_value(document).expect("one declared byte is accepted");
-    assert_eq!(configuration.memory, 1);
-    assert_eq!(configuration.service.limits.memory, 1);
-    crate::Agent::new(configuration, resources(), Box::new(std::io::sink()))
-        .expect("one declared byte starts through prepare");
 }
 
 #[test]

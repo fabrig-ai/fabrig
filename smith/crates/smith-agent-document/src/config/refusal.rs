@@ -1,7 +1,7 @@
 //! Startup's typed refusals, retained until the product adds value origins.
 //! JSON callers use `detail`; no setting or credential is retained here.
 //! Contract: smith/docs/design/shell.md, section 5.3; smith/docs/design/protocol/limits.md, sections 4 and 8.
-use smith_agent_service::profile;
+use smith_agent_profile::profile;
 
 /// A configuration input failure or a named relationship with both values.
 #[derive(Debug)]

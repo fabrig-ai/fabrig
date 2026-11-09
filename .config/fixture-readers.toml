@@ -582,10 +582,14 @@ package = "smith-agent-process-world"
 filter = "binary(=suite) & test(/a_broken_declared_relationship_is_named/)"
 
 # protocol-llm suite component_boundary/endpoints_grants; local-process
-# process/configuration::trust; local-shell check/compose/settings; agent-shell config and fuzzy
-# startup; benchmark smith_adapter. Public certificate only.
+# process/configuration::trust; local-shell check/compose/settings; agent-document config;
+# agent-shell startup config and fuzzy startup; benchmark smith_adapter. Public certificate only.
 [[fixture]]
 paths = ["smith/tests/protocol-llm/fixtures/*.der"]
+[[fixture.reader]]
+pair = "default"
+package = "smith-agent-document"
+filter = "all()"
 [[fixture.reader]]
 pair = "default"
 package = "smith-protocol-llm-world"

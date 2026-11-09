@@ -8,13 +8,13 @@ use std::path::Path;
 
 use skein_channel::StreamMode;
 use skein_lib::{Duration, List};
-use smith_agent_service as service;
+use smith_agent_profile as service;
 use smith_domain as domain;
 use smith_protocol_llm as llm;
 use smith_protocol_machine as machine;
 
 use crate::trace::{Capture, TraceConfig};
-use smith_agent_service::profile::{ENDPOINTS, Layer, LimitName, Refusal};
+use smith_agent_profile::profile::{ENDPOINTS, Layer, LimitName, Refusal};
 
 const CONFIG_BYTES: u64 = 1 << 20;
 
@@ -132,7 +132,7 @@ fn event_limits(
     header: &[smith_events::EffectiveLimit],
     write_deadline: Duration,
 ) -> Result<smith_protocol_events::EventLimits, ConfigurationRefusal> {
-    let events = smith_agent_service::event_limits(
+    let events = smith_agent_profile::event_limits(
         limits,
         capture,
         1,
@@ -144,7 +144,8 @@ fn event_limits(
     Ok(events)
 }
 
-pub(crate) fn effective_header(
+/// Derive the effective limits header for the configured endpoints.
+pub fn effective_header(
     profile: &service::profile::Profile,
     declarations: &service::profile::Configuration,
     limits: &service::Limits,
@@ -236,7 +237,8 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
 
 impl Decoded {
     #[cfg(unix)]
-    pub(crate) fn list_endpoints(self) -> Result<llm::Endpoints, String> {
+    /// Resolve the endpoints for a native model-list request.
+    pub fn list_endpoints(self) -> Result<llm::Endpoints, String> {
         llm::Endpoints::new(
             native::endpoints(self.endpoints.llm, &self.limits.llm.connection, &mut std::io::sink())
                 .map_err(ConfigurationRefusal::detail)?,
@@ -306,7 +308,9 @@ fn duration(millis: u64, name: LimitName) -> Result<Duration, ConfigurationRefus
     Ok(Duration::from_nanos(nanos))
 }
 
-pub(crate) fn profile_refusal(error: Refusal) -> String {
+/// Render a profile refusal as operator-facing UTF-8 words.
+#[must_use]
+pub fn profile_refusal(error: Refusal) -> String {
     String::from_utf8(service::profile::words(&error).into_vec()).expect("refusal words are UTF-8")
 }
 

@@ -6,11 +6,11 @@
 
 mod agent_shell;
 
-pub mod config;
+pub use smith_agent_document::{config, trace};
 #[cfg(unix)]
 pub mod dump;
 #[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+pub use smith_agent_document::fixture;
 pub mod list;
 #[cfg(unix)]
 pub use smith_agent_document::program;
@@ -18,7 +18,6 @@ pub use smith_agent_document::program;
 pub mod program_child;
 #[cfg(unix)]
 pub mod relay;
-pub mod trace;
 
 pub use agent_shell::{Agent, ProgramResources, Resources, given_up_line, identity};
 
@@ -26,3 +25,6 @@ pub use agent_shell::{Agent, ProgramResources, Resources, given_up_line, identit
 pub use agent_shell::{run, run_decoded, run_dumping};
 
 pub use smith_protocol_program::PROGRAM_CHILD_FLAG;
+
+#[cfg(test)]
+mod tests;

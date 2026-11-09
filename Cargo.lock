@@ -4061,9 +4061,25 @@ dependencies = [
 name = "smith-agent-document"
 version = "0.0.0"
 dependencies = [
+ "serde",
+ "serde_json",
+ "skein-channel",
+ "skein-http",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-connection",
  "skein-scratch",
  "skein-shell",
+ "skein-tls",
+ "smith-agent-profile",
+ "smith-charter",
+ "smith-domain",
+ "smith-events",
+ "smith-protocol-events",
+ "smith-protocol-llm",
+ "smith-protocol-machine",
  "smith-protocol-program",
+ "smith-protocol-translate",
 ]
 
 [[package]]
