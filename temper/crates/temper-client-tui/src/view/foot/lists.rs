@@ -26,6 +26,7 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
     }
     if let Some(confirmation) = shared::confirmation(root) {
         return Some(Options {
+            style: look::OPTION,
             head: Some(copy_of(confirmation.head)),
             name: copy_of(confirmation.head),
             items: Box::new([
@@ -67,6 +68,7 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
                 .expect("choices fit");
         }
         return Some(Options {
+            style: look::OPTION,
             head: Some(copy_of(shared::list_head(listing))),
             name: copy_of(shared::list_head(listing)),
             items: items.into_boxed(),
@@ -81,6 +83,42 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
     }
     let question = shared::question(root, words.view())?;
     question_list(question, tui.aside(), words)
+}
+
+/// A reply may stand behind typed words, but never behind another prompt.
+pub(crate) fn reply(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
+    if shared::running(root, words.view()).is_some() || shared::question(root, words.view()).is_some() {
+        return None;
+    }
+    let (turn, text) = crate::view::chat::read::last_reply(root)?;
+    if tui.reply_aside() == Some(turn) {
+        return None;
+    }
+    let choices = crate::reply_choices(&text)?;
+    let mut items = List::uncapped();
+    for choice in choices.choices {
+        let number = u64::from(items.len()).checked_add(1).expect("choice number fits");
+        items.push(OptionItem {
+            name: numbered(&choice.words, number, words),
+            words: choice.reason.unwrap_or_default(),
+            selected: items.is_empty(),
+            event: Event::Answer { words: choice.words },
+        }).expect("reply choices fit memory");
+    }
+    let number = u64::from(items.len()).checked_add(1).expect("else number fits");
+    items.push(OptionItem {
+        name: numbered(&words.say(Word::Else, &[]), number, words),
+        words: Box::default(),
+        selected: false,
+        event: Event::ReplyAside { turn },
+    }).expect("else fits memory");
+    Some(Options {
+        style: look::OPTION,
+        head: None,
+        name: words.say(Word::Reply, &[]),
+        items: items.into_boxed(),
+        escape: Event::ReplyAside { turn },
+    })
 }
 
 fn theme(tui: &Tui, words: &Words) -> Options {
@@ -113,6 +151,7 @@ fn theme(tui: &Tui, words: &Words) -> Options {
             .expect("three theme choices");
     }
     Options {
+        style: look::OPTION,
         head: Some(words.say(Word::ThemeHead, &[])),
         name: words.say(Word::ThemeHead, &[]),
         items: items.into_boxed(),
@@ -141,6 +180,7 @@ fn commands(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Opt
         None
     } else {
         Some(Options {
+            style: look::COMMAND,
             head: None,
             name: words.say(Word::Commands, &[]),
             items: items.into_boxed(),
@@ -238,6 +278,7 @@ pub(crate) fn walk(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
             .expect("open counted");
         next(&mut items, prompt.object, words);
         return Some(Options {
+            style: look::OPTION,
             name: prompt.line.words.clone(),
             head: Some(prompt.line.words),
             items: items.into_boxed(),
@@ -327,6 +368,7 @@ fn question_options(question: shared::Question, words: &Words, walking: bool) ->
         next(&mut items, question.object, words);
     }
     Options {
+        style: look::OPTION,
         name: question.head.clone(),
         head: Some(question.head),
         items: items.into_boxed(),
@@ -344,7 +386,7 @@ pub(super) fn draw(b: &mut Builder, list: &Options, binds: &mut Binds) {
     b.state(State::Options);
     for item in &list.items {
         b.open(Role::MenuItem);
-        b.style(if list.head.is_none() { look::COMMAND } else { look::OPTION });
+        b.style(list.style);
         b.name(&item.name);
         b.description(&item.words);
         if item.selected {

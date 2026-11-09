@@ -43,6 +43,7 @@ pub(crate) struct Foot {
     pub closed: Option<Box<[u8]>>,
     pub columns: u16,
     pub list: Option<Options>,
+    pub reply: Box<[Event]>,
 }
 #[derive(Debug)]
 pub(crate) struct Rule {
@@ -62,6 +63,7 @@ pub(crate) struct Composer {
 }
 #[derive(Debug)]
 pub(crate) struct Options {
+    pub style: Style,
     pub head: Option<Box<[u8]>>,
     pub name: Box<[u8]>,
     pub items: Box<[OptionItem]>,
@@ -136,7 +138,17 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
         shared::say(words.view(), TerminalWord::Commands)
     };
     let signing_in = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
-    let list = if signing_in { None } else { lists::read(root, tui, words, &value) };
+    let mut list = if signing_in { None } else { lists::read(root, tui, words, &value) };
+    let standing = if signing_in || list.is_some() { None } else { lists::reply(root, tui, words) };
+    let mut reply = List::uncapped();
+    if let Some(standing) = standing {
+        for item in &standing.items {
+            reply.push(item.event.clone()).expect("reply events fit memory");
+        }
+        if value.is_empty() {
+            list = Some(standing);
+        }
+    }
     let rule = match (chat, task) {
         (Some(chat), Some(task)) => {
             let mut project = Box::default();
@@ -199,6 +211,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
         },
         columns: tui.columns(),
         list,
+        reply: reply.into_boxed(),
     }
 }
 

@@ -54,6 +54,7 @@ pub struct View {
     shown: u64,
     binds: Binds,
     escape: Option<Event>,
+    reply: Box<[Event]>,
     left_off: List<(u64, launchpad::LeftKind)>,
     selected_event: Option<Event>,
     authority: Box<[u8]>,
@@ -75,6 +76,7 @@ impl View {
             shown: 0,
             binds: Binds { events: List::with_capacity(limits.bindings) },
             escape: None,
+            reply: Box::default(),
             left_off: List::with_capacity(3),
             selected_event: None,
             authority: Box::default(),
@@ -284,6 +286,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     view.focus = view.page.clone();
     view.walkable = has_needs(root);
     if sign_in_drawn(root, tui) {
+        view.reply = Box::default();
         view.selected_event = None;
         view.walkable = false;
         view.left_off.clear();
@@ -376,6 +379,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         }
         Body::Chat(_) | Body::Welcome(_) => {}
     }
+    view.reply = signed.foot.reply.clone();
     view.box_empty = match &signed.foot.composer {
         Some(composer) => composer.value.is_empty(),
         None => false,
@@ -405,6 +409,17 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
 #[must_use]
 pub fn escape(view: &View) -> Option<Event> {
     view.escape.clone()
+}
+/// A reply's numbered event on the tree last built, even behind typed words.
+#[must_use]
+pub fn reply_number(view: &View, words: &[u8]) -> Option<Event> {
+    for (index, event) in view.reply.iter().enumerate() {
+        let number = skein_lib::Decimal::of(u64::try_from(index).ok()?.checked_add(1)?);
+        if number.as_bytes() == words {
+            return Some(event.clone());
+        }
+    }
+    None
 }
 /// Decode against the displayed tree alone.
 #[must_use]

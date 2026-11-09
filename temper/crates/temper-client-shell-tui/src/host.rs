@@ -531,6 +531,13 @@ impl Host {
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
             tui::Event::Aside { object } => self.tell(Told::Aside { object: Some(object) }),
+            tui::Event::Answer { words } => {
+                self.act(Act::MessageWords { words });
+                self.act(Act::Send);
+                self.act(Act::MessageWords { words: Box::default() });
+                self.tell(Told::Cleared);
+            }
+            tui::Event::ReplyAside { turn } => self.tell(Told::ReplyAside { turn }),
             tui::Event::Dismiss => self.dismiss(),
         }
     }
@@ -640,6 +647,10 @@ impl Host {
             self.act(Act::Needs(needs::Act::SendReply { object }));
             self.act(Act::ChatWords { words: Box::default() });
             self.tell(Told::Walked { object });
+            return;
+        }
+        if let Some(event) = tui::reply_number(&self.view, self.words()) {
+            self.event(event, duties);
             return;
         }
         if self.root.pages().chat().is_some()

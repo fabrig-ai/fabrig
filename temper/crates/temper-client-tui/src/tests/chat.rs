@@ -126,6 +126,7 @@ struct Input {
     working: bool,
     older: bool,
     shown: Option<Shown>,
+    question: bool,
 }
 impl Input {
     fn empty() -> Self {
@@ -137,6 +138,7 @@ impl Input {
             working: false,
             older: false,
             shown: None,
+            question: false,
         }
     }
 }
@@ -162,6 +164,7 @@ fn activity_page(input: &Input, before: Option<c::Cursor>, answered: &mut bool) 
 fn root(input: &Input) -> Domain {
     let mut root = d::unlinked(&chat_limits(), f::SEED);
     chat_event(&mut root, Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } });
+    chat_event(&mut root, Event::LookKept { look: d::pages::terminal::Look { terminal: true, ..d::pages::terminal::Look::default() } });
     let mut opened = chat_event(
         &mut root,
         Event::Start {
@@ -215,6 +218,9 @@ fn root(input: &Input) -> Domain {
         task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
         task.waits_on = c::WaitsOn::News;
     }
+    if input.question {
+        task.waits_on = c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: TASK, kind: c::WaitedFor::Question };
+    }
     let mut run = jig_client_test_records::run_state_record().into_parts();
     run.task = TASK;
     run.attempt = Some(ATTEMPT);
@@ -247,6 +253,14 @@ fn root(input: &Input) -> Domain {
     let mut activity_answered = false;
     while let Some(request) = out.pop() {
         let up = match request {
+            d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } } } if input.question => Some(jig_client::Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(c::Inbox {
+                    party: 73, needs: List::with_capacity(0), updates: List::with_capacity(0), next: None,
+                    cached_needs: 0, cached_updates: c::Count { value: 0, limited: false }, results_seen: 0,
+                    updates_time_complete: true, selection: None,
+                }))),
+            }),
             d::Request::Unlinked {
                 request:
                     UnlinkedRequest::Down {
@@ -276,6 +290,35 @@ fn root(input: &Input) -> Domain {
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
                     activity_page(input, before, &mut activity_answered),
                 )))),
+            }),
+            d::Request::Unlinked {
+                request: UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { .. }) } },
+            } if input.question => Some(jig_client::Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+                    rows: List::from_boxed(Box::new([c::InboxEntry {
+                        reply: None,
+                        task: c::TaskLink::Stored { number: TASK, status: None },
+                        project: Some(1),
+                        object: c::InboxObject::Question { message: 1 },
+                        activity: Some(1), at: Some(f::NOW), unread: None,
+                        cursor: c::InboxCursor::Inbox { task: TASK, object: c::InboxObject::Question { message: 1 }, at: Some(f::NOW) },
+                        projects: List::with_capacity(0),
+                    }])),
+                    cut: false, before: None, after: None, selection: None,
+                })))),
+            }),
+            d::Request::Unlinked {
+                request: UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task: _, message }) } },
+            } if input.question => Some(jig_client::Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Question(Box::new(c::Question {
+                    task: task.chip.clone(), from: None, message,
+                    words: c::DocumentText::complete(text(b"Which separator?\nChoice: Comma (recommended)\nChoice: Semicolon")),
+                    since: f::NOW,
+                    acts: List::from_boxed(Box::new([c::Offered { act: c::ActKind::Answer, admission: c::Admission::Allowed, effect: None }])),
+                    ending: None,
+                })))),
             }),
             d::Request::Unlinked {
                 request:
@@ -317,6 +360,38 @@ fn root(input: &Input) -> Domain {
     }
     root
 }
+pub(super) const CHOICES: &[u8] = "One point is yours. Move at once, or side by side?\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else".as_bytes();
+pub(super) const REPLY_TURN: c::TurnName = c::TurnName { attempt: ATTEMPT, number: 1 };
+
+pub(super) fn reply_root(case: &str) -> Domain {
+    let mut rows = List::uncapped();
+    rows.push(turn(&[c::Block::Text(text(if case == "no choices" { b"No question." } else { CHOICES }))])).unwrap();
+    if case == "newer" || case == "newer without choices" || case == "newer without text" {
+        let mut newer = turn(&[c::Block::Text(text(if case == "newer without choices" { b"No question." } else { CHOICES }))]);
+        newer.source.position = 2;
+        let archive = newer.decoded.as_mut().unwrap();
+        archive.name.number = 2;
+        if case == "newer without text" {
+            let c::TurnRead::Decoded(turn) = &mut archive.turn else { unreachable!() };
+            turn.messages.clear();
+        }
+        newer.source.line = c::Activity::Turn { reply: 2, attempt: ATTEMPT, turn: 2, read: None };
+        rows.push(newer).unwrap();
+    }
+    if case == "person after" {
+        let mut said = words(c::Requester::Person(73), b"My own words");
+        said.source.position = 2;
+        rows.push(said).unwrap();
+    }
+    root(&Input {
+        rows: rows.into_boxed(),
+        writing: if case == "provisional after" { Some(b"Thinking") } else { None },
+        working: case == "working" || case == "provisional after",
+        question: case == "held question",
+        ..Input::empty()
+    })
+}
+
 fn view() -> crate::View {
     let words = f::words();
     let page = temper_client_view::Limits::of(&f::limits(), words.view()).unwrap();
@@ -739,6 +814,28 @@ fn the_chats_are_their_goldens() {
                 background: Some(crate::theme::palette(*scheme)[0].1),
             })
             .unwrap();
+    }
+    goldens::check(checks.as_slice());
+    choice_goldens();
+}
+
+#[expect(clippy::disallowed_macros, reason = "the golden rows embed hand-written frame oracles")]
+fn choice_goldens() {
+    use skein_ui_screen::{Focus, Size};
+    let root = reply_root("choices");
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Size { columns: 80 });
+    let mut view = view();
+    crate::build(&mut view, &tui, &root, f::NOW, &mut Queue::uncapped());
+    let mut checks = List::uncapped();
+    for (name, scheme, want) in [
+        ("chat-choices-80x24-dark", Scheme::Dark, include_bytes!("golden/chat-choices-80x24-dark.txt").as_slice()),
+        ("chat-choices-80x24-light", Scheme::Light, include_bytes!("golden/chat-choices-80x24-light.txt").as_slice()),
+    ] {
+        checks.push(goldens::Golden {
+            name, scheme, want, tree: view.tree(), size: Size { columns: 80, rows: 24 },
+            focus: Focus::default(), background: Some(crate::theme::palette(scheme)[0].1),
+        }).unwrap();
     }
     goldens::check(checks.as_slice());
 }
