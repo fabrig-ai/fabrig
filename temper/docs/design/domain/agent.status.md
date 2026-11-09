@@ -43,9 +43,9 @@ identity expansion, parts, project-local approval checks and the card
 location in the answer. Sections 8.4 and 8.4.1 have no known gap in M3a's
 part: `see ways` renders the root's `ways` document, made as the client's
 is, and `ask.txt` carries the Showing part's first step, its words pinned
-by a focused test. The remaining reads and rendering, moved-write retry
-within a call, M3b's views and sketches and preferences remain deferred in
-section 10. Real-model judgement and the walk follow landing.
+by a focused test. Moved-write retry within a call, M3b's views and
+sketches and preferences remain deferred in section 10. Real-model
+judgement and the walk follow landing.
 
 Section 4.3.1 has no known gap in a change's role choice carrying no
 `later`: the change-choice parser constructs each choice with none,
@@ -140,6 +140,17 @@ record has run a real model on the sentence.
 
 ## Gaps and departures
 
+- **Not yet:** 8.4.1: `me`, `project`, `goals`, `goals ended`, `tasks`,
+  `task N` with its tree, activity and turns, `change N`, `changes` and
+  `inbox` answer `see ADDRESS: not there yet.`, an error: no read as the
+  person is made, and no text renders them as *How an answer reads* has
+  it (plan `ui-ask-m2`).
+- **Not yet:** 8.4.1: the declaration's description names settings,
+  revisions, proposals, pages and a file alone; no reference page `see`
+  exists, and an unknown address's line and each answer's `see:` line are
+  constants of `temper-engine-smith`'s `see.rs`.
+- **Not yet:** 8.4.1, *Its tests*: no row reads an address as the person,
+  and no fuzzy test of addresses exists.
 - **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the
   run and How work runs' heading say a way by different words

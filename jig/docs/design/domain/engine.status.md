@@ -75,8 +75,7 @@ Section 7.3's asking-family routing and run proposal read are present.
 `reads/settings.rs` checks settings authority and project scope before
 reading, and checks them and the current attempt after loading a stored
 row. `reads/vocabulary.rs` restricts retained task proposals to the
-reader's project and settings actions. Section 7.3 carries the contract
-for this read; reading as the person remains deferred in section 16.
+reader's project and settings actions.
 
 Sections 17.9 and 17.11 have no known gap in the stored-policy size
 refusal or a charter's selected effort. Size facts include parts and
@@ -176,6 +175,10 @@ try. A window's later pages keep its first page's slot there
 
 ## Gaps and departures
 
+- **Not yet:** 7.3, *A run's read as its person*: no named action
+  `PersonRead` exists, so no run reads as its task's requester, of its
+  project alone; an application's asking tool reads the settings and its
+  own documents alone (plan `ui-ask-m2`).
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
