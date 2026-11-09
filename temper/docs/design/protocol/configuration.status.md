@@ -268,10 +268,6 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
   then the reference's path draws its close-out where its runs don't
   make it.
 
-- **Not yet:** 13.4: charter 11's `ask.txt` has no *Remembering* part,
-  and its runs are declared no `remember` (`../domain/agent.status.md`,
-  8.4).
-
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
   process and live stories. Init pins T at 16,803,810 bytes and

@@ -220,9 +220,6 @@ record has run a real model on the sentence.
   kinds from its tools' declarations and `see settings`; decided by the
   `ui-p3e-words` cut.
 
-- **Not yet:** 8.4: `ask.txt` has no *Remembering* part, and the stock's
-  test holds it to 8,192 bytes, below `../draft/ask-temper.md`, 4.1's 10 KB.
-
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole

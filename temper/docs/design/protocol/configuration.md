@@ -3099,7 +3099,7 @@ that changes the stock changes nothing of them.
     and its `application` member, `root.journal.run_bytes` 65,536,
     merged over the document's `application` as `limits.json` is: the
     journal's bound on a run's stored policy, which a charter's whole
-    policy must fit, so that the box's 20,480 refuses a charter of
+    policy must fit, so that the box's 24,576 refuses a charter of
     31 KB. Its `README.md` gives the commands. All of it before the
     first start;
   - `landing.json`, the document's `application.landing`, carried whole;
