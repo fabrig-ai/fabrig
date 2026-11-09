@@ -1,5 +1,7 @@
 mod every;
+mod side;
 pub use every::every;
+pub use side::{side, side_regions};
 
 use crate::{Align, Arrange, Border, Glyphs, Mark, Paint, Place, RegionLook, Rgb, StyleLook, Theme};
 use skein_lib::{Queue, Token};
@@ -24,6 +26,7 @@ pub const BLUE: Style = Style { owner: OWNER, token: 2 };
 pub const LOOKS_TOP: Region = Region { owner: OWNER, number: 3 };
 pub const RULES: Region = Region { owner: OWNER, number: 4 };
 pub const TITLED_RULES: Region = Region { owner: OWNER, number: 5 };
+pub const SIDE: Region = Region { owner: OWNER, number: 6 };
 pub const END: Style = Style { owner: OWNER, token: 3 };
 pub const BAND: Style = Style { owner: OWNER, token: 4 };
 pub const NO_LABEL: Style = Style { owner: OWNER, token: 5 };
@@ -110,6 +113,21 @@ pub fn theme() -> Theme {
                     down: '│',
                     paint: Paint { bold: true, ..Paint::NONE },
                     title: true,
+                    sides: false,
+                }),
+                pad: 1,
+                paint: REGION_PAINT,
+            },
+            RegionLook {
+                region: SIDE,
+                place: Place::Side { percent: 50 },
+                arrange: Arrange::Lines,
+                border: Some(Border {
+                    corners: ['+', '+', '+', '+'],
+                    across: '─',
+                    down: '│',
+                    paint: Paint { bold: true, ..Paint::NONE },
+                    title: false,
                     sides: false,
                 }),
                 pad: 1,

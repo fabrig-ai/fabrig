@@ -2,12 +2,7 @@
 
 2026-11-09. Where skein's code lags or departs from [ui-screen.md](ui-screen.md).
 
-- **Not yet:** 3 and 5.2, *A side region*: `Place` has no `Side`, so
-  the renderer lays no region beside the body and `Theme::valid` checks
-  no side region's percent, arrangement or border; and 9's golden of a
-  side region beside a following body, and without one.
-
-Beside that, no known implementation gap. Sections 3, 5 and 6.2 include rules without
+No known implementation gap. Sections 3, 5 and 6.2 include rules without
 sides, border-end titles, end-only titles two glyphs across from a
 rule's end, end alignment, bands, unlabelled fields, marks,
 description paints, opt-in active-name paints, focused-value paints, child spacing and options-menu selection. Paging

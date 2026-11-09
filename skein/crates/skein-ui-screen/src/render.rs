@@ -231,6 +231,7 @@ pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, 
     }
     let info = information(tree, theme);
     let mut bands = List::with_capacity(tree.len());
+    let mut beside = None;
     for at in 0..tree.len() {
         if let Some(look) = info.get(at).expect("node information exists").look {
             match look.place {
@@ -242,6 +243,11 @@ pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, 
                         .expect("bands fit nodes");
                 }
                 Place::Body => {}
+                Place::Side { percent } => {
+                    if beside.is_none() {
+                        beside = Some((at, percent));
+                    }
+                }
             }
         }
     }
@@ -272,11 +278,16 @@ pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, 
             band.origin = top;
             top = top.saturating_add(band.shown);
         }
-        let viewport = Viewport { first: 0, origin: band.origin, height: band.shown, draw: true };
+        let viewport = Viewport { first: 0, origin: band.origin, left: 0, height: band.shown, draw: true };
         let mut canvas = Canvas::new(size.columns, theme.base, viewport, tree.len());
         walk(tree, &info, Some(band.at), theme, focus, &mut canvas, frame);
     }
-    let mut measured = Canvas::new(size.columns, theme.base, Viewport::measure(), tree.len());
+    let side_columns = match beside {
+        Some((_at, percent)) => percent_columns(percent, size.columns),
+        None => 0,
+    };
+    let body_columns = size.columns.saturating_sub(side_columns);
+    let mut measured = Canvas::new(body_columns, theme.base, Viewport::measure(), tree.len());
     walk(tree, &info, None, theme, focus, &mut measured, frame);
     let last = measured.rows().saturating_sub(u32::from(body_rows.max(1)));
     let continues = body_logs(tree, &info, focus);
@@ -294,9 +305,52 @@ pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, 
         focus.follow = true;
     }
     frame.set_scroll(focus.scroll);
-    let viewport = Viewport { first: focus.scroll, origin: top, height: body_rows, draw: true };
-    let mut canvas = Canvas::new(size.columns, theme.base, viewport, tree.len());
+    let viewport = Viewport { first: focus.scroll, origin: top, left: 0, height: body_rows, draw: true };
+    let mut canvas = Canvas::new(body_columns, theme.base, viewport, tree.len());
     walk(tree, &info, None, theme, focus, &mut canvas, frame);
+    if body_rows != 0
+        && side_columns != 0
+        && let Some((at, _percent)) = beside
+    {
+        let viewport = Viewport { first: 0, origin: top, left: body_columns, height: body_rows, draw: true };
+        lay_side(tree, &info, at, theme, focus, viewport, side_columns, frame);
+    }
+}
+
+fn percent_columns(percent: u8, columns: u16) -> u16 {
+    let columns = u32::from(percent).checked_mul(u32::from(columns)).expect("u8 times u16 fits u32");
+    let columns = columns.checked_div(100).expect("divisor is nonzero");
+    u16::try_from(columns).expect("valid percent leaves at most the frame's columns")
+}
+
+#[expect(clippy::too_many_arguments, reason = "the side walk borrows the renderer's tree, looks, focus and viewport")]
+fn lay_side(
+    tree: &Tree,
+    info: &List<Info>,
+    at: u32,
+    theme: &crate::Theme,
+    focus: &Focus,
+    mut viewport: Viewport,
+    columns: u16,
+    frame: &mut Frame,
+) {
+    let data = info.get(at).expect("side information exists");
+    let look = data.look.expect("side has a look");
+    for row in viewport.origin..viewport.origin.saturating_add(viewport.height) {
+        for column in viewport.left..viewport.left.saturating_add(columns) {
+            frame.put(crate::Position { row, column }, Cell { glyph: ' ', paint: data.paint });
+        }
+        if let Some(border) = look.border {
+            frame.put(
+                crate::Position { row, column: viewport.left },
+                Cell { glyph: border.down, paint: border.paint.over(data.paint) },
+            );
+        }
+    }
+    let divider = u16::from(look.border.is_some());
+    viewport.left = viewport.left.saturating_add(divider);
+    let mut canvas = Canvas::new(columns.saturating_sub(divider), data.paint, viewport, tree.len());
+    walk(tree, info, Some(at), theme, focus, &mut canvas, frame);
 }
 
 fn body_logs(tree: &Tree, info: &List<Info>, focus: &mut Focus) -> bool {
@@ -391,7 +445,7 @@ fn walk(
         let until = at.saturating_add(n.size);
         if let Some(look) = data.look {
             let separate = match look.place {
-                Place::Top | Place::Bottom => root != Some(at),
+                Place::Top | Place::Bottom | Place::Side { .. } => root != Some(at),
                 Place::Body => false,
             };
             if separate {
@@ -422,6 +476,12 @@ fn walk(
         }
         let mut region = data.look;
         if let Some(look) = region {
+            let look = match look.place {
+                // The renderer draws the side's divider; its canvas keeps the padding alone.
+                Place::Side { .. } => RegionLook { border: None, ..look },
+                Place::Top | Place::Body | Place::Bottom => look,
+            };
+            region = Some(look);
             out.enter_region(look, data.paint, frame);
             if let Some(title) = title_node(tree, at, look) {
                 let mut title_line = Canvas::first_line(out.columns(), theme.base, tree.len());
