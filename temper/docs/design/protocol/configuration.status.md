@@ -285,9 +285,6 @@ The startup table holds the derived carriers, including the forge answer's
 cuts past the receiving room. The larger pair and real-program observation
 remain section 11's deferred work.
 
-- **Not yet:** 7, the channel's: no check holds the smallest resumed
-  start within the engine's `io.output`
-  (`temper/crates/temper-service/src/startup/checks.rs`).
 - **Not yet:** 13.8: the extra `forge.client.answer_bytes` carrier is
   held by the reference's relation test, but the start has no diagnostic
   naming that relation; the forge limits' validity check supplies only
