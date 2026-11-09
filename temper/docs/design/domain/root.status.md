@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-08. Where temper's code lags or departs from [root.md](root.md).
+2026-11-09. Where temper's code lags or departs from [root.md](root.md).
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
@@ -38,6 +38,18 @@ The charter's stored-policy size refusal carries supplied bytes and the
 tool and JSON. The policy's parts count toward that size; the refusal
 kind remains shape.
 
+Section 8's transcript load has no known gap at an activation: a task
+whose window would find every load slot taken, a retired one awaiting
+its reclaim among them, is answered busy and stays due, as with the
+archive's read table full (`temper-engine-domain/src/route.rs`,
+`activate`; `loads.rs`, `has_room`). With the shipped two load slots,
+tasks due together each load their window, none failing its preparation
+or spending a try (`tests/engine/domain`'s
+`tasks_due_together_past_the_load_slots_each_load_their_window`).
+Whether room was why about 23 briefs failed on their windows after a
+deployment's restart on 2026-11-08 is unproven: its evidence is outside
+the repository. A window's later page is below.
+
 ## Gaps and departures
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
@@ -69,6 +81,16 @@ kind remains shape.
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
   `BriefSource`), and a merge-queue ejection's reason. 9.1: the
   rehearsing root, `temper upgrade --check`.
+- **Not yet:** 8: a transcript window's later page, requested without
+  another activation, still answers the core `TranscriptLoad::Failed`
+  when no load slot is free (`temper-engine-domain/src/restart.rs`,
+  `request_load`; `archive.rs`'s
+  `a_transcript_continuation_without_load_room_remains_preparation_failure`),
+  where the section answers a full table busy and jig's
+  `domain/engine.md`, 9.1 counts room as capacity, never transient. The
+  slot its previous page held stays taken until the iteration's reclaim,
+  so a window past one page, loading beside another load, can spend a
+  transient try on room; no story shows whether one does.
 - **Not yet:** 10: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while

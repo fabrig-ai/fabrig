@@ -564,7 +564,14 @@ check and carries its output before the base's contents; their real-deployment
 proof still awaits the next landing plan (`domain/forge.md`). Hello refusals
 carry the fleet's reason and shortfall figures, sent as text and printed on the
 engine's stderr; the worker's own line keeps its reason code
-(`protocol/README.md`, 15.3). A lost kernel-chosen port is retried within 32
+(`protocol/README.md`, 15.3). The worker reads its link on every pass,
+its entrance holding the engine's cap, and each side prints one line
+for each lost link or ended opening, naming the worker and why. Tasks
+due together past the load slots stay due until a slot frees, but a
+transcript window's later page with no slot free still fails its
+preparation, and no stop test shows the whole engine's stop within a
+bound (`domain/worker.md`, 3.1; `protocol/README.md`, 15.3 and 14;
+`domain/root.md`, 8). A lost kernel-chosen port is retried within 32
 attempts (`protocol/setup.md`, 7.5). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
