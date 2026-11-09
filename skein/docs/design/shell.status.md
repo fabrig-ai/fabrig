@@ -21,7 +21,10 @@ below remain; the Linux tests do not prove the Darwin arms.
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
-  startup. 6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
+  startup.
+  6.5: a setting derives its twin from the tool's name and its own, and
+  has no set; a table of settings has no line of its own.
+  6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`
   (`skein-shell/src/listener_calls.rs`) on both answers, and only the
@@ -30,6 +33,9 @@ below remain; the Linux tests do not prove the Darwin arms.
   (`temper/docs/design/domain/testing.md`, 2.8), and no macOS runner runs
   skein's suites. Whether that workflow's compile step has run is unknown;
   a cross-target build does not prove the Darwin runtime.
+  15: no binary's table: no `Set`, `Table`, `Command`, `Switch`,
+  `Variable` or `TestTable`, no help page, command page or version line
+  rendered from one (15.2), and no reference documents (15.3).
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only
   `smith-agent-document`'s `config/native.rs`, `trust_sources`, says them,
   through the shell's re-export too. temper's own two readers
