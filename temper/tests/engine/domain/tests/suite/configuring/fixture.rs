@@ -347,7 +347,7 @@ fn offer_removable(authority: &mut jig_domain_authority::Authority) {
     authority.delegation.kinds = kinds.into_boxed_slice();
 }
 
-pub(super) struct World {
+pub(crate) struct World {
     pub driver: Driver,
     pub owner: u64,
     templates: Box<[core::Template]>,

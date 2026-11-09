@@ -7,7 +7,7 @@ const GOAL: &[u8] = b"Add CSV export";
 const QUESTION: &[u8] = b"Should the export include headers?";
 const HEADLINE: &str = "report: The export lands this week.";
 
-pub(super) struct PersonWorld {
+pub(crate) struct PersonWorld {
     pub world: World,
     pub owner: engine::Assignment,
     pub member: engine::Assignment,
@@ -58,7 +58,7 @@ fn producer(world: &mut World, change: u64) -> engine::Assignment {
 }
 
 #[expect(clippy::too_many_lines, reason = "one joined fixture seeds both projects and their real work")]
-pub(super) fn world() -> PersonWorld {
+pub(crate) fn world() -> PersonWorld {
     let mut config = config();
     let mut projects = config.core.seed_projects.into_vec();
     projects.push(core::SeedProject { number: 2, name: "Other project".into(), policy: projects[0].policy.clone() });
