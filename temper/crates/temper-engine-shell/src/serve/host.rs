@@ -339,6 +339,8 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
                 Linked::Charter { charter, revision } => format!("charter {charter} at revision {revision}"),
                 Linked::Project(project) => format!("project {project}"),
                 Linked::Connector(connector) => format!("connector {connector}"),
+                Linked::SettingsProposal { proposer, proposal } => format!("settings proposal {proposer:?}/{proposal}"),
+                Linked::Holder(resource) => format!("hold owner for {resource:?}"),
             };
             format!("{record:?} links missing {target}")
         }
@@ -1105,6 +1107,23 @@ fn start_failures_name_the_set_key_setting_and_measured_limit() {
         (
             Failure::Link { record: key.clone(), linked: jig_domain_core::Linked::Connector(9) },
             "Tasks(Live(17)) links missing connector 9",
+        ),
+        (
+            Failure::Link {
+                record: key.clone(),
+                linked: jig_domain_core::Linked::SettingsProposal {
+                    proposer: jig_domain_people::Proposer::Party(1),
+                    proposal: 4_294_967_296,
+                },
+            },
+            "Tasks(Live(17)) links missing settings proposal Party(1)/4294967296",
+        ),
+        (
+            Failure::Link {
+                record: Key::Tasks(jig_domain_tasks::Key::Writer(1)),
+                linked: jig_domain_core::Linked::Holder(jig_domain_tasks::Name { connector: 1, path: Box::new([]) }),
+            },
+            "Tasks(Writer(1)) links missing hold owner for Name { connector: 1, path: [] }",
         ),
         (Failure::LlmChoice { key }, "LLM choice refused, key Tasks(Live(17))"),
     ] {

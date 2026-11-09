@@ -139,20 +139,18 @@ impl Core {
             }
             let mut projection = state.header.expect("assembled header linked");
             let source = Key::Core(CoreKey::Projection(ProjectionKey::Goal(goal)));
-            let linked = if projection.goal.project != people::DEPLOYMENT
-                && self.authority.policy(projection.goal.project).is_none()
+            if projection.goal.project != people::DEPLOYMENT && self.authority.policy(projection.goal.project).is_none()
             {
-                Some(Linked::Project(projection.goal.project))
-            } else {
-                projection
-                    .pending
-                    .iter()
-                    .find(|connector| !self.connectors.contains(connector))
-                    .map(|connector| Linked::Connector(*connector))
-            };
-            if let Some(linked) = linked {
-                let _refused = self.start_refuse(Failure::Link { record: source, linked });
+                let _refused = self
+                    .start_refuse(Failure::Link { record: source, linked: Linked::Project(projection.goal.project) });
                 return;
+            }
+            for connector in &projection.pending {
+                if !self.connectors.contains(connector) {
+                    let _refused =
+                        self.start_refuse(Failure::Link { record: source, linked: Linked::Connector(*connector) });
+                    return;
+                }
             }
             match &projection.goal.phase {
                 tasks::Phase::Ended(_)

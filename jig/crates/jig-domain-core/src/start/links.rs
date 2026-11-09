@@ -81,7 +81,7 @@ impl Core {
         self.link_person_proposals()?;
         self.link_settings_proposals()?;
         self.link_projection_tasks()?;
-        self.link_resource_projects()?;
+        self.link_resource_projects();
         self.link_people_answers()?;
         self.link_other_children()?;
         Ok(())
@@ -229,8 +229,11 @@ impl Core {
                 }
                 people::Proposer::Task(task) => {
                     self.link_task(&source, *task)?;
-                    match self.tasks.task(*task).and_then(|row| row.proposal.as_ref()) {
-                        Some(row) => row.number == u64::from(*number),
+                    match self.tasks.task(*task) {
+                        Some(row) => match &row.proposal {
+                            Some(proposal) => proposal.number == u64::from(*number),
+                            None => false,
+                        },
                         None => false,
                     }
                 }
@@ -269,7 +272,7 @@ impl Core {
         Ok(())
     }
 
-    fn link_resource_projects(&self) -> Result<(), Failure> {
+    fn link_resource_projects(&self) {
         for (key, _) in &self.resource_roles {
             assert!(
                 key.project == people::DEPLOYMENT
@@ -279,7 +282,6 @@ impl Core {
                 key.project
             );
         }
-        Ok(())
     }
 
     fn link_people_answers(&self) -> Result<(), Failure> {
@@ -365,7 +367,7 @@ impl Core {
             self.link_task(&source, proof.task)?;
         }
         if let Some((record, target)) = self.missing_proof_link() {
-            require_link(self.missing_proof_link().is_none(), &record, Linked::Record(target))?;
+            return Err(Failure::Link { record, linked: Linked::Record(target) });
         }
         for ((party, task), _) in self.people.read_conversations() {
             self.link_task(&Key::People(people::Key::ReadConversation { party: *party, task: *task }), *task)?;
@@ -405,10 +407,12 @@ impl Core {
         revision: u32,
     ) -> Result<(), Failure> {
         self.link_revision(source, revision)?;
-        let target_number = u32::try_from(number);
-        let linked = target_number.is_ok();
-        assert!(linked, "{source:?} links missing settings proposal {proposer:?}/{number}");
-        let number = target_number.expect("linked settings proposal key");
+        let Ok(number) = u32::try_from(number) else {
+            return Err(Failure::Link {
+                record: source.clone(),
+                linked: Linked::SettingsProposal { proposer, proposal: number },
+            });
+        };
         let target = crate::settings::Key::Proposal { proposer, proposal: number };
         require_link(
             self.settings_proposals.contains_key(&(proposer, number)),

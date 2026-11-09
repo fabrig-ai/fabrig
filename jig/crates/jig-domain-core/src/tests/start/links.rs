@@ -563,7 +563,7 @@ fn settings_proposals_link_both_records_and_the_retained_revision() {
             unmade(
                 &mut core,
                 &env,
-                if settings {
+                if settings && against != 99 {
                     Key::Core(crate::CoreKey::Settings(crate::settings::Key::Proposal {
                         proposer: people::Proposer::Party(1),
                         proposal: 7,
@@ -583,6 +583,31 @@ fn settings_proposals_link_both_records_and_the_retained_revision() {
                 },
             );
         }
+    }
+}
+
+#[test]
+fn settings_proposal_numbers_past_the_key_width_refuse_without_truncation() {
+    for number in [4_294_967_296, u64::MAX] {
+        let (mut core, env) = loaded();
+        restore_task(
+            &mut core,
+            &env,
+            tasks::Stored::PersonProposal(Box::new(tasks::PersonProposal {
+                number,
+                proposer: 1,
+                project: people::DEPLOYMENT,
+                action: tasks::PersonAction::Settings { against: 1, items: Box::new([]) },
+                reason: Box::new([]),
+                state: tasks::PersonProposalState::Pending { since: Wall::EPOCH },
+            })),
+        );
+        unmade(
+            &mut core,
+            &env,
+            Key::Tasks(tasks::Key::PersonProposal(number)),
+            Linked::SettingsProposal { proposer: people::Proposer::Party(1), proposal: number },
+        );
     }
 }
 
@@ -655,14 +680,17 @@ fn connector_resource_roles_link_their_projects() {
             previous = next;
         }
         step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
-        let result = core.start_done(&env, Phase::Link, &mut out);
         if present {
-            linked(result);
+            linked(core.start_done(&env, Phase::Link, &mut out));
             if deletion.is_some() {
                 assert!(!core.open_project(project), "kept deletion remains closed");
             }
         } else {
-            refusal(result, Key::People(people::Key::Policy(project)), Linked::Project(project));
+            let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+                core.start_done(&env, Phase::Link, &mut out)
+            }));
+            let _panic = result.expect_err("connector reports require an existing project");
+            assert_eq!(core.start_failure(), None);
             assert_eq!(core.start_phase(), Some(Phase::Link));
         }
     }

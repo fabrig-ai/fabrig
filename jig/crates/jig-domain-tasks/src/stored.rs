@@ -245,9 +245,15 @@ pub(crate) fn check(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Requ
             return failed(domain, crate::RestoreFailure { key, cause }, out);
         }
     }
-    crate::placed::link(domain);
-    crate::writers::link(domain);
-    crate::funders::link(domain);
+    if let Err(failure) = crate::placed::link(domain) {
+        return failed(domain, failure, out);
+    }
+    if let Err(failure) = crate::writers::link(domain) {
+        return failed(domain, failure, out);
+    }
+    if let Err(failure) = crate::funders::link(domain) {
+        return failed(domain, failure, out);
+    }
     if let Err(failure) = crate::placed::fits(domain, &env.limits) {
         return failed(domain, failure, out);
     }

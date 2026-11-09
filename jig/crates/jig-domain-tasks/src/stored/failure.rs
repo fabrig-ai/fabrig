@@ -9,11 +9,12 @@ pub struct RestoreFailure {
     pub cause: RestoreCause,
 }
 
-/// A measured capacity, unrepresentable accounting, or unavailable executor choice.
+/// A missing link, measured capacity, unrepresentable accounting, or unavailable executor choice.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreCause {
     Link { target: Key },
     Charter { charter: u32, revision: u32 },
+    Holder { resource: crate::Name },
     Bound { which: RestoreBound, held: u64, limit: u64 },
     Accounting,
     LlmChoice { chosen: ModelEffort, why: RestoreLlmWhy },

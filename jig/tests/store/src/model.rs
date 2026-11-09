@@ -24,8 +24,10 @@ impl Default for Model {
 
 impl Model {
     pub fn stage(&mut self, number: u64, writes: &[Write]) {
-        assert_eq!(number, self.acknowledged + 1, "only one uncertain commit");
-        let mut state = self.prefixes.get(&self.acknowledged).expect("acknowledged prefix").clone();
+        assert!(number > self.acknowledged, "submission follows the acknowledged prefix");
+        let mut state = self.prefixes.get(&(number - 1)).expect("preceding submitted prefix").clone();
+        // A restarted root can reuse the number of an uncertain commit.
+        self.prefixes.retain(|staged, _| *staged < number);
         for write in writes {
             match write {
                 Write::Wires => {}

@@ -36,6 +36,7 @@ impl World {
             rows,
             startup,
             patch_sets,
+            disk_store,
             mut peers,
             cut,
             clock,
@@ -54,6 +55,7 @@ impl World {
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
         let mut world = Self::empty(configuration, &limits, patch_sets);
+        world.configure_disk(disk_store, patch_sets);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
         }

@@ -114,8 +114,12 @@ fn an_orphan_stays_loaded_until_the_link_step() {
     let mut h = Harness::new();
     h.row(piece());
     assert_eq!(h.core.start_failure(), None);
-    let missing = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| link(&mut h.core, &h.env, &mut h.out)));
-    let _panic = missing.expect_err("orphan asserts at Link");
+    let expected = core::start::Failure::Link {
+        record: core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Task { goal: 17, task: 18 })),
+        linked: core::Linked::Record(core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(17)))),
+    };
+    assert!(matches!(link(&mut h.core, &h.env, &mut h.out), Action::Refused(failure) if failure == expected));
+    assert_eq!(h.core.start_failure(), Some(expected));
     assert_eq!(h.core.start_phase(), Some(Phase::Link));
     assert!(h.out.is_empty());
 }

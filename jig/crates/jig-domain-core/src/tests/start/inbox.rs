@@ -169,13 +169,14 @@ fn missing_conversation_refuses_at_link_with_the_read_key() {
     while let Action::Step(phase) = action {
         action = core.start_done(&env, phase, &mut Queue::uncapped());
     }
-    assert!(matches!(
-        action,
-        Action::Refused(Failure::Link {
+    let Action::Refused(failure) = action else { panic!("missing conversation refuses at Link") };
+    assert_eq!(
+        failure,
+        Failure::Link {
             record: crate::Key::People(people::Key::ReadConversation { party: 1, task: 99 }),
             linked: crate::start::Linked::Record(crate::Key::Tasks(tasks::Key::Live(99))),
-        })
-    ));
+        }
+    );
 }
 
 #[test]

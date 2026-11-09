@@ -81,9 +81,19 @@ pub enum Failure {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Linked {
     Record(Key),
-    Charter { charter: u32, revision: u32 },
+    Charter {
+        charter: u32,
+        revision: u32,
+    },
     Project(u32),
     Connector(u16),
+    /// A proposal number no settings key can hold.
+    SettingsProposal {
+        proposer: people::Proposer,
+        proposal: u64,
+    },
+    /// The hold that owns a writer's resource.
+    Holder(tasks::Name),
 }
 
 /// A setting cannot be held under its application's declared kind (engine.md, 17.5).
@@ -236,7 +246,7 @@ impl Core {
         self.start.failure.clone()
     }
 
-    /// Freeze the script with its first fit failure.
+    /// Freeze the script with its first failure.
     pub fn start_refuse(&mut self, failure: Failure) -> Action {
         self.start_input();
         assert!(self.start.phase.is_some(), "start refusal requires the start");
@@ -244,7 +254,7 @@ impl Core {
             self.start.failure = Some(failure);
         }
         self.start.waiting = None;
-        Action::Refused(self.start_failure().expect("first fit failure"))
+        Action::Refused(self.start_failure().expect("first start failure"))
     }
 
     /// Retain the first externally discovered missing obligation for the Link pass.

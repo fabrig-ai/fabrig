@@ -662,7 +662,7 @@ fn a_compound_cannot_stop_and_release_the_same_subtree_in_one_decision() {
     }
 }
 
-fn check_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> Vec<tasks::Request> {
+fn restored_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> (tasks::Domain, Vec<tasks::Request>) {
     let mut domain = jig_tasks_world::domain(&env.limits, 920);
     let mut out = skein_lib::Queue::uncapped();
     for record in rows {
@@ -673,7 +673,23 @@ fn check_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> Vec<tas
     while let Some(reply) = out.pop() {
         replies.push(reply);
     }
-    replies
+    (domain, replies)
+}
+
+fn check_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> Vec<tasks::Request> {
+    restored_rows(rows, env).1
+}
+
+fn refuses_link(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>, key: Key, target: Key) {
+    let (domain, replies) = restored_rows(rows, env);
+    assert_eq!(
+        domain.restore_failure(),
+        Some(tasks::RestoreFailure { key, cause: tasks::RestoreCause::Link { target } })
+    );
+    assert!(!domain.checked());
+    assert!(
+        matches!(replies.as_slice(), [tasks::Request::RestoreRefused { problem }] if problem.why == Refusal::Restore)
+    );
 }
 
 #[test]
@@ -772,23 +788,21 @@ fn stopped_rows() -> (World, Vec<Stored>) {
 }
 
 #[test]
-#[should_panic(expected = "restore Live(1): missing placed hold 100")]
-fn restart_asserts_a_missing_placed_hold() {
+fn restart_refuses_a_missing_placed_hold() {
     let (world, mut rows) = stopped_rows();
     rows.retain(|row| row.key() != Key::PlacedHold(STOP_HOLD));
-    check_rows(rows, &world.env);
+    refuses_link(rows, &world.env, Key::Live(1), Key::PlacedHold(STOP_HOLD));
 }
 
 #[test]
-#[should_panic(expected = "restore PlacedHold(100): missing scope task 99")]
-fn restart_asserts_a_missing_scope_root() {
+fn restart_refuses_a_missing_scope_root() {
     let (world, mut rows) = stopped_rows();
     for row in &mut rows {
         if let Stored::PlacedHold(hold) = row {
             hold.scope = Scope::Subtree { task: 99 };
         }
     }
-    check_rows(rows, &world.env);
+    refuses_link(rows, &world.env, Key::PlacedHold(STOP_HOLD), Key::Live(99));
 }
 
 #[test]
