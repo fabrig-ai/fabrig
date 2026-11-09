@@ -433,6 +433,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `ConnectModel { way }` | `connect-model.html` | under its path (*Settings and Deployment,* below), connecting one more LLM account, `way` the way it is at, or none at the choices: the welcome’s cards (5.5, The ways), then a sign-in’s wait or a key’s or program’s panel; success returns to Accounts with a confirmation line, and other endings keep their words and acts (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Members` | none: `../draft/surfaces.md`, section 8 | Deployment's fifth tab: each project's members, each with the role it holds there, and the person's role in the deployment (*Settings and Deployment,* below) | `me`; jig's `Read::Project` for each project `me` lists, one at a time | none |
 | `Limits` | none: `../draft/surfaces.md`, section 8 | Deployment's sixth tab: the deployment's capacities as its engine reports them, read-only (*Settings and Deployment,* below) | `me`; jig's `deployment` document, watched as `Builders` watches it | none |
+| `Remembered` | none: `../draft/ask-temper.md`, section 7, drawn in Deployment's language | "What temper remembers about you": the lines Ask temper keeps about the person across their chats, each with the chat that kept it and when, or that none are kept (5.17) | `me`; jig's `Notes` read of the person's own party scope (jig's `client/domain/contract.md`, section 6) | change a line; delete a line (5.17) |
 | `Proposal { proposal }`, later (5.13) | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
 - **Words and facts:** a chat's status from jig's facts (jig's
@@ -2970,7 +2971,8 @@ keeps (`../protocol/configuration.md`, section 2).
     lede, with no kicker and no tabs. Choosing a project on them changes
     nothing but the words naming the project.
   - *Sign out* is the last row of the `Accounts` tab: "Signed in as NAME",
-    its login in small type, and "Sign out"; with "Sign out did not reach
+    its login in small type, "What temper remembers about you", a link to
+    `Remembered` (5.17), and "Sign out"; with "Sign out did not reach
     the engine." beside it as 6.6 says. A browser draws this row at 760 px and
     under alone, where the rail has no foot; wider, "Sign out" is the person's
     menu's (5.3). With no project, the top bar has "Sign out" (5.1).
@@ -5274,10 +5276,9 @@ navigation named by the open project, in this order:
   skein-ui's menu (`Role::Menu`; skein's `ui-web.md`, 7), in a
   `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
   above the row, as wide as it, in the look of the switcher's menu. Its items:
-  "Accounts", to `Accounts`, and "Sign out", the `Accounts` tab's act. Between
-  them is the place of "What temper remembers about you", Ask temper's memory
-  of the person (`../draft/whole-story.execution.md`, section 4, M4), drawn
-  once that page has an address. A press
+  "Accounts", to `Accounts`; "What temper remembers about you", to
+  `Remembered`, Ask temper's memory of the person (5.17); and "Sign out", the
+  `Accounts` tab's act. A press
   on an item, Escape and a press outside close it, the focus back on the row
   unless that press took it elsewhere. Open, the row keeps the hover's grey. A
   phone has no foot, and signs out on the `Accounts` tab (3.5);
@@ -7465,6 +7466,67 @@ terminal draw the same path.
   in a reply opening its card, the views `queue`, `task N tree` and
   `task N timeline`. The TUI prints views as lines of its own text
   (6.14, *A chat*, *a view*; `../draft/surfaces.md`, 11.5).
+
+### 5.17 What temper remembers about you
+
+The person's own page of what Ask temper keeps about them
+(`../draft/ask-temper.md`, section 7): the lines of their party scope (jig's
+`domain/engine.md`, 10.1), which only they read, each changed or deleted
+there. It draws what the engine holds, with no placeholder.
+
+- **Its address,** `Remembered`, at `/remembered`, of no project: the
+  person's menu (5.3) and, on a phone, the `Accounts` tab's last row (3.5,
+  *Settings and Deployment*) open it. It takes the rail's frame and the
+  column of Deployment's tabs, 720 wide, with no kicker and no tabs, under its
+  own level-1 heading, "What temper remembers about you", and its lede, "What
+  Ask temper keeps about you across your chats, when you ask it to. Only you
+  see these lines." No entry of the rail is current on it.
+- **Its read,** on entering and after each act's answer: jig's `Read::Notes
+  { scope: Party { party }, description: None, after: None }`, `party` the
+  person's own number from `me`, then each next page until none is left; a
+  party scope holds at most `notes.party_entries` lines (jig's
+  `domain/engine.md`, 10.1), so one page answers it whole. No watch: only
+  the person and their own Ask temper chats write it, and a chat's kept line
+  shows when the page is opened again. Until it answers, the page keeps what
+  it last knew (3.5).
+- **A line a row,** in the order of the scope's names, oldest first, as Ask
+  temper numbers them: the line, in the body's type; under it, in small type,
+  who kept it and when, "Ask temper chat 14 · 9 Nov" for a line a chat kept,
+  its first reference the chat's number, or "Changed by you · 9 Nov" for one
+  the person wrote, its writer the party, the date by 5.12; and at its right
+  "Change" and "Delete", quiet buttons, as Deployment's rows' acts are.
+- **Change** opens the row's field in place, its line in it, with "Save" and
+  "Cancel"; "Save" sends jig's `EditNote { project: 0, note, scope: Party {
+  party }, revision, description, body, references }`, the field's words
+  trimmed as the description, the body empty and the references as read, at
+  the revision read; "Cancel" and Escape close it unchanged, the focus back
+  on "Change". At most one field is open; an empty field sends nothing.
+- **Delete** sends jig's `DeleteNote { project: 0, note, scope: Party {
+  party }, revision }` at once: a line is short, and Ask temper keeps another
+  only when asked.
+- **A refusal** says why under its row, in a line, and keeps the row as read:
+  moved, "This line changed meanwhile; it shows as it is now.", the page
+  reading again; past the line's bound, "A line is at most 120 bytes.", the
+  bound jig's refusal names; any other, jig's words for it (5.1).
+- **With none kept,** a quiet band in the column, as Repositories' with none
+  (3.5): the tag "Nothing kept yet", and "Ask temper keeps a line here when
+  you ask it to remember something, such as how you like its answers."
+- **Full,** at `notes.party_entries` lines, a quiet line under the last: "12
+  lines, the most Ask temper keeps: it asks you which to change before it
+  keeps another."
+- **Its look** is Deployment's rows' (3.5, *The rows*): each row a hairline
+  under it, 14 px 4 px, no card and no shadow; its style under the `settings`
+  marker of `temper.css`. At 760 px and under, a row's acts go under its
+  line, each at least 44 pixels tall to a press (`browser.md`, 2.5, *What a
+  phone presses*).
+- **The terminal** has no such page: the TUI's pages are 6.14's, and
+  `Remembered` falls back to its launchpad, as Deployment's tabs do.
+- **Its tests:** the domain's read and acts, each request as sent and each
+  answer's page, as rows of `temper-client-domain`'s page tests; the view's
+  rows, field and refusals as `temper-client-view`'s; the person's menu with
+  its three items; and the gallery's states (`browser.md`, section 7), none
+  kept, three lines, twelve, a line being changed and a refusal, each by day
+  and by night, its prints read at a laptop's width and a phone's.
 
 ## 6. The terminal shells
 
@@ -10294,8 +10356,9 @@ own tests:
 
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
-  instructions. The other views, sketches and preferences join at M3b and M4 of
-  `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
+  instructions. The other views and sketches join at M3b of
+  `../draft/ask-temper.execution.md`, and the page of preferences (5.17) is
+  M4's, its walk after landing; M2 supplies the remaining reads first.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
   way, a proposal's two paths and a charter's or a rule's card in a reply and in the
   chat's document at 1440, 1000 and 420 px, across and down the page,

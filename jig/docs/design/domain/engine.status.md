@@ -175,6 +175,10 @@ try. A window's later pages keep its first page's slot there
 
 ## Gaps and departures
 
+- **Not yet:** 10.1, *The scope*: notes keep no party's scope; the
+  deployment, project, goal and resource scopes alone, in the notes child,
+  the store, the people child, the clients' wire and their cursors.
+
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
@@ -183,12 +187,20 @@ try. A window's later pages keep its first page's slot there
   The mark table has no row for this case; this finding is by reading,
   with no runtime result supplied. No reason for the omission is recorded.
 
+- **Not yet:** 10.1, *Its entries are preferences* and *Written for its
+  party*: no run writes or drops an entry of a party's scope, and the notes
+  child holds no `notes.party_entries` or `notes.party_bytes`; a run deletes
+  no note.
+
 - **Departs:** 11.1: an omitted template's preview uses the first offered
   model, while a task's next-run selection needs a supporting host to call
   even a direct account usable and otherwise takes the first serving one.
   These can differ across a worker restart with Claude and OpenAI accounts;
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
+
+- **Not yet:** 9, 10.1, *Read by those runs*: a brief has no `preferences`
+  section; no run reads a party's scope.
 
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
@@ -233,6 +245,11 @@ try. A window's later pages keep its first page's slot there
   `jig-domain-core/src/settings.rs`, `Current::new`, expects the capacity to
   be representable instead of returning a named configuration refusal; the
   bounds check takes limits without declared kinds. No reason is recorded.
+
+- **Not yet:** 7.3, 10.1, *Its runs' parts are its party's*: every turn
+  reads whole to whoever may read its task, a run's read as its person
+  included, and a run's live call shows its input to every follower; the
+  core's and the clients' settings name no private section or tool.
 
 - **Not yet:** 5.1, 17.6: the whole project-deletion commit has no
   established admission price against `journal.writes`, because the
@@ -283,3 +300,6 @@ try. A window's later pages keep its first page's slot there
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
+
+- **Not yet:** 10.1, *Read and kept by its party alone*: no party reads,
+  corrects or deletes a party's scope through a client.

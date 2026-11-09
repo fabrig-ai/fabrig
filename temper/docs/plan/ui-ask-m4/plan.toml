@@ -3,3 +3,36 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-ask-m4/inputs/request.md", "temper/docs/design/draft/ask-temper.md", "temper/docs/design/draft/ask-temper.execution.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "scope"
+title = "jig's notes carry a party's scope and its two bounds, refused on every path until the core admits it"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10.1"
+
+[[part]]
+id = "withhold"
+title = "jig-protocol-transcript projects a turn's private parts away for every party but its requester"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 10.1"
+
+[[part]]
+id = "remember"
+title = "Ask temper declares remember, renders its answers, and its instructions gain their Remembering part"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.4.4"
+
+[[slice]]
+id = 1
+story = "A party's scope exists and is refused everywhere; a turn can be projected; Ask temper is declared remember and told when to use it, every call answered that the list could not be read"
+parts = ["scope", "withhold", "remember"]
+walk = false

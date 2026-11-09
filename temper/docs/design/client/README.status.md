@@ -46,6 +46,14 @@ follow landing (section 11).
   decide changes to NAME that are:", where the sentence stands over it
   (`temper-client-view`'s `pages/needs.rs`).
 
+- **Not yet:** 5.17, *Its tests*: the gallery has no state of
+  `Remembered`.
+
+- **Not yet:** 5.17, whole: no `Remembered` address or page; the person's
+  menu keeps the place of "What temper remembers about you" between
+  "Accounts" and "Sign out" (5.3), and the `Accounts` tab's last row has no
+  link to it (3.5, *Settings and Deployment*).
+
 Sections 6.13 and 6.14 keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
 its opener fallback, and selection clearing on ordinary words, Esc and

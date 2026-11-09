@@ -25,3 +25,5 @@ one account.
 
 - **Not yet:** 7: a widening funded by whoever gives it
   (the task's existing funder is charged).
+
+- **Not yet:** 3, *Notes*: the asking family reaches no party's scope.

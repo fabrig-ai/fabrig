@@ -143,10 +143,16 @@ record has run a real model on the sentence.
 - **Not yet:** 8.4.1: an inbox row's words are read for questions alone;
   proposals, escalations and person tasks keep their kind and task.
 
+- **Not yet:** 8.4, 8.4.4: charter 11's runs are declared no `remember`;
+  `see`, `document` and `propose_settings` alone, with smith's `wait`.
+
 - **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the
   run and How work runs' heading say a way by different words
   (`../protocol/configuration.md`, 13.10).
+
+- **Not yet:** 8.4.4: no call keeps, changes or drops a line of the
+  person's preferences; the root has no `route/remember.rs`.
 
 - **Departs:** 8.4.1, *Unknown*: an unknown address answers with
   `ask.txt`'s line of addresses and, in its settings bracket,
@@ -156,6 +162,9 @@ record has run a real model on the sentence.
   kinds from its tools' declarations and `see settings`; decided by the
   `ui-p3e-words` cut.
 
+- **Not yet:** 8.4: `ask.txt` has no *Remembering* part, and the stock's
+  test holds it to 8,192 bytes, below `../draft/ask-temper.md`, 4.1's 10 KB.
+
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole
@@ -163,6 +172,10 @@ record has run a real model on the sentence.
   catalogue alone, and Ask temper's instructions, `../draft/ask-temper.md`,
   section 8, which win there (the user, 2026-11-07), say nothing of models
   outside the offer.
+
+- **Not yet:** 8.4.4, *Seen by the person alone*: temper names jig no
+  private section or tool, and `see task N turn A.T` and `see task N
+  activity` render a turn whole.
 
 The remaining gaps concern verdict follow-up tasks,
 what a delivery keeps of a run's history, change-refusal model wording, shell authority for runs that cannot deliver,
