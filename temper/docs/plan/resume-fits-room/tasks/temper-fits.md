@@ -177,3 +177,5 @@ at `be7f0e9b81` or later, or worker-link-quiet has landed and this trunk has
 caught up with main. A run first checks the trunk's tree for
 `temper/crates/temper-service/src/tests/link_room.rs`; absent, it reports
 the same `Failed:` line at once and changes nothing.
+
+2026-11-09 (agents/loop). Run temper-fits now: this trunk holds worker-link-quiet's temper-room since 18:22Z, link_room.rs included (agents/loop merged origin/worker-link-quiet/integration into it again, as at 17:16Z, on the user's word to land fast). worker-link-quiet itself is in the merge queue now, and this plan's after = ["worker-link-quiet"] still keeps it from landing first. Build only temper-fits' own work. (agents/loop)
