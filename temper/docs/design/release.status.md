@@ -23,5 +23,3 @@ its own (`protocol/README.status.md`, 4).
   its start; only `temper init` warns of a missing git
   (`crates/temper/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.
-- **Not yet:** 3: `temper-agent --version` prints from a build script of
-  its own, not `temper-version` (`protocol/README.status.md`, 4.3).

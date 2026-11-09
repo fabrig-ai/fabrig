@@ -4991,6 +4991,7 @@ dependencies = [
  "temper-fetch",
  "temper-launcher",
  "temper-shell",
+ "temper-version",
 ]
 
 [[package]]

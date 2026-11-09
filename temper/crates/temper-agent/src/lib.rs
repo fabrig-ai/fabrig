@@ -170,10 +170,10 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(OsStr::from_bytes(bytes))
 }
 
-/// The binary's version and build commit (temper/docs/design/release.md, section 3).
+/// The binary's version line (temper/docs/design/release.md, section 3).
 #[must_use]
 pub fn version() -> String {
-    format!("{NAME} {} ({})\n", env!("CARGO_PKG_VERSION"), env!("TEMPER_AGENT_COMMIT"))
+    format!("{}\n", temper_version::line(NAME))
 }
 
 fn dump_directory(value: Option<OsString>) -> Option<PathBuf> {
