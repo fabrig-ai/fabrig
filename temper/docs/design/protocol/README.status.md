@@ -78,7 +78,7 @@ Section 15.3 has no known gap in a link's loss lines: the worker prints
 channel that said hello and `worker opening ended` for an opening, once
 until that worker's reason changes or it links, and a failed workers'
 listener prints its line when it fails (`temper-service/src/worker.rs`,
-`link`; `workers.rs`, `route`; `temper-engine-shell/src/serve/host.rs`).
+`link`; `workers.rs`, `route`; `temper-service-shell/src/host.rs`).
 The binary's line tables
 `worker_loss_lines_name_each_cause_and_refusal_exactly`,
 `engine_worker_loss_lines_name_each_cause_and_refusal_exactly` and

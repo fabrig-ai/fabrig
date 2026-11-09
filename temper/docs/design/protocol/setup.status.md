@@ -60,7 +60,7 @@ in the background and a front killed outright.
   reads stdout, stderr and `box.log` for it, not `serve.log`, which
   holds serve's stderr. By reading, serve writes none there: its host
   keeps each local link in the file and prints none
-  (`temper-engine-shell/src/serve/host.rs`).
+  (`temper-service-shell/src/host.rs`).
 
 Sections 5.2, 5.3 and 17.2 have the identity handoff: an owned Forgejo's
 given values include its person's login, managed and fake entries give
