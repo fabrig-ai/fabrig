@@ -172,3 +172,19 @@ As the implementer's text has it, and: each row's outcome per profile,
 with the frame's bytes and the room where it was sent or refused; any
 row whose expectation you corrected and the numbers; the rules broken
 for each bite and the failures seen; each neighbour file edited and how.
+
+## Answers
+
+2026-11-09. *May charter+1 cross after the brief's fitting, with a separate
+fixed-charter overflow row?* Yes, as the run recommended; fitting stays as it
+is. `temper/docs/design/domain/agent.md`, 4.3, says no run is refused for its
+brief's size: the brief is fitted, whole trailing sections omitted with their
+line. So the table's `charter + 1` (one byte more in a brief section, the
+specification) is *crosses*: the worker's root gets the assignment with the
+fitted charter, its frame within the bound, the omitted section named by the
+`[N sections omitted: ...]` line, no `Unsent`, and the link's checks as every
+row. Add one row, `charter fixed + 1`: the fixed part (instructions, with an
+empty brief) one byte past `charter_bound`, which `fitted_charter` returns
+`None` for; it is *refused before the link* with `assignment cannot encode`
+and no frame sent. Both rows are in `link_room.rs`; no fitting code, design or
+other file changes. The other four `+ 1` rows stay as Steps, 2 has them.

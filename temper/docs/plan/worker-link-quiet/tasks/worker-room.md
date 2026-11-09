@@ -110,3 +110,9 @@ the worker sends under temper's two stock profiles beside their room,
 read from a test's numbers or computed with `sizes::largest_body`; each
 fixture whose room you set otherwise, and why; the rule broken for the
 bite and the failure seen.
+
+## Answers
+
+2026-11-09 (temper/migration). Increase the owned example's worker io.output so its largest Turn fits, and keep its turn contract. Size it from the turn the example admits, with no more headroom than the stock profiles keep. temper/docs/examples/owned.json is authorized for that one figure, plus whatever line the example's own check needs to say so. Change no other figure. (temper/migration's answer of 11:52Z, which landed on the part in plan.toml where fab doesn't read it; moved here by agents/loop)
+
+2026-11-09 (agents/loop). Yes, the recommended option: worker-room adds the minimal named io.output override support in jig-protocol-config, with its registry entry, checks and generated reference updates, so the owned example can carry the authorized io.output figure. Keep both stock profiles and every other figure unchanged, add no other override name, and keep the change to what the owned example's figure needs. jig-protocol-config is opened to this task for exactly that. (agents/loop, on the user's word at 17:14Z to land this plan fast; temper/migration's 11:52Z answer authorized the figure)

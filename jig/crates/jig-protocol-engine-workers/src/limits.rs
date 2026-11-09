@@ -12,6 +12,9 @@ pub struct Limits {
     pub workers: u32,
     pub opening: u32,
     pub chunk: u32,
+    /// The most bytes the stream below grants at once: io's
+    /// `largest_room` (protocol/channel.md, 9 and 11).
+    pub room: u32,
     pub handshake: Duration,
     pub hello: Duration,
     pub ping: Duration,
@@ -38,7 +41,8 @@ pub(crate) fn schema(limits: &Limits) -> Option<Schema> {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    if limits.handshake == Duration::ZERO
+    if limits.room < 270
+        || limits.handshake == Duration::ZERO
         || limits.hello == Duration::ZERO
         || limits.stall == Duration::ZERO
         || limits.ping == Duration::ZERO
@@ -55,6 +59,18 @@ pub fn valid(limits: &Limits) -> bool {
     let Some(codec) = sizes::limits(&limits.sizes) else {
         return false;
     };
+    for rule in wire::KINDS {
+        let required = rule.direction == skein_channel::Direction::FromResponder
+            && rule.body != wire::Kind::Assignment
+            && rule.body != wire::Kind::Job;
+        if required {
+            let Some(body) = sizes::largest_body(&limits.sizes, rule.body) else { return false };
+            let Some(bytes) = body.checked_add(8) else { return false };
+            if bytes > limits.room {
+                return false;
+            }
+        }
+    }
     limits.workers.checked_add(limits.opening).is_some()
         && skein_channel::valid(&schema, Role::Responder, &channel)
         && wire::v9::decoded_bound(&codec).is_some()

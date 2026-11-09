@@ -1,6 +1,6 @@
 //! Routing (protocol/channel.md, sections 4 and 10.2); Debug (jig/docs/design/protocol/service.md, 11.3).
 use crate::{
-    Event, Limits, Loss, Request, Worker,
+    Bound, Event, Limits, Loss, Request, Unsent, Worker,
     connection::{Connection, Ending, Phase},
     opening::Verdict,
 };
@@ -21,6 +21,19 @@ enum Life {
     Aborting,
     Closed,
 }
+#[derive(Clone, Copy, Debug)]
+enum Reply {
+    Assignment { run: Token, attempt: Token },
+    Job { run: Token, attempt: Token },
+    ReadList { read: u64 },
+    Drop,
+}
+#[derive(Clone, Copy, Debug)]
+struct Sending {
+    kind: wire::Kind,
+    bytes: u32,
+    reply: Reply,
+}
 pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
@@ -32,6 +45,7 @@ pub struct Component {
     next_part: u64,
     life: Life,
     dropped_down: u64,
+    sending: Option<Sending>,
 }
 impl core::fmt::Debug for Component {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -70,6 +84,7 @@ impl Component {
             next_part: 1,
             life: Life::Running,
             dropped_down: 0,
+            sending: None,
         })
     }
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
@@ -103,7 +118,7 @@ impl Component {
             Event::TurnBusy { channel, run, attempt, turn } => {
                 if let Some(connection) = self.target(channel) {
                     let record = crate::translate::turn_busy(run, attempt, turn, &self.codec);
-                    self.send(now, connection, Some(record), out);
+                    self.send(now, connection, Some(record), Reply::Drop, out);
                 } else {
                     self.dropped_down = self.dropped_down.saturating_add(1);
                 }
@@ -137,27 +152,13 @@ impl Component {
     fn deliver(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if let Event::Down { channel, down, parts, values } = event {
             if let Some(connection) = self.target(channel) {
-                let read = match &down {
-                    jig_domain_host::LinkDown::ReadList { read, .. } => Some(*read),
-                    jig_domain_host::LinkDown::Assign { .. }
-                    | jig_domain_host::LinkDown::AssignJob { .. }
-                    | jig_domain_host::LinkDown::Sources { .. }
-                    | jig_domain_host::LinkDown::Check { .. }
-                    | jig_domain_host::LinkDown::SignOut { .. }
-                    | jig_domain_host::LinkDown::Message { .. }
-                    | jig_domain_host::LinkDown::Relayed { .. }
-                    | jig_domain_host::LinkDown::TurnKept { .. }
-                    | jig_domain_host::LinkDown::Acknowledge { .. }
-                    | jig_domain_host::LinkDown::Cancel { .. }
-                    | jig_domain_host::LinkDown::Grant { .. } => None,
-                };
-                let identity = match &down {
+                let reply = match &down {
                     jig_domain_host::LinkDown::Assign { assignment } => {
-                        Some((assignment.assignment.run, assignment.assignment.attempt))
+                        Reply::Assignment { run: assignment.assignment.run, attempt: assignment.assignment.attempt }
                     }
-                    jig_domain_host::LinkDown::ReadList { .. }
-                    | jig_domain_host::LinkDown::AssignJob { .. }
-                    | jig_domain_host::LinkDown::Sources { .. }
+                    jig_domain_host::LinkDown::AssignJob { job } => Reply::Job { run: job.run, attempt: job.attempt },
+                    jig_domain_host::LinkDown::ReadList { read, .. } => Reply::ReadList { read: *read },
+                    jig_domain_host::LinkDown::Sources { .. }
                     | jig_domain_host::LinkDown::Check { .. }
                     | jig_domain_host::LinkDown::SignOut { .. }
                     | jig_domain_host::LinkDown::Message { .. }
@@ -165,27 +166,17 @@ impl Component {
                     | jig_domain_host::LinkDown::TurnKept { .. }
                     | jig_domain_host::LinkDown::Acknowledge { .. }
                     | jig_domain_host::LinkDown::Cancel { .. }
-                    | jig_domain_host::LinkDown::Grant { .. } => None,
+                    | jig_domain_host::LinkDown::Grant { .. } => Reply::Drop,
                 };
                 let record = crate::translate::down(down, &parts, values, &self.codec);
-                if record.is_none()
-                    && let Some((run, attempt)) = identity
-                {
-                    self.assignment_refused(channel, run, attempt, out);
+                if record.is_none() {
+                    let words: &[u8] = match reply {
+                        Reply::Job { .. } => b"job cannot encode",
+                        Reply::Assignment { .. } | Reply::ReadList { .. } | Reply::Drop => b"assignment cannot encode",
+                    };
+                    self.refused_record(channel, reply, words, out);
                 }
-                if record.is_none()
-                    && let Some(read) = read
-                {
-                    out.push(Request::Up {
-                        channel,
-                        up: jig_domain_host::LinkUp::ListRead {
-                            read,
-                            outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
-                        },
-                        parts: Box::new([]),
-                    });
-                }
-                self.send(now, connection, record, out);
+                self.send(now, connection, record, reply, out);
             } else {
                 self.dropped_down = self.dropped_down.saturating_add(1);
             }
@@ -197,10 +188,9 @@ impl Component {
             out.push(Request::Closed);
         }
     }
-    fn assignment_refused(&self, channel: Token, run: Token, attempt: Token, out: &mut Queue<Request>) {
+    fn assignment_refused(&self, channel: Token, run: Token, attempt: Token, words: &[u8], out: &mut Queue<Request>) {
         use jig_domain_host as host;
-        let why =
-            bytes::utf8_prefix(b"assignment cannot encode", skein_lib::length::usize_of(self.limits.sizes.detail));
+        let why = bytes::utf8_prefix(words, skein_lib::length::usize_of(self.limits.sizes.detail));
         out.push(Request::Up {
             channel,
             up: host::LinkUp::Answer {
@@ -228,14 +218,76 @@ impl Component {
         }
         None
     }
-    fn send(&mut self, now: Time, connection: Token, record: Option<crate::translate::Down>, out: &mut Queue<Request>) {
+    fn refused_record(&self, channel: Token, reply: Reply, words: &[u8], out: &mut Queue<Request>) {
+        match reply {
+            Reply::Assignment { run, attempt } => self.assignment_refused(channel, run, attempt, words, out),
+            Reply::Job { run, attempt } => {
+                let why = bytes::utf8_prefix(words, skein_lib::length::usize_of(self.limits.sizes.detail));
+                out.push(Request::Up {
+                    channel,
+                    up: jig_domain_host::LinkUp::JobAnswer {
+                        run,
+                        attempt,
+                        answer: jig_domain_host::JobEnding::Refused(jig_domain_host::JobRefusal::Invalid(
+                            jig_domain_host::JobInvalid::Start { why: Box::from(why) },
+                        )),
+                    },
+                    parts: Box::new([]),
+                });
+            }
+            Reply::ReadList { read } => out.push(Request::Up {
+                channel,
+                up: jig_domain_host::LinkUp::ListRead {
+                    read,
+                    outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
+                },
+                parts: Box::new([]),
+            }),
+            Reply::Drop => {}
+        }
+    }
+    fn unsent(&mut self, now: Time, state: &mut Connection, sending: Sending, bound: Bound, out: &mut Queue<Request>) {
+        out.push(Request::Unsent {
+            worker: state.worker.expect("a record sent on an authenticated channel"),
+            channel: state.channel,
+            unsent: Unsent { kind: sending.kind, bytes: sending.bytes, bound },
+        });
+        let name: &[u8] = match sending.reply {
+            Reply::Job { .. } => b"job",
+            Reply::Assignment { .. } | Reply::ReadList { .. } | Reply::Drop => b"assignment",
+        };
+        let words = unsent_words(name, sending.bytes, bound);
+        self.refused_record(state.channel, sending.reply, &words, out);
+        match sending.reply {
+            Reply::Drop => self.dropped_down = self.dropped_down.saturating_add(1),
+            Reply::Assignment { .. } | Reply::Job { .. } | Reply::ReadList { .. } => {}
+        }
+        state.ping = Some(now.saturating_add(self.limits.ping));
+    }
+    fn send(
+        &mut self,
+        now: Time,
+        connection: Token,
+        record: Option<crate::translate::Down>,
+        reply: Reply,
+        out: &mut Queue<Request>,
+    ) {
         let Some(record) = record else {
             self.dropped_down = self.dropped_down.saturating_add(1);
             return;
         };
+        let kind = record.kind();
+        let frame = record.frame();
+        let sending = Sending { kind, bytes: frame.wire_len(), reply };
         let mut state = self.connections.remove(&connection).expect("heard channel exists");
-        state.down(ChannelRequest::Send { token: state.channel, frame: record.frame() }, connection, out);
-        self.progress(now, connection, &mut state, out);
+        if sending.bytes > self.limits.room {
+            self.unsent(now, &mut state, sending, Bound::Room(self.limits.room), out);
+        } else {
+            self.sending = Some(sending);
+            state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
+            self.progress(now, connection, &mut state, out);
+            assert!(self.sending.is_none(), "send answered within its entrance");
+        }
         self.keep(connection, state);
     }
     fn accepted(&mut self, now: Time, connection: Token, out: &mut Queue<Request>) {
@@ -372,6 +424,7 @@ impl Component {
                 self.loss(now, connection, state, Loss::RefusedPeer { reason }, out);
             }
             ChannelEvent::Unsent { why: skein_channel::Unsent::Full, .. } => {
+                self.sending = None;
                 self.loss(now, connection, state, Loss::Full, out);
             }
             ChannelEvent::Drained => {
@@ -380,7 +433,11 @@ impl Component {
                 }
                 state.stall = Some(now.saturating_add(self.limits.stall));
             }
-            ChannelEvent::Sent { .. } | ChannelEvent::Unsent { .. } => {}
+            ChannelEvent::Unsent { why, .. } => {
+                let sending = self.sending.take().expect("unsent answers the current send");
+                self.unsent(now, state, sending, Bound::Channel(why), out);
+            }
+            ChannelEvent::Sent { .. } => self.sending = None,
         }
     }
     fn loss(&self, now: Time, connection: Token, state: &mut Connection, why: Loss, out: &mut Queue<Request>) {
@@ -612,4 +669,37 @@ fn terminate(connection: Token, state: &mut Connection, out: &mut Queue<Request>
     state.silence = None;
     state.stall = None;
     out.push(Request::Abort { connection });
+}
+
+/// ASCII diagnostics for an unsent start (jig/docs/design/protocol/channel.md, 5.2 and 9).
+fn unsent_words(name: &[u8], bytes: u32, bound: Bound) -> Box<[u8]> {
+    let count = Decimal::of(u64::from(bytes));
+    let room = match bound {
+        Bound::Room(room) => room,
+        Bound::Channel(_) => 0,
+    };
+    let room = Decimal::of(u64::from(room));
+    let (middle, value, end): (&[u8], &[u8], &[u8]) = match bound {
+        Bound::Room(_) => (b" bytes past the link's room of ", room.as_bytes(), b" bytes"),
+        Bound::Channel(why) => {
+            let reason: &[u8] = match why {
+                skein_channel::Unsent::WrongDirection => b"wrong-direction",
+                skein_channel::Unsent::PeerDoesNotTake => b"not-taken",
+                skein_channel::Unsent::TooLarge => b"too-large",
+                skein_channel::Unsent::Closed => b"closed",
+                skein_channel::Unsent::Full => unreachable!("full loses the link"),
+            };
+            (b" bytes refused by the channel: ", reason, b"")
+        }
+    };
+    let parts = [name, b" of ", count.as_bytes(), middle, value, end];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded words");
+    }
+    let mut words = skein_lib::Writer::new(length);
+    for part in parts {
+        words.put(part).expect("measured words");
+    }
+    words.finish()
 }
