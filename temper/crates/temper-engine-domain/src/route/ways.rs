@@ -65,7 +65,7 @@ pub(crate) fn inputs(
     let mut agents = List::<ways::Agent>::uncapped();
     let goal = match start {
         ways::Start::Chat => None,
-        ways::Start::Goal { charter } => Some(charter),
+        ways::Start::Goal { charter, .. } => Some(charter),
     };
     for number in [Some(charters.change), Some(charters.review), goal].into_iter().flatten() {
         let mut held = false;
@@ -177,7 +177,9 @@ fn start(domain: &Domain, project: u32, items: &[ways::Item]) -> ways::Start {
                 && resource.symbol == super::forge_route::GOAL_BRANCH_SYMBOL
             {
                 return match template.executor {
-                    TemplateExecutor::Charter(charter) => ways::Start::Goal { charter },
+                    TemplateExecutor::Charter(charter) => {
+                        ways::Start::Goal { charter, design: false, close_out: false }
+                    }
                     TemplateExecutor::Chosen => ways::Start::Chat,
                 };
             }

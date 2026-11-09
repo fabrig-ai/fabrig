@@ -1,7 +1,7 @@
 //! The segments in order (temper/docs/design/domain/forge.md, 8.13).
 use super::{Actor, Inputs, Opens, STOPS, Start, Step, Stop};
 use super::{
-    cards::{agent_card, append, card, fact, number, stop, text},
+    cards::{agent_card, append, card, coordinator_card, fact, number, stop, text},
     rules,
 };
 use alloc::boxed::Box;
@@ -167,7 +167,39 @@ impl Drawing {
                 checked |= follows(&tier.follows, branch, goal);
             }
         }
+        let close_charter = match inputs.start {
+            Start::Goal { charter, close_out, .. } => {
+                if !goal && close_out {
+                    Some(charter)
+                } else {
+                    None
+                }
+            }
+            Start::Chat => None,
+        };
+        let preceding =
+            if close_charter.is_some() { Some(core::mem::replace(&mut self.stops, List::uncapped())) } else { None };
         self.land(inputs, branch, by, update, goal, checked, review);
+        if let Some(mut preceding) = preceding {
+            // Keep the landing and its close-out before the final bar even when earlier stops fill the path.
+            let room = STOPS.saturating_sub(self.stops.as_slice().len()).saturating_sub(2);
+            let keep = preceding.as_slice().len().min(room);
+            preceding.truncate(u32::try_from(keep).expect("path stop bound fits u32"));
+            let landing = core::mem::replace(&mut self.stops, preceding);
+            for stop in landing.into_boxed() {
+                self.push(stop);
+            }
+        }
+        if let Some(charter) = close_charter {
+            let lands = bytes::concat(&[b"as one change into ", branch, b", by ", branch, b"'s rules"]);
+            let card = coordinator_card(
+                inputs,
+                charter,
+                "an agent · after the landing, brings what the goal leaves up to date".as_bytes(),
+                fact(b"Lands", &lands),
+            );
+            self.push(stop(Actor::Agent, Step::CloseOut, b"close-out", Opens::Charter(charter), card));
+        }
         self.tiers(inputs, branch, goal);
         if goal && inputs.merge_job {
             self.catch_up(inputs);
@@ -344,7 +376,7 @@ impl Drawing {
                 self.push(stop(Actor::Code, step, words, Opens::Tier(tier.name.clone()), card));
                 if goal && !self.repaired {
                     match inputs.start {
-                        Start::Goal { charter } => {
+                        Start::Goal { charter, .. } => {
                             let card = agent_card(
                                 inputs,
                                 charter,
@@ -411,21 +443,34 @@ pub(super) fn stops(inputs: &Inputs) -> Box<[Stop]> {
                 CODER,
             );
         }
-        Start::Goal { charter } => {
+        Start::Goal { charter, design, .. } => {
             let card = card(
                 "a person · writes the draft with an agent".as_bytes(),
                 b"you",
                 Box::new([fact(b"Starts", b"a goal for a draft")]),
             );
             drawing.push(stop(Actor::Person, Step::Draft, b"draft", Opens::Nothing, card));
-            drawing.agent(
-                inputs,
-                charter,
-                Step::Plan,
-                b"plan",
-                "an agent · cuts the draft into changes".as_bytes(),
-                b"the coordinator",
-            );
+            if design {
+                let card = coordinator_card(
+                    inputs,
+                    charter,
+                    "an agent · designs the goal, then cuts it into changes".as_bytes(),
+                    fact(
+                        b"Its order",
+                        b"the design is delivered first, as a change into the goal's branch; the changes start from it and merge after it",
+                    ),
+                );
+                drawing.push(stop(Actor::Agent, Step::Design, b"design", Opens::Charter(charter), card));
+            } else {
+                drawing.agent(
+                    inputs,
+                    charter,
+                    Step::Plan,
+                    b"plan",
+                    "an agent · cuts the draft into changes".as_bytes(),
+                    b"the coordinator",
+                );
+            }
             drawing.agent(
                 inputs,
                 inputs.producer,
