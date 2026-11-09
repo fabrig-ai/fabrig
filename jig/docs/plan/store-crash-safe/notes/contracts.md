@@ -26,8 +26,17 @@ pub enum Linked {
     Project(u32),
     /// A connector this configuration lacks.
     Connector(u16),
+    /// A settings proposal whose number no settings key can hold.
+    SettingsProposal { proposer: jig_domain_people::Proposer, proposal: u64 },
+    /// The hold that owns a writer's resource.
+    Holder(jig_domain_tasks::Name),
 }
 ```
+
+- **Diagnostic only.** `Linked`'s two last variants name a target no
+  stored key can: a proposal numbered past `u32` (its settings key holds
+  `u32`; within `u32` the target is `Linked::Record`), and a writer's
+  resource no hold owns. Neither changes a stored format.
 
 - **One refusal, the first.** The start keeps its first failure
   (`start_refuse`); a link found missing refuses as `Failure::Link` and
@@ -42,16 +51,22 @@ pub enum Linked {
     `domain/start.rs`'s `link` (a row naming a person it lacks) and its
     identity collision (`record` the second person, `target` the first's
     `Person` key);
-  - `jig_domain_tasks::RestoreCause::Link { target: tasks::Key }` and
-    `RestoreCause::Charter { charter: u32, revision: u32 }`, for
-    `stored.rs`'s `links` and `live_link`.
+  - `jig_domain_tasks::RestoreCause::Link { target: tasks::Key }`,
+    `RestoreCause::Charter { charter: u32, revision: u32 }` and
+    `RestoreCause::Holder { resource: Name }`, for `stored.rs`'s `links`
+    and `live_link`, and the restore links of `placed.rs`, `writers.rs`
+    and `funders.rs` (`Holder` for a writer whose resource no hold owns).
   The core maps a child's `Link` to `Failure::Link { record, linked:
-  Linked::Record(target) }` in the core's `Key`, and tasks' `Charter`
-  to `Linked::Charter`.
+  Linked::Record(target) }` in the core's `Key`, tasks' `Charter` to
+  `Linked::Charter` and `Holder` to `Linked::Holder`.
+- **Not a store's link:** `start/links.rs`'s `link_resource_projects`
+  checks connector reports held in memory, which no stored row holds and
+  no store can plant; it stays an assertion.
 - **The words** (temper's shell, `start_failure`): the panic's words, as
   a reason: `{record:?} links missing {linked}`, where `linked` reads
   `{key:?}` for a record, `charter {charter} at revision {revision}`,
-  `project {project}`, `connector {connector}`. So the deployment's line
+  `project {project}`, `connector {connector}`, `settings proposal
+  {proposer:?}/{proposal}`, `hold owner for {resource:?}`. So the deployment's line
   would read `temper serve: restart refused during <step>:
   Tasks(Live(199)) links missing People(Person(102))`.
 
