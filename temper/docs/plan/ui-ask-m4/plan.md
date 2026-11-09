@@ -100,25 +100,36 @@ The second batch:
 - **page** (temper's client): `page-domain`, high, 180, needs
   `party-scope`: `Address::Remembered`, the page's read and acts.
 
-Still to release (the plan's next batch):
+The third batch:
 
 - **party** (jig, beside one another in `jig-domain-core`, each in its own
-  module): `party-runs`, `party-reads`, `party-brief`, `withheld`, each
-  needing `core-surface`.
-- **page:** `page-view`, needs `page-domain`; `page-gallery`, needs
-  `page-view`.
-- **stories** (the engine's domain world): `remember-stories`, needs the
-  party tasks, `remember-route`, `see-withheld` and `ask-remembering`: a
-  line kept in one Ask temper chat, read in the next one's brief, deleted
-  by the person; another person reading none of it; a turn read by another
-  role withheld and by its person whole.
+  module): `party-runs`, high, 180: a run's write and drop of its person's
+  scope, the notes child's bounds; `party-reads`, high, 150: the person's
+  own read, correction and deletion through a client, nobody else's;
+  `party-brief`, high, 160: the `preferences` section whole; `withheld`,
+  high, 180: the core's withheld marks and the live call's input to the
+  requester alone. Each needs `core-surface` alone.
+- **page:** `page-view`, high, 200, needs `page-domain`: the page, the
+  person's menu item, the Accounts row's link, words and styles, the
+  journeys' prints if stale; `page-gallery`, medium, 120, needs
+  `page-view`: the five states by day and by night.
+- **stories:** `remember-stories`, high, 210, needs the four party tasks,
+  `remember-route`, `see-withheld`, `ask-remembering` and `page-domain`:
+  the engine domain world's three stories (a line kept and read in the
+  next brief and deleted by its person; nobody else reads it; a turn
+  withheld from another role) and the joined client world's page story.
+
+Slice 1 holds scope, withhold and remember; slice 2 core, route and page;
+slice 3 party and stories. No walk: M4's walk (the execution's) follows
+landing.
 
 ## Critical path
 
-`party-scope` (240), `core-surface` (about 200), the longest party task
-(about 200), `remember-stories` (about 180): about 820
-implementer-minutes. temper's page chain (`page-domain`, `page-view`,
-`page-gallery`, about 450 after `party-scope`) runs beside it.
+`party-scope` (240), `core-surface` (240), `remember-route` (200, the
+longest of the six that need `core-surface`), `remember-stories` (210):
+about 890 implementer-minutes. The page's chain, `page-domain`,
+`page-view` and `page-gallery` (500 after `party-scope`), and
+`remember-surface` with `ask-remembering` (195) run beside it.
 
 ## Who hears first
 

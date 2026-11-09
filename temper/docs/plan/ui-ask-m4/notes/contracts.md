@@ -219,4 +219,5 @@ pub const WITHHELD: &str = "Withheld: shown to its person alone.";
   in `words.rs`; its style under `/* ==== ui: settings ==== */`.
 - The gallery's states: `remembered-none`, `remembered-three`,
   `remembered-full`, `remembered-changing`, `remembered-refused`, and each
-  `-night`, in `names.txt`'s order.
+  by night as the gallery names night states, `night-` before the name,
+  in `names.txt`'s order.
