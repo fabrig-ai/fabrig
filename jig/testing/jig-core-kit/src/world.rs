@@ -118,6 +118,7 @@ pub struct World {
     pub inbound: Vec<tasks::Word>,
     pub proposal_reads: Vec<(Token, core::CallKey, core::ProposalRead)>,
     pub settings_answers: Vec<(Token, core::CallKey, core::SettingsAnswer)>,
+    pub person_answers: Vec<(Token, core::CallKey, core::reads::Answer)>,
     pub answers: Vec<(Token, core::CallKey, core::CallPart)>,
     pub assigned: Option<root::Assignment>,
     last_read: Option<u64>,
@@ -531,6 +532,13 @@ impl World {
                             self.events.push_back(event);
                         }
                         self.proposal_reads.push((token, key, *answer));
+                    }
+                    root::Request::Now(core::Now::PersonAnswer { to, key, answer }) => {
+                        let token = to.into_token();
+                        if let Some(reads) = &mut self.reads {
+                            reads.replied(ReplyTo::new(token), (*answer).clone(), &self.store);
+                        }
+                        self.person_answers.push((token, key, *answer));
                     }
                     root::Request::Now(core::Now::SettingsAnswer { to, key, answer }) => {
                         let token = to.into_token();

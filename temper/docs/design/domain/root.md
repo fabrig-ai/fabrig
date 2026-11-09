@@ -403,6 +403,13 @@ to the forge; a timer to the child that armed it. What temper adds:
   of its subjects go to the core; and each document leaves held in the
   decision that asked for it, out to the protocol layer to encode once
   that decision's commit is durable.
+- **A run's read as its person,** `see`'s for an address of the person's
+  (`agent.md`, 8.4.1), goes to the core as the run's named action
+  `PersonRead` (jig's `domain/engine.md`, 7.3), its answers back to the
+  call's flight; an application read of the forge's it makes, the core
+  admits as a party's and asks of the forge with the person and the
+  project's scope, and the forge's document for that person, made as its
+  watch's is, goes to the same flight. Nothing of it is committed.
 
 ### 5.2 Host calls
 

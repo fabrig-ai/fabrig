@@ -107,7 +107,17 @@ pub(super) fn parse(line: &[u8]) -> Address {
             | crate::route::see::Address::Page { .. }
             | crate::route::see::Address::Search { .. }
             | crate::route::see::Address::File { .. }
-            | crate::route::see::Address::NotYet
+            | crate::route::see::Address::Me
+            | crate::route::see::Address::Project
+            | crate::route::see::Address::Goals { .. }
+            | crate::route::see::Address::Tasks
+            | crate::route::see::Address::Task { .. }
+            | crate::route::see::Address::Tree { .. }
+            | crate::route::see::Address::Activity { .. }
+            | crate::route::see::Address::Turn { .. }
+            | crate::route::see::Address::Change { .. }
+            | crate::route::see::Address::Changes
+            | crate::route::see::Address::Inbox
             | crate::route::see::Address::Unknown => Address::Unknown,
         },
         _ => Address::Unknown,

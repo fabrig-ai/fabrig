@@ -1378,6 +1378,7 @@ fn core_now(
         | core::Now::TaskRead { .. }
         | core::Now::ProposalRead { .. }
         | core::Now::SettingsAnswer { .. }
+        | core::Now::PersonAnswer { .. }
         | core::Now::NoteBusy { .. }
         | core::Now::SettledCallRefused { .. }
         | core::Now::CallBusy { .. }

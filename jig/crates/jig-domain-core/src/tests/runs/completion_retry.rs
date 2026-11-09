@@ -25,6 +25,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 | Now::TaskRead { .. }
                 | Now::ProposalRead { .. }
                 | Now::SettingsAnswer { .. }
+                | Now::PersonAnswer { .. }
                 | Now::SettledCallRefused { .. }
                 | Now::Call { .. }
                 | Now::RelayBusy { .. }

@@ -101,6 +101,9 @@ LINKED`, as for every link jig's start cannot make
 
 ## Gaps and departures
 
+- **Not yet:** 5.1 and 5.3: a party's read of the forge's is answered
+  unknown: the forge makes its documents for watches and a run's read as
+  its person alone.
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,

@@ -43,9 +43,9 @@ identity expansion, parts, project-local approval checks and the card
 location in the answer. Sections 8.4 and 8.4.1 have no known gap in M3a's
 part: `see ways` renders the root's `ways` document, made as the client's
 is, and `ask.txt` carries the Showing part's first step, its words pinned
-by a focused test. The remaining reads and rendering, moved-write retry
-within a call, M3b's views and sketches and preferences remain deferred in
-section 10. Real-model judgement and the walk follow landing.
+by a focused test. Moved-write retry within a call, M3b's views and
+sketches and preferences remain deferred in section 10. Real-model
+judgement and the walk follow landing.
 
 Section 4.3.1 has no known gap in a change's role choice carrying no
 `later`: the change-choice parser constructs each choice with none,
@@ -139,6 +139,9 @@ and smith's `tests/see.rs` and `tests/settings.rs` hold it. No walk on
 record has run a real model on the sentence.
 
 ## Gaps and departures
+
+- **Not yet:** 8.4.1: an inbox row's words are read for questions alone;
+  proposals, escalations and person tasks keep their kind and task.
 
 - **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the

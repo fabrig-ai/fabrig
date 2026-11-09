@@ -421,21 +421,39 @@ pub(crate) fn named_action(
     action: NamedAction,
 ) -> Queue<Request> {
     assert!(core.current_proof(key.task, key.attempt), "named action belongs to current claim");
-    if let NamedAction::ReadTask { task, field, from, room } = action {
-        return crate::reads::run_task::run(
-            core,
-            env,
-            to,
-            key,
-            crate::reads::run_task::Read { task, field, from, room },
-        );
-    }
-    if let NamedAction::Settings(read) = action {
-        return crate::reads::settings::run(core, env, to, key, read);
-    }
-    if let NamedAction::ReadProposal { proposer, number } = action {
-        return crate::reads::settings::run_proposal(core, env, to, key, proposer, number);
-    }
+    let action = match action {
+        NamedAction::ReadTask { task, field, from, room } => {
+            return crate::reads::run_task::run(
+                core,
+                env,
+                to,
+                key,
+                crate::reads::run_task::Read { task, field, from, room },
+            );
+        }
+        NamedAction::PersonRead(read) => return crate::reads::person::run(core, env, to, key, read),
+        NamedAction::Settings(read) => return crate::reads::settings::run(core, env, to, key, read),
+        NamedAction::ReadProposal { proposer, number } => {
+            return crate::reads::settings::run_proposal(core, env, to, key, proposer, number);
+        }
+        action @ (NamedAction::ProposeSettings { .. }
+        | NamedAction::Message { .. }
+        | NamedAction::Introduce { .. }
+        | NamedAction::Subscribe { .. }
+        | NamedAction::Unsubscribe { .. }
+        | NamedAction::Control { .. }
+        | NamedAction::Release { .. }
+        | NamedAction::Amend { .. }
+        | NamedAction::DecideEscalation { .. }
+        | NamedAction::WithdrawProposal { .. }
+        | NamedAction::DecideProposal { .. }
+        | NamedAction::Propose { .. }
+        | NamedAction::ProposeBatch { .. }
+        | NamedAction::ProposeGoal { .. }
+        | NamedAction::Note { .. }
+        | NamedAction::NoteLines { .. }
+        | NamedAction::Recall { .. }) => action,
+    };
     if let Some(part) = core.call_parts.get(&key) {
         let mut out = Queue::uncapped();
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: part.clone() })));
@@ -453,6 +471,7 @@ pub(crate) fn named_action(
     let mut out = Queue::uncapped();
     match action {
         NamedAction::ReadTask { .. } => unreachable!("task reads use the unrecorded path"),
+        NamedAction::PersonRead(_) => unreachable!("person reads use the unrecorded path"),
         NamedAction::ReadProposal { .. } | NamedAction::Settings(_) => {
             unreachable!("settings reads use the unrecorded path")
         }
@@ -741,6 +760,7 @@ pub(crate) fn named_action(
 pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
     match action {
         NamedAction::ReadTask { .. } => ToolKind::Read,
+        NamedAction::PersonRead(_) => ToolKind::Ask,
         NamedAction::Settings(_) | NamedAction::ReadProposal { .. } | NamedAction::ProposeSettings { .. } => {
             ToolKind::Settings
         }

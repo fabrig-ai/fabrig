@@ -1,11 +1,12 @@
 //! `see`: Ask temper's read by address (temper/docs/design/domain/agent.md, 8.4.1).
 pub(super) mod forge;
+pub(crate) mod person;
 pub(super) mod proposal;
 
 use super::host_route::{FlightRender, ForgePerson, OfferedModel, ProjectPerson, RepositoryIdentity};
 use super::{Decision, Delivery, Domain, Env, Limits, ReplyTo, Work, emit};
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, settings::Setting};
+use jig_domain_core::{self as core, reads::Answer, settings::Setting};
 use skein_lib::{List, Writer};
 
 /// What a `see` call read, for its renderer (domain/agent.md, 8.4.1).
@@ -15,6 +16,10 @@ pub enum SeeAnswer {
     Ways(Box<temper_engine_domain_ways::WaysDocument>),
     /// A `settings` family read's answer, with an inventory's context.
     Settings(Box<SeeSettings>),
+    /// An address read as the chat's person (domain/agent.md, 8.4.1).
+    Person(Box<SeePerson>),
+    /// An address read as the person whose first read was refused.
+    NotRead(SeeNotRead),
     /// A read's own answer as the tool `tool` renders it: the settings family's refusal
     /// (`b"settings"`); a branch or file read's answer or refusal (`b"read_branch"`,
     /// `b"read_file"`); a repository the project has none of (`b"read_file"`).
@@ -29,11 +34,86 @@ pub enum SeeAnswer {
     Gates(Box<SeeRepository>),
     /// `proposal tN/K`, `proposal pN/K` (filled by `see-proposal`).
     Proposal(Box<SeeProposal>),
-    /// An address of `ask-temper.md`, 5.1 this milestone does not read, or does not read
-    /// yet in this plan (the stubs).
-    NotYet,
     /// No address.
     Unknown,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum SeeNotRead {
+    /// Answered unknown: "nothing you may read in this project is there."
+    Unknown,
+    /// Answered busy: "temper is busy; read it again."
+    Busy,
+    /// The chat's requester is a task or the deployment: "this chat has no person to read as."
+    NoPerson,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct SeePerson {
+    pub read: SeeRead,
+    pub names: SeeNames,
+}
+
+/// Each read's answer as the core gave it, `jig_domain_core::reads::Answer`
+/// (`Answer` below), in the order 8.4.1's *Over* names them. A read after the
+/// first may be `Answer::None(_)`: its part says it was not read.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum SeeRead {
+    /// `Read::Project`, then `Read::Inbox { group: Needs, filter: { project, goal: None }, from: None }`,
+    /// then `Read::Question` for each question in that page, in order.
+    Me { person: u64, project: Answer, needs: Answer, words: Box<[SeeWords]> },
+    /// `Read::Project`, then `Read::Tasks` of the project's held tasks
+    /// (`phase: Some(Held)`, `order: Number`), live group; repositories as the inventory names them.
+    Project { project: Answer, held: Answer, repositories: Box<[RepositoryIdentity]> },
+    /// `Read::Tasks` of the project's tracked tasks (`tracked: Some(true)`), live by
+    /// `Priority`, or ended (`phase: Some(Ended)`, `order: Ended`); then `Read::Notes { project }`.
+    Goals { ended: bool, goals: Answer, reports: Answer },
+    /// `Read::Tasks` of the project, `order: Activity`, live group.
+    Tasks { tasks: Answer },
+    /// `Read::Task { task }`; then, for a tracked task, `Read::ScopedNotes` of its goal scope.
+    Task { number: u64, task: Answer, report: Option<Answer> },
+    /// `Read::Tasks` with `parent: Some(number)`, `order: Number`: its live group, then its ended group.
+    Tree { number: u64, live: Answer, ended: Answer },
+    /// `Read::Activity { task, before: None }`.
+    Activity { number: u64, activity: Answer },
+    /// `Read::Turn { task, attempt, turn }`.
+    Turn { number: u64, attempt: u64, turn: u32, read: Answer },
+    /// The forge's panel of change `number`, `Document::Change`.
+    Change { number: u64, panel: Box<temper_engine_domain_forge::Document> },
+    /// The forge's `changes_subject(project)` and `landings_subject(project, false)` documents;
+    /// `None` where the forge answered unknown.
+    Changes {
+        changes: Option<Box<temper_engine_domain_forge::Document>>,
+        landings: Option<Box<temper_engine_domain_forge::Document>>,
+    },
+    /// `Read::Inbox { group: Needs, filter: { project, goal: None }, from: None }`,
+    /// then `Read::Question` for each question in that page, in order.
+    Inbox { needs: Answer, words: Box<[SeeWords]> },
+}
+
+/// A needs-page question's words as its person read answered (domain/agent.md, 8.4.1).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct SeeWords {
+    pub task: u64,
+    pub message: u64,
+    pub words: Answer,
+}
+
+/// Names the answer's numbers need (8.4.1, *How an answer reads*).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct SeeNames {
+    /// The chat's project, by number and name.
+    pub project: SeeName,
+    /// The project's people, each by number and name, their login where no name is kept.
+    pub people: Box<[SeeName]>,
+    /// The charters at the newest revision, each by number and name.
+    pub charters: Box<[SeeName]>,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct SeeName {
+    pub number: u64,
+    pub name: Box<[u8]>,
 }
 
 /// What `HostDelivery::Settings` carries beside its reply and offset.
@@ -90,6 +170,7 @@ pub(crate) enum SeeReading {
     Head,
     File,
     Proposal,
+    Person(Box<person::Gathered>),
 }
 
 /// One address, as its line parses in the chat's project (agent.md, 8.4.1).
@@ -106,11 +187,22 @@ pub(crate) enum Address {
     Page { name: Box<[u8]> },
     Search { words: Box<[u8]> },
     File { repository: Box<[u8]>, path: Box<[u8]>, branch: Option<Box<[u8]>> },
-    NotYet,
+    Me,
+    Project,
+    Goals { ended: bool },
+    Tasks,
+    Task { number: u64 },
+    Tree { number: u64 },
+    Activity { number: u64 },
+    Turn { number: u64, attempt: u64, turn: u32 },
+    Change { number: u64 },
+    Changes,
+    Inbox,
     Unknown,
 }
 
 /// ASCII words; positive decimal numbers and bounded page and repository names.
+#[expect(clippy::too_many_lines, reason = "one grammar table names every see address")]
 pub(crate) fn address(line: &[u8], project: u32) -> Address {
     let mut words = List::with_capacity(u32::try_from(line.len()).expect("address bound"));
     let mut from = 0_usize;
@@ -188,10 +280,36 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"file", repository, path, branch] if repository_name(repository) => {
             Address::File { repository: (*repository).into(), path: (*path).into(), branch: Some((*branch).into()) }
         }
-        [b"me" | b"project" | b"goals" | b"tasks" | b"changes" | b"inbox"] | [b"goals", b"ended"] => Address::NotYet,
-        [b"task", number] | [b"task", number, b"tree" | b"activity"] if natural(number).is_some() => Address::NotYet,
-        [b"change", number] if small(number).is_some() => Address::NotYet,
-        [b"task", number, b"turn", turn] if natural(number).is_some() && turn_number(turn) => Address::NotYet,
+        [b"me"] => Address::Me,
+        [b"project"] => Address::Project,
+        [b"goals"] => Address::Goals { ended: false },
+        [b"goals", b"ended"] => Address::Goals { ended: true },
+        [b"tasks"] => Address::Tasks,
+        [b"task", number] => match natural(number) {
+            Some(number) => Address::Task { number },
+            None => Address::Unknown,
+        },
+        [b"task", number, b"tree"] => match natural(number) {
+            Some(number) => Address::Tree { number },
+            None => Address::Unknown,
+        },
+        [b"task", number, b"activity"] => match natural(number) {
+            Some(number) => Address::Activity { number },
+            None => Address::Unknown,
+        },
+        [b"task", number, b"turn", turn] => {
+            let Some(number) = natural(number) else { return Address::Unknown };
+            match turn_number(turn) {
+                Some((attempt, turn)) => Address::Turn { number, attempt, turn },
+                None => Address::Unknown,
+            }
+        }
+        [b"change", number] => match natural(number) {
+            Some(number) => Address::Change { number },
+            None => Address::Unknown,
+        },
+        [b"changes"] => Address::Changes,
+        [b"inbox"] => Address::Inbox,
         _ => Address::Unknown,
     }
 }
@@ -254,11 +372,9 @@ fn repository_name(name: &[u8]) -> bool {
         None => false,
     }
 }
-fn turn_number(word: &[u8]) -> bool {
-    match pair(word, b'.') {
-        Some((a, t)) => small(a).is_some() && small(t).is_some(),
-        None => false,
-    }
+fn turn_number(word: &[u8]) -> Option<(u64, u32)> {
+    let (attempt, turn) = pair(word, b'.')?;
+    Some((natural(attempt)?, small(turn)?))
 }
 fn proposal_name(name: &[u8]) -> Address {
     let Some((prefix, tail)) = name.split_first() else { return Address::Unknown };
@@ -327,8 +443,18 @@ pub(crate) fn call(
             deliver(env, decision, to, line, from, SeeAnswer::Search { words });
             return;
         }
-        Address::NotYet => {
-            deliver(env, decision, to, line, from, SeeAnswer::NotYet);
+        address @ (Address::Me
+        | Address::Project
+        | Address::Goals { .. }
+        | Address::Tasks
+        | Address::Task { .. }
+        | Address::Tree { .. }
+        | Address::Activity { .. }
+        | Address::Turn { .. }
+        | Address::Change { .. }
+        | Address::Changes
+        | Address::Inbox) => {
+            person::read(domain, env, decision, to, key, line, from, address);
             return;
         }
         Address::Unknown => {
