@@ -6,6 +6,7 @@ mod deadline_spans;
 mod me;
 mod native;
 mod orders;
+mod party_notes;
 mod protocol;
 mod referee;
 mod settings;

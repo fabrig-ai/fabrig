@@ -1060,6 +1060,7 @@ dependencies = [
  "jig-client-test-domain",
  "jig-client-view",
  "jig-domain-core",
+ "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-engine-clients-kit",
