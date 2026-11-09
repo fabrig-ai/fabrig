@@ -180,7 +180,17 @@ function, with a fuzz test of their rules, the joint world's paths over
 CI and tiers and over neither, and six gallery states; its render check
 and walk follow landing. A role's model is among its opened terms, and
 the drafter is no role yet (`client/README.status.md`, 5.13;
-`domain/forge.status.md`, 8.13; `draft/surfaces.status.md`, 7). The rail, Work and
+`domain/forge.status.md`, 8.13; `draft/surfaces.status.md`, 7). A
+goal's path draws "design" in place of "plan", and a "close-out" after
+the landing, from kind 11, its template's work, the whole story's
+milestone P3f, by plan `ui-p3f-design`: the stock's template 4 neither,
+the reference's both, read and proposed by ctl and Ask temper's tools,
+with derivation rows and a fuzz test. The reference's runs still make
+their close-out into the goal's branch before the landing, nothing tells
+Ask temper to propose a template's work, and stage one's golden asks it
+at template 4 by number (`protocol/configuration.status.md`, 13.9;
+`domain/agent.status.md`, 8.1; `domain/testing.status.md`, 6.5.1;
+`draft/surfaces.status.md`, 7). The rail, Work and
 Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
 rail and the tab bar from one pure function of their parts, Work, the
 hairline, How work runs, the new box and Deployment at the foot, the
@@ -564,7 +574,14 @@ check and carries its output before the base's contents; their real-deployment
 proof still awaits the next landing plan (`domain/forge.md`). Hello refusals
 carry the fleet's reason and shortfall figures, sent as text and printed on the
 engine's stderr; the worker's own line keeps its reason code
-(`protocol/README.md`, 15.3). A lost kernel-chosen port is retried within 32
+(`protocol/README.md`, 15.3). The worker reads its link on every pass,
+its entrance holding the engine's cap, and each side prints one line
+for each lost link or ended opening, naming the worker and why. Tasks
+due together past the load slots stay due until a slot frees, but a
+transcript window's later page with no slot free still fails its
+preparation, and no stop test shows the whole engine's stop within a
+bound (`domain/worker.md`, 3.1; `protocol/README.md`, 15.3 and 14;
+`domain/root.md`, 8). A lost kernel-chosen port is retried within 32
 attempts (`protocol/setup.md`, 7.5). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
@@ -584,8 +601,9 @@ the queue's first can lose its turn to a change stepped during it
 cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
-browser, whose story A walks in the browser tier but not yet by hand
-(`playground.md`), upgrades'
+browser, whose story A walks in the browser tier but not yet by hand,
+and whose native replay of that walk's log differs now and then for a
+cause not yet found (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.

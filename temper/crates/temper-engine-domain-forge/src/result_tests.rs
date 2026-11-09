@@ -4,6 +4,15 @@ const HEAD: Commit = [3; 32];
 const BOUND: u32 = 512;
 
 #[test]
+fn a_persons_request_repair_names_its_reason_without_borrowing_head_ci() {
+    let mut result = ChangeResult::empty();
+    result.checked(HEAD, &[check(b"old check", Check::Failed)], BOUND);
+    result.repaired(change::Repair::Review { head: [2; 32] }, Some(HEAD), BOUND);
+    assert_eq!(result.repair_count, 1);
+    assert_eq!(result.repairs.bytes.as_ref(), b"a person asked for changes on the forge");
+}
+
+#[test]
 fn a_landing_repair_names_its_gate_without_borrowing_head_ci() {
     let mut result = ChangeResult::empty();
     result.checked(HEAD, &[check(b"old check", Check::Failed)], BOUND);

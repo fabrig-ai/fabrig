@@ -13,6 +13,12 @@ place, without a version bump or migration. Both numbers must be nonzero;
 the record codec and its fuzzy round trip include the field. Links for
 several members remain section 7's deferred work.
 
+Section 2's family 20 keeps kind 11, a goal template's work, in store
+v11 in place: `TemplateGoal`, `design` and `close_out`, and
+`SettingValue`'s `goal`, its last variant, with no version bump or
+migration; the store's codec reads and writes it and its slot table
+holds it (`temper-protocol-store`'s `tests/settings.rs`).
+
 Sections 2 and 4 have no known gap in a repository's CI workflows:
 family 2's record, the schema's `Adopted`, holds `workflows` in store
 v11 in place, its ceilings the store's limits `adopted_workflows` and

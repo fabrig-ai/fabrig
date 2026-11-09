@@ -1,6 +1,6 @@
 # Status
 
-2026-11-08. Where jig's code lags or departs from its design, from the
+2026-11-09. Where jig's code lags or departs from its design, from the
 status files below. Browser-approved sign-in is built through the wire,
 clients' component, HTTP mapping, configuration and linked and unlinked
 clients. Only the secret's take makes the approving browser's party's
@@ -32,7 +32,12 @@ keeping their committed work and spending no try; crash recovery still
 settles claims as lost or not started (`domain/engine.md`, sections 6
 and 6.1; `domain/tasks.md`, 5.2). A worker stopped in another process
 still spends an agent try on its Shutdown cancel; changing that remains
-deferred (`protocol/service.md`, section 9). The store's retention,
+deferred (`protocol/service.md`, section 9). A worker's link says why
+it was lost, on each side, its silence counts bytes, and a closing
+connection is aborted at the stall deadline, so a worker lost fifty
+times each way is taken back each time; the fifty-loss row leaves out
+a full cap and the worker's refusal (`protocol/channel.md`, 9, 10.1,
+10.2 and 12; `domain/hosts.md`, 6.6). The store's retention,
 rehearsal and going back are not built (`protocol/store.md`,
 `protocol/client.md`). An
 application's own kinds of setting, a project's policy in a change of

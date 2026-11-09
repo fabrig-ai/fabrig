@@ -155,7 +155,7 @@ record AuthorityHold { lack: AuthorityLack had: u64 released: bool task: u64 spe
 enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected, authority: AuthorityHold, questions }
 enum EffectResult { none, pending, made, conflict, failed }
 record LandingRepair { gate: u16 }
-enum Repair { ci, gate: Number, semantic, landing: LandingRepair }
+enum Repair { ci, gate: Number, semantic, landing: LandingRepair, review: Commit }
 record RepairValue { why: Repair }
 record DelegateGate { number: u64 head: fixed 32 }
 record MergeDelegate { base: Commit from: option fixed 32 }

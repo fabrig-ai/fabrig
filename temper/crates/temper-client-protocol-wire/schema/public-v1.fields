@@ -24,6 +24,7 @@ variant PublicRepair ci tag=0 payload=-
 variant PublicRepair gate tag=1 payload=PublicGateNumber
 variant PublicRepair semantic tag=2 payload=-
 variant PublicRepair landing tag=3 payload=PublicGateNumber
+variant PublicRepair review tag=4 payload=-
 variant PublicHold stalled tag=0 payload=-
 variant PublicHold repairs tag=1 payload=-
 variant PublicHold resolutions tag=2 payload=-

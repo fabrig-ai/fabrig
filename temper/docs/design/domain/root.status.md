@@ -38,6 +38,18 @@ The charter's stored-policy size refusal carries supplied bytes and the
 tool and JSON. The policy's parts count toward that size; the refusal
 kind remains shape.
 
+Section 8's transcript load has no known gap at an activation: a task
+whose window would find every load slot taken, a retired one awaiting
+its reclaim among them, is answered busy and stays due, as with the
+archive's read table full (`temper-engine-domain/src/route.rs`,
+`activate`; `loads.rs`, `has_room`). With the shipped two load slots,
+tasks due together each load their window, none failing its preparation
+or spending a try (`tests/engine/domain`'s
+`tasks_due_together_past_the_load_slots_each_load_their_window`).
+Whether room was why about 23 briefs failed on their windows after a
+deployment's restart on 2026-11-08 is unproven: its evidence is outside
+the repository. A window's later page is below.
+
 ## Gaps and departures
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
