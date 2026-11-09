@@ -1,6 +1,6 @@
 # surfaces: status
 
-2026-11-08. Where the design lags or departs from [surfaces.md](surfaces.md).
+2026-11-09. Where the design lags or departs from [surfaces.md](surfaces.md).
 
 - **Design lags:**
   - 2: `../client/README.md`, 5.3, *While To begin shows*, keeps the rail
@@ -43,7 +43,10 @@
   - 7: `../client/README.md`, 5.13, *The page*, draws the way, the path
     as Ask temper's ways draw it, Roles by when each runs, and a goal's
     budget; its heading names the way without its chief departure,
-    which waits for rules by path. What reaches you, Rules by path,
+    which waits for rules by path; and `../domain/forge.md`, 8.13, *The
+    project's roles*, gives the drafter no place among Roles, though the
+    stock holds it and template 6 starts it since P6, which landed
+    after the cut of `look-round-25`. What reaches you, Rules by path,
     What follows a landing and a role's budget wait for their milestones (`whole-story.execution.md`,
     section 3, P3b to P3d), and what a role does, past when it runs, for
     P3e's words saved with its charter; its section 11
@@ -85,10 +88,8 @@
     Decided for you by goals' rows alone.
   - 13: `../client/greenfield/README.md` names the whole story's
     mockups, and `../client/mockups/README.md`,
-    section 1, not at all; `../client/README.md`, 5.16, and
-    `../client/browser.md`, 2.5, keep Ask temper's agent star and the
-    line's rise to it in the signal colour, which this section has P3
-    turn to ink, and no design marks who acts on the chips.
+    section 1, not at all; and no design marks who acts on the chips,
+    as the path's marks are (`../client/README.md`, 5.16).
   - 14: `../client/browser.md`, section 7, holds Home's and Needs you's
     states, but for a red "owned", a project's Home at the standing
     roles' step, a need with its why and its offer, and Only you, which

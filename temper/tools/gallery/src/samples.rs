@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 381;
+pub const N: usize = 383;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -379,6 +379,8 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "all-home", world: World::WholeStory, address: Address::AllHome, then: Shown },
         Sample { name: "all-home-nothing-new", world: World::WholeStory, address: Address::AllHome, then: Shown },
         Sample { name: "all-home-one-project", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "all-home-away", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "all-home-away-on", world: World::WholeStory, address: Address::AllHome, then: Shown },
         Sample { name: "night-all-home", world: World::WholeStory, address: Address::AllHome, then: Shown },
         Sample { name: "home-step-pair", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "home-step-team", world: Solo, address: Address::Home { project: 1 }, then: Shown },
@@ -1270,6 +1272,8 @@ fn special_mockup(name: &str) -> Option<String> {
         "team" | "night-team" => return Some("../whole-story/team/team.html".to_owned()),
         "all-home"
         | "all-home-nothing-new"
+        | "all-home-away"
+        | "all-home-away-on"
         | "all-home-one-project"
         | "night-all-home"
         | "home-step-stock"

@@ -197,6 +197,8 @@ fn facts_gather_the_open_projects_domain_values() {
     let project_root = project_domain(None);
     let people = project_domain(Some(c::PartyKind::Person));
     let service = project_domain(Some(c::PartyKind::Service));
+    let mut across_root = project_domain(None);
+    event(&mut across_root, Event::Went { place: Place::Address(Address::AllHome) });
     let unread = crate::unlinked(&f::limits(), f::SEED);
     for (name, root, project, expected) in [
         (
@@ -236,6 +238,7 @@ fn facts_gather_the_open_projects_domain_values() {
             },
         ),
         ("other project", &project_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, ..BASE }),
+        ("across", &across_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, away: true, ..BASE }),
         ("unread", &unread, f::PROJECT, BASE),
     ] {
         assert_eq!(rail::facts(root, project, f::NOW), expected, "{name}");

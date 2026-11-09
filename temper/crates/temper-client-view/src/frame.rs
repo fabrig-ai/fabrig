@@ -690,16 +690,39 @@ fn away(
     style: skein_ui::Style,
 ) {
     use crate::words::{TimeForm, Word};
-    let on = root.away_on(project, times.now);
-    let until = match root.forge().away(project) {
-        Some(row) => row.until,
-        None => None,
+    use temper_client_domain::pages::{away::Act, away_all, rail};
+    let across = if rail::across(root) { Some(away_all::across(root, times.now)) } else { None };
+    let (on, until, act) = match across {
+        Some(counts) => (counts.projects > 0 && counts.on == counts.projects, counts.until, Act::ToggleAll),
+        None => (
+            root.away_on(project, times.now),
+            match root.forge().away(project) {
+                Some(row) => row.until,
+                None => None,
+            },
+            Act::Toggle { project },
+        ),
     };
-    let said = if on {
+    if let Some(until) = until
+        && (on || across.is_some())
+    {
+        times.next = [times.next, Some(until)].into_iter().flatten().min();
+    }
+    let said = if let Some(counts) = across
+        && counts.on > 0
+        && counts.on < counts.projects
+    {
+        w.say(
+            Word::AwayAcross,
+            &[
+                skein_ui::phrases::Hole::Number(u64::from(counts.on)),
+                skein_ui::phrases::Hole::Number(u64::from(counts.projects)),
+            ],
+        )
+    } else if on {
         match until {
             Some(until) => {
-                times.next = [times.next, Some(until)].into_iter().flatten().min();
-                let clock = times.say(w, TimeForm::Clock, until);
+                let clock = if across.is_some() { w.turn_clock(until) } else { times.say(w, TimeForm::Clock, until) };
                 w.say(Word::AwayUntil, &[skein_ui::phrases::Hole::Name(clock)])
             }
             None => w.say(Word::Away, &[]),
@@ -710,7 +733,7 @@ fn away(
     b.open(Role::Button);
     b.style(style);
     b.name(&said);
-    b.bind(bindings.insert(PageAct::Away(temper_client_domain::pages::away::Act::Toggle { project })));
+    b.bind(bindings.insert(PageAct::Away(act)));
     if on {
         b.state(skein_ui::State::Pressed);
     }
@@ -1095,6 +1118,27 @@ pub(crate) fn toast(
         }
         Toasted::AwayOff => (w.say(Word::ToastAwayOff, &[]), None),
         Toasted::AwayRefused => (w.say(Word::ToastAwayRefused, &[]), None),
+        Toasted::AwayAll { on, changed, sent } => {
+            let said = if changed < sent {
+                w.say(
+                    Word::ToastAwayAllPartial,
+                    &[
+                        skein_ui::phrases::Hole::Number(u64::from(*changed)),
+                        skein_ui::phrases::Hole::Number(u64::from(*sent)),
+                    ],
+                )
+            } else {
+                let word = if *on {
+                    if *changed == 1 { Word::ToastAwayAllOnOne } else { Word::ToastAwayAllOn }
+                } else if *changed == 1 {
+                    Word::ToastAwayAllOffOne
+                } else {
+                    Word::ToastAwayAllOff
+                };
+                w.say(word, &[skein_ui::phrases::Hole::Number(u64::from(*changed))])
+            };
+            (said, None)
+        }
         Toasted::Overturned => (w.say(Word::ToastOverturned, &[]), None),
         Toasted::OverturnEnded => (w.say(Word::ToastOverturnEnded, &[]), None),
         Toasted::OverturnAlready => (w.say(Word::ToastOverturnAlready, &[]), None),
@@ -1126,6 +1170,7 @@ pub(crate) fn toast(
         Toasted::Way { .. }
         | Toasted::AwayOn { .. }
         | Toasted::AwayOff
+        | Toasted::AwayAll { .. }
         | Toasted::AwayRefused
         | Toasted::Overturned
         | Toasted::OverturnEnded

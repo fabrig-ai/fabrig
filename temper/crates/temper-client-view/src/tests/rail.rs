@@ -1019,18 +1019,27 @@ fn the_switch_shows_with_a_goal() {
 }
 #[test]
 fn the_switch_shows_with_ways_away() {
-    let root = f::root_with_ways(
-        Address::Home { project: f::PROJECT },
-        Some(d::forge::ways::Ways { away: true, ..d::forge::ways::Ways::STOCK }),
-    );
-    let mut view = f::page_view(&root);
-    let node = &styled(view.tree(), look::AWAY)[0];
-    assert_eq!(node.role, Role::Button);
-    let id = node.id;
-    assert_eq!(
-        crate::act(&mut view, id, Act::Press),
-        Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Toggle { project: f::PROJECT })))
-    );
+    for (address, expected) in [
+        (Address::Home { project: f::PROJECT }, pages::away::Act::Toggle { project: f::PROJECT }),
+        (Address::AllHome, pages::away::Act::ToggleAll),
+    ] {
+        let mut root = f::root_with_ways(
+            Address::Home { project: f::PROJECT },
+            Some(d::forge::ways::Ways { away: true, ..d::forge::ways::Ways::STOCK }),
+        );
+        f::root_event(&mut root, Event::Went { place: d::Place::Address(address.clone()) });
+        let mut view = f::page_view(&root);
+        let node = &styled(view.tree(), look::AWAY)[0];
+        assert_eq!(node.role, Role::Button, "{address:?}");
+        assert_eq!(node.name.as_deref(), Some(b"Away".as_slice()), "{address:?}");
+        assert!(!node.states.as_slice().contains(&State::Pressed), "{address:?}");
+        let id = node.id;
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(pages::Act::Away(expected))),
+            "{address:?}"
+        );
+    }
 }
 #[test]
 fn on_it_says_until_and_is_pressed() {
