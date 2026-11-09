@@ -187,8 +187,9 @@ own. Its drafts: `draft/account-facts.md`'s remaining design work is
 section 6's third step:
 plan, workspace, renewal, end and usage-window reports, whose sources the user
 is still deciding; `draft/notes-memory.md` keeps the idea of
-notes as agents' memory, a chat's document alone taken up (`domain/engine.md`,
-section 10), the rest not to be planned until the user says.
+notes as agents' memory, a chat's document and a person's preferences
+alone taken up (`domain/engine.md`, section 10 and 10.1), the rest not to
+be planned until the user says.
 
 The asking tool family, a run's settings-proposal read and a run's read
 as its person, a party's read made as the run's requester, of its
@@ -197,7 +198,14 @@ project alone, are implemented (`domain/authority.md`, section 3;
 requester answers unknown where the person has ended tasks elsewhere,
 and a filtered inbox page takes its next page from the whole inbox
 (`domain/engine.status.md`). A frame narrowed to one project stays a
-question in `domain/engine.md`, section 16.
+question in `domain/engine.md`, section 16. A party's scope is
+implemented: a person's preferences, written by their asking runs, whole
+in those runs' briefs, read and kept by the person alone, a turn's
+private parts withheld from every other party (`domain/engine.md`,
+10.1). A brief's transcript tail still carries a private tool's calls
+whole, a withheld turn that fails its projection fails its whole read,
+and a party naming their own scope and another's entry is told it moved
+(`domain/engine.status.md`; `client/domain/contract.status.md`).
 
 Client transport admission counts cancelled watch openings and cleanup
 until their HTTP reply or failure. Its focused stream table holds an

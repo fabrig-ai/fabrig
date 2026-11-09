@@ -139,8 +139,11 @@ A chat is a conversation between a party and an agent in a project: an untracked
   the tab bar to open its newest open chat, or start a new one.
 - **The stock chat's runs** use the host tools `change`, `goal`,
   `delegate`, `decided` and `message`, and read these pages with `read_docs`.
-  Ask temper reads with `see`, keeps its chat's document with `document`
-  and proposes settings with `propose_settings`.
+  Ask temper reads with `see`, keeps its chat's document with `document`,
+  keeps a line about you across your chats with `remember` when you ask
+  it to, and proposes settings with `propose_settings`. On the web, the
+  lines it keeps are on **What temper remembers about you**, in your
+  menu, where you change or delete them.
 
 ## Limits
 

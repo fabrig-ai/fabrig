@@ -176,18 +176,18 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   alone** (jig's `domain/authority.md`, section 3): an asking charter is
   one whose `tools` name the asking family and no family but it and
   settings, so that a mask of every family, as a record with none decodes
-  (jig's `RunPolicy::EVERY_FAMILY`), is none. It is declared `see` and `document`,
-  the asking family's, where its task's authority holds that family, and
-  `propose_settings` in its asking form where the charter names the
-  settings family and its task's authority holds it (8.4); no other host
+  (jig's `RunPolicy::EVERY_FAMILY`), is none. It is declared `see`, `document`
+  and `remember`, the asking family's, where its task's authority holds that
+  family, and `propose_settings` in its asking form where the charter names
+  the settings family and its task's authority holds it (8.4); no other host
   tool, of any family, whatever the charter's other families, and
   neither `settings` nor `read_docs`, which `see` reads in their place.
   smith's `wait` is granted as for any Open run. The asking tools are
   declared to no other charter. A tool a run never calls costs every
   request and blurs what it does, so for these charters the rule above,
   every host tool in every charter, does not hold. Authority decides
-  each call by its family as for every charter: `see` and `document` by
-  the asking family, `propose_settings` by the settings family. The task's authority decides
+  each call by its family as for every charter: `see`, `document` and
+  `remember` by the asking family, `propose_settings` by the settings family. The task's authority decides
   each call by its family (jig's `domain/authority.md`, sections 3 and
   8.5): a call beyond it is answered beyond authority, naming what it
   lacked, and the run may `propose` it instead. A refused tool family
@@ -1028,7 +1028,7 @@ the fresh preparation above.
 | a foreman (forge.md, 8.11) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
-| Ask temper (8.4) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale (8.1) | `see`, `document`, `propose_settings` in its asking form; `wait` | its person closes it |
+| Ask temper (8.4) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale (8.1) | `see`, `document`, `remember`, `propose_settings` in its asking form; `wait` | its person closes it |
 
 The change's agents run under the charters the change was made with,
 kept on it whatever later changes of settings make them
@@ -1965,13 +1965,12 @@ host:
 
 ## 10. Open questions
 
-- **Ask temper after M1, M2 and M3a** (8.4, 8.4.1): M3b supplies the other
-  views, the Showing part's paragraph on sketches and the actors' marks; M4's
-  preferences (8.4.4) are designed, their walk after landing
-  (`../draft/ask-temper.execution.md`, section 3). The
+- **Ask temper before M3b** (8.4, 8.4.1, 8.4.4): M3b supplies
+  the other views, the Showing part's paragraph on sketches and the actors'
+  marks (`../draft/ask-temper.execution.md`, section 3). The
   ChatGPT and Claude Code walk, a real model's use of `see ways`, of the person's
-  addresses and of the `view` block, and the user's judgement of `ask.txt`
-  follow landing.
+  addresses, of the `view` block and of `remember`, and the user's judgement
+  of `ask.txt`, its Remembering part among it, follow landing.
 
 - **A real chat choosing `change`** (4.3 and 4.3.2): the owned-forge
   landing story requires the chat's own successful `change`, rather than
