@@ -12,9 +12,6 @@ remain M5's. The box's modes and the worker's current program are
 unchanged; naming `temper-agent` is M3's
 (`../draft/deployment-binaries.execution.md`, 1).
 
-- **Not yet:** 4.1, 4.3 to 4.4, 5: `temper-agent --version` prints the
-  commit of a build script of its own (`crates/temper-agent/build/`,
-  `TEMPER_AGENT_COMMIT`), not `temper-version`'s.
 
 Section 8.2's wait and recovery notes, ordered gate reasons, one-second
 threshold and suppression of repeats are present. Service tests step
