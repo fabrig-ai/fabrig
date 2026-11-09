@@ -1369,7 +1369,7 @@ a one-column line's at its own indent.
 Rendered for `../foundation/cli.md`, 8, each a Markdown document whose
 first line is its title and whose second paragraph says it's generated:
 
-- **`BINARY-args.md`:** `# BINARY: arguments`, then `## Public` and
+- **`<binary>-args.md`:** `# BINARY: arguments`, then `## Public` and
   `## Internal`, each holding the commands then the flags of that set.
   A command's heading is `` ### `BINARY WORDS` `` (`` `BINARY` `` for
   the bare form, `` run as `NAME` `` for a delegated grammar), followed
@@ -1378,17 +1378,17 @@ first line is its title and whose second paragraph says it's generated:
   flag's heading is `` ### `--name VALUE` `` or `` ### `--name` ``,
   with `**Set:**`, `**Default:**` (or `**Required.**`), `**Twin:**`,
   its line and `**Notes:**`.
-- **`BINARY-env.md`:** `# BINARY: environment`, then `## Public` and
+- **`<binary>-env.md`:** `# BINARY: environment`, then `## Public` and
   `## Internal`, holding the variables the binary alone reads or sets,
   its settings' twins among them. A variable's entry is its heading,
   `` ### `NAME` ``, then a list whose first item is `- **Set:** public`,
   `internal` or `test`, then `**Reads**` or `**Sets**`, `**Form:**`,
   `**Absent:**`, `**Twin of:**` for a twin, its line and `**Notes:**`.
-- **`common-env.md`:** `# TREE: common environment`, the variables two
+- **`<tree>/docs/design/cli/common-env.md`:** `# TREE: common environment`, the variables two
   or more of the tree's tables read, the host's among them, as
-  `BINARY-env.md` holds them, with `**Read by:**` naming the binaries.
-- **`test-env.md`:** `# TREE: test environment`, the tree's test table,
-  as `BINARY-env.md` holds a variable.
+  `<binary>-env.md` holds them, with `**Read by:**` naming the binaries.
+- **`<tree>/docs/design/cli/test-env.md`:** `# TREE: test environment`, the tree's test table,
+  as `<binary>-env.md` holds a variable.
 
 Entries keep their table's order; a variable read by several commands
 appears once. The checks read these headings and `**Set:**` items

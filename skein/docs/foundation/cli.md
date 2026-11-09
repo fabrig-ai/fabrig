@@ -214,9 +214,9 @@ pages.
 - **Under `<tree>/docs/design/cli/`:**
   - for each binary, `<binary>-args.md` (its commands, arguments and
     flags) and `<binary>-env.md` (the variables it alone reads or sets);
-  - `common-env.md`, for the variables two or more of the tree's
-    binaries read, the host's among them;
-  - `test-env.md`, for the test set, from the tree's test table: one
+  - `<tree>/docs/design/cli/common-env.md`, for the variables two or
+    more of the tree's binaries read, the host's among them;
+  - `<tree>/docs/design/cli/test-env.md`, for the test set, from the tree's test table: one
     table in its test-support crate, through which tests read them.
 - **Each is generated from the tables:** public entries first, then
   "Internal", each with its set, form, default, line and notes. A test
