@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-08. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-09. Where temper's code lags or departs from [worker.md](worker.md).
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap. A failed-run hold's
 `way out:` points to that log, and `temper help hold` names its location
@@ -16,6 +16,20 @@ committed before the run and a conflict retained for the run to settle;
 each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`forge.md`, section 20).
+
+Section 3.1 has no known gap in reading the link: the worker reads it
+and fires its deadlines on every pass, whatever the entrance holds, and
+the held entrance holds the engine's cap to a worker in frames, from the
+link's sizes, and three records more for the link's own state; a new
+record past it faults the link (`temper-service/src/worker.rs`,
+`Worker::new` and `drain_link`). `temper-service`'s
+`a_worker_whose_engine_records_wait_keeps_its_link`,
+`the_link_is_read_while_its_last_output_waits` and
+`a_new_wire_record_past_the_entrance_faults_the_link` hold it. A link
+left unread under load is the likeliest cause of a deployment's worker
+relinking every two to two and a half minutes on 2026-11-08, but that is
+unproven: its evidence is outside the repository, and no deployment on
+record has run since.
 
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format

@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-08. Where temper's code lags or departs from [README.md](README.md).
+2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
 Section 8.2's wait and recovery notes, ordered gate reasons, one-second
 threshold and suppression of repeats are present. Service tests step
@@ -48,6 +48,26 @@ This is simulated proof; the live no-survivor proof above remains
 separate. A worker stopped apart from its engine retains section 15.7's
 deferred failure accounting.
 
+Section 15.3 has no known gap in a link's loss lines: the worker prints
+`lost` once each linked link is lost, the engine `worker lost` for each
+channel that said hello and `worker opening ended` for an opening, once
+until that worker's reason changes or it links, and a failed workers'
+listener prints its line when it fails (`temper-service/src/worker.rs`,
+`link`; `workers.rs`, `route`; `temper-engine-shell/src/serve/host.rs`).
+The binary's line tables
+`worker_loss_lines_name_each_cause_and_refusal_exactly`,
+`engine_worker_loss_lines_name_each_cause_and_refusal_exactly` and
+`worker_listener_failures_print_the_exit_lines_words_at_once`, and
+`temper-service`'s
+`a_linked_loss_is_noted_once_and_a_refused_dial_has_no_lost_line`,
+`worker_opening_ends_are_suppressed_by_name_and_reason_until_hello` and
+`a_workers_listener_failure_is_noted_before_the_service_finishes` hold
+it. The request `worker-relinks` of 2026-11-08 also asked that the
+engine stop on SIGTERM within its stop grace, where a service manager
+killed one after 90 seconds: the workers' part closes within the
+stall deadline of the close (jig's `protocol/channel.md`, 10.2), but no
+stop test of temper's shows the whole stop within a bound, and the
+engine has no stop deadline of its own (section 14).
 
 - **Not yet:** 15.6: the retained case 4.6 process story is ignored until
   its fixture stops expecting models in the startup configuration

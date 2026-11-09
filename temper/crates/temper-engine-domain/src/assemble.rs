@@ -487,6 +487,14 @@ pub(crate) fn finish_brief_plan(
         let item = forge::BriefItem { repository: row.repository.repository, number };
         let pull = forge::BriefSource::Pull { item, head: forge::BriefCommit(head) };
         let (why, reason_first) = match row.delegate.expect("matched delegate").1 {
+            forge_change::Delegate::Repair(forge_change::Repair::Review { head: reviewed }) => (
+                Some(forge::BriefSource::Request {
+                    item,
+                    head: forge::BriefCommit(head),
+                    reviewed: forge::BriefCommit(reviewed),
+                }),
+                false,
+            ),
             forge_change::Delegate::Repair(forge_change::Repair::Gate(_)) => {
                 (Some(forge::BriefSource::Reviews { item, head: forge::BriefCommit(head) }), false)
             }
@@ -561,7 +569,7 @@ pub(crate) fn forge_brief_kind(source: forge::BriefSource) -> ForgeBriefKind {
         forge::BriefSource::Document => unreachable!("documents are planned by PlanDocument"),
         forge::BriefSource::Home { .. } => ForgeBriefKind::Home,
         forge::BriefSource::Ci { .. } => ForgeBriefKind::Ci,
-        forge::BriefSource::Reviews { .. } => ForgeBriefKind::Reviews,
+        forge::BriefSource::Reviews { .. } | forge::BriefSource::Request { .. } => ForgeBriefKind::Reviews,
         forge::BriefSource::Pull { .. } => ForgeBriefKind::Pull,
     }
 }

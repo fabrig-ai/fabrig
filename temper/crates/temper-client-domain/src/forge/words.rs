@@ -833,9 +833,10 @@ pub enum ChangeWord {
     HeldRed,
     HeldCleared,
     HeldUncleared,
+    RepairReview,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 106] = [
+pub const CHANGES: [ChangeRow; 107] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -942,6 +943,7 @@ pub const CHANGES: [ChangeRow; 106] = [
     (ChangeWord::HeldCleared, &[b"cleared"], &[]),
     (ChangeWord::HeldUncleared, &[b"landed, uncleared"], &[]),
     (ChangeWord::NotRequired, &[b"Not required"], &[]),
+    (ChangeWord::RepairReview, &[b"Repairing: a person asked for changes on the forge."], &[]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -1021,6 +1023,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::RepairCi
         | ChangeWord::RepairGate
         | ChangeWord::RepairSemantic
+        | ChangeWord::RepairReview
         | ChangeWord::LandingLine
         | ChangeWord::HeldProducing
         | ChangeWord::HeldOpening

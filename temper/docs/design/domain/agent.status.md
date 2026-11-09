@@ -171,7 +171,20 @@ charter documents.
 Section 8.1: none of Ask temper's tools or proposal items offers
 visibility, and `ask.txt` says it is no setting, done by its owner outside
 the chat.
+Sections 8.1 and 8.4.1 have a goal template's work, `template-goal N`,
+in a run's `settings`, `see` and `propose_settings` and their
+declarations; `see settings template-goal N`, its following line
+`settings template N · ways · help settings-fields`, and the inventory's
+line naming it; and, with none stored, "template-goal N: none kept; its
+coordinator plans and makes no close-out." (the engine world's
+`the_asking_chat_reads_each_kind` and `an_asking_chat_reads_each_address`).
 
+- **Not yet:** 8.1: nothing tells Ask temper's runs that a proposal of a
+  goal template whose charter designs first or makes a close-out carries
+  its `template-goal`: `ask.txt` holds no words for it, as this section
+  has it, and the tools' declarations and `help settings` name the kind
+  and its members alone; no story proposes one. Stage one's golden asks
+  it of the reference's (`testing.status.md`, 6.5.1).
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own

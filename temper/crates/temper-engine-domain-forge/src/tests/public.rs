@@ -518,6 +518,21 @@ fn expected_landing() -> w::PublicLanding {
     .expect("expected landing")
 }
 #[test]
+fn each_repair_reason_projects_to_the_public_step() {
+    for (why, expected) in [
+        (c::Repair::Ci, w::PublicRepair::Ci),
+        (c::Repair::Semantic, w::PublicRepair::Semantic),
+        (c::Repair::Review { head: [7; 32] }, w::PublicRepair::Review),
+    ] {
+        let mut d = setup();
+        d.changes.get_mut(&CHANGE).expect("change").change.state = c::State::Repairing { requested: true, why };
+        let got = change(&d, &handed());
+        assert_eq!(*got.step(), w::PublicStep::Repairing);
+        assert_eq!(*got.repair(), Some(expected));
+    }
+}
+
+#[test]
 fn each_kind_projects_from_the_source_table() {
     let d = setup();
     let public = handed();
