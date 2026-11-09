@@ -71,12 +71,15 @@ this cut. `notes/common.md` holds the rules every task follows;
 |---|---|---|---|---|
 | `model` | `reaches-model` | | `temper-client-domain` | 50 |
 | `fuzz` | `reaches-fuzz` | `reaches-model` | `temper-client-world` (`fuzzy/how.rs`) | 60 |
+| `page` | `reaches-page` | `reaches-model` | `temper-client-view`, `temper.css`, the terminal's golden; the checks' removal in `temper-client-domain` and the gallery | 180 |
+| `page` | `reaches-gallery` | `reaches-page` | `temper-client-gallery` | 90 |
+| `story` | `reaches-story` | `reaches-page` | `temper-client-world` (`away.rs`) | 50 |
 
-Released in the first push: `reaches-model` and `reaches-fuzz`. To
-follow: the page (`reaches-page`, `temper-client-view`, after
-`reaches-model`), its gallery states (`reaches-gallery`, after
-`reaches-page`) and the client world's story (`reaches-story`, after
-`reaches-page`).
+Released in the first push: `reaches-model` and `reaches-fuzz`; in the
+second, `reaches-page`, `reaches-gallery` and `reaches-story`.
+`reaches-fuzz` and `reaches-story` both write `temper-client-world`, on
+files of their own (`fuzzy/how.rs`, `away.rs`), and seldom at once:
+`reaches-story` waits for `reaches-page`.
 
 ## Critical path
 

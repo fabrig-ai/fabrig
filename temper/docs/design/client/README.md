@@ -3208,9 +3208,9 @@ keeps (`../protocol/configuration.md`, section 2).
       didn’t change. Try again." No "Limits": limits are a project's.
   - *On How work runs,* 5.13's *What reaches you* draws the classes, what
     Away changes among them and "Away until". "Limits", on the toast and on
-    Home, opens How work runs with that section's heading focused, so a
-    browser brings it into view: `Address` holds no anchor, and the page
-    takes the request from `Pages` once.
+    Home, opens How work runs with that section's heading
+    focused, so a browser brings it into view: `Address` holds no anchor, and
+    the page takes the request from `Pages` once.
 - **Decided for you** (`../draft/what-reaches-you.md`, section 6;
   `../domain/forge.md`, 5.9): what agents decided for the person, any task's,
   a goal's, a chat's or a delegate's, whether or not the person was away.
