@@ -462,22 +462,22 @@ fn theme_is_own_on_every_screen() {
         ("chat", true, true, false, false),
         ("no project", false, false, false, false),
         ("signed out", false, false, true, false),
-        ("welcome", false, false, true, true),
+        ("welcome signing in", false, false, true, true),
+        ("welcome signed in", false, false, false, true),
     ] {
         let mut root = if signed_out { f::signed_out() } else { root(project, false, chat, false, false, false) };
         let words = f::words();
         let mut tui = crate::Tui::new(f::ADDRESS);
         if front {
             tui.step(crate::Told::Front);
+            tui.step(crate::Told::Local { local: crate::Local::Signing });
         }
         tui.step(crate::Told::CommandWords { value: b"/".as_slice().into() });
         assert!(!crate::offered(&root, &words).contains(&Command::Theme), "{name}");
         assert!(crate::offered_own(&root, &tui).contains(&crate::Own::Theme), "{name}");
-        if name == "signed out" {
+        if signed_out {
+            assert!(crate::view::foot::read(&root, &tui, &words, f::NOW).list.is_none(), "{name}");
             continue;
-        }
-        if front {
-            tui.step(crate::Told::Local { local: crate::Local::Signing });
         }
         let action = if root.pages().chat().is_some() {
             d::pages::Act::MessageWords { words: b"/".as_slice().into() }
@@ -485,7 +485,10 @@ fn theme_is_own_on_every_screen() {
             d::pages::Act::ChatWords { words: b"/".as_slice().into() }
         };
         f::event(&mut root, Event::Act { action: d::Action::Pages(action) });
-        let items = crate::view::foot::read(&root, &tui, &words, f::NOW).list.unwrap().items;
+        let Some(list) = crate::view::foot::read(&root, &tui, &words, f::NOW).list else {
+            panic!("{name}: command list missing");
+        };
+        let items = list.items;
         let mut theme = None;
         for (index, item) in items.iter().enumerate() {
             if item.name.as_ref() == b"/theme" {
