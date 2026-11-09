@@ -126,7 +126,9 @@ pub(crate) fn answered(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
     let (head, tool) = match see.reading {
         SeeReading::Head => (read_head(&answer), b"read_branch".as_slice()),
         SeeReading::File => (None, b"read_file".as_slice()),
-        SeeReading::Settings | SeeReading::Proposal => unreachable!("forge answer to a forge read"),
+        SeeReading::Settings | SeeReading::Proposal | SeeReading::Person(_) => {
+            unreachable!("forge answer to a forge read")
+        }
     };
     if let Some(head) = head {
         let key = flight.key.expect("decoded forge call");
@@ -154,7 +156,6 @@ pub(crate) fn answered(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
             | super::Address::Change { .. }
             | super::Address::Changes
             | super::Address::Inbox
-            | super::Address::NotYet
             | super::Address::Unknown => unreachable!("file flight keeps its address"),
         };
         let adopted = super::super::forge_route::named_repository(domain, project, Some(&repository));

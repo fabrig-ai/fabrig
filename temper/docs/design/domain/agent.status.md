@@ -140,11 +140,6 @@ record has run a real model on the sentence.
 
 ## Gaps and departures
 
-- **Not yet:** 8.4.1, *Read as the person*: `me`, `project`, `goals`,
-  `goals ended`, `tasks`, `task N` with its tree, activity and turns,
-  `change N`, `changes` and `inbox` answer `see ADDRESS: not there yet.`,
-  an error: the root makes no read as the person, and the forge answers
-  no read (plan `ui-ask-m2`, `see-route`).
 - **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the
   run and How work runs' heading say a way by different words
