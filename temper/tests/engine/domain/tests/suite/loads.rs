@@ -47,6 +47,35 @@ fn begin(loads: &mut Loads, after: Option<Key>, most: u32, out: &mut Queue<Reque
     owner
 }
 
+/// temper/docs/design/domain/root.md, 8: a waiter that stops between pages releases its slot.
+#[test]
+fn an_uncontinued_transcript_page_releases_its_slot_at_reclaim() {
+    for abandon in [false, true] {
+        let mut loads = Loads::new(&LIMITS);
+        let mut out = Queue::with_capacity(1);
+        let waiter = Token::new(51);
+        let range = Range::Core(root::CoreRange::TaskTranscript { task: 1, from: (1, 1) });
+        let owner = loads::begin(&mut loads, waiter, range.clone(), None, 1, &mut out).expect("first page admitted");
+        out.pop().expect("page issued");
+        loads::loaded(&mut loads, owner, Box::new([row(1, 1)]), Some(key(1)), &mut out);
+        assert!(matches!(out.pop(), Some(Request::Loaded { next: Some(_), cut: None, .. })));
+        assert!(!loads.quiescent(), "the page holds its slot through the answering pass");
+        assert_eq!(loads::next(&mut loads, Token::new(52), key(1), 1, &mut out), None, "waiter is fenced");
+        assert_eq!(loads::next(&mut loads, waiter, key(2), 1, &mut out), None, "cursor is fenced");
+        loads::loaded(&mut loads, owner, Box::new([]), None, &mut out);
+        loads::unloaded(&mut loads, owner, &mut out);
+        assert!(out.is_empty(), "the answered page has exactly one terminal");
+        if abandon {
+            loads::abandon(&mut loads, owner);
+        }
+        loads::reclaim(&mut loads);
+        assert!(loads.quiescent(), "an uncontinued page leaks no slot, abandon={abandon}");
+        assert_eq!(loads::next(&mut loads, waiter, key(1), 1, &mut out), None, "reclaimed waiter is fenced");
+        let next = loads::begin(&mut loads, waiter, range, None, 1, &mut out).expect("a later window can begin");
+        assert_ne!(owner, next);
+    }
+}
+
 #[test]
 fn each_page_has_one_terminal_and_reads_the_answered_commit() {
     let mut store = Store::new();

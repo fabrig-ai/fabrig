@@ -117,7 +117,7 @@ fn omitted_rendered_text_leaves_a_closed_tail_empty() {
     };
     // The renderer may omit a turn when its cut marker cannot fit. This
     // checks the root/core handling of that result, not the renderer itself.
-    *texts = Some(Box::new([Some(Box::new([]))]));
+    *texts = Some(Box::new([engine::TurnText::Rendered(Box::new([]))]));
     driver.send(reply);
     driver.settle();
     let assignment = driver.last_assignment();

@@ -936,6 +936,20 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   no transient try spent counts one transient preparation failure;
   its retry can then continue without that unread tail. A failed load,
   rather than an unread window, remains a preparation failure.
+- **A turn too large for a page.** A window is loaded a page at a time,
+  each within the store's page room. A turn past that room is loaded
+  cut: its fields and its length, never its bytes
+  (`../protocol/store.md`, 8.3), handed to the core in its place as
+  `TranscriptLoad::Cut`. The core counts its length in the window's bytes,
+  keeps the fixed text `[a turn too large to load]` in its place in the
+  tail (cut to the tail's budget as any turn's text is), and resumes no
+  window that holds one: the run starts fresh from a brief carrying the
+  transcript's tail, as one past the resume limit does, a transition
+  that counts nothing, no failure, no transient try, no refusal. So a run's
+  window is the transcript's tail that fits, never a failure for the
+  window's length or for one turn's size: a window's load fails only for
+  what could not be read (a frame unread or refused, below) or a page its
+  root could not take.
 - **A window closed by an upgrade.** A turn is handed to a run in its
   current version, patched as read when it was written in an older one
   (`../protocol/store.md`, 8.6), and a run resumes from it. A patch
@@ -957,8 +971,8 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   text needs cutting, a tail budget too small for the 19-byte cut marker
   gives no text for that turn. If no turn leaves text, the tail is empty:
   the closed window's next attempt still starts fresh, without a failure
-  counted. A window page that cannot hold one turn answers `Unread`.
-  An open unread window counts a transient failure only when no
+  counted. A window page that cannot hold one turn hands that turn on
+  cut (above). An open unread window counts a transient failure only when no
   transient try has been spent; a transient retry leaves out that tail
   and continues fresh, as for an unread closed window.
   However the upgrade's
@@ -1454,7 +1468,8 @@ whom; its delegates, their states, and the
   last turn, when it does not resume; the proposals and escalations
   waiting for its decision; the index of its notes; a transcript's tail,
   when it does not resume, the window's last turns as text rendered by the
-  host's protocol layer when loaded, within the tail's own budget; and,
+  host's protocol layer when loaded, a turn too large to load as its
+  fixed marker (7.2), within the tail's own budget; and,
   for a run whose tools hold `delegate`,
   the catalogue: each model its authority allows (authority.md, section
   3), with its LLM provider, its window and output, its efforts, its
@@ -2230,12 +2245,13 @@ section 5).
   and its link (request `store-crash-safe`, 11-09); after the first
   release. A tool that repairs such a store is not designed: that
   request leaves it out.
-- **A transcript's load with no slot** (9.1, 7.2): a root whose load table
-  is full answers `TranscriptLoad::Failed`, as it does for a page it cannot
-  take, so room that frees by itself counts as transient, and the try it
-  spends makes the next run start fresh from the tail rather than resume.
-  Capacity would need `TranscriptLoad` to say which. Default: as built,
-  until the user says.
+- **A transcript's load with no slot** (9.1, 7.2): `TranscriptLoad` has
+  no capacity answer, so a root never answers one for room: it keeps the
+  activation due while its load table is full, and a window's later pages
+  in the slot its first took (temper's `domain/root.md`, 8). A root that
+  answered `TranscriptLoad::Failed` for room would count it as transient,
+  and the try it spent would make the next run start fresh from the tail
+  rather than resume. Default: no capacity answer, until the user says.
 
 - **A fresh attempt's tail, lost before its first turn.** An attempt
   that starts fresh from a closed window, or past the resume limit,

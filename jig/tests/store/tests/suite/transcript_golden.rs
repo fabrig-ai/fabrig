@@ -140,7 +140,7 @@ fn walk(world: &mut World, backwards: bool) -> Vec<core::TurnRecord> {
             rows: READ_ROWS,
             bytes: ROOM,
         });
-        let [Event::Turns { owner: READER, turns, next }] = events.as_slice() else {
+        let [Event::Turns { owner: READER, turns, next, cut: None }] = events.as_slice() else {
             panic!("kept transcript page must contain whole turns, never Unread: {events:?}");
         };
         result.extend(turns.iter().cloned());

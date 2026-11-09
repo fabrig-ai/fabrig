@@ -55,7 +55,10 @@ or spending a try (`tests/engine/domain`'s
 `tasks_due_together_past_the_load_slots_each_load_their_window`).
 Whether room was why about 23 briefs failed on their windows after a
 deployment's restart on 2026-11-08 is unproven: its evidence is outside
-the repository. A window's later page is below.
+the repository. A window's later pages retain their load slot, as
+`temper-engine-domain/src/archive.rs`'s
+`a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken`
+checks. A turn too large for a page reaches the core cut.
 
 Section 12 has no known gap in a duplicate person's identity: a store
 holding one refuses the start as jig's `Failure::Link`, the second
@@ -83,16 +86,6 @@ LINKED`, as for every link jig's start cannot make
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
   `BriefSource`), and a merge-queue ejection's reason. 9.1: the
   rehearsing root, `temper upgrade --check`.
-- **Not yet:** 8: a transcript window's later page, requested without
-  another activation, still answers the core `TranscriptLoad::Failed`
-  when no load slot is free (`temper-engine-domain/src/restart.rs`,
-  `request_load`; `archive.rs`'s
-  `a_transcript_continuation_without_load_room_remains_preparation_failure`),
-  where the section answers a full table busy and jig's
-  `domain/engine.md`, 9.1 counts room as capacity, never transient. The
-  slot its previous page held stays taken until the iteration's reclaim,
-  so a window past one page, loading beside another load, can spend a
-  transient try on room; no story shows whether one does.
 - **Not yet:** 9.1: the forge's link of its restored records panics at
   the first it cannot make, `forge link KIND -> NEED for KEY`, where
   step 3 refuses the start naming the record and what it links to, as

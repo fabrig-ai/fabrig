@@ -1,4 +1,5 @@
 //! The engine boundary, wrapping its typed peers (jig's domain/root.md, 2).
+//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 8).
 pub use crate::route::approvals::{ApprovalRow, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
 use crate::{CallKey, Delivery, Key, Range, Record, RunPolicy, Write};
@@ -428,8 +429,15 @@ pub enum Event {
     /// The service begins its drain (jig's `domain/engine.md`, 6.1).
     Stop,
 }
-/// Optional protocol renderings in the same order as a transcript load's rows.
-pub type TranscriptTexts = Box<[Option<Box<[u8]>>]>;
+/// A window turn's text or its omitted body's length (temper/docs/design/domain/root.md, 8).
+#[derive(Hash, Debug)]
+pub enum TurnText {
+    Rendered(Box<[u8]>),
+    Unrendered,
+    Cut(u32),
+}
+/// Protocol texts in the same order as a transcript load's rows.
+pub type TranscriptTexts = Box<[TurnText]>;
 
 #[derive(Hash, Debug)]
 pub enum StoreInput {
@@ -454,7 +462,7 @@ pub enum StoreInput {
     },
     Loaded {
         /// Protocol-rendered text in row order, only for transcript window loads.
-        /// Each text is at most the core tail budget; None marks an unreadable turn.
+        /// Each rendering is at most the core tail budget; a cut turn is alone in its page.
         texts: Option<TranscriptTexts>,
         /// Echoed generational load token, fenced after its one terminal and reclaim.
         owner: Token,

@@ -92,27 +92,37 @@ fn tail(core: &Core, bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn a_fresh_brief_keeps_whole_newest_texts_under_its_own_budget() {
+    assert_fresh_brief_tail(false);
+}
+
+#[test]
+fn a_cut_page_finishes_a_fresh_brief_with_its_tail() {
+    assert_fresh_brief_tail(true);
+}
+
+fn assert_fresh_brief_tail(cut: bool) {
     let (mut core, mut limits) = make_tree();
     limits.brief_core_budgets.tail = 90;
     limits.brief_core_budgets.task = 128;
     core.settings.tail_bytes = 90;
-    core.current.test_charter_mut(1).policy.resume = false;
+    core.current.test_charter_mut(1).policy.resume = cut;
     send_task(&mut core, &limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: 1 });
     let context = core.tasks.run_context(1).unwrap();
     core.contexts.insert(1, context).unwrap();
     core.begin_transcript(1, 1, None);
     window(&mut core).window = Some((1, 1));
-    for (number, body) in [(1, [b'a'; 40]), (2, [b'b'; 40]), (3, [b'c'; 40])] {
-        append(&mut core, number, &body);
-    }
-    let mut expected = [b'c'; 80];
-    expected.get_mut(..40).unwrap().fill(b'b');
-    assert_eq!(tail(&core, 90).as_ref(), expected);
-    let mut out = watch_outputs(
-        &mut core,
-        &limits,
-        Event::TranscriptLoaded { task: 1, load: TranscriptLoad::Page { rows: Box::new([]), done: true } },
-    );
+    let (load, expected) = if cut {
+        (TranscriptLoad::Cut { turn: cut_turn(1, 1, true), bytes: 1, done: true }, Box::from(CUT_TURN_TEXT))
+    } else {
+        for (number, body) in [(1, [b'a'; 40]), (2, [b'b'; 40]), (3, [b'c'; 40])] {
+            append(&mut core, number, &body);
+        }
+        let mut expected = [b'c'; 80];
+        expected.get_mut(..40).unwrap().fill(b'b');
+        assert_eq!(tail(&core, 90).as_ref(), expected);
+        (TranscriptLoad::Page { rows: Box::new([]), done: true }, Box::<[u8]>::from(expected))
+    };
+    let mut out = watch_outputs(&mut core, &limits, Event::TranscriptLoaded { task: 1, load });
     for _ in 0..limits.notes.scopes {
         let mut owner = None;
         for request in &out {
@@ -149,7 +159,7 @@ fn a_fresh_brief_keeps_whole_newest_texts_under_its_own_budget() {
                 } = section
                 {
                     assert_eq!(*limit, 90);
-                    assert_eq!(text.as_ref(), expected);
+                    assert_eq!(text.as_ref(), expected.as_ref());
                     planned = true;
                 }
             }
@@ -306,4 +316,46 @@ fn beginning_a_crossed_claims_transcript_without_a_window_keeps_it_fresh() {
     let transcript = core.transcripts.get(&1).unwrap();
     assert!(transcript.closed, "a crossed claim cannot resume even without a window");
     assert_eq!(transcript.window, None);
+}
+
+fn cut_turn(attempt: u64, number: u32, opens_window: bool) -> TurnRecord {
+    TurnRecord {
+        task: 1,
+        attempt,
+        turn: number,
+        spent: 0,
+        read: None,
+        opens_window,
+        at: Wall::EPOCH,
+        transcript: Box::new([]),
+    }
+}
+
+#[test]
+fn cut_turns_keep_their_length_and_place_without_resuming() {
+    for bytes in [1, 4096] {
+        let mut core = window_core(256);
+        for turn in [cut_turn(1, 2, false), cut_turn(1, 1, false), cut_turn(0, 1, true), cut_turn(2, 1, true)] {
+            assert!(!core.append_cut_transcript(1, turn, bytes));
+            assert_eq!(window(&mut core).bytes, 0);
+        }
+        assert!(!core.append_cut_transcript(1, cut_turn(1, 1, true), u64::MAX));
+        assert!(core.append_cut_transcript(1, cut_turn(1, 1, true), bytes));
+        assert!(window(&mut core).cut);
+        assert_eq!(window(&mut core).bytes, bytes + 4);
+        assert_eq!(window(&mut core).last, Some((1, 1)));
+        assert!(window(&mut core).turns.is_empty());
+        assert_eq!(tail(&core, 128).as_ref(), CUT_TURN_TEXT);
+        assert!(!core.append_cut_transcript(1, cut_turn(1, 1, true), bytes));
+        assert!(!core.append_transcript(1, cut_turn(1, 1, true), None));
+        append(&mut core, 2, b"after");
+        assert!(!core.append_cut_transcript(1, cut_turn(1, 1, true), bytes));
+        assert_eq!(tail(&core, 128).as_ref(), b"[a turn too large to load]\nafter");
+        assert!(core.transcript_oversized(1));
+        assert!(resumed(&mut core).is_empty());
+    }
+    let mut core = window_core(256);
+    append(&mut core, 1, b"before");
+    assert!(core.append_cut_transcript(1, cut_turn(1, 2, false), 1));
+    assert!(resumed(&mut core).is_empty());
 }

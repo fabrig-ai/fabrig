@@ -149,8 +149,8 @@ and catalogue-number reuse remain section 16's open questions.
 
 Section 9.1's room as capacity holds at temper's activation: a task
 whose transcript window would find no load slot waits, due, spending no
-try. A window's later page without one still fails its preparation
-there (`temper/docs/design/domain/root.status.md`, 8).
+try. A window's later pages keep its first page's slot there
+(`temper/docs/design/domain/root.md`, 8).
 
 ## Gaps and departures
 
