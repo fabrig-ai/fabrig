@@ -4,6 +4,7 @@ mod asking_forge;
 pub(crate) mod asking_person;
 mod asking_proposal;
 mod fixture;
+mod remembering;
 use fixture::*;
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as people;
