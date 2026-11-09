@@ -932,7 +932,7 @@ fn admitted_review(assignment: temper_engine_domain::Assignment, bound: u64) -> 
     settings.files = fixtures::worker_digests(&settings);
     let mut workers = crate::workers::Workers::configured(&mut settings, [7; 16]).unwrap();
     workers.forges = fixtures::forge_table(&fixtures::forges());
-    assert_eq!(workers.encoding.charter_bytes, bound);
+    assert_eq!(workers.encoding.charter_bytes, bound.min(crate::assignment::WORKER_CHARTER_BYTES));
     let event = workers
         .encoded_assignment(Time::ZERO, Token::new(8), assignment, &crate::values::Values::new(0, 0))
         .expect("review assignment encodes");
@@ -1068,13 +1068,9 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
         let original = temper_engine_smith::charter(&assignment);
         let start = admitted_review(assignment, bound);
         let pull = &start.charter.value().brief.sections[1];
-        if bound == 98_304 {
-            assert_eq!(pull, &original.brief.sections[1]);
-        } else {
-            assert!(pull.text.len() < original.brief.sections[1].text.len());
-        }
+        assert!(pull.text.len() < original.brief.sections[1].text.len());
     }
-    let bound = 262_144_u64;
+    let bound = crate::assignment::WORKER_CHARTER_BYTES;
     let mut empty = review_assignment(100);
     empty.sections[1].body = temper_engine_domain::BriefBody::Text(Box::default());
     let charter = temper_engine_smith::charter(&empty);
@@ -1083,7 +1079,7 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
             .unwrap();
     let fixed = charter.owned_bytes().unwrap().max(u64::try_from(encoded.len()).unwrap());
     let room = usize::try_from(bound.checked_sub(fixed).unwrap()).unwrap();
-    for (size, whole) in [(63_740, true), (room + 1, false)] {
+    for (size, whole) in [(room, true), (room + 1, false)] {
         let assignment = review_assignment(size);
         let original = temper_engine_smith::charter(&assignment);
         let start = admitted_review(assignment, bound);
