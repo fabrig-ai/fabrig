@@ -318,9 +318,6 @@ and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
 
-- **Not yet:** 6.14, *The commands* and *`/quit`*, 6.16 and 6.17: the
-  TUI lists, completes and takes `/exit`, and `/quit` is an unknown
-  command (plan `tui-box-polish`).
 
 Sections 2, 6.11 and 6.12 have the clients' start, one for two binaries:
 `temper [ADDRESS]` and `temper-client [ADDRESS]` run

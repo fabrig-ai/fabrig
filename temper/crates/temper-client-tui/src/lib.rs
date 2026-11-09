@@ -16,7 +16,7 @@ mod view;
 pub mod words;
 pub use approval::{approval_address, may_ask_again};
 pub use box_line::BoxLine;
-pub use event::{Event, LOG_COMMAND, Own, WalkStep};
+pub use event::{EXIT, Event, LOG_COMMAND, Own, QUIT, WalkStep, command_name};
 pub use limits::limits;
 pub use note::Note;
 pub use place::place;

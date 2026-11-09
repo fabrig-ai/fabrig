@@ -437,7 +437,7 @@ fn the_foot_says_each_state() {
             });
             good &= items.len() == commands.len();
             for (item, command) in items.iter().zip(commands) {
-                good &= item.name.as_deref() == Some(command.name())
+                good &= item.name.as_deref() == Some(crate::command_name(*command))
                     && item.styles.as_slice() == [look::COMMAND]
                     && item.description.as_deref()
                         == Some(if *command == Command::Exit {
@@ -875,7 +875,7 @@ fn note_states() {
         "/open    Open this on the web",
         "/theme   Dark or light",
         "/help    Commands and keys",
-        "/exit    Close temper",
+        "/quit    Close temper",
         "Enter sends",
         "Tab completes a command",
         "PgUp and PgDn read back",
@@ -907,7 +907,7 @@ fn note_states() {
         if line.as_ref() == b"/log     The box's recent log" {
             log = Some(index);
         }
-        if line.as_ref() == b"/exit    Close temper and stop the box" {
+        if line.as_ref() == b"/quit    Close temper and stop the box" {
             exit = Some(index);
         }
     }

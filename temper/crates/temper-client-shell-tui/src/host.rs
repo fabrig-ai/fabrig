@@ -572,10 +572,14 @@ impl Host {
                 .iter()
                 .find(|command| command.name().starts_with(words))
                 .copied();
-            let root = tui::offered(&self.root, self.view.words())
-                .iter()
-                .find(|command| command.name().starts_with(words))
-                .copied();
+            let root = if words == tui::EXIT {
+                Some(TuiCommand::Exit)
+            } else {
+                tui::offered(&self.root, self.view.words())
+                    .iter()
+                    .find(|command| tui::command_name(**command).starts_with(words))
+                    .copied()
+            };
             if let Some(command @ (tui::Own::Change | tui::Own::Ask)) = own {
                 self.event(tui::Event::Own { command }, duties);
             } else if let Some(command) = root {

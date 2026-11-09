@@ -12,7 +12,7 @@ and engine.
 
 `temper box` in a terminal runs this TUI in front (temper help box),
 signed in with nothing pasted. Its welcome shows the box's link for a
-browser on this machine. In front, Ctrl+C or `/exit` stops the box too,
+browser on this machine. In front, Ctrl+C or `/quit` stops the box too,
 asking first while work runs. `temper box --no-tui` runs the box without it.
 
 - `DIR`: your existing TUI directory, `$XDG_STATE_HOME/temper/tui`
@@ -22,7 +22,7 @@ asking first while work runs. `temper box --no-tui` runs the box without it.
 
 ## What temper guarantees
 
-`/exit` or Ctrl+C closes the TUI and keeps the sign-in. On the sign-in
+`/quit` (`/exit` works too) or Ctrl+C closes the TUI and keeps the sign-in. On the sign-in
 screen, use Ctrl+C. `q` types a character on every screen.
 
 A short chat reads back to its opening automatically. Your opening question

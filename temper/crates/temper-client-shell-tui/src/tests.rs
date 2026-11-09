@@ -1477,13 +1477,36 @@ fn no_project_composer_accepts_commands() {
     let (mut host, _, _) = signed_host(false);
     key_words(&mut host, "/");
     let frame = text(&mut host);
-    for command in ["/theme", "/help", "/exit", "Close temper"] {
+    for command in ["/theme", "/help", "/quit", "Close temper"] {
         assert!(frame.contains(command), "offered command list: {command}\n{frame}");
     }
-    key_words(&mut host, "exit");
-    assert!(text(&mut host).contains("❯ /exit"));
-    assert!(host.report(Report::Key(Key::Enter)).close, "/exit must close from the launchpad");
+    key_words(&mut host, "quit");
+    assert!(text(&mut host).contains("❯ /quit"));
+    assert!(host.report(Report::Key(Key::Enter)).close, "/quit must close from the launchpad");
     assert!(host.words().is_empty(), "closing clears the command composer");
+    for (words, complete) in [("/q", false), ("/q", true), ("/qu", true), ("/exit", false)] {
+        let (mut host, _, _) = signed_host(false);
+        key_words(&mut host, words);
+        if complete {
+            host.frame();
+            empty(&host.report(Report::Key(Key::Tab)));
+            assert_eq!(host.words(), b"/quit", "Tab completes the listed closing command");
+        }
+        assert!(host.report(Report::Key(Key::Enter)).close, "{words} must close from the launchpad");
+        assert!(host.words().is_empty(), "closing clears the command composer");
+    }
+    for words in ["/ex", "/exi"] {
+        let (mut host, _, _) = signed_host(false);
+        key_words(&mut host, words);
+        assert!(!text(&mut host).contains("Close temper"), "an alias prefix draws no list");
+        host.frame();
+        empty(&host.report(Report::Key(Key::Tab)));
+        assert_eq!(host.words(), words.as_bytes(), "Tab never completes the hidden alias");
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(host.state().unknown(), Some(words.as_bytes()), "an alias prefix is unknown");
+        assert!(host.words().is_empty(), "unknown commands clear the composer");
+        assert!(!text(&mut host).contains("Close temper"), "an unknown command draws no list");
+    }
     for words in ["/theme", "/help", "/zz", "hello", "q", "/"] {
         no_project_keys(words);
     }
@@ -1529,7 +1552,7 @@ fn no_project_keys(words: &str) {
         "/theme" => assert_eq!(host.root.pages().look().theme, Theme::Light),
         "/help" => {
             assert_eq!(host.root.pages().notes().last(), Some(&terminal::Note::Help));
-            assert!(text(&mut host).contains("/exit"), "help must render its commands");
+            assert!(text(&mut host).contains("/quit"), "help must render its commands");
         }
         "/zz" => {
             assert_eq!(host.state().unknown(), Some(b"/zz".as_slice()));
@@ -2606,14 +2629,15 @@ fn in_front_quitting_asks_while_work_runs() {
         ("front idle", true, false, vec![(close(), closed())]),
         ("ask twice", true, true, vec![(close(), asked()), (close(), FrontWant::Quit { close: true, asking: true })]),
         (
-            "exit",
+            "quit",
             true,
             true,
             vec![
-                (FrontAct::Send(b"/exit"), asked()),
-                (FrontAct::Send(b"/exit"), FrontWant::Quit { close: true, asking: true }),
+                (FrontAct::Send(b"/quit"), asked()),
+                (FrontAct::Send(b"/quit"), FrontWant::Quit { close: true, asking: true }),
             ],
         ),
+        ("exit alias", true, true, vec![(FrontAct::Send(b"/exit"), asked())]),
         (
             "stay",
             true,
