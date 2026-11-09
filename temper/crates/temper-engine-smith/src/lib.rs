@@ -33,6 +33,7 @@ pub use answers::{answer, answer_bounded, answer_for_task, answer_for_tool, unas
 pub use calls::{call, call_configured, call_in, tools};
 pub use finish::{ChangeResource, Terminal, result, turn};
 pub use reference::reference;
+pub use see::addresses::see_reference;
 pub use see::{ADDRESSES, SEE_PART, see_answer};
 pub use settings::{
     settings_answer, settings_answer_bounded, settings_note, settings_repository_answer, settings_text,

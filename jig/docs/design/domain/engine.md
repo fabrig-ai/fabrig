@@ -1041,7 +1041,7 @@ amended task's choice whole, leaving it none.
 | `effect` | one of a connector's kinds of effect offered to agents (connectors.md, 4.5) | made, with what it made; committed and pending, past the call's deadline; waiting for a verdict; failed; refused, naming them, for a kind that waits for dependencies while its task is kept (tasks.md, 5.7) |
 | `note`, `recall` | writes a note in a scope, whole or by a line range; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
-| an application's asking tools, when its charter gives the family | what the application declares to a run that explains to its person: the reads it serves and the document it keeps for that run, each call decided by the asking family alone, whatever it reads or writes (authority.md, section 3); the application answers it | the application's answer; beyond authority, naming the family |
+| an application's asking tools, when its charter gives the family | what the application declares to a run that explains to its person: the reads it serves, among them reads as its person (below), and the document it keeps for that run, each call decided by the asking family alone, whatever it reads or writes (authority.md, section 3); the application answers it | the application's answer; beyond authority, naming the family |
 
 **A run's reads are not recorded.** A connector's read, `read_task`, and the
 `settings` family's reads decide nothing: checked against the task's
@@ -1091,6 +1091,56 @@ knows what its run's reply holds. An application that cuts a chunk further to
 render it prints `next` from its cut. Continue with the same
 field and the printed `next` offset. Every chunk names the current spec revision; restart specification
 reads at zero if it changes between chunks.
+
+**A run's read as its person** is how an application's asking tool reads
+for a run that explains to its person: one of a party's reads
+(`../client/domain/contract.md`, section 6), read as the run's task's
+requester, a person, would read it, and of that task's project alone. The
+application names it as the run's call, the named action `PersonRead`
+with the party's `Read`; it decides nothing and keeps no call record, as
+the run's other reads.
+
+- **Checked first:** the asking family of the run's task (authority.md,
+  section 3), beyond authority naming the family; the run's current
+  attempt; and its task's requester, which must be a person: a task
+  requested by a task or by the deployment reads nothing as a person, and
+  is answered unknown.
+- **Of its project alone.** Admitted are the reads that name the task's
+  project, or one task of it, and no other:
+  - *naming the project:* the project and its spend (`Project`, `Spend`,
+    never project zero's), a task query whose project key is it (`Tasks`),
+    its notes in a goal's scope (`Notes`), notes of an exact scope that
+    is the project's or a goal's of it (`ScopedNotes`), an inbox group
+    whose filter names it (`Inbox`), an application's read in its scope
+    (`Application`);
+  - *naming one task:* its overview and words (`Task`, `TaskText`), its
+    activity, a page beside a line of it and a turn (`Activity`,
+    `ActivityBeside`, `Turn`), its ended delegates and history
+    (`EndedDelegates`, `History`), its result and a reply (`Result`,
+    `Reply`), its question, escalation or person form (`Question`,
+    `Escalation`, `PersonTask`), and a proposal it made (`Proposal` of a
+    task), where that task is of the project.
+
+  Every other read is answered unknown, as a party's read of what they may
+  not see is: the frame and the deployment, which span projects; the
+  settings, which the `settings` family's reads serve (above); a party's
+  proposal; and a read naming another project, or a task of one, though
+  the person may read it from a client. So nothing of the person's other
+  projects reaches the run.
+- **As the person:** a read admitted so is made as `Read`s are for a
+  party (5.3, section 11), the requester its party: their visibility,
+  their pages and bounds, their loads. In place of a sign-in, a stored
+  read's completion checks again the run's current attempt, its
+  requester, the person's role in the project, and that what the row
+  names is of the project, and answers unknown where any has moved, as
+  the run's other stored reads do (above). An application's read goes to
+  its connector as a party's does, with the person and the project's
+  scope, and the connector answers it to the run's call through the root
+  (connectors.md, 5.5).
+- **Answered** to the root as the read's own answer, the document, the
+  page, the turn, or why there is none, busy among them; the application
+  renders it for its run. It marks nothing seen and moves no read
+  position.
 
 **Calls are named, and decided once.** Every call names its task's
 attempt and the run's own name for it. The core commits a call that
@@ -2213,11 +2263,12 @@ section 5).
 
 ## 16. Open questions
 
-- **A run reading as its person** (7.3, section 11): the run's settings
-  proposal read checks its family and its task's project, with no party's
-  visibility. A person's project views need a separate run read under that
-  person's access checks before an application can use them for an explaining
-  chat. The asking family alone supplies no such read.
+- **A person's whole `me` for a run** (7.3): a run's read as its person
+  reads no frame, which spans the person's projects, so an application
+  composes what the person is in the run's project from the project, its
+  inbox filtered by it and its task queries. Default: as it is; a frame
+  narrowed to one project if an application needs the person's pool or
+  offer there and no project read gives it.
 
 - **A run's `later`** (7.3): a run's `delegate` and `amend` name no
   `later`, so only a party's request or a template gives one. A tool member

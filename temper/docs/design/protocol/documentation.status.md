@@ -4,7 +4,6 @@
 
 Section 5 has no known gap in an asking charter reading the same pages
 through `see help`, with `read_docs` absent from that charter's offer.
-The generated `see` reference page remains section 7's deferred work.
 
 Sections 2.2 and 8 have the help and generated reference naming Ask
 temper, template 5 and charter 11, with the seven-charter stock and its

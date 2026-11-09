@@ -28,6 +28,7 @@ pub fn key(now: &Now) -> Option<Key> {
         | Now::TaskRead { .. }
         | Now::ProposalRead { .. }
         | Now::SettingsAnswer { .. }
+        | Now::PersonAnswer { .. }
         | Now::SettledCallRefused { .. }
         | Now::Call { .. }
         | Now::DropCall { .. }
@@ -103,6 +104,7 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         | Now::TaskRead { .. }
         | Now::ProposalRead { .. }
         | Now::SettingsAnswer { .. }
+        | Now::PersonAnswer { .. }
         | Now::SettledCallRefused { .. }
         | Now::Call { .. }
         | Now::DropCall { .. }

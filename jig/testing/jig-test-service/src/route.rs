@@ -234,6 +234,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
             }
         }
         core::Now::Call { to, run, attempt, call } => engine.events.push(engine.tools.decode(to, run, attempt, &call)),
+        value @ core::Now::PersonAnswer { .. } => engine.outputs.push(PartyOutput::Now(value)),
         core::Now::SettingsAnswer { to, key, answer } => {
             if let Some(event) = engine.tools.settings_answer(to, key, &answer) {
                 engine.events.push(event);

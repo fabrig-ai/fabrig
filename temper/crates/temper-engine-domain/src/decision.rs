@@ -835,12 +835,13 @@ fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
             }
             crate::SeeAnswer::Ways(_)
             | crate::SeeAnswer::Settings(_)
+            | crate::SeeAnswer::Person(_)
+            | crate::SeeAnswer::NotRead(_)
             | crate::SeeAnswer::Page { .. }
             | crate::SeeAnswer::Search { .. }
             | crate::SeeAnswer::Landing(_)
             | crate::SeeAnswer::Gates(_)
             | crate::SeeAnswer::Proposal(_)
-            | crate::SeeAnswer::NotYet
             | crate::SeeAnswer::Unknown => true,
         },
         crate::HostDelivery::Render { name, tool, answer, .. } => {

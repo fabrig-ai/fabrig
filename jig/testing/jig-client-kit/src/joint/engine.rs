@@ -241,6 +241,7 @@ pub fn now_event(now: core::Now) -> Option<Event> {
         | core::Now::TaskRead { .. }
         | core::Now::ProposalRead { .. }
         | core::Now::SettingsAnswer { .. }
+        | core::Now::PersonAnswer { .. }
         | core::Now::SettledCallRefused { .. }
         | core::Now::Call { .. }
         | core::Now::DropCall { .. }
