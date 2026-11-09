@@ -1,5 +1,5 @@
 //! The switch and decisions cross both roots (temper/docs/design/client/README.md,
-//! 3.5, Away, and 4.6; temper/docs/design/domain/forge.md, 5.8 and 5.9).
+//! 3.5, Away, 4.6 and 5.13; temper/docs/design/domain/forge.md, 5.8 and 5.9).
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
 use skein_ui::{Role, State};
@@ -319,6 +319,25 @@ impl Story {
             }),
         );
     }
+    fn visit_how(&mut self) {
+        self.event(CLIENT, Temper::went(Address::Settings { project: PROJECT }));
+        let view = self.view();
+        let nodes = Temper::tree(&view).nodes();
+        let (at, heading) = nodes
+            .iter()
+            .enumerate()
+            .find(|(_, node)| {
+                node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"What reaches you")
+            })
+            .expect("What reaches you heading");
+        let project = nodes
+            .iter()
+            .skip(at)
+            .nth(usize::try_from(heading.size).expect("heading subtree size"))
+            .expect("project at the heading's right");
+        assert_eq!(project.role, Role::Text);
+        assert_eq!(project.name.as_deref(), Some(format!("on Project {PROJECT}").as_bytes()));
+    }
     fn view(&self) -> View {
         let mut view = if self.keep_settings {
             let mut words = fixtures::phrasebooks(&self.env.limits);
@@ -331,6 +350,22 @@ impl Story {
         let View::Person(person) = &mut view else { panic!("person view") };
         temper_client_view::build(person, self.probes[CLIENT.0].root.person(), self.env.wall, &mut Queue::uncapped());
         view
+    }
+    fn reaches_lines(&self, group: &[u8]) -> Vec<String> {
+        let view = self.view();
+        let nodes = Temper::tree(&view).nodes();
+        let (at, column) = nodes
+            .iter()
+            .enumerate()
+            .find(|(_, node)| node.role == Role::Group && node.name.as_deref() == Some(group))
+            .unwrap_or_else(|| panic!("column {}", String::from_utf8_lossy(group)));
+        nodes
+            .iter()
+            .skip(at)
+            .take(usize::try_from(column.size).expect("column subtree size"))
+            .filter(|node| node.role == Role::Item || node.role == Role::Paragraph)
+            .map(|node| String::from_utf8(node.name.as_deref().expect("column line words").to_vec()).expect("UTF-8"))
+            .collect()
     }
     fn press(&mut self, role: Role, name: &[u8]) {
         let mut view = self.view();
@@ -751,6 +786,38 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
     story.sees("Reached you because it is an implementation choice, which asks you unless you’re away.".as_bytes());
     story.sees(b"Stop asking");
 
+    story.visit_how();
+    let away_note = "While you’re away, they are decided with the recommended choice and listed.";
+    assert_eq!(
+        story.reaches_lines(b"Asks you"),
+        [
+            "implementation choices a spec leaves open",
+            "a new dependency",
+            "a departure from a landed design",
+            away_note,
+        ]
+    );
+    assert_eq!(
+        story.reaches_lines(b"Agents decide, then tell you"),
+        [
+            "wording and names inside a spec",
+            "retrying or splitting a task",
+            "test-only changes",
+            "Listed in Decided for you for 24 hours, to overturn.",
+        ]
+    );
+    assert_eq!(
+        story.reaches_lines(b"Always waits for you"),
+        [
+            "money past a budget",
+            "what can’t be undone: rewriting history, a force-push, deleting unlanded work",
+            "changes to this page",
+            "anything an agent can’t place",
+            "Away or not.",
+        ]
+    );
+    story.needs();
+
     story.press(Role::Button, b"Away");
     assert!(story.probes[CLIENT.0].root.person().away_on(PROJECT, story.env.wall));
     story.after(Duration::from_nanos(1));
@@ -808,6 +875,19 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
     let Value::Classes(classes) = &value.value else { panic!("classes value: {value:?}") };
     assert_eq!(classes.class_of(Subject::Kind(Kind::Implementation)), Class::Decide);
     story.sees(b"Applied: the next one is decided and listed. This one still waits for you.");
+    story.visit_how();
+    assert_eq!(
+        story.reaches_lines(b"Agents decide, then tell you"),
+        [
+            "wording and names inside a spec",
+            "retrying or splitting a task",
+            "implementation choices a spec leaves open",
+            "test-only changes",
+            "Listed in Decided for you for 24 hours, to overturn.",
+        ]
+    );
+    assert_eq!(story.reaches_lines(b"Asks you"), ["a new dependency", "a departure from a landed design", away_note]);
+    story.needs();
     story.sees(b"Which local implementation?");
     story.sees(b"Use Small");
     assert_eq!(story.decisions(), rows, "Apply leaves the asked rows waiting");
