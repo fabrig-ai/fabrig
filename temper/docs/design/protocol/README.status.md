@@ -40,11 +40,6 @@ incident's unexplained 503 (`../domain/root.md`, section 13).
 Section 4.5's worker binary and its two crates are M3's, under way
 (`../draft/deployment-binaries.execution.md`, 1).
 
-- **Not yet:** 4.1 and 5: the worker's half of a start and
-  `program-login` are the box's (`crates/temper/src/worker_half.rs`,
-  `worker_alone.rs`, `agent.rs`, `program_login.rs`), reading the agent's
-  document through smith's agent shell; there is no
-  `temper-worker-shell`.
 - **Not yet:** 4.5: there is no `temper-worker` binary.
 - **Not yet:** 15.6: the process tier has no story on the deployment's
   binaries.

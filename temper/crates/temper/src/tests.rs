@@ -253,20 +253,6 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
 }
 
 #[test]
-fn a_programs_owner_refusal_identifies_the_directory_ownership_conflict() {
-    use smith_agent_shell::program::{Refusal, Unsafe};
-    let other = skein_shell::effective_user().wrapping_add(1);
-    let why = super::agent::program_directory_refusal(&Refusal::Unsafe {
-        path: "/programs".into(),
-        found: Unsafe::Owner { found: other },
-    });
-    assert_eq!(
-        why,
-        format!("workers[0].agent.configuration: programs.claude_code.directory: /programs: owned by user {other}")
-    );
-}
-
-#[test]
 fn program_login_refuses_arguments_outside_the_required_source_name() {
     for arguments in [
         vec!["program-login"],
@@ -436,21 +422,6 @@ fn box_echo_resolves_its_default_variable_and_flag_without_consuming_other_argum
             .collect::<Vec<_>>();
         assert!(super::configure_with(&words, &[], b"/").is_err(), "leftover flags stay refused");
     }
-}
-
-#[test]
-fn the_dump_directory_is_set_by_a_value_and_made_absolute() {
-    use std::{ffi::OsString, path::PathBuf};
-    let working = std::env::current_dir().expect("test working directory");
-    for (row, value, expected) in [
-        ("absent", None, None),
-        ("empty", Some(OsString::new()), None),
-        ("relative", Some(OsString::from("request-dumps")), Some(working.join("request-dumps"))),
-        ("absolute", Some(OsString::from("/request-dumps")), Some(PathBuf::from("/request-dumps"))),
-    ] {
-        assert_eq!(super::dump_directory(value), expected, "{row}");
-    }
-    assert_eq!(super::DUMP_BOUND, 4_294_967_296);
 }
 
 // temper/docs/design/protocol/setup.md, 6.6.
