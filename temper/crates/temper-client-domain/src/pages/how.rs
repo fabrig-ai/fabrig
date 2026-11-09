@@ -1,6 +1,10 @@
-//! How work runs' parts (temper/docs/design/client/README.md, 5.13).
+//! How work runs' parts and What reaches you's columns
+//! (temper/docs/design/client/README.md, 5.13, *Its parts* and *What reaches you*).
+use alloc::boxed::Box;
 use jig_client::contract as c;
+use skein_lib::List;
 use temper_client_protocol_wire::v1 as w;
+use temper_protocol_reaches::{Class, Classes, Kind, Subject};
 
 /// The project's `ways` read, as the page sees it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -14,6 +18,7 @@ pub enum Read {
 }
 
 /// What How work runs' parts are decided from.
+#[expect(clippy::struct_excessive_bools, reason = "the page gathers independent facts for its parts")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Facts {
     /// `me` lists Ask temper's template in the project.
@@ -25,6 +30,10 @@ pub struct Facts {
     pub roles: bool,
     /// The default goal template's budget, none with no template or kind 7 unread.
     pub budget: Option<c::TemplateBudget>,
+    /// Kind 8 read for the project: `root.forge().classes(project)` answers.
+    pub classes: bool,
+    /// `me` lists two projects or more.
+    pub several: bool,
 }
 
 /// The heading's way.
@@ -51,6 +60,7 @@ pub enum Budget {
 }
 
 /// What How work runs draws (README.md, 5.13, *Its parts*).
+#[expect(clippy::struct_excessive_bools, reason = "each independent part has its own visibility rule")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Parts {
     pub head: Head,
@@ -60,6 +70,10 @@ pub struct Parts {
     pub roles: bool,
     /// A goal's amount or cap, while Goals is shown.
     pub budget: Option<Budget>,
+    /// What reaches you draws its columns: `facts.classes`.
+    pub reaches: bool,
+    /// Its head says "each project has its own": `facts.several`.
+    pub several: bool,
 }
 
 #[must_use]
@@ -79,10 +93,10 @@ pub fn parts(facts: &Facts) -> Parts {
     } else {
         None
     };
-    Parts { head, ask: facts.asking, path, roles: facts.roles, budget }
+    Parts { head, ask: facts.asking, path, roles: facts.roles, budget, reaches: facts.classes, several: facts.several }
 }
 
-/// Gather from `me`, the forge's kind 7, ways and roles held for the address.
+/// Gather from `me`, the forge's kinds 7 and 8, ways and roles held for the address.
 #[must_use]
 pub fn facts(root: &crate::Domain, project: u32) -> Facts {
     use crate::{Address, forge::stock_ways::State};
@@ -133,5 +147,104 @@ pub fn facts(root: &crate::Domain, project: u32) -> Facts {
     } else {
         false
     };
-    Facts { asking, read, goals, roles, budget }
+    let classes = root.forge().classes(project).is_some();
+    let several = match me {
+        Some(me) => me.projects.len() >= 2,
+        None => false,
+    };
+    Facts { asking, read, goals, roles, budget, classes, several }
+}
+
+/// A subject's line in one of What reaches you's columns.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Line {
+    pub subject: Subject,
+    /// The item's place in the table, from 1; 0 for a subject with no item
+    /// of its own: a movable kind or a set with none, and every fixed kind.
+    pub item: u8,
+    /// The line's class: its item's, `AskAway` with no item, `Wait` for a fixed kind.
+    pub class: Class,
+}
+
+/// What reaches you's three columns (README.md, 5.13, *What reaches you*).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Reaches {
+    /// "Agents decide, then tell you": the lines at `Decide`, in the settings order.
+    pub decide: Box<[Line]>,
+    /// "Asks you": the lines at `AskAway`, then those at `Ask`, each in the settings order.
+    pub ask: Box<[Line]>,
+    /// "Always waits for you": the fixed kinds in `Kind::ALL`'s order, item 0, `Wait`.
+    pub wait: Box<[Line]>,
+}
+
+#[must_use]
+pub fn reaches(classes: &Classes) -> Reaches {
+    let mut decide = List::uncapped();
+    let mut ask = List::uncapped();
+    let mut wait = List::uncapped();
+    settings_lines(classes, Class::Decide, &mut decide);
+    settings_lines(classes, Class::AskAway, &mut ask);
+    settings_lines(classes, Class::Ask, &mut ask);
+    for kind in Kind::ALL {
+        if kind.fixed() {
+            wait.push(Line { subject: Subject::Kind(kind), item: 0, class: Class::Wait }).expect("fixed kinds fit");
+        }
+    }
+    Reaches { decide: decide.into_boxed(), ask: ask.into_boxed(), wait: wait.into_boxed() }
+}
+
+fn settings_lines(classes: &Classes, class: Class, lines: &mut List<Line>) {
+    for kind in Kind::ALL {
+        if kind.fixed() {
+            continue;
+        }
+        let subject = Subject::Kind(kind);
+        let mut own = None;
+        for (index, item) in classes.items.iter().enumerate() {
+            if item.subject == subject && item.words.is_empty() {
+                own = Some((index, item));
+                break;
+            }
+        }
+        match own {
+            Some((index, item)) => {
+                if item.class == class {
+                    item_line(lines, subject, index, class);
+                }
+            }
+            None => {
+                if class == Class::AskAway {
+                    lines.push(Line { subject, item: 0, class }).expect("settings lines grow");
+                }
+            }
+        }
+    }
+    for (index, item) in classes.items.iter().enumerate() {
+        let shown = match item.subject {
+            Subject::Kind(kind) => !kind.fixed() && !item.words.is_empty(),
+            Subject::Set(number) => classes.set(number).is_some(),
+        };
+        if shown && item.class == class {
+            item_line(lines, item.subject, index, class);
+        }
+    }
+    for set in &classes.sets {
+        let subject = Subject::Set(set.number);
+        let mut own = false;
+        for item in &classes.items {
+            if item.subject == subject && item.words.is_empty() {
+                own = true;
+                break;
+            }
+        }
+        if !own && class == Class::AskAway {
+            lines.push(Line { subject, item: 0, class }).expect("settings lines grow");
+        }
+    }
+}
+
+fn item_line(lines: &mut List<Line>, subject: Subject, index: usize, class: Class) {
+    if let Ok(item) = u8::try_from(index.saturating_add(1)) {
+        lines.push(Line { subject, item, class }).expect("settings lines grow");
+    }
 }

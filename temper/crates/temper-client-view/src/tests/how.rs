@@ -425,18 +425,14 @@ fn parts_draw_the_current_way_and_the_shown_path() {
                 .filter(|n| n.role == Role::Heading { level: 2 })
                 .map(|n| n.name.as_deref().unwrap())
                 .collect();
-            let mut expected = vec![b"The path of a change".as_slice()];
+            let mut expected = vec![b"The path of a change".as_slice(), b"What reaches you"];
             if case.roles == Some(true) {
                 expected.push(b"Roles");
             }
             if case.figure.is_some() {
                 expected.push(b"Budgets");
             }
-            expected.extend([
-                "What needs you".as_bytes(),
-                "While you’re away, agents may decide".as_bytes(),
-                b"What the project shows",
-            ]);
+            expected.push(b"What the project shows");
             if case.goals {
                 expected.push(b"Ways of working");
             }
