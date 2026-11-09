@@ -34,7 +34,7 @@ pub fn limits() -> Limits {
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
                 heartbeat: Duration::from_millis(100),
-                reads: 8,
+                reads: 9, // The rail's project people read and eight page reads.
                 parts: 8,
                 delegates: 2,
                 document_bytes: 65536,

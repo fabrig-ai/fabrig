@@ -78,6 +78,7 @@ pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -
                     | Address::Goals { .. }
                     | Address::Home { .. }
                     | Address::Changes { .. }
+                    | Address::Team { .. }
                     | Address::Settings { .. }
                     | Address::Models { .. }
                     | Address::Builders { .. }

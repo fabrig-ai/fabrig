@@ -174,6 +174,7 @@ fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out
         }
         Address::Home { .. }
         | Address::Inbox { .. }
+        | Address::Team { .. }
         | Address::NewChat { .. }
         | Address::Chats { .. }
         | Address::Accounts

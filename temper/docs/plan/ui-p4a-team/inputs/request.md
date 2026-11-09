@@ -1,18 +1,33 @@
-# ui-away-all: Away on All projects
+# ui-p4a-team: Team, its people, what waits on each, and the triager
 
-A follow-up to P1 and P2 of `temper/docs/design/draft/whole-story.execution.md`, from the mockups' audit of 2026-11-08, on the user's word. `temper/docs/design/draft/surfaces.md` 2 says: on All projects, Away sets every project the person is in, and reads "Away on 2 of 4" while the projects differ. P1 and P2 have landed without it: Away on main is per project only (`temper-client-domain`'s `pages/away.rs`, and the `AwayOn` and `AwayOff` toasts).
+Milestone P4a of `temper/docs/design/draft/whole-story.execution.md`: `temper/docs/design/draft/surfaces.md`, section 6, for its people, what waits on each, and the project's triager. The user's go of 2026-11-08, cut into steps by laptop/web. It's step 1, "the new shape, on today's engine". Its look is the mockups on main, `temper/docs/design/client/web/whole-story/team.html`, `team/`, and their `README.md`. Nothing in the drafts is reopened.
 
-## One task
+## What it executes
 
-- Away on All projects sets Away on every project the person is in, through the existing per-project act, one decision each.
-- While the projects differ, it reads "Away on N of M", with N and M from the person's projects as the root holds them. When all agree, it reads as a single project's Away does.
-- Its toast names how many projects changed.
-- Rows of the existing Away table tests, in the domain's tests and the gallery's All projects states.
+- **The rule of every milestone** (the execution's section 2): draw what the engine holds when it lands, and no more. A role's card (P4b) and areas and owners (P4c) wait for standing roles, so leave them out, with no empty section, no placeholder and no made-up value.
+- **The design first:** `client/README.md`'s Team, `client/browser.md` where the browser differs, and the greenfield mock's README.
+- **Then the build:** Team as `team.html` draws it, for its people, from the project's roles and people as the engine holds them; what waits on each person; and the project's triager.
+
+The rail is `ui-p1-rail`'s, running beside this. Keep off its files, and meet it at Team's row in the rail.
+
+## Its tests
+
+Focused and fuzzy only, as the execution's P1 to P6 entry says:
+- the gallery's states at a laptop's and a phone's width, day and night;
+- the client's joint world for Team with two people;
+- a fuzz test of its parts against `surfaces.md` section 12's rules.
+
+New journeys and the walk come after landing.
+
+## Who hears first
+
+`plan.md` names every change to `temper-client-domain` for the TUI's owner, and every change to `temper-engine-domain` or `forge_route.rs` for the owner of coding runs.
 
 ## Sources
 
 - `temper/docs/design/draft/surfaces.md`
-- `temper/crates/temper-client-domain/src/pages/away.rs`
+- `temper/docs/design/draft/whole-story.execution.md`
+- `temper/docs/design/client/web/whole-story/README.md`
 
 
 ## For every task of this plan

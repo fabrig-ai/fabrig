@@ -165,6 +165,7 @@ fn reads(root: &Domain) -> Option<&AllHome> {
         crate::Address::AllHome => root.pages.all_home.as_ref(),
         crate::Address::Inbox { .. } => root.pages.needs_decided.as_ref(),
         crate::Address::Home { .. }
+        | crate::Address::Team { .. }
         | crate::Address::Ask { .. }
         | crate::Address::NewChat { .. }
         | crate::Address::Chats { .. }

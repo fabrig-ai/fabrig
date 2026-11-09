@@ -33,6 +33,7 @@ pub(crate) mod settings;
 mod sign_in_wait;
 pub(crate) mod start_goal;
 pub(crate) mod task;
+pub(crate) mod team;
 pub(crate) mod terminal;
 pub(crate) mod ways;
 pub(crate) mod welcome;
