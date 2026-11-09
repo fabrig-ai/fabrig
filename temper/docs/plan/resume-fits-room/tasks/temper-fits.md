@@ -101,3 +101,16 @@ As the implementer's text has it, and: each row's outcome per profile,
 with its calls, how many whole, and its frame's bytes against the room;
 each row corrected and its numbers; the break and the failure seen;
 the neighbour lines edited.
+
+## Answers
+
+2026-11-09. *Run 2 found the base lacks worker-link-quiet's `link_room.rs`;
+what now?* The premise check did what it is for, and nothing changes: the
+goal, the steps and the acceptance stand. This trunk took worker-link-quiet's
+trunk at 17:15Z (`99ed26108e`); `temper-room`'s `link_room.rs` reached that
+trunk only at 17:33Z (`85e9293560`), so this trunk does not hold it yet. Run
+temper-fits again once this trunk holds it, whichever comes first: a merge of
+`origin/worker-link-quiet/integration` at or after `85e9293560` into this
+trunk, or worker-link-quiet landing and this trunk catching up with main.
+Change nothing before then: do not take `link_room.rs` from temper-room's
+branch or that plan's trunk, nor write the story afresh.
