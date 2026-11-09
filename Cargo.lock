@@ -4058,6 +4058,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-agent-document"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+ "skein-shell",
+ "smith-protocol-program",
+]
+
+[[package]]
 name = "smith-agent-process-world"
 version = "0.0.0"
 dependencies = [
@@ -4101,6 +4110,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-agent-profile"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-channel",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-connection",
+ "skein-tls",
+ "smith-channel",
+ "smith-charter",
+ "smith-domain",
+ "smith-events",
+ "smith-host-domain",
+ "smith-protocol-channel",
+ "smith-protocol-events",
+ "smith-protocol-llm",
+ "smith-protocol-machine",
+ "smith-protocol-program",
+ "smith-protocol-translate",
+ "smith-transcript",
+]
+
+[[package]]
 name = "smith-agent-service"
 version = "0.0.0"
 dependencies = [
@@ -4113,6 +4148,7 @@ dependencies = [
  "skein-llm",
  "skein-llm-connection",
  "skein-tls",
+ "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-world",
  "smith-channel",
@@ -4143,6 +4179,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-tls",
+ "smith-agent-document",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-channel",
@@ -4500,6 +4537,7 @@ dependencies = [
  "skein-tls-kit",
  "skein-world",
  "smith-agent-process-world",
+ "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-world",
  "smith-channel",

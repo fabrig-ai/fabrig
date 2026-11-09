@@ -1,0 +1,7 @@
+//! The agent's document helpers keep no state and never know the agent's run.
+//! `program` checks a program's directories and prepares its terminal sign-in.
+//! Contract: smith/docs/design/shell.md, sections 2.1 and 2.6;
+//! smith/docs/design/protocol/programs.md, sections 4.1 and 4.2.
+
+#[cfg(unix)]
+pub mod program;

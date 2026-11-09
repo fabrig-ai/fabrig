@@ -133,7 +133,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     charter.change_rule_fields = policy.fields;
     let transcript = transcript(&domain, &client)?;
     let operations = io::operations(&io).ok_or(derived(Layer::Service, "routes"))?;
-    let routes = operations.checked_add(crate::service::ROUTE_HEADROOM).ok_or(derived(Layer::Service, "routes"))?;
+    let routes = operations.checked_add(crate::ROUTE_HEADROOM).ok_or(derived(Layer::Service, "routes"))?;
     let limits = service::Limits {
         domain,
         channel: channel_limits(&domain, &policy, bodies, charter, transcript, &io)?,

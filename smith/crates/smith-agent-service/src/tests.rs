@@ -669,3 +669,91 @@ fn assert_stream_record(seen: &smith_events::Record, literal: &[u8]) {
     let expected = smith_events::read(literal, &limits).unwrap().unwrap();
     assert_eq!(*seen, expected);
 }
+
+fn window_declarations() -> crate::profile::Configuration {
+    use crate::profile::{Configuration, Endpoint, Limits as DeclaredLimits, OversizedReasoning};
+    use skein_lib::Duration;
+    Configuration {
+        role_bound: None,
+        environment_bytes: 0,
+        endpoints: Box::new([Endpoint {
+            number: 7,
+            provider: skein_llm::Provider::OpenAi,
+            option_bytes: 0,
+            connect: Duration::from_secs(2),
+            handshake: Duration::from_secs(3),
+            limits: DeclaredLimits {
+                window: 65_536,
+                output: 512,
+                reasoning_item: 2048,
+                oversized_reasoning: OversizedReasoning::Fail,
+                head: Duration::from_secs(5),
+                idle: Duration::from_secs(11),
+            },
+        }]),
+    }
+}
+
+#[test]
+fn a_small_window_lowers_the_guide_bound_and_admits_the_run() {
+    use crate::profile::standard;
+    use skein_lib::Token;
+    use smith_domain::run;
+    let mut selected = standard();
+    selected.declared.calls_per_response = 1;
+    selected.declared.tool_payload = 8192;
+    selected.declared.read_window = 8192;
+    let mut configuration = window_declarations();
+    configuration.endpoints[0].limits.output = 8192;
+    let limits = crate::profile::derive(&selected, &configuration).expect("small-window profile").domain.run;
+    assert!(u64::from(limits.guide_bytes) <= limits.host_part);
+    assert!(limits.guide_bytes < selected.declared.guide);
+    let settings =
+        smith_agent_world::Settings { job: smith_agent_world::Job::Reporting, ..smith_agent_world::Settings::calm(0) };
+    let mut charter = smith_agent_world::scripted_charter(&settings);
+    charter.llm.output = 8192;
+    charter.models = Box::default();
+    let workspace = run::Workspace {
+        directories: Box::new([run::Directory {
+            name: b"work".as_slice().into(),
+            host: b"/workspace".as_slice().into(),
+            root: Token::new(1),
+            writable: true,
+            git: false,
+            conflicts: Box::default(),
+        }]),
+    };
+    let mut out = start_with_workspace(charter, workspace, &limits);
+    let Some(run::Request::Admitted { .. }) = out.pop() else { panic!("charter admitted") };
+    let Some(run::Request::Read { max, .. }) = out.pop() else { panic!("guide read") };
+    assert!(max <= limits.guide_bytes);
+}
+
+fn start_with_workspace(
+    charter: smith_domain::run::Charter,
+    workspace: smith_domain::run::Workspace,
+    limits: &smith_domain::run::Limits,
+) -> skein_lib::Queue<smith_domain::run::Request> {
+    use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+    use smith_domain::run;
+    let mut domain = run::Domain::new(limits, 0);
+    let mut out = Queue::uncapped();
+    run::step(
+        &mut domain,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+        run::Event::Start {
+            messages: Box::default(),
+            reply_to: ReplyTo::new(Token::new(1)),
+            host_run: Token::new(1),
+            identity: None,
+            activation: 1,
+            window: run::Window { turns: u32::MAX, bytes: u64::MAX, largest_turn: 1 },
+            charter,
+            workspace: Some(workspace),
+            transcript: None,
+            resumed: false,
+        },
+        &mut out,
+    );
+    out
+}
