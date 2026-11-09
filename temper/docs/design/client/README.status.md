@@ -90,8 +90,7 @@ in the rail after Work and as Ask in the phone tabs, returning to the
 newest open Ask temper chat. Template 5 starts its chat; without it no
 chat starts. Section 5.13 offers no configuring chat, and How work runs
 reaches Ask temper by "Ask temper to change this" alone. The
-post-landing walk, M3b's views and preferences remain section 11's
-work.
+post-landing walk and M3b's views remain section 11's work.
 
 - **Not yet:** 3.5, *Tell temper*, whole: no `Tell` address, no region at
   Needs you's foot, no link under Ask temper's composer. The engine files
@@ -200,6 +199,57 @@ and `tests/views.rs`, the fuzzy suite's
 `ask-ways-*` and `how` to `night-how` hold them. Their render check and
 the page's walk remain section 11's after-landing work.
 
+Section 5.17, with 3.5's `Remembered` row and *Sign out* row and 5.3's
+person's menu, is present by plan `ui-ask-m4` but for the gaps below:
+`Address::Remembered` at `/remembered`, of no project, in Deployment's
+column under its own heading and lede; `pages::remembered` reads the
+person's party scope by jig's `Notes` read, page after page, on entering
+and after each act's answer, with no watch; a row a line, with the chat
+that kept it, or "Changed by you", and its day; "Change" opening the
+row's field alone, "Save" sending `EditNote` with the trimmed line, an
+empty body, the references and the revision as read, and nothing for an
+empty field, "Cancel" and Escape closing it with the focus back on
+"Change", and "Delete" sending `DeleteNote` at once; a moved refusal's
+line, the page reading again; the quiet band with none kept and the full
+list's line; the person's menu's three items, and the `Accounts` tab's
+last row's link at 760 px and under; its rules under `temper.css`'s
+`settings` marker, a row's acts under its line and 44 px tall at 760 px
+and under; and the TUI's fallback to its launchpad.
+`temper-client-domain`'s `remembered_requests_and_answers`,
+`temper-client-view`'s `remembered_draws_only_answered_rows_and_their_acts`
+and `the_persons_menu_keeps_accounts_remembered_and_sign_out_ordered`,
+the client world's `the_page_reads_and_deletes_what_ask_temper_kept`
+and the gallery's `remembered-*` and `night-remembered-*` states hold
+it. Its render check, its prints read at a laptop's width and a
+phone's, and its walk follow landing (section 11).
+
+- **Not yet:** 5.17, *Its read*: a read after an act's answer drops
+  what the page knew. `pages::remembered`'s `refresh` marks the page
+  unanswered, and the view draws no row until the read answers
+  (`temper-client-view`'s `pages/remembered.rs`, `main`), so each
+  "Save" or "Delete" empties the column, a refusal's line with it, for
+  the read's time, and a refused read leaves the heading and the lede
+  alone, where 3.5 and 5.17 keep what the page last knew. The view's
+  test expects no row there.
+
+- **Not yet:** 5.17, *A refusal* and *Full*: the bounds are the
+  client's constants, not jig's. jig answers a party's correction past
+  `notes.party_bytes` as an admission limit on words, naming no bound
+  (`jig/docs/design/client/domain/contract.status.md`, 6), so the page
+  says "A line is at most 120 bytes." from `refusal_for`'s 120, and says
+  it of a correction past jig's other word bounds too; no client document
+  carries `notes.party_entries`, so the view's `PARTY_ENTRIES`, 12, draws
+  the full list's line, which a deployment with another bound never shows
+  at its own. The view's refusal row gives a `Limit::Words` with its
+  bound, which no engine path answers, and no view test draws another
+  refusal in jig's words.
+
+- **Not yet:** 5.17, *With none kept*: the band sets its tag beside its
+  sentence, as two children of the band's wrapping row, where
+  Repositories' (`settings::quiet_band`) puts the tag in the sentence's
+  paragraph, over it; found by reading the stylesheet, its render check
+  following landing.
+
 - **Departs:** 5.13: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui.md`, *A disclosure*); the
@@ -244,7 +294,7 @@ addresses holding the goals', changes' and chats' reads open together;
 draw the rail and the tab bar from: "Work", the hairline, "How work runs",
 the new box's menu of Draft, Change and Ask temper or "+ New change"
 alone, "Deployment" at the foot with the forges' and accounts' dots, and
-the person's menu with the place of "What temper remembers about you";
+the person's menu;
 the switcher's "All projects", "How work runs for PROJECT" and
 "Deployment", and `rail::across`; `pages::work::place`, `facts`, `shown`
 and `overrides`, Work's head, filters, sections and cards, with Goals'

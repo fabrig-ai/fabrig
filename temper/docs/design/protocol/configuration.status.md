@@ -83,7 +83,7 @@ fills the box's sixteen places. The stock
 floor measures resolved charters with their parts and catalogue models;
 charter 5 needs 13,123 bytes at init's catalogue. The standard brief is
 353,072 bytes, the owner's approved allowance for that charter's room.
-`ask.txt` omits Remembering and all of Showing but its first step. The
+`ask.txt` carries Remembering and, of Showing, its first step alone. The
 stock first-request check holds 16,384 bytes on both request shapes.
 Existing project policies remain copies and require an owner's accepted
 proposal to gain the new delegation, but for Draft first's "Use this"
