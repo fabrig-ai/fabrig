@@ -119,7 +119,7 @@ pub fn page_turn(
                     let projection = match supplied {
                         reads::PageTurn::Withheld(_) => Some(private),
                         reads::PageTurn::Carried(_) => None,
-                        reads::PageTurn::TooLarge { .. } | reads::PageTurn::Unread => unreachable!("carried branch"),
+                        reads::PageTurn::TooLarge { .. } | reads::PageTurn::Unread => unreachable!("carried turn"),
                     };
                     Some(archive(record, projection, limits)?)
                 }
