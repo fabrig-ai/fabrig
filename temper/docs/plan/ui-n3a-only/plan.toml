@@ -1,0 +1,5 @@
+draft = "ui-n3a-only"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-n3a-only/inputs/request.md", "temper/docs/design/draft/what-reaches-you.md", "temper/docs/design/draft/whole-story.execution.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
