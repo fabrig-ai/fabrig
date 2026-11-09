@@ -435,12 +435,13 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
     own branch is there only where its goal holds one, and a run branch
     from its first push."
   - `read_branches`, `TooLarge`, first line `Forge read failed: too
-    large`: "The names under this prefix pass forge.client.answer_bytes
-    (N bytes), the one bound a branch list has: name a longer prefix,
-    as temper/goal/ in place of temper/, or read one branch by its name
-    with read_branch." N is the configured figure, read where the tool
-    reads its limits; no row bound is named, since none applies to
-    branch names (skein's `forge.md`, 3.7).
+    large`: "The names under this prefix pass forge.client.answer_bytes,
+    the one bound a branch list has: name a longer prefix, as
+    temper/goal/ in place of temper/, or read one branch by its name
+    with read_branch." No row bound is named, since none applies to
+    branch names (skein's `forge.md`, 3.7). The tool's description says
+    the same in its words: the names fit forge.client.answer_bytes, and
+    a longer prefix reads fewer.
 
   Every other tool's `Missing` and `Empty` keep their one line. The
   refusal stays marked an error and is cut to fit the host answer's
