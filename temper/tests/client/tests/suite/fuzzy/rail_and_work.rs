@@ -65,9 +65,22 @@ fn rail_oracle(facts: &rail::Facts) -> rail::Parts {
     parts
 }
 
+// Read the phone's navigation table directly from its facts, without the rail oracle.
+fn tabs_oracle(facts: &rail::Facts) -> rail::Tabs {
+    rail::Tabs {
+        needs: !facts.beginning,
+        count: facts.needs,
+        cut: facts.needs_cut,
+        work: !facts.beginning,
+        ask: facts.asking,
+        deployment: facts.beginning,
+    }
+}
+
 fn check_rail(facts: &rail::Facts, seed: u64) -> rail::Parts {
     let parts = rail::parts(facts);
     assert_eq!(parts, rail_oracle(facts), "seed {seed}: rail facts {facts:?}");
+    assert_eq!(rail::tabs(&parts), tabs_oracle(facts), "seed {seed}: phone tabs for rail facts {facts:?}");
     parts
 }
 
@@ -321,6 +334,7 @@ fn sweep(seed: u64) {
         (new.needs_you, new.work, new.how, new.ask, new.all_projects, new.team),
         "seed {seed}: a settings move preserves the rail's independent entries"
     );
+    assert_eq!(rail::tabs(old), rail::tabs(new), "seed {seed}: a settings move preserves the phone's tabs");
     assert_eq!(work::place(&facts, now), before, "seed {seed}: settings never hide a live item under All");
     assert_eq!(facts, saved, "seed {seed}: placement preserves its facts");
 }

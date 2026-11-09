@@ -64,28 +64,9 @@ pub(crate) fn main(
         ask::text(b, Role::Paragraph, &w.say(Word::NeedsDone, &[]), look::HOME_LEDE);
         b.close();
         ask::answered_lines(b, root, &lines, w, bindings);
-        let project = home_project(
-            root,
-            match inbox {
-                Some(inbox) => inbox.filter.project,
-                None => None,
-            },
-        );
-        if let Some(project) = project {
+        if let Some(address) = home_address(root) {
             b.open(Role::Paragraph);
-            crate::link(
-                b,
-                &w.say(Word::RailHome, &[]),
-                bindings.insert(Act::Go {
-                    address: if let Some(me) = root.pages().me(root.client())
-                        && me.projects.len() >= 2
-                    {
-                        Address::AllHome
-                    } else {
-                        Address::Home { project }
-                    },
-                }),
-            );
+            crate::link(b, &w.say(Word::RailHome, &[]), bindings.insert(Act::Go { address }));
             b.style(look::NEEDS_HOME);
             b.text(Run::Plain, &w.say(Word::RailHome, &[]));
             b.close();
@@ -112,12 +93,24 @@ pub(crate) fn decided(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
         super::decided::main(b, root, w, bindings, project, &shown, times);
     }
 }
-
-fn home_project(root: &Domain, filter: Option<u32>) -> Option<u32> {
-    if let Some(project) = filter.or(root.pages().project()) {
-        return Some(project);
-    }
-    Some(root.pages().me(root.client())?.projects.get(0)?.project)
+fn home_address(root: &Domain) -> Option<Address> {
+    let filter = match root.pages().inbox() {
+        Some(inbox) => inbox.filter.project,
+        None => None,
+    };
+    let project = match filter.or(root.pages().project()) {
+        Some(project) => project,
+        None => root.pages().me(root.client())?.projects.get(0)?.project,
+    };
+    Some(
+        if let Some(me) = root.pages().me(root.client())
+            && me.projects.len() >= 2
+        {
+            Address::AllHome
+        } else {
+            Address::Home { project }
+        },
+    )
 }
 
 #[expect(clippy::too_many_arguments, reason = "the flow passes the view's row bound to its card facts")]
@@ -148,23 +141,14 @@ fn flow(
             Hole::Number(u64::try_from(total).expect("bounded count")),
         ],
     );
-    intro(b, root, w, open.len(), times.now);
     b.open(Role::Slot);
-    b.style(look::FLOW_HEAD);
-    b.open(Role::Figure);
-    b.style(look::DOTS);
-    b.name(&head);
-    for i in 0..total {
-        b.open(Role::Text);
-        b.style(look::DOT);
-        if i < lines.len() {
-            b.style(look::DOT_DONE);
-        }
-        b.close();
+    b.style(look::NEEDS_BAR);
+    if let Some(address) = home_address(root) {
+        ask::link(b, bindings, &w.say(Word::NeedsYou, &[]), address);
     }
+    ask::text(b, Role::Text, &head, look::NEEDS_BAR_AT);
     b.close();
-    ask::text(b, Role::Paragraph, &head, look::HOME_KICKER);
-    b.close();
+    intro(b, root, w, open.len(), times.now);
     b.open(Role::Slot);
     b.style(look::NEEDS_HEAD);
     let cut = *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0;
@@ -198,24 +182,6 @@ fn flow(
             b.close();
         }
     }
-    let mut next = None;
-    for other in &open {
-        if other.object() != need.object() {
-            next = Some(match other {
-                needs::Need::Card(card) => {
-                    let asked = ask::read(card, w);
-                    (asked.title, asked.short)
-                }
-                needs::Need::Approval(row) => (row.title.clone(), super::approval::question(row, w)),
-            });
-            break;
-        }
-    }
-    let next = match next {
-        Some(next) => w.say(Word::NeedsNext, &[Hole::Name(next.0), Hole::Name(next.1)]),
-        None => w.say(Word::NeedsLast, &[]),
-    };
-    ask::text(b, Role::Paragraph, &next, look::NEXT_UP);
     if !lines.is_empty() {
         b.open(Role::Slot);
         b.style(look::ANSWERED_SECTION);
