@@ -323,3 +323,71 @@ fn a_start_past_the_room_is_answered_and_the_link_lives() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+// The resumed start keeps every call across the engine's stream's room
+// (jig/docs/design/protocol/channel.md, 9, 11 and 12).
+#[test]
+fn a_resumed_start_fits_the_room() {
+    use jig_domain_host as host;
+    use jig_protocol_worker_wire as wire;
+    // Five 256-byte answers pass this room; two whole answers and three
+    // 67-byte cut bodies fit beside the fixture's other assignment fields.
+    const ROOM: u32 = 1100;
+    const ANSWER: usize = 256;
+    let limits = jig_protocol_engine_workers::Limits {
+        sizes: wire::sizes::Sizes { answered: 5, answer: 256, ..fixtures::SIZES },
+        room: ROOM,
+        ..fixtures::LIMITS
+    };
+    for (calls, whole) in [(3, 3), (5, 2)] {
+        let codec = wire::sizes::limits(&limits.sizes).expect("row codec");
+        let schema = wire::schema(&codec).expect("row schema");
+        let mut peer = fixtures::peer(schema, wire::VERSION, WORKER_A, SECRET_A, fixtures::PAYLOAD);
+        peer.play(fixtures::hello_frame());
+        let mut world = World::new(&limits, &fixtures::workers(), 1);
+        let connection = world.connect(peer);
+        world.cap_write_room(connection, ROOM);
+        world.run();
+        let Request::Hello { channel, .. } = world.root()[0] else { panic!("hello") };
+        let mut assignment = fixtures::assignment();
+        assignment.answered = (0..calls).map(|index| host::AnsweredCall {
+            name: vec![index].into(),
+            tool: b"read".as_slice().into(),
+            answer: host::SettledAnswer::Host { error: true, body: vec![index; ANSWER].into() },
+        }).collect();
+        world.down(Event::Down { channel, down: host::LinkDown::Assign { assignment }, parts: fixtures::parts(), values: fixtures::values() });
+        world.run();
+        let frames: Vec<_> = world.observed(connection).iter().filter(|r| r.kind == wire::Kind::Assignment.number()).collect();
+        assert_eq!(frames.len(), 1, "{calls} committed calls: {:?}", world.root());
+        let frame = frames[0];
+        assert!(frame.body.len() + 8 <= usize::try_from(ROOM).expect("small room"));
+        let mut reader = skein_lib::Reader::new(&frame.body);
+        let record = wire::Assignment::decode(&codec, &mut reader).expect("assignment");
+        assert_eq!(record.answered().len(), u32::from(calls));
+        for (index, call) in record.answered().iter().enumerate() {
+            let index = u8::try_from(index).expect("small call count");
+            assert_eq!(call.name(), &[index]);
+            assert_eq!(call.tool(), b"read");
+            let wire::SettledAnswer::Host(answer) = call.answer() else { panic!("host answer") };
+            assert!(answer.error());
+            let expected = if index < calls - whole { wire::fit::cut_words(256) } else { vec![index; ANSWER].into() };
+            assert_eq!(answer.body(), expected.as_ref(), "{calls} calls, call {index}");
+        }
+        assert!(!world.root().iter().any(|r| matches!(r, Request::Unsent { .. })));
+    }
+}
+
+#[test]
+fn the_room_holds_the_smallest_resumed_start() {
+    use jig_protocol_engine_workers::{Component, Limits, valid};
+    use jig_protocol_worker_wire::sizes;
+    let sizes = sizes::Sizes { answered: 5, ..fixtures::SIZES };
+    // Header8 + fixed57 + five calls (fields14 + name16 + tool16 + words66).
+    const FLOOR: u32 = 625;
+    for (room, accepted) in [(FLOOR, true), (FLOOR - 1, false)] {
+        let limits = Limits { sizes, room, ..fixtures::LIMITS };
+        let valid = valid(&limits);
+        let made = Component::new(&limits, fixtures::workers(), fixtures::PAYLOAD).is_ok();
+        assert_eq!((valid, made), (accepted, accepted), "room {room}: (valid, made)");
+    }
+}
