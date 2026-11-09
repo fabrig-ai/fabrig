@@ -30,29 +30,6 @@ fn press(front: &mut Joint, root: &mut Root, role: Role, name: &[u8], act: Act) 
     let event = temper_client_view::event(&view, node, act).expect("row act");
     accounts::event(front, root, event.into());
 }
-fn signed_in() -> (Joint, Root, u32) {
-    use jig_domain_accounts as a;
-    let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
-    go(&mut front, &mut root, Address::ConnectModel { way: None });
-    press(&mut front, &mut root, Role::Button, b"Continue with ChatGPT", Act::Press);
-    let source = accounts::signing(&front);
-    front.engine.send(temper_engine_domain::Event::Account(a::Event::Visited {
-        source,
-        address: b"https://issuer/visit".as_slice().into(),
-    }));
-    accounts::settle(&mut front, &mut root);
-    front.engine.send(temper_engine_domain::Event::Account(a::Event::SignedIn {
-        source,
-        subject: b"subject".as_slice().into(),
-        display: b"alice@example.com".as_slice().into(),
-        declined: false,
-        said: jig_domain_accounts::Said::default(),
-    }));
-    accounts::settle(&mut front, &mut root);
-    accounts::answer_trial(&mut front, &mut root);
-    go(&mut front, &mut root, Address::Accounts);
-    (front, root, source)
-}
 fn add_key(front: &mut Joint, root: &mut Root) -> u32 {
     press(front, root, Role::Button, b"Add an API key", Act::Press);
     press(
@@ -68,7 +45,7 @@ fn add_key(front: &mut Joint, root: &mut Root) -> u32 {
     source
 }
 fn row_sign_in_press() -> (Joint, Root) {
-    let (mut front, mut root, source) = signed_in();
+    let (mut front, mut root, source) = accounts::signed_in_plan(fixtures::SEED);
     front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::Component(
         jig_domain_accounts::FromComponent::Failed {
             account: source,
@@ -169,7 +146,7 @@ fn accounts_row_refused_tab_keeps_its_link_without_pointing() {
 }
 #[test]
 fn a_folded_account_rows_key_joins_that_account_and_is_shown_there() {
-    let (mut front, mut root, _) = signed_in();
+    let (mut front, mut root, _) = accounts::signed_in_plan(fixtures::SEED);
     let before = d::pages::accounts::document(root.person().client())
         .expect("account story fixture")
         .accounts
@@ -197,7 +174,7 @@ fn a_folded_account_rows_key_joins_that_account_and_is_shown_there() {
 }
 #[test]
 fn a_limited_accounts_task_waits_until_its_key_is_moved_first() {
-    let (mut front, mut root, plan) = signed_in();
+    let (mut front, mut root, plan) = accounts::signed_in_plan(fixtures::SEED);
     let key = add_key(&mut front, &mut root);
     front.engine.hello(skein_lib::Token::new(7));
     front.engine.settle();
