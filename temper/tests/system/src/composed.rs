@@ -685,6 +685,9 @@ impl World {
         };
         if !self.scripts.is_empty() {
             agreement::quiet(&mut batch[0]);
+            if self.merge_job.as_ref().is_some_and(|story| story.row == merge_job::Row::Clean) {
+                batch[0].wake.as_mut().expect("goal wake policy").results = people::ResultsWake::LastOrFailure;
+            }
         }
         if self.goal_branch {
             batch[0].tracked = Some(1);
@@ -988,7 +991,20 @@ impl World {
     }
 
     fn assigned(&mut self, channel: Token, assignment: engine::Assignment) {
+        if self.merge_job.is_some() {
+            self.prepare_clean_goal(assignment.task);
+        }
         if let Some(story) = &mut self.merge_job {
+            if story.row == merge_job::Row::Clean {
+                // One process serves the world's agents. Its answer must cross
+                // the worker before the next assignment selects another one.
+                if self.assignment.is_some() && !story.clean_answered {
+                    assert!(story.pending.is_none(), "one next agent");
+                    story.pending = Some((channel, assignment));
+                    return;
+                }
+                story.clean_answered = false;
+            }
             // This story ends when the resolution is made, before its agent runs.
             if assignment.task > 5 {
                 return;
@@ -1162,7 +1178,12 @@ impl World {
     ) {
         self.observed.answers += 1;
         let (turns, spent) = self.process.answered.unwrap_or((0, 0));
-        assert_eq!((answer.turns, answer.spent), (turns, spent));
+        assert_eq!(
+            (answer.turns, answer.spent),
+            (turns, spent),
+            "answer {run:?}; current assignment {:?}",
+            self.assignment.as_ref().map(|assignment| assignment.task)
+        );
         if let host::Ending::Refused(_) = &answer.ending {
             assert!(self.process.prepared(), "refusal precedes a process");
         } else {
@@ -1188,6 +1209,14 @@ impl World {
             story.held = Some(link);
         } else {
             self.up(link);
+        }
+        if let Some(story) = &mut self.merge_job
+            && story.row == merge_job::Row::Clean
+        {
+            story.clean_answered = true;
+            if let Some((channel, assignment)) = story.pending.take() {
+                self.assigned(channel, assignment);
+            }
         }
     }
 
@@ -1285,7 +1314,10 @@ impl World {
             worker::Request::Io { owner, op, .. } => {
                 self.observed.checkouts += 1;
                 self.forge.at(self.env.now);
-                let done = git::perform(&mut self.forge, &mut self.disk, forge_operation(op));
+                let op = forge_operation(op);
+                self.observe_merge_fetch(&op);
+                let done =
+                    git::perform_within(&mut self.forge, &mut self.disk, op, self.worker_env.limits.checkout.conflicts);
                 self.worker_events.push_back(worker::Event::Done { owner, done });
                 let _moves = self.forge.moves();
             }
