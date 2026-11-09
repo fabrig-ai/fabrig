@@ -1,7 +1,6 @@
-//! Party routes and the party-scope run admission stub.
-//! `party-runs` fills the scope checks and deletion route
-//! (`jig/docs/design/domain/engine.md`, 10.1). Until then, party scopes
-//! and every run deletion are refused beyond authority.
+//! Party routes and run writes to their requester's preferences.
+//! Admission holds the requester and asking family before a note is decided
+//! and recorded (`jig/docs/design/domain/engine.md`, 10.1).
 
 pub(crate) mod account_requests;
 pub(crate) mod amendment_reads;
@@ -32,12 +31,14 @@ use jig_domain_notes as notes;
 use skein_lib::Queue;
 
 /// Admission of a run's write to a party's scope, including its asking family.
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "party-runs admits a write by returning no refusal; the stub refuses every party scope"
-)]
-pub(crate) fn authorize_note(_core: &Core, _key: CallKey, _party: u64) -> Option<CallPart> {
-    Some(scope_denied())
+pub(crate) fn authorize_note(core: &Core, key: CallKey, party: u64) -> Option<CallPart> {
+    let Some(task) = core.tasks.task(key.task) else { return Some(scope_denied()) };
+    if task.requester != jig_domain_tasks::Party::Person(party)
+        || core.authorize_tool(key, crate::ToolKind::Ask).is_some()
+    {
+        return Some(scope_denied());
+    }
+    None
 }
 
 /// Whether a run may recall a party's scope.

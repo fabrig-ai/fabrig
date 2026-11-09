@@ -216,11 +216,6 @@ try. A window's later pages keep its first page's slot there
   The mark table has no row for this case; this finding is by reading,
   with no runtime result supplied. No reason for the omission is recorded.
 
-- **Not yet:** 10.1, *Its entries are preferences* and *Written for its
-  party*: no run writes or drops an entry of a party's scope, and the notes
-  child holds no `notes.party_entries` or `notes.party_bytes`; a run deletes
-  no note.
-
 - **Departs:** 11.1: an omitted template's preview uses the first offered
   model, while a task's next-run selection needs a supporting host to call
   even a direct account usable and otherwise takes the first serving one.

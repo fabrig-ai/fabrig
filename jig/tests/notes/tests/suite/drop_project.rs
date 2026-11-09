@@ -41,7 +41,13 @@ fn fixture() -> World {
             assert_eq!(
                 world.call(Event::Write {
                     owner: Token::new(name),
-                    entry: task_entry(name, scope.clone(), b"note", b"body", 9),
+                    entry: task_entry(
+                        name,
+                        scope.clone(),
+                        b"note",
+                        if matches!(scope, Scope::Party { .. }) { b"" } else { b"body" },
+                        9
+                    ),
                     recalled: None,
                 }),
                 Answer::Written { name, revision: 1 }
