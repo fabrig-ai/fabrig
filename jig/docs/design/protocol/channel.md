@@ -107,7 +107,7 @@ io: a listener's sockets                            io: one socket, dialled
 
 | Crate | Kind | Holds |
 |---|---|---|
-| `jig-protocol-worker-wire` | codecs | the schema: magic, version, kinds and their records; the credential's record; the function from the domains' sizes to each kind's largest body and to each side's output cap |
+| `jig-protocol-worker-wire` | codecs | the schema: magic, version, kinds and their records; the credential's record; the function from the domains' sizes to each kind's largest body and to each side's output cap; why a channel or a dial ended, `Loss` (sections 9 and 10.1), which `jig-protocol-worker-link` reports and re-exports and an engine's operator notes may name without linking the link |
 | `jig-protocol-engine-workers` | component | the listener's accepted channels, up to the fleet's workers and those still opening; the opening's checks; one channel per worker; pings, silence and stall; the translation to and from the hub's vocabulary; credential grants' values filled in |
 | `jig-protocol-worker-link` | component | the one link, dialled and redialled; its liveness; the grace after losing it; the relays in flight across channels; the translation to and from the hub's vocabulary; credential grants' values taken out |
 

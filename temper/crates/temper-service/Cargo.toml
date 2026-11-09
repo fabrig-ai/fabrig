@@ -19,7 +19,6 @@ worker = [
     "dep:smith-host-protocol",
     "dep:smith-host-domain",
     "dep:smith-channel",
-    "dep:skein-channel",
     "dep:smith-protocol-channel",
 ]
 
@@ -42,7 +41,7 @@ jig-protocol-engine-clients-http.workspace = true
 skein-http.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-lib.workspace = true
-skein-channel = { workspace = true, optional = true }
+skein-channel.workspace = true
 skein-codec.workspace = true
 jig-protocol-engine-workers.workspace = true
 temper-protocol-worker-wire.workspace = true

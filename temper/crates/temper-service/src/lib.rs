@@ -344,7 +344,7 @@ pub enum Refusal {
 }
 
 pub use jig_protocol_engine_workers::Loss as EngineWorkerLoss;
-pub use jig_protocol_worker_link::Loss as WorkerLoss;
+pub use jig_protocol_worker_wire::Loss as WorkerLoss;
 pub use jig_protocol_worker_wire::Reason as WorkerRefusalReason;
 pub use skein_channel::Closed as WorkerClosed;
 

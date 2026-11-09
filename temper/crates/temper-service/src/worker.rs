@@ -71,6 +71,7 @@ pub struct Worker {
     prefix: u64,
     next: u64,
     program: Box<[u8]>,
+    configuration: Box<[u8]>,
     arguments: Box<[Box<[u8]>]>,
     environment: Box<[Box<[u8]>]>,
     directory: Option<Fd>,
@@ -180,6 +181,7 @@ impl Worker {
             prefix: prepared.prefix,
             next: 2,
             program: config.agent.program.clone(),
+            configuration: config.agent.configuration.clone(),
             arguments: config.agent.arguments.clone(),
             environment: Box::default(),
             directory: Some(runtime.root),
@@ -657,18 +659,28 @@ impl Worker {
         );
         self.answered(settled);
     }
+    /// A list launch by the run's form (protocol/README.md, section 7).
     fn list_launch(&self) -> Option<host::ListLaunch> {
-        let [internal, agent, configuration] = self.arguments.as_ref() else { return None };
-        if internal.as_ref() != b"internal" || agent.as_ref() != b"agent" || !configuration.starts_with(b"/") {
-            return None;
-        }
+        let arguments: Box<[Box<[u8]>]> = match self.arguments.as_ref() {
+            [internal, agent, configuration]
+                if internal.as_ref() == b"internal"
+                    && agent.as_ref() == b"agent"
+                    && configuration.starts_with(b"/") =>
+            {
+                Box::new([
+                    Box::from(b"internal".as_slice()),
+                    Box::from(b"agent-list".as_slice()),
+                    configuration.clone(),
+                ])
+            }
+            [configuration] if configuration.starts_with(b"/") && *configuration == self.configuration => {
+                Box::new([configuration.clone()])
+            }
+            _ => return None,
+        };
         Some(host::ListLaunch {
             program: self.program.clone(),
-            arguments: Box::new([
-                Box::from(b"internal".as_slice()),
-                Box::from(b"agent-list".as_slice()),
-                configuration.clone(),
-            ]),
+            arguments,
             environment: self.environment.clone(),
             root: self.directory.expect("prepared worker root"),
             directory: Box::from(b".".as_slice()),

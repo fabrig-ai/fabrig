@@ -16,7 +16,9 @@ test = false
 record = ["temper-client-shell-tui/record"]
 
 [dependencies]
+temper-service-shell.workspace = true
 temper-engine-shell.workspace = true
+temper-worker-shell.workspace = true
 temper-launcher.workspace = true
 temper-shell.workspace = true
 settings-form.workspace = true
@@ -59,8 +61,6 @@ smith-agent-service.workspace = true
 smith-local-domain.workspace = true
 smith-agent-shell.workspace = true
 smith-host-domain.workspace = true
-smith-local-service.workspace = true
-smith-host-protocol.workspace = true
 
 jig-domain-core.workspace = true
 jig-protocol-store.workspace = true
