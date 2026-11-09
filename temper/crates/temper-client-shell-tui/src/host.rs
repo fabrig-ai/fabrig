@@ -433,7 +433,9 @@ impl Host {
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
         } else if self.root.pages().chats().is_some() {
-            self.tell(Told::LeftOff { task: None });
+            if !value.starts_with(b"/") {
+                self.tell(Told::LeftOff { task: None });
+            }
             self.act(Act::ChatWords { words: value });
         } else {
             self.tell(Told::CommandWords { value });
@@ -498,11 +500,14 @@ impl Host {
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
             tui::Event::Aside { object } => self.tell(Told::Aside { object: Some(object) }),
-            tui::Event::Dismiss => {
-                self.act(Act::Terminal(terminal::Act::Dismiss));
-                self.tell(Told::Cleared);
-            }
+            tui::Event::Dismiss => self.dismiss(),
         }
+    }
+
+    fn dismiss(&mut self) {
+        self.act(Act::Terminal(terminal::Act::Dismiss));
+        self.tell(Told::LeftOff { task: None });
+        self.tell(Told::Cleared);
     }
 
     fn own(&mut self, command: tui::Own, duties: &mut Duties) {
