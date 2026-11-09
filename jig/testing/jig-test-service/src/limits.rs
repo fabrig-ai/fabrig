@@ -171,6 +171,7 @@ pub(super) fn worker_link(worker: &jig_protocol_config::Worker) -> jig_protocol_
     jig_protocol_worker_link::Limits {
         sizes,
         chunk: profile.chunk,
+        room: worker.limits.io.largest_room(),
         handshake: profile.handshake,
         ping: profile.ping,
         silence: profile.silence,
