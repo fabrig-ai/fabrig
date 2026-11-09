@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 388;
+pub const N: usize = 398;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -187,6 +187,16 @@ pub fn samples() -> [Sample; N] {
             address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
             then: Shown,
         },
+        Sample { name: "remembered-none", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "remembered-three", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "remembered-full", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "remembered-changing", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "remembered-refused", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-none", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-three", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-full", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-changing", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-refused", world: Reference, address: Address::Remembered, then: Shown },
         Sample { name: "members", world: Reference, address: Address::Members, then: Shown },
         Sample { name: "members-refused", world: Reference, address: Address::Members, then: Shown },
         Sample { name: "limits", world: Reference, address: Address::Limits, then: Shown },
@@ -1669,6 +1679,11 @@ pub fn domain(sample: &Sample) -> Domain {
         "night-chat-split" => Some("chat-draft-split"),
         "night-work" => Some("work"),
         "night-limits" => Some("limits"),
+        "night-remembered-none" => Some("remembered-none"),
+        "night-remembered-three" => Some("remembered-three"),
+        "night-remembered-full" => Some("remembered-full"),
+        "night-remembered-changing" => Some("remembered-changing"),
+        "night-remembered-refused" => Some("remembered-refused"),
         _ => None,
     };
     if let Some(name) = base {
@@ -1699,6 +1714,9 @@ pub fn domain(sample: &Sample) -> Domain {
             | "limits-not-owner"
     ) {
         return crate::worlds::rail_work_world(sample.name, sample.address.clone());
+    }
+    if sample.name.starts_with("remembered-") {
+        return crate::worlds::remembered_world(sample.name);
     }
     if sample.name == "no-project" {
         return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
