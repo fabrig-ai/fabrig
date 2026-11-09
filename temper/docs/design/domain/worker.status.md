@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-08. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-09. Where temper's code lags or departs from [worker.md](worker.md).
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap. A failed-run hold's
 `way out:` points to that log, and `temper help hold` names its location
@@ -16,6 +16,11 @@ committed before the run and a conflict retained for the run to settle;
 each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`forge.md`, section 20).
+
+Section 6 has no known gap in every temper worker naming its agent's
+`host_reply_text` as the hello's reply bound, the in-process worker among
+them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
+`Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format

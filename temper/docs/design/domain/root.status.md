@@ -27,9 +27,16 @@ Section 9.1's owner handoff is present: after both domains load, the root
 hands the forge `people.sole_owner()` before its restore decision. The
 connector's retained-link scope gap remains in `forge.status.md`, 4.6.
 
-Section 5.2's host-answer room is shared across the box's runs, as
-`fleet.calls` bounds the fleet rather than each run. No concurrency gap is
-known in that room; the settings-answer bound gap remains below.
+Section 5.2 has no known implementation gap in sizing task reads by the
+live attempt's worker reply bound, else the local agent's, else
+`documents.text_bytes`, within the core and journal bounds. The six-row
+`task_reads_take_their_workers_reply_bound` table covers the worker-only
+1,500-byte specification in one call and a smaller worker bound in two,
+both fallbacks, continuation and the journal ceiling
+(`temper/tests/engine/domain/tests/suite/host_calls.rs`). The host-answer
+room is shared across the box's runs, as `fleet.calls` bounds the fleet
+rather than each run. No concurrency gap is known in that room; the
+settings-answer bound gap remains below.
 
 Section 10 has no known gap in deriving both watch rooms from the admitted
 streams. Its settings-answer bound gap remains below.
@@ -45,10 +52,11 @@ kind remains shape.
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
   7.3; this is a design gap, not an absent implementation.
 
-- **Not yet:** 5.2: what the room saves is unobserved: no goal on record has
-  counted its `read_task` calls since the room landed, where the request
-  `read-task-room` of 2026-11-06 takes a real goal's next count as its proof.
-  The engine world holds the bound on a script alone
+- **Not yet:** 5.2: real-deployment savings are unobserved: no supplied
+  real goal's `read_task` count establishes what the room saves, where the
+  request `read-task-room` of 2026-11-06 takes that count as its proof.
+  The engine world holds the worker-bound reads on a script alone; no
+  real host or LLM is exercised
   (`temper/tests/engine/domain/tests/suite/host_calls.rs`).
 - **Not yet:** 7.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the

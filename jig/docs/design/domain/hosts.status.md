@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-08. Where jig's code lags or departs from [hosts.md](hosts.md).
+2026-11-09. Where jig's code lags or departs from [hosts.md](hosts.md).
 
 Section 6.4 has no known gap in turn fences taking only offered messages:
 messages withheld by parts or a pace stay in the task's inbox when a
@@ -9,6 +9,9 @@ adds no host-side deferred work.
 
 Sections 2 and 8 have no known gap in endpoint bounds at hello and
 charter-supplied model names; the host keeps no model allowlist.
+Section 2's optional application-supplied reply bound crosses the hello
+as a byte count, independent of run admission, with no known gap.
+The fleet exposes it for the attempt hosted there (`engine.md`, section 8).
 
 Section 5.1 has no known implementation gap in serializing list reads
 with source checks and sign-outs, giving smith the grant's value below
