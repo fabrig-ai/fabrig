@@ -289,11 +289,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     task only
     (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
     `foremen.rs` and `goal_questions.rs`).
-  - 8.13, *A typical run*, steps 1 and 6, and *The coordinator's cards*:
-    the derivation draws "plan" for every goal's coordinator, never
-    "design", and no "close-out"
-    (`temper-engine-domain-ways/src/path/derive.rs`), and the service
-    sends neither step (`goal-path`).
   - 8.13, the template's work among what the path reads: the root reads
     no kind 11 for the template a goal starts by, nor lays a proposal's
     items of it (`temper-engine-domain/src/route/ways.rs`, `start`)
