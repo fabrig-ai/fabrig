@@ -1,6 +1,13 @@
 # deployment-binaries: status
 
-2026-11-08. Where the design lags or departs from [deployment-binaries.md](deployment-binaries.md).
+2026-11-09. Where the design lags or departs from [deployment-binaries.md](deployment-binaries.md).
+
+M4 is landed on main at `fdc26f71c6` (PR #78): the agent's binary and
+modes, the smith document/profile split, the shared fetch and launcher,
+and the agent's dependency-closure row are present. M3's worker naming
+that program, M5's box integration, remaining closure rows and help, M6's
+release job, and figures are not completed by M4. Section 11's Later
+items are unchanged.
 
 - **Design lags:**
   - 1 and 4: `../README.md`, section 1, describes one binary, `temper`, with every command. `../protocol/README.md`, section 4, has the box's `temper`, the deployment's client, `temper-client`, and the agent's, `temper-agent`, and not yet the engine's or the worker's binary.
@@ -14,6 +21,6 @@
   - 6 and 8: `../release.md`, section 5: the release script publishes nothing, and a tag's files go among its releases. Here the site's job publishes each build's set under `v{MAJOR}`.
 - **Design departs:**
   - 4: the client also links `temper-shell`, which isn't a client crate: what every binary of temper's starts from, its table's rows and their help, the three directories and the engine's link file (`../protocol/README.md`, section 5). Section 4's rule for code two binaries share puts it in a crate each links, and the engine needs the link file and a table too. Decided by the `client-binary` cut, 2026-11-08.
-  - 9.3: the agent's plan cuts two smith crates, for the document's values and its reader, and two temper crates, for the fetch's machine and its host, where that section names one crate each (`agent-binary.status.md`).
+  - 9, item 3: the agent has two smith crates, `smith-agent-profile` for the document's values and `smith-agent-document` for its reader and program helpers, and two temper crates, `temper-fetch` for the fetch's machine and `temper-fetch-shell` for its host and launcher, where the draft names one crate each. The plan's lead decided these splits on 2026-11-08 and kept them on 2026-11-09; the other two accepted departures, the help row and the agent's own failure prefixes, remain in `agent-binary.status.md`.
 - **Open:**
   - 5, the name clash, for the user. Options: A, `temper` in both sets; B, the box's binary as `temper-box`; C, the deployment's client as `temper-client` or `temper-tui`; D, the deployment's `temper` as the box's whole-product file. Default meanwhile: the deployment set publishes the engine, worker and agent, and holds the client's file, as the box's `temper` serves as a client. To reverse: the user's choice publishes the client under its name.

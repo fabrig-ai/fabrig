@@ -1,6 +1,13 @@
 # shell: status
 
-2026-11-08. Where smith's code lags or departs from [shell.md](shell.md).
+2026-11-09. Where smith's code lags or departs from [shell.md](shell.md).
+
+Sections 2.1 and 2.6 have no known gap at main's `fdc26f71c6`:
+`smith-agent-profile` owns the values, derivation and checks beneath the
+service; `smith-agent-document` owns the reader, trace, program helpers
+and fixture without linking the agent service. The service, local
+service and shell keep the old paths as re-exports. Reader tests move
+with the reader; tests needing the agent stay in the shell.
 
 Section 2.2 has no known gap in Linux's `--program-child` startup for
 programs that die when their agent aborts. The shell supplies its own

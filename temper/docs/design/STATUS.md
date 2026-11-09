@@ -811,6 +811,18 @@ manifest, and no test yet holds its closure: the boundary test is M5's
 (`protocol/README.status.md`, 4; `client/README.status.md`, 2). The `commands`
 page names no command's binary (`draft/deployment-binaries.status.md`).
 
+The deployment's agent, `temper-agent`, landed whole on 2026-11-09,
+PR #78, main's `fdc26f71c6` (M4): all six ranked items, none dropped.
+Its modes, help, independent version, mode table and first closure row
+are built, on the smith profile/document and temper fetch/host splits
+(`protocol/README.status.md`, 4.1 and 4.2; `protocol/setup.status.md`,
+6.6 and section 11). The plan is retired and its vision folded into the
+design; removal of the read-only draft is proposed, with its four
+accepted departures retained (`draft/agent-binary.status.md`). M3's
+worker program, M5's box integration and remaining closure rows, M6's
+release job, and figures are not done by this plan; the parent's Later
+section is unchanged (`draft/deployment-binaries.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`playground.md`](playground.status.md)
@@ -850,7 +862,7 @@ Drafts:
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
-- [`draft/agent-binary.md`](draft/agent-binary.status.md)
+- [`draft/agent-binary.md`](draft/agent-binary.status.md) — landed whole; folded into design, read-only text retained pending proposed removal.
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
