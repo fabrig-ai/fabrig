@@ -195,7 +195,7 @@ fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, back: Option<Rgb>) -> Bo
         StyleLook { mark: star, ..style(look::DOTS, fore(faint)) },
         StyleLook { mark: star, ..style(look::RUNNING, fore(dim)) },
         style(look::END, Paint { reverse: true, ..Paint::NONE }),
-        StyleLook { label: false, ..style(look::FIELD, Paint::NONE) },
+        StyleLook { label: false, focused_value: Some(Paint::NONE), ..style(look::FIELD, Paint::NONE) },
         style(look::LIST_HEAD, bold),
         StyleLook { described: Some(fore(dim)), ..style(look::OPTION, bold) },
         StyleLook { described: Some(fore(dim)), active_name: Some(Paint::NONE), ..style(look::COMMAND, bold) },

@@ -361,10 +361,6 @@ of each, "box" among them, is section 11's after-landing check, owned by
 temper/tui.
 
 
-- **Not yet:** 6.15, *Its glyphs, its focus and the active choice*, and
-  its `tui-field`: the box's words and its caret's cell are laid in the
-  focus's paint, the accent across "❯", the words and the caret, as the
-  goldens and the journeys' frames draw them (plan `tui-box-polish`).
 
 Sections 4.6 and 6.17 have no known implementation gap in the TUI in
 front of a box, by the look request `tui-box-front` (its account
