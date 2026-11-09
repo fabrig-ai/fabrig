@@ -143,6 +143,17 @@ pub(crate) fn answered(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
             | super::Address::Proposal { .. }
             | super::Address::Page { .. }
             | super::Address::Search { .. }
+            | super::Address::Me
+            | super::Address::Project
+            | super::Address::Goals { .. }
+            | super::Address::Tasks
+            | super::Address::Task { .. }
+            | super::Address::Tree { .. }
+            | super::Address::Activity { .. }
+            | super::Address::Turn { .. }
+            | super::Address::Change { .. }
+            | super::Address::Changes
+            | super::Address::Inbox
             | super::Address::NotYet
             | super::Address::Unknown => unreachable!("file flight keeps its address"),
         };
