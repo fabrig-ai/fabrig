@@ -237,6 +237,9 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 `restored`, by `Request::GoalUntopic`), while a task's own stays.
 
 - **Not yet:**
+  - 8.4: a merge job's failures are no line on either side, so the way out of
+    its hold, out of tries, points at an engine's log that names none of them
+    (`worker.status.md`, 4.4; plan `merge-job-runs-2`).
   - 8.3, 8.4: the user's N4 request of 2026-11-08 asks for focused and
     fuzzy tests. The focused story
     `a_persons_request_for_changes_repairs_with_its_remarks`

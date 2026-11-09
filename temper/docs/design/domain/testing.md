@@ -120,6 +120,21 @@ GitHub forge on the fake's GitHub layer, it checks the forge connector's
 connected state, the picker and GitHub's merge queue as the branch's
 landing queue (`forge.md`).
 
+A change's merge job has its story there (`forge.md`, 8.4; `worker.md`,
+4.4), one table, `suite::merge_job`: a project naming a `merge_job`
+makes the job, the worker that declared the kind takes it, prepares the
+head with the base merged in on the fake disk, runs the command, and
+delivers or not, and the engine goes on from its branch. The command is
+the world's: it reads the job's request and the index on the fake disk,
+settles and stages what its row says, writes its result and exits.
+Rows: a clean merge (a catch-up of main into a goal's branch); a
+conflict it settles; one it leaves, which the change takes to a
+resolution; a base commit only on a branch the job's cached checkout has
+not fetched; and more files in conflict than the checkout's
+`conflicts`, all settled. Each row reads the forge's branch and its
+parents, the job's task ended and the change's next step. Rows of the
+worker alone stay the worker's world's (`tests/worker/domain`).
+
 A run's live text has its story there: a chat's reply reaches the
 party's run watch before its turn commits. The core asks for the chat's
 text, and smith's start carries the ask. smith's agent domain gives its
