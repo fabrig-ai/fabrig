@@ -292,6 +292,8 @@ impl Engine {
                 crate::Note::RunFailed(diagnostic)
             } else if let Some(diagnostic) = self.domain.pop_run_refusal() {
                 crate::Note::RunRefused(diagnostic)
+            } else if let Some(diagnostic) = self.domain.pop_job_diagnostic() {
+                crate::Note::JobAnswered(diagnostic)
             } else {
                 break;
             };
