@@ -31,9 +31,9 @@ says so in the draft's status.
   sections it needs (`ask-temper.status.md`'s lags), then the code and its
   focused and fuzzy tests (`ask-temper.md`, section 10).
 - **Its walk** follows its landing and blocks nothing.
-- **Its state** is section 3's table, kept current. When M4 has landed,
-  `ask-temper.status.md` holds no lag, and this file goes with the draft
-  (`DESIGN.md`, section 3).
+- **Its state** is section 3's table, kept current. When M3b, the last,
+  has landed, `ask-temper.status.md` holds no lag, and this file goes with
+  the draft (`DESIGN.md`, section 3).
 
 ## 3. The milestones
 
@@ -43,7 +43,7 @@ says so in the draft's status.
 | M2 | Reading | 2, 3, 5.1 | M1 | built: plan `ui-ask-m2`, its design in `../domain/agent.md`, 8.4.1 and jig's `domain/engine.md`, 7.3; its walk follows landing |
 | M3a | Ways | `stock-ways.md`, sections 4 to 6; 6.2's `path`, `way`, `proposal` and `charter` | M1; `stock-ways.md`, section 7's step 2 | built: plan `ui-ask-m3a`, and the page's drawing of the ways by the look request `ask-temper-ways`, plan `look-ask-ways`; its walk follows landing |
 | M3b | Showing the rest | 6; the rest of 8's Showing part | M2, M3a; after the whole story | not started |
-| M4 | Remembering | 5.4, 7 | M1 | not started |
+| M4 | Remembering | 5.4, 7 | M1 | built: plan `ui-ask-m4`, its design in jig's `domain/engine.md`, 10.1, and temper's `../domain/agent.md`, 8.4.4 and `../client/README.md`, 5.17; its walk follows landing |
 
 ### M1. Alone and small
 

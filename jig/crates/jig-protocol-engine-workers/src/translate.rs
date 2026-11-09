@@ -517,6 +517,23 @@ pub(crate) enum Down {
     Grant(wire::Granted),
 }
 impl Down {
+    pub fn kind(&self) -> wire::Kind {
+        match self {
+            Self::ReadList(_) => wire::Kind::ReadList,
+            Self::Sources(_) => wire::Kind::Sources,
+            Self::Check(_) => wire::Kind::Check,
+            Self::SignOut(_) => wire::Kind::SignOut,
+            Self::Assign(_) => wire::Kind::Assignment,
+            Self::AssignJob(_) => wire::Kind::Job,
+            Self::Message(_) => wire::Kind::Message,
+            Self::Relayed(_) => wire::Kind::Relayed,
+            Self::TurnKept(_) => wire::Kind::TurnKept,
+            Self::TurnBusy(_) => wire::Kind::TurnBusy,
+            Self::Acknowledge(_) => wire::Kind::Acknowledge,
+            Self::Cancel(_) => wire::Kind::Cancel,
+            Self::Grant(_) => wire::Kind::Grant,
+        }
+    }
     pub fn frame(self) -> skein_channel::Frame {
         let (kind, length) = match &self {
             Self::ReadList(record) => (wire::Kind::ReadList.number(), record.measure()),

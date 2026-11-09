@@ -115,6 +115,10 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
 /// The view's confirmation tests hold their titles, active counts, fates and retry rules.
 pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract::Ask> {
     use jig_client::contract::{Ask, DecideOn, Decision, Operation};
+    // A short preference is deleted at once, without a deciding region (client/README.md, 5.17).
+    if matches!(ask, Ask::DeleteNote { project: 0, scope: jig_client::contract::NoteScope::Party { .. }, .. }) {
+        return None;
+    }
     let sheet = match ask {
         // Pause and Resume are immediate bar acts. Their status replaces a sheet's
         // facts; the request observer still checks Resume's delivered hold revision.

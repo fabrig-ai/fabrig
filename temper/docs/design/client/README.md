@@ -409,7 +409,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | Address | Mockup | Shows | Watches and reads | Acts |
 |---|---|---|---|---|
 | `Home { project }` | the greenfield mock's `home.html` | a project's first page: its intro, "To begin" while it shows, what needs the person, its chats (*Home,* below) | `me`; the `forges` watch; the person's dismissals (4.6); the project's chats' `tasks{query}`, as `Chats` reads them; `inbox` for that project, as `Inbox` reads it; `settings`, to say whether a way of working is configured | open Ask temper (*The first chat,* below); adopt the first repository again, or open the adoption form; skip "To begin"; a question's choice, reply and Later, and a card's acts, in place |
-| `Settings { project }` | the whole story's `web/whole-story/how.html`; the greenfield mock's `settings.html` for its foot | How work runs, the first tab of a project's settings: the way the project runs, the path of a change by who acts, the ways as tabs, a goal's budget, what needs the person and while the person is away, and at its foot what the project shows and its ways of working (5.13, *The page*) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's `ways` (4.6); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13); show a way's tab and a stop's card in place; "Use this" or "Keep it" (5.13, *A way's acts*) |
+| `Settings { project }` | the whole story's `web/whole-story/how.html`; the greenfield mock's `settings.html` for its foot | How work runs, the first tab of a project's settings: the way the project runs, the path of a change by who acts, the ways as tabs, what reaches the person, a goal's budget, and at its foot what the project shows and its ways of working (5.13, *The page*) | `me`; the session's `settings` watch and the project's kinds 6 and 7 (5.13); the project's `ways` (4.6); the project's chats' `tasks{query}`, as `Chats` reads them | jig's `ChangeSettings` of one item (5.13); show a way's tab and a stop's card in place; "Use this" or "Keep it" (5.13, *A way's acts*) |
 | `Repositories { project }` | the greenfield mock's `settings.html`, its tab, and `chats.html`'s band with no repository | the second tab: the project's repositories, or that it has none, and "Adopt a repository" (*Settings and Deployment,* below) | `me`; the `forges` watch; the playground's read (4.8) | go to `Adopt { project }` |
 | `Models { project }` | the look request `model-picker`'s `journeys/model-picker/07.html` | Deployment's third tab: what the picker offers, by provider, an owner turning a model on or off and adding one by name (*Settings and Deployment,* below) | `me`; the accounts document; jig's settings, for an owner's act | none |
 | `Builders { project }` | none: the greenfield mock's tabs say "not drawn in this experiment", so its How work runs tab's language | Deployment's fourth tab, Workers: the deployment's hosts, each with its slots and its connection, read-only (*Settings and Deployment,* below) | `me`; jig's `deployment` document, for a person with a role in the deployment | none |
@@ -433,6 +433,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `ConnectModel { way }` | `connect-model.html` | under its path (*Settings and Deployment,* below), connecting one more LLM account, `way` the way it is at, or none at the choices: the welcome’s cards (5.5, The ways), then a sign-in’s wait or a key’s or program’s panel; success returns to Accounts with a confirmation line, and other endings keep their words and acts (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Members` | none: `../draft/surfaces.md`, section 8 | Deployment's fifth tab: each project's members, each with the role it holds there, and the person's role in the deployment (*Settings and Deployment,* below) | `me`; jig's `Read::Project` for each project `me` lists, one at a time | none |
 | `Limits` | none: `../draft/surfaces.md`, section 8 | Deployment's sixth tab: the deployment's capacities as its engine reports them, read-only (*Settings and Deployment,* below) | `me`; jig's `deployment` document, watched as `Builders` watches it | none |
+| `Remembered` | none: `../draft/ask-temper.md`, section 7, drawn in Deployment's language | "What temper remembers about you": the lines Ask temper keeps about the person across their chats, each with the chat that kept it and when, or that none are kept (5.17) | `me`; jig's `Notes` read of the person's own party scope (jig's `client/domain/contract.md`, section 6) | change a line; delete a line (5.17) |
 | `Proposal { proposal }`, later (5.13) | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
 - **Words and facts:** a chat's status from jig's facts (jig's
@@ -2534,6 +2535,8 @@ keeps (`../protocol/configuration.md`, section 2).
     "S of L used"; an approval's question.
   - *Answered,* under it when any: the section title "Answered", then
     the `.answered` lines.
+  - *Only you,* after them, and in the done state after "Home", while an
+    item shows (**Only you,** below), before *Decided for you*.
   - *Decided for you,* after them, while a row shows (**Decided for you,**
     below): the page's filter's project's rows, or, unfiltered, every
     watched project's.
@@ -2757,6 +2760,7 @@ keeps (`../protocol/configuration.md`, section 2).
   | Home's Projects | on All projects, the person is in two projects or more |
   | The Ask temper line | always, on a wide page, To begin gone |
   | Needs you's list | an open card waits; else its Done |
+  | Needs you's Only you | the inbox has answered, and an item shows (**Only you**) |
 
   A part whose rule holds is drawn with what it holds, and none is drawn
   empty. Every open card is drawn exactly once on Needs you, and on Home
@@ -2765,10 +2769,10 @@ keeps (`../protocol/configuration.md`, section 2).
   while the project's way had the person review stays open until it is
   done, whatever the way becomes. Home's owners' lines and What follows
   what join this table with the reads that give them
-  (`../draft/standing-roles.md`; `../draft/follows.md`), as do Only you
-  and Tell temper (`../draft/what-reaches-you.md`, section 8;
-  `../draft/surfaces.md`, section 9). A need's why is its card's own line
-  (*Needs you,* *Why it reached you*), no part of the page's.
+  (`../draft/standing-roles.md`; `../draft/follows.md`), as does Tell
+  temper (`../draft/surfaces.md`, section 9). An Only you item is no
+  card: it is counted nowhere a card is. A need's why is its card's own
+  line (*Needs you,* *Why it reached you*), no part of the page's.
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
   section 3): `Changes { project }`, at `/projects/<project>/changes`, Work
   under its Changes filter (*Work,* below), a
@@ -2970,7 +2974,8 @@ keeps (`../protocol/configuration.md`, section 2).
     lede, with no kicker and no tabs. Choosing a project on them changes
     nothing but the words naming the project.
   - *Sign out* is the last row of the `Accounts` tab: "Signed in as NAME",
-    its login in small type, and "Sign out"; with "Sign out did not reach
+    its login in small type, "What temper remembers about you", a link to
+    `Remembered` (5.17), and "Sign out"; with "Sign out did not reach
     the engine." beside it as 6.6 says. A browser draws this row at 760 px and
     under alone, where the rail has no foot; wider, "Sign out" is the person's
     menu's (5.3). With no project, the top bar has "Sign out" (5.1).
@@ -3204,11 +3209,54 @@ keeps (`../protocol/configuration.md`, section 2).
       "1 project" for one; with some refused or unknown, "Away changed for
       2 of 3 projects. Try again.", of those sent; with none changed, "Away
       didn’t change. Try again." No "Limits": limits are a project's.
-  - *Settings' section,* `#away`, on *How work runs* after *What needs you*,
-    is 5.13's *While you're away, agents may decide*, a view of the classes.
-    "Limits", on the toast and on Home, opens Settings with this section
+  - *On How work runs,* 5.13's *What reaches you* draws the classes, what
+    Away changes among them and "Away until". "Limits", on the toast and on
+    Home, opens How work runs with that section's heading
     focused, so a browser brings it into view: `Address` holds no anchor, and
     the page takes the request from `Pages` once.
+- **Only you** (`../draft/what-reaches-you.md`, section 8;
+  `../draft/surfaces.md`, section 4; the whole story's `needs.html`): what
+  only the person can do and no choice answers, listed apart on *Needs
+  you*: a sign-in of their own that is signed out, or a login their account
+  reads as expiring. Work goes on around it: the runs that need the account
+  wait for it (5.5, *A run's wait*), and nothing else does.
+  - *Its read,* `pages::only_you`, one domain function every shell may
+    call, from the `accounts` document every page holds (jig's
+    `client/domain/contract.md`, 5.1 and 7.1), read and never kept. An item
+    is the deciding source, the first supplied, of an account the person
+    holds (`AccountHolder::Party`, the party `me` names), but the
+    playground provider's (4.8), as the rail's mark reads it (5.3), whose
+    kind is a sign-in or a program's login, and which is signed out
+    (`SignInAgain`) or reads `expiring`, signed out where both hold: the
+    source whose state holds the account's work (5.5, *The composer's
+    line*). Items keep the document's order of accounts. A key, a source
+    needing no credential and the deployment's accounts make none. With no
+    document delivered there are none; a document `cut` gives the items it
+    holds, its head counting them "N+".
+  - *It shows* once the inbox has answered and an item is read (*A page's
+    parts*), on the unfiltered and a filtered page alike, since an account
+    is no project's. It joins neither the cards' count, Needs you's head,
+    the rail's count, Home's needs sentence nor Done's rule: Done holds with
+    no card open, and Only you follows its "Home".
+  - *The region,* named by its heading, after the cards' *Answered*, or
+    Done's "Home", and before *Decided for you*, wherever the page draws
+    that, on a phone too: a `section-head`, the level-2 heading "Only you ·
+    1", at its right "work goes on around it", muted. Then
+    `temper-only-item` an item, the mock's `.card`, gap 12:
+    - its from line, `.mono`: the chip `temper-chip` "Deployment", where
+      Accounts is (*Settings and Deployment*), then "an LLM account";
+    - its question line, `.q`, 19 px, by its source as Accounts words it
+      (5.5, *An account*: "ChatGPT sign-in", "Claude Code login NAME"):
+      signed out, "Your ChatGPT sign-in is signed out. Sign in again?";
+      expiring, "Your Claude Code login claude-alice is expiring. Sign in
+      again?";
+    - its act alone, "Sign in again", a link in the look of the
+      recommended `.choice`, primary, with no "recommended": to `Accounts`,
+      whose row holds the sign-in (5.5, *Each state*). On a phone it is full
+      width and at least 44 px tall.
+  - *Its acts' end:* signing in again renews the account of the same
+    subject (jig's `domain/accounts.md`, 3.3), and the item goes once the
+    document says so. Nothing else is sent from it.
 - **Decided for you** (`../draft/what-reaches-you.md`, section 6;
   `../domain/forge.md`, 5.9): what agents decided for the person, any task's,
   a goal's, a chat's or a delegate's, whether or not the person was away.
@@ -5274,10 +5322,9 @@ navigation named by the open project, in this order:
   skein-ui's menu (`Role::Menu`; skein's `ui-web.md`, 7), in a
   `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
   above the row, as wide as it, in the look of the switcher's menu. Its items:
-  "Accounts", to `Accounts`, and "Sign out", the `Accounts` tab's act. Between
-  them is the place of "What temper remembers about you", Ask temper's memory
-  of the person (`../draft/whole-story.execution.md`, section 4, M4), drawn
-  once that page has an address. A press
+  "Accounts", to `Accounts`; "What temper remembers about you", to
+  `Remembered`, Ask temper's memory of the person (5.17); and "Sign out", the
+  `Accounts` tab's act. A press
   on an item, Escape and a press outside close it, the focus back on the row
   unless that press took it elsewhere. Open, the row keeps the hover's grey. A
   phone has no foot, and signs out on the `Accounts` tab (3.5);
@@ -5768,8 +5815,19 @@ The words for each offered source are:
   | refused: not eligible | "This ChatGPT account can't be used for plan usage in temper. Plan usage needs an eligible ChatGPT plan." | "Use an API key", "Sign in to another account" |
   | needs sign-in | "Signed out of ChatGPT." | "Continue with ChatGPT" |
   | needs sign-in, a program's, on a host | "Claude Code isn't signed in for 'claude-alice' on HOST." and the command to run there | "Check again" |
+  | expiring, a sign-in's | "Expiring: sign in again before it ends." | "Continue with ChatGPT" |
+  | expiring, a program's | "Expiring: sign in again before it ends." and the command to run on its host | "Check again" |
   | misconfigured | "OpenAI refused temper's sign-in. Check the configuration's registration." | — |
   | unloaded | "Can't be used on HOST: WHY." | — |
+
+  An expiring source is one the document reads `expiring` and not signed
+  out. An account whose deciding source is expiring keeps the source's
+  tag "Expiring" and offers its renewal under the account's line, as a
+  signed-out one does: the sign-in that renews the account of the same
+  subject, or the program's command and its check, so that Only you's
+  link (3.5, **Only you**) lands where the act is. When it
+  ends, read from its provider, is jig's `ends` fact, which no source
+  reports yet (jig's `domain/accounts.md`, 3.7).
 
   Never a reset the provider did not give, and never "your plan is
   empty" (jig's `domain/providers.md`, 2.5). A limit may be the
@@ -6785,7 +6843,8 @@ On both:
   (3.5); a chat's turns and its end, clocks under the day's rules
   (3.5); a card's wait, a span, in the inbox and on a chat's page; an
   update's arrival in the inbox, an ago (3.5); the approval page's ask,
-  an ago (3.5, *The approval page*). The task pages and the
+  an ago (3.5, *The approval page*); a remembered line's change, the
+  day's rule's words (5.17). The task pages and the
   accounts page say their moments as their sections do (5.5, 5.8,
   5.9), in universal time, and so does a full deployment's earliest end
   (5.1, the pages not about the work).
@@ -6808,8 +6867,8 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
   the project's process (`../draft/surfaces.md`, section 7), its look the
   whole story's `web/whole-story/how.html` and `pair/how.html`
   (`browser.md`, 2.5, *How work runs' look*). It draws what the engine
-  holds (`../draft/whole-story.execution.md`, section 2): what reaches the
-  person, rules by path, what follows a landing and a role's budget are
+  holds (`../draft/whole-story.execution.md`, section 2): rules by path,
+  what follows a landing and a role's budget are
   later milestones' (section 11), and none of them is drawn, as an empty
   section, a placeholder or a made-up value. Under the frame's kicker, in
   order, its sections 44 apart, each a section title and its rows:
@@ -6845,6 +6904,51 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
     open stop are the page's state, as on Ask temper's page. Until the read
     answers the section holds its title alone; once its watch has ended,
     "The ways can't be read now.", muted.
+  - *What reaches you,* the project's classes, kind 8, in words
+    (`../draft/surfaces.md`, section 7; `../draft/what-reaches-you.md`,
+    sections 2 and 3; `../domain/forge.md`, 5.10), the section "Limits"
+    focuses (3.5, *Away*): a section "What reaches you", at its head's
+    right, small and muted, "on PROJECT", or "on PROJECT; each project has
+    its own" while `me` lists two projects or more. Under its head, once
+    kind 8 is read, its columns side by side, a box each, in this order;
+    each opens with its chip, its words and who acts' mark as the path
+    draws it (5.16), then a line a subject, then a small muted line:
+    - "Agents decide, then tell you", an agent's star: the subjects at
+      `decide`; "Listed in Decided for you for 24 hours, to overturn.";
+    - "Asks you", a person's ring: the subjects that ask even when away,
+      then those Away may decide; then what Away changes: "While you’re
+      away, they are decided with the recommended choice and listed." where
+      Away may decide every one, "They ask even while you’re away." where
+      it decides none, and otherwise "While you’re away, all but OBJECTS
+      are decided with the recommended choice and listed.", OBJECTS those
+      that ask even when away, each as Stop asking names it (3.5, *Needs
+      you*), joined by ", ";
+    - "Always waits for you", a person's ring: the fixed kinds, in the
+      kit's order (`Kind::ALL`); "Away or not."
+
+    A subject's line is its words: `wording` "wording and names inside a
+    spec", `retry` "retrying or splitting a task", `implementation`
+    "implementation choices a spec leaves open", `tests` "test-only
+    changes", `dependency` "a new dependency", `departure` "a departure
+    from a landed design", a set "a change to NAME", its `name`; `money`
+    "money past a budget", `irreversible` "what can’t be undone: rewriting
+    history, a force-push, deleting unlanded work", `rules` "changes to
+    this page", `other` "anything an agent can’t place"; an item with
+    words, its subject's line then " under “WORDS”". Within a column the
+    subjects stand in the settings order, the proposal card's (*The card
+    in a chat,* below): the movable kinds in the kit's order, each at its
+    own item's class, or asking even when away with none; then the
+    table's items with words and every item of a set, in the table's
+    order; then each set with no item of its own, which asks even when
+    away. So each subject has one line, in one column, and a column with
+    no line isn't drawn: on You approve's table "Agents decide, then tell
+    you" isn't. Until kind 8 is read, and after a lasting refusal, the
+    section holds its head and its rows alone. Then its rows (*Its rows,*
+    below): "Questions a goal can answer from its plan", kind 6, and
+    "Away until", while the switch is shown (3.5, *Away*). The section has
+    no control of kind 8: a class changes by proposal, Ask temper's from
+    "Ask temper to change this", or a need's Stop asking, which an owner
+    may apply (3.5, *Needs you*).
   - *Roles,* every agent the project's work runs
     (`../draft/surfaces.md`, section 7): a section "Roles", at its head's
     right, small and muted, "every agent PROJECT runs"; a row a role of
@@ -6869,9 +6973,6 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
     starts", and at its right the amount, a whole number as a chat's bar
     says a budget, or "up to N" for a cap. A budget a goal's starter gives,
     or one only its policy bounds, has no figure, and so no row.
-  - *What needs you* and *While you're away, agents may decide,* below,
-    until What reaches you takes their place
-    (`../draft/whole-story.execution.md`, section 3, P3b).
   - *At its foot,* *What the project shows* and, while Goals is shown,
     *Ways of working*, below: the switches stay as overrides of what each
     page's own rule shows (`../draft/surfaces.md`, section 12).
@@ -6883,9 +6984,13 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
 - **Its parts** are one pure function, `pages::how::parts`, of the facts
   `pages::how::facts` gathers (Ask temper's template in `me`, the `ways`
   read's state and current way, kind 7's Goals and its goal template's
-  budget), which the web and the terminal share (`../draft/surfaces.md`,
-  section 12): the heading's way, "Ask temper to change this", the path
-  section's state, Roles' state and Budgets' row.
+  budget, kind 8 read, and `me` listing two projects or more), which the
+  web and the terminal share (`../draft/surfaces.md`, section 12): the
+  heading's way, "Ask temper to change this", the path section's state,
+  What reaches you's columns and its head's words, Roles' state and
+  Budgets' row. What reaches you's lines are a second pure function,
+  `pages::how::reaches`, of the project's table: its three columns, each
+  subject placed once (*What reaches you,* above).
 - **Its rows:**
   - *What the project shows,* live, kind 7: a row each, the state's word then
     a switch:
@@ -6904,40 +7009,15 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
     N." or " Used by none yet." where a goal's template is recorded; a radio,
     " The default". A stored `way` of 0, or of a template no longer offered,
     reads as the first. A goal's start preselects it.
-  - *What needs you:* "Questions a goal can answer from its plan", live, kind
-    6: "Answered by the goal, kept in its decisions" (`foreman`), "Asked of me
-    too" (`up`), "Not asked: each agent decides alone" (`none`).
-  - *While you're away, agents may decide* (`#away`), after What needs you, a
-    view of the project's classes, kind 8 (`../domain/forge.md`, 5.10;
-    `../draft/what-reaches-you.md`, section 3), shown while the table holds
-    an "asks you" item: a movable kind whose own item is `ask` or `ask_away`
-    or that has none, which asks even when away, or an item with words or of
-    a set at `ask` or `ask_away`. A project on You approve's table shows it,
-    every kind unticked, so that an owner can let Away decide one:
-    - its `section-title`, "While you’re away, agents may decide"; then,
-      while the table holds an item at `decide`, small, "Agents decide, then
-      tell you: OBJECTS.", OBJECTS each such subject as Stop asking names it
-      (3.5, *Needs you*), joined by ", ";
-    - a `.setting` "What asks you", small "Ticked, Away decides it and lists
-      it, with Overturn. Unticked, it asks you even when away.", `.checks`: a
-      check an "asks you" item, the movable kinds in the kit's order (`Kind::ALL`)
-      and then the table's other items in their order, named by its subject,
-      capitalised: "Implementation choices", "New dependencies", "Departures
-      from a landed design", "Changes to vsr’s protocol core", an item with
-      words "Implementation choices under “inside the wasm crate”"; ticked
-      for `ask`; then, locked and unticked, "Money past a budget, what can’t
-      be undone, and changes to these rules: always wait";
-    - a `.setting` select "Away until", small "When it isn’t turned off by
-      hand.", options "08:00, the end of quiet hours", "I turn it off", while
-      the switch is shown: each writes through `SetAway`, `on` as the row
-      stands, the first sending the next 08:00 and the second none. They work
-      while off: the row keeps them. With no row it reads 08:00.
-
-    A check sends jig's `ChangeSettings` of kind 8's whole value (*Its acts,*
-    below): the table with that item's class turned between `ask` and
-    `ask_away`, a kind with no item of its own given one at `ask`, added at
-    the end. Until kind 8 is read the section draws the stock's, disabled,
-    as the tab's live controls do.
+  - *What reaches you's rows,* under its columns, each a `.setting`:
+    - "Questions a goal can answer from its plan", a select, live, kind 6:
+      "Answered by the goal, kept in its decisions" (`foreman`), "Asked of
+      me too" (`up`), "Not asked: each agent decides alone" (`none`);
+    - "Away until", a select, small "When it isn’t turned off by hand.",
+      options "08:00, the end of quiet hours", "I turn it off", while the
+      switch is shown (3.5, *Away*): each writes through `SetAway`, `on` as
+      the row stands, the first sending the next 08:00 and the second none.
+      They work while off: the row keeps them. With no row it reads 08:00.
 - **What the client holds:** jig's `settings` watch, for the session, as the
   `dismissed` and `forges` watches are held, Home reading the same one. It reads
   kinds 7 and 8 of the open project as the project opens, kind 8 also of the
@@ -6958,9 +7038,9 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
   item, running work staying, against the newest revision the person has, the
   one exception to the pages sending proposals alone, beside Stop asking's
-  "Apply" (3.5, *Needs you*). The control is disabled while it is out, and so
-  are the others of its kind, since kind 7 is one record and kind 8 one table;
-  the value asked shows meanwhile. A refusal is said under its row in jig's
+  "Apply" (3.5, *Needs you*), which sends kind 8, one table, the same way. The
+  control is disabled while it is out, and so are the others of its kind, since
+  kind 7 is one record; the value asked shows meanwhile. A refusal is said under its row in jig's
   words, `full` and a person who is no owner too, the control back at its
   value. A `stale` refusal is sent once more against the revision it names.
   Answered, the client takes the value at once and reads it again.
@@ -6994,12 +7074,14 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
   temper's page draws them as 3.5, *Ask temper's page*, says, and How work
   runs as *The page* does, above.
 - **The terminal:** the switches as checks, the selects as selects, a disabled
-  one marked so; it all prints.
+  one marked so; What reaches you's columns one after another, each its chip's
+  words, its lines and its small line; it all prints.
 - **What the settings change:** the rail and the tab bar (5.3), `goals` hiding
   the offer of Goals and not a goal the project holds; `drafts`,
   `pages::chats::drafts_offered`, the chats' offer of a draft, an Ask temper
-  chat's apart (3.5); kind 8, the Away switch, a reason's set names and Stop
-  asking's offers (3.5, *Away* and *Needs you*); and nothing else;
+  chat's apart (3.5); kind 8, the Away switch, a reason's set names, Stop
+  asking's offers (3.5, *Away* and *Needs you*) and What reaches you's columns;
+  and nothing else;
   and these open the tab, `Address` having no anchors: Home's "Show goals",
   "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
@@ -7465,6 +7547,68 @@ terminal draw the same path.
   in a reply opening its card, the views `queue`, `task N tree` and
   `task N timeline`. The TUI prints views as lines of its own text
   (6.14, *A chat*, *a view*; `../draft/surfaces.md`, 11.5).
+
+### 5.17 What temper remembers about you
+
+The person's own page of what Ask temper keeps about them
+(`../draft/ask-temper.md`, section 7): the lines of their party scope (jig's
+`domain/engine.md`, 10.1), which only they read, each changed or deleted
+there. It draws what the engine holds, with no placeholder.
+
+- **Its address,** `Remembered`, at `/remembered`, of no project: the
+  person's menu (5.3) and, on a phone, the `Accounts` tab's last row (3.5,
+  *Settings and Deployment*) open it. It takes the rail's frame and the
+  column of Deployment's tabs, 720 wide, with no kicker and no tabs, under its
+  own level-1 heading, "What temper remembers about you", and its lede, "What
+  Ask temper keeps about you across your chats, when you ask it to. Only you
+  see these lines." No entry of the rail is current on it.
+- **Its read,** on entering and after each act's answer: jig's `Read::Notes
+  { scope: Party { party }, description: None, after: None }`, `party` the
+  person's own number from `me`, then each next page until none is left; a
+  party scope holds at most `notes.party_entries` lines (jig's
+  `domain/engine.md`, 10.1), so one page answers it whole. No watch: only
+  the person and their own Ask temper chats write it, and a chat's kept line
+  shows when the page is opened again. Until it answers, the page keeps what
+  it last knew (3.5).
+- **A line a row,** in the order of the scope's names, oldest first, as Ask
+  temper numbers them: the line, in the body's type; under it, in small type,
+  who kept it and when, "Ask temper chat 14 · Today · Thursday 22 October"
+  for a line a chat kept, its first reference the chat's number, or "Changed
+  by you · Yesterday · Wednesday 21 October" for one the person wrote, its
+  writer the party, the day by 5.12's day's rule; and at its right
+  "Change" and "Delete", quiet buttons, as Deployment's rows' acts are.
+- **Change** opens the row's field in place, its line in it, with "Save" and
+  "Cancel"; "Save" sends jig's `EditNote { project: 0, note, scope: Party {
+  party }, revision, description, body, references }`, the field's words
+  trimmed as the description, the body empty and the references as read, at
+  the revision read; "Cancel" and Escape close it unchanged, the focus back
+  on "Change". At most one field is open; an empty field sends nothing.
+- **Delete** sends jig's `DeleteNote { project: 0, note, scope: Party {
+  party }, revision }` at once: a line is short, and Ask temper keeps another
+  only when asked.
+- **A refusal** says why under its row, in a line, and keeps the row as read:
+  moved, "This line changed meanwhile; it shows as it is now.", the page
+  reading again; past the line's bound, "A line is at most 120 bytes.", the
+  bound jig's refusal names; any other, jig's words for it (5.1).
+- **With none kept,** a quiet band in the column, as Repositories' with none
+  (3.5): the tag "Nothing kept yet", and "Ask temper keeps a line here when
+  you ask it to remember something, such as how you like its answers."
+- **Full,** at `notes.party_entries` lines, a quiet line under the last: "12
+  lines, the most Ask temper keeps: it asks you which to change before it
+  keeps another."
+- **Its look** is Deployment's rows' (3.5, *The rows*): each row a hairline
+  under it, 14 px 4 px, no card and no shadow; its style under the `settings`
+  marker of `temper.css`. At 760 px and under, a row's acts go under its
+  line, each at least 44 pixels tall to a press (`browser.md`, 2.5, *What a
+  phone presses*).
+- **The terminal** has no such page: the TUI's pages are 6.14's, and
+  `Remembered` falls back to its launchpad, as Deployment's tabs do.
+- **Its tests:** the domain's read and acts, each request as sent and each
+  answer's page, as rows of `temper-client-domain`'s page tests; the view's
+  rows, field and refusals as `temper-client-view`'s; the person's menu with
+  its three items; and the gallery's states (`browser.md`, section 7), none
+  kept, three lines, twelve, a line being changed and a refusal, each by day
+  and by night, its prints read at a laptop's width and a phone's.
 
 ## 6. The terminal shells
 
@@ -10420,8 +10564,11 @@ own tests:
 
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
-  instructions. The other views, sketches and preferences join at M3b and M4 of
-  `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
+  instructions. The other views and sketches join at M3b of
+  `../draft/ask-temper.execution.md`. The page of preferences (5.17) is
+  walked after landing, a line kept in one chat, read in the next and
+  deleted there, and its gallery's prints read at a laptop's width and a
+  phone's.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
   way, a proposal's two paths and a charter's or a rule's card in a reply and in the
   chat's document at 1440, 1000 and 420 px, across and down the page,
@@ -10846,8 +10993,12 @@ own tests:
   *Home on All projects* and *Needs you*): temper/ui compares main with
   the whole story's `web/whole-story/home.html`, `needs.html`,
   `phone-home.html` and `phone-need.html`, and `pair/`'s and `team/`'s
-  Home and Needs you, at 1440, 1000 and 390 px, by day and by night; walks
-  them on a box across two projects; and records the journey of Home to a
+  Home and Needs you, at 1440, 1000 and 390 px, by day and by night, with
+  Only you's region against `needs.html`'s through `browser.md`, 7.2's
+  `needs-only-you` and `night-needs-only-you`, and Accounts'
+  `accounts-expiring`; walks them on a box across two projects, a
+  sign-in signed out reaching Accounts from Only you and renewed there;
+  and records the journey of Home to a
   need, answered (`../draft/surfaces.md`, 14). Owner: temper/ui. Default:
   each difference a finding filed back to the plan's repair.
 - **Away on All projects after landing** (3.5, *Away*, *On All
@@ -10857,6 +11008,16 @@ own tests:
   where the whole story's `web/whole-story/home.html` and
   `phone-home.html` draw them, and walks a press on a box across two
   projects. Owner: temper/ui. Default: each difference a
+  finding filed back as a repair.
+- **What reaches you after landing** (5.13, *What reaches you*; 3.5,
+  *Away*): temper/ui compares main with the section of the whole story's
+  `web/whole-story/how.html`, `pair/how.html` and `team/how.html`, through
+  `browser.md`, 7.2's `how-reaches`, `night-how-reaches`, `how` and
+  `how-approve`, at 1440, 1000 and 390 px, by day and by night, the
+  agent's star and the person's ring on the chips; and walks on a box a
+  need's Stop asking applied by an owner, its subject moving from "Asks
+  you" to "Agents decide, then tell you", and "Limits" bringing the
+  section into view. Owner: temper/ui. Default: each difference a
   finding filed back as a repair.
 - **Team after landing** (3.5, *Team*; 5.3): temper/ui compares main with
   the intro and People of the whole story's `web/whole-story/team/team.html`,
@@ -10893,7 +11054,14 @@ own tests:
   12 and 15): a project's Now on its row, rolled from its owners', its
   tiers, a follow's parity and "owned" (R1 to R3, F1); What follows what
   (F1); who decided, on a Decided for you row, and the intro's What
-  reaches you; Only you (N3a); a need's goal, role and asker on its from
+  reaches you; on an Only you item, what waits for it ("Two agents on vsr
+  wait for this login.", `../draft/what-reaches-you.md`, section 8), once
+  jig's `accounts` document names the tasks waiting on each of a person's
+  own accounts, as the `deployment` document does the deployment's (jig's
+  `client/domain/contract.md`, 5.1); Only you's other kinds, a forge's
+  token to replace, and a person task asking an act rather than a choice,
+  which stays among the cards meanwhile; Only you in the terminal's inbox
+  (6.14); a need's goal, role and asker on its from
   line; Tell temper at Needs you's foot, as *Tell temper* has it, once the engine files a
   person's word as a finding and a setting names the project's triager
   (`../domain/findings.md`, sections 4 and 6); one brief across projects written per person,
@@ -10907,7 +11075,7 @@ own tests:
   agents follow that the mock's `.proposal-split` draws. Default: the page's parts
   and the card alone.
 - **How work runs' later parts** (`../draft/surfaces.md`, sections 7 and 12;
-  `../draft/whole-story.execution.md`, section 3): What reaches you (P3b), Rules
+  `../draft/whole-story.execution.md`, section 3): Rules
   by path and the path's stops for a path set (P3c), What follows a landing and
   a role's budget (P3d), each drawn by its milestone from the engine's reads;
   the heading's chief departure, "Draft first, with the protocol core asking

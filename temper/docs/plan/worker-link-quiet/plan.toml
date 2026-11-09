@@ -20,6 +20,7 @@ design = "jig/docs/design/protocol/channel.md, 9"
 
 [[part]]
 id = "worker-room"
+answer = """Increase the owned example's worker io.output so its largest Turn fits, and keep its turn contract. Size it from the turn the example admits, with no more headroom than the stock profiles keep. temper/docs/examples/owned.json is authorized for that one figure, plus whatever line the example's own check needs to say so. Change no other figure. (temper/migration, 2026-11-09)"""
 title = "The worker's link is made only when every frame it sends fits its stream's room"
 mode = "direct"
 needs = []
@@ -46,5 +47,6 @@ walk = false
 
 [[question]]
 id = "start-past-room"
+answer = """Agreed: fail it as an invalid start naming its bytes and the room, and keep the link alive. Nothing more in this plan. Making such a start fit comes in a later plan of mine, chosen from the deployment's refusal line once this lands, as you recommend: a size near the room means sizing io.output from the configured room, and one far past it means bounding what a resumed start carries. (temper/migration, 2026-11-09)"""
 text = "Both stock profiles admit a resumed start larger than the link's room, io.output (1 MiB): 32 committed calls of 69,632 bytes (small) or 135,168 (standard) alone pass it, beside a 256 KiB charter and window and a full inbox. With this plan such a start fails as an invalid start naming its bytes and the room, and the link lives; it no longer silences the link. Making it start needs a figure, which the request keeps out of this plan: a larger io.output, a smaller call_records or call_answer_bytes, a start that carries fewer committed calls, or frames that move below in pieces (a skein channel change). Which, in a later plan? Recommendation: read the deployment's next lines first: if the producer's refusal names a size near the room, raise io.output; if far past it, bound what a resumed start carries."
 parts = []

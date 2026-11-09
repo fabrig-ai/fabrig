@@ -34,6 +34,9 @@ pub(super) fn encode_note_scope(
     limits: &wire::Limits,
 ) -> Result<wire::NoteScope, wire::Problem> {
     Ok(match value {
+        domain::NoteScope::Party { party } => {
+            wire::NoteScope::Party(wire::NoteScopeParty::new(limits, wire::NoteScopePartyParts { party: *party })?)
+        }
         domain::NoteScope::Deployment => wire::NoteScope::Deployment,
         domain::NoteScope::Project => wire::NoteScope::Project,
         domain::NoteScope::Goal { goal } => {
@@ -52,6 +55,7 @@ pub(super) fn decode_note_scope(
     limits: &wire::Limits,
 ) -> Result<domain::NoteScope, wire::Problem> {
     Ok(match value {
+        wire::NoteScope::Party(value) => domain::NoteScope::Party { party: value.party() },
         wire::NoteScope::Deployment => domain::NoteScope::Deployment,
         wire::NoteScope::Project => domain::NoteScope::Project,
         wire::NoteScope::Task(value) => {

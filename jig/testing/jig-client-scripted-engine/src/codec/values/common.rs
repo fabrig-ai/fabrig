@@ -103,6 +103,9 @@ pub(in crate::codec) fn wire_note_scope(value: &c::NoteScope, limits: &w::Limits
         c::NoteScope::Tasks { project } => {
             w::NoteScope::Tasks(w::NoteScopeTasks::new(limits, w::NoteScopeTasksParts { project: *project })?)
         }
+        c::NoteScope::Party { party } => {
+            w::NoteScope::Party(w::NoteScopeParty::new(limits, w::NoteScopePartyParts { party: *party })?)
+        }
         c::NoteScope::Deployment => w::NoteScope::Deployment,
         c::NoteScope::Project(value) => {
             w::NoteScope::Project(w::NoteScopeProject::new(limits, w::NoteScopeProjectParts { value: *(value) })?)

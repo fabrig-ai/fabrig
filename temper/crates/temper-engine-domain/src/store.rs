@@ -132,12 +132,16 @@ pub enum CallAnswer {
     ChangeRefused { problem: Box<jig_domain_tasks::Problem>, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
     /// A note write's durable name and revision.
     NoteWritten { name: u64, revision: u32, lines: u32, added: u32, removed: u32, first: u32 },
+    /// A scoped note deleted by the run (jig domain/engine.md, 10.1).
+    NoteDeleted { name: u64 },
     /// One bounded notes recall page.
     NoteRecalled { entries: Box<[jig_domain_notes::Entry]>, more: bool },
     /// A note request changed nothing.
     NoteRefused(jig_domain_notes::Refusal),
     /// The document call joined with its note write (domain/agent.md, 8.4.3).
     Document(Box<Documented>),
+    /// The root's joined memory answer (domain/agent.md, 8.4.4).
+    Remember(Box<Remembered>),
     /// A settings part or refusal, answered without a record (domain/agent.md, 8.4.2).
     Parts(Box<PartsAnswer>),
     /// The named tool is deferred to a later engine route.
@@ -163,6 +167,33 @@ pub struct Documented {
     pub action: crate::DocumentAction,
     pub heading: Box<[u8]>,
     pub outcome: DocumentOutcome,
+}
+
+/// The root's answer to a `remember` call (domain/agent.md, 8.4.4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Remembered {
+    Done { did: RememberDid, line: u32, lines: skein_lib::List<Box<[u8]>>, bound: u32 },
+    Refused(RememberRefusal),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum RememberDid {
+    Kept,
+    Changed,
+    Dropped,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RememberRefusal {
+    NotOneLine,
+    TooLong { bytes: u32, bound: u32 },
+    Full { bound: u32 },
+    NoLine { line: u32, lines: u32 },
+    Moved { action: RememberDid, line: u32 },
+    NoPerson,
+    Busy,
+    Unread,
+    Note(jig_domain_notes::Refusal),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -292,6 +323,7 @@ impl CallAnswer {
             CallAnswer::ChangeRefused { problem, .. } => {
                 jig_domain_core::CallPart::DelegationRefused(problem.as_ref().clone())
             }
+            CallAnswer::NoteDeleted { name } => jig_domain_core::CallPart::NoteDeleted { name: *name },
             CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
                 jig_domain_core::CallPart::NoteWritten {
                     name: *name,
@@ -306,7 +338,9 @@ impl CallAnswer {
                 jig_domain_core::CallPart::NoteRecalled { entries: entries.clone(), more: *more }
             }
             CallAnswer::NoteRefused(why) => jig_domain_core::CallPart::NoteRefused(*why),
-            CallAnswer::Parts(_) | CallAnswer::Document(_) => unreachable!("render-only feedback has no core record"),
+            CallAnswer::Parts(_) | CallAnswer::Document(_) | CallAnswer::Remember(_) => {
+                unreachable!("render-only feedback has no core record")
+            }
             CallAnswer::Unavailable => jig_domain_core::CallPart::Unavailable,
         }
     }
@@ -363,6 +397,7 @@ impl CallAnswer {
                 CallAnswer::DelegationDenied { answer: *answer, findings: findings.clone() }
             }
             jig_domain_core::CallPart::DelegationRefused(problem) => CallAnswer::DelegationRefused(problem.clone()),
+            jig_domain_core::CallPart::NoteDeleted { name } => CallAnswer::NoteDeleted { name: *name },
             jig_domain_core::CallPart::NoteWritten { name, revision, lines, added, removed, first } => {
                 CallAnswer::NoteWritten {
                     name: *name,
@@ -617,7 +652,7 @@ fn notes_contains(range: &jig_domain_notes::Range, child: &jig_domain_notes::Key
         jig_domain_notes::Range::Project { project, after } => match child {
             jig_domain_notes::Key::Line { scope, .. } => {
                 let in_project = match scope {
-                    jig_domain_notes::Scope::Deployment => false,
+                    jig_domain_notes::Scope::Deployment | jig_domain_notes::Scope::Party { .. } => false,
                     jig_domain_notes::Scope::Project { project: found }
                     | jig_domain_notes::Scope::Goal { project: found, .. }
                     | jig_domain_notes::Scope::Resources { project: found, .. } => project == found,
@@ -836,7 +871,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         let scope_bytes = match scope.as_ref() {
                             jig_domain_people::NoteScope::Deployment
                             | jig_domain_people::NoteScope::Project
-                            | jig_domain_people::NoteScope::Goal { .. } => 0,
+                            | jig_domain_people::NoteScope::Goal { .. }
+                            | jig_domain_people::NoteScope::Party { .. } => 0,
                             jig_domain_people::NoteScope::Resources { pattern, .. } => {
                                 let mut bytes = skein_lib::len_u64(pattern.segments.len())
                                     .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
@@ -955,7 +991,8 @@ fn note_scope_bytes(scope: &jig_domain_notes::Scope) -> Option<u64> {
         }
         jig_domain_notes::Scope::Deployment
         | jig_domain_notes::Scope::Project { .. }
-        | jig_domain_notes::Scope::Goal { .. } => Some(0),
+        | jig_domain_notes::Scope::Goal { .. }
+        | jig_domain_notes::Scope::Party { .. } => Some(0),
     }
 }
 
@@ -1018,6 +1055,7 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
             None => 0,
         }),
         CallAnswer::Document(documented) => documented_bytes(documented),
+        CallAnswer::Remember(remembered) => remembered_bytes(remembered),
         CallAnswer::Parts(parts) => {
             let bytes = u64::try_from(size_of_val(parts.as_ref())).ok()?;
             match parts.as_ref() {
@@ -1079,6 +1117,7 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
         | CallAnswer::SubscriptionRefused(_)
         | CallAnswer::DelegationRefused(_)
         | CallAnswer::NoteWritten { .. }
+        | CallAnswer::NoteDeleted { .. }
         | CallAnswer::NoteRefused(_) => Some(0),
         CallAnswer::ReadRepositoryRefused { named, repositories }
         | CallAnswer::SubscriptionRepositoryRefused { named, repositories, .. }
@@ -1196,6 +1235,20 @@ fn adoption_bytes(adoption: &jig_domain_people::Adoption) -> Option<u64> {
     }
     for option in &adoption.options {
         bytes = bytes.checked_add(skein_lib::len_u64(option.len()))?;
+    }
+    Some(bytes)
+}
+
+fn remembered_bytes(remembered: &Remembered) -> Option<u64> {
+    let mut bytes = u64::try_from(size_of_val(remembered)).ok()?;
+    match remembered {
+        Remembered::Done { lines, .. } => {
+            bytes = bytes.checked_add(skein_lib::List::<Box<[u8]>>::price(lines.capacity())?)?;
+            for line in lines {
+                bytes = bytes.checked_add(skein_lib::len_u64(line.len()))?;
+            }
+        }
+        Remembered::Refused(_) => {}
     }
     Some(bytes)
 }

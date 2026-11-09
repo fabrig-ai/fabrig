@@ -92,7 +92,7 @@ impl Referee {
                     }
                 };
                 let in_project = match scope {
-                    Scope::Deployment => false,
+                    Scope::Deployment | Scope::Party { .. } => false,
                     Scope::Project { project: found }
                     | Scope::Goal { project: found, .. }
                     | Scope::Resources { project: found, .. } => project == found,

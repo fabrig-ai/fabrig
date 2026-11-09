@@ -915,6 +915,16 @@ replay says the same clocks (`README.md`, 5.12).
     `temper-how-role-more`;
   - *Budgets' row,* `temper-how-row`, `.row`'s grid with the first column
     200 px, its small words muted and its figure at its right;
+  - *What reaches you,* `whole-story.css`' `.grid3`, `.box` and `.who`
+    rules taken exactly, on tokens of its own: `temper-how-reaches`, the
+    columns' grid, `repeat(auto-fit, minmax(240px, 1fr))` with a gap of
+    16, so two boxes share the width and a phone stacks them;
+    `temper-how-reach`, a box, its lines `.small` with no bullets' margin
+    of their own; `temper-how-who-agent` and `temper-how-who-person`, the
+    chip and its mark, `.who.a`'s star (`--star`, `--gf-ink`) and
+    `.who.p`'s ring (`--gf-signal`); `temper-how-reach-note`, the box's
+    last line, `.small.muted`; its rows under the grid Settings'
+    `.setting` rows;
   - *on a phone,* at 760 px and under, the column takes the frame's phone
     width and the path runs down the page, as on Ask temper's page.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
@@ -2067,8 +2077,6 @@ from the engine's own answers, is where the look is tuned.
 | `home-decided` | hand-made Home deliveries: two `Decision`s of a chat and a goal, no Away row: the everyday kicker and headline, "Decided for you · 2" with each row's "Allowed:" line, and "Needs you" |
 | `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
-| `settings-away` | *How work runs* with the section `#away` as a view of Agents review's classes: "Agents decide, then tell you: …", three checks ticked, the locked last line and "Away until" |
-| `settings-away-you-approve` | *How work runs* on You approve's classes: the section's checks all unticked, no "Away until", and no Away switch in the rail |
 | `home-begin-both-left` | hand-made Home deliveries: both steps left, the repository first; first repository offered; the rail's Home and Ask temper alone, the phone's three tabs |
 | `home-begin-ask-left` | hand-made Home deliveries: repository adopted, "temper can change its code now."; "Tell temper how you work" left, its act staying in Ask temper (the look request `to-begin-two-steps`'s page) |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
@@ -2144,12 +2152,14 @@ from the engine's own answers, is where the look is tuned.
 | `settings-goals-off` | `settings` with Goals hidden: no ways of working, and the rail without "Goals" |
 | `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
-| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; the foot's switches (`README.md`, 5.13, *The page*) |
-| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line |
+| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; What reaches you from Agents review's stock classes, "While you’re away, they are decided with the recommended choice and listed."; the foot's switches (`README.md`, 5.13, *The page*) |
+| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line; What reaches you from You approve's classes: no "Agents decide, then tell you", every movable kind under "Asks you", "They ask even while you’re away.", and no "Away until" |
 | `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer with the coordinator and the foreman, Budgets' row "Goals", "80" |
 | `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", a fourth tab, "Yours", current and shown, no act |
 | `how-card` | `how` with the review's stop pressed: its ring and words, its card under the drawing with its caret, its model, what it can do and what it is asked to, "Open the reviewer ›" |
 | `night-how` | `how` with the night switch pressed: the path's marks by night |
+| `how-reaches` | hand-made deliveries, Draft first current, its classes the whole story's `how.html`'s: wording, retries, implementation choices and test-only changes decided, then a path set, "vsr’s protocol core", asking even when away, and a new dependency and a departure Away may decide: What reaches you's three columns, "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.", and its rows, the question route and "Away until" |
+| `night-how-reaches` | `how-reaches` with the night switch pressed: the columns' chips and marks by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Deployment's frame |
@@ -2248,6 +2258,16 @@ from the engine's own answers, is where the look is tuned.
 | `limits-not-owner` | Limits for a person with no role in the deployment: its one line |
 | `night-work` | `work` with the night look on |
 | `night-limits` | `limits` with the night look on |
+| `remembered-none` | "What temper remembers about you" with none kept: its quiet band (`README.md`, 5.17) |
+| `remembered-three` | three lines, two kept by an Ask temper chat and one changed by the person, each with "Change" and "Delete" |
+| `remembered-full` | twelve lines, and the full list's line under the last |
+| `remembered-changing` | `remembered-three` with a line's field open, "Save" and "Cancel" |
+| `remembered-refused` | `remembered-three` after a change refused as moved: its line under the row |
+| `night-remembered-none` | `remembered-none` with the night look on |
+| `night-remembered-three` | `remembered-three` with the night look on |
+| `night-remembered-full` | `remembered-full` with the night look on |
+| `night-remembered-changing` | `remembered-changing` with the night look on |
+| `night-remembered-refused` | `remembered-refused` with the night look on |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |
@@ -2265,6 +2285,10 @@ from the engine's own answers, is where the look is tuned.
 | `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." and "Stop asking" |
 | `needs-stop-asking` | `needs-why` with Stop asking open for an owner: "Let agents decide implementation choices, then tell you." with "Apply", and "Keep asking" |
 | `needs-stop-asking-set` | a question that changes a path set, Stop asking open for a member: the words offer's field, the split, each with "Propose" |
+| `needs-only-you` | the unfiltered *Needs you* (`README.md`, 3.5, **Only you**): a question, then "Only you · 2", a signed-out ChatGPT sign-in and an expiring Claude Code login, each with "Sign in again" |
+| `needs-only-you-done` | no card open: "Nothing needs you.", "Home", then "Only you · 1", a signed-out ChatGPT sign-in |
+| `night-needs-only-you` | `needs-only-you` with the night look on |
+| `accounts-expiring` | Accounts (`README.md`, 5.5, *Each state*): a ChatGPT sign-in read as expiring, "Expiring: sign in again before it ends." and "Continue with ChatGPT" |
 | `goal-running` | first-run-projects, running: six of nine tasks in, its report, Left and Risk, the bar, three waiting lines, "6 landed" folded |
 | `goal-needs-funds` | first-run-projects held for funds: "needs funds", its band with Release and Leave held |
 | `goal-needs-question` | welcome-stall with an open question: its band and its parsed choices, the recommended one primary |

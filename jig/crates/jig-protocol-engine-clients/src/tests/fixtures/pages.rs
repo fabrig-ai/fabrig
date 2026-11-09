@@ -110,3 +110,102 @@ pub fn notes_page() -> reads::Page {
         cut: true,
     })])))
 }
+
+/// A private section and call, with independent before/after literals.
+pub fn private_transcript(projected: bool) -> Box<[u8]> {
+    use smith_transcript::v7 as s;
+    let system: &[u8] = if projected {
+        b"## Preferences\n\nWithheld: shown to its person alone.\n\n## Shared\nPublic.\n"
+    } else {
+        b"## Preferences\n\n1. Secret.\n\n## Shared\nPublic.\n"
+    };
+    let input: &[u8] = if projected { b"{}" } else { b"{\"line\":\"Secret.\"}" };
+    let result: &[u8] = if projected { b"Withheld: shown to its person alone." } else { b"Kept Secret." };
+    let messages = List::from_boxed(Box::new([
+        s::Message::new(
+            &s::CEILINGS,
+            s::MessageParts {
+                role: s::Role::Assistant,
+                blocks: List::from_boxed(Box::new([s::Block::Call(
+                    s::Call::new(
+                        &s::CEILINGS,
+                        s::CallParts {
+                            id: Box::from(b"c1".as_slice()),
+                            name: Box::from(b"keep".as_slice()),
+                            input: Box::from(input),
+                            replay: None,
+                        },
+                    )
+                    .unwrap(),
+                )])),
+            },
+        )
+        .unwrap(),
+        s::Message::new(
+            &s::CEILINGS,
+            s::MessageParts {
+                role: s::Role::User,
+                blocks: List::from_boxed(Box::new([s::Block::Result(
+                    s::ToolResult::new(
+                        &s::CEILINGS,
+                        s::ToolResultParts {
+                            id: Box::from(b"c1".as_slice()),
+                            returned: s::Returned::Said(
+                                s::Said::new(&s::CEILINGS, s::SaidParts { text: Box::from(result), error: false })
+                                    .unwrap(),
+                            ),
+                        },
+                    )
+                    .unwrap(),
+                )])),
+            },
+        )
+        .unwrap(),
+    ]));
+    let turn = s::Turn::new(
+        &s::CEILINGS,
+        s::TurnParts {
+            system: Some(Box::from(system)),
+            model: Box::from(b"model".as_slice()),
+            effort: None,
+            kind: s::TurnKind::Ordinary,
+            opening: None,
+            endpoint: Box::from(b"endpoint".as_slice()),
+            dialect: 3,
+            place: 1,
+            usage: s::Usage::new(
+                &s::CEILINGS,
+                s::UsageParts {
+                    input: Some(11),
+                    output: Some(12),
+                    cache_read: None,
+                    cache_write: None,
+                    reasoning: None,
+                },
+            )
+            .unwrap(),
+            spent: 15,
+            jobs: 0,
+            messages,
+        },
+    )
+    .unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
+    turn.encode(&mut writer).unwrap();
+    writer.finish()
+}
+
+pub fn private() -> crate::Private {
+    crate::Private {
+        title: Box::from(b"Preferences".as_slice()),
+        tools: List::from_boxed(Box::new([Box::from(b"keep".as_slice())])),
+    }
+}
+
+pub fn private_activity(withheld: bool) -> reads::Page {
+    let record = turn_record(31, 37, 19, Some(0), 23, &private_transcript(false));
+    page(List::from_boxed(Box::new([reads::PageRow::Activity {
+        line: activity_line(13, 31, 37),
+        turn: Some(if withheld { reads::PageTurn::Withheld(record) } else { reads::PageTurn::Carried(record) }),
+    }])))
+}

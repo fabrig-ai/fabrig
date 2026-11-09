@@ -96,6 +96,38 @@ core's `tests/reads/person.rs` (`admission_names_exactly_one_project_or_a_task_t
 `stored_person_reads_recheck_the_role_and_share_load_limits`,
 `person_application_reads_reach_the_connector_as_the_person`) hold it.
 
+Section 10.1, with 7.3's withheld turns of a run's read as its person and
+9's `preferences` section, is present by plan `ui-ask-m4` but for the
+gaps below. The notes child keeps `Party { party }`, keyed after every
+project's scopes, so no project's notes read or deletion meets it;
+`notes.party_entries` and `notes.party_bytes`, 12 and 120 in both
+profiles, bound its entries and their descriptions, a body refused, and
+its index answers whole up to `party_entries` (`jig-domain-notes`'s
+`read.rs`). A run whose requester is the person and whose authority
+holds the asking family writes it through `Note` and drops an entry
+through `NoteDelete`, any other run refused beyond authority naming the
+scope, and a run's `note` and `recall` name no party's scope
+(`routing/party.rs`); the party alone reads, corrects and deletes it
+through a client, naming project 0, whatever their roles
+(`reads/party.rs`); the brief's required `preferences` section holds its
+lines in name order, `N. DESCRIPTION`, or `None kept.`
+(`routing/run/preferences.rs`); every turn answered to a party other
+than its task's requester, on its own, in an activity page or beside a
+line, and every turn of a run's read as its person, is marked withheld
+(`reads/withheld.rs`), and the clients' component projects it by
+`jig_protocol_transcript::withhold`, a private tool's live input
+reaching the requester alone. The core world's
+`party_runs::a_run_keeps_its_persons_preferences_and_no_one_elses`,
+`party_reads::a_person_alone_reads_and_keeps_their_preferences`,
+`party_brief::an_asking_run_reads_its_persons_preferences_whole`,
+`withheld::a_turn_is_withheld_from_all_but_its_person` and
+`withheld::a_private_live_calls_input_reaches_its_requester_alone`, the
+client protocol world's
+`a_person_reads_corrects_and_deletes_preferences_through_the_client` and
+`a_turns_private_parts_reach_its_person_alone_over_the_wire`, and
+`jig-protocol-transcript`'s
+`private_parts_are_withheld_with_the_same_admission` hold it.
+
 Sections 17.9 and 17.11 have no known gap in the stored-policy size
 refusal or a charter's selected effort. Size facts include parts and
 cross proposal answers, client wire 19 and people store 14 unchanged,
@@ -207,6 +239,29 @@ try. A window's later pages keep its first page's slot there
   page's `last`), so whether there is a next page, and the cursor the
   root holds, can come from another project's entry; temper says only
   whether more wait. No test pages a filtered inbox.
+
+- **Not yet:** 10.1, *Its runs' parts are its party's*: a brief's
+  transcript tail renders a private tool's calls whole, `call TOOL:` and
+  its input and then its result's summary
+  (`jig-protocol-transcript`'s `brief.rs`, which takes no private names),
+  and the tail is a text of the fresh start's turn outside the private
+  section, so the turn's projection keeps it and every other party reads
+  it (temper's `temper/docs/design/domain/agent.status.md`, 8.4.4).
+- **Not yet:** 10.1, *Read and kept by its party alone*: a party naming
+  their own scope and another party's entry by its name is refused as
+  moved, with that entry's revision, not as unknown: the core admits the
+  scope as the party's own (`routing/effect/note.rs`,
+  `edit_note_request`), and the notes child answers an entry of another
+  scope `Moved` (`jig-domain-notes`'s `domain.rs`, `Action::Edit`); a
+  run's `NoteDelete` or revision of an entry another scope holds is
+  answered the same way.
+- **Not yet:** 10.1, *Read by those runs*: no check holds
+  `core.brief_core_budgets.preferences` above `notes.party_entries` lines of
+  `notes.party_bytes` numbered, so a deployment whose overrides pass it
+  fails every asking brief of a full scope as not fitting its budget, and
+  one that lowers either bound under kept lines fails them too. No test
+  reads a preferences gather that fails, for room, refusal or fit.
+
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
@@ -221,7 +276,6 @@ try. A window's later pages keep its first page's slot there
   These can differ across a worker restart with Claude and OpenAI accounts;
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
-
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the

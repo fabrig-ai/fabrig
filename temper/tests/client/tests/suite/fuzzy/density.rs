@@ -33,6 +33,7 @@ struct World {
     pending: Vec<Up>,
     entries: Vec<c::InboxEntry>,
     approvals: Vec<w::ApprovalRow>,
+    accounts: Option<c::Accounts>,
     decision_rows: Vec<(Token, u32, Vec<u64>)>,
     answered: Vec<c::ObjectKey>,
     ways: Vec<u32>,
@@ -182,6 +183,97 @@ impl World {
             })),
         );
         self.drain();
+    }
+
+    fn accounts(&mut self) {
+        let Some(me) = self.root.pages().me(self.root.client()) else { return };
+        let party = me.party.number;
+        let mut rows = Vec::new();
+        for number in 1..=u32::try_from(self.rng.below(4)).expect("zero to three accounts") {
+            let kind = match self.rng.below(3) {
+                0 => c::AccountKind::SignIn,
+                1 => c::AccountKind::Program,
+                2 => c::AccountKind::Key,
+                _ => unreachable!("three source kinds"),
+            };
+            let state = if self.rng.below(2) == 0 { c::AccountState::Granted } else { c::AccountState::SignInAgain };
+            let expiring = self.rng.below(2) == 0;
+            let holder =
+                if self.rng.below(2) == 0 { c::AccountHolder::Party(party) } else { c::AccountHolder::Deployment };
+            let mut sources = vec![c::AccountSource {
+                name: (kind == c::AccountKind::Program).then(|| b"program-login".as_slice().into()),
+                place: number,
+                number: number * 2,
+                kind,
+                state,
+                usable: state == c::AccountState::Granted,
+                expiring,
+                attention: false,
+                spent_until: None,
+            }];
+            if self.rng.below(2) == 0 {
+                sources.push(c::AccountSource {
+                    name: None,
+                    place: number,
+                    number: number * 2 + 1,
+                    kind: c::AccountKind::SignIn,
+                    state: c::AccountState::SignInAgain,
+                    usable: false,
+                    expiring: true,
+                    attention: false,
+                    spent_until: None,
+                });
+            }
+            rows.push(c::AccountLine {
+                list: None,
+                number,
+                place: number,
+                uses: None,
+                plan: kind == c::AccountKind::SignIn,
+                provider: (self.rng.below(2) == 0).then_some(17),
+                provider_name: None,
+                manage_usage: None,
+                display: text(b"An account"),
+                holder,
+                sources: List::from_boxed(sources.into_boxed_slice()),
+                facts: List::with_capacity(0),
+                cut: false,
+            });
+        }
+        let document = c::Accounts {
+            program_hosts: List::with_capacity(0),
+            accounts: List::from_boxed(rows.into_boxed_slice()),
+            signing: List::with_capacity(0),
+            last_end: None,
+            usable: false,
+            settled: true,
+            cut: self.rng.below(2) == 0,
+            readiness: List::with_capacity(0),
+            readiness_cut: false,
+        };
+        let subject = Watchable::Jig(c::Subject::Accounts);
+        if self.watch(&subject).is_some() {
+            self.accounts = Some(document.clone());
+            self.deliver(&subject, c::Delivery::Accounts(Box::new(document)));
+            self.drain();
+        }
+    }
+
+    fn only(&self) -> u32 {
+        let Some(document) = &self.accounts else { return 0 };
+        let Some(me) = self.root.pages().me(self.root.client()) else { return 0 };
+        let count = document
+            .accounts
+            .iter()
+            .filter(|account| {
+                account.holder == c::AccountHolder::Party(me.party.number)
+                    && account.sources.get(0).is_some_and(|source| {
+                        matches!(source.kind, c::AccountKind::SignIn | c::AccountKind::Program)
+                            && (source.state == c::AccountState::SignInAgain || source.expiring)
+                    })
+            })
+            .count();
+        u32::try_from(count).expect("zero to three Only you items")
     }
 
     fn read(&self, what: &Readable) -> Option<Readout> {
@@ -491,6 +583,11 @@ impl World {
         let Some(inbox) = self.root.pages().inbox() else { return };
         let open = self.open();
         let needs_facts = parts::needs_facts(&self.root, self.env.wall);
+        let only = self.only();
+        assert_eq!(needs_facts.only, only, "Only you counts the person's deciding logins, step {}", self.step);
+        if self.accounts.is_some() {
+            self.observed.insert(if only == 0 { "no Only you item" } else { "an Only you item" });
+        }
         if self.decision_rows.iter().any(|(_, _, rows)| rows.iter().any(|at| self.env.wall.as_nanos() - at >= DAY)) {
             self.observed.insert("expired decisions");
         }
@@ -585,6 +682,7 @@ fn check_rules(home: Option<&parts::HomeFacts>, needs: &parts::NeedsFacts) {
             list: needs.known && needs.open != 0,
             done: needs.known && needs.open == 0,
             decided: needs.showing != 0,
+            only: needs.known && needs.only != 0,
         },
         "Needs you's independent part rules: {needs:?}"
     );
@@ -609,6 +707,7 @@ fn check_content(
         assert_eq!(shown.list, open > 0, "Needs you's list has a card");
         assert_eq!(shown.done, needs.known && open == 0, "Done hides no card");
         assert_eq!(shown.decided, decisions > 0, "Decided for you has a row");
+        assert_eq!(shown.only, needs.known && needs.only != 0, "Only you shows exactly while an item needs its person");
     }
 }
 
@@ -679,6 +778,7 @@ fn generate(seed: u64) -> World {
         pending: Vec::new(),
         entries: Vec::new(),
         approvals: Vec::new(),
+        accounts: None,
         decision_rows: Vec::new(),
         answered: Vec::new(),
         ways: vec![0; usize::try_from(projects).expect("bounded density fixture")],
@@ -741,7 +841,7 @@ fn sweep(seed: u64) -> BTreeSet<&'static str> {
     for step in 0..STEPS {
         world.step = step;
         let project = u32::try_from(world.rng.between(1, u64::from(world.projects))).expect("bounded density fixture");
-        match world.rng.below(14) {
+        match world.rng.below(15) {
             0 => {
                 world.observed.insert("All projects Home");
                 world.go(Address::AllHome);
@@ -801,7 +901,8 @@ fn sweep(seed: u64) -> BTreeSet<&'static str> {
             }
             12 => world.dismissals(),
             13 => world.go(Address::Inbox { filter: Filter { kind: Some(Kind::Question), ..Filter::ALL } }),
-            _ => unreachable!("fourteen generator moves"),
+            14 => world.accounts(),
+            _ => unreachable!("fifteen generator moves"),
         }
         world.drain();
     }
@@ -839,6 +940,8 @@ fn random_facts_and_settings_keep_each_part_and_card() {
             "sent answer",
             "settings with approval",
             "expired decisions",
+            "an Only you item",
+            "no Only you item",
         ] {
             assert!(observed.contains(state), "density sweep did not reach {state}");
         }

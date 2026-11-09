@@ -280,6 +280,20 @@ impl DerefMut for Story {
     }
 }
 impl Story {
+    /// Seed durable owner rows before a story reads or edits them.
+    pub fn seed(&mut self, rows: Box<[jig_test_domain::Record]>) {
+        self.engine.driver.world.seed(rows);
+    }
+
+    /// The fake application provider authenticates another person on the same client.
+    pub fn sign_in_as(&mut self, identity: jig_domain_people::Identity) {
+        self.engine.mint(skein_lib::Token::new(1), identity);
+        assert!(self.run_until(|s| !s.engine.minted.is_empty(), DEPLOYMENT_READY));
+        let (_, credential) = self.engine.minted.pop().expect("application sign-in minted");
+        self.event(Event::SignIn { with: client::With::Held(credential) });
+        assert!(self.run_until(|s| s.client.link().state == Link::Live, DEPLOYMENT_READY));
+    }
+
     #[must_use]
     pub fn new(seed: u64) -> Self {
         let mut limits = fixtures::owner_limits();

@@ -1198,9 +1198,14 @@ party reads is therefore never lost by a crash.
   sign-in and visibility when it completes; it never restores a retired
   row into the live set (`../../domain/engine.md`, 5.2 and 5.3).
 - **Notes are read by scope.** A note's scope on the client's side is
-  `Deployment`, `Project`, `Resource` or `Task { project, task }`, the last
-  the engine's goal scope, which also holds a chat's own
-  (`../../domain/engine.md`, section 10), each answered whole. `Tasks {
+  `Deployment`, `Project`, `Resource`, `Task { project, task }`, the
+  engine's goal scope, which also holds a chat's own
+  (`../../domain/engine.md`, section 10), or `Party { party }`, a person's
+  own preferences (`../../domain/engine.md`, 10.1), each answered whole. A
+  party's scope is read, and its entries edited and deleted, naming
+  project 0, by that party alone, whatever their roles; any other party's
+  read is unknown and their edit or deletion refused as unknown, an
+  owner's included. `Tasks {
   project }` is a read of its own: every note of the project in a goal's
   scope, so that a client lists a project's documents with no read per task,
   each `Note`'s `body` empty and its `cut` set, a row's `scope` its own `Task`.
@@ -1240,7 +1245,10 @@ party reads is therefore never lost by a crash.
   (7.3). It is read once and never watched: a committed turn does not
   change. It is read with the access of `activity{n}`. Its answer is:
   - *the turn:* smith's bytes, which the client decodes as it decodes
-    activity's turns (client.md, section 10);
+    activity's turns (client.md, section 10); to a party other than the
+    person who requested its task, withheld: its preferences section and
+    its private tools' calls projected as `../../domain/engine.md`, 10.1
+    says, here and on activity's pages alike;
   - *unknown,* when it is not there or the party may not see it;
   - *gone,* past its transcript's horizon, as a dropped transcript is
     (`../../protocol/store.md`, 8.5 and 11.1);
@@ -1447,7 +1455,10 @@ commit, so they leave through the journal's door (`../../README.md`,
   host reports them, that retry's text so far, the call it is making, and the call being
   written (`writing`), with its provider id, tool, bounded input suffix,
   byte offsets and cut mark,
-  within a bound on bytes.
+  within a bound on bytes. A call of the application's private tools
+  carries its input, made or being written, to the task's requester alone;
+  every other follower is sent its tool and no input
+  (`../../domain/engine.md`, 10.1).
 - **Read from an offset:** each delivery carries the turn's name, the text
   after the offset the client has, and the offset it ends at; the client
   takes it and is sent the rest when there is more. A new turn's text,

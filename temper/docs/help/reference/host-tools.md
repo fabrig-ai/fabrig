@@ -450,3 +450,13 @@ A write.
 
 - `action`: one of `write`, `append` or `replace`; required. write: the whole document; append: a section at its end; replace: the section under body's first ## heading.
 - `body`: text; required. Markdown: the whole document, or one section beginning with its ## heading.
+
+## remember
+
+Keep a line about your person across their chats, only when they ask: add one, or change or drop one by its number. Each answer is the whole list.
+
+A write.
+
+- `action`: one of `add`, `change` or `drop`; required.
+- `line`: an integer from 1 to 4294967295; optional. The line's number, for change and drop.
+- `text`: text; optional. One line, at most 120 bytes.

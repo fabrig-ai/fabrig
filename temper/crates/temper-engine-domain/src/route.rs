@@ -23,6 +23,7 @@ mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
+pub(crate) mod remember;
 pub(crate) mod see;
 pub(crate) mod ways;
 pub use see::{
@@ -555,6 +556,7 @@ pub(crate) fn decide_call(
         | core::CallPart::DelegationDenied { .. }
         | core::CallPart::DelegationRefused(_)
         | core::CallPart::NoteWritten { .. }
+        | core::CallPart::NoteDeleted { .. }
         | core::CallPart::NoteRecalled { .. }
         | core::CallPart::NoteRefused(_)
         | core::CallPart::SettingsRefused(_)

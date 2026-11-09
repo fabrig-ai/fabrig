@@ -29,14 +29,21 @@
     5.7, has the status agent write a project's brief from what the
     engine keeps, not from owners' Nows.
   - 4: `../client/README.md`, 3.5, *Needs you*, has no "What reaches
-    you" lede, no Only you, and no terminal command to talk a need
+    you" lede, and no terminal command to talk a need
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
     A need's why ends with "Stop asking" alone, which opens the offers
     and "Keep asking" under the line (*Why it reached you*, *Stop
     asking*), where this section and `needs.html` put "Keep asking" and
     the narrower rule, "Stop asking: let goals decide …", on the line
-    itself; and a path set's why names the set, not its paths.
+    itself; and a path set's why names the set, not its paths. Its
+    **Only you** draws an item's from line in the mono, its question at
+    19 px and the card's gap at 12, where `needs.html` has `.from` in the
+    sans, `.q` at 16.5 px and `.card`'s gap at 10; and its question names
+    the source as Accounts does, "Your Claude Code login NAME is
+    expiring.", where `needs.html` names who uses it, "The Claude login
+    vsr's agents use", which no read gives (`what-reaches-you.status.md`,
+    8).
   - 6: `../client/README.md`, 3.5, *Team*, holds a project's people and
     what waits on each, and the project's triager once a setting names
     one; no design holds a project's areas, an area's owner, a person's
@@ -54,14 +61,15 @@
     digits, "2 questions wait on you.", where this section writes "Two
     questions wait on you.".
   - 7: `../client/README.md`, 5.13, *The page*, draws the way, the path
-    as Ask temper's ways draw it, Roles by when each runs, and a goal's
+    as Ask temper's ways draw it, What reaches you from the project's
+    classes, Roles by when each runs, and a goal's
     budget; its heading names the way without its chief departure,
     which waits for rules by path; and `../domain/forge.md`, 8.13, *The
     project's roles*, gives the drafter no place among Roles, though the
     stock holds it and template 6 starts it since P6, which landed
-    after the cut of `look-round-25`. What reaches you, Rules by path,
+    after the cut of `look-round-25`. Rules by path,
     What follows a landing and a role's budget wait for their milestones (`whole-story.execution.md`,
-    section 3, P3b to P3d). What a role does, past when it runs, is kept
+    section 3, P3c and P3d). What a role does, past when it runs, is kept
     since P3e, a charter's words (`../protocol/configuration.md`, 13.2,
     kind 9), but no design says it on Roles: the view `roles` carries no
     such fact, and `../domain/forge.md`, section 20, *A role's words on
@@ -113,13 +121,16 @@
   - 13: `../client/greenfield/README.md` names the whole story's
     mockups, and `../client/mockups/README.md`,
     section 1, not at all; and no design marks who acts on the chips,
-    as the path's marks are (`../client/README.md`, 5.16).
+    as the path's marks are (`../client/README.md`, 5.16), but Work's
+    tags and What reaches you's columns (3.5, *Work*; 5.13).
   - 14: `../client/browser.md`, section 7, holds Home's and Needs you's
-    states, but for a red "owned", a project's Home at the standing
-    roles' step and Only you, which nothing draws yet (3 and 4), a need's
+    states, but for a red "owned" and a project's Home at the standing
+    roles' step, which nothing draws yet (3 and 4), a need's
     why and its offers being `needs-why`'s, `needs-stop-asking`'s and
     `needs-stop-asking-set`'s; 7.2 holds How work runs under each stock
-    way and its own, a stop's card and night (`how` to `night-how`), with no rule by path
+    way and its own, a stop's card and night (`how` to `night-how`), and
+    What reaches you on `how.html`'s classes (`how-reaches`,
+    `night-how-reaches`), with no rule by path
     or follow, and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
@@ -142,6 +153,10 @@
     because each project's brief is written in that project's own words
     and its first sentence need not name it (15's default). Decided by the
     cut of `ui-p2-home`.
+  - 4 and 13: `../client/README.md`, 3.5, **Only you**, gives its item
+    the act "Sign in again", where `needs.html` has "Sign in", so that the
+    act says what its question asks, as the run wait's link to Accounts
+    does (5.5, *A run's wait*). Decided by the cut of `ui-n3a-only`.
   - 11.1, 13 and 15: `../client/README.md`, 6.14, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and
@@ -180,6 +195,25 @@
     close-out's own charter is an open question
     (`../domain/forge.md`, section 20). Decided by the cut of
     `ui-p3f-design`.
+  - 7 and 13: `../client/README.md`, 5.13, *What reaches you*, draws a
+    project's classes alone, in `how.html`'s words, where `pair/how.html`
+    and `team/how.html` put a landing rule's approvals and a change's
+    questions under "Asks you", "Asks one of you" on `team/how.html`, and
+    an agent's own choices, "repairs after a red check", under "Agents
+    decide", which no class holds: an approval is the path's stop and
+    Rules by path's (P3c of `whole-story.execution.md`), and a change's
+    question route is the section's row. It also lists `other`, "anything
+    an agent can’t place", under "Always waits for you", which no mockup
+    lists, because the classes hold it and it always waits. Decided by
+    the cut of `ui-p3b-reaches`: the page draws what the engine holds.
+    By the same cut, "Asks you" lists those asking even when away first,
+    then the rest, each in the settings order, so "a new dependency"
+    stands before "a departure from a landed design", where `how.html`
+    puts the departure first; and its small line names the exceptions,
+    "While you’re away, all but changes to vsr’s protocol core are decided with
+    the recommended choice and listed.", where `how.html` counts, "the
+    last two are decided … The protocol core still asks.", since a table
+    of up to 32 subjects can't be counted well in words.
   - 11.1 and 11.4, the user's requests of 2026-11-09 (plan
     `tui-box-polish`): the quiet line holds, at its right end, a
     one-line notice for 6 seconds over the rest of its right half; and

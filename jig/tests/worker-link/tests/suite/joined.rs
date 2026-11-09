@@ -265,3 +265,106 @@ mod joined_story {
         refusal(Credential { payload: 4, ..fixtures::credential() }, 257);
     }
 }
+
+#[test]
+fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
+    use jig_domain_host as host;
+    use jig_protocol_engine_workers as engine;
+    use jig_protocol_worker_link::Request;
+    use jig_worker_link_world::fixtures;
+    use skein_lib::{Duration, Token};
+    let limits = jig_protocol_worker_link::Limits {
+        sizes: jig_protocol_worker_wire::sizes::Sizes { charter: 1024, detail: 128, ..fixtures::SIZES },
+        ..fixtures::joined_limits()
+    };
+    let bytes = fixtures::assignment_record(fixtures::window()).measure() + 8 + 1024 - 7
+        + u32::try_from(fixtures::TOKEN_TWO.len() - fixtures::TOKEN_ONE.len()).expect("fixture grant length");
+    let room = bytes - 1;
+    let mut world = joined::Joined::with_engine_room(&limits, 1, room);
+    world.run();
+    let mut assignment = fixtures::assignment();
+    assignment.assignment.charter = vec![b'x'; 1024].into();
+    world.engine_down(host::LinkDown::Assign { assignment }, fixtures::assignment_parts(), joined::values());
+    world.run();
+    let mut pings = Vec::new();
+    for second in 1..=120 {
+        world.advance(Duration::from_secs(1));
+        assert!(
+            !world.worker_root.iter().any(|r| matches!(r, Request::Lost | Request::Fact { .. })),
+            "worker lost at {second} s: {:?}; engine {:?}",
+            world.worker_root,
+            world.engine_root
+        );
+        pings.push(world.ping_counts());
+    }
+    let mut small = fixtures::assignment();
+    small.assignment.run = Token::new(8);
+    world.engine_down(host::LinkDown::Assign { assignment: small }, fixtures::assignment_parts(), joined::values());
+    world.run();
+    assert!(
+        !world.engine_root.iter().any(|r| matches!(r, engine::Request::Lost { .. } | engine::Request::Ended { .. }))
+    );
+    assert!(world.engine_ended.is_empty(), "{:?}", world.engine_ended);
+    for (index, counts) in pings.iter().enumerate() {
+        let expected = (index + 1) / 5;
+        assert_eq!(*counts, [expected, expected], "pings at {} s", index + 1);
+    }
+    let downs: Vec<_> = world
+        .worker_root
+        .iter()
+        .filter_map(|r| {
+            if let Request::Down { down: host::LinkDown::Assign { assignment }, .. } = r {
+                Some(assignment.assignment.run)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(downs, [Token::new(8)]);
+    let answers: Vec<_> = world
+        .engine_root
+        .iter()
+        .filter_map(|r| {
+            if let engine::Request::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts, .. } = r {
+                Some((run, attempt, answer, parts))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(answers.len(), 1);
+    let (run, attempt, answer, parts) = answers[0];
+    assert_eq!((*run, *attempt), (Token::new(7), Token::new(2)));
+    assert!(parts.is_empty());
+    let host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start { cause: host::StartCause::Other, why })) =
+        &answer.ending
+    else {
+        panic!("invalid start: {answer:?}")
+    };
+    let words = format!("assignment of {bytes} bytes past the link's room of {room} bytes");
+    assert_eq!(why.as_ref(), words.as_bytes());
+    let unsent: Vec<_> = world
+        .engine_root
+        .iter()
+        .filter_map(|r| {
+            if let engine::Request::Unsent { worker, channel, unsent } = r {
+                Some((*worker, *channel, *unsent))
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(
+        unsent,
+        [(
+            0,
+            Token::new(1),
+            engine::Unsent {
+                kind: jig_protocol_worker_wire::Kind::Assignment,
+                bytes,
+                bound: engine::Bound::Room(room)
+            }
+        )]
+    );
+    world.finish();
+}

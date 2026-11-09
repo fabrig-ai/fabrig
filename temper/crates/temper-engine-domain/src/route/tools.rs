@@ -121,6 +121,7 @@ pub(crate) fn relay_payload(
                 Tool::Document { action, body } => {
                     super::document::call(domain, env, decision, reply_to, key, action, body);
                 }
+                Tool::Remember { action } => super::remember::call(domain, env, decision, reply_to, key, action),
                 Tool::Decided(call) => super::decided::call(domain, env, decision, reply_to, key, call),
                 Tool::ReadTask { .. } => unreachable!("task reads enter before replay"),
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),

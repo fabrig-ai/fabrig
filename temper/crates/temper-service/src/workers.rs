@@ -156,6 +156,7 @@ impl Workers {
             kit::host::Output::Lost { channel } => {
                 events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
             }
+            kit::host::Output::Unsent { .. } => {}
             kit::host::Output::Ended { worker, channel: Some(channel), why } => {
                 self.notes.push(crate::Note::WorkerLost { worker, channel, why });
             }
@@ -338,6 +339,7 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         facts: link.facts,
     };
     let limits = kit::Limits {
+        room: jig.io.largest_room(),
         sizes,
         names: link.names,
         workers: core.fleet.workers,

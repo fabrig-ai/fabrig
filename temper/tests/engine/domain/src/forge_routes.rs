@@ -266,7 +266,7 @@ impl World {
             1000,
             paths::Gate { agent: true, ..paths::Gate::default() },
             None,
-            StoryLimits::default(),
+            &StoryLimits::default(),
             Some((defaults, model, None)),
             &[],
         )
@@ -286,7 +286,7 @@ impl World {
             1000,
             paths::Gate { agent: true, ..paths::Gate::default() },
             None,
-            StoryLimits::default(),
+            &StoryLimits::default(),
             Some((defaults, model, Some(limits))),
             &[],
         )
@@ -302,7 +302,7 @@ impl World {
         documents: Option<jig_domain_core::documents::DocumentLimits>,
         timing: StoryLimits,
     ) -> Self {
-        Self::configured_settings(with_read, with_change, silent_ci, passes, gate, documents, timing, None, &[])
+        Self::configured_settings(with_read, with_change, silent_ci, passes, gate, documents, &timing, None, &[])
     }
 
     /// Charter documents through the core's plan, root binding and forge gather
@@ -316,7 +316,7 @@ impl World {
             1000,
             paths::Gate::default(),
             None,
-            StoryLimits::default(),
+            &StoryLimits::default(),
             None,
             documents,
         )
@@ -331,7 +331,7 @@ impl World {
         with_change: bool,
         gate: paths::Gate,
         documents: Option<jig_domain_core::documents::DocumentLimits>,
-        timing: StoryLimits,
+        timing: &StoryLimits,
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
         charter_documents: &[jig_domain_core::Document],
     ) -> [(engine::Config, engine::Limits); 2] {
@@ -363,7 +363,7 @@ impl World {
             across,
             library_gate_latency: _,
             tier,
-        } = timing;
+        } = *timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
         std::array::from_fn(|index| {
             let mut limits = walking::limits();
@@ -448,8 +448,6 @@ impl World {
                 limits.journal.result_bytes = 4096;
                 limits.journal.transcript_bytes = 32_768;
                 limits.brief.briefs = slots.unwrap_or(2);
-                limits.forge.brief_sections =
-                    limits.forge.brief_sections.max(limits.brief.briefs * limits.brief.sections * 2);
                 limits.fleet.attempts = slots.unwrap_or(2);
                 limits.fleet.slots = slots.unwrap_or(2);
                 limits.fleet.workstreams = slots.unwrap_or(2);
@@ -834,16 +832,19 @@ impl World {
                 limits = *deployment;
             }
             if !charter_documents.is_empty() {
-                // Six core sections and the two documents admitted by these stories
+                // Core sections and the two documents admitted by these stories
                 // (jig/docs/design/domain/engine.md, 17.9).
-                const DOCUMENT_SECTIONS: u32 = 8;
                 const CHARTER_DOCUMENTS: u32 = 2;
+                const DOCUMENT_SECTIONS: u32 = jig_domain_core::CORE_SECTIONS + CHARTER_DOCUMENTS;
                 limits.brief.sections = DOCUMENT_SECTIONS;
                 limits.tasks.charter_documents = CHARTER_DOCUMENTS;
                 let mut charter = walking::charter();
                 charter.documents = charter_documents.into();
                 config.core.defaults.charters[0] = charter;
             }
+            // A brief override carries its section count into the forge's fetch room.
+            limits.forge.brief_sections =
+                limits.forge.brief_sections.max(limits.brief.briefs * limits.brief.sections * 2);
             config.kinds_stock = engine::landing_stock(
                 &landing_rules.deployment,
                 &landing_rules.projects,
@@ -873,13 +874,13 @@ impl World {
         passes: u32,
         gate: paths::Gate,
         documents: Option<jig_domain_core::documents::DocumentLimits>,
-        timing: StoryLimits,
+        timing: &StoryLimits,
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
         charter_documents: &[jig_domain_core::Document],
     ) -> Self {
         let [(bootstrap, mut limits), (config, _)] =
             Self::configurations(with_read, with_change, gate, documents, timing, stock, charter_documents);
-        let StoryLimits { turn, tier, across, library_gate_latency, tasks, landing_members, slots, .. } = timing;
+        let StoryLimits { turn, tier, across, library_gate_latency, tasks, landing_members, slots, .. } = *timing;
         let mut fake_config = forge_world::fake_config();
         fake_config.limits.repositories = 2;
         if stock.is_some() {
@@ -1336,7 +1337,7 @@ impl World {
             with_change,
             self.gate,
             None,
-            StoryLimits {
+            &StoryLimits {
                 brief: Some(self.env.limits.brief),
                 forge_charter,
                 questions: Some(self.env.limits.forge.change_policy.questions),

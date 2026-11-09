@@ -1904,8 +1904,7 @@ fn opening_rename_takes_focus_from_the_limits_heading() {
             let limits = crate::Limits::of(&fixtures::domain_limits(), &words).unwrap();
             let mut view = crate::View::new(&limits, &fixtures::domain_limits(), words, fixtures::FORGE);
             fixtures::build(&mut view, &root);
-            let heading =
-                switcher_node(&view, Role::Heading { level: 2 }, "While you’re away, agents may decide".as_bytes());
+            let heading = switcher_node(&view, Role::Heading { level: 2 }, "What reaches you".as_bytes());
             assert_eq!(heading.focus, if renaming { None } else { Some(1) });
             if renaming {
                 assert_eq!(switcher_node(&view, Role::TextField, b"Rename").focus, Some(0));
@@ -1962,5 +1961,27 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
             }
             assert_eq!(sections, 1);
         }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "ordinary tests inspect semantic menu rows")]
+fn the_persons_menu_keeps_accounts_remembered_and_sign_out_ordered() {
+    use temper_client_domain::Address;
+    let root = fixtures::root_at(Address::Home { project: fixtures::PROJECT }, &fixtures::domain_limits()).0;
+    let mut view = fixtures::browser_page_view(&root);
+    let nodes = view.tree().nodes();
+    let at = nodes.iter().position(|n| n.role == Role::Menu && n.name.as_deref() == Some(b"Pat")).unwrap();
+    let menu = &nodes[at..at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap()];
+    let items: Vec<_> =
+        menu.iter().filter(|n| n.role == Role::MenuItem).map(|n| (n.id, n.name.clone().unwrap())).collect();
+    assert_eq!(items.len(), 3);
+    for ((id, name), (expected, act)) in items.into_iter().zip([
+        (b"Accounts".as_slice(), pages::Act::Go { address: Address::Accounts }),
+        (b"What temper remembers about you", pages::Act::Go { address: Address::Remembered }),
+        (b"Sign out", pages::Act::SignOut),
+    ]) {
+        assert_eq!(name.as_ref(), expected);
+        assert_eq!(crate::act(&mut view, id, Act::Press), Some(Action::Pages(act)));
     }
 }

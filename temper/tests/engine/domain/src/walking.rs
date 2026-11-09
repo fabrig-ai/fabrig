@@ -206,6 +206,7 @@ pub fn limits() -> engine::Limits {
                 attempts: 128,
                 plan: 128,
                 notes: 64,
+                preferences: 64,
             },
             brief_bytes: 384,
             gather: Duration::from_secs(1),
@@ -228,6 +229,8 @@ pub fn limits() -> engine::Limits {
         notes: jig_domain_notes::Limits {
             scopes: 4,
             entries_per_scope: 1,
+            party_entries: 1,
+            party_bytes: 64,
             pattern_bytes: 64,
             description_bytes: 64,
             body_bytes: 256,
@@ -342,6 +345,7 @@ pub fn config(seed: u64) -> engine::Config {
                 deployment_provider: 1,
                 resume_bytes: 256,
                 tail_bytes: 128,
+                private_tools: Box::new([]),
                 tools: jig_domain_core::ToolFamilies::JIG,
                 models: models(),
                 llm_providers: accounts::Providers {

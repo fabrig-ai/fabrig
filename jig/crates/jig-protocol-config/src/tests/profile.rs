@@ -11,7 +11,7 @@ fn supplied_profiles_have_valid_domain_limits() {
         let listener_head = skein_oauth_accounts::listener_head(limits.driver.redirect_bytes).unwrap();
         assert!(limits.driver.server.head >= listener_head, "{selected:?} head holds a browser's request");
         assert_eq!(limits.core.tasks.charter_documents, 2);
-        assert_eq!(limits.core.brief.sections, 8);
+        assert_eq!(limits.core.brief.sections, 9);
         assert!(jig_domain_core::valid(&limits.core), "{selected:?} core");
         assert!(jig_domain_host::valid_hub(&limits.hub), "{selected:?} hub");
         assert_eq!(crate::domain::capacity(&limits.core), None, "{selected:?} capacity");
@@ -53,6 +53,15 @@ fn child_validity_keeps_semantic_and_count_refusals() {
     assert!(!jig_domain_notes::valid(&notes));
     notes = limits.notes;
     notes.entries_per_scope = 0;
+    assert!(!jig_domain_notes::valid(&notes));
+    notes = limits.notes;
+    notes.party_entries = 0;
+    assert!(!jig_domain_notes::valid(&notes));
+    notes = limits.notes;
+    notes.party_entries = notes.entries_per_scope.checked_add(1).unwrap();
+    assert!(!jig_domain_notes::valid(&notes));
+    notes = limits.notes;
+    notes.party_bytes = notes.description_bytes.checked_add(1).unwrap();
     assert!(!jig_domain_notes::valid(&notes));
     notes = limits.notes;
     notes.load_rows = 0;

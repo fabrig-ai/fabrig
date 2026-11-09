@@ -131,6 +131,7 @@ enum Part {
     CardChanges { title: &'static str, changes: &'static [&'static str] },
     Cards { section: &'static str, from: &'static [&'static str] },
     StyledText { style: skein_ui::Style, text: &'static [&'static str] },
+    GroupLines { name: &'static str, lines: &'static [&'static str] },
     Tabs { names: &'static [&'static str], selected: usize },
     Path { stops: &'static [&'static str] },
     Drawing { style: skein_ui::Style, count: usize },
@@ -152,7 +153,202 @@ enum Part {
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
 }
+const REMEMBERED_THREE: &[&str] = &[
+    "Keep answers concise and start with the result.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use Rust examples when explaining code.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Ask before changing a public interface.",
+    "Changed by you · Today · Thursday 22 October",
+];
+const REMEMBERED_FULL: &[&str] = &[
+    "Keep answers concise and start with the result.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use Rust examples when explaining code.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Ask before changing a public interface.",
+    "Changed by you · Today · Thursday 22 October",
+    "Show the command that checks a change.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Explain unfamiliar abbreviations the first time.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use metric units in examples.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Keep a summary of decisions at the end of a long chat.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Prefer plain text examples I can copy into a terminal.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Say which assumptions a calculation depends on.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use UTC when comparing times from different places.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Give one next step when a check fails.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "When comparing approaches, explain the cost of each and which evidence would make you choose a different one next time.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+];
+const REMEMBERED_REFUSED: &[&str] = &[
+    "Keep answers concise and start with the result.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use Rust examples when explaining code.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "This line changed meanwhile; it shows as it is now.",
+    "Ask before changing a public interface.",
+    "Changed by you · Today · Thursday 22 October",
+];
+const HOW_WAIT: Part = Part::GroupLines {
+    name: "Always waits for you",
+    lines: &[
+        "money past a budget",
+        "what can’t be undone: rewriting history, a force-push, deleting unlanded work",
+        "changes to this page",
+        "anything an agent can’t place",
+    ],
+};
+const HOW_REACHES_DECIDE: Part = Part::GroupLines {
+    name: "Agents decide, then tell you",
+    lines: &[
+        "wording and names inside a spec",
+        "retrying or splitting a task",
+        "implementation choices a spec leaves open",
+        "test-only changes",
+    ],
+};
+const HOW_REACHES_ASK: Part = Part::GroupLines {
+    name: "Asks you",
+    lines: &["a change to vsr’s protocol core", "a new dependency", "a departure from a landed design"],
+};
+const HOW_REACHES_NOTE: Part = Part::Named {
+    role: Role::Paragraph,
+    name: "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.",
+};
+const HOW_DECIDE_NOTE: Part =
+    Part::Named { role: Role::Paragraph, name: "Listed in Decided for you for 24 hours, to overturn." };
+const HOW_WAIT_NOTE: Part = Part::Named { role: Role::Paragraph, name: "Away or not." };
 static HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "remembered-none",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::SETTINGS_TAG, text: &["Nothing kept yet"] },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Ask temper keeps a line here when you ask it to remember something, such as how you like its answers.",
+            },
+            Part::NoStyle { style: temper_client_view::look::REMEMBERED_ROWS },
+            Part::Absent { role: Role::TextField, name: "Line" },
+        ],
+    },
+    Holds {
+        name: "remembered-three",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_THREE },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Absent { role: Role::TextField, name: "Line" },
+        ],
+    },
+    Holds {
+        name: "remembered-full",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_FULL },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::StyledText {
+                style: temper_client_view::look::SETTINGS_FACTS,
+                text: &["12 lines, the most Ask temper keeps: it asks you which to change before it keeps another."],
+            },
+            Part::Absent { role: Role::TextField, name: "Line" },
+        ],
+    },
+    Holds {
+        name: "remembered-changing",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_THREE },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Value { role: Role::TextField, name: "Line", value: "Use short Rust examples with their output." },
+            Part::Named { role: Role::Button, name: "Save" },
+            Part::Named { role: Role::Button, name: "Cancel" },
+        ],
+    },
+    Holds {
+        name: "remembered-refused",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_REFUSED },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::StyledText {
+                style: temper_client_view::look::SETTINGS_REFUSAL,
+                text: &["This line changed meanwhile; it shows as it is now."],
+            },
+        ],
+    },
+    Holds {
+        name: "night-remembered-none",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::SETTINGS_TAG, text: &["Nothing kept yet"] },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Ask temper keeps a line here when you ask it to remember something, such as how you like its answers.",
+            },
+            Part::NoStyle { style: temper_client_view::look::REMEMBERED_ROWS },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "night-remembered-three",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_THREE },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "night-remembered-full",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_FULL },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::StyledText {
+                style: temper_client_view::look::SETTINGS_FACTS,
+                text: &["12 lines, the most Ask temper keeps: it asks you which to change before it keeps another."],
+            },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "night-remembered-changing",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_THREE },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Value { role: Role::TextField, name: "Line", value: "Use short Rust examples with their output." },
+            Part::Named { role: Role::Button, name: "Save" },
+            Part::Named { role: Role::Button, name: "Cancel" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "night-remembered-refused",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_REFUSED },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::StyledText {
+                style: temper_client_view::look::SETTINGS_REFUSAL,
+                text: &["This line changed meanwhile; it shows as it is now."],
+            },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
     Holds {
         name: "team",
         heading: "Who owns what on shop",
@@ -420,6 +616,28 @@ static HOLDS: [Holds; samples::N] = [
         name: "how",
         heading: "Agents review every change, and code lands it",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
+            Part::Named { role: Role::Text, name: "on Hello" },
+            Part::GroupLines {
+                name: "Agents decide, then tell you",
+                lines: &["wording and names inside a spec", "retrying or splitting a task", "test-only changes"],
+            },
+            Part::GroupLines {
+                name: "Asks you",
+                lines: &[
+                    "implementation choices a spec leaves open",
+                    "a new dependency",
+                    "a departure from a landed design",
+                ],
+            },
+            HOW_WAIT,
+            HOW_DECIDE_NOTE,
+            Part::Named {
+                role: Role::Paragraph,
+                name: "While you’re away, they are decided with the recommended choice and listed.",
+            },
+            HOW_WAIT_NOTE,
+            Part::Named { role: Role::Select, name: "Away until" },
             Part::Text { text: "the way: Agents review" },
             Part::Text { text: "An agent makes each change, another reviews it, and code lands it." },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
@@ -444,6 +662,24 @@ static HOLDS: [Holds; samples::N] = [
         name: "how-approve",
         heading: "You approve every change",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
+            Part::Named { role: Role::Text, name: "on Hello" },
+            Part::Absent { role: Role::Group, name: "Agents decide, then tell you" },
+            Part::GroupLines {
+                name: "Asks you",
+                lines: &[
+                    "wording and names inside a spec",
+                    "retrying or splitting a task",
+                    "implementation choices a spec leaves open",
+                    "test-only changes",
+                    "a new dependency",
+                    "a departure from a landed design",
+                ],
+            },
+            HOW_WAIT,
+            Part::Named { role: Role::Paragraph, name: "They ask even while you’re away." },
+            HOW_WAIT_NOTE,
+            Part::Absent { role: Role::Select, name: "Away until" },
             Part::Text { text: "the way: You approve" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Tabs { names: &["You approvenow", "Agents review", "Draft first"], selected: 0 },
@@ -548,6 +784,41 @@ static HOLDS: [Holds; samples::N] = [
                 name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
             },
             Part::NoRole { role: Role::Table },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "how-reaches",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
+            Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
+            Part::Named { role: Role::Text, name: "on factory" },
+            HOW_REACHES_DECIDE,
+            HOW_REACHES_ASK,
+            HOW_WAIT,
+            HOW_DECIDE_NOTE,
+            HOW_REACHES_NOTE,
+            HOW_WAIT_NOTE,
+            Part::Named { role: Role::Select, name: "Questions a goal can answer from its plan" },
+            Part::Named { role: Role::Select, name: "Away until" },
+        ],
+    },
+    Holds {
+        name: "night-how-reaches",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
+            Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
+            Part::Named { role: Role::Text, name: "on factory" },
+            HOW_REACHES_DECIDE,
+            HOW_REACHES_ASK,
+            HOW_WAIT,
+            HOW_DECIDE_NOTE,
+            HOW_REACHES_NOTE,
+            HOW_WAIT_NOTE,
+            Part::Named { role: Role::Select, name: "Questions a goal can answer from its plan" },
+            Part::Named { role: Role::Select, name: "Away until" },
             Part::Pressed { name: "Night mode" },
         ],
     },
@@ -1038,6 +1309,33 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Text, name: "fabrig · welcome-stall · 01:05" },
             Part::Named { role: Role::Text, name: "Widget · forge-cards · 06:15" },
         ],
+    },
+    Holds {
+        name: "needs-only-you",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named {
+                role: Role::Heading { level: 1 },
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+            },
+            Part::Named { role: Role::Region, name: "Only you · 2" },
+            Part::Text { text: "Your ChatGPT sign-in is signed out. Sign in again?" },
+            Part::Text { text: "Your Claude Code login claude-pat is expiring. Sign in again?" },
+            Part::Destination { name: "Sign in again", href: "/accounts" },
+        ],
+    },
+    Holds {
+        name: "needs-only-you-done",
+        heading: "Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Only you · 1" },
+            Part::Named { role: Role::Link, name: "Home" },
+        ],
+    },
+    Holds {
+        name: "night-needs-only-you",
+        heading: "One thing needs you.",
+        parts: &[Part::Named { role: Role::Region, name: "Only you · 2" }],
     },
     Holds {
         name: "home-away",
@@ -3433,29 +3731,6 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "settings-away",
-        heading: "How work runs in tally.",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
-            Part::Named { role: Role::Check, name: "Implementation choices" },
-            Part::Named { role: Role::Check, name: "New dependencies" },
-            Part::Named { role: Role::Check, name: "Departures from a landed design" },
-            Part::Named { role: Role::Select, name: "Away until" },
-        ],
-    },
-    Holds {
-        name: "settings-away-you-approve",
-        heading: "How work runs in tally.",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
-            Part::Named { role: Role::Check, name: "Wording choices" },
-            Part::Named { role: Role::Check, name: "Implementation choices" },
-            Part::Absent { role: Role::Select, name: "Away until" },
-            Part::Absent { role: Role::Button, name: "Away" },
-            Part::Absent { role: Role::Button, name: "Away: off" },
-        ],
-    },
-    Holds {
         name: "settings",
         heading: "How work runs in tally.",
         parts: &[
@@ -3783,6 +4058,14 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "Cancelled" },
             Part::Text { text: "Closing" },
             Part::Text { text: "Moving to another deployment" },
+        ],
+    },
+    Holds {
+        name: "accounts-expiring",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Text { text: "Expiring: sign in again before it ends." },
+            Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
         ],
     },
     Holds {
@@ -4348,6 +4631,15 @@ fn each_state_holds_what_its_name_says() {
                             .collect();
                         assert_eq!(String::from_utf8_lossy(&text), *expected, "{}: {section} from line", sample.name);
                     }
+                }
+                Part::GroupLines { name, lines } => {
+                    let group = descendants(tree, Role::Group, name, sample.name);
+                    let drawn: Vec<_> = group
+                        .iter()
+                        .filter(|node| node.role == Role::Item)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("line name")).expect("English"))
+                        .collect();
+                    assert_eq!(drawn, *lines, "{}: {name} lines in order", sample.name);
                 }
                 Part::StyledText { style, text } => {
                     let nodes = tree.nodes();
@@ -5151,7 +5443,9 @@ fn the_person_menu_sample_opens_above_its_row() {
     let menu = person.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
     assert!(!menu.contains("hidden"), "{menu}");
     assert!(person.contains("role=\"menuitem\">Accounts</div>"));
+    assert!(person.contains("role=\"menuitem\">What temper remembers about you</div>"));
     assert!(person.contains("role=\"menuitem\">Sign out</div>"));
+    assert_eq!(person.matches("role=\"menuitem\"").count(), 3);
     let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
     let panel = css
         .lines()
@@ -5308,64 +5602,6 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_OVERTURNED)));
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
                 && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
-        }
-    }
-}
-
-#[test]
-fn settings_away_draws_the_default_choices() {
-    for (name, checks, ticked, until) in [
-        (
-            "settings-away",
-            &["Implementation choices", "New dependencies", "Departures from a landed design"][..],
-            true,
-            true,
-        ),
-        (
-            "settings-away-you-approve",
-            &[
-                "Wording choices",
-                "Retries and splits",
-                "Implementation choices",
-                "Test-only changes",
-                "New dependencies",
-                "Departures from a landed design",
-            ][..],
-            false,
-            false,
-        ),
-    ] {
-        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("Away settings");
-        assert_eq!(samples::mockup(&sample).as_deref(), Some("../greenfield/settings.html#away"));
-        let view = view(&sample);
-        let tree = view.tree();
-        for label in checks {
-            let id = find(tree, Role::Check, label, name);
-            let node = tree.nodes().iter().find(|node| node.id == id).expect("asking check");
-            assert_eq!(node.states.as_slice().contains(&skein_ui::State::Pressed), ticked, "{name}: {label}");
-            assert!(!node.states.as_slice().contains(&skein_ui::State::Disabled), "{name}: {label}");
-        }
-        let id = find(
-            tree,
-            Role::Check,
-            "Money past a budget, what can’t be undone, and changes to these rules: always wait",
-            name,
-        );
-        let locked = tree.nodes().iter().find(|node| node.id == id).expect("always wait");
-        assert!(locked.states.as_slice().contains(&skein_ui::State::Disabled));
-        assert!(!locked.states.as_slice().contains(&skein_ui::State::Pressed));
-        assert_eq!(
-            tree.nodes().iter().any(|node| node.role == Role::Select && node.name.as_deref() == Some(b"Away until")),
-            until
-        );
-        assert_eq!(
-            has_text(tree, "Agents decide, then tell you: wording choices, retries and splits, test-only changes."),
-            ticked
-        );
-        if until {
-            let id = find(tree, Role::Option, "08:00, the end of quiet hours", name);
-            let node = tree.nodes().iter().find(|node| node.id == id).expect("Away until");
-            assert!(node.states.as_slice().contains(&skein_ui::State::Selected));
         }
     }
 }

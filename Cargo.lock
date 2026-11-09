@@ -1060,11 +1060,13 @@ dependencies = [
  "jig-client-test-domain",
  "jig-client-view",
  "jig-domain-core",
+ "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-engine-clients-kit",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
+ "jig-protocol-transcript",
  "jig-tasks-kit",
  "jig-test-connector",
  "jig-test-domain",
@@ -1078,6 +1080,7 @@ dependencies = [
  "skein-sim",
  "skein-ui",
  "skein-world",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -1970,9 +1973,11 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-protocol-store",
+ "jig-protocol-transcript",
  "skein-codec",
  "skein-lib",
  "skein-oauth-issuer",
+ "smith-transcript",
 ]
 
 [[package]]

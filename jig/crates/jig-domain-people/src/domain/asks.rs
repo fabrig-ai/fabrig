@@ -36,7 +36,7 @@ fn valid_note(limits: &Limits, name: u64, scope: &crate::NoteScope, change: &cra
         return false;
     }
     let scope_bytes = match scope {
-        crate::NoteScope::Deployment | crate::NoteScope::Project => 0,
+        crate::NoteScope::Deployment | crate::NoteScope::Project | crate::NoteScope::Party { .. } => 0,
         crate::NoteScope::Goal { goal } => {
             if *goal == 0 {
                 return false;

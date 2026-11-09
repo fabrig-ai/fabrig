@@ -1399,11 +1399,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-roles",
         b"temper-how-role",
         b"temper-how-role-more",
-        b"temper-reserved-681",
-        b"temper-reserved-682",
-        b"temper-reserved-683",
-        b"temper-reserved-684",
-        b"temper-reserved-685",
+        b"temper-how-reaches",
+        b"temper-how-reach",
+        b"temper-how-who-agent",
+        b"temper-how-who-person",
+        b"temper-how-reach-note",
         b"temper-reserved-686",
         b"temper-how-row",
         b"temper-decision-allowed",
@@ -1442,6 +1442,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-needs-bar",
         b"temper-needs-bar-at",
         b"temper-tabbar-ask",
+        b"temper-remembered-rows",
+        b"temper-remembered-acts",
+        b"temper-only",
+        b"temper-only-item",
+        b"temper-only-q",
     ],
     regions: &[b"temper-link"],
 };
@@ -1504,6 +1509,10 @@ pub const SETTINGS_PROPOSAL_OK: Style = Style { owner: owner(), token: 330 };
 pub const SETTINGS_PROPOSAL_ITEMS: Style = Style { owner: owner(), token: 331 };
 pub const SETTINGS_PROPOSAL_REASON: Style = Style { owner: owner(), token: 332 };
 pub const SETTINGS_PROPOSAL_ACTS: Style = Style { owner: owner(), token: 333 };
+/// Remembered rows (temper/docs/design/client/README.md, 5.17).
+pub const REMEMBERED_ROWS: Style = Style { owner: owner(), token: 724 };
+/// Remembered row actions (temper/docs/design/client/README.md, 5.17).
+pub const REMEMBERED_ACTS: Style = Style { owner: owner(), token: 725 };
 /// Settings frame and rows (temper/docs/design/client/README.md, 3.5, Settings).
 pub const SETTINGS_COL: Style = Style { owner: owner(), token: 334 };
 pub const SETTINGS_INTRO: Style = Style { owner: owner(), token: 335 };
@@ -1854,6 +1863,11 @@ pub const HOW_ROLES: Style = Style { owner: owner(), token: 678 };
 pub const HOW_ROLE: Style = Style { owner: owner(), token: 679 };
 pub const HOW_ROLE_MORE: Style = Style { owner: owner(), token: 680 };
 pub const HOW_ROW: Style = Style { owner: owner(), token: 687 };
+pub const HOW_REACHES: Style = Style { owner: owner(), token: 681 };
+pub const HOW_REACH: Style = Style { owner: owner(), token: 682 };
+pub const HOW_WHO_AGENT: Style = Style { owner: owner(), token: 683 };
+pub const HOW_WHO_PERSON: Style = Style { owner: owner(), token: 684 };
+pub const HOW_REACH_NOTE: Style = Style { owner: owner(), token: 685 };
 /// Needs you's list, reply and project identity (client/README.md, 3.5).
 pub const NEED_ROW: Style = Style { owner: owner(), token: 691 };
 pub const NEED_TELL: Style = Style { owner: owner(), token: 692 };
@@ -1900,6 +1914,13 @@ pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 722 };
 
 /// The phone's Ask tab (temper/docs/design/client/README.md, 5.3).
 pub const TABBAR_ASK: Style = Style { owner: owner(), token: 723 };
+
+/// Only you's region (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY: Style = Style { owner: owner(), token: 726 };
+/// An Only you item (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY_ITEM: Style = Style { owner: owner(), token: 727 };
+/// An Only you question (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY_Q: Style = Style { owner: owner(), token: 728 };
 
 #[cfg(test)]
 mod tests {

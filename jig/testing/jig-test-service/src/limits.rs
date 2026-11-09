@@ -151,6 +151,7 @@ fn workers(jig: &jig_protocol_config::Limits) -> jig_protocol_engine_workers::Li
         facts: link.facts,
     };
     jig_protocol_engine_workers::Limits {
+        room: jig.io.largest_room(),
         sizes,
         names: link.names,
         workers: core.fleet.workers,
