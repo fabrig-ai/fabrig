@@ -1,0 +1,5 @@
+draft = "ui-ask-m4"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-ask-m4/inputs/request.md", "temper/docs/design/draft/ask-temper.md", "temper/docs/design/draft/ask-temper.execution.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
