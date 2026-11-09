@@ -3,3 +3,29 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-ask-m2/inputs/request.md", "temper/docs/design/draft/ask-temper.md", "temper/docs/design/draft/ask-temper.execution.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/ui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "person"
+title = "jig reads for a run as its task's requester, a person, of the run's project alone"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 7.3"
+
+[[part]]
+id = "answers"
+title = "temper's root parses see's M2 addresses and carries what a read as the person answers"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.4.1"
+
+[[slice]]
+id = 1
+story = "A run's read as its person and see's M2 addresses exist as shapes; every M2 address still answers not there yet"
+parts = ["person", "answers"]
+walk = false
