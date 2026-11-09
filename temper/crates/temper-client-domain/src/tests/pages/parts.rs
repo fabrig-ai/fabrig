@@ -35,33 +35,48 @@ fn needs_parts_wait_for_known_and_keep_decided_independent() {
     for (case, facts, expected) in [
         (
             "unknown empty",
-            NeedsFacts { known: false, open: 0, showing: 0 },
-            NeedsParts { list: false, done: false, decided: false },
+            NeedsFacts { known: false, open: 0, showing: 0, only: 0 },
+            NeedsParts { list: false, done: false, decided: false, only: false },
         ),
         (
             "unknown cards",
-            NeedsFacts { known: false, open: 1, showing: 0 },
-            NeedsParts { list: false, done: false, decided: false },
+            NeedsFacts { known: false, open: 1, showing: 0, only: 0 },
+            NeedsParts { list: false, done: false, decided: false, only: false },
         ),
         (
             "known empty",
-            NeedsFacts { known: true, open: 0, showing: 0 },
-            NeedsParts { list: false, done: true, decided: false },
+            NeedsFacts { known: true, open: 0, showing: 0, only: 0 },
+            NeedsParts { list: false, done: true, decided: false, only: false },
         ),
         (
             "known cards",
-            NeedsFacts { known: true, open: 1, showing: 0 },
-            NeedsParts { list: true, done: false, decided: false },
+            NeedsFacts { known: true, open: 1, showing: 0, only: 0 },
+            NeedsParts { list: true, done: false, decided: false, only: false },
+        ),
+        (
+            "only unknown",
+            NeedsFacts { known: false, open: 0, showing: 0, only: 1 },
+            NeedsParts { list: false, done: false, decided: false, only: false },
+        ),
+        (
+            "only done",
+            NeedsFacts { known: true, open: 0, showing: 0, only: 1 },
+            NeedsParts { list: false, done: true, decided: false, only: true },
+        ),
+        (
+            "only with cards",
+            NeedsFacts { known: true, open: 1, showing: 0, only: 1 },
+            NeedsParts { list: true, done: false, decided: false, only: true },
         ),
         (
             "decided unknown",
-            NeedsFacts { known: false, open: 0, showing: 1 },
-            NeedsParts { list: false, done: false, decided: true },
+            NeedsFacts { known: false, open: 0, showing: 1, only: 0 },
+            NeedsParts { list: false, done: false, decided: true, only: false },
         ),
         (
             "decided with cards",
-            NeedsFacts { known: true, open: 1, showing: 1 },
-            NeedsParts { list: true, done: false, decided: true },
+            NeedsFacts { known: true, open: 1, showing: 1, only: 0 },
+            NeedsParts { list: true, done: false, decided: true, only: false },
         ),
     ] {
         assert_eq!(parts::needs(&facts), expected, "{case}");

@@ -1444,6 +1444,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-tabbar-ask",
         b"temper-remembered-rows",
         b"temper-remembered-acts",
+        b"temper-only",
+        b"temper-only-item",
+        b"temper-only-q",
     ],
     regions: &[b"temper-link"],
 };
@@ -1906,6 +1909,13 @@ pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 722 };
 
 /// The phone's Ask tab (temper/docs/design/client/README.md, 5.3).
 pub const TABBAR_ASK: Style = Style { owner: owner(), token: 723 };
+
+/// Only you's region (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY: Style = Style { owner: owner(), token: 726 };
+/// An Only you item (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY_ITEM: Style = Style { owner: owner(), token: 727 };
+/// An Only you question (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY_Q: Style = Style { owner: owner(), token: 728 };
 
 #[cfg(test)]
 mod tests {
