@@ -26,6 +26,10 @@ pub(crate) enum LinkRecord {
 pub(crate) struct LinkPeer {
     pub(crate) now: Time,
     pub(crate) received: usize,
+    pub(crate) sent: usize,
+    pub(crate) engine_pings: u32,
+    pub(crate) worker_pings: u32,
+    room: u32,
     pub(crate) engine_frames: u32,
     pub(crate) records: List<LinkRecord>,
     pub(crate) component: engine_link::Component,
@@ -62,13 +66,29 @@ impl LinkPeer {
             silence: prepared.link.silence,
             stall: prepared.link.stall,
         };
+        Self::with_engine_limits(settings, agent, own, &limits, 65536, u32::MAX)
+    }
+    /// Stock composition with the engine's own sizes and a stream that grants no room past its cap.
+    pub(crate) fn with_engine_limits(
+        settings: &crate::settings::Worker,
+        agent: &crate::settings::Agent,
+        own: &crate::limits::Limits,
+        limits: &engine_link::Limits,
+        pipe: u32,
+        room: u32,
+    ) -> Self {
+        let prepared = worker_settings::prepare(settings, agent, own).unwrap();
         Self {
             now: fixtures::NOW,
             received: 0,
-            engine_frames: jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes).unwrap().frames,
+            sent: 0,
+            engine_pings: 0,
+            worker_pings: 0,
+            room,
+            engine_frames: jig_protocol_worker_wire::sizes::engine_cap(&limits.sizes).unwrap().frames,
             records: List::with_capacity(LINK_RECORDS),
             component: engine_link::Component::new(
-                &limits,
+                limits,
                 Box::new([engine_link::Worker {
                     name: settings.jig.name.clone(),
                     digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
@@ -77,8 +97,8 @@ impl LinkPeer {
             )
             .unwrap(),
             out: Queue::with_capacity(64),
-            engine_bytes: Intake::with_capacity(65536),
-            worker_bytes: Intake::with_capacity(65536),
+            engine_bytes: Intake::with_capacity(pipe),
+            worker_bytes: Intake::with_capacity(pipe),
             engine_read: None,
             worker_read: None,
             owner: Token::new(prepared.prefix),
@@ -126,6 +146,9 @@ impl LinkPeer {
                     },
                 ),
                 io::Request::Output { down: stream::OutputDown::Send { bytes, .. }, .. } => {
+                    if skein_channel::parse_header(bytes.get(..8).unwrap()).unwrap().kind == 5 {
+                        self.worker_pings = self.worker_pings.checked_add(1).unwrap();
+                    }
                     self.received = self.received.checked_add(bytes.len()).expect("received link bytes fit usize");
                     self.engine_bytes.append(&bytes).unwrap();
                 }
@@ -147,12 +170,21 @@ impl LinkPeer {
         }
         while let Some(request) = self.out.pop() {
             match request {
-                engine_link::Request::Lower { lower: Lower::Write(stream::OutputDown::Room { right, .. }), .. } => self
-                    .lower(LowerEvent::Write(stream::OutputUp::Settled {
-                        right,
-                        outcome: stream::OutputOutcome::Granted,
-                    })),
+                engine_link::Request::Lower {
+                    lower: Lower::Write(stream::OutputDown::Room { right, bytes }), ..
+                } => {
+                    if bytes <= self.room {
+                        self.lower(LowerEvent::Write(stream::OutputUp::Settled {
+                            right,
+                            outcome: stream::OutputOutcome::Granted,
+                        }));
+                    }
+                }
                 engine_link::Request::Lower { lower: Lower::Write(stream::OutputDown::Send { bytes, .. }), .. } => {
+                    if skein_channel::parse_header(bytes.get(..8).unwrap()).unwrap().kind == 5 {
+                        self.engine_pings = self.engine_pings.checked_add(1).unwrap();
+                    }
+                    self.sent = self.sent.checked_add(bytes.len()).unwrap();
                     self.worker_bytes.append(&bytes).unwrap();
                 }
                 engine_link::Request::Lower { lower: Lower::Read(stream::Down::Demand { read, .. }), .. } => {
@@ -160,8 +192,8 @@ impl LinkPeer {
                 }
                 engine_link::Request::Take { .. }
                 | engine_link::Request::Close { .. }
-                | engine_link::Request::Abort { .. }
-                | engine_link::Request::Unsent { .. } => {}
+                | engine_link::Request::Abort { .. } => {}
+                request @ engine_link::Request::Unsent { .. } => return Some(request),
                 request @ (engine_link::Request::Hello { .. } | engine_link::Request::Up { .. }) => {
                     if let engine_link::Request::Hello { .. } = &request {
                         self.records.push(LinkRecord::Hello).expect("bounded link records");
