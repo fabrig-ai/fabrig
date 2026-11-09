@@ -2508,7 +2508,14 @@ impl Front<Temper> for Joint {
         std::mem::take(&mut self.callbacks)
     }
     fn next_due(&self) -> Option<Time> {
-        self.offline_until.or(self.due).or_else(|| Some(self.now.saturating_add(Duration::from_millis(100))))
+        self.offline_until.or(self.due).or_else(|| {
+            // Engine replies left by the component are ready work for the next poll.
+            if self.engine.delivered.is_empty() && self.engine.immediate.is_empty() {
+                Some(self.now.saturating_add(Duration::from_millis(100)))
+            } else {
+                Some(self.now)
+            }
+        })
     }
     fn observed(&mut self) -> Vec<Observed> {
         std::mem::take(&mut self.observed)

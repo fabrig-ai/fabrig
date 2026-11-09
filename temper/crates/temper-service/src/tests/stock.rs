@@ -1476,8 +1476,8 @@ fn kinds_are_declared_with_their_bounds() {
 
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
-    // configuration.md, 13.4: every project's rule 1 and both forge charters.
-    const ITEMS: usize = 3;
+    // configuration.md, 13.4: every project's rule 1, both forge charters and each charter's words.
+    const ITEMS: usize = 12;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
@@ -1506,12 +1506,42 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
         assert_eq!((item.kind, item.scope, item.number), (3, 0, number));
         assert_eq!(item.value.value, settings::Value::Charter(charter));
     }
+    for (item, (number, line)) in stock[3..].iter().zip([
+        (1, b"talks with you and asks for the changes".as_slice()),
+        (2, b"makes each change, repairs it and resolves its conflicts".as_slice()),
+        (4, b"reviews each change at its head, and holds it until it approves".as_slice()),
+        (5, b"cuts a goal's draft into changes and lands the goal whole".as_slice()),
+        (6, b"answers a coding agent's question from the goal's design, or passes it up".as_slice()),
+        (9, b"writes the few lines at the top of Home, from what landed and what waits".as_slice()),
+        (10, b"answers one word, so that a new model is known to run".as_slice()),
+        (11, b"explains how work runs here, and proposes changes to it".as_slice()),
+        (12, b"writes a draft with you, one question at a time, and starts nothing".as_slice()),
+    ]) {
+        assert_eq!((item.kind, item.scope, item.number), (9, 0, number));
+        assert_eq!(item.value.value, settings::Value::CharterWords(line.into()), "charter {number}");
+    }
     for item in &stock {
         assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
         assert_eq!(
             usize::try_from(item.value.size).unwrap(),
             temper_engine_smith::kinds::encode(&item.value.value).len()
         );
+    }
+}
+
+#[test]
+fn every_stock_charter_has_exactly_one_fitting_line() {
+    use temper_engine_domain_forge::settings::{LINE_BYTES, Value, words_fit};
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let defaults = crate::stock::defaults(&engine.jig.llm, engine.jig.limits.core.tasks.result_bytes);
+    let stock = crate::stock::forge(&limits);
+    for charter in &defaults.charters {
+        let lines: Box<[_]> = stock.iter().filter(|item| item.kind == 9 && item.number == charter.number).collect();
+        assert_eq!(lines.len(), 1, "charter {} has exactly one stock line", charter.number);
+        assert_eq!(lines[0].scope, 0, "charter {} has deployment words", charter.number);
+        let Value::CharterWords(line) = &lines[0].value.value else { panic!("charter {} has words", charter.number) };
+        assert!(words_fit(line, LINE_BYTES), "charter {} has a fitting line", charter.number);
     }
 }
 

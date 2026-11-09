@@ -111,8 +111,8 @@ fn roles_fixture() -> Joint {
     use temper_engine_domain_world::{direct::Driver, oracle, store::Store};
     let limits = fixtures::domain_limits();
     let mut bounds = temper_client_world::front::engine_limits();
-    // The stock's chat, producer, reviewer, status and Ask temper charters.
-    bounds.tasks.charters = 5;
+    // The stock's kind 9 lines run up to charter 12 beside these five charters.
+    bounds.tasks.charters = 12;
     let mut config = kinds::configuration(&bounds);
     let mut charters = config.core.defaults.charters.into_vec();
     for number in [9, 11] {
