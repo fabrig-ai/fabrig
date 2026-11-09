@@ -2,10 +2,9 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
-Section 9's `temper-agent`, `temper-fetch` and `temper-fetch-shell` are
-present; their remaining deployment integration is kept in
-`draft/deployment-binaries.status.md`.
-
+Section 9's `temper-agent`, `temper-fetch`, `temper-fetch-shell` and
+`temper-launcher` are present; their remaining deployment integration is
+kept in `draft/deployment-binaries.status.md`.
 
 The first milestone (section 2), including the stock chat's instructions to
 delegate repository changes, stands in the code, and section 9 names the crates

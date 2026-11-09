@@ -4,14 +4,22 @@
 
 Section 4.3's feature-free `temper-agent` is present, with its shared
 help, run, list, relay, program-child and argv0 Claude launcher
-dispatch. Its parser table and twenty-row suite cover its forms,
-refusals and modes. 4.1's two closure tests are present, each with its
-row: `binaries.rs`'s `temper-engine` and `closure.rs`'s `temper-agent`,
-the agent's with no exception. The client's and the worker's rows
-remain M5's. The box's modes and the worker's current program are
+dispatch, the launcher and the substitution `temper-launcher`'s, and
+`--version` from `temper-version`, with no build script of its own
+(`crates/temper-agent/src/tests.rs`,
+`the_version_line_names_the_binary_its_version_and_commit`). Its parser
+table and twenty-row suite cover its forms, refusals and modes. 4.1's
+two closure tests are present, each with its row, and section 5's
+crates hold them: `binaries.rs`'s `temper-engine` row, unchanged, since
+`temper-fetch-shell` links no smith crate and the forge's setup links
+no launcher; and `closure.rs`'s `temper-agent` row, 4.4's seven temper
+crates, no jig crate and no exception, since `temper-shell` links
+skein's crates and `temper-docs` alone and jig's form of the three
+directories is `temper-engine-shell`'s `jig_directories`, which the
+box's `temper::directories` re-exports. The client's and the worker's
+rows remain M5's. The box's modes and the worker's current program are
 unchanged; naming `temper-agent` is M3's
 (`../draft/deployment-binaries.execution.md`, 1).
-
 
 Section 8.2's wait and recovery notes, ordered gate reasons, one-second
 threshold and suppression of repeats are present. Service tests step

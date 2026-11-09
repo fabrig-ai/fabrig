@@ -847,8 +847,9 @@ binaries; and decides by
   file, each for that use alone: `std::process::ExitCode` in the
   binaries' `main`s, `temper`'s, `temper-client`'s and `temper-agent`'s; `temper
   program-login`'s exec of smith's command (credentials.md, section 3);
-  Claude Code's fetch's lock, and its launcher's exec and process id, in
-  `temper-fetch-shell` (6.6); and the process tier's fault, which aborts
+  Claude Code's fetch's lock, in `temper-fetch-shell`, and its
+  launcher's exec and process id, in `temper-launcher` (6.6); and the
+  process tier's fault, which aborts
   its own serve. Test crates (`testing/`,
   `tools/`) are not scanned. It moves onto skein when skein's shell
   offers both (section 15).
@@ -3680,7 +3681,7 @@ temper-engine-shell          ordinary Rust: temper forge fetch|prepare|run|sign-
 temper-agent                 the deployment's agent: its table, its modes, its help and --version,
 │                              temper-version's (README.md, 4.3); Claude Code's launcher by its name
 ├── temper-shell, temper-version, smith-agent-shell, temper-launcher
-└── skein-shell, skein-fail-stop
+└── skein-shell, skein-io, skein-fail-stop
 temper                       the box's binary: the forge's commands through temper-engine-shell,
                                temper box, temper init, temper fake llm|forge|git; Claude Code's
                                launcher by its name, temper-launcher's (6.6)
@@ -3822,7 +3823,7 @@ relies on.
   both links for a fetched program, and neither for a found `claude`.
   `temper-agent`'s own link reaches the build the same way, in its
   package's suite (`README.md`, 4.3); the substitution's cases are
-  temper-fetch-shell's.
+  temper-launcher's.
 - **A fetch's lines** (7.2), in temper-box: each relayed as a `fetched`
   line for the group the box is starting, in its log and on no terminal,
   with `--echo steps` and in a failure's tail too; one from a group

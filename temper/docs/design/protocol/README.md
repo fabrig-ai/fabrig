@@ -754,7 +754,7 @@ fake git program's core:
 | `crates/temper-service` | services | the engine's and the worker's services and their one-process composition, in an engine, a worker and a system module, as jig's reference service is: each `iterate`, the routing, the clients' listener on jig's server part, with jig's clients' component and its default HTTP mapping mounted, temper's forge routes, and the browser's page and bundle served (`../client/browser.md`, 2.2), startup from configuration's bytes, start and end; temper's profile `small`. The worker's half is its `worker` feature (4.1), on by default and in the box's binary and the worlds: with it off, the worker's types are uninhabited, its modules and crates absent, and a start whose document's nearest shape (15.1) isn't an engine alone is refused; the engine's half names no worker crate, its limits of the worker's checkout and git component its own mirrors, which the worker's half converts | the roots, `temper-engine-smith`, `temper-protocol-brief`, jig's components, smith's codecs and `smith-protocol-translate`, temper's codec crates and components, `skein-forge-connection`, `skein-io`, `skein-json`; with `worker`, the worker's root, checkout and git component, `jig-protocol-worker-link`, `jig-protocol-worker-agents` and smith's host half |
 | `crates/temper` | binary | the box's binary: the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `machine` and the setup's and the box's limits checked by their own crates (configuration.md, section 2); `serve` and the forge's commands are `temper-engine-shell`'s, given the worker's half of a start, its agent, root, program sources and launcher, which this binary holds | `temper-service` with `worker`, `temper-engine-shell`, `temper-shell`, `skein-shell`, `smith-agent-shell`, `smith-local-service`'s profile, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-launcher`, `temper-box`, `temper-client-bundle` |
 | `crates/temper-client` | binary | `temper-client`, the deployment's client (section 4): its table of three rows, its parser and help, and `--version`; the TUI and `ctl` it runs are its shells' (`../client/README.md`, section 2) | `temper-shell`, `temper-version`, `temper-client-shell-tui`, `temper-client-shell-cli`, `skein-shell`, `skein-fail-stop` |
-| `crates/temper-agent` | binary | `temper-agent`, the deployment's agent (4.3): its table, its parser and help, and `--version`, `temper-version`'s; the run, the list and the program's modes it runs are smith's agent shell's, and the launcher `temper-launcher`'s | `temper-shell`, `temper-version`, `smith-agent-shell`, `temper-launcher`, `skein-shell`, `skein-fail-stop` |
+| `crates/temper-agent` | binary | `temper-agent`, the deployment's agent (4.3): its table, its parser and help, and `--version`, `temper-version`'s; the run, the list and the program's modes it runs are smith's agent shell's, and the launcher `temper-launcher`'s | `temper-shell`, `temper-version`, `smith-agent-shell`, `temper-launcher`, `skein-shell`, `skein-io` (a run's exit), `skein-fail-stop` |
 | `crates/temper-forge-setup` | step code | the forge's setup, but for reconcile, which is skein's (`skein-forge-setup`): its types and checks, and the setup mapped onto reconcile's given values, with the kit's check of them; the preparation's machine; `app.ini` and the runner's files; the processes' specs; the configuration's steps, `steps` and `Step`. Names no host | setup.md, section 11 |
 | `crates/temper-forge-setup-shell` | hosts | ordinary Rust: the hosts of `temper forge prepare` and `run`: commands, files, the forge's locks and the exec (setup.md, 6.4); HTTP on skein-http over skein-io | setup.md, section 11 |
 | `crates/temper-fetch` | step code | a pinned binary's fetch: its machine, its pins' fields and their origin, Forgejo's and Claude Code's alike; Claude Code's pin and the word `fetched` (setup.md, 6.6). Names no host | setup.md, section 11 |
@@ -1444,6 +1444,22 @@ Each document keeps its own; these cross them:
   has neither yet. Default: the box's table keeps both rows as section 4
   designs them, until the draft's M5 settles the box's table
   (`../draft/deployment-binaries.execution.md`).
+- **The closures' two shapes** (4.1, 4.4): `binaries.rs` holds the
+  engine's closure by the crates its row excludes, `closure.rs` the
+  agent's by the temper crates and trees its row allows, where the
+  draft has one test hold every binary's
+  (`../draft/deployment-binaries.md`, sections 4 and 10). Default: both,
+  each with its row, until M5's test of the dependency rule keeps one
+  shape for every binary (`../draft/deployment-binaries.execution.md`).
+- **jig's form of the directories without the engine's shell**
+  (section 5): `jig_directories` is `temper-engine-shell`'s, which the
+  box's binary and the engine's link; the worker's binary (M3) won't
+  link it, its closure holding no engine domain and no web bundle
+  (`../draft/deployment-binaries.md`, section 4), and `temper-shell`,
+  which every binary links, holds no jig crate. Default: a crate of
+  the worker's converts by `jig_protocol_config::Directories::given`
+  itself, until a crate the worker and the engine both link can hold
+  it.
 
 ## 15. The cluster
 

@@ -2,18 +2,23 @@
 
 2026-11-09. Where temper's code lags or departs from [setup.md](setup.md).
 
-Sections 6.6 and 11's shared fetch is present: `temper-fetch` owns the
-machine and Claude pin, `temper-fetch-shell` the TLS host and Claude
-Code's fetch under its lock. Forgejo's pins and bottle extraction stay
-with forge setup, whose old fetch paths are re-exports. The moved
-pin/progress and substitution tests, the retained local-TLS fetch suite
-and the agent's launcher rows cover the split. Neither forge-setup crate
-is in the agent's normal closure. The link still names the executable
-placing it; the worker's naming of `temper-agent` remains M3's, not an
-outcome of this split (`../draft/deployment-binaries.execution.md`, 1).
-Section 15's real Claude download walk and other deferred work remain
-unchanged.
-
+Sections 6.6 and 11's shared fetch and launcher are present:
+`temper-fetch` owns the machine and Claude pin, `temper-fetch-shell`
+the TLS host and Claude Code's fetch under its lock, with no smith
+crate, and `temper-launcher` the launcher, the placing of its links in
+a private directory through `smith-agent-document`, and the
+substitution. Forgejo's pins and bottle extraction stay with forge
+setup, whose old fetch paths are re-exports. The pin/progress tests in
+`temper-fetch`, the substitution's in `temper-launcher`, the retained
+local-TLS fetch suite and the agent's launcher rows cover the split; the
+process scan exempts `temper-launcher/src/lib.rs` for the launcher's
+exec and process id. Neither forge-setup crate is in the agent's normal
+closure, and the forge's setup links no launcher, so `temper-engine`'s
+closure row holds (`README.status.md`, 4.1). The link still names the
+executable placing it; the worker's naming of `temper-agent` remains
+M3's, not an outcome of this split
+(`../draft/deployment-binaries.execution.md`, 1). Section 15's real
+Claude download walk and other deferred work remain unchanged.
 
 Section 8.3 has no known implementation gap in the binary supplying
 every project's rule 1 and no deployment rule, or supplying stock
