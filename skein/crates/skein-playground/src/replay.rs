@@ -34,7 +34,10 @@ pub const LAST_LINE_BYTES: usize = 200;
 /// Replays `log` over `world`, built by the application from the log's seed and start: each
 /// input enters at its stamp and each digest is checked; it runs to the log's end and hands
 /// the world back unsettled, with no teardown of its own to check.
-#[expect(clippy::result_large_err, reason = "the replay contract carries the input, both digests and last lines")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::result_large_err, reason = "the replay contract carries the input, both digests and last lines")
+)]
 pub fn replay<P: Host, M: Machine, H: Meter, T: Turns<P>>(
     mut world: World<P, M, H>,
     reach: Reach<P>,
