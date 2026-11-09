@@ -752,3 +752,9 @@ fn the_writing_end_and_reading_controls_have_their_css_names() {
         assert_eq!(NAMES.style(token), Some(name));
     }
 }
+
+#[test]
+fn team_and_how_resolve_to_distinct_style_names() {
+    assert_eq!(NAMES.style(TEAM), Some(b"temper-team".as_slice()));
+    assert_eq!(NAMES.style(HOW_WIDE), Some(b"temper-how-wide".as_slice()));
+}

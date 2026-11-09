@@ -92,6 +92,8 @@ A project is where work happens: the repositories adopted into it, one of them i
   on a phone, choose How work runs for PROJECT in the project switcher.
   Delete there deletes the project, for its owners. The switcher's
   Deployment opens Accounts, the first Deployment tab.
+  Team on the rail shows the project’s people and what waits on each,
+  from two people; on a phone, use Team for PROJECT in the switcher.
 - **temper's runs** work in their task's project: `change` writes to
   one of its repositories, and the forge's reads name one by
   `owner/name`.

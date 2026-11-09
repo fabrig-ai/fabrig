@@ -843,10 +843,8 @@ read's head explicit.
   `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
   `rename-row` has opening the form on such a page not panic; no reason is recorded
   for this site. Seen by reading; no test holds it.
-- **Not yet:** 5.3, *The rail's parts*: Team is never shown. No read gives the
-  rail a project's members (jig's `Read::Project` is the Members tab's) or a
-  standing role (`../draft/standing-roles.md`), and Team has no page
-  (`../draft/surfaces.md`, section 6), so `rail::facts` gathers neither.
+- **Not yet:** 5.3, *The rail's parts*: no read gives the rail a standing
+  role (`../draft/standing-roles.md`).
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -1056,6 +1054,9 @@ read's head explicit.
   word change: `the_button_reads_each_label_once_in_the_browser` holds the three names in
   the view's tree, and that a name's patch rewrites the button's text
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
+- **Not yet:** 3.5, *Team*, *The project's triager*: no setting names a
+  triager (`../domain/landing.status.md`, 13.1; `../domain/findings.status.md`),
+  so no read gives `team::Facts`' `triager`, and its line is never drawn.
 - **Design departs:** 3.5, *Needs you*, `.rec`, from the request `ui-copy-once` of
   2026-11-06, decided by its plan's cut. The request has no button, tab or option with
   both a name and a text child in a browser, and a recommended choice's button has its

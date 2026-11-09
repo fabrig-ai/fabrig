@@ -1057,6 +1057,7 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
         | crate::Address::Chat { .. }
         | crate::Address::Task { .. }
         | crate::Address::Changes { .. }
+        | crate::Address::Team { .. }
         | crate::Address::Settings { .. }
         | crate::Address::Repositories { .. }
         | crate::Address::Models { .. }
