@@ -1,9 +1,12 @@
 # authority: status
 
-2026-11-08. Where jig's code lags or departs from [authority.md](authority.md).
+2026-11-09. Where jig's code lags or departs from [authority.md](authority.md).
 
 Section 3 has no known gap in the asking family, bit 2,048, or
 `ToolKind::Ask` admission. A call without that family is beyond authority.
+Section 3's *Notes* has no known gap in a party's scope: no authority's
+note scopes name it, and the asking family reaches it for the task's
+requester alone (`engine.status.md`, 10.1).
 
 Section 3's model bits retain the catalogue setting numbers. Section 8.3's
 host evidence uses endpoint window and output bounds, without a model list.
