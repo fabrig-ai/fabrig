@@ -47,6 +47,7 @@ pub(crate) fn configuration(source: &root::Config) -> root::Config {
                 })
                 .collect(),
             settings: core::Settings {
+                private_tools: settings.private_tools.clone(),
                 endpoints: settings.endpoints.clone(),
                 deployment_provider: settings.deployment_provider,
                 models: settings.models.clone(),

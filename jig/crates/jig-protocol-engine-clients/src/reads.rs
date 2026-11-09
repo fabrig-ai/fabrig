@@ -93,7 +93,13 @@ impl Component {
             Waiting::Read { what, .. } => {
                 self.read_response(
                     exchange,
-                    crate::translate::reads::answer(&what, answer, &self.settings.models, &env.limits.wire),
+                    crate::translate::reads::answer(
+                        &what,
+                        answer,
+                        &self.settings.models,
+                        &self.settings.private,
+                        &env.limits.wire,
+                    ),
                     &env.limits.wire,
                 );
             }

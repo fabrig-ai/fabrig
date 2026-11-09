@@ -106,6 +106,7 @@ impl Composition {
             },
         };
         let settings = clients::Settings {
+            private: clients::Private::none(),
             provider: None,
             addresses: Box::new([]),
             link: identity,

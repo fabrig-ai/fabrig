@@ -9,6 +9,7 @@ pub fn page(
     models: &[crate::Model],
     read: &reads::Read,
     page: &reads::Page,
+    private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
     let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
@@ -22,10 +23,10 @@ pub fn page(
         None => None,
     };
     Ok(match read {
-        reads::Read::Activity { task, .. } => documents::activity(*task, page, before, after, limits)?,
+        reads::Read::Activity { task, .. } => documents::activity(*task, page, before, after, private, limits)?,
         reads::Read::ActivityBeside { task, side, .. } => match side {
-            reads::Side::Earlier => documents::activity(*task, page, None, after, limits)?,
-            reads::Side::Later => documents::activity(*task, page, after, None, limits)?,
+            reads::Side::Earlier => documents::activity(*task, page, None, after, private, limits)?,
+            reads::Side::Later => documents::activity(*task, page, after, None, private, limits)?,
         },
         reads::Read::History { task, subtree, .. } => {
             documents::history(models, *task, *subtree, page, before, after, limits)?
