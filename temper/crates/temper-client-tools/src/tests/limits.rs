@@ -10,6 +10,11 @@ fn each_ceiling_is_within_the_client_limit_it_reads_from() {
     assert_eq!(client.turn_text, limits::CLIENT_TEXT, "the client's turn text keeps its own bound");
     assert!(client.text <= limits::TEXT, "the client's text fits a result's text");
     assert_eq!(limits::tools().words, client.text, "an act's words use the client's text bound");
+    assert_eq!(
+        crate::jig::form_limits(&limits::tools()).text,
+        limits::CLIENT_TEXT,
+        "the settings form keeps the client's text"
+    );
     assert!(u64::from(limits::TEXT) <= client.document_bytes, "a result's text fits one document");
     assert!(limits::PART <= client.turn_bytes, "a page fits a turn");
     assert_eq!(
