@@ -1,23 +1,22 @@
-# ui-p4a-team: Team, its people, what waits on each, and the triager
+# ui-p5a-phone: the phone, Ask, and Tell temper filing for the triager
 
-Milestone P4a of `temper/docs/design/draft/whole-story.execution.md`: `temper/docs/design/draft/surfaces.md`, section 6, for its people, what waits on each, and the project's triager. The user's go of 2026-11-08, cut into steps by laptop/web. It's step 1, "the new shape, on today's engine". Its look is the mockups on main, `temper/docs/design/client/web/whole-story/team.html`, `team/`, and their `README.md`. Nothing in the drafts is reopened.
+Milestone P5a of `temper/docs/design/draft/whole-story.execution.md` (ranked should): `temper/docs/design/draft/surfaces.md`, sections 9 and 10. That's the phone, Ask temper, and Tell temper filing with the project's triager until R2 routes it. Its look is the mockups on main, `temper/docs/design/client/web/whole-story/` (`phone-home.html`, `phone-need.html`, `phone-tell.html`, and their `README.md`). Nothing in the drafts is reopened.
 
 ## What it executes
 
-- **The rule of every milestone** (the execution's section 2): draw what the engine holds when it lands, and no more. A role's card (P4b) and areas and owners (P4c) wait for standing roles, so leave them out, with no empty section, no placeholder and no made-up value.
-- **The design first:** `client/README.md`'s Team, `client/browser.md` where the browser differs, and the greenfield mock's README.
-- **Then the build:** Team as `team.html` draws it, for its people, from the project's roles and people as the engine holds them; what waits on each person; and the project's triager.
-
-The rail is `ui-p1-rail`'s, running beside this. Keep off its files, and meet it at Team's row in the rail.
+- **The rule of every milestone** (the execution's section 2): draw what the engine holds, and no more. R2's routing to an area's role is P5b's, so leave it out, with no placeholder.
+- **The design first:** `client/README.md`'s phone and Tell temper, and `client/browser.md` where the browser differs.
+- **Then the build:**
+  - the phone's pages as the mockups draw them, on the rail and pages P1 and P2 landed;
+  - Ask temper on the phone;
+  - Tell temper filing what the person tells it as a finding with the project's triager, as P4a's Team names it.
 
 ## Its tests
 
 Focused and fuzzy only, as the execution's P1 to P6 entry says:
-- the gallery's states at a laptop's and a phone's width, day and night;
-- the client's joint world for Team with two people;
-- a fuzz test of its parts against `surfaces.md` section 12's rules.
-
-New journeys and the walk come after landing.
+- the gallery's states at a phone's width, day and night;
+- the client's joint world for Tell temper's filing;
+- a fuzz test of the phone's parts against `surfaces.md` section 12's rules.
 
 ## Who hears first
 
