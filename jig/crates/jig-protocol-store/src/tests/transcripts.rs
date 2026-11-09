@@ -979,19 +979,21 @@ fn writing_reopens_a_file_that_was_opened_for_reading() {
 #[test]
 fn a_read_script_delivers_one_complete_frame() {
     let turns = pair();
-    let (mut store, disk) = readable(&turns);
-    let (_, below) = ask(&mut store, 801, forwards(None), 1, 4096);
-    let events = fixtures::script(
-        &mut store,
-        below,
-        &[
-            Answer::Read { bytes: Box::new([0, 0, 0, 67]) },
-            Answer::Read { bytes: Box::from(disk.get(..67).expect("first frame")) },
-        ],
-    );
-    let (_, found, next) = page(&events);
-    assert_eq!(next, Some(67));
-    assert_eq!(found, turns.get(..1).expect("first turn"));
+    for read in [forwards(None), window(None)] {
+        let (mut store, disk) = readable(&turns);
+        let (_, below) = ask(&mut store, 801, read, 1, 4096);
+        let events = fixtures::script(
+            &mut store,
+            below,
+            &[
+                Answer::Read { bytes: Box::new([0, 0, 0, 67]) },
+                Answer::Read { bytes: Box::from(disk.get(..67).expect("first frame")) },
+            ],
+        );
+        let (_, found, next) = page(&events);
+        assert_eq!(next, Some(67));
+        assert_eq!(found, turns.get(..1).expect("first turn"));
+    }
 }
 #[test]
 #[should_panic(expected = "startup bounds cover transcript reads")]
