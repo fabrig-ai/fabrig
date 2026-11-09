@@ -36,3 +36,16 @@ id = 2
 story = "A project whose goal template designs first and makes a close-out reads \"design\" and \"close-out\" on its path; one whose template doesn't reads \"plan\""
 parts = ["path"]
 walk = false
+
+[[part]]
+id = "stock"
+title = "Template 4's work: the stock's plans with no close-out, the reference's designs and closes out"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[slice]]
+id = 3
+story = "A fresh box's Draft first draws \"plan\" from the stock's template 4, and the reference's settings file sets its template 4 to design and close out"
+parts = ["stock"]
+walk = false
