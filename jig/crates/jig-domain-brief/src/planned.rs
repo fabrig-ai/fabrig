@@ -28,6 +28,8 @@ pub enum Core {
     Waiting,
     /// The index of notes in scope.
     NotesIndex,
+    /// The requester's whole preferences (domain/engine.md, 10.1).
+    Preferences,
     /// The end of a transcript when it cannot be resumed whole.
     TranscriptTail,
 }
@@ -44,6 +46,7 @@ pub fn core_name(kind: Core) -> &'static [u8] {
         Core::Calls => b"calls",
         Core::Waiting => b"waiting",
         Core::NotesIndex => b"notes",
+        Core::Preferences => b"preferences",
         Core::TranscriptTail => b"transcript",
     }
 }
@@ -202,39 +205,42 @@ mod tests {
 
     #[test]
     fn required_sections_claim_budget_before_optional_sections() {
-        let sections = [
-            Planned::Connector {
-                name: b"section",
-                connector: 3,
-                kind: 7,
-                token: Token::new(1),
-                size: 80,
-                limit: 80,
-                priority: 0,
-                required: false,
-            },
-            Planned::Core { kind: Core::Task, text: Box::from(&b"task"[..]), limit: 30, priority: 9, required: true },
-            Planned::Connector {
-                name: b"section",
-                connector: 4,
-                kind: 2,
-                token: Token::new(2),
-                size: 20,
-                limit: 20,
-                priority: 1,
-                required: true,
-            },
-        ];
-        let planned = plan(&sections, 30).unwrap();
-        assert_eq!(planned.size, 30);
-        assert_eq!(
-            planned.order.as_ref(),
-            [Placement { index: 0, size: 6 }, Placement { index: 1, size: 4 }, Placement { index: 2, size: 20 }]
-        );
-        assert_eq!(
-            planned.connectors.as_ref(),
-            [ConnectorAction::CutTo { connector: 3, token: Token::new(1), size: 6 }]
-        );
+        for (kind, name) in [(Core::Task, b"task".as_slice()), (Core::Preferences, b"preferences")] {
+            assert_eq!(super::core_name(kind), name);
+            let sections = [
+                Planned::Connector {
+                    name: b"section",
+                    connector: 3,
+                    kind: 7,
+                    token: Token::new(1),
+                    size: 80,
+                    limit: 80,
+                    priority: 0,
+                    required: false,
+                },
+                Planned::Core { kind, text: Box::from(&b"task"[..]), limit: 30, priority: 9, required: true },
+                Planned::Connector {
+                    name: b"section",
+                    connector: 4,
+                    kind: 2,
+                    token: Token::new(2),
+                    size: 20,
+                    limit: 20,
+                    priority: 1,
+                    required: true,
+                },
+            ];
+            let planned = plan(&sections, 30).unwrap();
+            assert_eq!(planned.size, 30);
+            assert_eq!(
+                planned.order.as_ref(),
+                [Placement { index: 0, size: 6 }, Placement { index: 1, size: 4 }, Placement { index: 2, size: 20 }]
+            );
+            assert_eq!(
+                planned.connectors.as_ref(),
+                [ConnectorAction::CutTo { connector: 3, token: Token::new(1), size: 6 }]
+            );
+        }
     }
 
     #[test]

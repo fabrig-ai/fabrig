@@ -736,7 +736,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
 #[test]
 fn small_holds_two_document_sections_with_their_own_budget_and_override() {
     let mut limits = limits::profile(limits::Profile::Small);
-    assert_eq!(limits.root.brief.sections, 8);
+    assert_eq!(limits.root.brief.sections, 9);
     assert_eq!(limits.root.brief.budgets.document, 4096);
     assert_eq!(limits.forge.brief_sections, limits.root.brief.briefs * limits.root.brief.sections * 2);
     assert_eq!(limits::apply(&mut limits, b"root.brief.budgets.document", 2048), Ok(()));

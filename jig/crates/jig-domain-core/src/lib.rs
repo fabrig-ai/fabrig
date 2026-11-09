@@ -179,6 +179,8 @@ pub struct Settings {
     pub tail_bytes: u32,
     /// Jig's one-bit authority family for each engine tool.
     pub tools: ToolFamilies,
+    /// Tool names whose calls belong to the task's requester alone (domain/engine.md, 10.1).
+    pub private_tools: Box<[Box<[u8]>]>,
     /// Configured LLM providers, for the accounts child (accounts.md, 3.1).
     pub llm_providers: accounts::Providers,
     /// Actual client key ceiling, supplied by startup after protocol limits are checked.
@@ -347,6 +349,7 @@ pub struct Core {
     pub(crate) projections: Map<u64, Box<Projection>>,
     /// Preparations waiting for notes, or deferring their next activation for load room.
     pub(crate) pending_note_briefs: Map<u64, routing::NoteBrief>,
+    pub(crate) preferences: routing::run::preferences::State,
     /// Durable deployment numbers.
     pub counters: Counters,
     /// Live task preparation contexts.
@@ -579,6 +582,7 @@ impl Core {
             ),
             projections: Map::with_capacity(limits.tasks.tasks),
             pending_note_briefs: Map::with_capacity(limits.brief.briefs),
+            preferences: routing::run::preferences::State::new(limits.brief.briefs),
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),

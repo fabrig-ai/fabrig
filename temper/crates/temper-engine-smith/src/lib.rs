@@ -13,6 +13,9 @@
 #![cfg_attr(test, expect(clippy::manual_map, reason = "step code matches optional fields without closures"))]
 extern crate alloc;
 
+/// The requester's preferences section title (jig domain/engine.md, 10.1).
+pub const PREFERENCES_TITLE: &[u8] = b"Kept about this person";
+
 mod answers;
 mod calls;
 mod docs;

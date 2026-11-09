@@ -1592,7 +1592,7 @@ fn demo_refuses_forge_and_project_members() {
 
 #[test]
 fn startup_requires_room_for_the_core_and_two_charter_documents() {
-    for sections in [7_u32, 8] {
+    for sections in [8_u32, 9] {
         let input = fixtures::document();
         let overrides = fixtures::value(&input, b"application.limits.overrides");
         let overrides = core::str::from_utf8(&overrides).unwrap().trim_end().strip_suffix('}').unwrap();
@@ -1608,11 +1608,11 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
             fixtures::worker_runtime(),
             fixtures::forge_runtime(),
         );
-        if sections == 7 {
-            let Err(problems) = started else { panic!("seven sections cannot hold the core and two documents") };
+        if sections == 8 {
+            let Err(problems) = started else { panic!("eight sections cannot hold the core and two documents") };
             assert_eq!(lines(&problems).as_ref(), b"application.limits.overrides.root.brief.sections: must agree with engine.limits.overrides.tasks.charter_documents and the core sections\n");
         } else {
-            started.expect("eight sections hold the core and two documents");
+            started.expect("nine sections hold the core and two documents");
         }
     }
 }

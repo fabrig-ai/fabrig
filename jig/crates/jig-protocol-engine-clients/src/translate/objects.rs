@@ -83,7 +83,7 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
                 result: current::result(models, result, limits)?,
             },
         )?),
-        reads::EndedValue::Reply(_) | reads::EndedValue::Turn(_) => {
+        reads::EndedValue::Reply(_) | reads::EndedValue::Turn(_) | reads::EndedValue::WithheldTurn(_) => {
             return Err(w::Problem { path: w::Path::EndedValue, reason: skein_codec::Reason::Tag });
         }
     };
@@ -106,6 +106,7 @@ pub fn ended(value: &reads::Ended, models: &[crate::Model], limits: &w::Limits) 
 pub fn document(
     answer: &reads::Answer,
     models: &[crate::Model],
+    private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
     Ok(match answer {
@@ -131,7 +132,10 @@ pub fn document(
             }
         },
         reads::Answer::Ended(value) => match &value.value {
-            reads::EndedValue::Turn(record) => w::ReadValue::Turn(super::activity::archive(record, limits)?),
+            reads::EndedValue::WithheldTurn(record) => {
+                w::ReadValue::Turn(super::activity::archive(record, Some(private), limits)?)
+            }
+            reads::EndedValue::Turn(record) => w::ReadValue::Turn(super::activity::archive(record, None, limits)?),
             reads::EndedValue::Task { .. }
             | reads::EndedValue::Proposal(_)
             | reads::EndedValue::PersonProposal { .. }
@@ -187,7 +191,7 @@ fn ended_key(value: &reads::EndedValue, limits: &w::Limits) -> Result<w::ObjectK
             limits,
             w::ObjectKeyPersonTaskParts { value: document.task.number },
         )?),
-        reads::EndedValue::Reply(_) | reads::EndedValue::Turn(_) => {
+        reads::EndedValue::Reply(_) | reads::EndedValue::Turn(_) | reads::EndedValue::WithheldTurn(_) => {
             return Err(w::Problem { path: w::Path::EndedValue, reason: skein_codec::Reason::Tag });
         }
     })

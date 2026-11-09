@@ -132,6 +132,10 @@ pub enum CallPart {
         removed: u32,
         first: u32,
     },
+    /// One scoped note was dropped at the revision seen by the run (domain/engine.md, 10.1).
+    NoteDeleted {
+        name: u64,
+    },
     /// One bounded recall page was answered from the notes child.
     NoteRecalled {
         entries: Box<[jig_domain_notes::Entry]>,
@@ -195,6 +199,7 @@ impl CallPart {
             CallPart::EscalationDecided { task, revision, .. } => {
                 *task != 0 && *task <= deployment.tasks && *revision != 0
             }
+            CallPart::NoteDeleted { name } => *name != 0 && *name <= deployment.messages,
             CallPart::Sent { message } => *message != 0 && *message <= deployment.messages,
             CallPart::NoteWritten { name, revision, lines, added, first, .. } => {
                 *name != 0

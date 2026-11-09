@@ -117,7 +117,7 @@ pub fn configure(value: &mut Value, agent: &mut Value, forge: SocketAddr) {
         ("authority.requirements", 3),
         ("notes.scopes", 32),
         ("brief.briefs", 2),
-        ("brief.sections", 8),
+        ("brief.sections", 9),
         ("fleet.attempts", 2),
         ("people.inbox_tasks", 16),
         ("people.pending", 4),
