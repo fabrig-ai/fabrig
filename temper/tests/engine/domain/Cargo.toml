@@ -53,6 +53,7 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
+smith-transcript.workspace = true
 jig-engine-clients-kit.workspace = true
 jig-client-kit.workspace = true
 jig-people-kit.workspace = true
