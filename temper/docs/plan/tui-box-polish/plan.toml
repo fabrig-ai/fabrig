@@ -3,3 +3,49 @@ repo = "fabrig"
 sources = ["temper/docs/plan/tui-box-polish/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.status.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "box-ink"
+title = "The person's words in the box are the terminal's own ink, the accent on \"❯\" alone"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.15"
+
+[[part]]
+id = "notice"
+title = "One-line notices stand 6 seconds at the right end of the quiet line; an unknown command's among them"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[part]]
+id = "quit"
+title = "In the TUI the closing command is /quit, /exit still taking it unlisted"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.14"
+
+[[part]]
+id = "theme"
+title = "/theme opens a list of Auto, Light and Dark, the choice kept in the TUI's small store"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 6.15"
+
+[[slice]]
+id = 1
+story = "In the TUI, an unknown command's notice stands on the quiet line for 6 seconds, /quit closes temper, and a theme kept in the small store starts the next run"
+parts = ["notice", "quit", "theme"]
+walk = false
+
+[[slice]]
+id = 2
+story = "Typed in the box, the person's words are the terminal's own ink after an accent \"❯\""
+parts = ["box-ink"]
+walk = false
