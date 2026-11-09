@@ -58,7 +58,3 @@ Changes
 The landing queue, as Work's filter.
 Hidden
 [28] [ ] Changes
-Away switch
-Lets agents decide within limits while you’re away.
-Hidden
-[29] [ ] Away switch

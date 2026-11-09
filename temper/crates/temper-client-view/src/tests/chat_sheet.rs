@@ -98,7 +98,7 @@ impl Case {
                     let value = if setting.kind() == 7 {
                         let value = w::ProjectWays::new(
                             &w::CEILINGS,
-                            w::ProjectWaysParts { skein_bools: [self.offered, true, false, false], way: 2 },
+                            w::ProjectWaysParts { drafts: self.offered, goals: true, changes: false, way: 2 },
                         )
                         .unwrap();
                         let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());

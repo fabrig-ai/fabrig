@@ -559,10 +559,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                     w::Read::Setting(setting) if setting.kind() == 7 => {
                         let ways = w::ProjectWays::new(
                             &w::CEILINGS,
-                            w::ProjectWaysParts {
-                                skein_bools: [false, false, false, name != "home-step-pair"],
-                                way: 0,
-                            },
+                            w::ProjectWaysParts { drafts: false, goals: false, changes: false, way: 0 },
                         )
                         .expect("project ways");
                         let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways size"));

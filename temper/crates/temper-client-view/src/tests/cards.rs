@@ -550,11 +550,9 @@ fn proposed_values(
             read = Some(*token);
         }
     }
-    let ways = w::ProjectWays::new(
-        &w::CEILINGS,
-        w::ProjectWaysParts { skein_bools: [drafts, drafts, drafts, drafts], way: 0 },
-    )
-    .unwrap();
+    let ways =
+        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts, goals: drafts, changes: drafts, way: 0 })
+            .unwrap();
     let mut writer = Writer::new(usize::try_from(ways.measure()).unwrap());
     ways.encode(&mut writer).unwrap();
     let questions = w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route }).unwrap();
@@ -741,7 +739,6 @@ fn kinds_six_seven_and_eight_are_named_until_their_values_are_read() {
             if on { b"Drafts: on" } else { b"Drafts: off" },
             if on { b"Goals: shown" } else { b"Goals: hidden" },
             if on { b"Changes page: shown" } else { b"Changes page: hidden" },
-            if on { b"Away switch: shown" } else { b"Away switch: hidden" },
             b"Way: Task by task",
             b"What reaches you:",
             b"Agents decide, then tell you: wording choices, retries and splits, test-only changes",

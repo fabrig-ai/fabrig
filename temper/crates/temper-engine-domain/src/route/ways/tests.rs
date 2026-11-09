@@ -153,7 +153,6 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
                 drafts: true,
                 goals: goal,
                 changes: true,
-                away: false,
                 way,
             })),
         }];

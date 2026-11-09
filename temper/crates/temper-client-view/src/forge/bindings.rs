@@ -38,7 +38,6 @@ pub(crate) enum WaysRow {
     Drafts,
     Goals,
     Changes,
-    Away,
     Classes,
     Way(u32),
 }

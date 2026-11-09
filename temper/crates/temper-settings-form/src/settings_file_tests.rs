@@ -506,7 +506,7 @@ fn forge_document_forms_use_the_registered_connector_and_round_trip() {
 const PROJECT_WAYS: &[u8] = br#"{"kind":"project-ways","project":7}"#;
 const PROJECT_CLASSES: &[u8] = br#"{"kind":"project-classes","project":7}"#;
 const CLASSES: &[u8] = br#"{"items":[{"kind":"implementation","words":"","class":"decide"},{"kind":"tests","words":"Keep coverage","class":"ask"},{"set":1,"words":"","class":"ask-away"}],"sets":[{"number":1,"name":"Core","patterns":["src/**","Cargo.*"]}]}"#;
-const WAYS: &[u8] = br#"{"drafts":true,"goals":false,"changes":true,"away":false,"way":4294967295}"#;
+const WAYS: &[u8] = br#"{"drafts":true,"goals":false,"changes":true,"way":4294967295}"#;
 #[test]
 fn project_ways_is_read_and_printed_whole() {
     for (setting, kind, value) in [(PROJECT_WAYS, 7, WAYS), (PROJECT_CLASSES, 8, CLASSES)] {
@@ -640,16 +640,16 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
         assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
     }
     for (value, member) in [
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true}"#.as_slice(), b"way".as_slice()),
-        (br#"{"drafts":true,"goals":true,"changes":true,"way":0}"#, b"away"),
-        (br#"{"drafts":true,"goals":true,"away":true,"way":0}"#, b"changes"),
-        (br#"{"drafts":true,"changes":true,"away":true,"way":0}"#, b"goals"),
-        (br#"{"goals":true,"changes":true,"away":true,"way":0}"#, b"drafts"),
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":4294967296}"#, b"way"),
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":-1}"#, b"way"),
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":false}"#, b"way"),
-        (br#"{"drafts":1,"goals":true,"changes":true,"away":true,"way":0}"#, b"drafts"),
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":0,"extra":true}"#, b"extra"),
+        (br#"{"drafts":true,"goals":true,"changes":true}"#.as_slice(), b"way".as_slice()),
+        (br#"{"drafts":true,"goals":true,"way":0}"#, b"changes"),
+        (br#"{"drafts":true,"changes":true,"way":0}"#, b"goals"),
+        (br#"{"goals":true,"changes":true,"way":0}"#, b"drafts"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":4294967296}"#, b"way"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":-1}"#, b"way"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":false}"#, b"way"),
+        (br#"{"drafts":1,"goals":true,"changes":true,"way":0}"#, b"drafts"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":0,"extra":true}"#, b"extra"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":0}"#, b"away"),
     ] {
         let why = file::decode(&kind_file(PROJECT_WAYS, value), &Limits::standard()).expect_err("malformed ways");
         assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");

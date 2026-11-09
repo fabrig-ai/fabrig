@@ -51,16 +51,7 @@ fn values() -> [(u32, settings::Value); 8] {
                 temper_protocol_reaches::Way::AgentsReview,
             )),
         ),
-        (
-            7,
-            settings::Value::Ways(settings::ProjectWays {
-                drafts: true,
-                goals: false,
-                changes: true,
-                away: false,
-                way: u32::MAX,
-            }),
-        ),
+        (7, settings::Value::Ways(settings::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
     ]
 }
 

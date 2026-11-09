@@ -3418,7 +3418,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "How work runs in tally.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
-            Part::Named { role: Role::Check, name: "Away switch" },
+            Part::Absent { role: Role::Check, name: "Away switch" },
             Part::Links { style: temper_client_view::look::SETTINGS_TABS, names: &["How work runs", "Repositories"] },
             Part::Absent { role: Role::Link, name: "Start" },
             Part::Named { role: Role::Navigation, name: "How work runs" },
@@ -3438,11 +3438,6 @@ static HOLDS: [Holds; samples::N] = [
         name: "settings-changes-off",
         heading: "How work runs in tally.",
         parts: &[Part::Named { role: Role::Check, name: "Changes" }],
-    },
-    Holds {
-        name: "settings-away-off",
-        heading: "How work runs in tally.",
-        parts: &[Part::Named { role: Role::Check, name: "Away switch" }],
     },
     Holds {
         name: "settings-all-hidden",
@@ -5048,12 +5043,11 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
         ("settings-drafts-off", "Chats can write drafts", true),
         ("settings-goals-off", "Goals", true),
         ("settings-changes-off", "Changes", false),
-        ("settings-away-off", "Away switch", true),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("switch-off sample");
         let view = view(&sample);
         let tree = view.tree();
-        for label in ["Chats can write drafts", "Goals", "Changes", "Away switch"] {
+        for label in ["Chats can write drafts", "Goals", "Changes"] {
             let check = tree
                 .nodes()
                 .iter()

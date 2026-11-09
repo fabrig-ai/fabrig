@@ -667,7 +667,7 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
     )
     .expect("reference ways");
     let temper_engine_domain_forge::settings::Value::Ways(ways) = decoded.value else { panic!("project ways record") };
-    assert_eq!((ways.drafts, ways.goals, ways.changes, ways.away, ways.way), (true, true, true, true, 4));
+    assert_eq!((ways.drafts, ways.goals, ways.changes, ways.way), (true, true, true, 4));
 
     let setting = Setting::Application { kind: 2, scope: 1, number: 1 };
     assert_eq!(items.get(1).expect("project landing rule second").setting, setting);

@@ -90,7 +90,7 @@ pub static FORMS: [Form; 60] = [
     Form { shape: Shape::ClassItem, name: b"class-item", choice: Choice::Every, line: b"Exactly one of kind or set, optional words and a class. Only one item without words per subject. Money, irreversible, rules and other always wait and have no item." },
     Form { shape: Shape::PathSet, name: b"path-set", choice: Choice::Every, line: b"A named set of repository-relative path patterns, numbered distinctly from 1 to 6." },
 ];
-pub static FIELDS: [Field; 222] = [
+pub static FIELDS: [Field; 221] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -1257,7 +1257,6 @@ pub static FIELDS: [Field; 222] = [
     Field { shape: Shape::ProjectWays, name: b"drafts", value: Value::Boolean, list: None, null: false, line: b"Whether chats can write drafts." },
     Field { shape: Shape::ProjectWays, name: b"goals", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows Goals." },
     Field { shape: Shape::ProjectWays, name: b"changes", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows Changes." },
-    Field { shape: Shape::ProjectWays, name: b"away", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows the Away switch." },
     Field { shape: Shape::ProjectWays, name: b"way", value: Value::Integer(Width::U32), list: None, null: false, line: b"The template a goal starts by: one the project offers with tracked set, or 0 for the first." },
     Field { shape: Shape::ProjectClasses, name: b"items", value: Value::Shape(Shape::ClassItem), list: Some(Bound::Limit(Limit::ClassesItems)), null: false, line: b"The table's class items." },
     Field { shape: Shape::ProjectClasses, name: b"sets", value: Value::Shape(Shape::PathSet), list: Some(Bound::Limit(Limit::ClassesSets)), null: false, line: b"The path sets its items may name." },

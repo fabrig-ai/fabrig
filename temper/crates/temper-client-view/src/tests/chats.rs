@@ -1423,7 +1423,7 @@ impl DraftsPage {
                     let value = if setting.kind() == 7 {
                         let value = w::ProjectWays::new(
                             &w::CEILINGS,
-                            w::ProjectWaysParts { skein_bools: [offered, false, false, false], way: 0 },
+                            w::ProjectWaysParts { drafts: offered, goals: false, changes: false, way: 0 },
                         )
                         .unwrap();
                         let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
