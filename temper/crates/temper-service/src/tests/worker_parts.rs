@@ -104,23 +104,88 @@ fn the_start_passes_each_ask_and_omits_an_empty_one() {
                 else {
                     panic!("fixture assignment")
                 };
-                let source = host::Start {
-                    live: host::LiveAsk { text, reasoning, input },
-                    workspace: None,
-                    charter: assignment.assignment.charter,
-                    activation: 1,
-                    identity: assignment.assignment.identity,
-                    turns: Box::new([]),
-                    answered: Box::new([]),
-                    messages: Box::new([]),
-                    grants: Box::new([]),
-                };
+                let source = start(assignment.assignment, host::LiveAsk { text, reasoning, input });
                 assert_eq!(
                     worker_route::decode(RUN, source, &agent).expect("decoded fixture").live,
                     (text || reasoning || input).then_some(agent::channel::LiveAsk { text, reasoning, input })
                 );
             }
         }
+    }
+}
+
+#[test]
+fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
+    // Standard hub, smith's floor, and the reference agent
+    // (temper/docs/design/domain/agent.md, 4.3; temper/docs/design/protocol/configuration.md, 13.8).
+    // The smaller hub proves its bound still holds.
+    const STANDARD: u64 = 262_144;
+    const FLOOR: u64 = 65_536;
+    const REFERENCE: u64 = 127_480;
+    // The fixture's fixed charter plus the title and minimum cut line owns 40,259 bytes.
+    const SMALLER_HUB: u64 = 40_259;
+    // Both sides of a large generated file, past each receiving allowance.
+    const PULL_BYTES: usize = 200_000;
+    const STOCK_PAYLOAD: u32 = 10_662;
+    const STOCK_OUTPUT: u32 = 8192;
+    let stock = fixtures::parsed_agent(fixtures::stock_configuration(STOCK_PAYLOAD, STOCK_OUTPUT).unwrap());
+    assert_eq!(crate::assignment::WORKER_CHARTER_BYTES, stock.host_limits.charter_bytes);
+    let rows = [
+        ("engine_alone_under_standard", STANDARD, None, FLOOR, FLOOR, 0),
+        ("local_agent_takes_more", STANDARD, Some(REFERENCE), REFERENCE, REFERENCE, FLOOR),
+        ("hub_below_its_agent", SMALLER_HUB, Some(REFERENCE), REFERENCE, SMALLER_HUB, 0),
+    ];
+    let mut outcomes = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for (name, hub, local, worker, bound, more_than) in rows {
+        let mut settings = fixtures::engine();
+        settings.jig.limits.hub.charter_bytes = hub;
+        settings.agent_charter_bytes = local;
+        let encoding = fixtures::encoding(&settings);
+        let Some(jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. }) =
+            crate::assignment::down(
+                fixtures::resolution_with_pull(PULL_BYTES),
+                &fixtures::forge_table(&fixtures::forges()),
+                &encoding,
+                &fixtures::values_with_identity(1, fixtures::FORGE_TOKEN),
+                RUN,
+                skein_lib::Time::ZERO,
+            )
+        else {
+            panic!("{name}: encoded resolution")
+        };
+        let encoded = skein_lib::len_u64(assignment.assignment.charter.len());
+        let live = assignment.assignment.live;
+        let source = start(assignment.assignment, live);
+        let mut agent = fixtures::agent();
+        agent.host_limits.charter_bytes = worker;
+        match worker_route::decode(RUN, source, &agent) {
+            Ok(start) => {
+                assert!(encoded <= bound, "{name}: encoded charter exceeds the receiving bound");
+                assert!(encoded > more_than, "{name}: larger local allowance keeps more of the brief");
+                let [section] = start.charter.value().brief.sections.as_ref() else {
+                    panic!("{name}: pull section retained")
+                };
+                assert_eq!(section.title.as_ref(), b"Pull request", "{name}");
+                assert!(section.text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"), "{name}");
+                outcomes.push((name, Ok(()))).unwrap();
+            }
+            Err(why) => outcomes.push((name, Err(why))).unwrap(),
+        }
+    }
+    assert_eq!(outcomes.as_slice(), &rows.map(|(name, ..)| (name, Ok(()))));
+}
+
+fn start(assignment: host::RunAssignment, live: host::LiveAsk) -> host::Start {
+    host::Start {
+        live,
+        workspace: None,
+        charter: assignment.charter,
+        activation: 1,
+        identity: assignment.identity,
+        turns: Box::new([]),
+        answered: Box::new([]),
+        messages: Box::new([]),
+        grants: Box::new([]),
     }
 }
 

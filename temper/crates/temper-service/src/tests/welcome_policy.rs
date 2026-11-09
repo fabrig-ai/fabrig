@@ -62,6 +62,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
         host_reply_bytes: None,
+        agent_charter_bytes: None,
         machine: parsed.application.machine,
         directories: directories.clone(),
         jig: parsed.engine,
