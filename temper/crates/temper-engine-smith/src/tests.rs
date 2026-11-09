@@ -3646,3 +3646,6 @@ mod decided_tool;
 
 #[path = "tests/see.rs"]
 mod see;
+
+#[path = "tests/see_person.rs"]
+mod see_person;
