@@ -47,7 +47,8 @@ pub fn channel_limits(limits: &Limits) -> Result<channel::Limits, Unusable> {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    if limits.ping == Duration::ZERO
+    if limits.room < 270
+        || limits.ping == Duration::ZERO
         || limits.silence < limits.ping.saturating_mul(3)
         || limits.stall == Duration::ZERO
         || limits.grace == Duration::ZERO
@@ -68,6 +69,26 @@ pub fn valid(limits: &Limits) -> bool {
     let Ok(channel) = channel_limits(limits) else {
         return false;
     };
+    // Open's fixed body is 14 bytes, followed by the credential; the header is 8.
+    let Some(open) = channel.credential.checked_add(22) else {
+        return false;
+    };
+    if open > limits.room {
+        return false;
+    }
+    for rule in wire::KINDS {
+        if rule.direction == channel::Direction::FromInitiator {
+            let Some(body) = sizes::largest_body(&limits.sizes, rule.body) else {
+                return false;
+            };
+            let Some(frame) = body.checked_add(8) else {
+                return false;
+            };
+            if frame > limits.room {
+                return false;
+            }
+        }
+    }
     channel::valid(&schema, Role::Initiator, &channel)
         && limits.sizes.slots.checked_mul(limits.sizes.calls).is_some()
         && limits.sizes.slots.checked_mul(limits.sizes.turns).is_some()
