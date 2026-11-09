@@ -4239,6 +4239,13 @@ whole.
   08:00, and a hand. Quiet hours and notifications are the client's
   later parts (`../client/README.md`, section 11); neither is the
   switch's.
+- **The classes per person** (5.10; `../draft/what-reaches-you.md`,
+  section 11): a team may want one person asked about a path set and
+  another not. Default: the classes are the project's and Away each
+  person's, approvals naming roles as they do.
+- **What code decides, listed** (5.9): a known flake's rerun
+  (`findings.md`, section 5) asks no one and writes no row. Whether
+  Decided for you lists it. Default: not listed.
 - **A refused `message` keeps no record** (8.11): the call's refusal of an
   agent's own words is rendered and kept with no call's record, as the
   `goal` tool's refusal is, where a decided call's answer is kept

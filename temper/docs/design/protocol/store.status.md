@@ -15,9 +15,20 @@ several members remain section 7's deferred work.
 
 Section 2's family 20 keeps kind 11, a goal template's work, in store
 v11 in place: `TemplateGoal`, `design` and `close_out`, and
-`SettingValue`'s `goal`, its last variant, with no version bump or
+`SettingValue`'s `goal`, with no version bump or
 migration; the store's codec reads and writes it and its slot table
 holds it (`temper-protocol-store`'s `tests/settings.rs`).
+
+Section 2's families 20, 34, 38 and 39 keep what reaches a person in
+store v11 in place, by plan `ui-reaches`, with no version bump or
+migration: kind 8, `SettingValue`'s `classes`, a `ProjectClasses`;
+`KeepAsking`, a `PersonFact` keyed 2; `Away` with no kinds; and
+`Decided` with its reach, an asked row's `took` none, and `CallDecided`'s
+reach. The codec's round trips hold them
+(`away_and_decided_rows_round_trip_their_options_and_bounds`,
+`tests/settings.rs`, `tests/keys.rs`), a table of one item and one set
+among the settings, and the codecs world's
+`store_decoders_never_panic_and_reencode_the_same` reads them.
 
 Section 2's family 20 keeps kinds 9 and 10, a charter's words and a
 project's words, in store v11 in place: `CharterWords`, `line`, and

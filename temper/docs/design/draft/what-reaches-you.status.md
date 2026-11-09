@@ -1,6 +1,13 @@
 # what-reaches-you: status
 
-2026-11-08. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
+2026-11-09. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
+
+Sections 2 to 6 are carried by the design, milestone N1 of
+`whole-story.execution.md`, but for lag 4 and the departures below:
+`../domain/forge.md`, 5.5 and 5.8 to 5.10, `../protocol/configuration.md`,
+section 7 and 13.2, `../domain/agent.md`, 4.3, and
+`../client/README.md`, 3.5, 5.13 and 5.14. Where the code lags them is
+their status files'.
 
 - **Design lags:**
   - 4: no design gives a standing role's person
@@ -23,6 +30,15 @@
     VAPID key pair among the deployment's secrets
     (`../protocol/credentials.md`), or has `temper ctl me push add`.
   - 10: `../../development/acceptance.md` holds no story of it.
+- **Design departs:** 6, decided by the client's designer for
+  `ui-reaches` on 2026-11-08 (the request leaves such calls to
+  temper/ui): Needs you's unfiltered page reads the rows of at most four
+  projects, the shown card's first, the count marked "+" past them, where
+  this section lists every project's, since each project's rows are a
+  watch of their own within the client's room
+  (`../client/README.md`, 3.5, *Decided for you*, and section 11's open
+  question, default four); and a page draws at most seven rows, the
+  newest, counting the rest in its heading, as Home has since `ui-away`.
 - **Design departs:** 2, decided by the cut of `ui-reaches` on
   2026-11-08 (the request leaves such calls to temper/ui): a path set's
   patterns match the paths of any of the project's repositories, where

@@ -2,6 +2,36 @@
 
 2026-11-09. Where temper's code lags or departs from [forge.md](forge.md).
 
+Sections 5.5, 5.8, 5.9 and 5.10 have no known implementation gap but
+the one below in what reaches a person, the whole story's milestone N1,
+by plan `ui-reaches`. The crate `temper-protocol-reaches` holds the
+kinds, the classes, a project's table and its check, the patterns, the
+stock tables, `judge`, `away_may_decide` and Stop asking's offers, with a
+fuzz test over kinds, tables, sets, `under`, Away, `always` and paths
+(`the_judgement_keeps_its_rules`). `Away` holds no kinds; `decided` is
+judged by the project's kind 8, or its stock, for any task whose question
+would reach a person, a served chat's person among them, every judged
+call writing a row, decided or asked, with its reach; rows are kept 7
+days under `forge.decided_per_project`, a call with no row past its day
+to erase at the bound answered ask; the document answers `rows`,
+`asked` and `cut`; and `KeepAsking` replaces the party's earlier one of
+its project and subject. The engine world's
+`each_callers_person_and_reach_are_kept` holds a goal, a chat, a
+person's task and a served goal, a goal's child answered ask with no
+person, `money` and `other` waiting, `Asks: always` and an owner's
+narrowed table deciding the next call; the forge's tables hold the bound
+(`the_bound_keeps_a_day_sweeps_seven_days_and_numbers_rise`), Overturn
+(`overturn_marks_once_then_refuses`) and Keep asking
+(`a_dismissal_saves_its_row_marks_and_answers`). A standing role's
+person and the paths an asker's change touches at its head are the
+draft's lags (`../draft/what-reaches-you.status.md`, 4).
+
+- **Not yet:** 5.9: a call answered ask at the bound, with no row past
+  its day, erases the project's rows older than 7 days without marking
+  `decided`, so its document lists them until the next mark
+  (`temper-engine-domain-forge/src/away.rs`, `decided`); no test holds
+  that branch's sweep.
+
 Section 11.1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
 including callers in its subtree; an explicit destination outside it is

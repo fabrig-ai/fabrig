@@ -2,11 +2,49 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 (*Away*, *Decided for you*, *Home on any project*, and
+*Needs you*'s *Why it reached you*, *Stop asking* and *Keep asking*),
+4.6, 5.8, 5.13 (*While you're away, agents may decide*, *What the
+project shows* and *The card in a chat*'s kind 8) and 5.14 have no known
+gap in the web client but those below: the whole story's milestone N1,
+by plan `ui-reaches`. `pages::decided` holds the open page's `decided`
+watches, at most four projects unfiltered, "+" past them; a row says
+what allowed it from its reach, and Overturn works from Home and Needs
+you; Away shows by the project's classes or an on row; Settings' section
+is a view of kind 8; each need's reason line comes from its task's newest
+asked row, its card waiting for that document; Stop asking applies or
+proposes the kit's narrowed table; and Keep asking sends the person's
+fact, which holds Stop asking back for 7 days. The domain's and view's
+tables hold them (`shown_by_classes_or_an_on_row`,
+`why_matches_the_asking_task_and_time_and_waits_for_its_document`,
+`stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact`,
+`overturned_says_it_asks_again_under_needs_you`), and the joint world's
+`what_reaches_a_person_follows_the_classes_away_and_stop_asking` walks
+section 10's story on a filtered Needs you, but not a `money` question
+with Away off, Overturn, the unfiltered page, Keep asking or a member's
+Propose, which the domain's tables hold alone. Its render check and walk
+follow landing (section 11).
+
 - **Not yet:** 3.5, *Needs you*, *Why it reached you*, in the TUI (6.14, *The
-  launchpad*): its need lines say no reason, though
-  `temper_client_view::shared::why` gives it; temper/tui draws it with the
-  launchpad of milestone T1 in
-  [whole-story.execution.md](../draft/whole-story.execution.md).
+  launchpad*): its need lines and a need walked by `n` say no reason, though
+  `temper_client_view::shared::why` gives it and the view's terminal shell
+  prints it; milestone T1 of
+  [whole-story.execution.md](../draft/whole-story.execution.md), landed by
+  plan `tui-whole-t1`, drew none, so it stays temper/tui's.
+- **Not yet:** 3.5, *Decided for you*, *The region*, on *Needs you*: the
+  head's right says "for 24 hours, then in each task's history" where a
+  filtered page has "Limits"; the region is named "Decided for you", not by
+  its heading; and a filtered page's rows say "PROJECT · TITLE · 01:05" as
+  well (`temper-client-view`'s `pages/decided.rs`), which the view's and
+  the gallery's tests hold.
+- **Not yet:** 3.5, *Decided for you*, *On Home*: the intro takes the
+  spell's form only while a row shows too (`temper-client-domain`'s
+  `pages/home.rs`), so Away on, or ended less than a day ago, with no row
+  showing draws *Home on any project*'s intro.
+- **Not yet:** 3.5, *Needs you*, *Stop asking*, *Its offers in words*: a
+  path set's words offer draws its "Which changes" field above "Let agents
+  decide changes to NAME that are:", where the sentence stands over it
+  (`temper-client-view`'s `pages/needs.rs`).
 
 Sections 6.13 and 6.14 keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
