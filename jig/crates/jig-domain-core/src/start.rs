@@ -45,6 +45,17 @@ pub enum Failure {
     LiveSet { set: LiveSet, key: Key, held: u64, limit: u64 },
     Accounting { key: Key },
     LlmChoice { key: Key },
+    /// A record names a link the start cannot make (engine.md, 6).
+    Link { record: Key, linked: Linked },
+}
+
+/// What a record links to that the start could not find (engine.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Linked {
+    Record(Key),
+    Charter { charter: u32, revision: u32 },
+    Project(u32),
+    Connector(u16),
 }
 
 /// A setting cannot be held under its application's declared kind (engine.md, 17.5).
