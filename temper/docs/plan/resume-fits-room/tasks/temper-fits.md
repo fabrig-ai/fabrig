@@ -126,3 +126,14 @@ stands: run temper-fits again once this trunk holds a commit of
 into this one or by worker-link-quiet landing and this trunk catching up
 with main. Until then change nothing, and do not take the file from
 `temper-room`'s branch or write the story afresh.
+
+2026-11-09. *Run 4 found the base still lacks `link_room.rs`; what now?*
+Run 4 started at 17:47Z on `839bfc192c`, the trunk that took the run 3
+answer, before the condition that answer set could hold: at 17:48Z
+`temper-room` is still running in worker-link-quiet, unmerged into
+`worker-link-quiet/integration` (`85e9293560`) or main. The run 3 answer
+stands unchanged: run temper-fits again only once this trunk's tree holds
+`temper/crates/temper-service/src/tests/link_room.rs` by a merge of a
+`worker-link-quiet/integration` commit containing `temper-room`'s merge, or
+by worker-link-quiet landing and this trunk catching up with main. A run
+that finds it absent reports the same `Failed:` line and changes nothing.
