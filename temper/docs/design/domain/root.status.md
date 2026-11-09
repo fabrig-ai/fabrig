@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-08. Where temper's code lags or departs from [root.md](root.md).
+2026-11-09. Where temper's code lags or departs from [root.md](root.md).
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
@@ -69,6 +69,15 @@ kind remains shape.
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
   `BriefSource`), and a merge-queue ejection's reason. 9.1: the
   rehearsing root, `temper upgrade --check`.
+
+- **Not yet:** 8: a window's pages keep their load slot: the next page is
+  asked for a fresh slot (`temper-engine-domain/src/archive.rs`,
+  `transcript_loaded`, through `restart.rs`, `request_load`) while the
+  page's own stays taken until the pass's reclaim, so with the other slot
+  held it answers `TranscriptLoad::Failed`, `transcript: its window could
+  not be loaded` (`archive.rs`'s test
+  `a_transcript_continuation_without_load_room_remains_preparation_failure`).
+
 - **Not yet:** 10: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while

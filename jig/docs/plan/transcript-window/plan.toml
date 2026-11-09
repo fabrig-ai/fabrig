@@ -4,3 +4,22 @@ sources = ["jig/docs/plan/transcript-window/inputs/request.md", "AGENTS.md", "DE
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "window-pages"
+title = "A transcript window of any length loads its later pages in its first page's load slot"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/root.md, 8"
+
+[[slice]]
+id = 1
+story = "A goal whose window spans many pages, the other load slot held, and a restart's due tasks with two-page windows, each load their window whole and resume, spending no try"
+parts = ["window-pages"]
+walk = false
