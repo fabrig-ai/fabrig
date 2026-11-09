@@ -36,7 +36,14 @@
     and "Keep asking" under the line (*Why it reached you*, *Stop
     asking*), where this section and `needs.html` put "Keep asking" and
     the narrower rule, "Stop asking: let goals decide …", on the line
-    itself; and a path set's why names the set, not its paths.
+    itself; and a path set's why names the set, not its paths. Its
+    **Only you** draws an item's from line in the mono, its question at
+    19 px and the card's gap at 12, where `needs.html` has `.from` in the
+    sans, `.q` at 16.5 px and `.card`'s gap at 10; and its question names
+    the source as Accounts does, "Your Claude Code login NAME is
+    expiring.", where `needs.html` names who uses it, "The Claude login
+    vsr's agents use", which no read gives (`what-reaches-you.status.md`,
+    8).
   - 6: `../client/README.md`, 3.5, *Team*, holds a project's people and
     what waits on each, and the project's triager once a setting names
     one; no design holds a project's areas, an area's owner, a person's
@@ -142,6 +149,10 @@
     because each project's brief is written in that project's own words
     and its first sentence need not name it (15's default). Decided by the
     cut of `ui-p2-home`.
+  - 4 and 13: `../client/README.md`, 3.5, **Only you**, gives its item
+    the act "Sign in again", where `needs.html` has "Sign in", so that the
+    act says what its question asks, as the run wait's link to Accounts
+    does (5.5, *A run's wait*). Decided by the cut of `ui-n3a-only`.
   - 11.1, 13 and 15: `../client/README.md`, 6.14, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and
