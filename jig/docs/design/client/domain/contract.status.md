@@ -35,9 +35,6 @@ times reach the accounts watch without marking an unchanged offer.
   (`../../domain/engine.status.md`, 17.12). The field is computed correctly
   on a fresh read; no reason for the missing mark is recorded.
 
-- **Not yet:** 6: no `Party` note scope: a party reads, edits and deletes
-  no scope of their own.
-
 Section 5.1 has no known gap in either account row's bounded facts,
 registered-kind filtering or application of each kind's audience. The
 client wire and contract carry their values and reject oversized shares.

@@ -329,6 +329,3 @@ try. A window's later pages keep its first page's slot there
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
-
-- **Not yet:** 10.1, *Read and kept by its party alone*: no party reads,
-  corrects or deletes a party's scope through a client.

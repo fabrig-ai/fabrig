@@ -417,13 +417,13 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
 }
 
 #[test]
-fn a_partys_scope_is_refused_to_runs_and_unknown_to_parties() {
+fn another_partys_scope_is_refused_to_runs_and_unknown_to_parties() {
     use core::reads::{Answer, Read, Why};
     use jig_core_world::reads::{Parties, ask as read, latest};
 
     let mut world = note_world(126, authority::Scopes(7));
     let key = world.call_key(1);
-    let scope = notes::Scope::Party { party: OWNER };
+    let scope = notes::Scope::Party { party: OWNER + 1 };
     let before: Vec<_> = world
         .store
         .rows
