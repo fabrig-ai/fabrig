@@ -53,10 +53,11 @@ are named as theirs.
   coordinator makes a repair change into the branch while other changes
   keep landing (N5). Main's landings come in by catch-up changes, whose
   producer is the merge job (N6, N7).
-- **Done, closed out, handed to landing.** The close-out, a designer's
-  change, writes what the goal leaves into the branch (N16); then the
-  coordinator makes the goal's landing, a change into main whose branch
-  is the goal's (`reference-landing.md`).
+- **Done, landed, closed out.** The coordinator makes the goal's landing,
+  a change into main whose branch is the goal's (`reference-landing.md`).
+  Once it has landed, the close-out, a change into main, writes what the
+  goal leaves for the next one (N16, as `goal-as-designer.md`, section 2,
+  moves it after the landing).
 - **Mostly configuration** (section 14), with a few mechanisms the
   design lacks (`reference-code-production.status.md`): chiefly the
   coordinator's `change` with all its parameters (N22), the goal's own
@@ -68,7 +69,7 @@ are named as theirs.
 | Role | Does | Executor | LLM in the reference |
 |---|---|---|---|
 | the person | writes the draft, starts the goal, answers what reaches them, decides what is passed up | a party | |
-| the coordinator, G | the plan's shape, its changes, answers, holds, catch-ups, repairs along the way, the close-out, the landing, triage after landing | an agent task, tracked, the coordinator's charter; holds the goal's branch | Opus 5.5, xhigh |
+| the coordinator, G | the plan's shape, its changes, answers, holds, catch-ups, repairs along the way, the landing, the close-out, triage after landing | an agent task, tracked, the coordinator's charter; holds the goal's branch | Opus 5.5, xhigh |
 | a designer | writes one family's design into the goal's branch, lists the family's changes | the producer of a change, the designer's charter | Opus 5.5, xhigh |
 | a survey | reads the code and designs for one question, answers with a report | a sub-agent of a coordinator's or a designer's run, inspect only | Opus 5.5, high |
 | the goal's branch, g | where every change of the goal lands; lands into main whole | a landing branch its goal holds (N3) | |
@@ -99,8 +100,8 @@ P, a person
    │     └─ resolution                    agent, the coding agent's charter
    ├─ Kk  a catch-up with main            change into g; the merge job its producer (N6)
    ├─ Rk  a repair along the way          change into g (N5)
-   ├─ X   the close-out                   change into g; its producer under the designer's charter (N16)
    ├─ L   the goal's landing              change into main, its branch g (reference-landing.md)
+   ├─ X   the close-out, once L lands     change into main; its producer under the designer's charter (N16)
    └─ after L lands: repairs into main    (reference-landing.md)
 ```
 
@@ -413,14 +414,16 @@ escalates to G as any change does.
   every Left list is made into a change or accepted as left, and g's
   tier's last run is green or its red is owned by a live repair. G sees
   it when its last change's result wakes it.
-- **The close-out, X** (N16): a change into g, its producer under the
-  designer's charter, its words what the goal leaves for the next one:
-  the status files, where the code still lags or departs; the designs'
-  Later sections; and the draft's fate (folded into the design, kept, or
-  removed). It lands into g as any change.
-- **The landing, L:** X's result wakes G, which makes L, a change into
-  main whose branch is g (N3). L goes its own way into main
+- **The landing, L:** the plan's last result wakes G, which makes L, a
+  change into main whose branch is g (N3). L goes its own way into main
   (`reference-landing.md`): CI at its head, queue, update, merge, tiers.
+- **The close-out, X** (N16, after the landing as `goal-as-designer.md`,
+  section 2, has it): once L's result says it landed, G makes X, a change
+  into main, its producer under the designer's charter, its words what
+  the goal leaves for the next one: the status files, where the code still
+  lags or departs; the designs' Later sections; and the draft's fate
+  (folded into the design, kept, or removed). It lands into main through
+  main's CI and queue, as any change, and its result lets G finish.
 - **After L is made,** G makes a change into g only to answer L's needs:
   a move of g by G's other delegates is L's new head, checked again
   (N3).
@@ -444,14 +447,14 @@ arrives while G runs is relayed to that run instead.
 | a designer's result | the family's changes, its design in g | the family's batch |
 | a question a change relays | the question, the foreman's reasons, the design | answer, amend, new change, ask P (section 8) |
 | an escalation | the held task and why | release, amend, cancel, pass up (section 9) |
-| a change's result | its producer's report and Left list | a new change for what is left, an amendment of a live change, or nothing; X once the plan is done (section 12) |
+| a change's result | its producer's report and Left list | a new change for what is left, an amendment of a live change, or nothing; L once the plan is done (section 12) |
 | a person task's result | P's choice | the answer it was waiting to give |
 | a red of g's tier, as news | the tier, the failing tests, the log, the tree | a repair change into g, or an amendment (section 10) |
 | a landing into main that touches the goal's open work (`forge.md`, 7.3) | the landing | a catch-up change into g (section 11) |
-| X's result | its landing | L (section 12) |
+| X's result | the close-out's report | the goal's report, and it finishes (section 12) |
 | an escalation from L | L's hold and why | release, amend, a change into g first, cancel, pass up (`reference-landing.md`) |
 | a red after landing, as news | the tier, the failing tests, the log | triage and a repair into main (`reference-landing.md`) |
-| L's result: cleared | the landing | the report: the goal is done |
+| L's result: cleared | the landing | X, the close-out (section 12) |
 
 ## 14. Configuration
 
@@ -460,7 +463,7 @@ What the reference sets, as settings (jig's `domain/engine.md`, section
 
 | Setting | The reference |
 |---|---|
-| the coordinator's charter | instructions for the cut, answers, holds, catch-ups, triage, the close-out and the landing; Claude Code; tools: `change` (N22), `delegate` (person tasks, a triage), `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `subscribe`, `note`, `recall`, `message`, `wait`, the workspace's inspect, sub-agents; starts fresh; waiting 0; its default wake policy (section 13); documents: the project's `AGENTS.md` and code rules (here `skein/docs/foundation/programming-model.md`) |
+| the coordinator's charter | instructions for the cut, answers, holds, catch-ups, triage, the landing and the close-out; Claude Code; tools: `change` (N22), `delegate` (person tasks, a triage), `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `subscribe`, `note`, `recall`, `message`, `wait`, the workspace's inspect, sub-agents; starts fresh; waiting 0; its default wake policy (section 13); documents: the project's `AGENTS.md` and code rules (here `skein/docs/foundation/programming-model.md`) |
 | the designer's charter | instructions: write the design where the project keeps it (here `docs/design`, the status file beside each document, its Later section), cite by path and section, list the family's changes in the report; Claude Code; the workspace, delivery, sub-agents, `message` for questions, `note`, `recall`; documents: the project's design rules (here `DESIGN.md`, whole) |
 | the goal template for drafts | a new template beside the stock's: the coordinator's charter; section 4's LLM choice; tracked; a report; *its own goal branch* |
 | a small goal's template | the stock's goal template, left as it is, no branch of its own |
