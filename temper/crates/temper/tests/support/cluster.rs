@@ -31,6 +31,7 @@ pub struct Cluster {
     specs: Vec<Value>,
     bindings: BTreeMap<String, String>,
     prepared: BTreeSet<String>,
+    agent_program: Option<String>,
 }
 /// The first start records revision 1; apply the fixture's whole values before its first chat.
 #[must_use]
@@ -120,7 +121,28 @@ impl Cluster {
                 "{name}'s memory bound"
             );
         }
-        Self { experiment, specs, bindings, prepared: BTreeSet::new() }
+        Self { experiment, specs, bindings, prepared: BTreeSet::new(), agent_program: None }
+    }
+    /// The deployment's binaries in place of the box's for the engine and the workers,
+    /// and temper-agent as each worker's agent (protocol/README.md, 15.5 and 15.6).
+    pub fn deployment_binaries(&mut self) {
+        let temper = skein_scratch::paths::binary("temper");
+        for name in ["temper-engine", "temper-worker", "temper-agent"] {
+            let binary = temper.with_file_name(name);
+            assert!(binary.is_file(), "build the deployment's binary: cargo build -p {name} --bin {name}");
+            self.bind(&format!("artifact.{name}"), binary.to_str().expect("deployment binary path"));
+        }
+        self.agent_program = Some(self.bindings["artifact.temper-agent"].clone());
+        for spec in &mut self.specs {
+            if spec["name"] == "engine" {
+                spec["argv"][0] = "{artifact.temper-engine}".into();
+            } else if list(&spec["ready"])
+                .iter()
+                .any(|ready| ready["prefix"].as_str().is_some_and(|prefix| prefix.starts_with("linked ")))
+            {
+                spec["argv"][0] = "{artifact.temper-worker}".into();
+            }
+        }
     }
     /// Rename one member and its template bindings before any files are rendered.
     pub fn rename(&mut self, member: &str, name: &str) {
@@ -253,6 +275,19 @@ impl Cluster {
             private_directory(target.parent().expect("file parent"));
             let bytes = self.render(&fs::read_to_string(&source).expect("cluster template"));
             super::write_private(&target, bytes.as_bytes());
+            if file["path"] == "config/temper.json"
+                && let Some(program) = &self.agent_program
+            {
+                let mut value: Value = serde_json::from_str(&bytes).expect("rendered cluster document JSON");
+                if let Some(agent) = value.pointer_mut("/workers/0/agent").filter(|agent| !agent.is_null()) {
+                    agent["program"] = program.clone().into();
+                    agent["arguments"] = vec![agent["configuration"].clone()].into();
+                    value.sort_all_objects();
+                    let mut bytes = serde_json::to_vec(&value).expect("canonical cluster document JSON");
+                    bytes.push(b'\n');
+                    super::write_private(&target, &bytes);
+                }
+            }
         }
         let settings = self.experiment.join("settings.json");
         if process == "engine" && settings.exists() {
