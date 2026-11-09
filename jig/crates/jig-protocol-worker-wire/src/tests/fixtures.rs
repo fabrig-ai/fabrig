@@ -110,6 +110,7 @@ pub fn hello_fullest() -> Hello {
             message_bytes: 32,
             inbox: 2,
             unacknowledged: 2,
+            reply_bytes: Some(4096),
         },
     )
     .expect("small agent bounds");
@@ -137,8 +138,8 @@ pub fn hello_fullest() -> Hello {
 }
 
 pub fn hello_smallest() -> Hello {
-    // Five empty counts, plus the hello's and agent bounds' fixed fields.
-    Hello::decode(&LIMITS, &mut skein_lib::Reader::new(&[0; 80])).expect("smallest hello")
+    // Five empty counts, the fixed fields and the absent reply bound's tag.
+    Hello::decode(&LIMITS, &mut skein_lib::Reader::new(&[0; 81])).expect("smallest hello")
 }
 
 pub const MESSAGE_FIRST: u64 = 41;

@@ -107,6 +107,11 @@ Between the core's fleet and a host, whatever its shape:
     run's models may take on it; the most turns, spend, time and waiting a run
     may have; its checks' timeout; the largest message a run takes, and
     how many its inbox holds; and how many turns it keeps unacknowledged.
+    Its agent's bounds also name, if the application gives one, the
+    longest host answer its agent takes, in bytes: its **reply bound**,
+    by which the engine sizes what it answers this host's runs
+    (engine.md, section 8). It is the application's figure, never a
+    limit a run's start must meet, and no reason to refuse the hello.
     A worker's program logins are not in its hello: they follow it, as
     `logins` (below);
   - **turns,** numbered within their attempt, each with its spend, the

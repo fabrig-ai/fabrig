@@ -1234,6 +1234,14 @@ The fleet child domain knows the hosts and the runs they host:
   allows, whose endpoint bounds hold its models, where its sources are
   usable and that the host rule allows (below), preferring a worker that holds its
   workstream. A refusal as busy is no failure.
+- **A host's reply bound, by its runs.** A host's hello may name its
+  agent's reply bound (hosts.md, section 2). The fleet keeps it with the
+  host's bounds and names it for a run's live claim: the bound of the
+  host in contact that holds the claim, `Domain::reply_bound(run,
+  attempt)`; none where that host's hello named none, or where the claim
+  is adrift, waiting, a job's or not the live one. The parent sizes what
+  it answers that attempt's calls by it, with its own default where none
+  is named. It is no admission reason (below).
 - **Endpoints at the hello, program logins after it.** A host's hello
   states its agent's endpoint bounds (hosts.md, section 2). A worker's
   logins follow its hello: the engine sends it, by name, every program
@@ -2805,8 +2813,9 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   of an application's kinds, the core prices only what it keeps of
   them, and their connectors the values (17.5).
   The fleet keeps, for each connected host, what its hello declared for
-  its endpoints and its agent's bounds, priced by the endpoints'
-  bound, so that it can judge the host against changed needs.
+  its endpoints and its agent's bounds, its reply bound among them,
+  priced by the endpoints' bound, so that it can judge the host against
+  changed needs and name its runs' reply bound (section 8).
 - **History** is a third number, of revision records the store keeps
   beyond those held, within the store's fill (`../protocol/store.md`,
   11.2). The core holds none of it.

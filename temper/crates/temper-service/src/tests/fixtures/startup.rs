@@ -426,6 +426,7 @@ pub fn owned_worker_agent() -> settings::Agent {
             message_bytes: 4096,
             inbox: 8,
             unacknowledged: 8,
+            reply_bytes: None,
         },
         host_limits: smith_host_domain::Limits {
             agents: 1,

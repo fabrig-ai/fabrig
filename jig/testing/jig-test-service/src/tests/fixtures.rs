@@ -532,6 +532,7 @@ pub fn agent() -> crate::Agent {
             message_bytes: 65_536,
             inbox: 2,
             unacknowledged: 1,
+            reply_bytes: None,
         },
     }
 }

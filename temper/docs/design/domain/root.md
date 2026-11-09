@@ -437,26 +437,35 @@ to the forge; a timer to the child that armed it. What temper adds:
   translates its bounded answer through the fresh-read door; it makes no
   visibility decision. Escalations name the held task and hold revision and
   tell the recipient to use `read_task` for its source facts and hold account.
-- **A task read's room.** The root names the room with the read: the local
-  agent's `host_reply_text`, within `core.call_answer_bytes` and within
-  `root.journal.transcript_bytes` less the most the answer's metadata can
-  take, since the door takes no delivery past that bound. A process with no
-  local agent's metadata (`agent.md`, 4.3) names `documents.text_bytes`: it
-  does not know its agents' reply bound, and an answer past that bound reaches
-  its run as smith's `TooLarge` at every offset. A read holds its words, at
+- **A task read's room.** The root names the room with the read: the
+  reply bound of the agent running the reading attempt, within
+  `core.call_answer_bytes` and within `root.journal.transcript_bytes` less
+  the most the answer's metadata can take, since the door takes no delivery
+  past that bound. That reply bound is the one the attempt's worker names in
+  its hello (jig's `protocol/channel.md`, 5.1), as jig's fleet keeps it by
+  the attempt (jig's `domain/engine.md`, section 8); where the worker names
+  none, the local agent's `host_reply_text`. Every temper worker names its
+  agent's `tool_payload` (`worker.md`, section 6), the local agent's
+  in-process worker among them. Where neither names one, as for a worker
+  that names none in a process with no local agent's metadata (`agent.md`,
+  4.3), the room is `documents.text_bytes`: the root does not know that
+  agent's reply bound, and an answer past it reaches its run as smith's
+  `TooLarge` at every offset. The root answers `Domain::reply_bound` by a
+  call's key for the protocol layer's render alike (`agent.md`, 4.3). A
+  read holds its words, at
   most that room and no more than the source has left, and its metadata, from
   jig's answer until it is rendered; `fleet.calls` bounds the reads held at once.
   At `temper init`'s figures (`../protocol/setup.md`, 8.1) one read holds at most
   10,662 bytes of words, 4,576 of metadata (16 dependencies at 8 bytes, 82 question
   credits at 48, a hold's account of 512) and a carrier of about 200: about 15.4 KB,
   and about 4 MB at `fleet.calls`' 256, which a box's runs share.
-  A process with no local agent, an engine alone among them
-  (`../protocol/README.md`, 15.1), reads in pieces of the deployment's
-  `documents.text_bytes`: 512 at `temper init`'s figures since 2026-11-05, and
-  128 in a document made before, at which a goal read a 30.5 KB report 128
-  bytes a call, about 240 calls (the request `goal-call-faults` of 2026-11-08,
-  item 3). Its page grows only with that figure until the engine knows its
-  workers' reply bound (`agent.md`, section 10).
+  Where neither the run's worker nor a local agent names a reply bound,
+  the read is in pieces of the deployment's `documents.text_bytes`: 512
+  at `temper init`'s figures since 2026-11-05, and 128 in a document made
+  before, at which a goal on a worker that named none read a 30.5 KB report
+  128 bytes a call, about 240 calls (the request `goal-call-faults` of
+  2026-11-08, item 3). A temper worker names its agent's, so its runs read
+  in pages of that bound, 10,662 bytes at `temper init`'s figures.
 - **Rendered by hand-out.** A decided call's answer goes out to be
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked

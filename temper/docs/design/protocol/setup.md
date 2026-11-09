@@ -4365,8 +4365,8 @@ Each is intended; what it needs is named with it.
   `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the web and
   terminal clients' `text` raised (jig's `client/domain/contract.md`, 6).
   Default: 512. The user's to choose, with no answer yet. A run's `read_task`
-  is outside it where its process has a local agent, reading in its own room
-  (`../domain/root.md`, 5.2).
+  is outside it where its worker or its process's local agent names a reply
+  bound, reading in that room (`../domain/root.md`, 5.2).
 - **A managed forge whose host list refuses the listener.** Default:
   `temper help forgejo` says what to set, and at run time nothing tells
   the person but the hints that never arrive (`../domain/forge.md`,
