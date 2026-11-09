@@ -14,8 +14,9 @@
   on record. How work runs' six states, `how` to `night-how`, and the
   fifteen of the rail, Work and Deployment, `rail-new-change` to
   `night-limits`, and the thirteen of Home and Needs you across projects,
-  `all-home` to `night-needs`, add to it, with no CPU figure on record
-  either.
+  `all-home` to `night-needs`, and the two of Away on All projects,
+  `all-home-away` and `all-home-away-on`, add to it, with no CPU figure
+  on record either.
 
 - **Departs:** 2.5: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
@@ -461,3 +462,13 @@ and `night-needs`, which its table checks. 7.2's states hold no red
 or Only you, which nothing yet draws (`../draft/surfaces.status.md`,
 14). The rendered comparison follows landing (`README.md`, section 11,
 *Home and Needs you across projects after landing*).
+
+Section 7.2 has no known implementation gap in Away on All projects, by
+plan `ui-away-all`: the gallery's `all-home-away`, the switch and the
+chip "Away on 2 of 4", not pressed, and `all-home-away-on`, after a
+press each project's answer Away, the switch "Away until 08:00",
+pressed, and the toast; its table checks a button of each state's words,
+and its state, a control not pressed by `Part::NotPressed`. `temper.css`
+has no rule of its own for the words: whether they fit the switch and
+the chip is the rendered comparison's, after landing (`README.md`,
+section 11, *Away on All projects after landing*).

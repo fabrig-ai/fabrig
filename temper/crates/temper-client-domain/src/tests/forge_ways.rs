@@ -486,6 +486,16 @@ fn the_link_back_reads_again() {
         for (read, _) in &*reads(&out, 6) {
             page(&mut f.root, *read, Some(none()));
         }
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
+            } = request
+                && let w::Read::View(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            {
+                page(&mut f.root, *read, None);
+            }
+        }
         let mut out = Queue::uncapped();
         for link in [Link::Offline, Link::Live] {
             crate::route::told(&mut f.root, &f::env(&f::limits()), Told::Link { link }, &mut out);

@@ -47,6 +47,9 @@ impl Changes {
     pub(super) const fn next(&self) -> u64 {
         self.next
     }
+    pub(super) fn reserve(&mut self, next: u64) {
+        self.next = self.next.max(next);
+    }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
         if let Some(handle) = self.handle {
             unwatch(handle, out);

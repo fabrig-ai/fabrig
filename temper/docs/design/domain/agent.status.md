@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-08. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-09. Where temper's code lags or departs from [agent.md](agent.md).
 
 Section 4.3.1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
@@ -134,6 +134,18 @@ Stock and reference instructions remain separate work (section 10 and
 `../draft/goal-as-designer.status.md`).
 Section 4.3 has no gap in file, pull-file and compare fitting to the checked
 local receiving-agent allowance, size feedback, recovery and settled-call replay.
+Section 4.3 has no known implementation gap in a charter's bound: the
+engine fits a charter to `charter_bound`, the smaller of
+`hub.charter_bytes` and the local agent's `host_limits.charter_bytes`,
+or smith's floor, `WORKER_CHARTER_BYTES`, 65,536, where its process has
+no local agent (`temper-service/src/assignment.rs`; `workers.rs`,
+`Workers::configured`). `temper-service`'s
+`a_resolution_past_its_workers_charter_allowance_starts_cut` encodes a
+resolution whose pull section is 200,000 bytes of text under
+`standard` with no local agent, with the reference's 127,480 as its
+local agent's, and under a hub below that, and the worker's route
+decodes each start, its section cut with its line. That section names
+no file, which the connector's brief table holds (`forge.status.md`, 8.4).
 Sections 4.3, 4.4 and 6 have no known implementation gap in the compare's
 forge-size refusal, the stock report instructions,
 or the SHA-1 and SHA-256 widths in receipts and CI cancel reasons. Step tests

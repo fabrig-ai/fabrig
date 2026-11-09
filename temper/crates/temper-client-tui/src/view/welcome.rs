@@ -58,6 +58,7 @@ pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Team { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }

@@ -357,6 +357,7 @@ fn wanted(root: &Domain) -> List<u32> {
             }
         }
         Address::NewChat { .. }
+        | Address::Team { .. }
         | Address::Chats { .. }
         | Address::Accounts
         | Address::Forges
@@ -393,6 +394,7 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
         Address::AllHome
         | Address::Inbox { .. }
         | Address::NewChat { .. }
+        | Address::Team { .. }
         | Address::Chats { .. }
         | Address::Accounts
         | Address::Forges

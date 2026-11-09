@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 35] = [
+    let pages: [(Address, &[u8]); 38] = [
         (Address::Work { project: 3, filter: WorkFilter::All }, b"/projects/3/work"),
         (Address::Work { project: 3, filter: WorkFilter::Drafts }, b"/projects/3/work?show=drafts"),
         (Address::Members, b"/deployment/members"),
@@ -14,6 +14,9 @@ fn each_page_round_trips_through_its_path() {
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
         (Address::Task { task: 7 }, b"/tasks/7"),
+        (Address::Team { project: 0 }, b"/projects/0/team"),
+        (Address::Team { project: 3 }, b"/projects/3/team"),
+        (Address::Team { project: u32::MAX }, b"/projects/4294967295/team"),
         (Address::Changes { project: 0 }, b"/projects/0/changes"),
         (Address::Changes { project: 3 }, b"/projects/3/changes"),
         (Address::Changes { project: u32::MAX }, b"/projects/4294967295/changes"),
@@ -125,6 +128,7 @@ fn one_trailing_slash_is_ignored() {
         (b"/home/", Place::Address(Address::AllHome)),
         (b"/chats/", Place::Address(Address::Chats { filter: ChatsFilter::All })),
         (b"/chats/7//", Place::Missing),
+        (b"/projects/3/team/", Place::Address(Address::Team { project: 3 })),
         (b"/projects/3/ask/", Place::Address(Address::Ask { project: 3 })),
         (b"/projects/3/ask//", Place::Missing),
     ] {
@@ -142,6 +146,7 @@ fn a_path_that_is_no_page_is_missing() {
         b"chats",
         b"/chats/x",
         b"/chats/newer",
+        b"/projects/3/team/1",
         b"/tasks",
         b"/projects/01",
         b"/projects/1/other",
@@ -199,7 +204,8 @@ fn a_path_that_is_no_page_is_missing() {
 
 #[test]
 fn a_number_not_in_canonical_decimal_is_missing() {
-    let paths: [&[u8]; 5] = [b"/chats/07", b"/chats/+7", b"/chats/-7", b"/chats/7a", b"/chats/123456789012345678901"];
+    let paths: [&[u8]; 6] =
+        [b"/projects/03/team", b"/chats/07", b"/chats/+7", b"/chats/-7", b"/chats/7a", b"/chats/123456789012345678901"];
     for path in paths {
         assert_eq!(parse(path), Place::Missing, "{path:?}");
     }

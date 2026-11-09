@@ -66,6 +66,21 @@ differ, and keeps what it held when a read is refused
 No read of a real forge's directory is on record; section 20 keeps a
 workflow that runs on no pull request.
 
+Sections 5.3, 8.4 (*Stalls*) and 8.7, rows 2 and 6, have no known
+implementation gap in a head behind its base: `ancestry_status`
+(`temper-engine-domain-forge/src/domain.rs`) reads a range that lists a
+commit, whether or not more follow, or one refused `TooLarge`, as the
+head lacking the base's tip, and an empty page that says more follow as
+unknown, for a change's step and a catch-up's alike. The forge world's
+`a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job` holds
+a goal's landing, first in its queue, behind main by a commit, by 17
+past the world's page of 16, and by a range scripted `TooLarge`: each
+takes main or, in conflict, goes to its merge job and then a
+resolution; `a_catch_up_starts_when_the_full_comparison_is_too_large`
+starts a catch-up's merge job on each reading. They stand on the fake
+forge; no real landing as far behind as the request `landing-behind-main`'s,
+409 commits, is on record since.
+
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the
 connector's change steps and landings use its separate sequence range.
@@ -135,6 +150,16 @@ job and resolution after the goal frees r's slot, and the goal's close.
 A change's close leaves r held by its goal; the goal's close deletes it.
 Coverage uses the fake forge. Section 20 keeps the default for deleting
 unlanded run work and the deferred saved-start case overtaken by a repair.
+
+Section 8.4 has no known implementation gap in a resolution's files:
+its pull section carries a file whole, both sides, where it fits the
+room the section has left, and names one that doesn't, with its sides'
+bytes or `absent before` and `absent after`, for its checkout, the files
+after it carried as they fit (`temper-engine-domain-forge/src/brief.rs`,
+`name_conflict_if_past_room`; `src/tests/brief.rs`,
+`a_resolutions_files_are_carried_whole_or_named`). The charter's fit
+that can still cut the section's end is `agent.status.md`'s 4.3; no
+story takes a named file through its charter's start.
 
 Section 4.5's `DismissMaking` is present: an owner can erase a failed row
 and free its place, absence is kept, and running rows or another scope
@@ -291,7 +316,10 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),
     but no story runs it: the merge job's stories are changes into a
     goal's branch and into main, none a goal's landing
-    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`).
+    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`). The
+    forge world steps such a landing to its merge job and a resolution
+    on scripted delegations alone, with no job or resolution run
+    (`a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job`).
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
   - 8.7: the explicit choice to adopt a GitHub repository without CI.
