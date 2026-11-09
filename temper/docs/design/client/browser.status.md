@@ -15,8 +15,31 @@
   fifteen of the rail, Work and Deployment, `rail-new-change` to
   `night-limits`, and the thirteen of Home and Needs you across projects,
   `all-home` to `night-needs`, and the two of Away on All projects,
-  `all-home-away` and `all-home-away-on`, add to it, with no CPU figure
-  on record either.
+  `all-home-away` and `all-home-away-on`, add to it, and so do the rows
+  `ui-p5a-phone` added to `print_writes_every_page_and_the_bundle`, which
+  read the `needs-list`, `ask-chat` and `rail-new-change` prints, with no
+  CPU figure on record either.
+
+- **Not yet:** 2.5, *What a phone presses*: at 760 px and under an Ask
+  temper chat's thread keeps the mock's sizes, its "Latest" and a
+  proposal's acts among them, and the path's stops on Ask temper's page
+  take no target past their marks: `temper.css`'s 44 px targets reach a
+  chat's bar and composer and the opening's tabs, acts and zoom link
+  alone (`each_phone_target_stands_44_pixels`).
+
+Sections 2.5's phone paragraph and *What a phone presses* have no other
+known implementation gap, by plan `ui-p5a-phone`: the tab bar's
+"Needs", the Ask tab's tabs kept under Ask temper's page and an Ask
+temper chat by `temper-tabbar-ask`, Needs you's open card under its own
+bar, `temper-needs-bar`, the rail's switcher and Away chip not drawn
+there, and at 44 px to a press the top bar's switcher, Away chip and
+night switch, each tab, and the controls of Home, Needs you, Work and
+every chat's bar and composer, the mockups' smaller drawings kept inside
+a transparent target. `each_phone_target_stands_44_pixels` reads them
+from the stylesheet, and the gallery's `needs-list`, `ask-chat` and
+`rail-new-change` prints hold the bar, the Ask tab and "Needs". Their
+render check follows landing (`README.md`, section 11, *The phone after
+landing*).
 
 - **Departs:** 2.5: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
