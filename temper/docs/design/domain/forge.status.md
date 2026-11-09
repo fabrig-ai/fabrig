@@ -142,9 +142,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     a retried repair's saved branch deleted as it closes (`saved_close.rs`).
     They do not establish that deployment's branch cleanup or that the new
     brief would avoid the reported failed `read_job`.
-  - 8.4, *A resolution*: its pull section carries every file whole on both
-    sides, cut at the section's room, and names none past it
-    (`temper-engine-domain-forge/src/brief.rs`, the `PullFiles` arm).
   - 8.11, *Which target*: the coding charter's sentence and the refusal's words
     stand on a script alone
     (`tests/engine/domain/tests/suite/forge_routes/question_target.rs`). No real
