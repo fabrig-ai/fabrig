@@ -1,19 +1,19 @@
-# ui-n3a-only: Only you
+# ui-p3b-reaches: How work runs, What reaches you
 
-Milestone N3a of `temper/docs/design/draft/whole-story.execution.md` (ranked nice): `temper/docs/design/draft/what-reaches-you.md`, section 8, Only you, on N1's classes. Execute exactly its row and section 8 as amended by the audit: "a login its account reads as expiring", with no two-day deadline, as jig's `ends` fact is "nothing yet". The rule of every milestone holds: draw what the engine holds, with no placeholder.
+Milestone P3b of `temper/docs/design/draft/whole-story.execution.md` (ranked nice): How work runs' What reaches you part, as `temper/docs/design/draft/surfaces.md` section 7 and `how.html` draw it, now that N1's three classes and Away are on main. Execute exactly its row. The rule of every milestone holds: draw what the engine holds, with no placeholder. Changing a class goes by proposal, as N1 built it.
 
 ## Its tests
 
-Focused and fuzzy only, from the execution's N1 to N3 entry, for Only you: each case asked, listed and decided, in temper's worlds.
-
-## Who hears first
-
-`plan.md` names every change to `temper-engine-domain` or `forge_route.rs`, for the owner of coding runs, and to `temper-client-domain`, for the TUI's owner.
+Focused and fuzzy only:
+- the part's gallery states at a laptop's and a phone's width, day and night;
+- the classes drawn from the project's settings;
+- a fuzz test of the part against `surfaces.md` section 12's rules.
 
 ## Sources
 
-- `temper/docs/design/draft/what-reaches-you.md`
+- `temper/docs/design/draft/surfaces.md`
 - `temper/docs/design/draft/whole-story.execution.md`
+- `temper/docs/design/draft/what-reaches-you.md`
 
 
 ## For every task of this plan

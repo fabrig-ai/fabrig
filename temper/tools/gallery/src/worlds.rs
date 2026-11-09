@@ -535,7 +535,7 @@ fn world_in_layout(
 ) -> (Domain, Option<Token>) {
     let view = goals.filter(|name| name.starts_with("chat-view-"));
     let how = settings.is_some_and(ways::is_how);
-    let to_begin = (how && settings != Some("how-draft"))
+    let to_begin = (how && !settings.is_some_and(ways::is_draft))
         || settings.is_some_and(|name| name == "ask-first-run" || name.starts_with("ask-ways-"));
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
@@ -814,7 +814,7 @@ fn world_in_layout(
                                 continue;
                             }
                             let bytes = settings.and_then(|name| {
-                                if setting.kind() == 8 && name != "settings-away-you-approve" {
+                                if setting.kind() == 8 && !matches!(name, "how-approve" | "how-reaches") {
                                     return None;
                                 }
                                 if how && setting.kind() == 7 {
@@ -869,7 +869,7 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::View(view) => {
-                            if settings == Some("how-draft") && view.address() == b"roles" {
+                            if settings.is_some_and(ways::is_draft) && view.address() == b"roles" {
                                 ways::roles(&mut root, read, &mut out);
                             } else if goals.is_some_and(|name| name.starts_with("chat-view-")) {
                                 views::answer(&mut root, read, view.address(), &mut out);
@@ -965,39 +965,13 @@ fn world_in_layout(
                             );
                             continue;
                         }
-                        w::Watch::Away => {
-                            if matches!(settings, Some("settings-away" | "settings-away-you-approve")) {
-                                step(
-                                    &mut root,
-                                    Event::Client {
-                                        event: jig_client::Event::Up {
-                                            up: jig_client::Up::FamilyDelivered {
-                                                watch,
-                                                record: jig_client::Family {
-                                                    family: FORGE,
-                                                    version: wire::CLIENT_VERSION,
-                                                    bytes: wire::aways(
-                                                        &w::Aways::new(
-                                                            &w::CEILINGS,
-                                                            w::AwaysParts { rows: List::with_capacity(0) },
-                                                        )
-                                                        .expect("empty Away rows"),
-                                                    ),
-                                                },
-                                            },
-                                        },
-                                    },
-                                    &mut out,
-                                );
-                            }
-                            continue;
-                        }
                         w::Watch::Ways(subject) if (asking || how) && !asking_chat => {
                             ways::deliver(&mut root, watch, subject.project(), settings, &mut out);
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
-                        w::Watch::Landing(_)
+                        w::Watch::Away
+                        | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
@@ -5005,6 +4979,9 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::v1 as v;
     if kind == 8 {
         use temper_protocol_reaches::{Classes, Way, classes_record};
+        if name == "how-reaches" {
+            return ways::reaches_setting();
+        }
         let classes = classes_record(&Classes::stock(Way::YouApprove)).expect("You approve's classes");
         let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
         classes.encode(&mut writer).expect("measured classes");
