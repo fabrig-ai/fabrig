@@ -236,9 +236,9 @@ fn paste_success(service: &mut crate::Service, face: &mut Face) {
     let _settled = pump(service);
 }
 
-fn http_owner() -> (crate::Service, Box<[u8]>) {
+fn http_owner() -> (Box<crate::Service>, Box<[u8]>) {
     use jig_client_protocol_wire::v19 as j;
-    let mut service = owner_service();
+    let mut service = Box::new(owner_service());
     let link = service.links().pop().unwrap();
     let engine = service.engine.as_mut().unwrap();
     let body = fixtures::http::link_body(engine, &link);
