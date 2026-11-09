@@ -47,6 +47,7 @@ fn amend(world: &mut World, cut: Option<Cut>, moved: bool) -> u64 {
     world.cut = cut.map(|cut| match cut {
         Cut::Submitted(at) => Cut::Submitted(before + at),
         Cut::Durable(at) => Cut::Durable(before + at),
+        Cut::Disk { .. } => panic!("this memory scenario uses transaction cuts"),
     });
     world.tool_call(b"amend", amend.as_bytes(), true);
     let key = world.call_key(if moved { 3 } else { 2 });
@@ -114,6 +115,7 @@ fn release_moved(world: &mut World, cut: Option<Cut>) -> u64 {
     world.cut = cut.map(|cut| match cut {
         Cut::Submitted(at) => Cut::Submitted(before + at),
         Cut::Durable(at) => Cut::Durable(before + at),
+        Cut::Disk { .. } => panic!("this memory scenario uses transaction cuts"),
     });
     world.tool_call(b"release", input.as_bytes(), true);
     let key = world.call_key(2);
@@ -148,6 +150,7 @@ fn held_notice(world: &mut World, cut: Option<Cut>) -> u64 {
     world.cut = cut.map(|cut| match cut {
         Cut::Submitted(at) => Cut::Submitted(before + at),
         Cut::Durable(at) => Cut::Durable(before + at),
+        Cut::Disk { .. } => panic!("this memory scenario uses transaction cuts"),
     });
     world.send(jig_test_domain::Event::Core(core::Event::Tasks(tasks::Event::Hold {
         task: CHILD,
@@ -191,6 +194,7 @@ pub fn delegate_given(world: &mut World, cut: Option<Cut>) -> u64 {
     world.cut = cut.map(|cut| match cut {
         Cut::Submitted(at) => Cut::Submitted(before + at),
         Cut::Durable(at) => Cut::Durable(before + at),
+        Cut::Disk { .. } => panic!("this memory scenario uses transaction cuts"),
     });
     world.tool_call(b"delegate", DELEGATE_GIVEN, true);
     let key = world.call_key(1);
@@ -262,6 +266,7 @@ pub fn withdraw_decided(world: &mut World, cut: Option<Cut>) -> u64 {
     world.cut = cut.map(|cut| match cut {
         Cut::Submitted(at) => Cut::Submitted(before + at),
         Cut::Durable(at) => Cut::Durable(before + at),
+        Cut::Disk { .. } => panic!("this memory scenario uses transaction cuts"),
     });
     world.tool_call(b"withdraw", WITHDRAW, true);
     let key = world.call_key(WITHDRAW_COMPLETION);

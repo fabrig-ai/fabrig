@@ -222,6 +222,33 @@ fn start_goal(spec: &[u8]) -> (Ctl, u64) {
     let goal = fixtures::done_task(&started);
     (ctl, goal)
 }
+fn sign_in_stranger(ctl: &mut Ctl) -> u64 {
+    const REPLY: skein_lib::Token = skein_lib::Token::new(2003);
+    let driver = &mut ctl.front.engine;
+    // A held person without a project role reaches executor permission admission.
+    driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        held: None,
+        reply_to: skein_lib::ReplyTo::new(REPLY),
+        identity: jig_domain_people::Identity {
+            key: temper_engine_domain_forge::user_key(1, 8_u64),
+            login: b"stranger".as_slice().into(),
+            name: b"Stranger".as_slice().into(),
+        },
+    }));
+    driver.settle();
+    driver
+        .delivered
+        .iter()
+        .find_map(|delivery| match delivery {
+            engine::Delivery::WebReply { to, reply: jig_domain_people::Reply::SignedIn { person, .. } }
+                if *to == skein_lib::ReplyTo::new(REPLY) =>
+            {
+                Some(*person)
+            }
+            _ => None,
+        })
+        .expect("stranger signed in")
+}
 #[test]
 fn a_person_answers_a_delegated_choice_and_wakes_its_goal() {
     let (mut ctl, goal) = start_goal(b"Ask me a colour");
@@ -237,17 +264,19 @@ fn a_person_answers_a_delegated_choice_and_wakes_its_goal() {
 fn a_person_started_goal_asks_its_person_and_no_stranger() {
     // start_goal creates one root task; a refusal adds no live or ended child.
     const ROOT_TASKS: usize = 1;
-    const NO_ROLE: u64 = fixtures::PARTY + 1;
     const COMPLETION: u32 = 28;
     const REPORT_WORDS: u32 = 4096;
     const QUESTION: &[u8] = b"Which colour?\n\nChoose the colour.\nSaw: Both fit.\nChoice: Blue (recommended)";
     const ANSWER: &[u8] = b"Use blue";
-    for (address, refusal) in [
-        (tasks::PersonAddress::Person(fixtures::PARTY), None),
-        (tasks::PersonAddress::Role(1), Some("missing executor permission")),
-        (tasks::PersonAddress::Person(NO_ROLE), Some("Refused: executor")),
+    // A missing fixed address uses the signed-in stranger's allocated person number.
+    for (fixed_address, refusal) in [
+        (Some(tasks::PersonAddress::Person(fixtures::PARTY)), None),
+        (Some(tasks::PersonAddress::Role(1)), Some("missing executor permission")),
+        (None, Some("Refused: executor")),
     ] {
         let (mut ctl, goal) = start_goal(b"Ask me a colour");
+        let no_role = sign_in_stranger(&mut ctl);
+        let address = fixed_address.unwrap_or(tasks::PersonAddress::Person(no_role));
         let driver = &mut ctl.front.engine;
         let attempt = driver.task(goal).expect("running goal").attempt;
         let mut child = temper_engine_domain_world::fixtures::report_delegate(QUESTION, Box::new([]));

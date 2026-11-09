@@ -400,6 +400,9 @@ pub(crate) fn amendment_admit_places_in(
         amendment_dependencies(core, party, context.dependencies, dependencies, depth, admission, places)?;
     }
     let row = &context;
+    if core.amendment_person(amendment).is_err() {
+        return Err(people::Refusal::Unknown);
+    }
     if let Err(why) = admission.address_admit(task, &amendment.addressed) {
         let people::Outcome::Refused(why) = crate::routing::refusals::person_task_refusal(core, Some(task), why) else {
             unreachable!("address refusal is permanent");

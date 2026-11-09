@@ -277,6 +277,20 @@ impl World {
         &self.written
     }
 
+    #[must_use]
+    pub fn reached_cut(&self) -> bool {
+        self.halted || self.cut.is_some_and(|cut| self.operations >= cut)
+    }
+
+    /// A paused snapshot's map chunk, after its header and before its trailer.
+    #[must_use]
+    pub fn snapshot_chunk_pending(&self) -> bool {
+        self.below.store.iter().any(|request| {
+            matches!(request,
+            file::Request::WriteAt { offset: 18, bytes, .. } if !bytes.is_empty())
+        })
+    }
+
     pub fn cut_at(&mut self, operation: u32) {
         self.cut = Some(operation);
     }
@@ -716,11 +730,29 @@ impl World {
     }
 
     fn drive(&mut self) {
+        self.drive_until(None);
+    }
+
+    /// Pause between file requests without dropping a request or its terminal,
+    /// so a root can submit a commit while a snapshot is being written.
+    pub fn settle_until(&mut self, operation: u32) -> Vec<Event> {
+        self.drive_until(Some(operation));
+        let mut events = Vec::new();
+        while let Some(event) = self.above.pop() {
+            events.push(event);
+        }
+        events
+    }
+
+    fn drive_until(&mut self, pause: Option<u32>) {
         for _ in 0..10_000 {
             self.observe(Step::Begin { input: 0, patching: jig_protocol_store::sizes::is_patching(&self.store) });
             jig_protocol_store::fire(&mut self.store, &self.env, &mut self.above, &mut self.below);
             self.observe(Step::End { patching: jig_protocol_store::sizes::is_patching(&self.store) });
-            if self.halted || self.cut.is_some_and(|cut| self.operations >= cut) {
+            if self.halted
+                || self.cut.is_some_and(|cut| self.operations >= cut)
+                || pause.is_some_and(|pause| self.operations >= pause)
+            {
                 return;
             }
             let next = self

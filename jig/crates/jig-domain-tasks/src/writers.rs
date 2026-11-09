@@ -238,19 +238,26 @@ pub(crate) fn restore(domain: &mut Domain, limits: &Limits, slot: WriterSlot) ->
     Ok(())
 }
 
-pub(crate) fn link(domain: &Domain) {
+pub(crate) fn link(domain: &Domain) -> Result<(), crate::RestoreFailure> {
     for (_, slot) in &domain.writers {
         let key = crate::Key::Writer(slot.number);
         match slot.writer {
             Writer::Run { task, .. } => {
-                assert!(record(domain, task).is_some(), "restore {key:?}: missing writer task {task}");
+                if record(domain, task).is_none() {
+                    return Err(crate::RestoreFailure {
+                        key,
+                        cause: crate::RestoreCause::Link { target: crate::Key::Live(task) },
+                    });
+                }
             }
             Writer::Effect { .. } => {}
         }
-        assert!(
-            crate::holds::writer_holder(domain, &slot.resource).is_some(),
-            "restore {key:?}: missing hold owner for {:?}",
-            slot.resource
-        );
+        if crate::holds::writer_holder(domain, &slot.resource).is_none() {
+            return Err(crate::RestoreFailure {
+                key,
+                cause: crate::RestoreCause::Holder { resource: slot.resource.clone() },
+            });
+        }
     }
+    Ok(())
 }
