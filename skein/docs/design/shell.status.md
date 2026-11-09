@@ -31,9 +31,6 @@ below remain; the Linux tests do not prove the Darwin arms.
   (`temper/docs/design/domain/testing.md`, 2.8), and no macOS runner runs
   skein's suites. Whether that workflow's compile step has run is unknown;
   a cross-target build does not prove the Darwin runtime.
-  15: no binary's table: no `Set`, `Table`, `Command`, `Switch`,
-  `Variable` or `TestTable`, no help page, command page or version line
-  rendered from one (15.2), and no reference documents (15.3).
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only
   `smith-agent-document`'s `config/native.rs`, `trust_sources`, says them,
   through the shell's re-export too. temper's own two readers

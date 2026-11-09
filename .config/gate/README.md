@@ -41,8 +41,9 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing.md`, 6;
    `skein_fail_stop`'s hook first.
 10. **The command line's checks:** `cargo nextest run -p fabrig-boundary`,
     included in `default`. Rule: `skein/docs/foundation/cli.md`, 9, and
-    `tests/boundary/tests/cli.rs`'s module doc: the layout, `main.rs`'s
-    size and no features, with their exceptions.
+    `tests/boundary/tests/cli.rs` and `tests/boundary/tests/cli_names.rs`'s
+    module docs: the layout, `main.rs`'s size, no features, and declared
+    environment names (check 5), with their exceptions.
 
 ## The gate's lists
 
