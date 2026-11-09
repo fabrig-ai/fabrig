@@ -1,0 +1,6 @@
+draft = "worker-link-quiet"
+repo = "fabrig"
+sources = ["temper/docs/plan/worker-link-quiet/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
