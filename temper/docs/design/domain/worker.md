@@ -115,8 +115,21 @@ and file operations.
 The worker's service loop admits by the root's watermark (skein's
 programming-model.md, 7.1). The queues between the root's children are
 uncapped and no route reserves room. The held entrance is the link's
-capped edge, and the link is read only after its last output has been
-taken; a host's channel and the kernel's queues stay capped.
+capped edge; a host's channel and the kernel's queues stay capped.
+
+- **The link is read and fired on every pass,** whatever the entrance
+  holds (jig's `protocol/channel.md`, 9, *Reading never waits for the
+  root*): its pings come and go under any load, and the engine's records
+  wait in the entrance, never unread in the socket. A socket left unread
+  starves the pings both ways, and the engine loses a healthy link at
+  its silence deadline.
+- **The entrance holds the engine's cap:** as many records as the
+  engine's output cap to a worker has frames (jig's
+  `jig_protocol_worker_wire::sizes::engine_cap`, from the link's sizes),
+  and the link's own state beside them (ready, lost, a grace passed). The
+  engine never has more new work outstanding on a worker than that cap,
+  so the entrance never fills while the engine keeps it; a record past
+  it breaks the engine's contract and faults the link.
 
 - **The backlog** is the entries in the uncapped queues between the
   service's components and the root's children; **the watermark** a

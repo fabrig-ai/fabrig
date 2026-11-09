@@ -48,6 +48,7 @@ This is simulated proof; the live no-survivor proof above remains
 separate. A worker stopped apart from its engine retains section 15.7's
 deferred failure accounting.
 
+
 - **Not yet:** 15.6: the retained case 4.6 process story is ignored until
   its fixture stops expecting models in the startup configuration
   (`../domain/testing.status.md`, 2.6); jig's fleet takes a draining
