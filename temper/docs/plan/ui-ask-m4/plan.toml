@@ -36,3 +36,30 @@ id = 1
 story = "A party's scope exists and is refused everywhere; a turn can be projected; Ask temper is declared remember and told when to use it, every call answered that the list could not be read"
 parts = ["scope", "withhold", "remember"]
 walk = false
+
+[[part]]
+id = "core"
+title = "jig's core lays NoteDelete, the preferences section's kind, the private settings, the withheld carriers and four stub modules"
+mode = "direct"
+needs = ["scope", "withhold"]
+design = "jig/docs/design/domain/engine.md, 10.1"
+
+[[part]]
+id = "route"
+title = "temper's root writes remember through jig and names its private parts; see projects withheld turns"
+mode = "direct"
+needs = ["remember", "core"]
+design = "temper/docs/design/domain/agent.md, 8.4.4"
+
+[[part]]
+id = "page"
+title = "temper's client gains Remembered: the person's list read, changed and deleted, drawn in the person's menu"
+mode = "direct"
+needs = ["scope"]
+design = "temper/docs/design/client/README.md, 5.17"
+
+[[slice]]
+id = 2
+story = "The root keeps, changes and drops a line through jig's named actions, see withholds a marked turn, and the person's page reads and edits their list"
+parts = ["core", "route", "page"]
+walk = false
