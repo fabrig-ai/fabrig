@@ -20,7 +20,7 @@ pub use event::{EXIT, Event, LOG_COMMAND, Own, QUIT, WalkStep, command_name};
 pub use limits::limits;
 pub use note::Note;
 pub use place::place;
-pub use state::{BoxState, Browser, Local, Refusal, Signing, Told, Tui, Walk};
+pub use state::{BoxState, Browser, Local, Notice, Refusal, Signing, Told, Tui, Walk};
 pub use theme::{Scheme, theme};
 pub use view::{
     Arrow, View, arrow, build, chat_number, escape, event, focus, offered, offered_own, walk_key, work_runs,

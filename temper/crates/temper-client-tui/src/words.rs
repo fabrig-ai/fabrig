@@ -117,8 +117,10 @@ pub enum Word {
     WalkDone,
     OpenAt,
     KeyWalk,
+    UnknownNotice,
+    SigningInNotice,
 }
-pub(crate) const ALL: [Word; 107] = [
+pub(crate) const ALL: [Word; 109] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -226,6 +228,8 @@ pub(crate) const ALL: [Word; 107] = [
     Word::WalkDone,
     Word::OpenAt,
     Word::KeyWalk,
+    Word::UnknownNotice,
+    Word::SigningInNotice,
 ];
 
 #[derive(Clone, Copy)]
@@ -390,6 +394,8 @@ impl Word {
             Self::WalkDone => 107,
             Self::OpenAt => 108,
             Self::KeyWalk => 109,
+            Self::UnknownNotice => 110,
+            Self::SigningInNotice => 111,
         }
     }
     const fn id(self) -> PhraseId {
@@ -508,6 +514,8 @@ impl Word {
             Self::ApprovalNotAskedRefused => (&[b"This temper doesn't sign terminals in from the browser. Paste the link it printed instead."], &[]),
             Self::ApprovalNotAskedBusy => (&[b"Too many terminals are waiting to sign in. Press Enter to ask again in a moment."], &[]),
             Self::ApprovalNotAskedDown => (&[b"temper is starting or stopping, or out of reach. Press Enter to ask again."], &[]),
+            Self::UnknownNotice => (&[b"Unknown command ", b" \xc2\xb7 /help lists them"], &[Slot::Title]),
+            Self::SigningInNotice => (&[b"Still signing in"], &[]),
         }
     }
     pub(crate) fn capacity(self, domain: &Limits) -> Option<u32> {
@@ -529,6 +537,7 @@ impl Word {
 #[derive(Debug)]
 pub struct Words {
     book: Phrasebook,
+    notice_bytes: u32,
     view: temper_client_view::words::Words,
 }
 impl Words {
@@ -606,7 +615,19 @@ impl Words {
             hole_bytes: domain.client.domain.text.max(98),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { book, view })
+        Ok(Words { book, view, notice_bytes: domain.client.domain.text })
+    }
+    pub(crate) fn notice(&self, notice: &crate::Notice) -> Box<[u8]> {
+        match notice {
+            crate::Notice::Unknown { words } => {
+                let bounded = skein_lib::bytes::utf8_prefix(
+                    words,
+                    usize::try_from(self.notice_bytes).expect("notice hole fits memory"),
+                );
+                self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
+            }
+            crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+        }
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
