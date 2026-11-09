@@ -45,6 +45,8 @@ fn bounds_take_each_limit_from_its_source() {
         // Two four-byte lengths per segment, at most name_bytes empty segments.
         ("segments", limits.segments_segments, 1024),
         ("host", limits.adopted_host, 128),
+        ("workflows", limits.adopted_workflows, 16),
+        ("workflow name", limits.adopted_workflows_item, 255),
         ("resources", limits.names_resources, 4),
         ("goal tasks", limits.subscriber_goal_tasks_some, 8),
         ("open questions", limits.questions_open, 5),

@@ -176,7 +176,17 @@ fn path_text(path: &engine::ways::Path) -> Box<[u8]> {
             engine::ways::Actor::Code => b"code".as_slice(),
             engine::ways::Actor::Bar => b"a branch".as_slice(),
         };
-        parts.push(join(&[&stop.words, b" (", actor, b")"])).expect("stop text");
+        parts
+            .push(join(&[
+                &stop.words,
+                b" (",
+                actor,
+                if stop.needed { b", when needed" } else { b"" },
+                if stop.over.is_empty() { b"" } else { b"; " },
+                &stop.over,
+                b")",
+            ]))
+            .expect("stop text");
     }
     join_parts(&parts)
 }

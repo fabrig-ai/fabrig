@@ -11,6 +11,7 @@ mod tests;
 mod ways;
 mod words;
 
+pub use path::cards::role_card;
 pub use path::*;
 pub use ways::*;
 pub use words::{can, cut_on_word, first_sentence};

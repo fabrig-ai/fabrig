@@ -485,7 +485,8 @@ impl<'a> Page<'a> {
             if (self.look.draw)(drawing.kind, &drawing.data, width, height, scene) && !scene.refused() {
                 held.scene_width = scene.width().is_some();
                 held.scene_height = scene.height().is_some();
-                held.drawn = Some(svg::draw(scene, self.look.names, width, height));
+                held.drawn =
+                    Some(svg::draw(scene, self.look.names, width, height, &format!("skein-ui-fade-{}", node.0)));
             }
         }
     }

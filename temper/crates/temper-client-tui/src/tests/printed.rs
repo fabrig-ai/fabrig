@@ -45,6 +45,8 @@ pub(super) fn path(stops: &[(w::Actor, w::PathStep, &[u8])]) -> w::BranchPath {
                                 actor: actor.clone(),
                                 step: step.clone(),
                                 words: (*words).into(),
+                                needed: false,
+                                over: Box::default(),
                                 opens: w::Opens::Nothing,
                                 card: card(),
                             },
@@ -72,7 +74,6 @@ pub(super) fn way(current: bool) -> w::View {
                     (w::Actor::Agent, w::PathStep::Repair, b"repair"),
                     (w::Actor::Code, w::PathStep::Check, b"check"),
                     (w::Actor::Person, w::PathStep::Approve, b"you approve"),
-                    (w::Actor::Code, w::PathStep::Update, b"update"),
                     (w::Actor::Agent, w::PathStep::Resolve, b"resolve"),
                     (w::Actor::Code, w::PathStep::Merge, b"merge"),
                     (w::Actor::Bar, w::PathStep::Branch, b"main"),
@@ -105,9 +106,6 @@ const WAY: &[Span] = &[
     ("○", Some(look::SIGNAL), 0),
     (" ", None, 0),
     ("you approve", None, 0),
-    ("▪", Some(look::HINT), 4),
-    (" ", None, 4),
-    ("update", Some(look::HINT), 4),
     ("✦", None, 0),
     (" ", None, 0),
     ("resolve", None, 0),
@@ -165,6 +163,23 @@ fn each_view_prints_its_lines() {
             "rule",
             Some(Shown::Drawn(Box::new(w::View::Rule(
                 w::RuleView::new(&w::CEILINGS, w::RuleViewParts { kind: 2, number: 1, card: card() }).unwrap(),
+            )))),
+            CARD.to_vec(),
+        ),
+        (
+            "roles",
+            Some(Shown::Drawn(Box::new(w::View::Roles(
+                w::RolesView::new(
+                    &w::CEILINGS,
+                    w::RolesViewParts {
+                        roles: List::from_boxed(Box::new([w::CharterView::new(
+                            &w::CEILINGS,
+                            w::CharterViewParts { charter: 1, card: card() },
+                        )
+                        .unwrap()])),
+                    },
+                )
+                .unwrap(),
             )))),
             CARD.to_vec(),
         ),

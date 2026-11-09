@@ -145,7 +145,6 @@ html:root[data-night]:has(#app) {
   --gf-paper: #01061b; --gf-surface: #070d2b; --gf-ink: #fafafa; --gf-ink-2: #d2def6; --gf-muted: #a9b6d8; --gf-faint: #8493b8;
   --gf-line: rgba(140, 170, 230, .17); --gf-line-2: rgba(140, 170, 230, .3); --gf-hover: rgba(140, 170, 230, .1);
   --gf-signal: #fb7f2e; --gf-signal-pale: rgba(251, 127, 46, .12); --gf-signal-line: rgba(251, 127, 46, .38); --gf-signal-ink: #ffb27a;
-  --gf-agent: #93c5fd; --gf-agent-pale: rgba(147, 197, 253, .12); --gf-code: #cbd5e1; --gf-code-pale: rgba(203, 213, 225, .12);
   --gf-hint: #8493b8; --gf-good: #0be2ff;
   --temper-canvas: #01061b; --temper-topbar: #050a24; --temper-paper: #070d2b; --temper-ink: #fafafa; --temper-muted: #a9b6d8; --temper-faint: #8493b8;
   --temper-line: rgba(140, 170, 230, .17); --temper-accent: #fb7f2e; --temper-accent-dark: #ff8a3d; --temper-accent-pale: rgba(251, 127, 46, .12);
@@ -1260,7 +1259,6 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 :root:has(#app > .temper-rail) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
   --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-hover: #ececea; --gf-signal: #c2410c; --gf-signal-pale: #fff7ed; --gf-signal-line: #f1d5bd; --gf-hint: #8a8a93; --gf-good: #15803d;
-  --gf-agent: #1e40af; --gf-agent-pale: #eff6ff; --gf-code: #334155; --gf-code-pale: #f1f5f9;
   --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
   --gf-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -1521,26 +1519,62 @@ a.temper-repository-link:hover { text-decoration: underline; }
   .temper-view-card > [role="group"] > div { grid-template-columns: 1fr; gap: .25rem; }
 }
 /* ask-temper-ways: judgement above the dotted authority boundary, code below. */
-.temper-ways-path[data-drawn] > svg :is(g, line, polyline, path, rect, circle, text) { stroke: none; }
-#app > .temper-session .temper-ways-path { margin: 0; }
-#app > .temper-session .temper-ways-path > svg { display: block; width: 100%; height: auto; overflow: visible; }
-#app > .temper-session .temper-ways-path text { font: 400 11.5px var(--gf-mono); fill: var(--gf-ink-2); }
-#app > .temper-session .temper-ways-path .temper-ways-end { fill: var(--gf-muted); }
-#app > .temper-session .temper-ways-base { fill: none; stroke: var(--gf-line-2); stroke-width: 1.5; }
-#app > .temper-session .temper-ways-rise { fill: none; stroke: var(--gf-signal); stroke-opacity: .28; stroke-width: 1.5; }
-#app > .temper-session .temper-ways-auth { stroke: var(--gf-line-2); stroke-width: 1; stroke-dasharray: 1.5 5; }
-#app > .temper-session .temper-ways-main { fill: var(--gf-ink); }
-#app > .temper-session .temper-ways-landing > .temper-ways-main { fill: var(--gf-muted); }
-#app > .temper-session .temper-ways-agent { fill: var(--gf-signal); }
-#app > .temper-session .temper-ways-person { fill: var(--gf-paper); stroke: var(--gf-signal); stroke-width: 2; }
-#app > .temper-session .temper-ways-code { fill: var(--gf-ink-2); }
-#app > .temper-session .temper-ways-hit { fill: transparent; }
-#app > .temper-session .temper-ways-halo { fill: var(--gf-signal-pale); stroke: var(--gf-signal-line); }
-#app > .temper-session .temper-ways-stop { cursor: pointer; outline: none; }
-#app > .temper-session .temper-ways-stop:is(:hover, :focus-visible) text { fill: var(--gf-ink); }
-#app > .temper-session .temper-ways-stop:focus-visible .temper-ways-hit { stroke: var(--gf-signal-line); }
-#app > .temper-session .temper-ways-path .temper-ways-open { fill: var(--gf-ink); font-weight: 600; }
-#app > .temper-session .temper-ways-caret { fill: var(--gf-surface); stroke: var(--gf-line-2); stroke-width: 1; }
+.temper-ways-path[data-drawn] > svg :is(g, line, polyline, path, rect, circle, text):not([data-fade]) { stroke: none; }
+#app > .temper-session .temper-ways-path,
+#app > .temper-settings .temper-ways-path { margin: 0; }
+#app > .temper-session .temper-ways-path > svg,
+#app > .temper-settings .temper-ways-path > svg { display: block; width: 100%; height: auto; overflow: visible; }
+#app > .temper-session .temper-ways-path text,
+#app > .temper-settings .temper-ways-path text { font: 400 11.5px var(--gf-mono); fill: var(--gf-ink-2); }
+#app > .temper-session .temper-ways-path .temper-ways-end,
+#app > .temper-settings .temper-ways-path .temper-ways-end { fill: var(--gf-muted); }
+#app > .temper-session .temper-ways-base:not([data-fade]),
+#app > .temper-settings .temper-ways-base:not([data-fade]) { fill: none; stroke: var(--gf-line-2); stroke-width: 1.5; }
+#app > .temper-session :is(.temper-ways-rise-person, .temper-ways-rise-agent),
+#app > .temper-settings :is(.temper-ways-rise-person, .temper-ways-rise-agent) { fill: none; stroke-width: 1.5; }
+#app > .temper-session .temper-ways-fade-person,
+#app > .temper-settings .temper-ways-fade-person { stop-color: var(--gf-signal); stop-opacity: .8; }
+#app > .temper-session .temper-ways-fade-person-faint,
+#app > .temper-settings .temper-ways-fade-person-faint { stop-color: var(--gf-signal); stop-opacity: .28; }
+#app > .temper-session .temper-ways-fade-agent,
+#app > .temper-settings .temper-ways-fade-agent { stop-color: var(--gf-ink); stop-opacity: .3; }
+#app > .temper-session .temper-ways-fade-agent-faint,
+#app > .temper-settings .temper-ways-fade-agent-faint { stop-color: var(--gf-ink); stop-opacity: .1; }
+#app > .temper-session .temper-ways-fade-base,
+#app > .temper-settings .temper-ways-fade-base { stop-color: var(--gf-line-2); stop-opacity: 1; }
+#app > .temper-session .temper-ways-auth:not([data-fade]),
+#app > .temper-settings .temper-ways-auth:not([data-fade]) { stroke: var(--gf-line-2); stroke-width: 1; stroke-dasharray: 1.5 5; }
+#app > .temper-session .temper-ways-main,
+#app > .temper-settings .temper-ways-main { fill: var(--gf-ink); }
+#app > .temper-session .temper-ways-landing > .temper-ways-main,
+#app > .temper-settings .temper-ways-landing > .temper-ways-main { fill: var(--gf-muted); }
+#app > .temper-session .temper-ways-agent,
+#app > .temper-settings .temper-ways-agent { fill: var(--gf-ink); }
+#app > .temper-session .temper-ways-person:not([data-fade]),
+#app > .temper-settings .temper-ways-person:not([data-fade]) { fill: var(--gf-paper); stroke: var(--gf-signal); stroke-width: 2; }
+#app > .temper-session .temper-ways-code,
+#app > .temper-settings .temper-ways-code { fill: var(--gf-muted); }
+#app > .temper-session .temper-ways-hit,
+#app > .temper-settings .temper-ways-hit { fill: transparent; }
+#app > .temper-session .temper-ways-halo:not([data-fade]),
+#app > .temper-settings .temper-ways-halo:not([data-fade]) { fill: var(--gf-signal-pale); stroke: var(--gf-signal-line); }
+#app > .temper-session .temper-ways-stop,
+#app > .temper-settings .temper-ways-stop { cursor: pointer; outline: none; }
+#app > .temper-session .temper-ways-stop:is(:hover, :focus-visible) text,
+#app > .temper-settings .temper-ways-stop:is(:hover, :focus-visible) text { fill: var(--gf-ink); }
+#app > .temper-session .temper-ways-stop:focus-visible .temper-ways-hit:not([data-fade]),
+#app > .temper-settings .temper-ways-stop:focus-visible .temper-ways-hit:not([data-fade]) { stroke: var(--gf-signal-line); }
+#app > .temper-session .temper-ways-path .temper-ways-open,
+#app > .temper-settings .temper-ways-path .temper-ways-open { fill: var(--gf-ink); font-weight: 600; }
+#app > .temper-session .temper-ways-caret:not([data-fade]),
+#app > .temper-settings .temper-ways-caret:not([data-fade]) { fill: var(--gf-surface); stroke: var(--gf-line-2); stroke-width: 1; }
+
+#app > .temper-session .temper-ways-agent.temper-ways-maybe:not([data-fade]),
+#app > .temper-settings .temper-ways-agent.temper-ways-maybe:not([data-fade]) { fill: var(--gf-paper); stroke: var(--gf-ink); stroke-width: 1.3; stroke-linejoin: round; }
+#app > .temper-session .temper-ways-code.temper-ways-maybe:not([data-fade]),
+#app > .temper-settings .temper-ways-code.temper-ways-maybe:not([data-fade]) { fill: var(--gf-paper); stroke: var(--gf-muted); stroke-width: 1.3; }
+#app > .temper-session .temper-ways-path .temper-ways-why,
+#app > .temper-settings .temper-ways-path .temper-ways-why { font-size: 10px; fill: var(--gf-faint); }
 
 /* model-picker: the model and effort sit at the composer, on every chat. */
 #app > :is(.temper-session, .temper-agent-page) .temper-session-foot { position: relative; z-index: 5; overflow: visible; }
@@ -2912,13 +2946,22 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app > .temper-settings .temper-ways-zoom [role=term] { font: 400 11.5px/1.9 var(--gf-mono); color: var(--gf-faint); }
 #app > .temper-session .temper-ways-zoom [role=definition],
 #app > .temper-settings .temper-ways-zoom [role=definition] { margin: 0; color: var(--gf-ink-2); }
-#app > .temper-session .temper-ways-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; margin-top: 22px; }
-#app > .temper-session .temper-ways-legend { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font: 400 11px/1.6 var(--gf-mono); color: var(--gf-faint); }
-#app > .temper-session .temper-ways-legend > span::before { display: inline-block; margin-right: 6px; vertical-align: -1px; content: ''; }
-#app > .temper-session .temper-ways-legend > .temper-ways-kind-agent::before { content: '✦'; color: var(--gf-signal); font-size: 14px; line-height: 1; vertical-align: -1px; }
-#app > .temper-session .temper-ways-legend > .temper-ways-kind-person::before { width: 7px; height: 7px; border: 1.5px solid var(--gf-signal); border-radius: 50%; }
-#app > .temper-session .temper-ways-legend > .temper-ways-kind-code::before { width: 8px; height: 8px; border-radius: 2px; background: var(--gf-ink-2); }
-#app > .temper-session .temper-ways-legend > .temper-ways-kind-line::before { width: 18px; height: 0; border-top: 1px dotted var(--gf-line-2); vertical-align: 3px; }
+#app > .temper-session .temper-ways-foot,
+#app > .temper-settings .temper-ways-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 20px; margin-top: 22px; }
+#app > .temper-session .temper-ways-legend,
+#app > .temper-settings .temper-ways-legend { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 16px; font: 400 11px/1.6 var(--gf-mono); color: var(--gf-faint); }
+#app > .temper-session .temper-ways-legend > span::before,
+#app > .temper-settings .temper-ways-legend > span::before { display: inline-block; margin-right: 6px; vertical-align: -1px; content: ''; }
+#app > .temper-session .temper-ways-legend > .temper-ways-kind-agent::before,
+#app > .temper-settings .temper-ways-legend > .temper-ways-kind-agent::before { content: '✦'; color: var(--gf-ink); font-size: 14px; line-height: 1; vertical-align: -1px; }
+#app > .temper-session .temper-ways-legend > .temper-ways-kind-maybe::before,
+#app > .temper-settings .temper-ways-legend > .temper-ways-kind-maybe::before { content: '✧'; color: var(--gf-ink); font-size: 14px; line-height: 1; vertical-align: -1px; }
+#app > .temper-session .temper-ways-legend > .temper-ways-kind-person::before,
+#app > .temper-settings .temper-ways-legend > .temper-ways-kind-person::before { width: 7px; height: 7px; border: 1.5px solid var(--gf-signal); border-radius: 50%; }
+#app > .temper-session .temper-ways-legend > .temper-ways-kind-code::before,
+#app > .temper-settings .temper-ways-legend > .temper-ways-kind-code::before { width: 8px; height: 8px; border-radius: 2px; background: var(--gf-muted); }
+#app > .temper-session .temper-ways-legend > .temper-ways-kind-line::before,
+#app > .temper-settings .temper-ways-legend > .temper-ways-kind-line::before { width: 18px; height: 0; border-top: 1px dotted var(--gf-line-2); vertical-align: 3px; }
 #app > .temper-session .temper-ways-acts,
 #app > .temper-settings .temper-ways-acts { display: flex; gap: 8px; margin-left: auto; }
 #app > .temper-session .temper-ways-acts > button,
@@ -2932,6 +2975,8 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 html:root[data-night] #app > .temper-session .temper-ways-acts > .temper-ways-use,
 html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-use { border-color: var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); }
 @media (max-width: 760px) {
+  #app > .temper-session .temper-ways-tabs:has(> [role=tab]:nth-child(4)),
+  #app > .temper-settings .temper-ways-tabs:has(> [role=tab]:nth-child(4)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #app > .temper-session .temper-ways-tabs > [role=tab],
   #app > .temper-settings .temper-ways-tabs > [role=tab] { gap: 5px; padding: 4px 6px; font-size: 13px; }
   #app > .temper-session .temper-ways-panel,
@@ -2955,28 +3000,27 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
 #app > .temper-settings .temper-how-wide .temper-settings-section-head { flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
 #app > .temper-settings .temper-how-wide .temper-settings-section-head > .temper-settings-section-title { font-size: 15px; font-weight: 600; letter-spacing: normal; text-transform: none; color: var(--gf-ink); }
 #app > .temper-settings .temper-how-way { margin-left: auto; font-size: 13px; color: var(--gf-muted); }
-#app > .temper-settings .temper-how-scroll { min-width: 0; overflow-x: auto; }
-#app > .temper-settings .temper-how-path { width: 100%; min-width: 900px; border: 1px solid var(--gf-line); border-radius: 12px; border-collapse: separate; border-spacing: 0; background: var(--gf-surface); overflow: hidden; font: 400 12.5px/1.55 var(--gf-sans); }
-#app > .temper-settings .temper-how-path :is(th, td) { min-width: 92px; height: 52px; padding: 10px 8px; border-bottom: 1px solid var(--gf-line); vertical-align: top; text-align: left; }
-#app > .temper-settings .temper-how-path tr > :first-child:not([colspan]) { width: 84px; min-width: 84px; }
-#app > .temper-settings .temper-how-path tr:last-child > :is(th, td) { border-bottom: 0; }
-#app > .temper-settings .temper-how-path .temper-how-head { font-size: 12px; color: var(--gf-muted); font-weight: 500; }
-#app > .temper-settings .temper-how-path .temper-how-lane { font-size: 12.5px; font-weight: 600; color: var(--gf-ink); }
-#app > .temper-settings .temper-how-path :is(.temper-how-person, .temper-how-agent, .temper-how-code) { display: block; width: 100%; min-height: 0; padding: 5px 7px; border: 0; border-radius: 6px; font: inherit; line-height: 1.35; text-align: left; white-space: normal; box-shadow: none; }
-#app > .temper-settings .temper-how-person { background: var(--gf-signal-pale); color: var(--gf-signal-ink, var(--gf-doc-note-ink)); }
-#app > .temper-settings .temper-how-agent { background: var(--gf-agent-pale); color: var(--gf-agent); }
-#app > .temper-settings .temper-how-code { background: var(--gf-code-pale); color: var(--gf-code); }
-#app > .temper-settings .temper-how-path button:is([aria-current], :focus-visible) { outline: 2px solid currentColor; outline-offset: 2px; }
-#app > .temper-settings .temper-how-path .temper-how-bar { background-image: linear-gradient(var(--gf-ink), var(--gf-ink)); background-size: 2px 100%; background-position: center; background-repeat: no-repeat; }
-#app > .temper-settings .temper-how-path .temper-how-head.temper-how-bar { background-image: none; color: var(--gf-ink); }
-#app > .temper-settings .temper-how-path .temper-how-line { height: auto; min-height: 0; padding: 4px 10px; border-bottom: 2px dashed var(--gf-line-2); font: 400 11.5px/1.55 var(--gf-mono); color: var(--gf-faint); }
-#app > .temper-settings .temper-how-scroll + .temper-ways-zoom { margin-top: 22px; }
-#app > .temper-settings .temper-ways-zoom::before, #app > .temper-settings .temper-ways-zoom::after { content: none; }
-#app > .temper-settings .temper-ways-acts { margin-top: 22px; }
 #app > .temper-settings .temper-how-row { display: grid; grid-template-columns: 200px minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); align-items: start; font-size: 14px; }
 #app > .temper-settings .temper-how-row > :nth-child(2) { font-size: 13px; color: var(--gf-muted); }
 #app > .temper-settings .temper-how-row > :last-child { text-align: right; }
+#app > .temper-settings .temper-how-roles { display: flex; flex-direction: column; }
+#app > .temper-settings .temper-how-role > summary { display: grid; grid-template-columns: 200px minmax(0, 1fr) auto; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--gf-line); align-items: start; font-size: 14px; list-style: none; cursor: pointer; }
+#app > .temper-settings .temper-how-role > summary::-webkit-details-marker { display: none; }
+#app > .temper-settings .temper-how-role > summary > span { font-size: 13px; color: var(--gf-muted); }
+#app > .temper-settings .temper-how-role > summary::after { content: '›'; display: inline-block; margin-left: 10px; }
+#app > .temper-settings .temper-how-role[open] > summary::after { transform: rotate(90deg); }
+#app > .temper-settings .temper-how-role[open] > summary { border-bottom: 0; }
+#app > .temper-settings .temper-how-role > [role=group] { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 18px; font-size: 13.5px; line-height: 1.55; }
+#app > .temper-settings .temper-how-role > [role=group] > div { display: contents; }
+#app > .temper-settings .temper-how-role [role=term] { font: 400 11.5px/1.9 var(--gf-mono); color: var(--gf-faint); }
+#app > .temper-settings .temper-how-role [role=definition] { margin: 0; color: var(--gf-ink2); }
+#app > .temper-settings .temper-how-role-more { display: flex; gap: 18px; margin: 10px 0 0; padding-bottom: 14px; border-bottom: 1px solid var(--gf-line); font-size: 13px; }
 @media (max-width: 760px) {
+  #app > .temper-settings .temper-how-role > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  #app > .temper-settings .temper-how-role > summary > span { grid-column: 1 / -1; grid-row: 2; }
+  #app > .temper-settings .temper-how-role > summary::after { grid-column: 2; grid-row: 1; }
+  #app > .temper-settings .temper-how-role > [role=group] { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  #app > .temper-settings .temper-how-role [role=definition] { margin-bottom: 6px; }
   #app > .temper-settings .temper-settings-col.temper-how-wide { max-width: 100%; }
 }
 

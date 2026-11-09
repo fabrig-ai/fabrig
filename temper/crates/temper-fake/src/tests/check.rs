@@ -111,6 +111,7 @@ pub const LIMITS: d::Limits = d::Limits {
 
 fn repository(provider: Repository, prefix: &[u8], review: bool) -> d::Stored {
     d::Stored::Repository(d::Repository {
+        workflows: Box::default(),
         project: 1,
         home: true,
         provider,

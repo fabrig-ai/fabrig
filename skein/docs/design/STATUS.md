@@ -1,6 +1,6 @@
 # Status
 
-2026-11-08. Where skein's code lags or departs from its design, and its
+2026-11-09. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The full-screen
 shell's renderer, keys, drawing and simulated terminal are built, with
 panic restoration and simulated resizes. Rules, border-end titles, bands,
@@ -79,8 +79,10 @@ saving (`tls.md`, section 4; `forge-connection.md`, sections 3.5 and 5.2;
 `fake-forge.md`, section 10.1; `testing.md`, sections 6, 7 and 9).
 Remaining allocator, fixture, product and startup cost work, and a
 profiler supporting the process operations, are deferred (`testing.md`,
-sections 5, 7 and 9). The test-only fork kit holds exhaustive crash sweeps'
-prefix once; checked allocation layout and native fork costs remain
+sections 5, 7 and 9). The codec's step tests count a reused pass's
+allocations, but one of skein-lib's and one of skein-ui's still show a
+table kept by its address (`testing.md`, section 5). The test-only fork
+kit holds exhaustive crash sweeps' prefix once; checked allocation layout and native fork costs remain
 deferred there, with their measurements in temper's deployment-world account.
 The state machines of forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm and

@@ -471,6 +471,16 @@ fn the_link_back_reads_again() {
     {
         let mut f = fixture();
         let out = go(&mut f.root, address);
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
+            } = request
+                && let w::Read::View(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            {
+                page(&mut f.root, *read, None);
+            }
+        }
         page(&mut f.root, f.read, Some(none()));
         page(&mut f.root, f.classes_read, Some(none()));
         for (read, _) in &*reads(&out, 6) {
