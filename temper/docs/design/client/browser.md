@@ -260,6 +260,7 @@ replay says the same clocks (`README.md`, 5.12).
   | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
   | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
+  | `Team { project }` | `/projects/<project>/team` |
   | `Chats { filter }` | `/chats`, and its filter's query |
   | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
   | `Accounts` | `/accounts` |
@@ -944,6 +945,17 @@ replay says the same clocks (`README.md`, 5.12).
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
+- **Team's look** (`README.md`, 3.5, *Team*; the whole story's `team.html`
+  and `team/team.html`, and `whole-story.css`): its intro as Work's and
+  Home's, kicker, headline and lede, in a column 1020 px wide at most
+  (`.col.wide`); People's head the mockup's `.shead`, its title at the
+  left; the people a grid of boxes, `.grid3`, columns at least 240 px
+  wide filling the row, 16 px apart, each box `.box`, on the surface's
+  ground with the hairline's border, 12 px round, 18 px by 20 px inside,
+  8 px between its lines: the name in bold, the role in `small` and
+  `muted`, the line in `small`. On a phone the grid is one column, each
+  box full width. Its rules go under `temper.css`'s marker `/* ==== ui:
+  team ==== */`, before Settings', on tokens of its own, `temper-team*`.
 - **A page target draws no ring:** anything given `tabindex=-1` only to take
   focus (`main`, a heading, a document's section) draws no outline, by
   `skein-ui.css` (skein's `ui-web.md`, 12), and `temper.css` says so again of
@@ -2365,6 +2377,9 @@ from the engine's own answers, is where the look is tuned.
 | `approve-busy` | a read answered busy: "temper couldn't answer just now" and Try again |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
+| `team` | hand-made deliveries after the whole story's `team/team.html`: two people, the person reading the project's owner with two questions and a review waiting, and Sam, a member, with a question waiting on one of Sam's chats; "Two of you."; a service member left out |
+| `team-alone` | one person, nothing waiting: "Just you." and one box, "Nothing waits on you." |
+| `night-team` | `team` with the night look on |
 | `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
 | `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |
 | `task-releasing-uncertain` | a release with an uncertain effect and its two choices |

@@ -318,6 +318,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
                 | Address::Settings { .. }
                 | Address::Models { .. }
                 | Address::Builders { .. }
+                | Address::Team { .. }
                 | Address::Role { .. }
                 | Address::Rule { .. }
                 | Address::Repositories { .. }

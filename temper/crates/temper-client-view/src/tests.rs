@@ -35,6 +35,7 @@ mod public;
 mod rail;
 mod settings;
 mod start_goal;
+mod team;
 mod toast;
 mod work;
 use jig_client::contract::{ApplicationPart, PartScope};

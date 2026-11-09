@@ -279,6 +279,7 @@ night-home
 night-how
 night-limits
 night-needs
+night-team
 night-work
 no-project
 out-of-date
@@ -327,6 +328,8 @@ task-releasing
 task-releasing-uncertain
 task-solo-T3
 task-solo-T9
+team
+team-alone
 welcome-first-run-0
 welcome-forge-choose
 welcome-forge-connected

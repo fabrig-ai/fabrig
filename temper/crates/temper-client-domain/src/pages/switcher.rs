@@ -91,6 +91,7 @@ impl Switcher {
             | Address::Inbox { .. } => self.close(),
             Address::Home { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }

@@ -447,6 +447,7 @@ pub(super) fn root_at_with_values(
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
+        | temper_client_domain::Address::Team { .. }
         | temper_client_domain::Address::Settings { .. }
         | temper_client_domain::Address::Models { .. }
         | temper_client_domain::Address::Builders { .. }

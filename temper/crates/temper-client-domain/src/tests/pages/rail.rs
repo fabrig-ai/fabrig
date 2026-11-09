@@ -136,7 +136,7 @@ fn two_projects() -> c::Me {
     me
 }
 
-fn project_domain() -> Domain {
+fn project_domain(second: Option<c::PartyKind>) -> Domain {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let watch = f::start(&mut root, List::with_capacity(0));
     up(
@@ -186,14 +186,44 @@ fn project_domain() -> Domain {
             );
         }
     }
-    event(&mut root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    let out = event(&mut root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    if let Some(kind) = second {
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read, what: Readable::Jig(c::Read::Project { project }) },
+                    },
+            } = request
+            {
+                assert_eq!(*project, f::PROJECT);
+                let mut document = super::team::project(
+                    Box::new([
+                        super::team::member(1, c::PartyKind::Person, b"Owner", c::HeldRole::Owner),
+                        super::team::member(2, kind, b"Other", c::HeldRole::Member),
+                    ]),
+                    false,
+                );
+                document.number = f::PROJECT;
+                up(
+                    &mut root,
+                    Up::ReadDone {
+                        read: *read,
+                        result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(Box::new(document)))),
+                    },
+                );
+            }
+        }
+    }
     root
 }
 
 #[test]
 fn facts_gather_the_open_projects_domain_values() {
-    let project_root = project_domain();
-    let mut across_root = project_domain();
+    let project_root = project_domain(None);
+    let people = project_domain(Some(c::PartyKind::Person));
+    let service = project_domain(Some(c::PartyKind::Service));
+    let mut across_root = project_domain(None);
     event(&mut across_root, Event::Went { place: Place::Address(Address::AllHome) });
     let unread = crate::unlinked(&f::limits(), f::SEED);
     for (name, root, project, expected) in [
@@ -202,6 +232,36 @@ fn facts_gather_the_open_projects_domain_values() {
             &project_root,
             f::PROJECT,
             Facts { projects: PROJECTS, needs: NEEDS, needs_cut: true, asking: true, away: true, drafts: true, ..BASE },
+        ),
+        (
+            "two people",
+            &people,
+            f::PROJECT,
+            Facts {
+                projects: PROJECTS,
+                needs: NEEDS,
+                needs_cut: true,
+                members: Some(2),
+                asking: true,
+                away: true,
+                drafts: true,
+                ..BASE
+            },
+        ),
+        (
+            "person and service",
+            &service,
+            f::PROJECT,
+            Facts {
+                projects: PROJECTS,
+                needs: NEEDS,
+                needs_cut: true,
+                members: Some(1),
+                asking: true,
+                away: true,
+                drafts: true,
+                ..BASE
+            },
         ),
         ("other project", &project_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, ..BASE }),
         ("across", &across_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, away: true, ..BASE }),
@@ -213,7 +273,7 @@ fn facts_gather_the_open_projects_domain_values() {
 
 #[test]
 fn across_means_all_home_or_inbox_without_a_project_filter() {
-    let mut root = project_domain();
+    let mut root = project_domain(None);
     for (address, expected) in [
         (Address::AllHome, true),
         (Address::Inbox { filter: Filter::ALL }, true),
