@@ -9,10 +9,6 @@ and absent from the portable face. macOS's direct launch and deferred
 crash lifetime are protocol/programs.md, sections 5.1 and 9's.
 
 - **Not yet:**
-  - 2.1, 2.6: `smith-agent-profile` is built, and `smith-agent-document`
-    holds the program helpers alone. The document's reader (`config`),
-    its trace's settings (`trace`) and the fixture's product document
-    are still `smith-agent-shell`'s.
   - 4, 5.2: the `--account` flag and the `account` setting.
     `smith-local-shell/src/command.rs` parses no `--account`, and
     `settings/schema.rs` has no `account` key, so 4.1's refusal that
@@ -22,7 +18,7 @@ crash lifetime are protocol/programs.md, sections 5.1 and 9's.
     'ANTHROPIC_API_KEY'` (`smith-local-shell/src/presets.rs`), where no
     preset names one.
 - **Departs:**
-  - 2.5: in `smith/crates/smith-agent-shell/src/config/`,
+  - 2.5: in `smith/crates/smith-agent-document/src/config/`,
     `TrustDocument`'s fields, `EndpointTransport::Tls`'s and the
     parameter `errors` of `endpoints`, which only the `cfg(unix)` trust
     loading reads, stay on every target under expectations scoped to

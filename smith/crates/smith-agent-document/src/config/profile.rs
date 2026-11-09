@@ -1,7 +1,7 @@
 //! Profile overrides checked before startup (smith/docs/design/protocol/agent.md, section 4).
 
 use super::{ConfigurationRefusal, DeclaredOverrides, PolicyOverrides, ProfileDocument, duration};
-use smith_agent_service::{
+use smith_agent_profile::{
     self as service,
     profile::{Layer, LimitName},
 };

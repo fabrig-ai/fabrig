@@ -1468,7 +1468,7 @@ Five layouts coexist: `tests.rs`, `*_tests.rs`, inline `mod tests`, named one-te
 
 - `tests/end-to-end` retypes the `SavedToken` literal (`credentials.rs`, `support/live.rs`). `skein-oauth` or a shared fixture could own a builder.
 - Other `tests/*` crates likely repeat the private scratch directories and hand-rolled replay.
-- `document.rs:86-88` writes dialect as bare `3, 1, 2`, and `smith-agent-shell/src/config.rs:627-634` then checks it against the provider: the number looks derivable.
+- `document.rs:86-88` writes dialect as bare `3, 1, 2`, and `smith-agent-document/src/config.rs:627-634` then checks it against the provider: the number looks derivable.
 - `GrantValue::Withdrawn` still forces an arm in `lend.rs`, though its doc in `smith-protocol-channel` says `accounts-sources` removed it.
 - jig and temper may carry `Lower test of` comments and their own scripted browsers.
 - `skein/tests/oauth-accounts` holds a browser in a test crate, not a kit crate (see finding 10).

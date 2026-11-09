@@ -7,7 +7,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [features]
-fixture = []
+fixture = ["smith-agent-document/fixture"]
 
 [dependencies]
 smith-agent-document.workspace = true
