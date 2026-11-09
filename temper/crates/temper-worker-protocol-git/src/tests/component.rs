@@ -102,6 +102,50 @@ fn stdout_past_its_cap_is_read_dropped_and_ends_broken() {
     );
 }
 #[test]
+fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
+    for merging in [false, true] {
+        let mut component = fixtures::Started::new();
+        let op = if merging {
+            fixtures::commit_op(Some(fixtures::COMMIT))
+        } else {
+            git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT }
+        };
+        component.down(Request::Io {
+            owner: fixtures::OWNER,
+            op,
+            deadline: fixtures::DEADLINE,
+            identity: merging.then(fixtures::identity),
+        });
+        if !merging {
+            let (child, pipes) = component.spawned();
+            component.end(pipes[0]);
+            component.end(pipes[1]);
+            component.exited(child, 1);
+            component.closed(child, &pipes);
+        }
+        let (child, pipes) = component.spawned();
+        let mut stdout = b"one\0two\0three\0four\0".to_vec();
+        while stdout.len() <= usize::try_from(fixtures::limits().stdout_bytes).expect("stdout cap") {
+            stdout.extend_from_slice(b"later\0");
+        }
+        component.stdout(pipes[0], &stdout);
+        assert!(!component.below.out.io.is_empty(), "reading continues past the cap");
+        component.end(pipes[0]);
+        component.end(pipes[1]);
+        component.exited(child, 0);
+        component.closed(child, &pipes);
+        let done = if merging {
+            git::Done::FailedWithOutput { fault: git::Fault::Broken, diagnostic: git::PushDiagnostic::empty() }
+        } else {
+            git::Done::Conflicted {
+                files: [b"one".as_slice(), b"two", b"three", b"four"].into_iter().map(Box::from).collect(),
+            }
+        };
+        assert_eq!(component.done(), Some((fixtures::OWNER, done)), "merging commit: {merging}");
+    }
+}
+
+#[test]
 fn an_operation_whose_identity_has_no_value_fails_broken_unspawned() {
     let mut component = fixtures::Started::new();
     component.down(Request::Io {

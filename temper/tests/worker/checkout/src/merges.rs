@@ -15,6 +15,7 @@ pub enum Case {
     Resumed,
     Contained,
     Conflict,
+    PastTheBound,
     Unchanged,
     Moved,
     Ambiguous,
@@ -56,7 +57,12 @@ impl World {
             facts,
         };
         let mut forge = Forge::new(seed);
-        let first = forge.repository(b"forge/temper", b"main", [(b"code".to_vec(), b"original\n".to_vec())].into());
+        let initial = if matches!(case, Case::PastTheBound) {
+            (0..=limits.conflicts).map(|n| (format!("code{n}").into_bytes(), b"original\n".to_vec())).collect()
+        } else {
+            [(b"code".to_vec(), b"original\n".to_vec())].into()
+        };
+        let first = forge.repository(b"forge/temper", b"main", initial);
         forge.create_branch(b"forge/temper", b"topic", first).expect("topic created");
         let left = format!("ours {seed}\n");
         let right = format!("base {seed}\n");
@@ -68,6 +74,18 @@ impl World {
             Case::Unchanged | Case::Moved => {
                 let base = forge.advance(b"forge/temper", b"main", b"code", right.as_bytes());
                 (first, base, [(b"code".to_vec(), right.into_bytes())].into())
+            }
+            Case::PastTheBound => {
+                let mut ours = first;
+                let mut base = first;
+                let mut expected = temper_fake_checkout::git::Tree::new();
+                for n in 0..=limits.conflicts {
+                    let path = format!("code{n}").into_bytes();
+                    ours = forge.advance(b"forge/temper", b"topic", &path, left.as_bytes());
+                    base = forge.advance(b"forge/temper", b"main", &path, right.as_bytes());
+                    expected.insert(path, b"resolved\n".to_vec());
+                }
+                (ours, base, expected)
             }
             Case::Conflict => {
                 let ours = forge.advance(b"forge/temper", b"topic", b"code", left.as_bytes());
@@ -220,6 +238,24 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         assert_eq!(&*world.push(false, false), &[Landing::Conflicted { files: Box::new([b"code".as_slice().into()]) }]);
         assert!(world.forge.moves().is_empty(), "remaining markers make no remote effect");
         world.disk.write(&[&at[..], b"/code"].concat(), b"resolved\n");
+    } else if matches!(case, Case::PastTheBound) {
+        let named: Box<[Box<[u8]>]> =
+            (0..world.env.limits.conflicts).map(|n| format!("code{n}").into_bytes().into()).collect();
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].repository, 0);
+        assert_eq!(conflicts[0].files, named);
+        assert_eq!(
+            world.disk.content(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()),
+            Some(world.base.to_le_bytes().as_slice()),
+            "the merge remains in progress at the base"
+        );
+        let marked = format!("<<<<<<< ours\nours {seed}\n=======\nbase {seed}\n>>>>>>> theirs\n");
+        for file in world.expected.keys() {
+            assert_eq!(world.disk.content(&[at.as_slice(), b"/", file].concat()), Some(marked.as_bytes()));
+        }
+        for (file, content) in &world.expected {
+            world.disk.write(&[at.as_slice(), b"/", file].concat(), content);
+        }
     } else {
         assert!(conflicts.is_empty());
     }
@@ -649,7 +685,7 @@ pub fn goal_later_run(case: Case) {
             world.disk.write(&[at.as_slice(), b"/code"].concat(), b"resolved\n");
             None
         }
-        Case::Clean | Case::Unchanged | Case::Moved | Case::Ambiguous | Case::Saved => unreachable!("goal cases"),
+        Case::Clean | Case::PastTheBound | Case::Unchanged | Case::Moved | Case::Ambiguous | Case::Saved => unreachable!("goal cases"),
     };
     let mut tree = world.disk.tree(&at);
     tree.retain(|path, _| !path.starts_with(b".git/"));
