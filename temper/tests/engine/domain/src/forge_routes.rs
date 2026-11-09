@@ -2420,6 +2420,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         heard: change::Heard {
             delegate_running: false,
             delegate_live: false,
+            review_request: None,
             start_conflict: None,
             lacking: None,
             spend: None,

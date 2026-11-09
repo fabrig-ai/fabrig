@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-08. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-09. Where jig's code lags or departs from [engine.md](engine.md).
 
 Section 7.2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
@@ -97,6 +97,10 @@ alone mark no Frame. The omitted-count mark below remains unimplemented.
 Later pages, later changes to a known name's figures
 and catalogue-number reuse remain section 16's open questions.
 
+Section 9.1's room as capacity holds at temper's activation: a task
+whose transcript window would find no load slot waits, due, spending no
+try. A window's later page without one still fails its preparation
+there (`temper/docs/design/domain/root.status.md`, 8).
 
 ## Gaps and departures
 
@@ -208,3 +212,11 @@ and catalogue-number reuse remain section 16's open questions.
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
+
+- **Not yet:** 7.2: a turn too large for a page: there is no
+  `TranscriptLoad::Cut`; the store answers a window page that cannot hold
+  its turn `Unread` (`jig-protocol-store/src/transcripts/read.rs`,
+  `settle`), so an open window holding such a turn fails its brief once,
+  `transcript: its window could not be read`, spending a transient try, and
+  its retry starts fresh without the tail; jig's reference root
+  (`jig-test-store/src/route.rs`) hands that `Unread` on.

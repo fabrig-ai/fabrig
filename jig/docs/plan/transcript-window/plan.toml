@@ -23,3 +23,23 @@ id = 1
 story = "A goal whose window spans many pages, the other load slot held, and a restart's due tasks with two-page windows, each load their window whole and resume, spending no try"
 parts = ["window-pages"]
 walk = false
+
+[[part]]
+id = "turn-cut"
+title = "jig's store hands a window's turn past its page's room on cut, and the core starts the run fresh from its tail with a marker"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 7.2"
+
+[[part]]
+id = "temper-cut"
+title = "temper carries a window's cut turn to the core, and cuts a turn past its own page bounds rather than end the page"
+mode = "direct"
+needs = ["window-pages", "turn-cut"]
+design = "temper/docs/design/domain/root.md, 8"
+
+[[slice]]
+id = 2
+story = "A goal whose window holds a large tool result, past a load page's room or the root's row bound, starts fresh at once from its tail with the turn's marker, no try spent, the engine running"
+parts = ["turn-cut", "temper-cut"]
+walk = false

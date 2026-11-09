@@ -10,6 +10,15 @@ world lays the story's disk and handovers through the playground world's
 simulated seconds, its person waiting up to 60 s for each line it
 looks for.
 
+Section 9's replay clear of its byte bounds runs in the gate:
+`walk.rs`'s `story_a_kept_log_replays_natively` replays the kept log
+over story A's deployment as kept and with each `*_bytes` override of
+its engine, its worker and its application doubled, and both reach the
+log's end. It leaves out, by name in `doubled_byte_bounds`,
+`checkout.name_bytes`, `forge.name_bytes` and `hub.event_bytes`, whose
+doubling startup refuses, and `documents.text_bytes`,
+`tasks.spec_bytes` and `tasks.result_bytes`, counted by payload alone.
+
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
     box (`domain/forge.md`, 4.1, and its status).
@@ -30,19 +39,24 @@ looks for.
     6,882,055 B gzipped, within its 8 MB
     (`temper/docs/development/playground-figures.md`).
   - 8, *Clear of the bounds that count slots*: story A's deployment
-    keeps byte bounds tight to the story (`core.load_bytes` 8192,
-    `core.run_bytes` 16384, `documents.text_bytes` 128 and others),
-    some counted with `size_of` of their slots, and nothing shows
-    whether the story reaches one natively; the browser story's native
-    replay of its downloaded log differs now and then (red-87).
+    keeps its byte bounds tight to the story (`core.load_bytes` 8192,
+    `core.run_bytes` 16384 and others), none given room: the kept log's
+    doubled replay (9) agrees, so the kept walk reaches none of them
+    natively, but nothing shows the browser's walk, at its own pace,
+    reaches none. The browser story's native replay of its downloaded
+    log differed 6 times in about 180 runs on 11-07 and 11-08
+    (`Differs { line: 524, .., why: Said }`); three runs of the story
+    alone passed on 11-09, and the cause, a bound or another, is
+    unknown. No test in a lower world fails for it. The next failure's
+    `Differs` names the line's input, both digests and the replay's
+    last lines (skein's `playground.md`, 6.2), and comes back as a
+    repair.
   - 9: story A's high water in the one-process world:
     `temper/tests/one-process/tests/memory.rs` remains ignored: the
     story walks, but a service world's observer has no way to keep its
     storage outside the process's span (`skein/docs/design/testing.md`,
     5), so process 0's exact release check fails
     (`temper/docs/development/playground-memory.md`).
-  - 9, *Clear of its byte bounds*: no test replays the kept log over
-    story A's deployment with its byte bounds doubled.
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the memory's and the slice's unset
     (section 11); and published.

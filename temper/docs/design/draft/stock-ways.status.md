@@ -13,11 +13,7 @@ goal's coordinator, "plan" or "design", and its "close-out" are a
 template's setting, kind 11 (`../protocol/configuration.md`, 13.2), drawn
 by `../domain/forge.md`, 8.13.
 
-- **Design lags:** 4, *What a goal's charter adds*: `../domain/forge.md`,
-  8.13, words a goal's coordinator's stop "plan" alone, with no "design"
-  where its charter designs first and no agent's "close-out" after
-  main's merge, which the whole story's P3f takes
-  (`whole-story.execution.md`, section 3).
+- **Design lags:** none.
 - **Design departs:** 8: the three ways' paths over a project with CI and
   both tiers are the look request's pages but for "verify" after "merge"
   on You approve and Agents review, since main's tier follows main
