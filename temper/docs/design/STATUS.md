@@ -773,10 +773,7 @@ record of the user weighing it, Forgejo's link page keeping an empty signup
 form; the others
 record what the
 design carries of them and where it lags or departs.
-`domain/README.md` and `protocol/llm.md` have no gap. The deployment's
-agent binary, `temper-agent`, its closure's test are
-designed and not built (`protocol/README.status.md`,
-`protocol/setup.status.md`).
+`domain/README.md` and `protocol/llm.md` have no gap.
 
 Project-making's reproduced client stall is repaired: ctl, native and
 web presets take nine memberships in the mandatory `me`; reduced,

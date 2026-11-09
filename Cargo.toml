@@ -271,6 +271,7 @@ members = [
     "temper/crates/temper",
     "temper/crates/temper-shell",
     "temper/crates/temper-client",
+    "temper/crates/temper-agent",
     "temper/crates/temper-client-bundle",
     "temper/tests/engine/protocol-forge",
     "temper/crates/temper-client-shell-terminal",

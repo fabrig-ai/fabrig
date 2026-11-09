@@ -4974,6 +4974,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-agent"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-forge",
+ "skein-io",
+ "skein-scratch",
+ "skein-shell",
+ "smith-agent-shell",
+ "smith-protocol-program",
+ "temper-fetch",
+ "temper-fetch-shell",
+ "temper-shell",
+]
+
+[[package]]
 name = "temper-box"
 version = "0.0.0"
 dependencies = [
