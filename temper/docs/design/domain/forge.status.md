@@ -446,8 +446,3 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
-- **Not yet:** 5.3, 8.4 (*Stalls*), 8.7: a nonempty ancestry page that says
-  more follow, or a range refused as too large to list, reads as unknown, so a
-  head far behind its base waits at its turn until its stall holds it, with no
-  update and no resolution (`temper-engine-domain-forge/src/domain.rs`,
-  `ancestry_status`); a catch-up retries the same range.
