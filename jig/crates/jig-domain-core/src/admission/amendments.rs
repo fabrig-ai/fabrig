@@ -8,6 +8,17 @@ use skein_lib::List;
 use crate::{Core, translate};
 
 impl Core {
+    /// An address supplied from outside the core names a held identity
+    /// (jig/docs/design/domain/engine.md, 5.1).
+    pub(crate) fn amendment_person(&self, amendment: &tasks::Amendment) -> Result<(), tasks::Refusal> {
+        if let Some(tasks::AddressChange { address: tasks::PersonAddress::Person(person), .. }) = amendment.addressed
+            && self.people.identity(person).is_none()
+        {
+            return Err(tasks::Refusal::Unknown);
+        }
+        Ok(())
+    }
+
     /// The models a task keeps through an amendment of its authority, which names none; none for
     /// an unknown task, which the amendment's admission refuses (domain/authority.md, section 3).
     #[must_use]
@@ -82,6 +93,9 @@ impl Core {
             return Err(TaskAmendDenied::Refused { task: target, why: tasks::Refusal::Reference });
         }
         let row = self.tasks.task(target).expect("delegation found target");
+        if let Err(why) = self.amendment_person(amendment) {
+            return Err(TaskAmendDenied::Refused { task: target, why });
+        }
         if let Err(why) = tasks::address_admit(row, &amendment.addressed) {
             return Err(TaskAmendDenied::Refused { task: target, why });
         }
