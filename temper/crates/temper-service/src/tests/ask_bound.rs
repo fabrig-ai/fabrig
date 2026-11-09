@@ -19,6 +19,8 @@ use temper_engine_domain_world::{direct::Driver, protocol, store::Store, walking
 const FIRST_REQUEST_BYTES: u64 = 16_384;
 const ASKING_CHARTER: u32 = 11;
 const ASKING_TEMPLATE: u32 = 5;
+const DRAFTER_CHARTER: u32 = 12;
+const DRAFTING_TEMPLATE: u32 = 6;
 const PROJECT: u32 = 1;
 const CHANNEL: Token = Token::new(7);
 // The stock agent profile's declared payload and endpoint output (temper-init/template/agent.json).
@@ -66,7 +68,7 @@ fn stock_config() -> (engine::Config, engine::Limits, jig_protocol_config::Engin
     (config, limits, parsed)
 }
 
-fn first_assignment() -> engine::Assignment {
+fn first_assignment(charter: u32, template: u32) -> engine::Assignment {
     let (config, limits, parsed) = stock_config();
     let budget = config.core.defaults.policies.get(&1).expect("stock policy").policy.period_spend;
     let template = config
@@ -74,8 +76,8 @@ fn first_assignment() -> engine::Assignment {
         .defaults
         .templates
         .iter()
-        .find(|template| template.number == ASKING_TEMPLATE)
-        .expect("stock asking template")
+        .find(|candidate| candidate.number == template)
+        .expect("stock chat template")
         .clone();
     let restart = temper_engine_domain_world::oracle::config::copy(&config);
     let accounts = temper_engine_domain_world::fixtures::account_rows(&config.core.settings.llm_providers);
@@ -94,7 +96,7 @@ fn first_assignment() -> engine::Assignment {
     let mut ask = driver.chat_ask(PROJECT, FIRST_WORDS);
     let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat creation") };
     let member = batch.first_mut().expect("one chat");
-    member.executor = people::TaskExecutor::Agent { charter: ASKING_CHARTER };
+    member.executor = people::TaskExecutor::Agent { charter };
     let jig_domain_tasks::Contract::Report { words } = template.contract else { panic!("chat report") };
     member.contract = people::Contract::Report { words };
     member.flags.ended_by = people::EndedBy::Requester;
@@ -272,7 +274,7 @@ fn declarations(
 
 #[test]
 fn asks_first_request_fits_both_shapes() {
-    let assignment = first_assignment();
+    let assignment = first_assignment(ASKING_CHARTER, ASKING_TEMPLATE);
     let configuration = fixtures::stock_configuration(TOOL_PAYLOAD, OUTPUT_TOKENS).expect("stock agent bounds");
     let limits = configuration.service.limits.domain.run;
     let charter = temper_engine_smith::charter(&assignment);
@@ -280,6 +282,10 @@ fn asks_first_request_fits_both_shapes() {
         .host_part
         .checked_sub(u64::from(run::brief_room(&charter, None, &limits).expect("stock host part")))
         .unwrap();
+    assert_eq!(
+        charter.grants.host_tools.iter().map(|tool| tool.name.as_ref()).collect::<Box<[_]>>().as_ref(),
+        [b"see".as_slice(), b"document", b"remember", b"propose_settings"].as_slice()
+    );
     let host_declarations: u64 = charter
         .grants
         .host_tools
@@ -309,4 +315,23 @@ fn asks_first_request_fits_both_shapes() {
         within_bound &= total <= FIRST_REQUEST_BYTES;
     }
     assert!(within_bound, "first request exceeds the {FIRST_REQUEST_BYTES}-byte bound; parts printed for each shape");
+}
+
+#[test]
+fn a_design_session_runs_the_drafter_with_no_change_or_goal() {
+    let assignment = first_assignment(DRAFTER_CHARTER, DRAFTING_TEMPLATE);
+    assert_eq!(assignment.run.policy.instructions.as_ref(), include_bytes!("../stock/drafter.txt"));
+    assert!(assignment.workspace.repositories.is_empty());
+    let charter = temper_engine_smith::charter(&assignment);
+    for (name, offered) in [
+        (b"goal".as_slice(), false),
+        (b"change", false),
+        (b"delegate", false),
+        (b"note", true),
+        (b"recall", true),
+        (b"read_branch", true),
+        (b"read_file", true),
+    ] {
+        assert_eq!(charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), offered, "{name:?}");
+    }
 }

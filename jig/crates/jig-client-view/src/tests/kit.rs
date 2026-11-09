@@ -91,6 +91,7 @@ impl Goldens {
         Self::new(format!("{name}/{case}"))
     }
 
+    #[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh rendered goldens")]
     pub(crate) fn check(&mut self, tree: &Tree) {
         let mut bounds = limits();
         bounds.nodes = tree.len();

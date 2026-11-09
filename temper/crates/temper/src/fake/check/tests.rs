@@ -1,4 +1,5 @@
 use super::*;
+use crate::directories::jig_directories;
 use crate::directories::tests::scratch;
 use std::fs;
 
@@ -224,6 +225,7 @@ use temper_protocol_store::{keys as temper_keys, records};
 const REPO: Repository = Repository { forge: 1, repository: 2 };
 fn repository() -> d::Stored {
     d::Stored::Repository(d::Repository {
+        workflows: Box::default(),
         project: 1,
         home: true,
         provider: REPO,
@@ -393,7 +395,7 @@ fn verb() {
             Copy::Store { format, rows } => {
                 let limits = temper_service::startup::store_limits(
                     bytes.as_ref().expect("seed document"),
-                    &directories.jig(),
+                    &jig_directories(&directories),
                     Some(&agent),
                 )
                 .expect("store limits");

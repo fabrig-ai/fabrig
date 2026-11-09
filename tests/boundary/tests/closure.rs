@@ -1,4 +1,4 @@
-//! Each binary's normal dependency closure (temper/docs/design/protocol/README.md, 4.2).
+//! Each binary's normal dependency closure (temper/docs/design/protocol/README.md, 4.4).
 use std::{
     path::Path,
     process::{Command, Stdio},
@@ -13,7 +13,15 @@ struct Row {
 
 const ROWS: &[Row] = &[Row {
     package: "temper-agent",
-    temper: &["temper-agent", "temper-shell", "temper-docs", "temper-fetch", "temper-fetch-shell"],
+    temper: &[
+        "temper-agent",
+        "temper-shell",
+        "temper-docs",
+        "temper-launcher",
+        "temper-fetch",
+        "temper-fetch-shell",
+        "temper-version",
+    ],
     trees: &["jig"],
     exceptions: &[],
 }];

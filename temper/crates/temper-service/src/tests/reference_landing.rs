@@ -23,6 +23,9 @@ fn the_reference_landing_settings_decode() {
     let mut rules = 0;
     for item in &items {
         if let Setting::Application { kind, scope, number } = item.setting {
+            if (kind, scope, number) == (11, 0, 4) {
+                continue;
+            }
             assert_eq!((kind, scope), (1, 0));
             let SettingEdit::Set(set) = &item.edit else { panic!("set rule") };
             let SettingValue::Application(bytes) = &set.value else { panic!("application setting") };
@@ -88,6 +91,7 @@ fn the_reference_landing_member_parses() {
                     format: Format::Lines,
                     follows: Follows::Landing,
                     span_ms: 0,
+                    description: b"the slow suites".as_slice().into(),
                 },
                 TierCheck {
                     name: b"goal".as_slice().into(),
@@ -97,6 +101,7 @@ fn the_reference_landing_member_parses() {
                     format: Format::Lines,
                     follows: Follows::Goals,
                     span_ms: 1_200_000,
+                    description: b"the gate without its slowest suites".as_slice().into(),
                 },
             ]),
         }]

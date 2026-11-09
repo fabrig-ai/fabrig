@@ -399,7 +399,7 @@ fn watch_room_query(label: u32) -> jig_domain_core::documents::Watched {
 #[test]
 fn a_full_watch_room_fits_its_heap_ceiling() {
     assert_eq!(watch_room_root_heap(1), watch_room_root_heap(8), "unused watch room allocates nothing");
-    for (streams, room, ceiling) in [(1, 19, ONE_STREAM_WATCH_HEAP_CEILING), (8, 152, EIGHT_STREAM_WATCH_HEAP_CEILING)]
+    for (streams, room, ceiling) in [(1, 22, ONE_STREAM_WATCH_HEAP_CEILING), (8, 176, EIGHT_STREAM_WATCH_HEAP_CEILING)]
     {
         for distinct in [false, true] {
             full_watch_room_peak(streams, room, distinct, ceiling);

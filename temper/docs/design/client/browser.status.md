@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-09. Where temper's code lags or departs from [browser.md](browser.md).
 
 - **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
@@ -11,7 +11,61 @@
   7.1's path printed for both widths adds to it: the print test alone took
   1.483 s of wall time before the second drawing and 4.069 s after
   (`look-round-24`'s `gallery-narrow`, at `436533537a`); no CPU figure is
-  on record.
+  on record. How work runs' six states, `how` to `night-how`, and the
+  fifteen of the rail, Work and Deployment, `rail-new-change` to
+  `night-limits`, and the thirteen of Home and Needs you across projects,
+  `all-home` to `night-needs`, and the two of Away on All projects,
+  `all-home-away` and `all-home-away-on`, add to it, and so do the rows
+  `ui-p5a-phone` added to `print_writes_every_page_and_the_bundle`, which
+  read the `needs-list`, `ask-chat` and `rail-new-change` prints, with no
+  CPU figure on record either; so do the six states `ui-reaches` added,
+  `home-decided`, `needs-decided`, `needs-why`, `needs-stop-asking`,
+  `needs-stop-asking-set` and `settings-away-you-approve`, in place of
+  `settings-away-off`, with none on record.
+
+Section 7.2 holds what reaches a person, by plan `ui-reaches`: those six
+states, `settings-away` as a view of Agents review's classes and
+`start-goal-draft`'s "When it needs you", each with its row of
+`each_state_holds_what_its_name_says`; that row checks
+`start-goal-draft`'s "As the project says" is offered, not that it is
+chosen.
+
+- **Not yet:** 2.5, *What a phone presses*: at 760 px and under an Ask
+  temper chat's thread keeps the mock's sizes, its "Latest" and a
+  proposal's acts among them, and the path's stops on Ask temper's page
+  take no target past their marks: `temper.css`'s 44 px targets reach a
+  chat's bar and composer and the opening's tabs, acts and zoom link
+  alone (`each_phone_target_stands_44_pixels`).
+
+Sections 2.5's phone paragraph and *What a phone presses* have no other
+known implementation gap, by plan `ui-p5a-phone`: the tab bar's
+"Needs", the Ask tab's tabs kept under Ask temper's page and an Ask
+temper chat by `temper-tabbar-ask`, Needs you's open card under its own
+bar, `temper-needs-bar`, the rail's switcher and Away chip not drawn
+there, and at 44 px to a press the top bar's switcher, Away chip and
+night switch, each tab, and the controls of Home, Needs you, Work and
+every chat's bar and composer, the mockups' smaller drawings kept inside
+a transparent target. `each_phone_target_stands_44_pixels` reads them
+from the stylesheet, and the gallery's `needs-list`, `ask-chat` and
+`rail-new-change` prints hold the bar, the Ask tab and "Needs". Their
+render check follows landing (`README.md`, section 11, *The phone after
+landing*).
+
+- **Departs:** 2.5: A role's model is drawn among its opened terms, not
+  at its summary's right: skein's disclosure summary holds its name and
+  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  right-hand model waits for a structured summary in skein.
+
+Sections 2.3's `Team` row, 2.5's *Team's look* and 7.2's `team`,
+`team-alone` and `night-team` have no known implementation gap, by plan
+`ui-p4a-team`: `/projects/<project>/team` reads as Team's page;
+`temper.css`'s `ui: team` rules, before Settings', on `temper-team*`
+tokens, draw the intro in the wide column and People's boxes in a grid,
+one column on a phone; and `each_state_holds_what_its_name_says` holds
+the three states' headings, rails and words. They add to 7.3's overrun,
+above, with no CPU figure on record. Their render check against
+`team/team.html` follows landing (`README.md`, section 11, *Team after
+landing*).
 
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
@@ -36,6 +90,7 @@ these repairs. The existing history story has the night reload row and
 story 11's phone Ask row (4.6), which compares the composer's and
 picker's boxes with the tabs' top at 420 px; neither adds a test
 function, and both pass in that story's runs alone (4.6, below).
+
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
 system preference and night placeholder separate.
 
@@ -58,6 +113,45 @@ first" to its "Use this", in the existing history story; it checks
 neither Agents review's "now" nor the line and the path. The rendered
 comparison follows landing (`README.md`, section 11).
 
+Sections 2.5, *Ask temper's ways*, and 7.2 have no known implementation
+gap in `look-round-25`'s repairs: the drawing's and the legend's rules,
+and the tabs', line's, card's and act's, name Ask temper's page and How
+work runs' frame alike; with a fourth tab the tabs stand two by two at
+760 px and under; who acts is the whole story's marks, an agent's star
+`--gf-ink`, outlined when needed, code's square `--gf-muted`, a stop's
+small words `--gf-faint`; and each rise's fade colours its stops by the
+`temper-ways-fade-*` tokens, the line's rules written under
+`:not([data-fade])` so that no stroke outweighs the fade (skein's
+`ui-web.md`, section 8). The gallery's `ask-ways-*` states are reprinted
+with them.
+
+Sections 2.5, *How work runs' look*, and 7.2 have no known
+implementation gap but the departure above: `temper.css`'s `/* ==== ui:
+how ==== */`, after the ways' rules, holds the wide column, the
+section's head and "the way: NAME", Roles' rows and terms, and Budgets'
+row, by day and by night; the path is Ask temper's drawing under its own
+rules, with no lanes and no colour of its own; and `look.rs` names each
+`temper-how-*` class. The gallery prints `how`, `how-approve`,
+`how-draft`, `how-yours`, `how-card` and `night-how` at both widths,
+`how-draft` with Roles, and its table checks each. The rendered
+comparison follows landing (`README.md`, section 11).
+
+Sections 2.3, 2.5 and 7.2 have no known implementation gap in the rail,
+Work and Deployment, by plan `ui-p1-rail`: Work's path with `?show=drafts`
+for Drafts, a query of another name or value dropped, and Members' and
+Limits' paths under `/deployment`, which the domain's address table
+parses and prints; `temper.css`'s `/* ==== ui: rail ==== */` holding the
+hairline, the new box filling its dashed box, its plus drawn by style and
+no text of a control's name (`the_new_box_plus_is_drawn_without_accessible_text`,
+by the repair `red-84` after landing), and "Deployment" at the foot;
+`/* ==== ui: work ==== */` holding Work's head, chips, section heads,
+cards and landed rows; Deployment's frame and Members' and Limits' lines
+under the settings marker; the tab bar's four columns, Home, Needs you,
+Work and Ask; and the gallery's `rail-new-change` to `night-limits`, with
+`rail-new-menu` redrawn, which its table checks. The rendered comparison
+follows landing (`README.md`, section 11, *The rail, Work and Deployment
+after landing*).
+
 Sections 2.3, 2.5 and 7.1 have no known implementation gap in
 `look-round-24`'s repairs: a path's marks and labels take no stroke but
 their own rules', by one rule under `.temper-ways-path`, skein's rule
@@ -76,7 +170,8 @@ the address, visibility, focus and call-line checks. No implementation
 gap remains in those reads. The client takes its filter from the address;
 Drafts arriving before Closed is section 5's deferred row movement, not
 a loss of the selected filter. After each new load of `/` and of an
-address that is no page, the story awaits the rail's "New chat" link,
+address that is no page, the story awaits the rail's "New draft or
+change" button,
 drawn with the page once `me` is read (`README.md`, 5.1), before its
 unchanged main and Needs checks, so the empty busy main meets none of
 them. The whole story, its phone Ask, call-line and night rows with it,
@@ -116,8 +211,10 @@ old link after restarting serve; no runtime result is supplied here.
 Cookie fallback remains deferred in section 5.
 
 Section 7.2's `settings-all-hidden` sample names every switch off,
-separately from the drafts-on stock. The view tables hold Goals in the
-rail and phone tab bar with kind 7's Goals hidden and a goal present.
+separately from the drafts-on stock. The view tables hold that kind 7's
+switches change no entry of the rail and the tab bar
+(`kind_seven_changes_no_navigation_entry`), and that Goals' and Changes'
+hide Work's filters of those names alone.
 The fresh-project flow's browser check is deferred in section 5.
 
 Sections 2.5 and 7.2 have no known implementation gap in Goals opening
@@ -241,7 +338,7 @@ establish no rendered equality.
   foot and the toast take the home bar's inset, which the request asks of the
   tab bar alone: a covered page leaves them under it. "Every tab and primary
   button at least 44 tall" holds where the mock draws no shorter: the welcome's
-  primaries stand 40 px, Home's acts 34, and a goal's primary outside its
+  primaries stand 40 px, and a goal's primary outside its
   choices, the sheet's among them, 40, as the mock's `.btn` and `.btn.small` do.
   The mock's `box.html` draws a terminal, what `temper box` prints, and no page
   of the client's draws it.
@@ -281,30 +378,36 @@ establish no rendered equality.
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
   re-entry), 14 (short, Latest, unanchored and long), and 16 (sheet scroll
-  and phone geometry) retain story labels for failed steps. Test 2 alone
-  has passing runs on record in Chromium, run alone (4.6, above); none
-  proves the other current merged stories. The picker's 420 px, one-press
+  and phone geometry) retain story labels for failed steps. Tests 2 and 14
+  have passing runs on record in Chromium, each run alone (2's in 4.6, above;
+  14's with its failures, below); none proves the other current merged
+  stories. The picker's 420 px, one-press
   model and effort, outside and Escape checks, a step changing and restoring anchoring on a
   live page (4.3), and both sign-ins in one browser (4.2) await after-landing
   proof (section 5). The picker's separate render and fake-box proof at
   `1d82a937df` establishes no passing run of the merged story. Whether
   reading's four stories fit one run's forty seconds is unmeasured: apart, their wall medians add to
   25.761 s (`temper/docs/development/browser-budget.md`), each with a setup they now
-  share. The long story's replies are smaller than those figures' by the bytes that
-  leave room for the position story's in the fake's joint allowance, with no line
-  fewer; its bytes alone changed.
+  share. Those figures read a 131,072-byte window; reading's histories are now
+  sized to the tier's 32,768 (4.3), their code lines scaled with it and no reply,
+  paragraph or step fewer, and their wall at that size is unmeasured.
 - **Not yet:** 4.3: no whole-tier run on record establishes that the repaired
   tier fits its 127.5 CPU-second budget, 85 raised by half by the user's word
   of 11-08, for now, to be revisited. The flagged run, of 17 tests, was
-  129.4 CPU s, 70.8 s wall. With ctl history and the 131,072-byte window,
-  all twelve final comparison runs passed, but the CPU medians remain
+  129.4 CPU s, 70.8 s wall. With ctl history and a 131,072-byte window,
+  all twelve final comparison runs passed, with CPU medians of
   20.858273 s for long, 9.178371 s for Latest and 8.399148 s for unanchored,
-  above the request's targets of about 12, 6 and 5. Short rose to 6.414108 s
-  from the baseline's 4.193832 s. Those four sum to 44.849900 s, leaving
-  82.650100 s for the rest of the tier; the final cost awaits after-landing.
+  above the request `browser-budget`'s targets of about 12, 6 and 5, and
+  6.414108 s for short, from the baseline's 4.193832 s: 44.849900 s together.
   Loads, all samples and the limits of the comparison are in
-  `temper/docs/development/browser-budget.md`. Backoff failed its CPU and wall
-  criteria and is absent; the smaller window alone establishes no CPU saving.
+  `temper/docs/development/browser-budget.md`. The request `browser-reading`
+  of 2026-11-08 cut the long story's fixture and decoding: the tier's window,
+  `long_text` and `turn_text` at 32,768 bytes, reading's code lines scaled
+  with them (4.3), and skein's decoder indexing each CDP message once (skein's
+  `browser.md`, 4). It reads no CPU figure, so what the four stories cost now
+  is unmeasured; the final cost awaits after-landing (section 5). Backoff
+  failed its CPU and wall criteria and is absent, and the 131,072-byte window
+  alone showed no CPU saving in those figures.
   The listener-full ctl failure is repaired by ending an idle connection while
   preserving calls, partial requests and bounds. Whether that also repairs
   `browser_public`'s earlier visibility-command deadline failure is unverified:
@@ -313,6 +416,20 @@ establish no rendered equality.
   1,048,576-byte bound. The passing long browser story spans three small
   windows, while the unanchored position history stays within one; neither
   substitutes for that whole-bound check (section 5).
+- **Not yet:** 4.3, 4.6: story 14 has failed after landing in two ways
+  since `red-82-chat-opening` stopped a chat's opening reads at a screen
+  and a half (`README.md`, 5.15, *Opening history*), and their cause is
+  unknown. Once at `0599201e87`, `long`'s words moved across a read, from
+  y=519 to y=558 (`held`); in a run and its rerun at `23261749d4`,
+  `unanchored`'s kept box "Position paragraph 02." was missing at step 76.
+  The repair `red-87-reading` ran the story by name, alone, 30 times, and
+  every run passed: ten unloaded and ten under 16 CPU busy loops at
+  `2a399129fe`, ten under that load at `23261749d4`. `unanchored` held its
+  anchor at its opening measurement, y=151 across its earlier read, and
+  `long` held "Reading paragraph 07." and reply 8's end, its earlier pair
+  at y=144 and its later from 557 to 558. Neither the product nor the
+  story changed; whether they recur is for the tier's runs after landing
+  to show, and a red comes back as a repair.
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a
@@ -390,3 +507,28 @@ reads the rules, whose effect is rendered; that comparison is section
   chat terminal's `--accent` take the signal, `#c2410c`, which the
   request does not draw, so that no source of the bundle names the old
   mark's `#b8664e`, as its test asks.
+
+Sections 2.3 and 7.2 have no known implementation gap in Home and Needs
+you across projects, by plan `ui-p2-home`: `/home` for `AllHome`, which
+the domain's address table parses and prints; `temper.css`'s `/*
+==== ui: home ==== */` and `/* ==== ui: needs ==== */` holding Home's
+cards, Projects, the Ask temper line, Needs you's list, its closed rows,
+its *Tell it something else* and Decided for you, with their phone
+forms; and the gallery's `all-home`, `all-home-nothing-new`,
+`all-home-one-project`, `night-all-home`, the four `home-step-*`,
+`needs-list`, `needs-list-second`, `needs-tell`, `needs-approval-first`
+and `night-needs`, which its table checks. 7.2's states hold no red
+"owned", no Home at the standing roles' step, and no need's why or
+offer, which nothing yet draws (`../draft/surfaces.status.md`, 14). The
+rendered comparison follows landing (`README.md`, section 11, *Home and
+Needs you across projects after landing*).
+
+Section 7.2 has no known implementation gap in Away on All projects, by
+plan `ui-away-all`: the gallery's `all-home-away`, the switch and the
+chip "Away on 2 of 4", not pressed, and `all-home-away-on`, after a
+press each project's answer Away, the switch "Away until 08:00",
+pressed, and the toast; its table checks a button of each state's words,
+and its state, a control not pressed by `Part::NotPressed`. `temper.css`
+has no rule of its own for the words: whether they fit the switch and
+the chip is the rendered comparison's, after landing (`README.md`,
+section 11, *Away on All projects after landing*).

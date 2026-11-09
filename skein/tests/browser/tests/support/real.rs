@@ -66,6 +66,10 @@ impl Drop for Profile {
 }
 
 #[must_use]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads SKEIN_TEST_CHROMIUM and PATH to locate the browser test executable"
+)]
 pub fn chromium() -> PathBuf {
     if let Some(configured) = std::env::var_os("SKEIN_TEST_CHROMIUM") {
         let path = PathBuf::from(configured);

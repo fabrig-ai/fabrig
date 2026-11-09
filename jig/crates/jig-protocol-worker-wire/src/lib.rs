@@ -37,6 +37,7 @@ pub use v9::{
     Bounds, BoundsParts, CEILINGS, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts,
     Hosting, HostingParts, Phase,
 };
+pub use v9::{Draining, DrainingParts};
 
 /// An application's opaque bytes under the token its vocabulary names.
 #[derive(PartialEq, Eq, Debug)]

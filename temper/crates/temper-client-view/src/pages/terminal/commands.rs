@@ -63,17 +63,24 @@ pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -
                     }
                     Address::Chat { .. }
                     | Address::Ask { .. }
+                    | Address::AllHome
                     | Address::Inbox { .. }
                     | Address::Chats { .. }
+                    // page-view: draw Remembered.
+                    | Address::Remembered
+                    | Address::Members
+                    | Address::Limits
                     | Address::Accounts
                     | Address::Forges
                     | Address::ConnectForge { .. }
                     | Address::ConnectModel { .. }
                     | Address::Welcome { .. }
                     | Address::Task { .. }
+                    | Address::Work { .. }
                     | Address::Goals { .. }
                     | Address::Home { .. }
                     | Address::Changes { .. }
+                    | Address::Team { .. }
                     | Address::Settings { .. }
                     | Address::Models { .. }
                     | Address::Builders { .. }

@@ -4,6 +4,11 @@ use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};
 
 fn notes(bytes: &[u8]) {
+    if let Ok(scope) = notes_v1::Scope::decode(&notes_v1::CEILINGS, &mut Reader::new(bytes)) {
+        let mut writer = Writer::new(skein_lib::length::usize_of(scope.measure()));
+        scope.encode(&mut writer).expect("measured scope");
+        assert_eq!(writer.finish().as_ref(), bytes);
+    }
     if let Ok(row) = notes_v1::Row::decode(&notes_v1::CEILINGS, &mut Reader::new(bytes)) {
         let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
@@ -123,6 +128,11 @@ fn mutated_tasks_goldens_never_panic() {
 }
 
 fn people(bytes: &[u8]) {
+    if let Ok(scope) = people_v14::NoteScope::decode(&people_v14::CEILINGS, &mut Reader::new(bytes)) {
+        let mut writer = Writer::new(skein_lib::length::usize_of(scope.measure()));
+        scope.encode(&mut writer).expect("measured scope");
+        assert_eq!(writer.finish().as_ref(), bytes);
+    }
     if let Ok(row) = people_v14::Row::decode(&people_v14::CEILINGS, &mut Reader::new(bytes)) {
         let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");

@@ -186,3 +186,6 @@ record ListedRows { rows: list 256 ListRow }
 record ListFailureValue { value: ListFailed }
 enum ListOutcome { listed: ListedRows, failed: ListFailureValue }
 record ListRead { read: u64 outcome: ListOutcome }
+
+# A shutting worker leaves placement (jig/docs/design/protocol/channel.md, 5.1).
+record Draining {}

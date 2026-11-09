@@ -409,8 +409,9 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
     let holding = &mut hold.holding;
     hold.state = match state {
         State::Preparing { step, asked } => {
+            let detail = preparation_detail(step, &done);
             let next = prepared(holding, &mut domain.cache, step, done, &env.limits);
-            prepare_next(holding, id, next, asked, env, out)
+            prepare_next(holding, id, next, detail, asked, env, out)
         }
         State::Pushing { push, step, asked } => pushed(holding, id, push, step, asked, done, env, out),
         State::Ready | State::Unprepared | State::Closed => {
@@ -495,7 +496,7 @@ fn preparation(prepared: &Prepared) -> Preparation {
             Preparation::Ready { workspace: *workspace, conflicts: paths }
         }
         Prepared::Refused { refusal } => Preparation::Refused { refusal: *refusal },
-        Prepared::Failed { failure } => Preparation::Failed { failure: *failure },
+        Prepared::Failed { failure, .. } => Preparation::Failed { failure: *failure },
         Prepared::Aborted => Preparation::Aborted,
     }
 }
@@ -1069,12 +1070,70 @@ fn after_merged(repository: u32, last: u32) -> Next {
     if repository < last { Next::Step(PrepareStep::Fetch { repository: after(repository) }) } else { Next::Ready }
 }
 
+/// The named step and git's fault, outside the checkout's facts (worker.md, 4.4).
+fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
+    let (fault, output) = match done {
+        Done::Failed { fault } => (fault.name(), b"".as_slice()),
+        Done::FailedWithOutput { fault, diagnostic } => (fault.name(), diagnostic.output()),
+        Done::Conflicted { .. } => (b"Conflicted".as_slice(), b"".as_slice()),
+        Done::Succeeded
+        | Done::Fetched { .. }
+        | Done::Committed { .. }
+        | Done::Unchanged
+        | Done::Exists
+        | Done::Rejected
+        | Done::Looked { .. }
+        | Done::IsAncestor { .. }
+        | Done::Merged => {
+            return Box::new([]);
+        }
+    };
+    let step: &[u8] = match step {
+        PrepareStep::Look { .. } => b"look",
+        PrepareStep::Make => b"make",
+        PrepareStep::Clone { .. } => b"clone",
+        PrepareStep::Fetch { .. } => b"fetch",
+        PrepareStep::Default { .. } => b"fetch default",
+        PrepareStep::Create { .. } => b"create base",
+        PrepareStep::Refetch { .. } => b"refetch base",
+        PrepareStep::CheckOut { .. } => b"check out",
+        PrepareStep::FetchPush { .. } => b"fetch push",
+        PrepareStep::FetchLanding { .. } => b"fetch landing",
+        PrepareStep::FetchBase { .. } => b"fetch base",
+        PrepareStep::CheckOutMerge { .. } => b"check out merge",
+        PrepareStep::CompareBase { .. } => b"compare base",
+        PrepareStep::CompareHead { .. } => b"compare head",
+        PrepareStep::Merge { .. } => b"merge",
+        PrepareStep::CommitHead { .. } => b"commit head",
+        PrepareStep::CheckOutHead { .. } => b"check out head",
+        PrepareStep::CommitMerge { .. } => b"commit merge",
+        PrepareStep::CheckOutMerged { .. } => b"check out merged",
+    };
+    let separator = if output.is_empty() { b"".as_slice() } else { b": ".as_slice() };
+    let size = step
+        .len()
+        .checked_add(2)
+        .expect("fixed step")
+        .checked_add(fault.len())
+        .expect("fixed fault")
+        .checked_add(separator.len())
+        .expect("fixed separator")
+        .checked_add(output.len())
+        .expect("bounded git diagnostic");
+    let mut text = Writer::new(size);
+    for part in [step, b": ", fault, separator, output] {
+        text.put(part).expect("measured diagnostic");
+    }
+    text.finish()
+}
+
 /// Preparing, done: the next operation, or the prepare's end, which an abort
 /// or a release turns into aborted.
 fn prepare_next(
     holding: &mut Holding,
     id: Id<Hold>,
     next: Next,
+    detail: Box<[u8]>,
     asked: Asked,
     env: &Env<Limits>,
     out: &mut Queue<Request>,
@@ -1091,7 +1150,7 @@ fn prepare_next(
                 State::Ready
             }
             Next::Failed(failure) => {
-                out.push(Request::Prepared { client, prepared: Prepared::Failed { failure } });
+                out.push(Request::Prepared { client, prepared: Prepared::Failed { failure, detail } });
                 State::Unprepared
             }
         },

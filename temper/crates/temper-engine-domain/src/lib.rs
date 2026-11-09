@@ -34,8 +34,8 @@ pub use decision::{
 };
 pub use store::{
     CallAnswer, CallKey, CallRecord, Changed, CoreRange, Deployment, DocumentOutcome, DocumentRefusal, Documented,
-    EscalationDecisionRecord, Family, Key, NoteFamily, PartsAnswer, ProposalDecisionRecord, Range, Record, RunProof,
-    TerminalRecord, TurnProof, TurnRecord, Write, record_bytes,
+    EscalationDecisionRecord, Family, Key, NoteFamily, PartsAnswer, ProposalDecisionRecord, Range, Record, RememberDid,
+    RememberRefusal, Remembered, RunProof, TerminalRecord, TurnProof, TurnRecord, Write, record_bytes,
 };
 
 pub use admission::{completes, try_step};
@@ -50,8 +50,8 @@ pub use limits::{
 pub use link::{inbox_sender, inbox_words};
 pub use route::{
     Approval, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, OfferedModel, PersonForge,
-    ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeProposal, SeeRepository, SeeSettings,
-    adopt_repository_ask,
+    ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeName, SeeNames, SeeNotRead, SeePerson, SeeProposal,
+    SeeRead, SeeRepository, SeeSettings, SeeWords, adopt_repository_ask,
 };
 pub use temper_engine_domain_forge::commit_text;
 pub use translate::{

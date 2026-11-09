@@ -209,6 +209,7 @@ pub struct Relay {
 }
 impl Relay {
     #[must_use]
+    #[expect(clippy::disallowed_methods, reason = "cli C4: TMPDIR, through temper's test table once it exists")]
     pub fn start(guard: Guard) -> Self {
         let roots = skein_shell::read_trust_roots(
             &skein_shell::Trust::Machine { ssl_cert_file: None },

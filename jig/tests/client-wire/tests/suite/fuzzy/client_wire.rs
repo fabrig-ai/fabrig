@@ -271,6 +271,7 @@ fn records_6(bytes: &[u8]) {
     check!(SeenConversation, bytes);
     check!(SeenThrough, bytes);
     check!(Seen, bytes);
+    check!(NoteScopeParty, bytes);
     check!(NoteScopeProject, bytes);
     check!(NoteScopeResource, bytes);
     check!(NoteScopeTask, bytes);

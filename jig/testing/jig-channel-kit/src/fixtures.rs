@@ -38,8 +38,8 @@ const ENGINE: &[u8] = br#"{
 "people.people":1,"people.projects":2,"people.sign_ins":2,"people.holdings":1,
 "people.inbox_tasks":4,"people.pending":1,"people.waiters":1,
 "fleet.attempts":1,"fleet.calls":1,"fleet.turns":8,
-"brief.briefs":1,"brief.sections":6,"tasks.charter_documents":0,
-"notes.entries_per_scope":1,"views.runs":1,"views.watchers":4,"views.watchers_per_party":4,
+"brief.briefs":1,"brief.sections":7,"tasks.charter_documents":0,
+"notes.entries_per_scope":1,"notes.party_entries":1,"views.runs":1,"views.watchers":4,"views.watchers_per_party":4,
 "core.load_slots":1,"core.load_bytes":8192,"core.resume_bytes":4096,"core.run_bytes":4096,"views.text_bytes":1024
 ,"core.templates":2,"documents.rows":1,"documents.lines":1,"documents.chips":1,"documents.text_bytes":128
 }},
@@ -667,4 +667,25 @@ fn providers_engine() -> Vec<u8> {
 pub(crate) fn providers_store_names() -> &'static [jig_domain_core::settings::ModelName] {
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
     NAMES.get_or_init(|| jig_protocol_store::codec::names(&configuration(&providers_engine()).llm.models()))
+}
+
+/// The redial ceiling from the same worker document the world starts.
+#[must_use]
+pub(crate) fn worker_redial_ceiling() -> Duration {
+    static CEILING: std::sync::OnceLock<Duration> = std::sync::OnceLock::new();
+    *CEILING.get_or_init(|| {
+        let bytes = u32::try_from(WORKER_DOCUMENT.len()).expect("fixture size");
+        let document = jig_protocol_config::document(
+            WORKER_DOCUMENT,
+            &jig_protocol_config::DocumentLimits { bytes, tokens: bytes, depth: 32 },
+        )
+        .expect("worker document");
+        let array = document.member(0, b"workers").expect("worker array");
+        let at = array.checked_add(1).expect("first worker");
+        jig_protocol_config::worker(&document, at, &jig_protocol_config::Directories::working())
+            .expect("fixture worker")
+            .limits
+            .link
+            .ceiling
+    })
 }

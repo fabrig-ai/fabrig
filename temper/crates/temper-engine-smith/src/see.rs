@@ -1,5 +1,8 @@
 //! Decode an address read (temper/docs/design/domain/agent.md, 8.4.1).
 
+pub(crate) mod addresses;
+mod person;
+
 use crate::{Problem, json::Value};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, bytes};
@@ -32,13 +35,7 @@ pub(crate) fn decode(value: &Value) -> Result<Result<Tool, HostAnswer>, Problem>
 
 /// The most an answer's body holds (domain/agent.md, 8.4.1).
 pub const SEE_PART: u32 = 6_144;
-/// The line of addresses an unknown address answers with, as `ask.txt` gives it.
-pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
-
-const INVENTORY: &[u8] = "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings".as_bytes();
-const SETTING: &[u8] = "settings · revisions · help settings-fields".as_bytes();
-const LANDING_RULE: &[u8] = "settings landing · settings · help landing-rule".as_bytes();
-const FILE: &[u8] = "file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME".as_bytes();
+pub use addresses::ADDRESSES;
 
 /// Render a `see` read's answer in its outer form, within the call and host allowances.
 #[must_use]
@@ -51,9 +48,19 @@ pub fn see_answer(
 ) -> HostAnswer {
     let text = match answer {
         SeeAnswer::Ways(document) => Ok(ways_text(document)),
-        SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
+        SeeAnswer::Person(value) => Ok(person::text(value, catalogue)),
+        SeeAnswer::NotRead(why) => {
+            let message = match why {
+                engine::SeeNotRead::Unknown => b"not read: nothing you may read in this project is there.".as_slice(),
+                engine::SeeNotRead::Busy => b"not read: temper is busy; read it again.",
+                engine::SeeNotRead::NoPerson => b"not read: this chat has no person to read as.",
+            };
+            return refused(line, message, max_bytes);
+        }
         SeeAnswer::Unknown => {
-            return error(&join(&[b"see: no address ", line, b"; addresses: ", ADDRESSES.as_bytes()]), max_bytes);
+            let mut forms = Writer::new(ADDRESSES.len());
+            addresses::forms(&mut forms).expect("the address table fits its declared line");
+            return error(&join(&[b"see: no address ", line, b"; addresses: ", &forms.finish()]), max_bytes);
         }
         SeeAnswer::Settings(settings) => {
             if let jig_domain_core::SettingsAnswer::Unknown = &settings.answer {
@@ -96,42 +103,64 @@ pub fn see_answer(
 }
 
 fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
-    match answer {
+    let form = match answer {
         SeeAnswer::Settings(settings) => match &settings.answer {
-            jig_domain_core::SettingsAnswer::Inventory(_) => INVENTORY,
+            jig_domain_core::SettingsAnswer::Inventory(_) => "settings",
             jig_domain_core::SettingsAnswer::Setting(document) => match document.setting {
-                jig_domain_core::settings::Setting::Application { kind: 1 | 2, .. } => LANDING_RULE,
-                jig_domain_core::settings::Setting::Charter(_)
-                | jig_domain_core::settings::Setting::Template(_)
-                | jig_domain_core::settings::Setting::Policy(_)
-                | jig_domain_core::settings::Setting::Model(_)
-                | jig_domain_core::settings::Setting::Rules
-                | jig_domain_core::settings::Setting::ProjectPolicy { .. }
-                | jig_domain_core::settings::Setting::Application { .. } => SETTING,
+                jig_domain_core::settings::Setting::Charter(_) => "settings charter N",
+                jig_domain_core::settings::Setting::Template(_) => "settings template N",
+                jig_domain_core::settings::Setting::Policy(_)
+                | jig_domain_core::settings::Setting::ProjectPolicy { .. } => "settings policy N",
+                jig_domain_core::settings::Setting::Model(_) => "settings model N",
+                jig_domain_core::settings::Setting::Rules => "settings rules",
+                jig_domain_core::settings::Setting::Application { kind, .. } => match kind {
+                    1 | 2 => "settings landing-rule N [project]",
+                    3 => "settings forge-charter N",
+                    6 => "settings project-questions",
+                    7 => "settings project-ways",
+                    8 => "settings project-classes",
+                    9 => "settings charter-words N",
+                    10 => "settings project-words",
+                    11 => "settings template-goal N",
+                    _ => unreachable!("each application setting read has an address"),
+                },
             },
-            jig_domain_core::SettingsAnswer::Revisions(_) => "revision N · settings · help revision".as_bytes(),
-            jig_domain_core::SettingsAnswer::Revision(_) => {
-                "revisions · proposal tN/K · proposal pN/K · settings".as_bytes()
-            }
+            jig_domain_core::SettingsAnswer::Revisions(_) => "revisions",
+            jig_domain_core::SettingsAnswer::Revision(_) => "revision N",
             jig_domain_core::SettingsAnswer::Unknown => unreachable!("unknown settings answer before its form"),
         },
         SeeAnswer::Page { .. } => {
             if line.trim_ascii() == b"help" {
-                "help NAME · help search WORDS".as_bytes()
+                "help"
             } else {
-                "help · help search WORDS".as_bytes()
+                "help NAME"
             }
         }
-        SeeAnswer::Search { .. } => b"help NAME",
-        SeeAnswer::Call { .. } => FILE,
-        SeeAnswer::Landing(_) => {
-            "settings gates OWNER/NAME · settings landing-rule N [project] · help landing".as_bytes()
+        SeeAnswer::Search { .. } => "help search WORDS",
+        SeeAnswer::Call { .. } => "file OWNER/NAME PATH [BRANCH]",
+        SeeAnswer::Landing(_) => "settings landing",
+        SeeAnswer::Gates(_) => "settings gates OWNER/NAME",
+        SeeAnswer::Proposal(_) => "proposal tN/K or pN/K",
+        SeeAnswer::Ways(_) => "ways",
+        SeeAnswer::Person(value) => match &value.read {
+            engine::SeeRead::Tasks { .. } => "tasks",
+            engine::SeeRead::Me { .. } => "me",
+            engine::SeeRead::Project { .. } => "project",
+            engine::SeeRead::Goals { ended: false, .. } => "goals",
+            engine::SeeRead::Goals { ended: true, .. } => "goals ended",
+            engine::SeeRead::Task { .. } => "task N",
+            engine::SeeRead::Tree { .. } => "task N tree",
+            engine::SeeRead::Inbox { .. } => "inbox",
+            engine::SeeRead::Activity { .. } => "task N activity",
+            engine::SeeRead::Turn { .. } => "task N turn A.T",
+            engine::SeeRead::Change { .. } => "change N",
+            engine::SeeRead::Changes { .. } => "changes",
+        },
+        SeeAnswer::NotRead(_) | SeeAnswer::Unknown => {
+            unreachable!("errors have no following addresses")
         }
-        SeeAnswer::Gates(_) => "settings landing · file OWNER/NAME PATH".as_bytes(),
-        SeeAnswer::Proposal(_) => "revision N · revisions · help proposal".as_bytes(),
-        SeeAnswer::Ways(_) => "settings rules · settings landing · settings project-ways · help settings".as_bytes(),
-        SeeAnswer::NotYet | SeeAnswer::Unknown => unreachable!("errors have no following addresses"),
-    }
+    };
+    addresses::following(form)
 }
 
 fn ways_text(document: &engine::ways::WaysDocument) -> Box<[u8]> {
@@ -173,7 +202,17 @@ fn path_text(path: &engine::ways::Path) -> Box<[u8]> {
             engine::ways::Actor::Code => b"code".as_slice(),
             engine::ways::Actor::Bar => b"a branch".as_slice(),
         };
-        parts.push(join(&[&stop.words, b" (", actor, b")"])).expect("stop text");
+        parts
+            .push(join(&[
+                &stop.words,
+                b" (",
+                actor,
+                if stop.needed { b", when needed" } else { b"" },
+                if stop.over.is_empty() { b"" } else { b"; " },
+                &stop.over,
+                b")",
+            ]))
+            .expect("stop text");
     }
     join_parts(&parts)
 }
@@ -287,6 +326,8 @@ fn gates_text(repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static 
             temper_engine_domain_forge::Follows::Branch(branch) => branch,
             temper_engine_domain_forge::Follows::Goals => b"goals' branches".as_slice(),
         };
+        let checks =
+            if tier.description.is_empty() { Box::default() } else { join(&[b", checks ", &tier.description]) };
         parts
             .push(join(&[
                 b"  ",
@@ -297,6 +338,7 @@ fn gates_text(repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static 
                 &tier.artifact,
                 b", follows ",
                 follows,
+                &checks,
                 &ignored_text(&tier.ignored),
                 b"\n",
             ]))

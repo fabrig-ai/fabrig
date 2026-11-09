@@ -8,7 +8,43 @@ pub use reference::{engine_reference, reference};
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-use temper_worker_domain_checkout as checkout;
+/// The checkout's configured bounds (protocol/configuration.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Checkout {
+    /// Workspaces on the worker's disk: the cache's bound, and the most that
+    /// may be held at once. A prepare that finds every one held is refused.
+    pub workspaces: u32,
+    /// Repositories a spec names: at least one.
+    pub repositories: u32,
+    /// The longest workstream key, repository name or remote, or branch.
+    pub name_bytes: u32,
+    /// The longest commit message, its title and body together.
+    pub message_bytes: u32,
+    /// Maximum originally or still conflicted paths per repository. Zero
+    /// disables merge starts; other workspace preparation remains available.
+    pub conflicts: u32,
+    /// Maximum bytes of one full relative conflicted path.
+    pub path_bytes: u32,
+    /// How long an operation that reaches the forge may take: a clone, a
+    /// fetch, a branch's creation, a push.
+    pub remote_timeout: Duration,
+    /// How long one on the worker's disk may take: making a workspace,
+    /// checking out, merging, committing.
+    pub local_timeout: Duration,
+    /// Facts kept until the parent drains them. Beyond them, facts are dropped
+    /// and counted.
+    pub facts: u32,
+}
+/// The git component's configured bounds (protocol/configuration.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct GitComponent {
+    pub operations: u32,
+    pub stdout_bytes: u32,
+    pub stderr_bytes: u32,
+    pub read_bytes: u32,
+    pub sweep_entries: u32,
+    pub sweep_bytes: u32,
+}
 /// Temper's profiles for one person's machine and a project of fabrig's scale.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Profile {
@@ -56,8 +92,8 @@ pub struct Limits {
     pub forge_component: skein_forge_connection::Limits,
     pub root: Root,
     pub forge: forge::Limits,
-    pub checkout: checkout::Limits,
-    pub git_component: temper_worker_protocol_git::Limits,
+    pub checkout: Checkout,
+    pub git_component: GitComponent,
     pub clients: Clients,
     pub sign_in: SignIn,
     pub picker: Picker,
@@ -204,14 +240,15 @@ const FORGE: forge::Limits = forge::Limits {
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     // Project judge tables, from the engine forge world fixture.
     judge_projects: 2,
+    decided_per_project: 1024,
     // Criteria in each judge table, from the engine forge world fixture.
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
-    // Forge brief sections gathering at once, from the engine forge world fixture.
-    brief_sections: 32,
+    // Two gathers of nine sections, each with a second fetch while cutting.
+    brief_sections: 36,
     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
     brief_bytes: 4608,
     // Forge client calls, retries and outbox room.
@@ -293,7 +330,7 @@ const STANDARD_FORGE: forge::Limits = forge::Limits {
     },
     ..FORGE
 };
-const CHECKOUT: checkout::Limits = checkout::Limits {
+const CHECKOUT: Checkout = Checkout {
     // Cached or held checkout workspaces, from the checkout world fixture.
     workspaces: 3,
     // Held to the agent's two repository directories.
@@ -329,8 +366,8 @@ const ROOT: Root = Root {
         transcript_bytes: 65_536,
         // At least brief.brief_bytes and jig small people.words: the root's worst case.
         result_bytes: 14_592,
-        // The fake backends' stock charter carrier needs 16,446 bytes.
-        run_bytes: 20_480,
+        // The stock's largest run policy, charter 11's, needs 20,795 bytes.
+        run_bytes: 24_576,
     },
     loads: engine::loads::Limits {
         // Concurrent loads, from the root world.
@@ -350,7 +387,7 @@ const ROOT: Root = Root {
         // Concurrent gathers, from the root world.
         briefs: 2,
         // Core sections and two charter documents per gather.
-        sections: 8,
+        sections: 9,
         // Parts per section, from the root world.
         parts: 2,
         // One section's read bytes: at least the task section's.
@@ -376,6 +413,7 @@ const ROOT: Root = Root {
             plan: 128,
             // Notes section's bytes, from the root world.
             notes: 64,
+            preferences: 2048,
         },
         // Whole task, pull and review sections, with 768 bytes for other context.
         brief_bytes: 14_592,
@@ -508,7 +546,7 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
     }
 }
 
-const GIT: temper_worker_protocol_git::Limits = temper_worker_protocol_git::Limits {
+const GIT: GitComponent = GitComponent {
     // One operation per cached workspace, plus the component's startup and sweep.
     operations: 3,
     // At least every conflict path including its terminating NUL.
@@ -562,18 +600,13 @@ pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
 }
 
 /// Job files and error output (temper/docs/design/protocol/tooling.md, 6).
+#[cfg(feature = "worker")]
 pub(crate) const TOOLING_FILE_BYTES: u32 = 1_048_576;
+#[cfg(feature = "worker")]
 pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
+#[cfg(feature = "worker")]
 pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
-pub(crate) fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {
-    temper_worker_domain::tooling::Limits {
-        file_bytes: TOOLING_FILE_BYTES,
-        tail_bytes: TOOLING_LOG_BYTES,
-        path_bytes: TOOLING_PATH_BYTES,
-        jobs: slots,
-        path: b"/usr/bin:/bin".as_slice().into(),
-    }
-}
+pub(crate) const TOOLING_PATH: &[u8] = b"/usr/bin:/bin";
 
 /// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
 pub(crate) const MERGE_KIND: u32 = 3;
@@ -581,19 +614,33 @@ pub(crate) const MERGE_SPEC_BYTES: u32 = 4_096;
 pub(crate) const MERGE_RESULT_BYTES: u32 = 512;
 pub(crate) const MERGE_DEADLINE: Duration = Duration::from_secs(600);
 
-pub(crate) fn merge_bound() -> JobBound {
+/// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+#[must_use]
+pub fn merge_bound() -> JobBound {
     JobBound { kind: JobKind(MERGE_KIND), spec: MERGE_SPEC_BYTES, result: MERGE_RESULT_BYTES, deadline: MERGE_DEADLINE }
 }
 
 /// Declare merge only where the tasks child holds its bounds
 /// (temper/docs/design/domain/worker.md, 4.4).
-pub(crate) fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
+#[must_use]
+pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = merge_bound();
     if bound.spec <= jig.core.tasks.spec_bytes && bound.result <= jig.core.tasks.result_bytes {
         Box::new([bound])
     } else {
         Box::new([])
     }
+}
+
+/// The worker root's job kinds: the merge kind alone (temper/docs/design/domain/worker.md, 4.4).
+#[cfg(feature = "worker")]
+#[must_use]
+pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
+    Box::new([temper_worker_domain::tooling::Kind {
+        bound: merge_bound(),
+        verb: b"merge".as_slice().into(),
+        delivers: true,
+    }])
 }
 
 #[cfg(test)]

@@ -235,8 +235,7 @@ fn explicit_start_skips_all_expired_families_before_live_fit() {
 }
 
 #[test]
-#[should_panic(expected = "SignIn(7) links missing person 99")]
-fn explicit_start_asserts_required_links_with_keys() {
+fn explicit_start_refuses_required_links_with_keys() {
     let env = env();
     let mut domain = Domain::new(&LIMITS, Box::new([]), 1, Box::new([]));
     domain.start_restore(Wall::EPOCH);
@@ -246,7 +245,12 @@ fn explicit_start_asserts_required_links_with_keys() {
         Stored::SignIn { number: 7, person: 99, expires: Wall::from_nanos(1) },
         &mut Queue::uncapped(),
     );
-    domain.start_link();
+    assert!(!domain.start_link());
+    assert_eq!(
+        domain.restore_failure(),
+        Some(RestoreFailure { key: Key::SignIn(7), cause: RestoreCause::Link { target: Key::Person(99) } })
+    );
+    assert!(!domain.ready());
 }
 
 fn person(number: u64) -> Stored {
@@ -434,22 +438,29 @@ fn explicit_start_checks_nested_bytes_and_shared_request_capacity() {
 }
 
 #[test]
-fn explicit_start_asserts_duplicate_identity_and_wrong_family() {
-    for collision in [false, true] {
-        let env = env();
-        let (mut domain, mut out) = new_start(&env);
-        let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            if collision {
-                load(&mut domain, &env, person(1), &mut out);
-                let Stored::Person { identity, .. } = person(1) else { unreachable!() };
-                load(&mut domain, &env, Stored::Person { number: 2, identity }, &mut out);
-            } else {
-                load(&mut domain, &env, Stored::EndedRead { task: 1, party: 1, through: 1 }, &mut out);
-            }
-        }));
-        assert!(result.is_err());
-        assert!(out.is_empty());
-    }
+#[should_panic(expected = "wrong people family: EndedRead")]
+fn explicit_start_asserts_wrong_family() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    load(&mut domain, &env, Stored::EndedRead { task: 1, party: 1, through: 1 }, &mut out);
+}
+
+#[test]
+fn explicit_start_refuses_duplicate_identity_naming_both_people() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    load(&mut domain, &env, person(1), &mut out);
+    let Stored::Person { identity, .. } = person(1) else { unreachable!() };
+    load(&mut domain, &env, Stored::Person { number: 2, identity }, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Request::RestoreRefused { key: Key::Person(2), refusal: Refusal::Limit { which: LimitKind::Restore } })
+    );
+    let expected = RestoreFailure { key: Key::Person(2), cause: RestoreCause::Link { target: Key::Person(1) } };
+    assert_eq!(domain.restore_failure(), Some(expected));
+    assert!(!domain.start_link());
+    assert!(!domain.ready());
+    assert!(out.is_empty());
 }
 
 #[test]
@@ -529,36 +540,44 @@ fn explicit_start_live_answer_and_act_expire_only_through_timers_after_open() {
 }
 
 #[test]
-fn explicit_start_asserts_each_required_local_link_before_sweep() {
+fn explicit_start_refuses_each_required_local_link_before_sweep() {
     let roster_ask = Ask::SetRoles { project: 9, holdings: Box::new([Holding { person: 99, role: Role::Member }]) };
-    for row in [
-        Stored::Roles { project: 1, holdings: Box::new([Holding { person: 99, role: Role::Member }]) },
-        Stored::ReadResults { party: 99, through: 0 },
-        Stored::ReadConversation { party: 99, task: 0, through: 0 },
-        Stored::Answer {
-            key: RequestKey { person: 99, key: [1; 16] },
-            ask: Box::new(Ask::Stop { project: 1, task: 1 }),
-            models: Box::new([]),
-            outcome: Outcome::Stopped { task: 1 },
-            at: Wall::EPOCH,
-        },
-        answer(
-            1,
-            Ask::MakeService { project: 0, name: Box::new([]), role: Role::Member },
-            Outcome::ServiceMade { person: 99 },
+    for (row, target) in [
+        (
+            Stored::Roles { project: 1, holdings: Box::new([Holding { person: 99, role: Role::Member }]) },
+            Key::Person(99),
         ),
-        answer(1, roster_ask.clone(), Outcome::RolesSet { project: 9 }),
+        (Stored::ReadResults { party: 99, through: 0 }, Key::Person(99)),
+        (Stored::ReadConversation { party: 99, task: 0, through: 0 }, Key::Person(99)),
+        (
+            Stored::Answer {
+                key: RequestKey { person: 99, key: [1; 16] },
+                ask: Box::new(Ask::Stop { project: 1, task: 1 }),
+                models: Box::new([]),
+                outcome: Outcome::Stopped { task: 1 },
+                at: Wall::EPOCH,
+            },
+            Key::Person(99),
+        ),
+        (
+            answer(
+                1,
+                Ask::MakeService { project: 0, name: Box::new([]), role: Role::Member },
+                Outcome::ServiceMade { person: 99 },
+            ),
+            Key::Person(99),
+        ),
+        (answer(1, roster_ask.clone(), Outcome::RolesSet { project: 9 }), Key::Roles(9)),
     ] {
         let env = env();
         let (mut domain, mut out) = new_start(&env);
         load(&mut domain, &env, person(1), &mut out);
+        let key = row.key();
         load(&mut domain, &env, row, &mut out);
         assert!(out.is_empty());
-        let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            domain.start_link();
-        }));
-        assert!(result.is_err());
-        assert!(out.is_empty(), "link panic erases no row");
+        assert!(!domain.start_link());
+        assert_eq!(domain.restore_failure(), Some(RestoreFailure { key, cause: RestoreCause::Link { target } }));
+        assert!(out.is_empty(), "link refusal erases no row");
     }
     // The roster of a successful decision retains its members without equating it with today's roster.
     let env = env();
@@ -568,10 +587,14 @@ fn explicit_start_asserts_each_required_local_link_before_sweep() {
     load(&mut domain, &env, answer(1, roster_ask.clone(), Outcome::RolesSet { project: 9 }), &mut out);
     assert_eq!(domain.project_members(9), Some([].as_slice()));
     assert!(!domain.ready());
-    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-        domain.start_link();
-    }));
-    assert!(result.is_err());
+    assert!(!domain.start_link());
+    assert_eq!(
+        domain.restore_failure(),
+        Some(RestoreFailure {
+            key: Key::Answer(RequestKey { person: 1, key: [1; 16] }),
+            cause: RestoreCause::Link { target: Key::Person(99) },
+        })
+    );
     assert!(out.is_empty());
     let (mut domain, mut out) = new_start(&env);
     load(&mut domain, &env, person(1), &mut out);
@@ -694,12 +717,15 @@ fn loading_ended_witness_preserves_missing_person_until_link() {
     load(&mut domain, &env, Stored::ReadConversation { party: 99, task: 7, through: 2 }, &mut out);
     assert!(domain.start_project(&env.limits, RestoreProjection::EndedConversation { task: 7 }));
     assert_eq!(domain.read_conversations().get(&(99, 7)), Some(&2));
-    let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_link()));
-    let error = result.expect_err("missing person must still assert");
-    let message = error.downcast_ref::<String>().expect("formatted link panic");
-    assert_eq!(message, "ReadConversation { party: 99, task: 7 } links missing person 99");
+    assert!(!domain.start_link());
     assert!(out.is_empty());
-    assert_eq!(domain.restore_failure(), None);
+    assert_eq!(
+        domain.restore_failure(),
+        Some(RestoreFailure {
+            key: Key::ReadConversation { party: 99, task: 7 },
+            cause: RestoreCause::Link { target: Key::Person(99) },
+        })
+    );
 }
 
 #[test]

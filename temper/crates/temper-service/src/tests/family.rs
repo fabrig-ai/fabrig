@@ -1929,6 +1929,36 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
             root::Application::Dismiss { what: forge::PersonFact::ToBegin { project: 2 } },
         ),
         (
+            w::Request::Dismiss(
+                w::Dismiss::new(
+                    &w::CEILINGS,
+                    w::DismissParts {
+                        what: w::PersonFact::KeepAsking(
+                            w::KeepAsking::new(
+                                &w::CEILINGS,
+                                w::KeepAskingParts {
+                                    project: 2,
+                                    subject: temper_protocol_reaches::subject_record(
+                                        temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
+                                    ),
+                                    at: 17,
+                                },
+                            )
+                            .unwrap(),
+                        ),
+                    },
+                )
+                .unwrap(),
+            ),
+            root::Application::Dismiss {
+                what: forge::PersonFact::KeepAsking {
+                    project: 2,
+                    subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
+                    at: 17,
+                },
+            },
+        ),
+        (
             w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
             root::Application::Forge(forge::Ask::RemoveForge { forge: 9 }),
         ),
@@ -2776,6 +2806,31 @@ fn dismissals_encode_the_partys_rows() {
         }
         assert_eq!(got, w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: expected }).unwrap());
     }
+    for subject in [
+        temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
+        temper_protocol_reaches::Subject::Set(6),
+    ] {
+        let what = forge::PersonFact::KeepAsking { project: 2, subject, at: u64::MAX };
+        let bytes =
+            family::document(forge::Document::Dismissals(Box::new([what])), &fixtures::forge_table(&[]), &w::CEILINGS)
+                .unwrap();
+        let got = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(got.dismissed().len(), 1);
+        assert_eq!(
+            got.dismissed().iter().next(),
+            Some(&w::PersonFact::KeepAsking(
+                w::KeepAsking::new(
+                    &w::CEILINGS,
+                    w::KeepAskingParts {
+                        project: 2,
+                        subject: temper_protocol_reaches::subject_record(subject),
+                        at: u64::MAX,
+                    }
+                )
+                .unwrap()
+            ))
+        );
+    }
 }
 
 #[test]
@@ -2881,6 +2936,7 @@ fn changes_document_encodes_and_decodes() {
     let landed = got.landed().get(0).unwrap();
     assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
 }
+#[expect(clippy::too_many_lines, reason = "one row table pairs engine and wire stops, including their annotations")]
 fn ways_path() -> (ways::Path, w::BranchPath) {
     let facts = Box::new([
         ways::Fact { label: b"Model".as_slice().into(), value: b"a model".as_slice().into() },
@@ -2902,8 +2958,8 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
         w::Card::new(&w::CEILINGS, w::CardParts { who: card.who.clone(), name: card.name.clone(), facts: wire_facts })
             .unwrap();
     let mut stops = List::uncapped();
-    let mut wire_stops = List::with_capacity(4);
-    for (actor, step, words, opens, wire_actor, wire_step, wire_opens) in [
+    let mut wire_stops = List::with_capacity(7);
+    for (actor, step, words, opens, wire_actor, wire_step, wire_opens, needed, over) in [
         (
             ways::Actor::Person,
             ways::Step::Ask,
@@ -2912,6 +2968,8 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             w::Actor::Person,
             w::PathStep::Ask,
             w::Opens::Nothing,
+            false,
+            b"".as_slice(),
         ),
         (
             ways::Actor::Agent,
@@ -2921,6 +2979,8 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             w::Actor::Agent,
             w::PathStep::Produce,
             w::Opens::Charter(w::OpensCharter::new(&w::CEILINGS, w::OpensCharterParts { charter: 3 }).unwrap()),
+            false,
+            b"".as_slice(),
         ),
         (
             ways::Actor::Code,
@@ -2930,6 +2990,41 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             w::Actor::Code,
             w::PathStep::Merge,
             w::Opens::Queue,
+            false,
+            b"into goal".as_slice(),
+        ),
+        (
+            ways::Actor::Code,
+            ways::Step::Conflict,
+            b"conflict".as_slice(),
+            ways::Opens::Queue,
+            w::Actor::Code,
+            w::PathStep::Conflict,
+            w::Opens::Queue,
+            true,
+            b"".as_slice(),
+        ),
+        (
+            ways::Actor::Agent,
+            ways::Step::Repair,
+            b"repair".as_slice(),
+            ways::Opens::Nothing,
+            w::Actor::Agent,
+            w::PathStep::Repair,
+            w::Opens::Nothing,
+            true,
+            b"tests, review".as_slice(),
+        ),
+        (
+            ways::Actor::Code,
+            ways::Step::CatchUp,
+            b"catch up".as_slice(),
+            ways::Opens::Nothing,
+            w::Actor::Code,
+            w::PathStep::CatchUp,
+            w::Opens::Nothing,
+            true,
+            b"".as_slice(),
         ),
         (
             ways::Actor::Bar,
@@ -2939,14 +3034,20 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             w::Actor::Bar,
             w::PathStep::Branch,
             w::Opens::Nothing,
+            false,
+            b"".as_slice(),
         ),
     ] {
-        stops.push(ways::Stop { actor, step, words: words.into(), opens, card: card.clone() }).unwrap();
+        stops
+            .push(ways::Stop { needed, over: over.into(), actor, step, words: words.into(), opens, card: card.clone() })
+            .unwrap();
         wire_stops
             .push(
                 w::Stop::new(
                     &w::CEILINGS,
                     w::StopParts {
+                        needed,
+                        over: over.into(),
                         actor: wire_actor,
                         step: wire_step,
                         words: words.into(),
@@ -2974,6 +3075,7 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
         entries
             .push(ways::WayEntry {
                 name: name.into(),
+                headline: b"A way to work.".as_slice().into(),
                 line: b"How it lands".as_slice().into(),
                 path: path.clone(),
                 delegation,
@@ -2985,14 +3087,33 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
                         edit: ways::Edit::Set(forge::settings::Value::Charter(3)),
                     },
                     ways::Item { kind: 2, scope: 7, number: 4, edit: ways::Edit::Remove },
+                    ways::Item {
+                        kind: 8,
+                        scope: 7,
+                        number: 1,
+                        edit: ways::Edit::Set(forge::settings::Value::Classes(
+                            temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
+                        )),
+                    },
                 ]),
             })
             .unwrap();
     }
-    ways::WaysDocument { project: 7, ways: entries.into_boxed(), current: Some(1), own: path.clone(), may_change: true }
+    ways::WaysDocument {
+        project: 7,
+        ways: entries.into_boxed(),
+        current: Some(1),
+        own: path.clone(),
+        words: Some(forge::settings::ProjectWords {
+            headline: b"Agents review everything, then one of you signs off".as_slice().into(),
+            lede: b"Agents make and review each change; an owner approves it before it lands.".as_slice().into(),
+        }),
+        may_change: true,
+    }
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one mapping table checks the paths, role cards and setting items together")]
 fn ways_and_view_answers_preserve_paths_cards_and_items() {
     let (path, expected) = ways_path();
     let document = ways_document(&path);
@@ -3000,14 +3121,21 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     let panel = wire::decode_ways_panel(&record, &w::CEILINGS).unwrap();
     assert_eq!((panel.project(), *panel.current(), panel.may_change()), (7, Some(1), true));
     assert_eq!(panel.own(), &expected);
+    let words = document.words.as_ref().unwrap();
+    let panel_words = panel.words().as_ref().expect("the project's words are sent");
+    assert_eq!((panel_words.headline(), panel_words.lede()), (words.headline.as_ref(), words.lede.as_ref()));
+    let mut without_words = document.clone();
+    without_words.words = None;
+    let record = family::ways_panel(without_words, &w::CEILINGS).unwrap();
+    assert!(wire::decode_ways_panel(&record, &w::CEILINGS).unwrap().words().is_none());
     assert_eq!(panel.ways().len(), 3);
     for (got, entry) in panel.ways().iter().zip(document.ways.iter()) {
         assert_eq!(
-            (got.name(), got.line(), got.delegation()),
-            (entry.name.as_ref(), entry.line.as_ref(), entry.delegation)
+            (got.name(), got.headline(), got.line(), got.delegation()),
+            (entry.name.as_ref(), entry.headline.as_ref(), entry.line.as_ref(), entry.delegation)
         );
         assert_eq!(got.path(), &expected);
-        assert_eq!(got.items().len(), 2);
+        assert_eq!(got.items().len(), 3);
         let set = got.items().get(0).unwrap();
         assert_eq!((set.kind(), set.scope(), set.number()), (3, 7, 1));
         let w::SettingEdit::Set(value) = set.edit() else { panic!("set item") };
@@ -3016,6 +3144,16 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
         assert_eq!(
             (removed.kind(), removed.scope(), removed.number(), removed.edit()),
             (2, 7, 4, &w::SettingEdit::Removed)
+        );
+        let classes = got.items().get(2).unwrap();
+        assert_eq!((classes.kind(), classes.scope(), classes.number()), (8, 7, 1));
+        let w::SettingEdit::Set(value) = classes.edit() else { panic!("classes item") };
+        assert_eq!(
+            value.value(),
+            temper_engine_smith::kinds::encode(&forge::settings::Value::Classes(
+                temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
+            ))
+            .as_ref()
         );
     }
     let mut after = path.clone();
@@ -3060,9 +3198,30 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
             ),
         ),
         (
-            ways::View::Charter { charter: 3, card },
+            ways::View::Charter { charter: 3, card: card.clone() },
             w::View::Charter(
-                w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 3, card: expected_card }).unwrap(),
+                w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 3, card: expected_card.clone() })
+                    .unwrap(),
+            ),
+        ),
+        (
+            ways::View::Roles(Box::new([(3, card.clone()), (9, card)])),
+            w::View::Roles(
+                w::RolesView::new(
+                    &w::CEILINGS,
+                    w::RolesViewParts {
+                        roles: List::from_boxed(Box::new([
+                            w::CharterView::new(
+                                &w::CEILINGS,
+                                w::CharterViewParts { charter: 3, card: expected_card.clone() },
+                            )
+                            .unwrap(),
+                            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 9, card: expected_card })
+                                .unwrap(),
+                        ])),
+                    },
+                )
+                .unwrap(),
             ),
         ),
         (
@@ -3112,6 +3271,8 @@ fn ways_and_views_refuse_over_bound_values_without_cutting_them() {
         w::Limits { stock_way_items: 1, ..w::CEILINGS },
         w::Limits { ways_panel_ways: 2, ..w::CEILINGS },
         w::Limits { setting_value_value: 3, ..w::CEILINGS },
+        w::Limits { project_words_headline: 1, ..w::CEILINGS },
+        w::Limits { project_words_lede: 1, ..w::CEILINGS },
     ] {
         assert!(family::ways_panel(ways_document(&path), &limits).is_none(), "panel: {limits:?}");
     }
@@ -3398,7 +3559,15 @@ fn the_worst_small_changes_document_fits_its_decision() {
 
 #[test]
 fn the_worst_small_ways_document_fits_its_decision() {
+    // A stock headline's bound (temper/docs/design/protocol/configuration.md, 13.10).
+    const HEADLINE_BYTES: u32 = 120;
     let limits = crate::limits::profile(crate::limits::Profile::Small);
+    let worst_view = w::ViewAnswer::encoded_bound(&w::CEILINGS).unwrap();
+    let delivery_bytes = limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes);
+    assert!(
+        worst_view <= u64::from(delivery_bytes),
+        "ViewAnswer: {worst_view} encoded bytes; decision allowance: {delivery_bytes}"
+    );
     let value_bytes = u32::try_from(ways::VALUE).unwrap();
     // Approval and tier stops are smaller: words and name at most 64 bytes,
     // with one fact of VALUE bytes for a tier, or two short approval facts.
@@ -3407,7 +3576,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
         name: b"the coding agent".as_slice().into(),
         facts: Box::new([
             ways::Fact { label: b"Model".as_slice().into(), value: repeated(b'm', value_bytes) },
-            ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true).into() },
+            ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true, false).into() },
             ways::Fact {
                 label: b"Asked to".as_slice().into(),
                 value: repeated(b'a', u32::try_from(ways::ASKED).unwrap()),
@@ -3418,6 +3587,8 @@ fn the_worst_small_ways_document_fits_its_decision() {
     for _ in 0..ways::STOPS {
         stops
             .push(ways::Stop {
+                needed: true,
+                over: b"tests, review".as_slice().into(),
                 actor: ways::Actor::Agent,
                 step: ways::Step::ProduceMany,
                 words: "produce ×n".as_bytes().into(),
@@ -3434,13 +3605,14 @@ fn the_worst_small_ways_document_fits_its_decision() {
         stops: stops.into_boxed(),
     };
     let project = 7;
-    let kind7 = forge::settings::ProjectWays { drafts: true, goals: true, changes: true, away: true, way: u32::MAX };
+    let kind7 = forge::settings::ProjectWays { drafts: true, goals: true, changes: true, way: u32::MAX };
     let mut entries = List::uncapped();
     for way in crate::stock::ways() {
         let items = ways::items(&way, project, Some(&kind7));
         entries
             .push(ways::WayEntry {
                 name: way.name,
+                headline: repeated(b'h', HEADLINE_BYTES),
                 line: way.line,
                 path: path.clone(),
                 items,
@@ -3448,8 +3620,17 @@ fn the_worst_small_ways_document_fits_its_decision() {
             })
             .unwrap();
     }
-    let document =
-        ways::WaysDocument { project, ways: entries.into_boxed(), current: None, own: path, may_change: true };
+    let document = ways::WaysDocument {
+        project,
+        ways: entries.into_boxed(),
+        current: None,
+        own: path,
+        words: Some(forge::settings::ProjectWords {
+            headline: repeated(b'h', forge::settings::HEADLINE_BYTES),
+            lede: repeated(b'l', forge::settings::LEDE_BYTES),
+        }),
+        may_change: true,
+    };
     let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
     assert!(wire::decode_ways_panel(&bytes, &w::CEILINGS).is_some());
     let mut journal = root::Journal::uncapped(1, 0);
@@ -3530,12 +3711,12 @@ fn away_answer(answer: Option<root::ApplicationAnswer>) -> w::Outcome {
 #[test]
 fn set_away_reads_as_the_forges_event() {
     const PROJECT: u32 = 9; // Deliberately differs from the envelope's project 7.
-    for (on, until, kinds) in [(true, Some(123), 15), (false, None, 0)] {
+    for (on, until) in [(true, Some(123)), (false, None)] {
         assert_eq!(
             away_request(w::Request::SetAway(
-                w::SetAway::new(&w::CEILINGS, w::SetAwayParts { project: PROJECT, on, until, kinds },).unwrap()
+                w::SetAway::new(&w::CEILINGS, w::SetAwayParts { project: PROJECT, on, until },).unwrap()
             )),
-            root::Application::SetAway { project: PROJECT, on, until: away_wall(until), kinds }
+            root::Application::SetAway { project: PROJECT, on, until: away_wall(until) }
         );
     }
     for (answer, expected) in [
@@ -3615,6 +3796,7 @@ fn away_and_decided_subjects_are_scoped() {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks Away and both decision lists through the family encoder")]
 fn their_documents_encode() {
     const PROJECT: u32 = 9;
     const PARTY: u64 = 3;
@@ -3624,7 +3806,6 @@ fn their_documents_encode() {
             project: PROJECT,
             since: skein_lib::Wall::from_nanos(11),
             until: away_wall(until),
-            kinds: 15,
             landed: 4,
             off: away_wall(off),
         };
@@ -3637,11 +3818,8 @@ fn their_documents_encode() {
         let got = wire::decode_aways(&bytes, &w::CEILINGS).unwrap().into_parts();
         assert_eq!(
             got.rows.as_slice(),
-            &[w::AwayRow::new(
-                &w::CEILINGS,
-                w::AwayRowParts { project: PROJECT, since: 11, until, kinds: 15, landed: 4, off }
-            )
-            .unwrap()]
+            &[w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: PROJECT, since: 11, until, landed: 4, off })
+                .unwrap()]
         );
     }
     for overturned in [false, true] {
@@ -3653,15 +3831,60 @@ fn their_documents_encode() {
             took: b"First".as_slice().into(),
             why: b"Fits".as_slice().into(),
             overturned,
+            reach: temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            },
         };
         let bytes = family::document(
-            forge::Document::Decisions(forge::DecisionsView { project: PROJECT, rows: Box::new([row]) }),
+            forge::Document::Decisions(forge::DecisionsView {
+                project: PROJECT,
+                rows: Box::new([row]),
+                asked: Box::new([forge::AskedView {
+                    number: 13,
+                    task: 52,
+                    at: skein_lib::Wall::from_nanos(45),
+                    reach: temper_protocol_reaches::Reach {
+                        kind: temper_protocol_reaches::Kind::Wording,
+                        class: temper_protocol_reaches::Class::Decide,
+                        reason: temper_protocol_reaches::Reason::Kind,
+                        under: 0,
+                        sets: 0,
+                        matched: 0,
+                        away: false,
+                    },
+                }]),
+                cut: overturned,
+            }),
             &fixtures::forge_table(&[]),
             &w::CEILINGS,
         )
         .unwrap();
         let got = wire::decode_decisions(&bytes, &w::CEILINGS).unwrap().into_parts();
         assert_eq!(got.project, PROJECT);
+        assert_eq!(got.cut, overturned);
+        assert_eq!(got.asked.len(), 1);
+        assert_eq!(
+            (got.asked.as_slice()[0].number(), got.asked.as_slice()[0].task(), got.asked.as_slice()[0].at()),
+            (13, 52, 45)
+        );
+        assert_eq!(
+            got.asked.as_slice()[0].reach(),
+            &temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false
+            })
+        );
         assert_eq!(
             got.rows.as_slice(),
             &[w::Decision::new(
@@ -3674,6 +3897,19 @@ fn their_documents_encode() {
                     took: b"First".as_slice().into(),
                     why: b"Fits".as_slice().into(),
                     overturned,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: w::ReachKind::Wording,
+                            class: w::ReachClass::Decide,
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: false
+                        }
+                    )
+                    .unwrap(),
                 }
             )
             .unwrap()]
@@ -3685,7 +3921,12 @@ fn their_documents_encode() {
             .unwrap();
     assert!(wire::decode_aways(&bytes, &w::CEILINGS).unwrap().rows().is_empty());
     let bytes = family::document(
-        forge::Document::Decisions(forge::DecisionsView { project: PROJECT, rows: Box::new([]) }),
+        forge::Document::Decisions(forge::DecisionsView {
+            project: PROJECT,
+            rows: Box::new([]),
+            asked: Box::new([]),
+            cut: false,
+        }),
         &forges,
         &w::CEILINGS,
     )

@@ -725,6 +725,10 @@ mod tests {
 
     #[test]
     #[expect(clippy::disallowed_types, reason = "the isolated test inherits SIG_IGN from its shell (shell.md, 6.3)")]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "skein's round: reads the child marker for the isolated ignored-hangup test"
+    )]
     fn a_hangup_ignored_at_startup_is_not_watched() {
         use skein_io::kernel::{ServiceSignal, Signalled};
         // Re-exec this one test with the shell's ignored disposition; no unsafe

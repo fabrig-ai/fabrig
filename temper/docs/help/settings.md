@@ -7,21 +7,32 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 ## What it is
 
 Settings cover charters, templates, policies, rules, landing rules, forge
-charters and project ways and questions. Name one by kind and number,
-or project for ways and questions; rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
-`landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`,
-`project-ways 2`, `project-questions 2`.
+charters, goal templates' work, charter words, and project ways, questions, classes and words. Name one
+by kind and number, or project for project settings; rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
+`landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`, `template-goal 4`,
+`project-ways 2`, `project-questions 2`, `project-classes 2`, `charter-words 2`, `project-words 2`.
 
-- A project's ways say whether chats can write drafts and whether Goals,
-  Changes and the Away switch show, and which offered template with
+- A project's ways say whether chats can write drafts, whether Work's Goals
+  and Changes filters show, and which offered template with
   `tracked` set a goal starts by; 0 takes the first. The stock offers drafts, hides the
-  other three and uses 0.
+  two filters and uses 0. Goals and Changes hide no rail entry;
+  work under a hidden filter stays under Work's All filter.
 - A project's questions give a change's question route when its maker
   names none: `none`, `foreman` or `up`. The stock uses `none`.
+- A project's classes say which questions agents decide and tell you about,
+  ask you, or ask you even when away (`temper help project`).
+- A charter's words (`charter-words`) are the line How work runs says the
+  charter by. A project's words (`project-words`) are How work runs' headline
+  and lede when the project runs a way of its own. Ask temper writes both
+  with its proposals.
 - A landing rule governs changes landing on matching branches, for the
   deployment or one project: `temper help landing-rule`.
 - The forge's charter 1 selects the change's charter, and 2 its reviews'.
   Its value is a charter's number.
+- A goal template's work, `template-goal N`, says whether its coordinator
+  designs first (`design`) and makes a close-out (`close_out`), both bools.
+  With none kept, it plans and makes no close-out. The stock sets both false
+  for template 4.
 - A charter is how an agent's run works: `temper help charter`.
 - A template is how a new task is filled: `temper help template`.
 - A policy is what a project made from it starts with, and the rules are
@@ -35,11 +46,14 @@ The binary holds defaults; the store holds overrides. A setting without
 an override follows its default. Settings never live in the configuration
 document.
 
-The stock has charters 1, 2, 4, 5, 6, 9, 10 and 11, and templates 1 for a
-chat, 2 for a goal, 4 for a draft goal and 5 for Ask temper. Charter 5
-coordinates a draft goal. Charter 10 is a model's trial and is never
-offered. Its rules offer seven charter executors (1, 2, 4, 5, 6, 9 and 11),
-procedures 2, 3 and 4, merge job 3 and roles 0, 1 and 2.
+The stock has charters 1, 2, 4, 5, 6, 9, 10, 11 and 12, and templates 1
+for a chat, 2 for a goal, 4 for a draft goal, 5 for Ask temper and 6 for a
+design session. Charter 5 coordinates a draft goal. Charter 10 is a
+model's trial and is never offered. Charter 12 is the drafter: it writes a
+draft with you as a design session's document, reads code through the
+forge, and starts nothing. Its rules offer eight charter executors
+(1, 2, 4, 5, 6, 9, 11 and 12), procedures 2, 3 and 4, merge job 3 and
+roles 0, 1 and 2.
 
 A setting's whole value is JSON, as `settings show` prints it. For members,
 types and bounds, read `temper help settings-fields`.
@@ -101,6 +115,9 @@ its default. A stored change still wins over a changed default.
 
 ## Acting on it
 
+- On the rail, **How work runs** opens the project's process and its
+  Repositories tab. On a phone, choose **How work runs for PROJECT** in
+  the project switcher.
 - Tell Ask temper how you work (`temper help chat`). It reads
   settings and proposes what temper enforces and agents follow; an owner decides.
 - `temper ctl`: `settings show` reads the inventory: newest revision,
@@ -109,11 +126,17 @@ its default. A stored change still wins over a changed default.
   changes settings; `settings propose` proposes a change.
   `settings show landing-rule NUMBER` reads a deployment landing rule;
   add `--project PROJECT` for a project's.
-  `settings show forge-charter NUMBER` reads one of the forge's charters.
+  `settings show forge-charter NUMBER` reads one of the forge's charters;
+  `settings show template-goal NUMBER` reads a goal template's work.
+  Both take `--revision` for an earlier value and `--json` for a settings
+  file's `set` form.
   `settings show project-ways PROJECT` and `settings show project-questions
-  PROJECT` read by project number or name, marking the stock when none is
-  stored. Both take `--revision` for an earlier value and print state and
-  value; `--json` gives the form a settings file's `set` takes.
+  PROJECT` and `settings show project-classes PROJECT` read by project number or name, marking the stock when none is
+  stored. `settings show charter-words NUMBER` reads a charter's words,
+  marking the stock's with no stored value, or saying none is kept.
+  `settings show project-words PROJECT` reads a project's headline and lede,
+  or says none is kept. All take `--revision` for an earlier value and print
+  state and value; `--json` gives the form a settings file's `set` takes.
   `proposal show PROPOSAL` includes proposed values, removals and resets, and a project's current
   and proposed policy, each whole. Each verb's help gives its arguments:
   `temper ctl help settings apply`.
@@ -122,17 +145,20 @@ its default. A stored change still wins over a changed default.
   and propose with `propose_settings`: Ask temper, charter 11, uses `see`
   and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
-  `policy`, `rules`, `landing-rule`, `forge-charter` and
-  `project-policy`, `project-ways` and `project-questions`, in the settings
-  file's form. Ways and questions require `project` and take no `number`. A landing rule names
+  `policy`, `rules`, `landing-rule`, `forge-charter`, `template-goal` and
+  `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` and
+  `project-words`, in the settings file's form. Ways, questions, classes and project
+  words require `project` and take no `number`; charter words take the charter's
+  `number` and no `project`. A landing rule names
   its project, or none for the deployment; a project's policy names its
   project and is set alone. The tool reads a named project's policy,
   though the inventory omits it.
 
 ### Models
 
-On Settings, Models, temper reads each provider's list where it can: as an
-account becomes usable, once a day and when you choose **Read again**.
+In Deployment, at the rail's foot, open Models. temper reads each provider's
+list where it can: as an account becomes usable, once a day and when you
+choose **Read again**.
 A new model starts off the picker, marked “new” for a week. Its prices are
 estimated until Ask temper sets them. A failed read says so on
 Models and changes nothing.
@@ -183,6 +209,6 @@ For members needing a restart, read `temper help configuration`.
 - Providers, listeners, workers and limits are configured at start;
   changes need a restart. Limits must hold the stock's settings or start
   refuses. Another model or new stock can change the limits needed.
-- Stock floors are eight charters, four templates and fourteen executor kinds
-  (seven charters, three procedures, one job and three roles); your settings
+- Stock floors are nine charters, five templates and fifteen executor kinds
+  (eight charters, three procedures, one job and three roles); your settings
   may need more.

@@ -22,7 +22,7 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
     let item = |name: &[u8]| Find::exactly_named(Role::MenuItem, name);
     let press = |find| Step::Person(PersonStep::Press { find });
     let gone = |find| Step::Person(PersonStep::Gone { find, within: WITHIN });
-    let mut steps = temper_client_browser_world::start_chat(b"Hello");
+    let mut steps = temper_client_browser_world::first_chat_steps(b"Hello");
     steps.extend([
         Step::Person(PersonStep::Reload),
         see(first_chat(b"Hello")),
@@ -46,6 +46,7 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         Step::Address(FIRST_CHAT_ADDRESS.into()),
         press(row()),
         see(item(b"Accounts")),
+        see(item(b"What temper remembers about you")),
         see(item(b"Sign out")),
         Step::Key(Key::Escape),
         gone(item(b"Sign out")),

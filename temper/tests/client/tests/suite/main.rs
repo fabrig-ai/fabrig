@@ -28,26 +28,33 @@ mod inbox;
 mod inbox_observation;
 mod kept_message;
 mod names;
+mod only_you;
 mod open_chat;
 mod playground;
 mod project_fund;
 mod reading;
 mod recovery;
+mod remembered_page;
 mod settings;
 mod settings_tools;
 mod status;
 mod stories;
 mod task;
 mod task_tree;
+mod team;
 mod terminal_approval;
 mod to_begin;
 mod tui;
 mod watch_room;
 mod welcome;
+mod work;
 mod fuzzy {
     mod client;
+    mod density;
     mod how;
     mod public_address;
+    mod rail_and_work;
+    mod team;
 }
 
 mod accounts_edges;

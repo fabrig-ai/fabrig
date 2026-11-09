@@ -1,38 +1,35 @@
 # what-reaches-you: status
 
-2026-11-08. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
+2026-11-09. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
+
+Sections 2 to 6 are carried by the design, milestone N1 of
+`whole-story.execution.md`, but for lag 4 and the departures below:
+`../domain/forge.md`, 5.5 and 5.8 to 5.10, `../protocol/configuration.md`,
+section 7 and 13.2, `../domain/agent.md`, 4.3, and
+`../client/README.md`, 3.5, 5.13 and 5.14. Where the code lags them is
+their status files'.
 
 - **Design lags:**
-  - 2: no kind of `../protocol/configuration.md`, 13.2 holds the classes'
-    table, its "even when away" marks or a project's path sets, and the
-    stock ways of 13.10 set no defaults for them; `stock-ways.md`, section
-    2 says a way sets nothing but how work starts and lands;
-    `../domain/agent.md`, 4.3's `decided` knows five kinds,
-    `implementation`, `retry`, `wording`, `dependency` and `other`. Kind 6
-    and `Asks: always` keep their meaning, and no design yet says how they
-    sit beside the classes (`../domain/forge.md`, 5.9;
-    `../client/README.md`, 5.14).
-  - 3: `../domain/forge.md`, 5.8 keeps Away's four bits of kinds on the
-    person's row; `../client/README.md`, 3.5's *Away* and 5.13's *While
-    you're away, agents may decide* draw them, and Away shows by today's
-    rule, not by the table.
-  - 4: `../domain/forge.md`, 5.9 answers ask to any caller but a goal or a
-    chat with a person, and judges no paths; `decided` takes none
-    (`../domain/agent.md`, 4.3); a project keeps 64 rows, the oldest
-    erased whatever its age (`DECIDED_PER_PROJECT`), and no limit setting
-    bounds them (`../protocol/configuration.md`, section 7). A standing
-    role's person has no design (`standing-roles.status.md`).
-  - 5: `../client/README.md`, 3.5's *Needs you* draws no reason line and no
-    "Stop asking"; the client composes no change from a need's reason.
-  - 6: `../client/README.md`, 3.5 shows decided rows on Home alone, and
-    *Needs you* draws nothing of them.
+  - 4: no design gives a standing role's person
+    (`standing-roles.status.md`), so a standing role's case waits for R1
+    of `whole-story.execution.md`. `../domain/forge.md`, 5.10 judges the
+    paths a call names alone, not those its asker's change touches at its
+    head: the forge reads a change's paths with rules by path, section 7,
+    N2 of `whole-story.execution.md`.
   - 7: a landing rule names no path set (`../protocol/configuration.md`,
     section 3 and 13.3); `../domain/forge.md`, 8.7 reads no paths a change
     touches from its merge base, and 8.12's line names none; 8.12 and
     section 9 leave a change waiting on a person's approval first in its
     branch's queue, holding every landing behind it.
-  - 8: `../client/README.md`, 3.5's *Needs you* has no "Only you" part;
-    the accounts' states are drawn on Accounts alone (5.5).
+  - 8: `../client/README.md`, 3.5's **Only you** lists a person's own
+    sign-in signed out and a login their account reads as expiring, as
+    the mockups' audit words it (`surfaces.md`, section 4); its line
+    saying what waits, "Two agents on vsr wait for this login.", and a
+    forge's token to replace and a person task asking an act are that
+    document's later parts (section 11): jig's `accounts` document names
+    no task waiting on a person's own account (jig's
+    `client/domain/contract.md`, 5.1), and no read says a forge's token
+    must be replaced.
   - 9: `../client/README.md`, 5.13's *Telling you* is disabled; no design
     holds a service worker, a push or a digest (`../client/browser.md`),
     nor mail settings (`../protocol/configuration.md`); no design serves
@@ -40,6 +37,22 @@
     VAPID key pair among the deployment's secrets
     (`../protocol/credentials.md`), or has `temper ctl me push add`.
   - 10: `../../development/acceptance.md` holds no story of it.
+- **Design departs:** 6, decided by the client's designer for
+  `ui-reaches` on 2026-11-08 (the request leaves such calls to
+  temper/ui): Needs you's unfiltered page reads the rows of at most four
+  projects, the shown card's first, the count marked "+" past them, where
+  this section lists every project's, since each project's rows are a
+  watch of their own within the client's room
+  (`../client/README.md`, 3.5, *Decided for you*, and section 11's open
+  question, default four); and a page draws at most seven rows, the
+  newest, counting the rest in its heading, as Home has since `ui-away`.
+- **Design departs:** 2, decided by the cut of `ui-reaches` on
+  2026-11-08 (the request leaves such calls to temper/ui): a path set's
+  patterns match the paths of any of the project's repositories, where
+  the draft has them over a repository's tree, because a project's
+  classes are the project's and a call names repository-relative paths
+  (`../domain/forge.md`, 5.10); a set meant for one repository names
+  paths only it holds.
 - **Open:**
   - 9: push or mail by default; default push where offered, mail where the
     deployment has its settings, nothing otherwise.

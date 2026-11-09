@@ -9,11 +9,24 @@ use skein_lib::{List, Time, Token, Writer};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire as wire;
 
+/// A worker's charter allowance where the engine doesn't know it: smith's
+/// `run_bytes` at its floor, which the stock agent's `tool_payload` doesn't
+/// raise (smith/docs/design/protocol/limits.md, 3.10;
+/// temper/docs/design/domain/agent.md, 4.3).
+pub const WORKER_CHARTER_BYTES: u64 = 65_536;
+
+/// The bound a charter is fitted to: the hub's, and no more than its
+/// worker takes (temper/docs/design/domain/agent.md, 4.3).
+#[must_use]
+pub fn charter_bound(hub: u64, agent: Option<u64>) -> u64 {
+    hub.min(agent.unwrap_or(WORKER_CHARTER_BYTES))
+}
+
 /// The checked channel limits, endpoint names and deployment identity.
 #[derive(Debug)]
 pub struct Encoding {
     pub limits: wire::v1::Limits,
-    pub endpoints: smith_protocol_channel::Endpoints,
+    pub endpoints: smith_protocol_translate::Endpoints,
     pub deployment: [u8; 16],
     pub charter_bytes: u64,
 }
@@ -125,13 +138,47 @@ pub fn down(
         values: filled,
     })
 }
+/// A job's assignment and its forge workspace as the worker link carries them
+/// (temper/docs/design/domain/worker.md, 4.4).
+#[must_use]
+pub fn job_down(
+    job: host::JobAssignment,
+    workspace: Option<&root::ForgeWorkspace>,
+    forges: &crate::forges::Forges,
+    encoding: &Encoding,
+    values: &crate::values::Values,
+    channel: Token,
+    now: Time,
+) -> Option<kit::Event> {
+    let items = match workspace {
+        Some(workspace) => {
+            crate::translate::workspace_items(workspace, false, forges, &values.tokens, &encoding.limits).ok()?
+        }
+        None => None,
+    };
+    let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
+        Some(items) => Box::new([jig_protocol_worker_wire::Part {
+            token: job.workspace.as_ref()?.items,
+            bytes: temper_protocol_worker_wire::items(&items),
+        }]),
+        None => Box::new([]),
+    };
+    let values = values.grants(&job.grants, now);
+    Some(jig_protocol_engine_workers::Event::Down {
+        channel,
+        down: jig_domain_host::LinkDown::AssignJob { job },
+        parts,
+        values,
+    })
+}
+
 // The wire's section framing is two u32 lengths; a decoded Section owns two
 // boxes, so its array cell covers that framing even when sections are omitted.
 fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -> Option<Box<[u8]>> {
     let bound = encoding.charter_bytes;
     if charter.owned_bytes()? <= bound {
         let encoded =
-            smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+            smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
         if skein_lib::len_u64(encoded.len()) <= bound {
             return Some(encoded);
         }
@@ -139,16 +186,16 @@ fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -
     let brief = ::core::mem::replace(&mut charter.brief.sections, Box::new([]));
     let fixed_owned = charter.owned_bytes()?;
     let fixed_encoded =
-        smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+        smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
     let fixed_encoded = skein_lib::len_u64(fixed_encoded.len());
     if fixed_owned > bound || fixed_encoded > bound {
         return None;
     }
     charter.brief.sections = brief;
     let owned = bound.saturating_sub(fixed_encoded.saturating_sub(fixed_owned));
-    temper_engine_smith::fit_brief_bytes(&mut charter, owned);
+    temper_protocol_brief::fit_brief_bytes(&mut charter, owned);
     let encoded =
-        smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
+        smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).ok()?;
     if skein_lib::len_u64(encoded.len()) > bound || charter.owned_bytes()? > bound {
         return None;
     }
@@ -224,13 +271,13 @@ mod tests {
         }]);
         let owned = charter.owned_bytes().unwrap();
         let encoded =
-            smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+            smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
         assert!(skein_lib::len_u64(encoded.len()) > owned);
         encoding.charter_bytes = owned;
         let fitted = fitted_charter(charter, &encoding).expect("wire overhead leaves room for a cut brief");
         assert!(skein_lib::len_u64(fitted.len()) <= owned);
         let decoded =
-            smith_protocol_channel::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
+            smith_protocol_translate::decode_charter(&fitted, &smith_charter::CEILINGS, &encoding.endpoints).unwrap();
         assert!(decoded.owned_bytes().unwrap() <= owned);
         assert!(decoded.brief.sections[0].text.ends_with(b" bytes; whole: read_pull/read_pull_files]\n"));
     }

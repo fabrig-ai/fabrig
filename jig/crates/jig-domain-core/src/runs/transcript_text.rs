@@ -1,7 +1,10 @@
-//! Retained protocol-rendered transcript text (domain/engine.md, section 9).
+//! Retained protocol-rendered transcript text (domain/engine.md, 7.2 and 9).
 use crate::{Transcript, TurnRecord};
 use alloc::boxed::Box;
 use skein_lib::length::len_u64;
+
+/// The text a cut turn keeps in a fresh brief's tail (domain/engine.md, 7.2).
+pub const CUT_TURN_TEXT: &[u8] = b"[a turn too large to load]\n";
 
 /// A loaded stored turn and its protocol-rendered UTF-8 text; never stored together.
 pub type TranscriptRow = (TurnRecord, Option<Box<[u8]>>);

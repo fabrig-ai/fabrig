@@ -58,6 +58,13 @@ fn each_outcome_round_trips_unchanged() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one expected literal pins every wire bound to its source")]
 fn limits_take_each_bound_from_its_source_field() {
+    // A table full at every bound (temper/docs/design/protocol/configuration.md, 13.2).
+    const ITEMS: u32 = 20;
+    const SETS: u8 = 6;
+    const WORDS_BYTES: usize = 120;
+    const NAME_BYTES: usize = 40;
+    const PATTERNS: u32 = 6;
+    const PATTERN_BYTES: usize = 80;
     assert_eq!(
         fixtures::limits(),
         v1::Limits {
@@ -163,6 +170,73 @@ fn limits_take_each_bound_from_its_source_field() {
     );
     let bounds = crate::Bounds { checks: 65, ..fixtures::BOUNDS };
     assert_eq!(crate::limits(&bounds), None, "past the checks ceiling");
+
+    let limits = fixtures::limits();
+    let item = v1::ClassItem::new(
+        &limits,
+        v1::ClassItemParts {
+            subject: v1::ClassSubject::Kind(
+                v1::ReachKindOf::new(&limits, v1::ReachKindOfParts { kind: v1::ReachKind::Implementation })
+                    .expect("reach kind"),
+            ),
+            words: filled(WORDS_BYTES),
+            class: v1::ReachClass::Ask,
+        },
+    )
+    .expect("words at the bound");
+    let mut sets = List::with_capacity(u32::from(SETS));
+    for number in 1..=SETS {
+        let mut patterns = List::with_capacity(PATTERNS);
+        for _ in 0..PATTERNS {
+            patterns.push(filled(PATTERN_BYTES)).expect("counted patterns");
+        }
+        sets.push(
+            v1::PathSet::new(&limits, v1::PathSetParts { number, name: filled(NAME_BYTES), patterns })
+                .expect("name and patterns at their bounds"),
+        )
+        .expect("counted sets");
+    }
+    for (count, problem) in [
+        (ITEMS, None),
+        (
+            ITEMS.checked_add(1).expect("one past items"),
+            Some(v1::Problem { path: v1::Path::ProjectClassesItems, reason: skein_codec::Reason::Bound }),
+        ),
+    ] {
+        let mut items = List::with_capacity(count);
+        for _ in 0..count {
+            items.push(item.clone()).expect("counted items");
+        }
+        let result = v1::ProjectClasses::new(&limits, v1::ProjectClassesParts { items, sets: sets.clone() });
+        match problem {
+            None => {
+                let classes = result.expect("classes at every bound");
+                let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).expect("measured table"));
+                classes.encode(&mut writer).expect("measured room");
+                let bytes = writer.finish();
+                assert_eq!(v1::ProjectClasses::decode(&limits, &mut Reader::new(&bytes)), Ok(classes));
+            }
+            Some(problem) => assert_eq!(result, Err(problem)),
+        }
+    }
+    let reach = v1::Reach::new(
+        &limits,
+        v1::ReachParts {
+            kind: v1::ReachKind::Implementation,
+            class: v1::ReachClass::AskAway,
+            reason: v1::ReachReason::Set(
+                v1::ReachSet::new(&limits, v1::ReachSetParts { number: SETS }).expect("reason set"),
+            ),
+            under: u8::try_from(ITEMS).expect("item number"),
+            sets: 0b11_1111,
+            matched: 0b10_0101,
+            away: true,
+        },
+    )
+    .expect("reach");
+    let mut writer = skein_lib::Writer::new(usize::try_from(reach.measure()).expect("measured reach"));
+    reach.encode(&mut writer).expect("measured room");
+    assert_eq!(v1::Reach::decode(&limits, &mut Reader::new(&writer.finish())), Ok(reach));
 }
 
 #[test]
@@ -1007,6 +1081,27 @@ fn ways_panel_round_trips() {
     let bytes = crate::watching(&watch);
     assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
     assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+    for parts in [
+        v1::ProjectWordsParts { headline: b"h".as_slice().into(), lede: b"l".as_slice().into() },
+        v1::ProjectWordsParts { headline: Box::new([b'h'; 120]), lede: Box::new([b'l'; 480]) },
+    ] {
+        let expected_size = parts.headline.len() + parts.lede.len() + 8;
+        let words = v1::ProjectWords::new(&limits, parts).expect("project words within their byte bounds");
+        let mut writer = skein_lib::Writer::new(usize::try_from(words.measure()).expect("words size"));
+        words.encode(&mut writer).expect("measured words fit");
+        let bytes = writer.finish();
+        assert_eq!(bytes.len(), expected_size, "two text lengths and their bytes");
+        let mut reader = Reader::new(&bytes);
+        assert_eq!(v1::ProjectWords::decode(&limits, &mut reader), Ok(words.clone()));
+        assert!(reader.is_empty());
+        let panel = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_smallest.bin"), &limits)
+            .expect("smallest ways panel");
+        let panel = v1::WaysPanel::new(&limits, v1::WaysPanelParts { words: Some(words), ..panel.into_parts() })
+            .expect("ways panel with project words");
+        let bytes = crate::ways_panel(&panel);
+        assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
+        assert_eq!(crate::decode_ways_panel(&fixtures::trailing(&bytes), &limits), None);
+    }
     for bytes in [
         include_bytes!("../golden/record_ways_panel_smallest.bin").as_slice(),
         include_bytes!("../golden/record_ways_panel_full.bin").as_slice(),
@@ -1499,6 +1594,19 @@ fn dismiss_and_dismissals_round_trip() {
     let limits = fixtures::limits();
     assert_eq!(crate::DISMISSED, 8192, "client/README.md, 4.6: a party's fact bound");
     for what in [
+        v1::PersonFact::KeepAsking(
+            v1::KeepAsking::new(
+                &limits,
+                v1::KeepAskingParts {
+                    project: u32::MAX,
+                    subject: v1::ClassSubject::Set(
+                        v1::ReachSet::new(&limits, v1::ReachSetParts { number: u8::MAX }).unwrap(),
+                    ),
+                    at: u64::MAX,
+                },
+            )
+            .unwrap(),
+        ),
         v1::PersonFact::ToBegin(v1::ToBegin::new(&limits, v1::ToBeginParts { project: u32::MAX }).unwrap()),
         v1::PersonFact::GoalFrom(
             v1::GoalFrom::new(
@@ -1630,23 +1738,16 @@ fn decisions_round_trip_and_refuse_trailing_bytes() {
 }
 
 #[test]
-fn away_requests_round_trip_and_validate_kinds() {
+fn away_requests_round_trip() {
     let limits = fixtures::limits();
-    for kinds in [0, 7, 15, 16, u8::MAX] {
-        for on in [false, true] {
-            for until in [None, Some(u64::MAX)] {
-                let value =
-                    v1::SetAway::new(&limits, v1::SetAwayParts { project: u32::MAX, on, until, kinds }).unwrap();
-                let request =
-                    v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::SetAway(value) }).unwrap();
-                let bytes = crate::requesting(&request);
-                if kinds > 15 {
-                    assert_eq!(crate::decode_requesting(&bytes, &limits), None);
-                } else {
-                    assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
-                    assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
-                }
-            }
+    for on in [false, true] {
+        for until in [None, Some(u64::MAX)] {
+            let value = v1::SetAway::new(&limits, v1::SetAwayParts { project: u32::MAX, on, until }).unwrap();
+            let request =
+                v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::SetAway(value) }).unwrap();
+            let bytes = crate::requesting(&request);
+            assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
+            assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
         }
     }
     let value = v1::Overturn::new(&limits, v1::OverturnParts { project: u32::MAX, number: u32::MAX }).unwrap();
@@ -1694,7 +1795,6 @@ fn aways_rows_are_bounded_at_construction_and_decode() {
             project: u32::MAX,
             since: u64::MAX,
             until: Some(u64::MAX),
-            kinds: 15,
             landed: u64::MAX,
             off: Some(u64::MAX),
         },
@@ -1740,13 +1840,26 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
             took: Box::new([b't'; 120]),
             why: Box::new([b'w'; 400]),
             overturned: true,
+            reach: v1::Reach::new(
+                &v1::CEILINGS,
+                v1::ReachParts {
+                    kind: v1::ReachKind::Wording,
+                    class: v1::ReachClass::Decide,
+                    reason: v1::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
+            )
+            .unwrap(),
         },
     )
     .unwrap();
-    for count in [0, 64, 64 + 1] {
+    for count in [0, 128, 128 + 1] {
         let mut rows = List::with_capacity(count);
         let mut writer =
-            skein_lib::Writer::new(10 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
+            skein_lib::Writer::new(15 + usize::try_from(count).unwrap() * usize::try_from(row.measure()).unwrap());
         writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
         writer.put(&u32::MAX.to_be_bytes()).unwrap();
         writer.put(&count.to_be_bytes()).unwrap();
@@ -1754,9 +1867,14 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
             rows.push(row.clone()).unwrap();
             row.encode(&mut writer).unwrap();
         }
+        writer.put(&0_u32.to_be_bytes()).unwrap();
+        writer.put(&[0]).unwrap();
         let bytes = writer.finish();
-        let made = v1::Decisions::new(&limits, v1::DecisionsParts { project: u32::MAX, rows });
-        if count > 64 {
+        let made = v1::Decisions::new(
+            &limits,
+            v1::DecisionsParts { project: u32::MAX, rows, asked: List::with_capacity(0), cut: false },
+        );
+        if count > 128 {
             assert_eq!(
                 made.unwrap_err(),
                 v1::Problem { path: v1::Path::DecisionsRows, reason: skein_codec::Reason::Bound }

@@ -11,7 +11,7 @@ use skein_lib::{List, Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 use skein_lib::Wall;
-const WHAT: AwayRow = AwayRow { project: f::PROJECT, since: Wall::EPOCH, until: None, kinds: 7, landed: 0, off: None };
+const WHAT: AwayRow = AwayRow { project: f::PROJECT, since: Wall::EPOCH, until: None, landed: 0, off: None };
 const OTHER: AwayRow = AwayRow { project: 17, ..WHAT };
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
@@ -68,7 +68,6 @@ fn row_record(values: &[AwayRow]) -> Family {
                     project: row.project,
                     since: row.since.as_nanos(),
                     until: nanos(row.until),
-                    kinds: row.kinds,
                     landed: row.landed,
                     off: nanos(row.off),
                 },
@@ -136,8 +135,7 @@ fn rows_are_delivered_by_project() {
     let (mut root, watch, _) = opened();
     assert_eq!(root.forge().away(WHAT.project), None);
     let shown = forge::shown(root.forge());
-    let row =
-        AwayRow { since: minute(3), until: Some(minute(500)), kinds: 9, landed: 42, off: Some(minute(6)), ..WHAT };
+    let row = AwayRow { since: minute(3), until: Some(minute(500)), landed: 42, off: Some(minute(6)), ..WHAT };
     up(&mut root, Up::FamilyDelivered { watch, record: row_record(&[row, OTHER]) });
     assert_eq!(root.forge().away(WHAT.project), Some(row));
     assert_eq!(root.forge().away(OTHER.project), Some(OTHER));
@@ -287,27 +285,11 @@ fn act(root: &mut Domain, act: A, wall: Wall) -> Queue<Request> {
     out
 }
 fn sent(out: &Queue<Request>) -> w::SetAwayParts {
-    let mut found = None;
-    for request in out {
-        if let Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down { down: Down::Send { request: Ask::Family { scope, record }, value, .. } },
-        } = request
-        {
-            assert!(found.is_none(), "one SetAway");
-            assert!(value.is_none());
-            assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-            let w::Request::SetAway(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
-            else {
-                panic!("SetAway request")
-            };
-            assert_eq!(*scope, c::Scope::Project(value.project()));
-            found = Some(value.into_parts());
-        }
-    }
-    found.expect("SetAway sent")
+    let sends = sends(out);
+    assert_eq!(sends.len(), 1, "one SetAway");
+    sends.get(0).expect("SetAway sent").clone()
 }
+
 fn pending_key(root: &Domain) -> Key {
     Key { asker: crate::owner::Owner::Pages.asker(), number: root.pages.serial }
 }
@@ -318,38 +300,38 @@ fn answer(outcome: w::Outcome) -> Outcome {
         bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
     }))
 }
-fn told(root: &mut Domain, key: Key, outcome: Outcome) {
-    crate::route::told(root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut Queue::uncapped());
+fn told(root: &mut Domain, key: Key, outcome: Outcome) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::route::told(root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut out);
+    out
 }
 #[test]
 fn toggle_on_sends_defaults_and_the_next_eight() {
     let mut root = ready(&[]);
     root.set_zone_minutes(120);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(359)));
-    assert_eq!(send, w::SetAwayParts { project: f::PROJECT, on: true, until: Some(minute(360).as_nanos()), kinds: 7 });
+    assert_eq!(send, w::SetAwayParts { project: f::PROJECT, on: true, until: Some(minute(360).as_nanos()) });
     assert!(root.pages().away_busy());
     assert_eq!(root.pages().needs().toast(), None, "toast waits for the answer");
     assert!(!root.away_on(f::PROJECT, minute(359)), "no optimistic row");
 }
 #[test]
 fn toggle_on_keeps_a_row_whose_until_is_none() {
-    let mut root = ready(&[AwayRow { off: Some(minute(1)), kinds: 12, ..WHAT }]);
+    let mut root = ready(&[AwayRow { off: Some(minute(1)), ..WHAT }]);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(500)));
-    assert_eq!((send.on, send.until, send.kinds), (true, None, 12));
+    assert_eq!((send.on, send.until), (true, None));
 }
 #[test]
 fn toggle_off_keeps_the_row() {
-    let mut root = ready(&[AwayRow { until: Some(minute(480)), kinds: 8, ..WHAT }]);
+    let mut root = ready(&[AwayRow { until: Some(minute(480)), ..WHAT }]);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(479)));
-    assert_eq!((send.on, send.until, send.kinds), (false, Some(minute(480).as_nanos()), 8));
+    assert_eq!((send.on, send.until), (false, Some(minute(480).as_nanos())));
 }
 #[test]
 fn a_second_toggle_waits() {
-    let mut root = ready(&[]);
+    let mut root = three_projects(&[]);
     act(&mut root, A::Toggle { project: f::PROJECT }, Wall::EPOCH);
-    for next in
-        [A::Toggle { project: f::PROJECT }, A::Kinds { project: 17, kinds: 4 }, A::Until { project: 17, eight: false }]
-    {
+    for next in [A::ToggleAll, A::Toggle { project: f::PROJECT }, A::Until { project: 17, eight: false }] {
         assert!(act(&mut root, next, Wall::EPOCH).is_empty());
     }
     assert!(root.pages().away_busy());
@@ -359,24 +341,12 @@ fn a_second_toggle_waits() {
     assert!(sent(&act(&mut root, A::Toggle { project: f::PROJECT }, Wall::EPOCH)).on);
 }
 #[test]
-fn kinds_keep_on_as_it_reads() {
-    for (row, wall, on, until) in [
-        (Some(AwayRow { until: Some(minute(480)), ..WHAT }), minute(479), true, Some(minute(480))),
-        (Some(AwayRow { until: Some(minute(480)), ..WHAT }), minute(480), false, Some(minute(480))),
-        (Some(AwayRow { off: Some(minute(1)), ..WHAT }), minute(2), false, None),
-        (None, minute(479), false, Some(minute(480))),
-    ] {
-        let mut root = ready(row.as_slice());
-        let send = sent(&act(&mut root, A::Kinds { project: f::PROJECT, kinds: 10 }, wall));
-        assert_eq!((send.on, send.until, send.kinds), (on, nanos(until), 10));
-    }
-}
-#[test]
 fn until_sends_the_choice() {
     for row in [
         None,
         Some(WHAT),
-        Some(AwayRow { off: Some(minute(1)), kinds: 12, ..WHAT }),
+        Some(AwayRow { until: Some(minute(481)), ..WHAT }),
+        Some(AwayRow { off: Some(minute(1)), ..WHAT }),
         Some(AwayRow { until: Some(minute(480)), ..WHAT }),
     ] {
         for eight in [true, false] {
@@ -391,21 +361,14 @@ fn until_sends_the_choice() {
                 }
             );
             assert_eq!(send.until, if eight { Some(minute(780).as_nanos()) } else { None });
-            assert_eq!(
-                send.kinds,
-                match row {
-                    Some(row) => row.kinds,
-                    None => 7,
-                }
-            );
         }
     }
 }
 #[test]
 fn past_until_toggle_turns_on() {
-    let mut root = ready(&[AwayRow { until: Some(minute(480)), kinds: 3, ..WHAT }]);
+    let mut root = ready(&[AwayRow { until: Some(minute(480)), ..WHAT }]);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(480)));
-    assert_eq!((send.on, send.until, send.kinds), (true, Some(minute(1920).as_nanos()), 3));
+    assert_eq!((send.on, send.until), (true, Some(minute(1920).as_nanos())));
 }
 #[test]
 fn the_toast_follows_the_answer() {
@@ -457,87 +420,151 @@ fn limits_raises_the_focus_count() {
     assert_eq!(root.pages.away_focus(), 2);
 }
 #[test]
-fn shown_by_goal_by_on_or_by_ways() {
-    let (mut root, away_watch, me_watch) = opened();
-    assert!(!root.away_shown(f::PROJECT, Wall::EPOCH));
-    up(
-        &mut root,
-        Up::FamilyDelivered { watch: away_watch, record: row_record(&[AwayRow { until: Some(minute(480)), ..WHAT }]) },
-    );
-    assert!(root.away_shown(f::PROJECT, minute(479)));
-    assert!(!root.away_shown(f::PROJECT, minute(480)));
-    assert!(!root.away_shown(17, minute(479)));
-    let mut me = f::chats::me();
-    let template = me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap();
-    template.number = jig_client::shapes::GOAL;
-    template.tracked = Some(1);
-    let mut out =
-        up(&mut root, Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) });
-    let mut goals = None;
-    let mut ways = None;
-    while let Some(request) = out.pop() {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
-            match down {
-                Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { window: 1, .. }) } => {
-                    goals = Some(watch);
-                }
-                Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
-                    if let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-                        && setting.kind() == 7
-                    {
-                        ways = Some(read);
+fn shown_by_classes_or_an_on_row() {
+    use temper_protocol_reaches::{Classes, Way};
+    for (table, on, goal, expected) in [
+        (Some(Classes::stock(Way::AgentsReview)), false, false, true),
+        (Some(Classes::stock(Way::YouApprove)), false, false, false),
+        (Some(Classes::stock(Way::YouApprove)), true, false, true),
+        (None, false, false, false),
+        (None, false, true, false),
+    ] {
+        let (mut root, away_watch, me_watch) = opened();
+        let mut me = f::chats::me();
+        let template = me.projects.get_mut(0).unwrap().templates.get_mut(0).unwrap();
+        template.number = jig_client::shapes::GOAL;
+        template.tracked = Some(1);
+        let out = up(
+            &mut root,
+            Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+        );
+        let mut classes_read = None;
+        let mut goals_watch = None;
+        for request in &out {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request {
+                match down {
+                    Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { window: 1, .. }) } => {
+                        goals_watch = Some(*watch);
                     }
+                    Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
+                        if let w::Read::Setting(setting) =
+                            wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                            && setting.kind() == 8
+                        {
+                            classes_read = Some(*read);
+                        }
+                    }
+                    Down::Save { .. }
+                    | Down::Erase { .. }
+                    | Down::Send { .. }
+                    | Down::Open { .. }
+                    | Down::Continue { .. }
+                    | Down::Close { .. }
+                    | Down::Read { .. } => {}
                 }
-                Down::Save { .. }
-                | Down::Erase { .. }
-                | Down::Send { .. }
-                | Down::Open { .. }
-                | Down::Continue { .. }
-                | Down::Close { .. }
-                | Down::Read { .. } => {}
             }
         }
+        if let Some(table) = table {
+            let record = temper_protocol_reaches::classes_record(&table).unwrap();
+            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+            record.encode(&mut writer).unwrap();
+            let record = wire::setting_answer(
+                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+            );
+            up(
+                &mut root,
+                Up::ReadDone {
+                    read: classes_read.expect("classes read"),
+                    result: jig_client::Readout::Family { family: wire::FORGE, record: Some(record) },
+                },
+            );
+        }
+        if on {
+            deliver(&mut root, away_watch, &[f::PROJECT]);
+        }
+        if goal {
+            up(
+                &mut root,
+                Up::Watched {
+                    watch: goals_watch.expect("goals watch"),
+                    event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                        rows: List::from_boxed(Box::new([goal_line()])),
+                        more: false,
+                    }))),
+                },
+            );
+        }
+        assert_eq!(root.away_shown(f::PROJECT, Wall::EPOCH), expected, "on {on}, goal {goal}");
+        assert!(!root.away_shown(17, Wall::EPOCH));
     }
-    let goal_watch = goals.expect("goals fact");
-    let mut rows = List::with_capacity(1);
-    rows.push(goal_line()).unwrap();
-    up(
-        &mut root,
-        Up::Watched {
-            watch: goal_watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks { rows, more: false }))),
-        },
-    );
-    assert!(root.has_goals(f::PROJECT));
-    assert!(root.away_shown(f::PROJECT, minute(480)), "goal alone");
-    up(
-        &mut root,
-        Up::Watched {
-            watch: goal_watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
-                rows: List::with_capacity(0),
-                more: false,
-            }))),
-        },
-    );
-    assert!(!root.away_shown(f::PROJECT, minute(480)));
-    let project_ways =
-        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { skein_bools: [false, false, false, true], way: 0 })
-            .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(project_ways.measure()).unwrap());
-    project_ways.encode(&mut writer).unwrap();
-    let record = wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
-    );
-    up(
-        &mut root,
-        Up::ReadDone {
-            read: ways.expect("ways read"),
-            result: jig_client::Readout::Family { family: wire::FORGE, record: Some(record) },
-        },
-    );
-    assert!(root.away_shown(f::PROJECT, minute(480)), "Ways alone");
-    assert!(!root.away_shown(17, minute(480)));
+    asking_and_turning_rows();
+}
+fn asking_and_turning_rows() {
+    use crate::forge::classes::{Asking, asking, turned};
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject, Way};
+    // Settings lists kinds in kit order, followed by words and sets in table order.
+    let words = Item {
+        subject: Subject::Kind(Kind::Implementation),
+        words: Box::from(*b"inside the wasm crate"),
+        class: Class::AskAway,
+    };
+    let custom = Classes {
+        items: Box::new([
+            words.clone(),
+            Item { subject: Subject::Kind(Kind::Retry), words: Box::new([]), class: Class::Decide },
+        ]),
+        sets: Box::new([]),
+    };
+    for (table, expected) in [
+        (
+            Classes::stock(Way::AgentsReview),
+            Box::<[Asking]>::from([
+                Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: true },
+                Asking { subject: Subject::Kind(Kind::Dependency), item: 5, away: true },
+                Asking { subject: Subject::Kind(Kind::Departure), item: 6, away: true },
+            ]),
+        ),
+        (
+            custom.clone(),
+            Box::<[Asking]>::from([
+                Asking { subject: Subject::Kind(Kind::Wording), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Implementation), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Tests), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Dependency), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Departure), item: 0, away: false },
+                Asking { subject: Subject::Kind(Kind::Implementation), item: 1, away: false },
+            ]),
+        ),
+    ] {
+        assert_eq!(asking(&table), expected);
+    }
+    for (row, expected) in [
+        (
+            Asking { subject: Subject::Kind(Kind::Implementation), item: 0, away: false },
+            Classes {
+                items: Box::new([
+                    words.clone(),
+                    custom.items[1].clone(),
+                    Item { subject: Subject::Kind(Kind::Implementation), words: Box::new([]), class: Class::Ask },
+                ]),
+                sets: Box::new([]),
+            },
+        ),
+        (
+            Asking { subject: Subject::Kind(Kind::Implementation), item: 1, away: false },
+            Classes {
+                items: Box::new([Item { class: Class::Ask, ..words.clone() }, custom.items[1].clone()]),
+                sets: Box::new([]),
+            },
+        ),
+    ] {
+        assert_eq!(turned(&custom, row), expected);
+        assert_eq!(expected.check(), Ok(()));
+    }
+    let stock = Classes::stock(Way::AgentsReview);
+    let changed = turned(&stock, Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: true });
+    assert_eq!(changed.items[3].class, Class::AskAway);
+    assert_eq!(turned(&changed, Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: false }), stock);
 }
 
 fn goal_line() -> c::TaskLine {
@@ -572,5 +599,176 @@ fn nanos(wall: Option<Wall>) -> Option<u64> {
     match wall {
         Some(wall) => Some(wall.as_nanos()),
         None => None,
+    }
+}
+
+// The frame lists the open project, OTHER's project, and a third project.
+const THIRD: u32 = 23;
+const PROJECTS: [u32; 3] = [f::PROJECT, OTHER.project, THIRD];
+fn three_projects(rows: &[AwayRow]) -> Domain {
+    let (mut root, watch, frame) = opened();
+    let mut me = f::chats::me();
+    let owner = me.projects.get(0).unwrap().clone();
+    me.projects = List::uncapped();
+    for project in PROJECTS {
+        let mut member = owner.clone();
+        member.project = project;
+        me.projects.push(member).unwrap();
+    }
+    up(&mut root, Up::Watched { watch: frame, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) });
+    up(&mut root, Up::FamilyDelivered { watch, record: row_record(rows) });
+    root
+}
+fn sends(out: &Queue<Request>) -> List<w::SetAwayParts> {
+    let mut found = List::uncapped();
+    for request in out {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Send { request: Ask::Family { record, scope }, value: payload, .. },
+                },
+        } = request
+        {
+            let w::Request::SetAway(value) =
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            else {
+                continue;
+            };
+            assert!(payload.is_none());
+            assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
+            assert_eq!(*scope, c::Scope::Project(value.project()));
+            found.push(value.into_parts()).expect("sent requests grow");
+        }
+    }
+    found
+}
+#[test]
+fn across_counts_the_projects_on() {
+    use crate::pages::away_all::{Across, across};
+    let all = [
+        AwayRow { until: Some(minute(480)), ..WHAT },
+        OTHER,
+        AwayRow { project: THIRD, until: Some(minute(600)), ..WHAT },
+    ];
+    for (name, rows, wall, expected) in [
+        ("no rows", Some([].as_slice()), minute(479), Across { projects: 3, on: 0, until: None, shown: false }),
+        ("one on", Some([WHAT].as_slice()), minute(479), Across { projects: 3, on: 1, until: None, shown: true }),
+        (
+            "all on",
+            Some(all.as_slice()),
+            minute(479),
+            Across { projects: 3, on: 3, until: Some(minute(480)), shown: true },
+        ),
+        (
+            "at until",
+            Some(all.as_slice()),
+            minute(480),
+            Across { projects: 3, on: 2, until: Some(minute(600)), shown: true },
+        ),
+        ("me undelivered", None, minute(479), Across { projects: 0, on: 0, until: None, shown: false }),
+    ] {
+        let root = match rows {
+            Some(rows) => three_projects(rows),
+            None => crate::unlinked(&f::limits(), f::SEED),
+        };
+        assert_eq!(across(&root, wall), expected, "{name}");
+    }
+}
+fn away_answers(count: u32) -> Box<[Outcome]> {
+    let mut answers = List::uncapped();
+    for _ in 0..count {
+        answers.push(answer(w::Outcome::Away)).expect("fixture answers grow");
+    }
+    answers.into_boxed()
+}
+#[test]
+fn toggle_all_sets_each_project_that_differs() {
+    let mut all = List::uncapped();
+    for project in PROJECTS {
+        all.push(AwayRow { project, until: Some(minute(480)), ..WHAT }).expect("fixture projects grow");
+    }
+    let refused = || {
+        answer(w::Outcome::ForgeRefused(
+            w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
+        ))
+    };
+    for (name, rows, projects, state, outcomes, expected) in [
+        (
+            "none on",
+            Box::from([]),
+            PROJECTS.as_slice(),
+            (true, Some(minute(480).as_nanos())),
+            away_answers(3),
+            Toasted::AwayAll { on: true, changed: 3, sent: 3 },
+        ),
+        (
+            "one on",
+            Box::from([WHAT]),
+            [OTHER.project, THIRD].as_slice(),
+            (true, Some(minute(480).as_nanos())),
+            away_answers(2),
+            Toasted::AwayAll { on: true, changed: 2, sent: 2 },
+        ),
+        (
+            "all on",
+            all.into_boxed(),
+            PROJECTS.as_slice(),
+            (false, Some(minute(480).as_nanos())),
+            away_answers(3),
+            Toasted::AwayAll { on: false, changed: 3, sent: 3 },
+        ),
+        (
+            "one refused",
+            Box::from([]),
+            PROJECTS.as_slice(),
+            (true, Some(minute(480).as_nanos())),
+            Box::from([answer(w::Outcome::Away), answer(w::Outcome::Unknown), answer(w::Outcome::Away)]),
+            Toasted::AwayAll { on: true, changed: 2, sent: 3 },
+        ),
+        (
+            "none changed",
+            Box::from([]),
+            PROJECTS.as_slice(),
+            (true, Some(minute(480).as_nanos())),
+            Box::from([Outcome::Lost, answer(w::Outcome::Dismissed), refused()]),
+            Toasted::AwayRefused,
+        ),
+    ] {
+        let mut root = three_projects(&rows);
+        let first = root.pages.serial.checked_add(1).unwrap();
+        let mut out = act(&mut root, A::ToggleAll, minute(479));
+        let mut collected = List::uncapped();
+        for (index, outcome) in outcomes.into_iter().enumerate() {
+            assert!(root.pages().away_busy(), "{name}: busy until the last answer");
+            assert_eq!(root.pages().needs().toast(), None, "{name}: no early toast");
+            for next in [A::Toggle { project: f::PROJECT }, A::ToggleAll, A::Until { project: THIRD, eight: false }] {
+                assert!(act(&mut root, next, minute(479)).is_empty(), "{name}: competing act waits");
+            }
+            let key = Key { asker: crate::owner::Owner::Pages.asker(), number: first + u64::try_from(index).unwrap() };
+            assert!(told(&mut root, Key { number: key.number + 99, ..key }, answer(w::Outcome::Away)).is_empty());
+            assert!(root.pages().away_busy(), "{name}: unrelated answer");
+            assert_eq!(root.pages().needs().toast(), None, "{name}: unrelated answer");
+            let batch = sends(&out);
+            assert_eq!(batch.len(), 1, "{name}: one request admitted at a time");
+            let send = batch.get(0).expect("one request sent");
+            assert_eq!(
+                send.project,
+                *projects.get(index).expect("one project per answer"),
+                "{name}: changed projects only"
+            );
+            assert_eq!((send.on, send.until), state, "{name}: request state");
+            let mut lone = three_projects(&rows);
+            assert_eq!(
+                *send,
+                sent(&act(&mut lone, A::Toggle { project: send.project }, minute(479))),
+                "{name}: same project request"
+            );
+            collected.push(send.clone()).expect("sent requests grow");
+            out = told(&mut root, key, outcome);
+        }
+        assert!(out.is_empty(), "{name}: no requests left");
+        assert_eq!(usize::try_from(collected.len()).unwrap(), projects.len(), "{name}");
+        assert_eq!(root.pages().needs().toast(), Some(&expected), "{name}");
+        assert!(!root.pages().away_busy(), "{name}: settled");
     }
 }

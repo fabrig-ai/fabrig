@@ -1,0 +1,26 @@
+== Who owns what on First == Live
+First:
+  [1] temper
+  [2] First (pressed)
+  New project:
+    [3] New project: (empty) (enter sends)
+    [4] Create
+  [5] How work runs for First
+  [6] Deployment
+  [7] Home
+  [8] Needs you
+  [9] Work
+  [10] How work runs
+  New draft or change:
+    [11] Draft
+      A design session that ends in a goal, best had in the terminal.
+    [12] Change
+      Ask for one change.
+  [13] Away
+  [14] Deployment
+  * Pat
+First · Team
+One person.
+## People
+Pat
+Role 1

@@ -54,6 +54,7 @@ mod fuzzy {
     #[path = "../reset.rs"]
     mod reset;
     mod roles;
+    mod see;
     mod walking;
 }
 

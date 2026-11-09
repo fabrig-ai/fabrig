@@ -1,6 +1,10 @@
 use super::fixtures;
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn each_adoption_outcome_prints_as_its_golden_file() {
     use temper_client_domain::forge;
     let words = fixtures::page_words();
@@ -25,6 +29,10 @@ fn each_adoption_outcome_prints_as_its_golden_file() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn each_fixture_page_prints_as_its_golden_file() {
     for (name, tree) in [
         ("settings", fixtures::chat::settings()),
@@ -32,6 +40,7 @@ fn each_fixture_page_prints_as_its_golden_file() {
         ("sheet_adopt", fixtures::page(&temper_client_domain::Address::Adopt { project: 1 }, false)),
         ("builders", fixtures::page(&temper_client_domain::Address::Builders { project: 1 }, false)),
         ("changes", fixtures::changes_page()),
+        ("team", fixtures::team_page()),
         ("inbox", fixtures::inbox_page()),
         ("chats", fixtures::chats_page()),
         ("chat", fixtures::chat::page()),
@@ -135,7 +144,7 @@ fn account_sign_in_links_print_the_target() {
 fn the_first_run_prints_settings_and_the_playground_banner() {
     let print = fixtures::print(&fixtures::chat::first_run());
     let text = String::from_utf8_lossy(print.text.as_slice());
-    assert!(text.contains("] Settings\n"));
+    assert!(text.contains("] Deployment\n"));
     assert!(text.contains("Use the wizard to set up temper"));
 }
 

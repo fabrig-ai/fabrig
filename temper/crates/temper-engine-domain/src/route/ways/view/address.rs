@@ -9,6 +9,7 @@ pub(super) enum Address {
     Proposal { proposer: Proposer, number: u64 },
     Charter { number: u32, revision: Option<u32> },
     Rule { kind: u32, number: u32 },
+    Roles,
     Unknown,
 }
 
@@ -73,6 +74,7 @@ pub(super) fn parse(line: &[u8]) -> Address {
         words = rest;
     }
     match words {
+        [word] if revision.is_none() && word.eq_ignore_ascii_case(b"roles") => Address::Roles,
         [b"path", repository] if repository_name(repository) => {
             Address::Path { repository: (*repository).into(), branch: None, revision }
         }
@@ -105,7 +107,17 @@ pub(super) fn parse(line: &[u8]) -> Address {
             | crate::route::see::Address::Page { .. }
             | crate::route::see::Address::Search { .. }
             | crate::route::see::Address::File { .. }
-            | crate::route::see::Address::NotYet
+            | crate::route::see::Address::Me
+            | crate::route::see::Address::Project
+            | crate::route::see::Address::Goals { .. }
+            | crate::route::see::Address::Tasks
+            | crate::route::see::Address::Task { .. }
+            | crate::route::see::Address::Tree { .. }
+            | crate::route::see::Address::Activity { .. }
+            | crate::route::see::Address::Turn { .. }
+            | crate::route::see::Address::Change { .. }
+            | crate::route::see::Address::Changes
+            | crate::route::see::Address::Inbox
             | crate::route::see::Address::Unknown => Address::Unknown,
         },
         _ => Address::Unknown,

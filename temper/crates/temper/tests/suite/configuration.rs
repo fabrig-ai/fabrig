@@ -1,4 +1,5 @@
 use crate::support;
+use temper::directories::jig_directories;
 #[path = "creating.rs"]
 mod creating;
 
@@ -14,8 +15,8 @@ fn process_engine(case: &str) -> jig_protocol_config::Engine {
     // Forge::Unreached omits Forgejo's overrides; include its whole-authority bounds here.
     value["engine"]["limits"]["overrides"]["authority.grants"] = 14.into();
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 14.into();
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 14.into();
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 14.into();
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 15.into();
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 15.into();
     value["engine"]["limits"]["overrides"]["notes.scopes"] = 17.into();
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
@@ -174,6 +175,14 @@ fn cluster_document(cluster: &support::cluster::Cluster, process: &str) -> serde
         .expect("cluster document JSON")
 }
 
+fn cluster_engine(cluster: &support::cluster::Cluster) -> jig_protocol_config::Engine {
+    let value = cluster_document(cluster, "engine");
+    let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
+    let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
+    temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        .expect("initial stock engine")
+}
+
 #[test]
 fn the_clusters_documents_check_as_their_shapes() {
     use temper_service::startup::{self, Shape};
@@ -195,15 +204,15 @@ fn the_clusters_documents_check_as_their_shapes() {
             &root.join("cache"),
         ]);
         let bytes = std::fs::read(root.join("config/temper.json")).expect("cluster document");
-        let shape = startup::shape(&bytes, &directories.jig())
+        let shape = startup::shape(&bytes, &jig_directories(&directories))
             .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
         assert_eq!(shape, expected, "{process}");
         match shape {
             Shape::EngineAlone => {
-                startup::named(&bytes, &directories.jig()).expect("checked engine alone");
+                startup::named(&bytes, &jig_directories(&directories)).expect("checked engine alone");
             }
             Shape::WorkerAlone => {
-                let part = startup::worker_part(&bytes, &directories.jig()).expect("checked worker alone");
+                let part = startup::worker_part(&bytes, &jig_directories(&directories)).expect("checked worker alone");
                 let worker = &part.worker.jig;
                 let stop = jig_protocol_config::stop_bound(
                     &worker.graces,
@@ -234,14 +243,23 @@ fn the_clusters_documents_check_as_their_shapes() {
 }
 
 #[test]
+fn the_clusters_documents_can_list_every_offered_charter() {
+    let scratch = support::Scratch::startup("cluster-creating-charters");
+    let cluster = cluster_documents(scratch.path());
+    let engine = cluster_engine(&cluster);
+    let offered = engine.charters.iter().filter(|charter| charter.number != 10).count();
+    assert!(
+        engine.limits.core.documents.lines >= u32::try_from(offered).expect("offered charter count"),
+        "the cluster's creating document must list all {offered} eligible stock charters before offering a chat"
+    );
+    scratch.remove();
+}
+
+#[test]
 fn the_clusters_workers_admit_the_initial_stock() {
     let scratch = support::Scratch::startup("cluster-stock-admission");
     let cluster = cluster_documents(scratch.path());
-    let value = cluster_document(&cluster, "engine");
-    let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
-    let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
-    let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-        .expect("initial stock engine");
+    let engine = cluster_engine(&cluster);
     let core = jig_protocol_config::core(&engine, [0; 16], 1);
     let needs = jig_domain_core::settings::fleet_needs::configured(&core, &engine.limits.core);
     for process in ["w1", "w2"] {

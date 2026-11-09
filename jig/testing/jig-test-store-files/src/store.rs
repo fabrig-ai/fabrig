@@ -15,12 +15,19 @@ mod tests;
 /// and a reopened one answers the one it kept (configuration.md, 8).
 const INSTALLATION: [u8; 16] = [0; 16];
 
-/// Faults between the root and the component.
+/// Store transport and disk faults (jig/docs/design/protocol/store.md, 14).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
     Hold { commits: u32 },
     Fail { commit: u64 },
     SlowPages { by: u32 },
+    Kill { from: KillFrom, operation: u32 },
+}
+/// The submission or restart open from which file operations are counted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KillFrom {
+    Commit(u64),
+    Open,
 }
 /// A commit held before it reaches the component.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,6 +49,12 @@ struct Delayed {
 )]
 pub struct Store {
     pub applied: u64,
+    /// Independent whole prefixes, built from submitted writes.
+    pub prefixes: BTreeMap<u64, BTreeMap<root::Key, root::Record>>,
+    pub acknowledged: u64,
+    submissions: BTreeMap<u64, Box<[root::Write]>>,
+    kill: Option<(KillFrom, u32)>,
+    counts: BTreeMap<u64, u32>,
     /// Whether this open serves a copy awaiting the core’s switch step.
     pub generation_pending: bool,
     pub switch_requests: u32,
@@ -97,7 +110,7 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::PatchSets,
     ) -> Store {
-        Self::build(limits, models, sets)
+        Self::build(limits, models, sets, false)
     }
     /// Open the real store with typed start pages (protocol/store.md, 7.1).
     #[must_use]
@@ -111,11 +124,22 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::PatchSets,
     ) -> Store {
-        Self::build(limits, models, sets)
+        Self::build(limits, models, sets, false)
     }
-    fn build(limits: &root::Limits, models: &[jig_domain_core::Model], sets: protocol::PatchSets) -> Store {
+    /// Use the directory-backed component even without patch sets.
+    #[must_use]
+    pub fn on_disk(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
+        Self::build(limits, models, protocol::PatchSets::NONE, true)
+    }
+    fn build(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::PatchSets,
+        on_disk: bool,
+    ) -> Store {
         let component_limits = component_limits(limits);
-        let disk = if sets.sets.is_empty() { None } else { Some(crate::disk::Disk::new(&component_limits)) };
+        let disk =
+            if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(&component_limits)) };
         let application = jig_test_store::application(&limits.connector);
         let mut component = if let Some(disk) = &disk {
             protocol::Store::on_directory(&component_limits, application, models, disk.seeded())
@@ -132,6 +156,11 @@ impl Store {
         routes.configure_restore(&component_limits).expect("restart page bounds fit");
         let mut store = Store {
             applied: 0,
+            prefixes: BTreeMap::from([(0, BTreeMap::new())]),
+            acknowledged: 0,
+            submissions: BTreeMap::new(),
+            kill: None,
+            counts: BTreeMap::new(),
             generation_pending: false,
             switch_requests: 0,
             wires: &[],
@@ -219,12 +248,22 @@ impl Store {
             Fault::Hold { commits } => self.hold_next = commits,
             Fault::Fail { commit } => self.fail_at = Some(commit),
             Fault::SlowPages { by } => self.page_delay = by,
+            Fault::Kill { from, operation } => {
+                assert!(self.disk.is_some(), "operation cuts require a directory store");
+                self.kill = Some((from, operation));
+            }
         }
     }
     pub fn submit(&mut self, number: u64, writes: Box<[root::Write]>, delay: u32) {
         assert!(!self.failed, "a failed world must restart before writing");
         let previous = self.pending.back().map_or(self.applied, |pending| pending.number);
         assert_eq!(number, previous.checked_add(1).expect("bounded commit number"));
+        if self.disk.is_some() && self.sets.sets.is_empty() {
+            let mut rows = self.prefixes.get(&(number - 1)).unwrap_or(&self.rows).clone();
+            apply(&mut rows, &writes);
+            self.prefixes.insert(number, rows);
+            self.submissions.insert(number, writes.clone());
+        }
         self.pending.push_back(Pending { number, writes, delay });
     }
     /// Release one commit, or hold its durable acknowledgement as the fault asks.
@@ -233,7 +272,7 @@ impl Store {
     /// Returns the selected or component-refused commit's number.
     pub fn tick(&mut self, hold: bool) -> Result<Option<u64>, u64> {
         self.tick_pages();
-        if self.failed {
+        if self.failed || self.reached_kill() {
             return Ok(None);
         }
         let Some(front) = self.pending.front_mut() else {
@@ -252,15 +291,42 @@ impl Store {
         self.holding = hold || self.hold_next != 0 || !self.held.is_empty();
         self.hold_next = self.hold_next.saturating_sub(1);
         self.inflight.insert(pending.number, pending.writes.clone());
+        if let Some(disk) = &mut self.disk
+            && let Some((KillFrom::Commit(number), operation)) = self.kill
+            && number == pending.number
+        {
+            disk.operations = 0;
+            disk.mutations.clear();
+            disk.cut = Some(operation);
+            self.kill = None;
+        }
+        let before = self.disk.as_ref().map_or(0, |disk| disk.operations);
         self.request(StoreOut::Commit { number: pending.number, writes: pending.writes });
+        if let Some(disk) = &self.disk {
+            self.counts.insert(pending.number, disk.operations - before);
+        }
+        if self.reached_kill() {
+            return Ok(None);
+        }
         if self.failed {
             return Err(pending.number);
         }
         assert_eq!(self.applied, pending.number, "the synchronous stand-in settles the commit");
-        if self.holding { Ok(None) } else { Ok(Some(pending.number)) }
+        if self.holding {
+            Ok(None)
+        } else {
+            self.acknowledged = pending.number;
+            Ok(Some(pending.number))
+        }
     }
     pub fn release_held(&mut self) -> Option<u64> {
-        if self.failed { None } else { self.held.pop_front() }
+        if self.failed {
+            None
+        } else {
+            let number = self.held.pop_front()?;
+            self.acknowledged = number;
+            Some(number)
+        }
     }
     /// Crash and reopen under a configuration whose models may differ from the last.
     pub fn reconfigure(&mut self, seed: u64, models: &[jig_domain_core::Model]) {
@@ -293,12 +359,48 @@ impl Store {
         self.failed = false;
         self.hold_next = 0;
         self.fail_at = None;
+        if let Some(disk) = &mut self.disk
+            && let Some((KillFrom::Open, operation)) = self.kill
+        {
+            disk.cut = Some(operation);
+        }
         self.open();
+        self.kill = None;
+        if self.disk.is_some() && self.sets.sets.is_empty() && !self.reached_kill() {
+            assert!(self.applied >= self.acknowledged, "acknowledged prefix survives");
+            let actual = self.readback();
+            assert_eq!(Some(&actual), self.prefixes.get(&self.applied), "recovery is one whole submitted prefix");
+            self.rows = actual;
+            self.prefixes.retain(|number, _| *number <= self.applied);
+            self.submissions.retain(|number, _| *number <= self.applied);
+            self.durable = self.submissions.iter().map(|(number, writes)| (*number, writes.clone())).collect();
+            self.acknowledged = self.applied;
+        }
+    }
+    /// Whether the disk has stopped serving operations at the selected cut.
+    #[must_use]
+    pub fn reached_kill(&self) -> bool {
+        self.disk.as_ref().is_some_and(|disk| disk.reached)
+    }
+    /// Operations served during a commit's submission to the component.
+    #[must_use]
+    pub fn operation_count(&self, commit: u64) -> u32 {
+        *self.counts.get(&commit).expect("counted disk commit")
+    }
+    /// Operations served since the latest directory open.
+    #[must_use]
+    pub fn open_operation_count(&self) -> u32 {
+        self.disk.as_ref().expect("directory store").operations
+    }
+    /// Writes, syncs and renames counted from the latest open or selected commit.
+    #[must_use]
+    pub fn mutation_operations(&self) -> &[u32] {
+        &self.disk.as_ref().expect("directory store").mutations
     }
     /// Replay durable commits into fresh stores and a fresh filesystem.
     #[must_use]
     pub fn fork(&self) -> Store {
-        let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets);
+        let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets, self.disk.is_some());
         fresh.wires(self.wires);
         for index in 0..=self.durable.len() {
             for (_, sets) in self.patches.iter().filter(|(at, _)| *at == index) {
@@ -387,7 +489,7 @@ impl Store {
             Queue::uncapped(),
         );
         assert!(!self.failed, "durable stores reopen after their files are cut");
-        if !self.rows.is_empty() {
+        if !self.rows.is_empty() && !self.reached_kill() && (self.disk.is_none() || !self.sets.sets.is_empty()) {
             self.refresh_patched_rows();
         }
         if self.patched > 0 {
@@ -422,6 +524,9 @@ impl Store {
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below { store: Queue::uncapped(), secrets: Queue::uncapped(), transcripts: Queue::uncapped() };
         loop {
+            if self.reached_kill() {
+                return;
+            }
             let env = self.env();
             if let Some(disk) = &mut self.disk {
                 disk.drive(self.component.as_mut().expect("component exists"), &env, &mut above);
@@ -474,46 +579,7 @@ impl Store {
             }
             Event::Committed { number, .. } => {
                 let writes = self.inflight.remove(&number).expect("commit belongs to the root");
-                for write in &writes {
-                    match write {
-                        root::Write::DropTranscript { task } => {
-                            self.rows.retain(|key, _| {
-                                if let root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
-                                    task: owner,
-                                    ..
-                                })) = key
-                                {
-                                    owner != task
-                                } else {
-                                    true
-                                }
-                            });
-                        }
-                        root::Write::Wires => {}
-                        root::Write::CopySettingsRevision(number) => {
-                            use jig_domain_core as core;
-                            let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(
-                                core::settings::Key::Held(*number),
-                            )));
-                            let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
-                                core::settings::Record::Revision { revision, .. },
-                            ))) = self.rows.get(&key).expect("held revision").clone()
-                            else {
-                                panic!("revision row")
-                            };
-                            let row = root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
-                                core::settings::Record::Revision { history: true, revision },
-                            )));
-                            self.rows.insert(row.key(), row);
-                        }
-                        root::Write::Save(row) => {
-                            self.rows.insert(row.key(), row.clone());
-                        }
-                        root::Write::Erase(key) => {
-                            self.rows.remove(key);
-                        }
-                    }
-                }
+                apply(&mut self.rows, &writes);
                 self.applied = number;
                 self.durable.push((number, writes));
                 if self.holding {
@@ -649,5 +715,46 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks).expect("bounded readers"),
         orphan_erases: 1,
         held: 2,
+    }
+}
+
+fn apply(rows: &mut BTreeMap<root::Key, root::Record>, writes: &[root::Write]) {
+    for write in writes {
+        match write {
+            root::Write::DropTranscript { task } => {
+                rows.retain(|key, _| {
+                    if let root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                        task: owner,
+                        ..
+                    })) = key
+                    {
+                        owner != task
+                    } else {
+                        true
+                    }
+                });
+            }
+            root::Write::Wires => {}
+            root::Write::CopySettingsRevision(number) => {
+                use jig_domain_core as core;
+                let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(core::settings::Key::Held(*number))));
+                let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
+                    core::settings::Record::Revision { revision, .. },
+                ))) = rows.get(&key).expect("held revision").clone()
+                else {
+                    panic!("revision row")
+                };
+                let row = root::Record::Core(core::Record::Core(core::CoreRecord::Settings(
+                    core::settings::Record::Revision { history: true, revision },
+                )));
+                rows.insert(row.key(), row);
+            }
+            root::Write::Save(row) => {
+                rows.insert(row.key(), row.clone());
+            }
+            root::Write::Erase(key) => {
+                rows.remove(key);
+            }
+        }
     }
 }

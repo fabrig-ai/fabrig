@@ -1,4 +1,4 @@
-//! The TUI's shipped host in the joint world (temper/docs/design/client/README.md, 6.13 and 6.17;
+//! The TUI's shipped host in the joint world (temper/docs/design/client/README.md, 6.13, 6.14 and 6.17;
 //! temper/docs/design/domain/testing.md, 6.3).
 use crate::{app::Temper, front::Joint};
 use jig_client_kit::harness::{ClientId, Until, World};
@@ -38,6 +38,26 @@ pub struct Tui {
 }
 
 impl Tui {
+    /// Signs in on Hello's launchpad after naming the seeded project through the engine.
+    pub fn hello_launchpad(world: &mut World<Temper, Joint>, who: ClientId) -> Self {
+        let engine = &mut world.front().engine;
+        engine.sign_in();
+        engine.settle();
+        engine.send(temper_engine_domain::Event::Party(temper_engine_domain::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(2_000)),
+            sign_in: engine.session(),
+            key: [42; 16],
+            ask: jig_domain_people::Ask::Rename { project: 1, name: "Hello".into() },
+        }));
+        engine.settle();
+        let mut tui = Self::start(world, who, None);
+        tui.press(world, vec![Key::Paste(crate::front::printed_link()), Key::Enter]);
+        tui.run(world, crate::fixtures::WITHIN);
+        assert!(tui.text().contains("temper · Hello"), "{}", tui.text());
+        tui
+    }
+
     /// Links `who` and starts the shipped host at 80 by 24 with no small-store records.
     pub fn start(world: &mut World<Temper, Joint>, who: ClientId, credential: Option<Secret>) -> Self {
         Self::with_file(world, who, credential, File::Absent, None)
@@ -103,7 +123,7 @@ impl Tui {
                 local,
                 note,
                 size: Size { columns: 80, rows: 24 },
-                scheme: Scheme::Dark,
+                scheme: Some(Scheme::Dark),
                 background: None,
                 boxed: false,
                 address: ADDRESS.into(),
@@ -126,6 +146,16 @@ impl Tui {
     /// Types words through the same character keys a terminal supplies.
     pub fn type_words(&mut self, world: &mut World<Temper, Joint>, words: &str) {
         self.press(world, words.chars().map(Key::Char).collect());
+    }
+
+    /// Walks Needs you from the launchpad's empty box.
+    pub fn walk_needs(&mut self, world: &mut World<Temper, Joint>) {
+        self.press(world, vec![Key::Char('n')]);
+    }
+
+    /// The frame's rows without terminal padding.
+    pub fn rows(&mut self) -> Vec<String> {
+        self.text().lines().map(|row| row.trim().to_owned()).collect()
     }
 
     /// Runs the world's own steps, carrying each report's duties at once.

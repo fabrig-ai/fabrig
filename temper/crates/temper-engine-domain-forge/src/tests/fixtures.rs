@@ -163,6 +163,9 @@ pub fn opening() -> (Domain, Token) {
 }
 
 pub fn next_call(d: &mut Domain) -> (Token, skein_forge::api::Op) {
+    if !d.steps.is_empty() {
+        landing_seen(d);
+    }
     for request in ready(d) {
         if let Request::Call { call, op, .. } = request {
             return (call, op);
@@ -261,4 +264,29 @@ pub fn finish_open(d: &mut Domain) -> Box<[Request]> {
     answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
     answer_next(d, Ok(checks(skein_forge::api::Check::Passed)));
     answer_next(d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }))
+}
+
+/// Fresh change chains start with an observed landing branch, apart from their subject.
+fn landing_seen(d: &mut Domain) {
+    let name = Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([b"main".as_slice().into()])),
+    };
+    if !d.heads.contains_key(&name) {
+        d.heads.insert(name.clone(), BranchHead { name, commit: BASE, owned: false }).expect("fixture head room");
+    }
+}
+
+/// Complete adoption's independent workflow read with absent directories.
+pub fn workflows_absent(d: &mut Domain) {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    let (call, op) = next_call(d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));
+    answer(d, call, Ok(Answer::Commit(BASE)));
+    for path in [b".forgejo/workflows".as_slice(), b".github/workflows"] {
+        let (call, op) = next_call(d);
+        assert_eq!(op, Op::Read(Read::File { head: BASE, path: path.into(), max_bytes: LIMITS.client.answer_bytes }));
+        answer(d, call, Err(Error::Missing));
+    }
 }

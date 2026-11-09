@@ -95,6 +95,11 @@ fn drawn(b: &mut Builder, address: &[u8], view: &w::View, words: &Words) {
         }
         w::View::Charter(charter) => card(b, charter.card()),
         w::View::Rule(rule) => card(b, rule.card()),
+        w::View::Roles(roles) => {
+            for role in roles.roles() {
+                card(b, role.card());
+            }
+        }
         w::View::NotDrawn(value) => line(b, Role::Paragraph, value.words()),
     }
 }
@@ -108,7 +113,9 @@ fn path(b: &mut Builder, path: &w::BranchPath, label: &[u8], address: &[u8], wor
             w::Actor::Code => paths::Mark::Code,
             w::Actor::Bar => paths::Mark::Bar,
         };
-        stops.push(paths::Stop { mark, words: stop.words() }).expect("wire bounds path stops");
+        stops
+            .push(paths::Stop { mark, words: stop.words(), needed: stop.needed(), over: stop.over() })
+            .expect("wire bounds path stops");
     }
     if paths::path(b, label, stops.as_slice(), None).is_err() {
         failed(b, address, words);

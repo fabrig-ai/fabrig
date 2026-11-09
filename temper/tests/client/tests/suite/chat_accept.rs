@@ -18,7 +18,6 @@ fn proposed() -> (ClientWorld, ClientId, u64, ClientId) {
         drafts: true,
         goals: true,
         changes: false,
-        away: true,
         way: 0,
     });
     let item = temper_engine_domain_world::kinds::item(7, PROJECT, 1, &value);
@@ -66,10 +65,11 @@ fn an_asking_chat_accepts_its_own_proposal() {
             },
             Step::Gone { find: Find::exactly_named(Role::Dialog, b"Accept this proposal?"), within: fixtures::WITHIN },
             see(Find::exactly_named(Role::Paragraph, ACCEPTED)),
-            see(Find::exactly_named(Role::Link, b"Goals")),
+            see(Find::exactly_named(Role::Link, b"Work")),
         ],
     );
     assert!(world.root(person).person().pages().confirmation().is_none());
+    assert!(world.root(person).person().forge().ways(PROJECT).expect("accepted project ways").goals);
     assert_eq!(rail(&world, person), 0);
     newest(&mut world, agent, 2);
     steps(

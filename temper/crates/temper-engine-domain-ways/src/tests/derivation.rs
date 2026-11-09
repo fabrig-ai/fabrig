@@ -20,21 +20,27 @@ pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) ->
             ci,
             checks: Box::default(),
             contexts: Box::default(),
+            workflows: Box::default(),
             gates: if prove { Box::new([b"unit".as_slice().into()]) } else { Box::default() },
             tiers: if tiers {
                 Box::new([
-                    Tier { name: b"slow".as_slice().into(), follows: Follows::Landing },
-                    Tier { name: b"goal".as_slice().into(), follows: Follows::Goals },
+                    Tier { name: b"slow".as_slice().into(), follows: Follows::Landing, description: Box::default() },
+                    Tier { name: b"goal".as_slice().into(), follows: Follows::Goals, description: Box::default() },
                 ])
             } else {
                 Box::default()
             },
         }),
         rules: laid(&[], &[], PROJECT, &items),
-        start: if ways.goals && ways.way == 4 { Start::Goal { charter: 5 } } else { Start::Chat },
+        start: if ways.goals && ways.way == 4 {
+            Start::Goal { charter: 5, design: false, close_out: false }
+        } else {
+            Start::Chat
+        },
         producer: 1,
         reviewer: 2,
         by,
+        merge_job: false,
         roles: Box::new([
             Role { number: 0, name: b"owner".as_slice().into(), yours: true },
             Role { number: 1, name: b"maintainer".as_slice().into(), yours: false },
@@ -45,7 +51,7 @@ pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) ->
                 model: Some(b"Model".as_slice().into()),
                 effort: Some(b"high".as_slice().into()),
                 usable: true,
-                can: can(true, false, false, false).into(),
+                can: can(true, false, false, false, false).into(),
                 asked: b"Review the change.".as_slice().into(),
             })
             .into(),
@@ -56,9 +62,20 @@ fn expected(path: &Path, words: &[(Actor, &str)], row: &str) {
     let drawn: Box<[_]> = path
         .stops
         .iter()
-        .map(|stop| (stop.actor.clone(), core::str::from_utf8(&stop.words).expect("stop words")))
+        .map(|stop| {
+            let words = core::str::from_utf8(&stop.words).expect("stop words");
+            let over = core::str::from_utf8(&stop.over).expect("over words");
+            (stop.actor.clone(), words, stop.needed, over)
+        })
         .collect();
-    assert_eq!(drawn.as_ref(), words, "{row}");
+    let expected: Box<[_]> = words
+        .iter()
+        .map(|(actor, words)| {
+            let (step, over) = words.split_once(';').unwrap_or((words, ""));
+            (actor.clone(), step, ["repair", "conflict", "resolve", "catch up"].contains(&step), over)
+        })
+        .collect();
+    assert_eq!(drawn, expected, "{row}");
 }
 
 #[test]
@@ -102,6 +119,12 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
     uncovered.branch = b"other".as_slice().into();
     let mut owner = maintainer.clone();
     owner.roles.get_mut(1).unwrap().name = b"Owner".as_slice().into();
+    let mut catch_up = inputs(2, true, true, Way::Queue, false);
+    catch_up.merge_job = true;
+    let mut designed = catch_up.clone();
+    designed.start = Start::Goal { charter: 5, design: true, close_out: true };
+    let mut close_turn = inputs(2, true, true, Way::Turn, true);
+    close_turn.start = Start::Goal { charter: 5, design: false, close_out: true };
     let rows: &[(&str, Inputs, &[(Actor, &str)])] = &[
         (
             "Agents review, CI and tiers",
@@ -111,9 +134,9 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (A, "produce"),
                 (C, "check"),
                 (A, "review"),
-                (A, "repair"),
+                (A, "repair;tests, review"),
                 (C, "check"),
-                (C, "update"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (C, "verify"),
@@ -127,10 +150,10 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (C, "check"),
-                (A, "repair"),
+                (A, "repair;tests"),
                 (C, "check"),
                 (P, "you approve"),
-                (C, "update"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (C, "verify"),
@@ -139,19 +162,61 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
         ),
         (
             "Draft first, CI and tiers",
-            inputs(2, true, true, Way::Queue, false),
+            catch_up,
             &[
                 (P, "draft"),
                 (A, "plan"),
                 (A, "produce ×n"),
-                (C, "merge"),
+                (C, "merge;into goal"),
                 (C, "check"),
-                (A, "repair"),
+                (A, "repair;tests"),
+                (C, "catch up"),
                 (B, "goal branch"),
                 (C, "check"),
-                (C, "update"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
+                (C, "verify"),
+                (B, "main"),
+            ],
+        ),
+        (
+            "Draft first, design and close-out, CI and tiers",
+            designed,
+            &[
+                (P, "draft"),
+                (A, "design"),
+                (A, "produce ×n"),
+                (C, "merge;into goal"),
+                (C, "check"),
+                (A, "repair;tests"),
+                (C, "catch up"),
+                (B, "goal branch"),
+                (C, "check"),
+                (C, "conflict"),
+                (A, "resolve"),
+                (C, "merge"),
+                (A, "close-out"),
+                (C, "verify"),
+                (B, "main"),
+            ],
+        ),
+        (
+            "goal close-out after landing turn",
+            close_turn,
+            &[
+                (P, "draft"),
+                (A, "plan"),
+                (A, "produce ×n"),
+                (C, "merge;into goal"),
+                (C, "check"),
+                (A, "repair;tests"),
+                (B, "goal branch"),
+                (C, "prepare"),
+                (A, "resolve"),
+                (C, "prove"),
+                (C, "turn"),
+                (A, "close-out"),
                 (C, "verify"),
                 (B, "main"),
             ],
@@ -163,8 +228,8 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (A, "review"),
-                (A, "repair"),
-                (C, "update"),
+                (A, "repair;review"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -177,7 +242,7 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (P, "you approve"),
-                (C, "update"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -190,9 +255,9 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "draft"),
                 (A, "plan"),
                 (A, "produce ×n"),
-                (C, "merge"),
+                (C, "merge;into goal"),
                 (B, "goal branch"),
-                (C, "update"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -205,7 +270,7 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (A, "review"),
-                (A, "repair"),
+                (A, "repair;review"),
                 (C, "prepare"),
                 (A, "resolve"),
                 (C, "prove"),
@@ -220,7 +285,7 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (A, "review"),
-                (A, "repair"),
+                (A, "repair;review"),
                 (C, "prepare"),
                 (A, "resolve"),
                 (C, "turn"),
@@ -237,7 +302,7 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (C, "prepare"),
                 (A, "resolve"),
                 (C, "prove"),
-                (A, "repair"),
+                (A, "repair;tests"),
                 (C, "turn"),
                 (B, "main"),
             ],
@@ -249,7 +314,7 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (P, "a maintainer approves ×2"),
-                (C, "update"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -262,7 +327,7 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (P, "an Owner approves ×2"),
-                (C, "update"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -275,8 +340,8 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (A, "review"),
-                (A, "repair"),
-                (C, "update"),
+                (A, "repair;review"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -285,7 +350,7 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
         (
             "unenforced adds only its gate",
             unenforced,
-            &[(P, "you ask"), (A, "produce"), (A, "review"), (A, "repair"), (C, "merge"), (B, "main")],
+            &[(P, "you ask"), (A, "produce"), (A, "review"), (A, "repair;review"), (C, "merge"), (B, "main")],
         ),
         (
             "deployment rule",
@@ -294,10 +359,10 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (C, "check"),
-                (A, "repair"),
+                (A, "repair;tests"),
                 (C, "check"),
                 (P, "you approve"),
-                (C, "update"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -310,8 +375,8 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (A, "review"),
-                (A, "repair"),
-                (C, "update"),
+                (A, "repair;review"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -325,8 +390,8 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (A, "produce"),
                 (A, "check"),
                 (A, "check"),
-                (A, "repair"),
-                (C, "update"),
+                (A, "repair;tests"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -339,8 +404,8 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (A, "review"),
-                (A, "repair"),
-                (C, "update"),
+                (A, "repair;review"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -353,8 +418,8 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "you ask"),
                 (A, "produce"),
                 (A, "review"),
-                (A, "repair"),
-                (C, "update"),
+                (A, "repair;review"),
+                (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
                 (B, "main"),
@@ -372,9 +437,9 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (P, "draft"),
                 (A, "plan"),
                 (A, "produce ×n"),
-                (C, "merge"),
+                (C, "merge;into goal"),
                 (C, "check"),
-                (A, "repair"),
+                (A, "repair;tests"),
                 (B, "goal branch"),
                 (C, "prepare"),
                 (A, "resolve"),
@@ -408,6 +473,12 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     let mut stock_review = review.clone();
     let reviewer_sentence = "Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.";
     stock_review.agents.get_mut(1).unwrap().asked = reviewer_sentence.as_bytes().into();
+    let mut described = review.clone();
+    described.repository.as_mut().unwrap().tiers.first_mut().unwrap().description =
+        b"the slow suites".as_slice().into();
+    let mut goal_described = inputs(2, true, true, Way::Queue, false);
+    goal_described.repository.as_mut().unwrap().tiers.get_mut(1).unwrap().description =
+        b"the gate without its slowest suites".as_slice().into();
     let approved = inputs(0, false, false, Way::Queue, false);
     let mut deployment = review.clone();
     deployment.rules.first_mut().unwrap().scope = 0;
@@ -427,7 +498,180 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     let mut three_contexts = deployment.clone();
     three_contexts.repository.as_mut().unwrap().contexts =
         [b"build".as_slice(), b"lint", b"test"].map(Box::from).into();
+    let mut deployment_workflows = deployment.clone();
+    deployment_workflows.repository.as_mut().unwrap().workflows = Box::new([b"ci.yml".as_slice().into()]);
+    let mut three_workflows = three_contexts.clone();
+    three_workflows.repository.as_mut().unwrap().workflows =
+        [b"build.yml".as_slice(), b"lint.yml", b"test.yml"].map(Box::from).into();
+    let mut goal = inputs(2, true, true, Way::Queue, false);
+    goal.merge_job = true;
+    let mut goal_conflict = goal.clone();
+    goal_conflict.rules.get_mut(1).unwrap().rule.up_to_date = true;
+    let mut other = review.clone();
+    other.branch = b"release".as_slice().into();
+    let mut designed = goal.clone();
+    designed.start = Start::Goal { charter: 5, design: true, close_out: true };
+    let mut missing_coordinator = designed.clone();
+    missing_coordinator.agents = Box::default();
+    let mut release = designed.clone();
+    release.branch = b"release".as_slice().into();
     let rows = [
+        (
+            &designed,
+            Step::Design,
+            Opens::Charter(5),
+            "an agent · designs the goal, then cuts it into changes",
+            "the coordinator",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge"),
+                ("Asked to", "“Review the change.”"),
+                (
+                    "Its order",
+                    "the design is delivered first, as a change into the goal's branch; the changes start from it and merge after it",
+                ),
+            ]),
+        ),
+        (
+            &designed,
+            Step::CloseOut,
+            Opens::Charter(5),
+            "an agent · after the landing, brings what the goal leaves up to date",
+            "the coordinator",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge"),
+                ("Asked to", "“Review the change.”"),
+                ("Lands", "as one change into main, by main's rules"),
+            ]),
+        ),
+        (
+            &release,
+            Step::CloseOut,
+            Opens::Charter(5),
+            "an agent · after the landing, brings what the goal leaves up to date",
+            "the coordinator",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge"),
+                ("Asked to", "“Review the change.”"),
+                ("Lands", "as one change into release, by release's rules"),
+            ]),
+        ),
+        (
+            &missing_coordinator,
+            Step::Design,
+            Opens::Charter(5),
+            "an agent · designs the goal, then cuts it into changes",
+            "the coordinator",
+            facts(&[
+                ("Charter", "charter 5"),
+                (
+                    "Its order",
+                    "the design is delivered first, as a change into the goal's branch; the changes start from it and merge after it",
+                ),
+            ]),
+        ),
+        (
+            &missing_coordinator,
+            Step::CloseOut,
+            Opens::Charter(5),
+            "an agent · after the landing, brings what the goal leaves up to date",
+            "the coordinator",
+            facts(&[("Charter", "charter 5"), ("Lands", "as one change into main, by main's rules")]),
+        ),
+        (
+            &goal_conflict,
+            Step::Conflict,
+            Opens::Queue,
+            "code · temper/0/g0 has moved in a way that clashes with the change",
+            "the queue",
+            facts(&[
+                ("When", "the change reaches the front of the queue: temper/0/g0 is merged into it, never by an agent"),
+                ("Merged cleanly", "it is checked again and lands"),
+                ("A clash", "it leaves the queue and goes to resolve"),
+            ]),
+        ),
+        (
+            &review,
+            Step::Conflict,
+            Opens::Queue,
+            "code · main has moved in a way that clashes with the change",
+            "the queue",
+            facts(&[
+                ("When", "the change reaches the front of the queue: main is merged into it, never by an agent"),
+                ("Merged cleanly", "it is checked again and lands"),
+                ("A clash", "it leaves the queue and goes to resolve"),
+            ]),
+        ),
+        (
+            &other,
+            Step::Conflict,
+            Opens::Queue,
+            "code · release has moved in a way that clashes with the change",
+            "the queue",
+            facts(&[
+                ("When", "the change reaches the front of the queue: release is merged into it, never by an agent"),
+                ("Merged cleanly", "it is checked again and lands"),
+                ("A clash", "it leaves the queue and goes to resolve"),
+            ]),
+        ),
+        (
+            &goal,
+            Step::Conflict,
+            Opens::Queue,
+            "code · main has moved in a way that clashes with the goal's branch",
+            "the queue",
+            facts(&[
+                ("When", "the goal's branch reaches the front of the queue: main is merged into it, never by an agent"),
+                ("Merged cleanly", "it is checked again and lands"),
+                ("A clash", "it leaves the queue and goes to resolve"),
+            ]),
+        ),
+        (
+            &approved,
+            Step::Conflict,
+            Opens::Queue,
+            "code · main has moved in a way that clashes with the change",
+            "the queue",
+            facts(&[
+                ("When", "the change reaches the front of the queue: main is merged into it, never by an agent"),
+                ("Merged cleanly", "it lands"),
+                ("A clash", "it leaves the queue and goes to resolve"),
+            ]),
+        ),
+        (
+            &goal,
+            Step::CatchUp,
+            Opens::Nothing,
+            "code · takes main into the goal's branch",
+            "the merge job",
+            facts(&[
+                ("Does", "merges main's tip into a branch made at the goal's tip, landing as a change into it"),
+                ("When", "the coordinator's call, as main's landings touch the goal's open work"),
+                ("A conflict", "goes to resolve"),
+            ]),
+        ),
+        (
+            &goal,
+            Step::Merge,
+            Opens::Queue,
+            "code · lands each change into the goal's branch",
+            "the queue",
+            facts(&[("Does", "merges exactly the commit its checks saw")]),
+        ),
+        (
+            &review,
+            Step::Resolve,
+            Opens::Charter(review.producer),
+            "an agent · settles a conflict with its branch, then goes back through the checks",
+            "the coding agent",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge"),
+                ("Asked to", "“Review the change.”"),
+            ]),
+        ),
         (
             &stock_review,
             Step::Review,
@@ -436,7 +680,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             "the reviewer",
             facts(&[
                 ("Model", "Model · high"),
-                ("Can", "read the code and the forge; never merge or update"),
+                ("Can", "read the code and the forge; never merge"),
                 (
                     "Asked to",
                     "“Review the change at the named head: read its pull request, the files it changes and its checks, and judge them against what the change was asked to do.”",
@@ -451,7 +695,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             "the reviewer",
             facts(&[
                 ("Model", "Model · high"),
-                ("Can", "read the code and the forge; never merge or update"),
+                ("Can", "read the code and the forge; never merge"),
                 ("Asked to", "“Review the change.”"),
             ]),
         ),
@@ -481,6 +725,28 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             facts(&[("Checks", "every check the repository's CI workflows report, at the change's head")]),
         ),
         (
+            &deployment_workflows,
+            Step::Check,
+            Opens::Rule { kind: 1, scope: 0, number: 1 },
+            "code · holds a change until CI passes",
+            "CI",
+            facts(&[
+                ("Workflows", "ci.yml"),
+                ("Checks", "every check the repository's CI workflows report, at the change's head"),
+            ]),
+        ),
+        (
+            &three_workflows,
+            Step::Check,
+            Opens::Rule { kind: 1, scope: 0, number: 1 },
+            "code · holds a change until CI passes",
+            "CI",
+            facts(&[
+                ("Workflows", "build.yml, lint.yml and test.yml"),
+                ("Checks", "the CI workflows' checks build, lint and test, at the change's head"),
+            ]),
+        ),
+        (
             &one_context,
             Step::Check,
             Opens::Rule { kind: 1, scope: 0, number: 1 },
@@ -504,7 +770,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             "the reviewer",
             facts(&[
                 ("Model", "Model · high"),
-                ("Can", "read the code and the forge; never merge or update"),
+                ("Can", "read the code and the forge; never merge"),
                 ("Asked to", "“Review the change.”"),
             ]),
         ),
@@ -516,7 +782,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             "the reviewer",
             facts(&[
                 ("Model", "Model · high"),
-                ("Can", "read the code and the forge; never merge or update"),
+                ("Can", "read the code and the forge; never merge"),
                 ("Asked to", "“Review the change.”"),
             ]),
         ),
@@ -536,7 +802,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             "the reviewer",
             facts(&[
                 ("Model", "no model · no account runs it now"),
-                ("Can", "read the code and the forge; never merge or update"),
+                ("Can", "read the code and the forge; never merge"),
                 ("Asked to", "“Review the change.”"),
             ]),
         ),
@@ -556,17 +822,40 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             "slow",
             facts(&[("Runs", "the tier slow after each landing")]),
         ),
+        (
+            &described,
+            Step::Verify,
+            Opens::Tier(b"slow".as_slice().into()),
+            "code · checks what landed",
+            "slow",
+            facts(&[("Runs", "the tier slow after each landing"), ("Checks", "the slow suites")]),
+        ),
+        (
+            &goal_described,
+            Step::Check,
+            Opens::Tier(b"goal".as_slice().into()),
+            "code · checks the goal's branch",
+            "goal",
+            facts(&[("Runs", "the tier goal on the goal's branch"), ("Checks", "the gate without its slowest suites")]),
+        ),
     ];
     for (inputs, step, opens, who, name, facts) in rows {
         let path = derive(inputs);
+        bounds(&path);
         let stop = find(&path, step);
         assert_eq!(stop.opens, opens);
         assert_eq!(stop.card, Card { who: who.as_bytes().into(), name: name.as_bytes().into(), facts });
     }
+    let goal_path = derive(&goal);
+    let landing_merge = goal_path.stops.iter().rev().find(|stop| stop.step == Step::Merge).unwrap();
+    assert_eq!(landing_merge.card.who.as_ref(), "code · lands the goal on main".as_bytes());
     for length in [0, WORDS, VALUE, VALUE + 7, ASKED, ASKED + 7] {
         let mut inputs = inputs(0, true, true, Way::Queue, false);
         inputs.branch = "é".repeat(length).into_bytes().into();
+        inputs.start = Start::Goal { charter: 5, design: true, close_out: true };
+        inputs.merge_job = true;
         inputs.repository.as_mut().unwrap().contexts = [(); 3].map(|()| inputs.branch.clone()).into();
+        inputs.repository.as_mut().unwrap().workflows = [(); 3].map(|()| inputs.branch.clone()).into();
         for role in &mut inputs.roles {
             role.name = inputs.branch.clone();
         }
@@ -576,6 +865,10 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             agent.can = inputs.branch.clone();
             agent.asked = inputs.branch.clone();
         }
+        let path = derive(&inputs);
+        bounds(&path);
+        assert_eq!(find(&path, Step::Design).card.facts.len(), FACTS);
+        assert_eq!(find(&path, Step::CloseOut).card.facts.len(), FACTS);
         let rule = &mut inputs.rules.first_mut().unwrap().rule;
         rule.gates =
             (0..40).map(|number| RuleGate { number, blocking: true, freshness: JudgeFreshness::Exact }).collect();
@@ -591,6 +884,8 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
                             "overlong instructions carry an ellipsis inside quotes"
                         );
                     }
+                } else if fact.label.as_ref() == b"Workflows" && inputs.branch.len() > VALUE {
+                    assert!(fact.value.ends_with("…".as_bytes()), "overlong workflows carry an ellipsis");
                 } else if fact.label.as_ref() == b"Checks" && inputs.branch.len() > VALUE {
                     assert!(fact.value.ends_with("…".as_bytes()), "overlong required checks carry an ellipsis");
                 }
@@ -613,11 +908,12 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     invalid.agents.get_mut(1).unwrap().asked = [0x80; 400].into();
     invalid.repository.as_mut().unwrap().contexts =
         Box::new([[0x80].as_slice().into(), b"ci / test".as_slice().into()]);
+    invalid.repository.as_mut().unwrap().workflows = Box::new([[0x80].as_slice().into(), b"ci.yml".as_slice().into()]);
     let path = derive(&invalid);
     assert_eq!(
         find(&path, Step::Check).card.facts,
-        facts(&[("Checks", "the CI workflows' checks ci / test, at the change's head")]),
-        "invalid UTF-8 contexts are skipped whole"
+        facts(&[("Workflows", "ci.yml"), ("Checks", "the CI workflows' checks ci / test, at the change's head")]),
+        "invalid UTF-8 workflows and contexts are skipped whole"
     );
     bounds(&path);
 }

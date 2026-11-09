@@ -1,4 +1,4 @@
-//! Away's acts and answered toast (temper/docs/design/client/README.md, 3.5, Away).
+//! Away's acts and answered toast; the project's classes decide what Away may decide (temper/docs/design/client/README.md, 3.5, Away).
 use super::{Pages, needs::Toasted};
 use crate::{
     Address, Domain, Limits, Request,
@@ -13,7 +13,7 @@ use skein_lib::{Env, List, Queue, Wall};
 pub enum Act {
     Overturn { project: u32, number: u32 },
     Toggle { project: u32 },
-    Kinds { project: u32, kinds: u8 },
+    ToggleAll,
     Until { project: u32, eight: bool },
     Limits { project: u32 },
 }
@@ -58,11 +58,15 @@ impl Pages {
     }
     #[must_use]
     pub const fn away_busy(&self) -> bool {
-        self.away.is_some()
+        self.away.is_some() || self.away_all.is_some()
     }
 }
 pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
     let project = match act {
+        Act::ToggleAll => {
+            super::away_all::act(root, env, out);
+            return;
+        }
         Act::Overturn { project, number } => {
             overturn(root, env, project, number, out);
             return;
@@ -72,16 +76,30 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
             out.push(Request::Show { address: Address::Settings { project }, replace: false });
             return;
         }
-        Act::Toggle { project } | Act::Kinds { project, .. } | Act::Until { project, .. } => project,
+        Act::Toggle { project } | Act::Until { project, .. } => project,
     };
-    if root.pages.away.is_some() || !root.forge.away_available() {
+    if root.pages.away_busy() || !root.forge.away_available() {
         return;
     }
+    let Some((request, on, until)) = request(root, env, project, act) else { return };
+    root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
+    let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
+    root.pages.away = Some(Pending { key, project, on, until });
+    root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown fits");
+    crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
+}
+/// The project's request, with the state its answer will toast.
+pub(super) fn request(
+    root: &Domain,
+    env: &Env<Limits>,
+    project: u32,
+    act: Act,
+) -> Option<(jig_client::Ask, bool, Option<Wall>)> {
     let row = root.forge.away(project);
     let mut on = root.away_on(project, env.wall);
-    let (mut until, mut kinds) = match row {
-        Some(row) => (row.until, row.kinds),
-        None => (Some(away::next_eight(env.wall, root.zone_minutes())), away::DEFAULT_KINDS),
+    let mut until = match row {
+        Some(row) => row.until,
+        None => Some(away::next_eight(env.wall, root.zone_minutes())),
     };
     match act {
         Act::Toggle { .. } => {
@@ -90,18 +108,15 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
                 until = Some(away::next_eight(env.wall, root.zone_minutes()));
             }
         }
-        Act::Kinds { kinds: choice, .. } => kinds = choice,
         Act::Until { eight, .. } => {
             until = if eight { Some(away::next_eight(env.wall, root.zone_minutes())) } else { None };
         }
-        Act::Overturn { .. } | Act::Limits { .. } => unreachable!("Limits returned before requesting"),
+        Act::ToggleAll | Act::Overturn { .. } | Act::Limits { .. } => {
+            unreachable!("only project settings build an Away request")
+        }
     }
-    let Some(request) = away::ask(project, on, until, kinds, &env.limits.forge) else { return };
-    root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
-    let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
-    root.pages.away = Some(Pending { key, project, on, until });
-    root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown fits");
-    crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
+    let request = away::ask(project, on, until, &env.limits.forge)?;
+    Some((request, on, until))
 }
 pub(super) fn told(
     pages: &mut Pages,
@@ -110,7 +125,7 @@ pub(super) fn told(
     told: &Told,
     out: &mut Queue<super::Request>,
 ) -> bool {
-    if overturn_told(pages, env, client, told, out) {
+    if super::away_all::told(pages, env, client, told, out) || overturn_told(pages, env, client, told, out) {
         return true;
     }
     let Some(pending) = &pages.away else { return false };
@@ -151,12 +166,49 @@ pub(super) fn told(
 }
 
 fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out: &mut Queue<Request>) {
-    if root.pages.overturn_busy() || root.pages.address != (Address::Home { project }) {
+    let shown = match root.pages.address {
+        Address::Home { project: home } if home == project => super::home::facts(root, project, env.wall).decided,
+        Address::AllHome => root.pages.decided(None, env.wall),
+        Address::Inbox { filter } if filter.project.is_none() || filter.project == Some(project) => {
+            root.pages.decided(filter.project, env.wall)
+        }
+        Address::Home { .. }
+        | Address::Inbox { .. }
+        | Address::Team { .. }
+        | Address::NewChat { .. }
+        | Address::Chats { .. }
+        | Address::Accounts
+        | Address::Forges
+        | Address::ConnectForge { .. }
+        | Address::ConnectModel { .. }
+        | Address::Welcome { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Changes { .. }
+        | Address::Settings { .. }
+        | Address::Repositories { .. }
+        | Address::Models { .. }
+        | Address::Builders { .. }
+        | Address::Role { .. }
+        | Address::Rule { .. }
+        | Address::Goals { .. }
+        | Address::Ask { .. }
+        | Address::Work { .. }
+        | Address::Remembered
+        | Address::Members
+        | Address::Limits
+        | Address::Adopt { .. } => None,
+    };
+    if root.pages.overturn_busy() {
         return;
     }
-    let Some(form) = super::home::facts(root, project, env.wall).away else { return };
+    let Some(form) = shown else { return };
     for row in form.rows {
-        if row.number != number || row.overturned || row.state != super::home::DecisionTask::Live {
+        if row.project != project
+            || row.number != number
+            || row.overturned
+            || row.state != super::decided::DecisionTask::Live
+        {
             continue;
         }
         let Some(request) = decided::overturn(project, number, &env.limits.forge) else { return };

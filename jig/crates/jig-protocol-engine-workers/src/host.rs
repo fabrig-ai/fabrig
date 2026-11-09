@@ -1,6 +1,6 @@
 //! Accepted streams and the workers' component (jig/docs/design/protocol/channel.md, 10.2).
 //! The owner's pull and listener lifecycle (jig/docs/design/protocol/service.md, 11.3).
-use crate::{Component, Event, Limits, Request, Worker};
+use crate::{Component, Event, Limits, Loss, Request, Worker};
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::Grant;
@@ -29,6 +29,7 @@ pub enum Output {
     Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
     Up { channel: Token, up: hub::LinkUp, parts: Box<[Part]> },
     Lost { channel: Token },
+    Ended { worker: Option<Box<[u8]>>, channel: Option<Token>, why: Loss },
 }
 
 /// What became of an event `up` was given.
@@ -176,6 +177,7 @@ impl Workers {
                 self.next = self.next.checked_add(1).expect("connection owner sequence");
                 if self.sockets.insert(connection, socket).is_err() {
                     self.io.push(io::Request::Reject { socket });
+                    self.out.push(Request::Ended { connection, worker: None, channel: None, why: Loss::NoRoom });
                 } else {
                     self.down(now, Event::Accepted { connection });
                 }
@@ -244,6 +246,20 @@ impl Workers {
             Request::Hello { channel, worker, hello } => return Some(Output::Hello { channel, worker, hello }),
             Request::Up { channel, up, parts } => return Some(Output::Up { channel, up, parts }),
             Request::Lost { channel } => return Some(Output::Lost { channel }),
+            Request::Ended { worker, channel, why, .. } => {
+                let worker = match worker {
+                    Some(worker) => Some(
+                        self.component
+                            .workers
+                            .get(skein_lib::length::usize_of(worker))
+                            .expect("authenticated worker")
+                            .name
+                            .clone(),
+                    ),
+                    None => None,
+                };
+                return Some(Output::Ended { worker, channel, why });
+            }
             Request::Closed => self.component_closed = true,
         }
         None

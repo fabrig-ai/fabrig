@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 57] = [
+pub static FORMS: [Form; 63] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -80,14 +80,20 @@ pub static FORMS: [Form; 57] = [
     Form { shape: Shape::LandingPattern, name: b"landing-pattern", choice: Choice::Every, line: b"The exact base segments, then an exact last segment or an open prefix and all below it. A project's rule may begin at `branch`, covering that branch in each of its repositories." },
     Form { shape: Shape::LandingLast, name: b"landing-last", choice: Choice::One { words: &[] }, line: b"The final resource segment, in the same hex form as a pattern's last segment." },
     Form { shape: Shape::ForgeCharter, name: b"forge-charter", choice: Choice::Number, line: b"An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'." },
+    Form { shape: Shape::TemplateGoal, name: b"template-goal", choice: Choice::Every, line: b"A goal template's work: whether its coordinator designs first and makes a close-out. With none kept, it plans and makes no close-out." },
     Form { shape: Shape::ProjectWays, name: b"project-ways", choice: Choice::Every, line: b"What a project shows and the way its goals start. With none stored, drafts is true, the other switches false and way 0." },
     Form { shape: Shape::ProjectQuestions, name: b"project-questions", choice: Choice::One { words: &[
         Word { word: b"none", line: b"No question route; the stock's value." },
         Word { word: b"foreman", line: b"A change's questions go to its foreman." },
         Word { word: b"up", line: b"A change's questions go up to its parent." },
     ] }, line: b"The route a project's change takes when its maker names none." },
+    Form { shape: Shape::ProjectClasses, name: b"project-classes", choice: Choice::Every, line: b"What agents decide for a person and what asks them, by kind and by path set. With none stored, Agents review's table applies." },
+    Form { shape: Shape::ClassItem, name: b"class-item", choice: Choice::Every, line: b"Exactly one of kind or set, optional words and a class. Only one item without words per subject. Money, irreversible, rules and other always wait and have no item." },
+    Form { shape: Shape::PathSet, name: b"path-set", choice: Choice::Every, line: b"A named set of repository-relative path patterns, numbered distinctly from 1 to 6." },
+    Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"A JSON string: what the charter does, 1 to 120 UTF-8 bytes holding no control character. With none kept, Roles says the charter by its instructions' first sentence. Its selector requires the charter's number and has no project." },
+    Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"How work runs' headline and lede for the project's own way, both required. With none kept, How work runs says the way's own words. Its selector requires project and has no number." },
 ];
-pub static FIELDS: [Field; 213] = [
+pub static FIELDS: [Field; 225] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -125,8 +131,12 @@ pub static FIELDS: [Field; 213] = [
             Word { word: b"rules", line: b"" },
             Word { word: b"landing-rule", line: b"" },
             Word { word: b"forge-charter", line: b"" },
+            Word { word: b"template-goal", line: b"" },
             Word { word: b"project-ways", line: b"" },
             Word { word: b"project-questions", line: b"" },
+            Word { word: b"project-classes", line: b"" },
+            Word { word: b"charter-words", line: b"" },
+            Word { word: b"project-words", line: b"" },
         ]),
         list: None,
         null: false,
@@ -138,9 +148,9 @@ pub static FIELDS: [Field; 213] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"The setting's number, from 1; left out for rules, project-policy, project-ways and project-questions.",
+        line: b"The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes and project-words.",
     },
-    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways and project-questions. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
     Field { shape: Shape::Charter, name: b"rest", value: Value::Boolean, list: None, null: false, line: b"Whether the other catalogue models follow the named first choices; false when absent." },
     Field {
         shape: Shape::Charter,
@@ -1250,11 +1260,23 @@ pub static FIELDS: [Field; 213] = [
     Field { shape: Shape::LandingPattern, name: b"last", value: Value::Shape(Shape::LandingLast), list: None, null: false, line: b"One more segment, equal to an exact value or beginning with an open value, with all below it." },
     Field { shape: Shape::LandingLast, name: b"exact", value: Value::Hex(Bound::Limit(Limit::LandingExact)), list: None, null: false, line: b"One last segment equal to these bytes." },
     Field { shape: Shape::LandingLast, name: b"open", value: Value::Hex(Bound::Limit(Limit::LandingOpen)), list: None, null: false, line: b"A final segment beginning with these bytes, with all below it." },
+    Field { shape: Shape::TemplateGoal, name: b"design", value: Value::Boolean, list: None, null: false, line: b"Whether the coordinator delivers a design before planning its changes; required." },
+    Field { shape: Shape::TemplateGoal, name: b"close_out", value: Value::Boolean, list: None, null: false, line: b"Whether the coordinator makes a close-out after the goal lands; required." },
     Field { shape: Shape::ProjectWays, name: b"drafts", value: Value::Boolean, list: None, null: false, line: b"Whether chats can write drafts." },
     Field { shape: Shape::ProjectWays, name: b"goals", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows Goals." },
     Field { shape: Shape::ProjectWays, name: b"changes", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows Changes." },
-    Field { shape: Shape::ProjectWays, name: b"away", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows the Away switch." },
     Field { shape: Shape::ProjectWays, name: b"way", value: Value::Integer(Width::U32), list: None, null: false, line: b"The template a goal starts by: one the project offers with tracked set, or 0 for the first." },
+    Field { shape: Shape::ProjectClasses, name: b"items", value: Value::Shape(Shape::ClassItem), list: Some(Bound::Limit(Limit::ClassesItems)), null: false, line: b"The table's class items." },
+    Field { shape: Shape::ProjectClasses, name: b"sets", value: Value::Shape(Shape::PathSet), list: Some(Bound::Limit(Limit::ClassesSets)), null: false, line: b"The path sets its items may name." },
+    Field { shape: Shape::ClassItem, name: b"kind", value: Value::Words(&[Word { word: b"wording", line: b"" }, Word { word: b"retry", line: b"" }, Word { word: b"implementation", line: b"" }, Word { word: b"tests", line: b"" }, Word { word: b"dependency", line: b"" }, Word { word: b"departure", line: b"" }]), list: None, null: false, line: b"Exactly one of kind or set is required." },
+    Field { shape: Shape::ClassItem, name: b"set", value: Value::Integer(Width::U8), list: None, null: false, line: b"A set in this table, from 1 to 6; exactly one of kind or set." },
+    Field { shape: Shape::ClassItem, name: b"words", value: Value::Text(Bound::Limit(Limit::ClassWords)), list: None, null: false, line: b"Optional wording for this item, empty when absent." },
+    Field { shape: Shape::ClassItem, name: b"class", value: Value::Words(&[Word { word: b"decide", line: b"Agents decide and list it." }, Word { word: b"ask", line: b"Ask the person; Away may decide." }, Word { word: b"ask-away", line: b"Ask the person even when away." }]), list: None, null: false, line: b"Wait is never a table class." },
+    Field { shape: Shape::PathSet, name: b"number", value: Value::Integer(Width::U8), list: None, null: false, line: b"Distinct within the table, from 1 to 6." },
+    Field { shape: Shape::PathSet, name: b"name", value: Value::Text(Bound::Limit(Limit::SetName)), list: None, null: false, line: b"A nonempty name." },
+    Field { shape: Shape::PathSet, name: b"patterns", value: Value::Text(Bound::Limit(Limit::SetPatternBytes)), list: Some(Bound::Limit(Limit::SetPatterns)), null: false, line: b"At least one nonempty repository-relative pattern: * within a segment, ** as a whole segment." },
+    Field { shape: Shape::ProjectWords, name: b"headline", value: Value::Text(Bound::Most(120)), list: None, null: false, line: b"Required: 1 to 120 UTF-8 bytes holding no control character." },
+    Field { shape: Shape::ProjectWords, name: b"lede", value: Value::Text(Bound::Most(480)), list: None, null: false, line: b"Required: 1 to 480 UTF-8 bytes holding no control character." },
 ];
 const FRESHNESS: &[Word] = &[
     Word { word: b"exact", line: b"The verdict counts at the head it was given at." },

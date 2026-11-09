@@ -630,7 +630,7 @@ impl TuiWorld {
             now: Time::ZERO,
             wall: Wall::EPOCH,
             size: Size { rows: 16, columns: 100 },
-            scheme: temper_client_tui::Scheme::Dark,
+            scheme: Some(temper_client_tui::Scheme::Dark),
             background: None,
             boxed: false,
             address: address.into(),

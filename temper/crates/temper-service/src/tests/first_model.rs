@@ -351,8 +351,8 @@ impl StockBox {
         let mut projects = Reader::new(record.projects());
         while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
             let project = wire::MeProject::decode(&self.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
-            assert_eq!(project.defaults().len(), if chat.is_some() { 3 } else { 0 });
-            for (template, expected) in [(1, chat), (4, chat), (5, asking)] {
+            assert_eq!(project.defaults().len(), if chat.is_some() { 4 } else { 0 });
+            for (template, expected) in [(1, chat), (4, chat), (5, asking), (6, chat)] {
                 let preview = (0..project.defaults().len()).find_map(|at| {
                     let preview = project.defaults().get(at).unwrap();
                     (preview.template() == template).then_some(preview)
@@ -783,7 +783,7 @@ fn a_lapsed_login_withdraws_its_offer_and_marks_me_but_keeps_the_tasks_model() {
 }
 
 #[test]
-fn init_limits_hold_seven_models_and_four_previews_per_project_on_the_wire() {
+fn init_limits_hold_seven_models_and_five_previews_per_project_on_the_wire() {
     let mut world = stock_box(OneAccount::Claude);
     world.add_openai();
     world.worker();
@@ -803,7 +803,7 @@ fn init_limits_hold_seven_models_and_four_previews_per_project_on_the_wire() {
             offered.accounts.push(account).unwrap();
         }
     }
-    assert_eq!(project.defaults.len(), 4);
+    assert_eq!(project.defaults.len(), 5);
     project.name.bytes = skein_lib::bytes::zeroed(usize::try_from(limits.documents.text_bytes).unwrap());
     project.name.bytes.fill(b'p');
     let count = limits.people.projects.min(limits.documents.lines);
@@ -835,7 +835,7 @@ fn init_limits_hold_seven_models_and_four_previews_per_project_on_the_wire() {
     while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
         let project = wire::MeProject::decode(&world.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
         assert_eq!(project.models().len(), 7);
-        assert_eq!(project.defaults().len(), 4);
+        assert_eq!(project.defaults().len(), 5);
         seen = seen.checked_add(1).unwrap();
     }
     assert_eq!(seen, count);

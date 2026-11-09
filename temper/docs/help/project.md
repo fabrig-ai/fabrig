@@ -21,12 +21,20 @@ A project is where work happens: the repositories adopted into it, one of them i
   (temper help party).
 - **Its policy** is its own: what its work may do and spend, and what
   each role may start (temper help policy).
-- **What it shows** comes from its `project-ways` setting: drafts in chats,
-  Goals, Changes and the Away switch, and the way a goal starts by.
+- **Its ways,** in `project-ways`, govern drafts in chats, Work's Goals and
+  Changes filters and the way a goal starts by. The filters'
+  switches hide no rail entry; their work stays under Work's All filter.
   Its `project-questions` setting gives a change's question route when its
-  maker names none (temper help settings).
+  maker names none (temper help settings). Its `project-words` gives How work
+  runs its headline and lede when the project runs a way of its own;
+  Ask temper writes them with its proposals.
 - **Its period** holds what its work may spend; each member's pool is
   drawn from it (temper help budget).
+
+A project's `project-classes` setting says when agents decide, then tell you;
+ask you; or ask you even when away. Four kinds always wait: money,
+irreversible acts, rules and other. The project's way sets its classes;
+you can change them as any setting (temper help settings).
 
 ## How it changes
 
@@ -54,7 +62,7 @@ A project is where work happens: the repositories adopted into it, one of them i
   pull request shows what its agent wrote too.
   Opening visibility also needs anonymous admission configured;
   temper help open-public-reading walks every figure and the restart.
-- **Deleted:** its owners delete it with Delete on its settings in the
+- **Deleted:** its owners delete it with Delete on How work runs in the
   client, confirmed by its name; the playground's reset deletes
   `Demo`. It takes no new work at once and leaves every list;
   its live tasks are cancelled, then erased, its own settings and roles
@@ -85,8 +93,12 @@ A project is where work happens: the repositories adopted into it, one of them i
   `project amend PROJECT --visibility public|private --key KEY`
   changes its visibility. The public page is a path under the
   deployment's address.
-- **The client:** Delete on a project's settings deletes it, for its
-  owners.
+- **The client:** How work runs on the rail opens the project's process;
+  on a phone, choose How work runs for PROJECT in the project switcher.
+  Delete there deletes the project, for its owners. The switcher's
+  Deployment opens Accounts, the first Deployment tab.
+  Team on the rail shows the project’s people and what waits on each,
+  from two people; on a phone, use Team for PROJECT in the switcher.
 - **temper's runs** work in their task's project: `change` writes to
   one of its repositories, and the forge's reads name one by
   `owner/name`.

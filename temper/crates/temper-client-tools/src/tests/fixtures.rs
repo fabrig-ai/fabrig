@@ -165,7 +165,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show", "rules"],
     &["settings", "show", "landing-rule", "1", "--project", "shop"],
     &["settings", "show", "forge-charter", "1"],
-    &["settings", "show", "project-ways", "shop"],
+    &["settings", "show", "project-classes", "shop"],
+    &["settings", "show", "template-goal", "4"],
+    &["settings", "show", "charter-words", "12", "--revision", "5"],
     &["revision", "show", "5"],
     &["revision", "list"],
     &["settings", "apply", "FILE", "--against", "5", "--key", "settings-5"],
@@ -441,6 +443,10 @@ pub(crate) fn golden(name: &str) -> Box<[u8]> {
     std::fs::read(path).expect("checked golden").into_boxed_slice()
 }
 /// Task-rendering fixtures regenerate only through their owning tests.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 pub(crate) fn check_golden(name: &str, bytes: &[u8]) {
     let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
         Some(value) => value == "1",
@@ -823,7 +829,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 86;
+pub(super) const TOOL_FORMS: u32 = 88;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

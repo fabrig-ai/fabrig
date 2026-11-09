@@ -387,7 +387,7 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
             },
             Step::See { find: review.clone(), within: fixtures::WITHIN },
             Step::See { find: Find::exactly_named(Role::Button, b"Open"), within: fixtures::WITHIN },
-            Step::See { find: Find::exactly_named(Role::Button, b"Later"), within: fixtures::WITHIN },
+            Step::Gone { find: Find::exactly_named(Role::Button, b"Later"), within: fixtures::WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);
@@ -744,6 +744,7 @@ fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
     let person = world.client(fixtures::PARTY, fixtures::chat_page(chat));
     world.person(person, vec![Step::See { find: Find::named(Role::Status, b"Running"), within: fixtures::WITHIN }]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let before = facts_after_open(&mut world);
     let row = world
         .front()
         .engine
@@ -761,7 +762,6 @@ fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
             }
         })
         .expect("real change row");
-    let before = facts(world.front());
     assert_eq!(before.pull.merged, None);
     assert_eq!(before.pull.ci, api::Ci::Pending);
     let stall = world.front().engine.env.limits.forge.change_policy.stall;

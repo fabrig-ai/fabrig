@@ -26,6 +26,10 @@ pub fn run(arguments: &[Box<[u8]>]) -> u8 {
     }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: argv zero and the environment configure fake git; temper-box's table will pass them"
+)]
 fn start(arguments: &[Box<[u8]>]) -> Result<(Git<Route>, skein_shell::Kernel), String> {
     let working = env::current_dir().map_err(|why| why.to_string())?;
     // Kernel file paths are relative to their root. Removing only the leading

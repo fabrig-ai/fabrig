@@ -6,6 +6,7 @@ pub mod approvals;
 pub mod away;
 pub mod change;
 pub mod changes;
+pub mod classes;
 pub mod connect;
 pub mod decided;
 pub mod deployment;

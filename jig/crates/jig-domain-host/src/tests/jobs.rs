@@ -33,7 +33,7 @@ fn job() -> JobAssignment {
         grants: Box::new([]),
     }
 }
-fn opened() -> Event {
+pub(super) fn opened() -> Event {
     Event::Opened {
         stop_bound: Duration::from_secs(1),
         workstreams: Box::new([]),

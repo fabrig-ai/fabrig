@@ -12,6 +12,13 @@ pub enum Kind {
     Charters,
     ProjectQuestions,
     ProjectWays,
+    ProjectClasses,
+    /// A charter's words (temper/docs/design/protocol/configuration.md, 13.2).
+    CharterWords,
+    /// A project's words (temper/docs/design/protocol/configuration.md, 13.2).
+    ProjectWords,
+    /// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+    TemplateGoal,
 }
 
 impl Kind {
@@ -23,6 +30,10 @@ impl Kind {
             Self::Charters => 3,
             Self::ProjectQuestions => 6,
             Self::ProjectWays => 7,
+            Self::ProjectClasses => 8,
+            Self::CharterWords => 9,
+            Self::ProjectWords => 10,
+            Self::TemplateGoal => 11,
         }
     }
 
@@ -34,6 +45,10 @@ impl Kind {
             3 => Some(Self::Charters),
             6 => Some(Self::ProjectQuestions),
             7 => Some(Self::ProjectWays),
+            8 => Some(Self::ProjectClasses),
+            9 => Some(Self::CharterWords),
+            10 => Some(Self::ProjectWords),
+            11 => Some(Self::TemplateGoal),
             _ => None,
         }
     }
@@ -64,13 +79,52 @@ pub struct RuleApproval {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "each project way is an independent client visibility choice")]
 pub struct ProjectWays {
     pub drafts: bool,
     pub goals: bool,
     pub changes: bool,
-    pub away: bool,
     pub way: u32,
+}
+
+/// A charter's line's byte bound (temper/docs/design/protocol/configuration.md, 13.2).
+pub const LINE_BYTES: u32 = 120;
+/// A project's headline's byte bound (temper/docs/design/protocol/configuration.md, 13.2).
+pub const HEADLINE_BYTES: u32 = 120;
+/// A project's lede's byte bound (temper/docs/design/protocol/configuration.md, 13.2).
+pub const LEDE_BYTES: u32 = 480;
+
+/// A project's words, kind 10 (temper/docs/design/protocol/configuration.md, 13.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProjectWords {
+    pub headline: Box<[u8]>,
+    pub lede: Box<[u8]>,
+}
+
+/// Words saved with a setting fit `most`: 1 to `most` bytes of UTF-8 holding no
+/// control character (temper/docs/design/protocol/configuration.md, 13.2).
+#[must_use]
+#[expect(clippy::disallowed_methods, reason = "the forge judges whether setting words are UTF-8 at its boundary")]
+pub fn words_fit(words: &[u8], most: u32) -> bool {
+    if words.is_empty() || !within(words.len(), most) {
+        return false;
+    }
+    let Ok(text) = core::str::from_utf8(words) else {
+        return false;
+    };
+    for character in text.chars() {
+        if character.is_control() {
+            return false;
+        }
+    }
+    true
+}
+
+/// A goal template's work, kind 11 (temper/docs/design/protocol/configuration.md, 13.2):
+/// whether its coordinator designs first and makes a close-out; neither with none.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+pub struct TemplateGoal {
+    pub design: bool,
+    pub close_out: bool,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -79,6 +133,13 @@ pub enum Value {
     Charter(u32),
     Questions(temper_engine_domain_forge_change::Route),
     Ways(ProjectWays),
+    Classes(temper_protocol_reaches::Classes),
+    /// A charter's line (temper/docs/design/protocol/configuration.md, 13.2).
+    CharterWords(Box<[u8]>),
+    /// A project's headline and lede (temper/docs/design/protocol/configuration.md, 13.2).
+    ProjectWords(ProjectWords),
+    /// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+    Goal(TemplateGoal),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
@@ -89,7 +150,7 @@ pub struct SizedValue {
     pub size: u32,
 }
 
-/// The value of a project's kind 6 or 7 with none stored
+/// The value of a project's kind 6, 7 or 8 with none stored
 /// (temper/docs/design/protocol/configuration.md, 13.4).
 #[must_use]
 pub fn project_stock(kind: u32) -> Option<SizedValue> {
@@ -105,13 +166,18 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
             })
         }
         7 => {
-            let ways = ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 };
+            let ways = ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
             let record = v1::ProjectWays::new(
                 &v1::CEILINGS,
-                v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+                v1::ProjectWaysParts { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way },
             )
             .expect("fixed ways fields");
             Some(SizedValue { value: Value::Ways(ways), size: record.measure() })
+        }
+        8 => {
+            let classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
+            let record = temper_protocol_reaches::classes_record(&classes).expect("stock table fits the record");
+            Some(SizedValue { value: Value::Classes(classes), size: record.measure() })
         }
         _ => None,
     }
@@ -194,6 +260,8 @@ pub struct Bounds {
     pub charters: u32,
     pub segments: u32,
     pub segment_bytes: u32,
+    /// Template numbers (temper/docs/design/protocol/configuration.md, 13.2).
+    pub templates: u32,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -216,6 +284,9 @@ pub enum Refusal {
     Value,
     Replaced,
     Way,
+    Classes(temper_protocol_reaches::Refusal),
+    /// Invalid setting words (temper/docs/design/protocol/configuration.md, 13.2).
+    Words,
 }
 
 impl Refusal {
@@ -231,7 +302,23 @@ impl Refusal {
             Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
             Self::Value => b"a value of another kind",
             Self::Replaced => b"the replaced value is no longer kept",
+            Self::Words => b"words that are empty, past their bound, not UTF-8 or holding a control character",
             Self::Way => b"a way that is not a template the project offers",
+            Self::Classes(refusal) => match refusal {
+                temper_protocol_reaches::Refusal::Items => b"more than 20 items in a classes table",
+                temper_protocol_reaches::Refusal::Sets => b"more than 6 path sets in a classes table",
+                temper_protocol_reaches::Refusal::Fixed { .. } => b"an item of a kind that always waits",
+                temper_protocol_reaches::Refusal::Wait { .. } => b"an item whose class always waits",
+                temper_protocol_reaches::Refusal::Words { .. } => b"an item's words past 120 bytes",
+                temper_protocol_reaches::Refusal::NoSet { .. } => b"an item naming a path set the table lacks",
+                temper_protocol_reaches::Refusal::Twice { .. } => b"a second item without words of its subject",
+                temper_protocol_reaches::Refusal::Number { .. } => b"a path set numbered twice or outside 1 to 6",
+                temper_protocol_reaches::Refusal::Name { .. } => b"a path set's name empty or past 40 bytes",
+                temper_protocol_reaches::Refusal::Patterns { .. } => b"a path set with no pattern or more than 6",
+                temper_protocol_reaches::Refusal::Pattern { .. } => {
+                    b"a path set's pattern that is not well formed, empty or past 80 bytes"
+                }
+            },
         }
     }
 }
@@ -243,19 +330,34 @@ fn within(len: usize, bound: u32) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive judgement keeps each setting kind and its refusals together")]
 pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
     match kind {
-        Kind::DeploymentRules | Kind::Charters if item.scope != 0 => return Err(Refusal::Scope),
-        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays if item.scope == 0 => {
+        Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal if item.scope != 0 => {
             return Err(Refusal::Scope);
         }
-        Kind::DeploymentRules | Kind::ProjectRules | Kind::Charters | Kind::ProjectQuestions | Kind::ProjectWays => {}
+        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords
+            if item.scope == 0 =>
+        {
+            return Err(Refusal::Scope);
+        }
+        Kind::DeploymentRules
+        | Kind::ProjectRules
+        | Kind::Charters
+        | Kind::ProjectQuestions
+        | Kind::ProjectWays
+        | Kind::ProjectClasses
+        | Kind::CharterWords
+        | Kind::ProjectWords
+        | Kind::TemplateGoal => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
-        Kind::ProjectQuestions | Kind::ProjectWays => 1,
+        Kind::CharterWords => bounds.charters,
+        Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords => 1,
+        Kind::TemplateGoal => bounds.templates,
     };
     if item.number == 0 || item.number > numbers {
         return Err(Refusal::Number);
@@ -263,26 +365,132 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let rule = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => match &item.value {
             Some(Value::Rule(rule)) => rule,
-            Some(Value::Charter(_) | Value::Questions(_) | Value::Ways(_)) => return Err(Refusal::Value),
+            Some(
+                Value::Charter(_)
+                | Value::Goal(_)
+                | Value::Questions(_)
+                | Value::Ways(_)
+                | Value::CharterWords(_)
+                | Value::Classes(_)
+                | Value::ProjectWords(_),
+            ) => return Err(Refusal::Value),
             None => return Ok(()),
         },
         Kind::Charters => {
             return match &item.value {
                 Some(Value::Charter(charter)) if *charter > 0 && *charter <= bounds.charters => Ok(()),
                 Some(Value::Charter(_)) | None => Err(Refusal::Charter),
-                Some(Value::Rule(_) | Value::Questions(_) | Value::Ways(_)) => Err(Refusal::Value),
+                Some(
+                    Value::Rule(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
+                ) => Err(Refusal::Value),
             };
         }
         Kind::ProjectQuestions => {
             return match &item.value {
                 Some(Value::Questions(_)) | None => Ok(()),
-                Some(Value::Rule(_) | Value::Charter(_) | Value::Ways(_)) => Err(Refusal::Value),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectClasses => {
+            return match &item.value {
+                Some(Value::Classes(classes)) => match classes.check() {
+                    Ok(()) => Ok(()),
+                    Err(refusal) => Err(Refusal::Classes(refusal)),
+                },
+                None => Ok(()),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Goal(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_),
+                ) => Err(Refusal::Value),
             };
         }
         Kind::ProjectWays => {
             return match &item.value {
                 Some(Value::Ways(_)) | None => Ok(()),
-                Some(Value::Rule(_) | Value::Charter(_) | Value::Questions(_)) => Err(Refusal::Value),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::CharterWords => {
+            return match &item.value {
+                Some(Value::CharterWords(line)) => {
+                    if words_fit(line, LINE_BYTES) {
+                        Ok(())
+                    } else {
+                        Err(Refusal::Words)
+                    }
+                }
+                None => Ok(()),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectWords => {
+            return match &item.value {
+                Some(Value::ProjectWords(words)) => {
+                    if words_fit(&words.headline, HEADLINE_BYTES) && words_fit(&words.lede, LEDE_BYTES) {
+                        Ok(())
+                    } else {
+                        Err(Refusal::Words)
+                    }
+                }
+                None => Ok(()),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::TemplateGoal => {
+            return match &item.value {
+                Some(Value::Goal(_)) | None => Ok(()),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
+                ) => Err(Refusal::Value),
             };
         }
     };

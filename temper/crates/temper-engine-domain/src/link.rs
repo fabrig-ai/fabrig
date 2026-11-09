@@ -89,6 +89,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                     up:
                         host::LinkUp::Piece { .. }
                         | host::LinkUp::ListRead { .. }
+                        | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }
@@ -139,9 +140,34 @@ pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: T
                     reason: reason.clone(),
                 });
             }
-            hub::Ending::Link(host::Ending::Ended { .. } | host::Ending::Parked { .. })
-            | hub::Ending::Scripted(_)
-            | hub::Ending::Job(_) => {}
+            hub::Ending::Link(host::Ending::Ended { .. } | host::Ending::Parked { .. }) | hub::Ending::Scripted(_) => {}
+            hub::Ending::Job(ending) => {
+                let ending = match ending {
+                    host::JobEnding::Failed { failure, detail, .. } => {
+                        Some(crate::JobDiagnosticEnding::Failed { failure: *failure, detail: detail.clone() })
+                    }
+                    host::JobEnding::Refused(reason) => Some(crate::JobDiagnosticEnding::Refused(reason.clone())),
+                    host::JobEnding::Finished { .. } => None,
+                };
+                if let Some(ending) = ending {
+                    let executor = domain.core.tasks.executor(*task).expect("an accepted answer has a task");
+                    let kind = match executor {
+                        tasks::Executor::Job { kind } => Some(kind),
+                        tasks::Executor::Agent { .. }
+                        | tasks::Executor::Procedure { .. }
+                        | tasks::Executor::Person(_) => None,
+                    };
+                    if let Some(kind) = kind {
+                        domain.run_diagnostics.jobs.push(crate::JobDiagnostic {
+                            task: *task,
+                            run: run.raw(),
+                            attempt: attempt.raw(),
+                            kind,
+                            ending,
+                        });
+                    }
+                }
+            }
         }
     }
     if match domain.answer_parts.get(&payload) {

@@ -128,6 +128,8 @@ fn encode_file(value: &c::Charter, out: &mut Encoder) {
 const LANDING: &[u8] = br#"{"pattern":{"segments":["666f726765"],"last":{"exact":"6d61696e"}},"enforce":true,"ci":false,"up_to_date":true,"gates":[{"number":2,"blocking":true,"freshness":"clean"}],"approvals":[{"role":3,"people":1,"freshness":"exact"}]}"#;
 const DEPLOYMENT_RULE: &[u8] = br#"{"kind":"landing-rule","number":1}"#;
 const PROJECT_RULE: &[u8] = br#"{"kind":"landing-rule","project":7,"number":2}"#;
+const TEMPLATE_GOAL: &[u8] = br#"{"kind":"template-goal","number":4}"#;
+const GOAL: &[u8] = br#"{"design":true,"close_out":false}"#;
 const FORGE_CHARTER: &[u8] = br#"{"kind":"forge-charter","number":1}"#;
 fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     let mut length = 0_usize;
@@ -151,6 +153,10 @@ fn shown(value: &c::ReadValue) -> Box<[u8]> {
     crate::render::encode(value, &mut out);
     out.finish()
 }
+const CHARTER_WORDS: &[u8] = br#"{"kind":"charter-words","number":4}"#;
+const PROJECT_WORDS: &[u8] = br#"{"kind":"project-words","project":7}"#;
+const LINE: &[u8] = br#""llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll""#;
+const WORDS: &[u8] = br#"{"headline":"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh","lede":"llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"}"#;
 #[test]
 fn temper_kinds_round_trip_from_file_to_shown_json() {
     for (setting, json, expected) in [
@@ -162,6 +168,9 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
             c::Setting::Application { kind: 2, scope: 7, number: 2 },
         ),
         (FORGE_CHARTER, b"23".as_slice(), c::Setting::Application { kind: 3, scope: 0, number: 1 }),
+        (CHARTER_WORDS, LINE, c::Setting::Application { kind: 9, scope: 0, number: 4 }),
+        (PROJECT_WORDS, WORDS, c::Setting::Application { kind: 10, scope: 7, number: 1 }),
+        (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
         let item = items.get(0).expect("one item");
@@ -179,7 +188,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
 }
 #[test]
 fn temper_kind_edits_keep_removed_and_reset() {
-    for setting in [DEPLOYMENT_RULE, PROJECT_RULE, FORGE_CHARTER] {
+    for setting in [DEPLOYMENT_RULE, PROJECT_RULE, FORGE_CHARTER, TEMPLATE_GOAL] {
         for (word, expected) in [(b"removed".as_slice(), c::SettingEdit::Removed), (b"reset", c::SettingEdit::Reset)] {
             let bytes = joined(&[br#"{"items":[{"setting":"#, setting, br#", "edit":""#, word, br#""}]}"#]);
             let items = file::decode(&bytes, &Limits::standard()).expect("kind edit");
@@ -200,6 +209,19 @@ fn temper_kind_member_refusals_name_the_file_path() {
         (DEPLOYMENT_RULE, br#"{"connector":1}"#, b"settings file item 1: landing-rule.connector: unknown member"),
         (DEPLOYMENT_RULE, br#"{"kind":4}"#, b"settings file item 1: landing-rule.kind: unknown member"),
         (FORGE_CHARTER, b"null", b"settings file item 1: forge-charter: expected unsigned integer"),
+        (TEMPLATE_GOAL, br#"{"design":true}"#, b"settings file item 1: template-goal.close_out: missing member"),
+        (TEMPLATE_GOAL, br#"{"close_out":false}"#, b"settings file item 1: template-goal.design: missing member"),
+        (
+            TEMPLATE_GOAL,
+            br#"{"design":true,"close_out":false,"other":true}"#,
+            b"settings file item 1: template-goal.other: unknown member",
+        ),
+        (
+            br#"{"kind":"template-goal","number":4,"project":7}"#,
+            GOAL,
+            b"settings file item 1: template-goal.project: unknown member",
+        ),
+        (br#"{"kind":"template-goal"}"#, GOAL, b"settings file item 1: template-goal.number: missing member"),
         (
             DEPLOYMENT_RULE,
             br#"{"pattern":{"segments":[null]}}"#,
@@ -210,6 +232,14 @@ fn temper_kind_member_refusals_name_the_file_path() {
             br#"{"pattern":{"segments":[],"last":{"open":"XX"}}}"#,
             b"settings file item 1: landing-rule.pattern.last.open: lower-case hexadecimal required",
         ),
+        (br#"{"kind":"charter-words","number":4,"project":7}"#, LINE, b"settings file item 1: charter-words.project: unknown member"),
+        (br#"{"kind":"charter-words"}"#, LINE, b"settings file item 1: charter-words.number: missing member"),
+        (CHARTER_WORDS, br#""lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll""#, b"settings file item 1: charter-words: wire value bound"),
+        (PROJECT_WORDS, br#"{"headline":"Our way"}"#, b"settings file item 1: project-words.lede: missing member"),
+        (PROJECT_WORDS, br#"{"lede":"We review."}"#, b"settings file item 1: project-words.headline: missing member"),
+        (PROJECT_WORDS, br#"{"headline":false,"lede":"We review."}"#, b"settings file item 1: project-words.headline: expected string"),
+        (PROJECT_WORDS, br#"{"headline":"hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh","lede":"We review."}"#, b"settings file item 1: project-words: wire value bound"),
+        (PROJECT_WORDS, br#"{"headline":"Our way","lede":"lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"}"#, b"settings file item 1: project-words: wire value bound"),
     ] {
         assert_eq!(
             file::decode(&kind_file(setting, value), &Limits::standard()).expect_err("bad member").as_ref(),
@@ -504,33 +534,53 @@ fn forge_document_forms_use_the_registered_connector_and_round_trip() {
 }
 
 const PROJECT_WAYS: &[u8] = br#"{"kind":"project-ways","project":7}"#;
-const WAYS: &[u8] = br#"{"drafts":true,"goals":false,"changes":true,"away":false,"way":4294967295}"#;
+const PROJECT_CLASSES: &[u8] = br#"{"kind":"project-classes","project":7}"#;
+const CLASSES: &[u8] = br#"{"items":[{"kind":"implementation","words":"","class":"decide"},{"kind":"tests","words":"Keep coverage","class":"ask"},{"set":1,"words":"","class":"ask-away"}],"sets":[{"number":1,"name":"Core","patterns":["src/**","Cargo.*"]}]}"#;
+const WAYS: &[u8] = br#"{"drafts":true,"goals":false,"changes":true,"way":4294967295}"#;
 #[test]
 fn project_ways_is_read_and_printed_whole() {
-    let items = file::decode(&kind_file(PROJECT_WAYS, WAYS), &Limits::standard()).expect("project ways file");
-    let item = items.get(0).expect("one item");
-    assert_eq!(item.setting, c::Setting::Application { kind: 7, scope: 7, number: 1 });
-    let c::SettingEdit::Set(set) = &item.edit else { panic!("whole value") };
-    let c::SettingValue::Application(bytes) = &set.value else { panic!("ways bytes") };
+    for (setting, kind, value) in [(PROJECT_WAYS, 7, WAYS), (PROJECT_CLASSES, 8, CLASSES)] {
+        let items = file::decode(&kind_file(setting, value), &Limits::standard()).expect("whole project file");
+        let item = items.get(0).expect("one item");
+        assert_eq!(item.setting, c::Setting::Application { kind, scope: 7, number: 1 });
+        let c::SettingEdit::Set(set) = &item.edit else { panic!("whole value") };
+        let c::SettingValue::Application(bytes) = &set.value else { panic!("project bytes") };
+        let bounds = JsonLimits { depth: 32, length: 4096 };
+        let mut measure = Encoder::measure(&bounds);
+        assert!(crate::kinds::render(kind, bytes, &mut measure));
+        let mut out = Encoder::write(measure.measured().expect("project value fits"), &bounds);
+        assert!(crate::kinds::render(kind, bytes, &mut out));
+        let shown = out.finish();
+        assert_eq!(shown.as_ref(), value);
+        assert_eq!(file::decode(&kind_file(setting, &shown), &Limits::standard()).expect("rendered file"), items);
+        let mut trailing = Writer::new(bytes.len().checked_add(1).expect("one extra byte"));
+        trailing.put(bytes).expect("encoding room");
+        trailing.put(&[0]).expect("trailing byte room");
+        assert!(!crate::kinds::render(kind, &trailing.finish(), &mut Encoder::measure(&bounds)));
+        let mut selector = Encoder::measure(&bounds);
+        crate::render::encode_setting(item.setting, &mut selector);
+        let mut out = Encoder::write(selector.measured().expect("selector fits"), &bounds);
+        crate::render::encode_setting(item.setting, &mut out);
+        assert_eq!(out.finish().as_ref(), setting);
+    }
+    let no_words = br#"{"items":[{"kind":"implementation","class":"decide"}],"sets":[]}"#;
+    let items = file::decode(&kind_file(PROJECT_CLASSES, no_words), &Limits::standard()).expect("optional words");
+    let c::SettingEdit::Set(set) = &items.get(0).expect("one item").edit else { panic!("whole value") };
+    let c::SettingValue::Application(bytes) = &set.value else { panic!("classes bytes") };
     let mut reader = skein_lib::Reader::new(bytes);
-    let ways =
-        temper_client_protocol_wire::v1::ProjectWays::decode(&temper_client_protocol_wire::v1::CEILINGS, &mut reader)
-            .expect("ways record");
-    assert_eq!(
-        (ways.drafts(), ways.goals(), ways.changes(), ways.away(), ways.way()),
-        (true, false, true, false, u32::MAX)
-    );
+    let record = temper_client_protocol_wire::v1::ProjectClasses::decode(
+        &temper_client_protocol_wire::v1::CEILINGS,
+        &mut reader,
+    )
+    .expect("classes record");
     assert!(reader.is_empty());
-    let bounds = JsonLimits { depth: 32, length: 4096 };
-    let mut measure = Encoder::measure(&bounds);
-    assert!(crate::kinds::render(7, bytes, &mut measure));
-    let mut out = Encoder::write(measure.measured().expect("ways fits"), &bounds);
-    assert!(crate::kinds::render(7, bytes, &mut out));
-    assert_eq!(out.finish().as_ref(), WAYS);
+    assert_eq!(temper_protocol_reaches::classes_from(&record).items[0].words.as_ref(), b"");
 }
 #[test]
 fn project_settings_require_the_project_and_refuse_a_number() {
-    for kind in [b"project-ways".as_slice(), b"project-questions"] {
+    for (kind, number) in
+        [(b"project-ways".as_slice(), 7), (b"project-questions", 6), (b"project-classes", 8), (b"project-words", 10)]
+    {
         for (suffix, member) in [
             ("", "project"),
             (",\"project\":0", "project"),
@@ -544,23 +594,94 @@ fn project_settings_require_the_project_and_refuse_a_number() {
         let selector = joined(&[br#"{"setting":{"kind":""#, kind, br#"","project":7}}"#]);
         assert_eq!(
             file::read_setting(&selector, &Limits::standard()).expect("project selector"),
-            c::Setting::Application { kind: if kind == b"project-ways" { 7 } else { 6 }, scope: 7, number: 1 }
+            c::Setting::Application { kind: number, scope: 7, number: 1 }
         );
     }
 }
 #[test]
 fn project_values_refuse_missing_unknown_and_wrong_members() {
+    let full = kind_file(PROJECT_CLASSES, CLASSES);
+    for (member, field) in
+        [(b"items".as_slice(), 0_u8), (b"sets", 1), (b"words", 2), (b"name", 3), (b"patterns", 4), (b"patterns", 5)]
+    {
+        let mut limits = Limits::standard();
+        match field {
+            0 => limits.kinds.project_classes_items = 0,
+            1 => limits.kinds.project_classes_sets = 0,
+            2 => limits.kinds.class_item_words = 0,
+            3 => limits.kinds.path_set_name = 0,
+            4 => limits.kinds.path_set_patterns = 0,
+            5 => limits.kinds.path_set_patterns_item = 0,
+            _ => unreachable!("table field"),
+        }
+        let why = file::decode(&full, &limits).expect_err("receiving bound enforced");
+        assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
+        assert!(skein_lib::bytes::find(&why, b"bound 0").is_some(), "{why:?}");
+    }
+    // A well-shaped wire record can still be outside the table's rules.
+    for (kind, class) in [
+        (temper_protocol_reaches::Kind::Money, temper_protocol_reaches::Class::Ask),
+        (temper_protocol_reaches::Kind::Tests, temper_protocol_reaches::Class::Wait),
+    ] {
+        let classes = temper_protocol_reaches::Classes {
+            items: Box::new([temper_protocol_reaches::Item {
+                subject: temper_protocol_reaches::Subject::Kind(kind),
+                words: Box::default(),
+                class,
+            }]),
+            sets: Box::default(),
+        };
+        let record = temper_protocol_reaches::classes_record(&classes).expect("shaped record");
+        let mut bytes = Writer::new(usize::try_from(record.measure()).expect("record length"));
+        record.encode(&mut bytes).expect("measured record");
+        let mut out = Encoder::measure(&JsonLimits { depth: 32, length: 4096 });
+        assert!(!crate::kinds::render(8, &bytes.finish(), &mut out));
+    }
     for (value, member) in [
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true}"#.as_slice(), b"way".as_slice()),
-        (br#"{"drafts":true,"goals":true,"changes":true,"way":0}"#, b"away"),
-        (br#"{"drafts":true,"goals":true,"away":true,"way":0}"#, b"changes"),
-        (br#"{"drafts":true,"changes":true,"away":true,"way":0}"#, b"goals"),
-        (br#"{"goals":true,"changes":true,"away":true,"way":0}"#, b"drafts"),
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":4294967296}"#, b"way"),
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":-1}"#, b"way"),
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":false}"#, b"way"),
-        (br#"{"drafts":1,"goals":true,"changes":true,"away":true,"way":0}"#, b"drafts"),
-        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":0,"extra":true}"#, b"extra"),
+        (b"{}".as_slice(), b"items".as_slice()),
+        (br#"{"items":[]}"#.as_slice(), b"sets".as_slice()),
+        (br#"{"items":[],"sets":[],"extra":0}"#.as_slice(), b"extra".as_slice()),
+        (br#"{"items":[{"kind":"money","class":"ask"}],"sets":[]}"#.as_slice(), b"always wait".as_slice()),
+        (br#"{"items":[{"kind":"wording","class":"wait"}],"sets":[]}"#.as_slice(), b"class".as_slice()),
+        (br#"{"items":[{"kind":"unknown","class":"ask"}],"sets":[]}"#.as_slice(), b"kind".as_slice()),
+        (br#"{"items":[{"kind":"tests","set":1,"class":"ask"}],"sets":[]}"#.as_slice(), b"kind/set".as_slice()),
+        (br#"{"items":[{"class":"ask"}],"sets":[]}"#.as_slice(), b"kind/set".as_slice()),
+        (br#"{"items":[{"kind":"tests"}],"sets":[]}"#.as_slice(), b"class".as_slice()),
+        (br#"{"items":[{"set":1,"class":"ask"}],"sets":[]}"#.as_slice(), b"items.set".as_slice()),
+        (br#"{"items":[{"kind":"tests","class":"ask","extra":1}],"sets":[]}"#.as_slice(), b"extra".as_slice()),
+        (
+            br#"{"items":[{"kind":"tests","class":"ask"},{"kind":"tests","class":"decide"}],"sets":[]}"#.as_slice(),
+            b"items.words".as_slice(),
+        ),
+        (
+            br#"{"items":[],"sets":[{"number":0,"name":"Core","patterns":["src/**"]}]}"#.as_slice(),
+            b"sets.number".as_slice(),
+        ),
+        (br#"{"items":[],"sets":[{"number":1,"name":"","patterns":["src/**"]}]}"#.as_slice(), b"sets.name".as_slice()),
+        (br#"{"items":[],"sets":[{"number":1,"name":"Core","patterns":[]}]}"#.as_slice(), b"sets.patterns".as_slice()),
+        (
+            br#"{"items":[],"sets":[{"number":1,"name":"Core","patterns":["/src"]}]}"#.as_slice(),
+            b"sets.patterns".as_slice(),
+        ),
+        (
+            br#"{"items":[],"sets":[{"number":256,"name":"Core","patterns":["src/**"]}]}"#.as_slice(),
+            b"number".as_slice(),
+        ),
+    ] {
+        let why = file::decode(&kind_file(PROJECT_CLASSES, value), &Limits::standard()).expect_err("malformed classes");
+        assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
+    }
+    for (value, member) in [
+        (br#"{"drafts":true,"goals":true,"changes":true}"#.as_slice(), b"way".as_slice()),
+        (br#"{"drafts":true,"goals":true,"way":0}"#, b"changes"),
+        (br#"{"drafts":true,"changes":true,"way":0}"#, b"goals"),
+        (br#"{"goals":true,"changes":true,"way":0}"#, b"drafts"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":4294967296}"#, b"way"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":-1}"#, b"way"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":false}"#, b"way"),
+        (br#"{"drafts":1,"goals":true,"changes":true,"way":0}"#, b"drafts"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"way":0,"extra":true}"#, b"extra"),
+        (br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":0}"#, b"away"),
     ] {
         let why = file::decode(&kind_file(PROJECT_WAYS, value), &Limits::standard()).expect_err("malformed ways");
         assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");

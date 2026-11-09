@@ -11,6 +11,8 @@ pub use keys::{key, own, pattern, pattern_key, tasks_key, within};
 pub const NOTES_LIMITS: jig_domain_notes::Limits = jig_domain_notes::Limits {
     scopes: 2,
     entries_per_scope: 2,
+    party_entries: 2,
+    party_bytes: 32,
     pattern_bytes: 16,
     description_bytes: 32,
     body_bytes: 64,
@@ -666,6 +668,7 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
         attempts: 128,
         plan: 128,
         notes: 64,
+        preferences: 64,
     },
     accounts: jig_domain_accounts::Limits {
         accounts: 1,

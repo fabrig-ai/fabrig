@@ -21,7 +21,7 @@ const HELD_PASSES: usize = 8;
 fn configuration() -> (engine::Config, engine::Limits) {
     let mut limits = kinds::limits();
     limits.documents.roles = limits.documents.roles.max(2);
-    limits.people.requests = 5; // Initial roles, two settings changes, adoption and changed roles.
+    limits.people.requests = 6; // Initial roles, three settings changes, adoption and changed roles.
     limits.authority.roles = 2; // Owner and member.
     limits.people.people = 3; // Owner, member and deployment service.
     limits.people.holdings = 3; // Owner of deployment and project, then member of project.
@@ -94,10 +94,11 @@ fn change(driver: &mut Driver, key: u8, items: Box<[core_settings::Item]>) {
 }
 
 fn own_ways() -> settings::ProjectWays {
-    settings::ProjectWays { drafts: false, goals: false, changes: true, away: true, way: 0 }
+    settings::ProjectWays { drafts: false, goals: false, changes: true, way: 0 }
 }
 
 fn items() -> [Box<[ways::Item]>; STOCK_WAYS] {
+    use temper_protocol_reaches::{Classes, Way};
     let mut approve = rule();
     approve.ci = true;
     approve.up_to_date = true;
@@ -112,8 +113,12 @@ fn items() -> [Box<[ways::Item]>; STOCK_WAYS] {
     main.pattern.last = forge::GateLast::Exact(b"main".as_slice().into());
     let mut goal = rule();
     goal.pattern.last = forge::GateLast::Open(b"temper".as_slice().into());
-    let rules = [vec![(1, approve)], vec![(1, review)], vec![(1, main), (2, goal)]];
-    rules.map(|rules| {
+    let rules = [
+        (vec![(1, approve)], Way::YouApprove),
+        (vec![(1, review)], Way::AgentsReview),
+        (vec![(1, main), (2, goal)], Way::DraftFirst),
+    ];
+    rules.map(|(rules, way)| {
         let mut items: Vec<_> = (1..=4)
             .map(|number| ways::Item {
                 kind: 2,
@@ -137,6 +142,12 @@ fn items() -> [Box<[ways::Item]>; STOCK_WAYS] {
                 edit: ways::Edit::Set(settings::Value::Ways(value)),
             });
         }
+        items.push(ways::Item {
+            kind: 8,
+            scope: PROJECT,
+            number: 1,
+            edit: ways::Edit::Set(settings::Value::Classes(Classes::stock(way))),
+        });
         items.into_boxed_slice()
     })
 }
@@ -230,7 +241,7 @@ fn a_ways_watch_delivers_the_stock_items_and_readers_permission_after_commit() {
 #[test]
 fn committed_settings_adoptions_and_roles_mark_the_ways_watch() {
     let mut driver = driver();
-    member(&mut driver);
+    let next_owner = member(&mut driver);
     let session = driver.session();
     watch(&mut driver, session);
     driver.settle();
@@ -298,14 +309,40 @@ fn committed_settings_adoptions_and_roles_mark_the_ways_watch() {
             .collect::<Vec<_>>()
     );
     assert!(!got[4].may_change, "the reader is now a member");
+    assert!(got.iter().all(|document| document.words.is_none()), "no project's words have been held");
+    ack(&mut driver);
+    let words = settings::ProjectWords {
+        headline: b"Agents review every change".as_slice().into(),
+        lede: b"Agents make and review changes before they land.".as_slice().into(),
+    };
+    let before_words = documents(&driver).len();
+    driver.send(kinds::change(
+        next_owner,
+        kinds::revision(&driver.store.rows),
+        41,
+        Box::new([kinds::item(10, PROJECT, 1, &settings::Value::ProjectWords(words.clone()))]),
+    ));
+    for _ in 0..HELD_PASSES {
+        driver.advance(false);
+    }
+    assert_eq!(documents(&driver).len(), before_words, "the words wait for their commit");
+    driver.settle();
+    let got = documents(&driver);
+    assert_eq!(
+        got.len(),
+        before_words.checked_add(1).unwrap(),
+        "the project's words' commit marks ways: {:?}",
+        driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::WebReply { .. })).collect::<Vec<_>>()
+    );
+    assert_eq!(got.last().unwrap().words.as_ref(), Some(&words));
 }
 
 const VIEW_REPLY: Token = Token::new(800);
 const CHANNEL: Token = Token::new(7);
 const VIEW_MAIN: &[&str] =
-    &["you ask", "produce", "check", "review", "repair", "check", "update", "resolve", "merge", "verify", "main"];
+    &["you ask", "produce", "check", "review", "repair", "check", "conflict", "resolve", "merge", "verify", "main"];
 const VIEW_OTHER: &[&str] =
-    &["you ask", "produce", "check", "review", "repair", "check", "update", "resolve", "merge", "other"];
+    &["you ask", "produce", "check", "review", "repair", "check", "conflict", "resolve", "merge", "other"];
 const VIEW_AFTER: &[&str] = &["you ask", "produce", "you approve", "merge", "verify", "main"];
 
 fn view_driver() -> (Driver, engine::Assignment) {
@@ -356,6 +393,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
                         format: temper_engine_domain_forge_tiers::Format::Junit,
                         follows: forge::Follows::Branch(b"main".as_slice().into()),
                         span_ms: 0,
+                        description: Box::default(),
                     }]),
                 }]),
                 after: engine::AfterLandingCheck { tier_retries: 1, verification_bound_ms: 60_000 },
@@ -463,6 +501,7 @@ enum Picture {
     Proposal { before: Vec<String>, after: Vec<String> },
     Charter { number: u32, who: String, name: String, facts: Vec<(String, String)> },
     Rule { kind: u32, number: u32, who: String, name: String, facts: Vec<(String, String)> },
+    Roles(Vec<String>),
     NotDrawn(String),
 }
 fn strings(words: &[&str]) -> Vec<String> {
@@ -495,6 +534,7 @@ fn drawn(view: ways::View) -> Picture {
             name: text(card.name),
             facts: card.facts.into_iter().map(|fact| (text(fact.label), text(fact.value))).collect(),
         },
+        ways::View::Roles(roles) => Picture::Roles(roles.into_iter().map(|(_, card)| text(card.name)).collect()),
         ways::View::NotDrawn(words) => Picture::NotDrawn(text(words)),
     }
 }
@@ -517,19 +557,20 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
         "check",
         "repair",
         "check",
-        "update",
+        "conflict",
         "resolve",
         "merge",
         "verify",
         "main",
     ];
     for (address, session, accept, expected) in [
+        ("roles".to_owned(), owner, false, Picture::Roles(strings(&["Chat", "Coding agent", "Reviewer"]))),
         ("way agents review".to_owned(), owner, false, Picture::Way { name: "Agents review".into(), line: "An agent makes each change, another reviews it, and code lands it.".into(), current: true, words: strings(VIEW_MAIN) }),
         ("way Draft first".to_owned(), owner, false, Picture::Way { name: "Draft first".into(), line: "You and an agent write a design draft; agents build it on its own branch, and it lands whole.".into(), current: false, words: strings(draft) }),
         ("path org/repo".to_owned(), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "main".into(), words: strings(VIEW_MAIN) }),
         ("path org/repo other".to_owned(), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "other".into(), words: strings(VIEW_OTHER) }),
         ("path org/repo @revision 1".to_owned(), owner, false, Picture::NotDrawn(format!("revision 1 isn't drawn yet; views draw the newest settings, revision {newest}."))),
-        ("charter 4".to_owned(), owner, false, Picture::Charter { number: 4, who: "an agent".into(), name: "the reviewer".into(), facts: vec![("Models".into(), "scripted".into()), ("Can".into(), "read the code and the forge; change and push its branch; run commands; start sub-agents; never merge or update".into()), ("Wakes".into(), "at once on words, results, failures and questions".into()), ("Asked to".into(), "Complete the task within its authority.".into())] }),
+        ("charter 4".to_owned(), owner, false, Picture::Charter { number: 4, who: "an agent".into(), name: "the reviewer".into(), facts: vec![("Models".into(), "scripted".into()), ("Can".into(), "read the code and the forge; change and push its branch; run commands; start sub-agents; never merge".into()), ("Wakes".into(), "at once on words, results, failures and questions".into()), ("Asked to".into(), "Complete the task within its authority.".into())] }),
         (format!("path org/repo @revision {newest}"), owner, false, Picture::Path { repository: Some("org/repo".into()), branch: "main".into(), words: strings(VIEW_MAIN) }),
         ("rule 2/1".to_owned(), owner, false, Picture::Rule { kind: 2, number: 1, who: "a landing rule · holds a merge until it is met".into(), name: "the project's rule 1".into(), facts: vec![("Covers".into(), "every branch".into()), ("Asks".into(), "CI, up to date".into()), ("Gates".into(), "the reviewer, blocking, at a clean head".into())] }),
         ("rule 1/1".to_owned(), owner, false, Picture::NotDrawn("no rule 1/1.".into())),
@@ -647,7 +688,7 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
 #[expect(clippy::too_many_lines, reason = "the fixture names the stock, adoption and restored tiers together")]
 fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
     let mut limits = kinds::limits();
-    limits.tasks.charters = 5;
+    limits.tasks.charters = 12; // Kind 9's stock lines run up to charter 12.
     limits.tasks.spec_bytes = 512;
     limits.tasks.parameters = 4;
     limits.people.requests = 8; // Adoption, chat and the owner's settings change.
@@ -698,6 +739,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                 format: temper_engine_domain_forge_tiers::Format::Lines,
                 follows,
                 span_ms: 0,
+                description: Box::default(),
             },
         );
         assert!(
@@ -707,7 +749,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                     PROJECT,
                     engine::ProjectLanding {
                         by: engine::Way::Queue,
-                        merge_job: None,
+                        merge_job: Some(b"merge".as_slice().into()),
                         repositories: Box::new([engine::RepositoryChecks {
                             repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
                             gates: Box::new([]),
@@ -788,17 +830,17 @@ fn stock_ways_paths_follow_the_projects_ci_and_tiers() {
         (
             true,
             [
-                "you ask, produce, check, repair, check, you approve, update, resolve, merge, verify, main",
-                "you ask, produce, check, review, repair, check, update, resolve, merge, verify, main",
-                "draft, plan, produce ×n, merge, check, repair, goal branch, check, update, resolve, merge, verify, main",
+                "you ask, produce, check, repair, check, you approve, conflict, resolve, merge, verify, main",
+                "you ask, produce, check, review, repair, check, conflict, resolve, merge, verify, main",
+                "draft, plan, produce ×n, merge, check, repair, catch up, goal branch, check, conflict, resolve, merge, verify, main",
             ],
         ),
         (
             false,
             [
-                "you ask, produce, you approve, update, resolve, merge, main",
-                "you ask, produce, review, repair, update, resolve, merge, main",
-                "draft, plan, produce ×n, merge, goal branch, update, resolve, merge, main",
+                "you ask, produce, you approve, conflict, resolve, merge, main",
+                "you ask, produce, review, repair, conflict, resolve, merge, main",
+                "draft, plan, produce ×n, merge, goal branch, conflict, resolve, merge, main",
             ],
         ),
     ] {

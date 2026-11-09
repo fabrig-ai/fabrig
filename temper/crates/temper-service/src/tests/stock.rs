@@ -316,10 +316,16 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
-        assert_eq!(charter.policy.inspect, charter.number != 9 && charter.number != 10 && charter.number != 11);
+        assert_eq!(
+            charter.policy.inspect,
+            charter.number != 9 && charter.number != 10 && charter.number != 11 && charter.number != 12
+        );
         assert!(!charter.policy.shell);
         assert_eq!(charter.policy.modify, charter.number == 2 || charter.number == 5);
-        assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2 || charter.number == 5);
+        assert_eq!(
+            charter.policy.agents,
+            charter.number == 1 || charter.number == 2 || charter.number == 5 || charter.number == 12
+        );
     }
 }
 
@@ -329,9 +335,9 @@ fn ask_temper_is_charter_11_and_template_5() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 4, 5, 6, 9, 10, 11]
+        [1, 2, 4, 5, 6, 9, 10, 11, 12]
     );
-    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 512, 1023, 512, 0, 0, 3072]) {
+    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 512, 1023, 512, 0, 0, 3072, 1022]) {
         assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
     }
     let charter = defaults.charters.iter().find(|charter| charter.number == 11).expect("Ask temper charter");
@@ -344,21 +350,36 @@ fn ask_temper_is_charter_11_and_template_5() {
     expected.policy.tools = jig_domain_tasks::Tools(3072);
     assert_eq!(*charter, expected);
     let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
+    assert!(words.contains(temper_engine_smith::ADDRESSES));
+    assert!(
+        words.contains("project-classes: what agents decide for a person and what asks them, by kind and by path set.")
+    );
     ask_design_first_rules(words);
-    assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
+    assert!(words.len() <= 10_240, "Ask temper's instructions fit ask-temper.md, 4.1's 10 KB");
     for heading in [
         "## temper, as you explain it",
         "## Finding out",
         "## Answering",
         "## Configuring",
         "## Showing",
+        "## Remembering",
         "## Your voice",
     ] {
         assert!(words.contains(heading), "missing {heading}");
     }
-    assert!(!words.contains("## Remembering"), "Remembering joins with remember");
+    let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
+    let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
+    assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
+    let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
+    let (remembering, _) = remembering.split_once("## Your voice").expect("Your voice follows Remembering");
+    assert_eq!(
+        remembering,
+        r#"remember keeps a few lines about this person across their chats; they see and edit them. Keep only what they ask you to keep ("remember that…"), and say in your reply that you kept it. Never keep what a read answers (settings, their history, proposals and their reasons are records already), a guess about them, or a secret. Others in this project may read this chat, so name a kept line only when the person asks about it. Where a kept line and a read disagree, the read is right. Nothing kept widens what you may do. When the list is full, ask them which line to change or drop.
+
+"#
+    );
     let (_, showing) = words.split_once("## Showing\n\n").expect("Showing part");
-    let (showing, _) = showing.split_once("## Your voice").expect("Your voice follows Showing");
+    let (showing, _) = showing.split_once("## Remembering").expect("Remembering follows Showing");
     assert_eq!(
         showing,
         r"Show a picture when it explains better than words. Draw what exists from a view, a fenced block naming it:
@@ -373,12 +394,60 @@ A way is drawn, never described: way NAME draws one of temper's stock ways over 
     for excluded in ["queue", "task N tree", "task N timeline", "```mermaid"] {
         assert!(!showing.contains(excluded), "Showing excludes {excluded} until M3b");
     }
-    assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 4, 5]);
+    assert_eq!(
+        defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(),
+        [1, 2, 4, 5, 6]
+    );
     let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
     expected.number = 5;
     expected.name = b"ask".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(11);
     assert_eq!(*defaults.templates.iter().find(|template| template.number == 5).unwrap(), expected);
+}
+
+#[test]
+fn the_drafter_is_charter_12_and_template_6() {
+    use jig_domain_authority::Executor;
+    use jig_domain_core::ToolFamilies;
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 12).expect("drafter charter");
+    assert_eq!(charter.policy.instructions.len(), 2_874);
+    assert_eq!(
+        skein_lib::sha256::digest(&charter.policy.instructions),
+        [
+            0x1f, 0x44, 0x77, 0x43, 0xf6, 0x7f, 0x32, 0x1b, 0xac, 0x95, 0x16, 0xe4, 0x72, 0x17, 0x3e, 0x9f, 0x88, 0xe0,
+            0x5b, 0x40, 0x67, 0xc4, 0xe1, 0xc7, 0xbe, 0xc3, 0xd1, 0x45, 0x7c, 0x5e, 0xd9, 0x00,
+        ]
+    );
+    assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.delegate.0, 0);
+    assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.settings, 0);
+    assert_eq!(charter.policy.tools.0 & ToolFamilies::JIG.ask.0, 0);
+    let mut expected = defaults.charters.iter().find(|charter| charter.number == 1).unwrap().clone();
+    expected.number = 12;
+    expected.policy.instructions = include_bytes!("../stock/drafter.txt").as_slice().into();
+    expected.policy.inspect = false;
+    expected.policy.modify = false;
+    expected.policy.shell = false;
+    expected.policy.agents = true;
+    expected.policy.tools = jig_domain_tasks::Tools(1022);
+    assert_eq!(*charter, expected);
+    let mut expected = defaults.templates.iter().find(|template| template.number == 1).unwrap().clone();
+    expected.number = 6;
+    expected.name = b"design session".as_slice().into();
+    expected.executor = jig_domain_people::TemplateExecutor::Charter(12);
+    assert_eq!(*defaults.templates.iter().find(|template| template.number == 6).unwrap(), expected);
+    let policy = &defaults.policies.get(&1).unwrap().policy;
+    for authority in [&defaults.rules.ceiling, &policy.ceiling] {
+        assert!(authority.delegation.kinds.contains(&Executor::Charter(12)));
+    }
+    for role in &policy.roles {
+        if role.number == 3 {
+            assert!(role.authority.delegation.kinds.is_empty());
+        } else {
+            assert!(role.authority.delegation.kinds.contains(&Executor::Charter(12)));
+        }
+    }
 }
 
 fn ask_design_first_rules(words: &str) {
@@ -426,19 +495,19 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    assert_eq!(run, (13_123, Setting::Charter(5)));
+    assert_eq!(run, (12_883, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 5886, Setting::Policy(1), "the stock's policy 1 needs 5886 bytes"),
+        (b"core.policy_bytes", 5918, Setting::Policy(1), "the stock's policy 1 needs 5918 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 14, Setting::Rules, "the stock's rules need 14 executors"),
+        (b"authority.executors", 15, Setting::Rules, "the stock's rules need 15 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 8, Setting::Charter(1), "the stock offers 8 charters"),
-        (b"core.templates", 4, Setting::Template(1), "the stock offers 4 templates"),
+        (b"tasks.charters", 9, Setting::Charter(1), "the stock offers 9 charters"),
+        (b"core.templates", 5, Setting::Template(1), "the stock offers 5 templates"),
         (b"documents.text_bytes", 16, Setting::Template(4), "the stock's template 4 needs 16 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
         (b"core.settings.alternatives", 2, Setting::Charter(11), "the stock's charter 11 needs 2 alternatives"),
@@ -556,7 +625,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5886 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5918 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -616,35 +685,54 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
 // temper/docs/design/protocol/configuration.md, 13.4; domain/agent.md, 4.3.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
-    let words = include_str!("../stock/chat.txt");
-    let goal = words
+    for (words, prefixes) in [
+        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (include_str!("../stock/coordinator.md"), &["Where the draft leaves a choice:"][..]),
+    ] {
+        for prefix in prefixes {
+            let paragraph =
+                words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
+            assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says. Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
+        }
+    }
+    let coordinator = include_str!("../stock/coordinator.md");
+    let question = coordinator
         .split("\n\n")
-        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
-        .expect("goal paragraph");
-    assert!(goal.contains("Otherwise do the work without asking. Before you ask your requester anything, call decided with the question, its options, the one you'd take, why, and its kind; on Decided carry on with it and ask no one; on Ask, ask them with message, as a question."), "the goal calls decided before asking and follows its answer");
+        .find(|paragraph| paragraph.starts_with("On a question a change relays"))
+        .expect("question part");
+    for words in [
+        "before asking the person call `decided`",
+        "question, options, the one you'd take, why, kind, paths, and `under`",
+        "see settings project-classes",
+        "on Decided carry on and ask no one; on Ask, ask as the answer says",
+    ] {
+        assert!(question.contains(words));
+    }
+
     assert!(
-        goal.contains("Funds, sign-ins, machines, a plan's go-ahead and anything hard to reverse are kind other."),
-        "these decisions wait for the person"
-    );
-    assert!(
-        goal.contains("If they tell you a decision was overturned, ask it with message, as a question, and wait."),
-        "an overturned decision waits for the person's answer"
+        include_str!("../stock/chat.txt")
+            .contains("If they tell you a decision was overturned, ask it with message, as a question, and wait.")
     );
 }
 
 #[test]
-fn asks_always_is_told_never_to_call_it() {
-    let words = include_str!("../stock/chat.txt");
-    let goal = words
-        .split("\n\n")
-        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
-        .expect("goal paragraph");
-    assert!(
-        goal.contains(
-            "If your words hold the line Asks: always, never call decided: ask them with message, as a question."
+fn asks_always_is_told_every_answer_is_ask() {
+    for (words, prefixes) in [
+        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (
+            include_str!("../stock/coordinator.md"),
+            &["Where the draft leaves a choice:", "On a question a change relays"][..],
         ),
-        "Asks: always bypasses decided and asks the person"
-    );
+    ] {
+        for prefix in prefixes {
+            let paragraph =
+                words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
+            assert!(
+                paragraph.contains("If your words hold the line Asks: always, every answer is Ask."),
+                "Asks: always calls decided and records why it asks"
+            );
+        }
+    }
 }
 
 #[test]
@@ -945,7 +1033,7 @@ fn the_foremans_charter_reads_and_gives_a_verdict() {
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 4, 5, 6, 9, 10, 11]
+        [1, 2, 4, 5, 6, 9, 10, 11, 12]
     );
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let mut expected = defaults.charters.iter().find(|charter| charter.number == 4).unwrap().clone();
@@ -1171,6 +1259,7 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Charter(6),
                 Executor::Charter(9),
                 Executor::Charter(11),
+                Executor::Charter(12),
                 Executor::Procedure(2),
                 Executor::Procedure(3),
                 Executor::Procedure(4),
@@ -1232,8 +1321,8 @@ mod brief;
 #[test]
 fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("When they ask for a change to a repository, first read the code it touches with the forge's reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe code you have not read."));
-    assert!(words.contains("When they ask you to fix something and what they call broken is not there, change nothing and tell them so in words, saying what the code has."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
 }
 
 #[test]
@@ -1315,8 +1404,11 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "each setting kind is checked against its admission bounds")]
 fn kinds_are_declared_with_their_bounds() {
     const CONNECTOR: u16 = 5;
+    // Two list lengths, twenty 127-byte items and six 553-byte path sets.
+    const CLASSES_BYTES: u32 = 8 + 20 * 127 + 6 * 553;
     use jig_domain_core::settings::{Kind, KindScope};
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
@@ -1328,6 +1420,7 @@ fn kinds_are_declared_with_their_bounds() {
     limits.forge.change_policy.gates = 2;
     limits.forge.roles = 3;
     limits.forge.landing_rules = 7;
+    limits.templates = 9;
     let rule = settings::Value::Rule(settings::LandingRule {
         pattern: forge::GatePattern {
             segments: Box::new([
@@ -1390,8 +1483,40 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 7,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 8,
+                value_bytes: 7,
                 per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 8,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: CLASSES_BYTES,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 9,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 124,
+                per_scope: limits.tasks.charters,
+                charters: 0
+            },
+            Kind {
+                number: 10,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 608,
+                per_scope: 1,
+                charters: 0,
+            },
+            Kind {
+                number: 11,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 2,
+                per_scope: 9,
                 charters: 0
             },
         ]
@@ -1402,8 +1527,8 @@ fn kinds_are_declared_with_their_bounds() {
 
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
-    // configuration.md, 13.4: every project's rule 1 and both forge charters.
-    const ITEMS: usize = 3;
+    // configuration.md, 13.4: every project's rule 1, both forge charters and each charter's words and template 4's work.
+    const ITEMS: usize = 13;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
@@ -1428,9 +1553,27 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
             approvals: Box::default(),
         })
     );
-    for (item, number, charter) in [(&stock[1], 1, 2), (&stock[2], 2, 4)] {
-        assert_eq!((item.kind, item.scope, item.number), (3, 0, number));
-        assert_eq!(item.value.value, settings::Value::Charter(charter));
+    for (item, kind, number, value) in [
+        (&stock[1], 3, 1, settings::Value::Charter(2)),
+        (&stock[2], 3, 2, settings::Value::Charter(4)),
+        (&stock[3], 11, 4, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
+    ] {
+        assert_eq!((item.kind, item.scope, item.number), (kind, 0, number));
+        assert_eq!(item.value.value, value);
+    }
+    for (item, (number, line)) in stock[4..].iter().zip([
+        (1, b"talks with you and asks for the changes".as_slice()),
+        (2, b"makes each change, repairs it and resolves its conflicts".as_slice()),
+        (4, b"reviews each change at its head, and holds it until it approves".as_slice()),
+        (5, b"cuts a goal's draft into changes and lands the goal whole".as_slice()),
+        (6, b"answers a coding agent's question from the goal's design, or passes it up".as_slice()),
+        (9, b"writes the few lines at the top of Home, from what landed and what waits".as_slice()),
+        (10, b"answers one word, so that a new model is known to run".as_slice()),
+        (11, b"explains how work runs here, and proposes changes to it".as_slice()),
+        (12, b"writes a draft with you, one question at a time, and starts nothing".as_slice()),
+    ]) {
+        assert_eq!((item.kind, item.scope, item.number), (9, 0, number));
+        assert_eq!(item.value.value, settings::Value::CharterWords(line.into()), "charter {number}");
     }
     for item in &stock {
         assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
@@ -1442,12 +1585,30 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
 }
 
 #[test]
+fn every_stock_charter_has_exactly_one_fitting_line() {
+    use temper_engine_domain_forge::settings::{LINE_BYTES, Value, words_fit};
+    let engine = fixtures::engine();
+    let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
+    let defaults = crate::stock::defaults(&engine.jig.llm, engine.jig.limits.core.tasks.result_bytes);
+    let stock = crate::stock::forge(&limits);
+    for charter in &defaults.charters {
+        let lines: Box<[_]> = stock.iter().filter(|item| item.kind == 9 && item.number == charter.number).collect();
+        assert_eq!(lines.len(), 1, "charter {} has exactly one stock line", charter.number);
+        assert_eq!(lines[0].scope, 0, "charter {} has deployment words", charter.number);
+        let Value::CharterWords(line) = &lines[0].value.value else { panic!("charter {} has words", charter.number) };
+        assert!(words_fit(line, LINE_BYTES), "charter {} has a fitting line", charter.number);
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "stock way rows keep their words and settings together")]
 fn the_stock_ways_hold_their_words_and_settings() {
     use temper_engine_domain_forge::{
         self as forge,
         settings::{LandingRule, RuleApproval, RuleGate, Value},
     };
     use temper_engine_domain_ways::Laid;
+    use temper_protocol_reaches::{Classes, Way};
     let all = forge::GatePattern {
         segments: Box::new([b"branch".as_slice().into()]),
         last: forge::GateLast::Open(Box::default()),
@@ -1463,6 +1624,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
     let rows = [
         (
             b"You approve".as_slice(),
+            b"You approve every change".as_slice(),
             b"An agent makes each change; nothing reaches main until you approve it.".as_slice(),
             vec![(
                 1,
@@ -1476,17 +1638,21 @@ fn the_stock_ways_hold_their_words_and_settings() {
                 },
             )],
             None,
+            Some(Classes::stock(Way::YouApprove)),
             false,
         ),
         (
             b"Agents review".as_slice(),
+            b"Agents review every change, and code lands it".as_slice(),
             b"An agent makes each change, another reviews it, and code lands it.".as_slice(),
             vec![(1, review)],
             None,
+            Some(Classes::stock(Way::AgentsReview)),
             false,
         ),
         (
             b"Draft first".as_slice(),
+            b"Draft first, then agents build it on its own branch".as_slice(),
             b"You and an agent write a design draft; agents build it on its own branch, and it lands whole.".as_slice(),
             vec![
                 (
@@ -1519,16 +1685,19 @@ fn the_stock_ways_hold_their_words_and_settings() {
                 ),
             ],
             Some(Laid { drafts: true, goals: true, way: 4 }),
+            Some(Classes::stock(Way::DraftFirst)),
             true,
         ),
     ];
     let stock = crate::stock::ways();
     assert_eq!(stock.len(), rows.len());
-    for (way, (name, line, rules, ways, delegation)) in stock.iter().zip(rows) {
+    for (way, (name, headline, line, rules, ways, classes, delegation)) in stock.iter().zip(rows) {
         assert_eq!(way.name.as_ref(), name);
+        assert_eq!(way.headline.as_ref(), headline, "{name:?}");
         assert_eq!(way.line.as_ref(), line, "{name:?}");
         assert_eq!(way.rules.as_ref(), rules.as_slice(), "{name:?}");
         assert_eq!(way.ways, ways, "{name:?}");
+        assert_eq!(way.classes, classes, "{name:?}");
         assert_eq!(way.delegation, delegation, "{name:?}");
     }
     let engine = fixtures::engine();

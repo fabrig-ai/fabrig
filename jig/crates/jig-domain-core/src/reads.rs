@@ -20,11 +20,14 @@ pub mod ended;
 pub mod forget;
 pub mod indexed;
 pub(crate) mod indexes;
+pub(crate) mod party;
+pub(crate) mod person;
 mod rows;
 pub mod run_task;
 pub mod settings;
 mod task_text;
 mod turn;
+pub(crate) mod withheld;
 pub use task_text::{TaskText, TaskTextField, task_text_from_row};
 mod vocabulary;
 pub(crate) mod watches;
@@ -89,7 +92,10 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
         Scope::Notes { project } => match key {
             Key::Notes(notes::Key::Line { scope, .. }) => match scope {
                 notes::Scope::Goal { project: owner, .. } => owner == project,
-                notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Resources { .. } => false,
+                notes::Scope::Party { .. }
+                | notes::Scope::Deployment
+                | notes::Scope::Project { .. }
+                | notes::Scope::Resources { .. } => false,
             },
             Key::Notes(_) | Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Accounts(_) => false,
         },
@@ -129,6 +135,7 @@ pub(crate) struct Pending {
 #[derive(Hash, Debug)]
 enum Destination {
     Read(ReplyTo),
+    Person { to: ReplyTo, key: crate::CallKey, project: u32, owner_read: Option<Box<Read>> },
     RevisionMetadata { reply: ReplyTo, project: u32 },
     ProjectProposal { reply: ReplyTo, project: u32 },
     Watch(Token),
@@ -149,6 +156,7 @@ impl Pending {
             Destination::Restore
             | Destination::Erase
             | Destination::Watch(_)
+            | Destination::Person { .. }
             | Destination::RunTask { .. }
             | Destination::Proposal { .. }
             | Destination::Settings { .. }
@@ -286,12 +294,15 @@ fn backwards(scope: &Scope) -> bool {
     }
 }
 
-fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Queue<Request> {
+fn refused_application(destination: Destination, read: &Read, why: Why) -> Queue<Request> {
     match read {
         Read::Application { connector, read, .. } => {
             let mut out = Queue::uncapped();
             out.push(Request::Ask { connector: *connector, ask: crate::Ask::DropDocument { subject: *read } });
-            out.push(Request::Held(Box::new(Held::Read { reply, answer: Answer::None(why) })));
+            let mut terminal = answer(destination, Answer::None(why));
+            while let Some(request) = terminal.pop() {
+                out.push(request);
+            }
             out
         }
         Read::Frame
@@ -318,61 +329,76 @@ fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Queue<Request> 
         | Read::Setting { .. }
         | Read::Revision { .. }
         | Read::Revisions { .. }
-        | Read::Deployment => terminal(reply, Answer::None(why)),
+        | Read::Deployment => answer(destination, Answer::None(why)),
+    }
+}
+
+fn application_reply(destination: Destination) -> ReplyTo {
+    match destination {
+        Destination::Read(reply) | Destination::Person { to: reply, .. } => reply,
+        Destination::RevisionMetadata { .. }
+        | Destination::ProjectProposal { .. }
+        | Destination::Watch(_)
+        | Destination::Erase
+        | Destination::Restore
+        | Destination::Settings { .. }
+        | Destination::Proposal { .. }
+        | Destination::RunTask { .. }
+        | Destination::Done => unreachable!("application read destination"),
+    }
+}
+
+fn application(core: &Core, destination: Destination, party: u64, read: &Read) -> Queue<Request> {
+    let Read::Application { scope, connector, read: name, window } = read else { unreachable!("application read") };
+    if match scope {
+        jig_domain_people::ApplicationScope::Own => false,
+        jig_domain_people::ApplicationScope::Deployment => {
+            core.people.role(party, jig_domain_people::DEPLOYMENT).is_none()
+        }
+        jig_domain_people::ApplicationScope::Project(project) => {
+            !core.open_project(*project) || core.people.role(party, *project).is_none()
+        }
+    } || !core.connectors.as_ref().contains(connector)
+    {
+        return refused_application(destination, read, Why::Unknown);
+    }
+    let mut out = Queue::uncapped();
+    out.push(Request::Ask {
+        connector: *connector,
+        ask: crate::Ask::Read {
+            reply: application_reply(destination),
+            scope: *scope,
+            read: *name,
+            party,
+            window: *window,
+        },
+    });
+    out
+}
+
+fn answer(destination: Destination, value: Answer) -> Queue<Request> {
+    match destination {
+        Destination::Read(reply) => terminal(reply, value),
+        Destination::Person { to, key, .. } => person::answer(to, key, value),
+        Destination::RevisionMetadata { .. }
+        | Destination::ProjectProposal { .. }
+        | Destination::Watch(_)
+        | Destination::Erase
+        | Destination::Restore
+        | Destination::Settings { .. }
+        | Destination::Proposal { .. }
+        | Destination::RunTask { .. }
+        | Destination::Done => unreachable!("party read destination"),
     }
 }
 
 pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in: u64, read: Read) -> Queue<Request> {
     let Some(party) = core.people.person(sign_in, env.now, env.wall) else {
         let why = if core.people.ready() { Why::SignedOut } else { Why::Unknown };
-        return refused_application(reply, &read, why);
+        return refused_application(Destination::Read(reply), &read, why);
     };
-    match &read {
-        Read::Application { scope, connector, read: name, window } => {
-            if match scope {
-                jig_domain_people::ApplicationScope::Own => false,
-                jig_domain_people::ApplicationScope::Deployment => {
-                    core.people.role(party, jig_domain_people::DEPLOYMENT).is_none()
-                }
-                jig_domain_people::ApplicationScope::Project(project) => {
-                    !core.open_project(*project) || core.people.role(party, *project).is_none()
-                }
-            } || !core.connectors.as_ref().contains(connector)
-            {
-                return refused_application(reply, &read, Why::Unknown);
-            }
-            let mut out = Queue::uncapped();
-            out.push(Request::Ask {
-                connector: *connector,
-                ask: crate::Ask::Read { reply, scope: *scope, read: *name, party, window: *window },
-            });
-            return out;
-        }
-        Read::Frame
-        | Read::TaskText { .. }
-        | Read::Task { .. }
-        | Read::Proposal { .. }
-        | Read::Escalation { .. }
-        | Read::Question { .. }
-        | Read::PersonTask { .. }
-        | Read::Result { .. }
-        | Read::Reply { .. }
-        | Read::Turn { .. }
-        | Read::EndedDelegates { .. }
-        | Read::History { .. }
-        | Read::Activity { .. }
-        | Read::ActivityBeside { .. }
-        | Read::Inbox { .. }
-        | Read::Tasks { .. }
-        | Read::Notes { .. }
-        | Read::ScopedNotes { .. }
-        | Read::Spend { .. }
-        | Read::Project { .. }
-        | Read::Settings
-        | Read::Setting { .. }
-        | Read::Revision { .. }
-        | Read::Revisions { .. }
-        | Read::Deployment => {}
+    if let Read::Application { .. } = &read {
+        return application(core, Destination::Read(reply), party, &read);
     }
     match read {
         Read::Setting { setting, revision, proposal } => match proposal {
@@ -404,7 +430,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
         | Read::Notes { .. }
         | Read::ScopedNotes { .. }
         | Read::Spend { .. }
-        | Read::Deployment) => start_jig(core, env, reply, sign_in, party, read),
+        | Read::Deployment) => start_jig(core, env, Destination::Read(reply), sign_in, party, read, false),
     }
 }
 
@@ -519,27 +545,28 @@ fn read_start(read: &Read, party: u64) -> Option<ReadStart> {
 fn start_jig(
     core: &mut Core,
     env: &Env<Limits>,
-    reply: ReplyTo,
+    destination: Destination,
     sign_in: u64,
     party: u64,
     read: Read,
+    continuing: bool,
 ) -> Queue<Request> {
     if !bounded_query(&read, &env.limits) {
-        return terminal(reply, Answer::None(Why::Busy));
+        return answer(destination, Answer::None(Why::Busy));
     }
     if let Read::TaskText { task, field, from } = &read
         && let Some(row) = core.tasks.task(*task)
     {
-        return terminal(reply, task_text::answer(core, &env.limits, party, row, *field, *from));
+        return answer(destination, task_text::answer(core, &env.limits, party, row, *field, *from));
     }
     let target = scope(&read);
     let Some(start) = read_start(&read, party) else {
-        return terminal(reply, Answer::None(Why::Unknown));
+        return answer(destination, Answer::None(Why::Unknown));
     };
     let mut tasks = if let Read::Tasks { query, live, .. } = &read {
         match task_live(core, env, party, *query, live.as_ref()) {
             Ok(page) => Some(Box::new(page)),
-            Err(why) => return terminal(reply, Answer::None(why)),
+            Err(why) => return answer(destination, Answer::None(why)),
         }
     } else {
         None
@@ -547,7 +574,7 @@ fn start_jig(
     if let Some(page) = &tasks
         && page.ended == EndedGroup::None
     {
-        return terminal(reply, Answer::Tasks(tasks.take().expect("task page")));
+        return answer(destination, Answer::Tasks(tasks.take().expect("task page")));
     }
     let ReadStart { after_live, after_store, stored } = start;
     if let Some(position) = &after_store
@@ -556,7 +583,7 @@ fn start_jig(
             None => true,
         }
     {
-        return terminal(reply, Answer::None(Why::Unknown));
+        return answer(destination, Answer::None(Why::Unknown));
     }
     if tasks.is_none()
         && !stored
@@ -574,22 +601,23 @@ fn start_jig(
             Ok(document) => {
                 if !rows::needs_store(&read, &document) {
                     let answer = rows::live_page(core, &env.limits, party, &read, document);
-                    return terminal(reply, answer);
+                    return self::answer(destination, answer);
                 }
             }
-            Err(Missing::NotAllowed) => return terminal(reply, Answer::None(Why::Unknown)),
-            Err(Missing::TooLarge) => return terminal(reply, Answer::None(Why::Busy)),
+            Err(Missing::NotAllowed) => return answer(destination, Answer::None(Why::Unknown)),
+            Err(Missing::TooLarge) => return answer(destination, Answer::None(Why::Busy)),
             Err(Missing::Unknown | Missing::Ended) => {}
         }
     }
     let Some(scope) = target else {
-        return terminal(reply, Answer::None(Why::Unknown));
+        return answer(destination, Answer::None(Why::Unknown));
     };
     if !rows::scope_allowed(core, party, &scope) {
-        return terminal(reply, Answer::None(Why::Unknown));
+        return answer(destination, Answer::None(Why::Unknown));
     }
-    if core.reads.len() >= env.limits.load_slots {
-        return terminal(reply, Answer::None(Why::Busy));
+    let occupied = core.reads.len().checked_sub(u32::from(continuing)).expect("continuation retains its retired slot");
+    if occupied >= env.limits.load_slots {
+        return answer(destination, Answer::None(Why::Busy));
     }
     let range = Range {
         party,
@@ -627,10 +655,12 @@ fn start_jig(
         bytes: env.limits.load_bytes,
     };
     let emitted = range.clone();
-    let pending = Pending { destination: Destination::Read(reply), sign_in, party, range, tasks };
+    let pending = Pending { destination, sign_in, party, range, tasks };
     let load = match core.reads.insert(pending) {
         Ok(load) => load.token(),
-        Err(mut pending) => return terminal(pending.take_reply(), Answer::None(Why::Busy)),
+        Err(mut pending) => {
+            return answer(core::mem::replace(&mut pending.destination, Destination::Done), Answer::None(Why::Busy));
+        }
     };
     let mut out = Queue::uncapped();
     out.push(Request::Held(Box::new(Held::ReadLoad { load, range: Box::new(emitted) })));
@@ -657,22 +687,50 @@ pub(crate) fn loaded(
         Destination::Restore => return settings::restore_loaded(core, env, work, name, result),
         Destination::Erase => return crate::routing::task::erase::loaded(core, env, load, result),
         Destination::RunTask { .. } => return run_task::loaded(core, env, name, result),
+        Destination::Person { owner_read: Some(_), .. } => return person::owner_loaded(core, env, name, result),
+        Destination::Person { key, .. } => {
+            if !core.current_proof(key.task, key.attempt) {
+                core.reads.retire(name);
+                return Queue::uncapped();
+            }
+        }
         Destination::Read(_) => {}
         Destination::Done => return Queue::uncapped(),
     }
-    let answer = if core.people.person(pending.sign_in, env.now, env.wall) != Some(pending.party) {
+    let person_project =
+        if let Destination::Person { project, .. } = pending.destination { Some(project) } else { None };
+    let invalid_person = if let Destination::Person { key, project, .. } = pending.destination {
+        !person::valid(core, key, project, pending.party)
+    } else {
+        false
+    };
+    let answer = if invalid_person {
+        Answer::None(Why::Unknown)
+    } else if person_project.is_none() && core.people.person(pending.sign_in, env.now, env.wall) != Some(pending.party)
+    {
         Answer::None(Why::SignedOut)
     } else if !rows::scope_allowed(core, pending.party, &pending.range.scope) {
         Answer::None(Why::Unknown)
     } else {
         match result {
             Loaded::TurnProblem { task, attempt, turn: number, owner, why } => {
-                turn::failure(core, &pending.range, task, attempt, number, &owner, why)
+                if let Some(project) = person_project
+                    && owner.project != project
+                {
+                    Answer::None(Why::Unknown)
+                } else {
+                    turn::failure(core, &pending.range, task, attempt, number, &owner, why)
+                }
             }
             Loaded::TooLinked { joins } => Answer::None(Why::TooLinked { joins }),
             Loaded::Busy => Answer::None(Why::Busy),
             Loaded::Gone => Answer::None(Why::Gone),
-            Loaded::Page { rows, next } => rows::from_store(core, &env.limits, &pending.range, rows, next, env.wall),
+            Loaded::Page { rows, next } => match person_project {
+                Some(project) => {
+                    rows::person_from_store(core, &env.limits, &pending.range, rows, next, env.wall, project)
+                }
+                None => rows::from_store(core, &env.limits, &pending.range, rows, next, env.wall),
+            },
         }
     };
     let answer = match (core.reads.get_mut(name).expect("live read").tasks.take(), answer) {
@@ -687,9 +745,10 @@ pub(crate) fn loaded(
         }
         (_, answer) => answer,
     };
-    let reply = core.reads.get_mut(name).expect("live read").take_reply();
+    let destination =
+        core::mem::replace(&mut core.reads.get_mut(name).expect("live read").destination, Destination::Done);
     core.reads.retire(name);
-    terminal(reply, answer)
+    self::answer(destination, answer)
 }
 
 fn task_live(

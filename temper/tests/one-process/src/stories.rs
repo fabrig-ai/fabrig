@@ -41,6 +41,10 @@ pub(crate) fn set(story: Story) {
 }
 
 pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
+    if playground() {
+        // The whole story reads replies beyond the small chat fixture's text window.
+        return temper_client_shell_terminal::limits::native();
+    }
     let mut limits = fixtures::client_limits();
     if STORY.with(|slot| matches!(slot.get(), Story::Adopt | Story::CodingAtStop)) {
         // Batch this whole-exchange story without changing the other stories' schedule.
@@ -58,8 +62,8 @@ pub(crate) fn person() -> Vec<Step<temper_client_domain::Address>> {
         Step::Go {
             address: temper_client_domain::Address::Inbox { filter: temper_client_domain::address::Filter::ALL },
         },
-        see(Find::exactly_named(Role::Link, b"Settings")),
-        press(Role::Link, b"Settings"),
+        see(Find::exactly_named(Role::Link, b"How work runs")),
+        press(Role::Link, b"How work runs"),
         see(Find::exactly_named(Role::Link, b"Repositories")),
         press(Role::Link, b"Repositories"),
         see(Find::named(Role::Link, b"Add repositories")),

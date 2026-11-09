@@ -30,7 +30,20 @@ fn row(edit: d::Edit) -> forge::Stored {
 }
 #[test]
 fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_key() {
+    use temper_protocol_reaches::{Class, Classes, Item, PathSet, Subject};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let classes = Classes {
+        items: Box::new([Item {
+            subject: Subject::Set(6),
+            words: b"keep the wire format".as_slice().into(),
+            class: Class::Ask,
+        }]),
+        sets: Box::new([PathSet {
+            number: 6,
+            name: b"protocol".as_slice().into(),
+            patterns: Box::new([b"src/**".as_slice().into(), b"docs/*.md".as_slice().into()]),
+        }]),
+    };
     let mut open = rule();
     open.pattern.last = forge::GateLast::Open(Box::from(b"feature".as_slice()));
     for (kind, value) in [
@@ -40,7 +53,20 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::None)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
-        (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, away: false, way: u32::MAX })),
+        (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
+        (9, d::Value::CharterWords(Box::from([b'l'; 120].as_slice()))),
+        (
+            10,
+            d::Value::ProjectWords(d::ProjectWords {
+                headline: Box::from([b'h'; 120].as_slice()),
+                lede: Box::from([b'l'; 480].as_slice()),
+            }),
+        ),
+        (8, d::Value::Classes(classes.clone())),
+        (11, d::Value::Goal(d::TemplateGoal { design: false, close_out: false })),
+        (11, d::Value::Goal(d::TemplateGoal { design: true, close_out: true })),
+        (11, d::Value::Goal(d::TemplateGoal { design: true, close_out: false })),
+        (11, d::Value::Goal(d::TemplateGoal { design: false, close_out: true })),
     ] {
         for slot in [
             d::SettingSlot::Default,
@@ -76,6 +102,25 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 assert_eq!(records::decode(&trailing.finish(), &bounds), Err(Undecodable));
             }
         }
+    }
+    for invalid in [
+        Classes {
+            items: Box::new([Item {
+                subject: Subject::Kind(temper_protocol_reaches::Kind::Money),
+                words: Box::new([]),
+                class: Class::Ask,
+            }]),
+            ..classes.clone()
+        },
+        Classes { sets: Box::new([]), ..classes },
+    ] {
+        assert_eq!(
+            records::decode(
+                &records::encode(&row(d::Edit::Set(d::SizedValue { value: d::Value::Classes(invalid), size: 1 }))),
+                &bounds
+            ),
+            Err(Undecodable)
+        );
     }
 }
 #[test]
@@ -155,6 +200,30 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
         let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
         row.encode(&mut writer).unwrap();
         assert_eq!(records::decode(&writer.finish(), &bounds), Err(Undecodable));
+    }
+    for (kind, value) in [
+        (9, d::Value::CharterWords(Box::from(b"".as_slice()))),
+        (9, d::Value::CharterWords(Box::from(b"line\n".as_slice()))),
+        (
+            10,
+            d::Value::ProjectWords(d::ProjectWords {
+                headline: Box::from(b"".as_slice()),
+                lede: Box::from(b"lede".as_slice()),
+            }),
+        ),
+        (
+            10,
+            d::Value::ProjectWords(d::ProjectWords {
+                headline: Box::from(b"headline".as_slice()),
+                lede: Box::from(b"lede\t".as_slice()),
+            }),
+        ),
+    ] {
+        let row = forge::Stored::Setting(d::SettingRow {
+            key: d::SettingKey { kind, scope: 0, number: 1, slot: d::SettingSlot::Default },
+            edit: d::Edit::Set(d::SizedValue { value, size: 1 }),
+        });
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Err(Undecodable), "invalid words for kind {kind}");
     }
     let mut bytes = records::encode(&row(d::Edit::Remove));
     bytes[15] = 4; // Version, Value tag, kind, scope and number precede the slot.

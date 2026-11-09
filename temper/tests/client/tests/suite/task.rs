@@ -487,8 +487,10 @@ fn a_chats_goal_shows_its_report_from_its_goals_row() {
         person,
         vec![
             Step::Go { address: Address::Home { project: 1 } },
-            Step::See { find: Find::exactly_named(Role::Link, b"Goals"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"Goals") },
+            Step::See { find: Find::exactly_named(Role::Link, b"Work"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"Work") },
+            Step::See { find: Find::named(Role::Link, "Goals · ".as_bytes()), within: fixtures::WITHIN },
+            Step::Press { find: Find::named(Role::Link, "Goals · ".as_bytes()) },
         ],
     );
     assert_eq!(world.root(person).person().pages().address(), &Address::Goals { project: 1, filter: GoalsFilter::All });
@@ -497,11 +499,11 @@ fn a_chats_goal_shows_its_report_from_its_goals_row() {
         person,
         vec![
             Step::See {
-                find: Find::exactly_named(Role::Heading { level: 1 }, b"1 goal, 0 under way."),
+                find: Find::exactly_named(Role::Heading { level: 1 }, b"Nothing in flight yet."),
                 within: fixtures::WITHIN,
             },
             Step::See {
-                find: Find::exactly_named(Role::Paragraph, b"The local goal wrote its report."),
+                find: Find::named(Role::Link, b"Write a report for this local demonstration."),
                 within: fixtures::WITHIN,
             },
         ],
@@ -676,7 +678,7 @@ fn report_front() -> Joint {
                 template.deadline = jig_domain_people::TemplateDeadline::None;
             }
         }
-        let value = Value::Ways(ProjectWays { drafts: false, goals: true, changes: false, away: false, way: 0 });
+        let value = Value::Ways(ProjectWays { drafts: false, goals: true, changes: false, way: 0 });
         let mut stock = config.kinds_stock.into_vec();
         stock.push(Stock {
             kind: 7,

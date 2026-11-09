@@ -2,6 +2,45 @@
 
 2026-11-09. Where temper's code lags or departs from [forge.md](forge.md).
 
+Sections 5.5, 5.8, 5.9 and 5.10 have no known implementation gap but
+the one below in what reaches a person, the whole story's milestone N1,
+by plan `ui-reaches`. The crate `temper-protocol-reaches` holds the
+kinds, the classes, a project's table and its check, the patterns, the
+stock tables, `judge`, `away_may_decide` and Stop asking's offers, with a
+fuzz test over kinds, tables, sets, `under`, Away, `always` and paths
+(`the_judgement_keeps_its_rules`). `Away` holds no kinds; `decided` is
+judged by the project's kind 8, or its stock, for any task whose question
+would reach a person, a served chat's person among them, every judged
+call writing a row, decided or asked, with its reach; rows are kept 7
+days under `forge.decided_per_project`, a call with no row past its day
+to erase at the bound answered ask; the document answers `rows`,
+`asked` and `cut`; and `KeepAsking` replaces the party's earlier one of
+its project and subject. The engine world's
+`each_callers_person_and_reach_are_kept` holds a goal, a chat, a
+person's task and a served goal, a goal's child answered ask with no
+person, `money` and `other` waiting, `Asks: always` and an owner's
+narrowed table deciding the next call; the forge's tables hold the bound
+(`the_bound_keeps_a_day_sweeps_seven_days_and_numbers_rise`), Overturn
+(`overturn_marks_once_then_refuses`) and Keep asking
+(`a_dismissal_saves_its_row_marks_and_answers`). A standing role's
+person and the paths an asker's change touches at its head are the
+draft's lags (`../draft/what-reaches-you.status.md`, 4).
+
+- **Not yet:** 5.9: a call answered ask at the bound, with no row past
+  its day, erases the project's rows older than 7 days without marking
+  `decided`, so its document lists them until the next mark
+  (`temper-engine-domain-forge/src/away.rs`, `decided`); no test holds
+  that branch's sweep.
+
+Section 11.1 has no known implementation gap in whole-goal child isolation:
+words-only calls and batch members use the nearest held goal branch,
+including callers in its subtree; an explicit destination outside it is
+refused before delegation. The engine-domain world's stock draft-goal
+story decodes a reconstructed words-only call through smith, answers two
+scope questions, releases the change hold and observes the fake forge's
+child merge before the separate whole-goal landing. It establishes no
+real-model or browser outcome.
+
 Section 8.9 has no known implementation gap in every-project given
 rules, their project-scoped reads and held values, removal and reset, or
 branch-relative project patterns. The root checks their approval
@@ -9,22 +48,84 @@ eligibility across the project's repositories. The focused rule tables
 and branch-pattern fuzzy story are present; their real-forge observation
 remains section 20's after-landing work.
 
-Section 8.13 has no known gap: the crate `temper-engine-domain-ways`
-derives a branch's path from what the root gathers in the answering
-decision, for the `ways` read, `see ways` and the `View` read alike. A
-focused table holds the look request's three paths with CI and both
-tiers, the same with neither, and by turn; the fuzzy test, 64 seeds of
-random rules, finds no agent's stop for an update, a merge, a prepare,
-a proof or a turn, and every path ending at a bar. A card's "Asked to"
+Section 8.13 has no known gap but the drafter's role, below: the crate
+`temper-engine-domain-ways` derives a branch's path from what the root
+gathers in the answering decision, for the `ways` read, `see ways` and
+the `View` read alike. "conflict" and "resolve" stand where a change
+takes its branch at the front of its queue, the queue's update in the
+conflict's and the merge's cards with no stop of its own, and "catch
+up" ends a goal's segment where the project names a merge job; each
+repair, conflict, resolution and catch-up is made only when needed, a
+repair's small words say what it answers, and a merge on a goal's
+segment says "into goal". An agent's "Can" ends "never merge", and Ask
+temper's and the status agent's say what their runs hold (`words.rs`).
+A focused table holds the look request's three paths with CI and both
+tiers, the same with neither, and by turn
+(`paths_follow_the_stock_and_branch_rules_in_order`); the fuzzy test,
+64 seeds of random rules, finds no agent's stop for a conflict, a
+merge, a catch-up, a prepare, a proof or a turn, and every path ending
+at a bar. A card's "Asked to"
 is its charter's first sentence within `ASKED`, 184 bytes with its
 quotes, every fact past its bound cut on a word with "…"
 (`temper-engine-domain-ways`, `words.rs`, `cut_on_word`), the charter's
 and the rule's views alike; the worst small ways document still fits its
-decision. A review's stop names its gate's reviews' charter, CI's card
-names the landing branch's required checks or every check the
-workflows report, and the view `rule K/N` draws a landing rule's card,
+decision. A review's stop names its gate's reviews' charter; CI's card
+names the repository's workflows, less those a test gate or a tier
+dispatches, then the landing branch's required checks or every check
+the workflows report; the view `rule K/N` draws a landing rule's card,
 the stock rule of kind 2 among them, from the forge's rules as they
-stand. The workflows by name are section 20's.
+stand; and the view `roles` gives the project's roles, a card a charter
+at its first place, from where each charter runs
+(`route/ways/view/roles.rs`; `route/ways/tests.rs`,
+`inputs_gather_the_repository_start_and_readers_roles`). A goal's
+coordinator draws "design", its card's "Its order" after the agent's
+facts, where its template's work, kind 11, says it designs first, and
+"plan" otherwise; where it makes a close-out, "close-out", the
+coordinator's, its card's "Lands" naming the landing branch, follows the
+merge or the turn on the landing branch's segment after a goal's, before
+its tiers. The root reads the work of the template a goal starts by,
+with a decision's items laid over it (`ways.rs`, `laid_goal`). Rows of
+the focused paths' and cards' tables and of the root's table hold them,
+and the fuzzy test, over random template work, draws "design" and
+"close-out" only with their settings, the close-out once, an agent's,
+after the landing and before the bar. A tier's card says its
+description, from the configuration (`../protocol/configuration.md`,
+section 3), as its fact "Checks" after "Runs", and nothing where it has
+none; the root copies it into the derivation's tier, and the cards'
+table holds the reference's two tiers described
+(`cards_open_the_setting_and_stay_within_the_bounds`).
+
+- **Not yet:** 8.13, *The project's roles*: the drafter, charter 12,
+  which the stock holds and its template 6 starts since P6 landed after
+  `look-round-25`'s cut, is no role, and the list gives it no place or
+  line (`../draft/surfaces.status.md`, 7).
+
+Sections 4 and 4.7 have no known gap in a repository's CI workflows:
+`temper-engine-domain-forge`'s `workflows.rs` reads `.github/workflows`,
+or on Forgejo `.forgejo/workflows` first, at the landing branch's tip
+once an adoption or a refusal's refresh saves the record, at the first
+tip observed and at a landing whose files touch it or are not known,
+keeps at most 16 names of 255 bytes on the record, saved only when they
+differ, and keeps what it held when a read is refused
+(`the_workflows_are_read_at_the_landing_tip_and_kept_when_refused`,
+`the_landing_branch_reads_its_workflows_again_only_when_they_may_have_changed`).
+No read of a real forge's directory is on record; section 20 keeps a
+workflow that runs on no pull request.
+
+Sections 5.3, 8.4 (*Stalls*) and 8.7, rows 2 and 6, have no known
+implementation gap in a head behind its base: `ancestry_status`
+(`temper-engine-domain-forge/src/domain.rs`) reads a range that lists a
+commit, whether or not more follow, or one refused `TooLarge`, as the
+head lacking the base's tip, and an empty page that says more follow as
+unknown, for a change's step and a catch-up's alike. The forge world's
+`a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job` holds
+a goal's landing, first in its queue, behind main by a commit, by 17
+past the world's page of 16, and by a range scripted `TooLarge`: each
+takes main or, in conflict, goes to its merge job and then a
+resolution; `a_catch_up_starts_when_the_full_comparison_is_too_large`
+starts a catch-up's merge job on each reading. They stand on the fake
+forge; no real landing as far behind as the request `landing-behind-main`'s,
+409 commits, is on record since.
 
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the
@@ -86,6 +187,20 @@ user numbers on different forges, unknown accounts and each forge's writer.
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
+Sections 6 and 12 have no known implementation gap in a projection that
+meets the full outbox. Its write waits for room, due at the wall plus
+the issue policy's interval, neither failed nor settled, and marks the
+step (`temper-engine-domain-forge/src/domain.rs`, `wait_for_room`); a
+number already in the outbox still asks again at once. The root clears
+the mark as `step`, `fire` and `release` begin, and its `ProjectAfter`
+arm arms the timer rather than projecting again while the mark is set
+and the outbox full (`temper-engine-domain/src/route/forge_route.rs`).
+The forge's `a_projection_meeting_a_full_outbox_waits_for_room` holds
+the wait, the taken number and the projection going out once an entry
+is withdrawn and the interval passes; the root's
+`src/tests/projection_room.rs` holds the step ending and the backstop's
+rows. Both are crate tables: no engine world story fills the outbox.
+
 Sections 8.1, 8.5, 11 and 11.1 have no known implementation gap in a
 goal's delivery through r. The six engine domain stories in
 `tests/engine/domain/tests/suite/forge_routes/goal_delivery.rs` cover
@@ -95,6 +210,16 @@ job and resolution after the goal frees r's slot, and the goal's close.
 A change's close leaves r held by its goal; the goal's close deletes it.
 Coverage uses the fake forge. Section 20 keeps the default for deleting
 unlanded run work and the deferred saved-start case overtaken by a repair.
+
+Section 8.4 has no known implementation gap in a resolution's files:
+its pull section carries a file whole, both sides, where it fits the
+room the section has left, and names one that doesn't, with its sides'
+bytes or `absent before` and `absent after`, for its checkout, the files
+after it carried as they fit (`temper-engine-domain-forge/src/brief.rs`,
+`name_conflict_if_past_room`; `src/tests/brief.rs`,
+`a_resolutions_files_are_carried_whole_or_named`). The charter's fit
+that can still cut the section's end is `agent.status.md`'s 4.3; no
+story takes a named file through its charter's start.
 
 Section 4.5's `DismissMaking` is present: an owner can erase a failed row
 and free its place, absence is kept, and running rows or another scope
@@ -110,6 +235,13 @@ Section 7.2 has no known gap in a goal's topics from the core: they are
 its landing branches' alone, and a goal's CI subscription held at
 restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 `restored`, by `Request::GoalUntopic`), while a task's own stays.
+
+Section 8.4 has no known gap in a merge job's failures: each is a line on
+the worker that met it and on the engine, naming the job, its kind and why,
+and the way out of its hold, out of tries, points at the engine's log,
+which names each (`worker.status.md`, 4.4). The composed system world runs
+a change's merge job from the engine through its worker to the fake forge
+(`testing.status.md`, 2.1).
 
 - **Not yet:**
   - 8.3, 8.4: the user's N4 request of 2026-11-08 asks for focused and
@@ -251,12 +383,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate_running`):
     the policy's tests hold a failed status and `delegate_running` alone
     (`temper-engine-domain-forge-change/src/tests/green.rs`).
-  - 8.4, 8.5: a goal's landing held past its repairs, then released after
-    a change into its goal branch (`../draft/reference-landing.md`,
-    section 9's second story), is built, but its story is ignored: after
-    the released landing, the restart oracle finds the deployment's
-    `messages` number changed across a restart, its cause not yet found
-    (`tests/engine/domain/tests/suite/forge_routes/goal_landing_held.rs`).
   - 8.4, 10, 11.1: a goal's landing whose update into main conflicts,
     settled by the merge job and a resolution on its goal's branch
     (`../draft/reference-landing.md`, section 9's first story), is built
@@ -265,7 +391,11 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),
     but no story runs it: the merge job's stories are changes into a
     goal's branch and into main, none a goal's landing
-    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`).
+    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`; the
+    composed system world's `suite::merge_job`). The
+    forge world steps such a landing to its merge job and a resolution
+    on scripted delegations alone, with no job or resolution run
+    (`a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job`).
   - 8.5: a retargeted pull request retargeted back on release; the change
     is held as a failed effect.
   - 8.7: the explicit choice to adopt a GitHub repository without CI.
@@ -354,9 +484,7 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
   - 5.9: the caller's person is found through its chat, where the request has
     `domain.core.tasks.delegation`: a chat's goal has the chat as its requester, so
     the root takes jig's `served_chat`, then the chat's person.
-  - 5.9: "Only goals call it" is held by the root, where the request leaves it to
-    charter 1's words: goals and chats share that charter, so a chat's call answers
-    ask (`agent.status.md`, 4.3).
+
 - **Design departs:** 8.4, from the request `repair-green` of 2026-11-05, each
   decided by its plan's cut, for the user to see:
   - The request's rule 1 ends a held repair when CI has passed at the head. A
@@ -448,3 +576,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+- **Not yet:** 6: a `Flight` row whose entry the forge does not hold
+  panics at its link, where the section refuses the start
+  (`root.status.md`, 9.1).

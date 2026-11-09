@@ -1,5 +1,5 @@
 //! Run admission, briefs and workspace preparation across the task, brief,
-//! notes and account children (`domain/engine.md`, sections 4.4 and 7).
+//! notes and account children (`domain/engine.md`, sections 4.4 and 7.2).
 
 use crate::{
     Ask, Core, Event, Limits, Now, Request, RunCharter, RunProof,
@@ -159,6 +159,7 @@ pub(crate) fn workspace_prepared(
         );
     }
     let resume = !transcript.closed
+        && !transcript.cut
         && core.charter_of(task).policy.resume
         && context.tries.transient == 0
         && transcript.bytes <= u64::from(core.settings.resume_bytes);
@@ -323,9 +324,9 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
     let Some(context) = core.contexts.get(&task) else {
         return out;
     };
-    let Some(current) = core.tasks.task(task) else {
+    if core.tasks.task(task).is_none() {
         return out;
-    };
+    }
     if !super::parts::preparation_current(core, context) {
         return out;
     }
@@ -341,6 +342,11 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
             .expect("brief count bounds waiting notes");
         return out;
     }
+    if super::preferences::gather(core, env, work, task) {
+        return out;
+    }
+    let context = core.contexts.get(&task).expect("current preparation context");
+    let current = core.tasks.task(task).expect("current preparation task");
     let mut scopes = List::with_capacity(env.limits.notes.scopes);
     if let Some(goal) = core.note_goal(current) {
         scopes.push(notes::Scope::Goal { project: context.project, goal }).expect("goal scope room");
@@ -450,6 +456,9 @@ pub(crate) fn plan_brief(
                 required: true,
             })
             .expect("tail brief room");
+    }
+    if !super::preferences::plan(core, &env.limits, work, task, &mut wanted) {
+        return out;
     }
     plan_note_index(&mut wanted, &env.limits, &lines, more);
     if !context.delegates.is_empty()
@@ -775,6 +784,21 @@ pub(crate) fn transcript_loaded(
             },
         ),
         crate::routing::TranscriptLoad::Unread => transcript_unread(core, work, task),
+        crate::routing::TranscriptLoad::Cut { turn, bytes, done } => {
+            if !core.append_cut_transcript(task, turn, bytes) {
+                return route_preparation_failed(
+                    core,
+                    work,
+                    task,
+                    brief::GatherFailure {
+                        fate: brief::GatherFate::Transient,
+                        section: b"transcript",
+                        words: b"its window could not be loaded",
+                    },
+                );
+            }
+            if done { start_brief(core, env, work, task) } else { Queue::uncapped() }
+        }
         crate::routing::TranscriptLoad::Page { rows, done } => {
             for (row, text) in rows {
                 if !core.append_transcript(task, row, text) {

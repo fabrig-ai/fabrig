@@ -303,6 +303,20 @@ step its last answer arrives.
 - **One decision, one commit.** What a decision changes in every child
   and connector it touched is one commit: records written or removed, as
   one.
+- **Whole across families, through a kill.** That commit is one
+  skein-kv commit (`../protocol/store.md`, 6), so a process killed at
+  any point of its write, after any record, mid-frame or between
+  families, starts again from what was durable: the last whole
+  decision, never part of one. No family's record is durable without
+  the records of its decision that it links to.
+- **Nothing links ahead of what it names.** A decision saves a record
+  that names a party, task, project or revision only when the core
+  holds what it names, made in that decision or an earlier one. A
+  person named by an input from outside the core (a procedure's or a
+  connector's batch, an agent's ask or tool call, an application's
+  request) that the people child does not hold is refused where the
+  input is admitted, saying which, and never written, so a start finds
+  every link it makes (section 6).
 - **Numbered and in order.** The journal numbers commits and the store
   applies them in that order. Its answer is that a commit is durable,
   which makes every earlier one durable too.
@@ -604,21 +618,30 @@ one rule for every child and the store:
   start reads the clock for expiry, so a clock set back during the start
   changes nothing. A row whose time passes after it is live, loaded and
   linked, and expires through the ordinary timers once the engine serves.
-- **It panics** at a link it cannot make: a task or a claim naming a
-  revision not held (17.7), a name reserved by another source
-  (accounts.md, 3.4), an ended read position whose task is missing, a
-  connector's row naming what it lacks.
+- **It refuses a link it cannot make:** a record naming one the start
+  did not load (a task's party, project, placed hold or task, a claim's
+  proof), a task or a claim naming a revision not held or a charter
+  that revision lacks (17.7), a name reserved by another source
+  (accounts.md, 3.4), an ended read position whose task is missing,
+  a projection or a connector's row naming what it lacks, a person
+  whose identity another person's row holds (the second row naming
+  the first).
 - **It no longer checks** a family's rules, a record's shape beyond its
   codec, who wrote it, or a patch's counts, which the manifest keeps
   and the tests compare (`../protocol/store.md`, 10.2).
-- **A link that cannot be made** is a writer's bug, and an assertion
-  where the link is made: the engine panics, its message naming the
-  record's key and the link, and stops as any fail-stop does, until a
-  release that repairs the writer starts it (the user, 10-28). Nothing
-  else is built for it: leaving such a record out so that the start
-  goes on is open (section 16). Every link is made before any sweep
-  runs (`../protocol/store.md`, section 9), so the panic erases no
-  value.
+- **A link that cannot be made** refuses the start as `Failure::Link`,
+  naming the record's key and what it links to (`Linked`: a record's
+  key, a charter at a revision, a project, a connector, a settings
+  proposal numbered past what its settings key holds, the hold owning a
+  writer's resource), the first one found, and the engine stops with
+  that reason, never a panic (the user, request `store-crash-safe` of
+  11-09, which replaces the assertion of 10-28). Each child's link
+  check answers the same way, through its own restore refusal, and the
+  core names it in `Failure::Link`. The store stays as it was:
+  nothing repairs it, and leaving such a record out so that the start
+  goes on is open (section 16). Every link is made before any sweep runs
+  (`../protocol/store.md`, section 9), so the refusal erases no value,
+  and a release that repairs the writer, or the store, starts it.
 - **The checks are tests** (section 15): every world story ends with a
   cold restart that restores and reads back what it wrote, and a record
   left out fails a test build; each patch is proved over sample stores
@@ -913,6 +936,20 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   no transient try spent counts one transient preparation failure;
   its retry can then continue without that unread tail. A failed load,
   rather than an unread window, remains a preparation failure.
+- **A turn too large for a page.** A window is loaded a page at a time,
+  each within the store's page room. A turn past that room is loaded
+  cut: its fields and its length, never its bytes
+  (`../protocol/store.md`, 8.3), handed to the core in its place as
+  `TranscriptLoad::Cut`. The core counts its length in the window's bytes,
+  keeps the fixed text `[a turn too large to load]` in its place in the
+  tail (cut to the tail's budget as any turn's text is), and resumes no
+  window that holds one: the run starts fresh from a brief carrying the
+  transcript's tail, as one past the resume limit does, a transition
+  that counts nothing, no failure, no transient try, no refusal. So a run's
+  window is the transcript's tail that fits, never a failure for the
+  window's length or for one turn's size: a window's load fails only for
+  what could not be read (a frame unread or refused, below) or a page its
+  root could not take.
 - **A window closed by an upgrade.** A turn is handed to a run in its
   current version, patched as read when it was written in an older one
   (`../protocol/store.md`, 8.6), and a run resumes from it. A patch
@@ -934,8 +971,8 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   text needs cutting, a tail budget too small for the 19-byte cut marker
   gives no text for that turn. If no turn leaves text, the tail is empty:
   the closed window's next attempt still starts fresh, without a failure
-  counted. A window page that cannot hold one turn answers `Unread`.
-  An open unread window counts a transient failure only when no
+  counted. A window page that cannot hold one turn hands that turn on
+  cut (above). An open unread window counts a transient failure only when no
   transient try has been spent; a transient retry leaves out that tail
   and continues fresh, as for an unread closed window.
   However the upgrade's
@@ -1004,7 +1041,7 @@ amended task's choice whole, leaving it none.
 | `effect` | one of a connector's kinds of effect offered to agents (connectors.md, 4.5) | made, with what it made; committed and pending, past the call's deadline; waiting for a verdict; failed; refused, naming them, for a kind that waits for dependencies while its task is kept (tasks.md, 5.7) |
 | `note`, `recall` | writes a note in a scope, whole or by a line range; reads entries by name or by a search (section 10) | written; the entries |
 | a connector's reads | reads its system (connectors.md, section 9) | the answer, within the read's budget |
-| an application's asking tools, when its charter gives the family | what the application declares to a run that explains to its person: the reads it serves and the document it keeps for that run, each call decided by the asking family alone, whatever it reads or writes (authority.md, section 3); the application answers it | the application's answer; beyond authority, naming the family |
+| an application's asking tools, when its charter gives the family | what the application declares to a run that explains to its person: the reads it serves, among them reads as its person (below), and the document it keeps for that run, each call decided by the asking family alone, whatever it reads or writes (authority.md, section 3); the application answers it | the application's answer; beyond authority, naming the family |
 
 **A run's reads are not recorded.** A connector's read, `read_task`, and the
 `settings` family's reads decide nothing: checked against the task's
@@ -1054,6 +1091,60 @@ knows what its run's reply holds. An application that cuts a chunk further to
 render it prints `next` from its cut. Continue with the same
 field and the printed `next` offset. Every chunk names the current spec revision; restart specification
 reads at zero if it changes between chunks.
+
+**A run's read as its person** is how an application's asking tool reads
+for a run that explains to its person: one of a party's reads
+(`../client/domain/contract.md`, section 6), read as the run's task's
+requester, a person, would read it, and of that task's project alone. The
+application names it as the run's call, the named action `PersonRead`
+with the party's `Read`; it decides nothing and keeps no call record, as
+the run's other reads.
+
+- **Checked first:** the asking family of the run's task (authority.md,
+  section 3), beyond authority naming the family; the run's current
+  attempt; and its task's requester, which must be a person: a task
+  requested by a task or by the deployment reads nothing as a person, and
+  is answered unknown.
+- **Of its project alone.** Admitted are the reads that name the task's
+  project, or one task of it, and no other:
+  - *naming the project:* the project and its spend (`Project`, `Spend`,
+    never project zero's), a task query whose project key is it (`Tasks`),
+    its notes in a goal's scope (`Notes`), notes of an exact scope that
+    is the project's or a goal's of it (`ScopedNotes`), an inbox group
+    whose filter names it (`Inbox`), an application's read in its scope
+    (`Application`);
+  - *naming one task:* its overview and words (`Task`, `TaskText`), its
+    activity, a page beside a line of it and a turn (`Activity`,
+    `ActivityBeside`, `Turn`), its ended delegates and history
+    (`EndedDelegates`, `History`), its result and a reply (`Result`,
+    `Reply`), its question, escalation or person form (`Question`,
+    `Escalation`, `PersonTask`), and a proposal it made (`Proposal` of a
+    task), where that task is of the project.
+
+  Every other read is answered unknown, as a party's read of what they may
+  not see is: the frame and the deployment, which span projects; the
+  settings, which the `settings` family's reads serve (above); a party's
+  proposal; and a read naming another project, or a task of one, though
+  the person may read it from a client. So nothing of the person's other
+  projects reaches the run.
+- **As the person:** a read admitted so is made as `Read`s are for a
+  party (5.3, section 11), the requester its party: their visibility,
+  their pages and bounds, their loads. In place of a sign-in, a stored
+  read's completion checks again the run's current attempt, its
+  requester, the person's role in the project, and that what the row
+  names is of the project, and answers unknown where any but the attempt
+  has moved; an attempt no longer current is answered nothing, as the
+  run's other stored reads are (above). An application's read goes to
+  its connector as a party's does, with the person and the project's
+  scope, and the connector answers it to the run's call through the root
+  (connectors.md, 5.5).
+- **Answered** to the root as the read's own answer, the document, the
+  page, the turn, or why there is none, busy among them; the application
+  renders it for its run. It marks nothing seen and moves no read
+  position. Every turn it answers, on its own or in an activity page, is
+  marked withheld, whoever requested the turn's task, since what the run
+  reads joins its own transcript, which others read (10.1, *Its runs'
+  parts are its party's*).
 
 **Calls are named, and decided once.** Every call names its task's
 attempt and the run's own name for it. The core commits a call that
@@ -1274,6 +1365,18 @@ The fleet child domain knows the hosts and the runs they host:
   reconnects says what it hosts, and the core keeps or cancels each. Past
   the grace they are lost, and their tasks retry. The engine's own slots
   are lost only with the engine (section 6).
+- **A draining worker leaves placement.** A worker that starts to shut
+  down says it drains before anything its runs' ends send (hosts.md,
+  6.7): from then until its channel is lost, the fleet places nothing
+  on it, neither a run nor a job, whatever slots free there, while the
+  runs it hosts go on to their ends and their turns and answers are
+  taken as ever. An attempt the fleet chose for it and has not yet
+  assigned there is placed again, as one refused as busy is, and no
+  attempt is refused for the drain. A refusal as busy keeps a worker out
+  only until a slot frees there; a drain keeps it out for the rest of
+  its channel. A
+  worker that dials again is a new channel, placed on once its logins
+  answer.
 - **Relaying:** messages and cancels down, tool calls up and their
   answers back, each call answered once; a call the fleet cannot pass up
   is answered at once, unserved, or busy while the engine stops
@@ -1417,9 +1520,12 @@ whom; its delegates, their states, and the
   coordinator); its earlier
   attempts and why they failed; the calls its task committed since its
   last turn, when it does not resume; the proposals and escalations
-  waiting for its decision; the index of its notes; a transcript's tail,
+  waiting for its decision; the index of its notes; for a run that
+  explains to its person, that person's preferences, whole (10.1); a
+  transcript's tail,
   when it does not resume, the window's last turns as text rendered by the
-  host's protocol layer when loaded, within the tail's own budget; and,
+  host's protocol layer when loaded, a turn too large to load as its
+  fixed marker (7.2), within the tail's own budget; and,
   for a run whose tools hold `delegate`,
   the catalogue: each model its authority allows (authority.md, section
   3), with its LLM provider, its window and output, its efforts, its
@@ -1511,7 +1617,8 @@ prefers. The notes child domain knows scopes, entries and indexes:
 - **An entry** has a one-line description, a body, a scope, references to
   tasks, and who wrote it: a party, or a task.
 - **Scopes:** the deployment; a project; a goal; a resource pattern of a
-  connector's (a service, a repository), within a project.
+  connector's (a service, a repository), within a project; and a party's,
+  a person's own, in no project (10.1).
 - **A chat's own scope** is the goal scope named by a chat's own number. A
   root conversation, a task flagged conversation with no tracked ancestor
   (`goal_of` none), writes and reads that scope as a goal's tree does its
@@ -1579,6 +1686,72 @@ prefers. The notes child domain knows scopes, entries and indexes:
 - **Knowledge that belongs to a system** belongs there, such as a
   repository's guide: a note that matures may be proposed as an effect
   on it.
+
+### 10.1 A party's scope
+
+A person's preferences: a few short lines kept for them across the
+deployment and read by the runs that explain to them, so that what they asked
+to be remembered holds in their next conversation (`draft/notes-memory.md`,
+section 3, taken up as far as an application's asking runs need it; temper's
+Ask temper is the first, its `draft/ask-temper.md`, section 7).
+
+- **The scope,** `Party { party }`, a person's number: one per person, in no
+  project, so that no project's reads list it and a project's deletion leaves
+  it. The store keys it as it keys every scope, its index lines and entries
+  beside the others' (`../protocol/store.md`, section 4).
+- **Its entries are preferences,** the kind its scope gives them: an entry's
+  description is the line and its body is empty, at most `notes.party_bytes`
+  for the description, and at most `notes.party_entries` entries in one
+  party's scope. A write past the bytes is refused naming them and the bound,
+  a body is refused, and a new entry past the count is refused as full, as a
+  scope past `notes.entries_per_scope` is. The other kinds of
+  `draft/notes-memory.md`, section 2, are not built: no other scope has one.
+- **Written for its party by the runs that explain to them:** a run whose
+  task's requester is the person, `Party::Person(party)`, and whose
+  authority holds the asking family (authority.md, section 3), through its
+  application's named actions: `Note`, a new entry or a revision at the
+  revision it read, and `NoteDelete`, an entry dropped at the revision it
+  read, which no other scope admits from a run. The note family decides and
+  records each as it does a note (7.3); for this scope its check is that
+  requester and that family, in place of the authority's note scopes, and any
+  other run's write there is refused beyond authority, naming the scope. A
+  run's own `note` and `recall` tools name no party's scope; a requester two
+  tasks up, which a delegate works for, is later (section 16).
+- **Read by those runs, whole in their brief:** the core section
+  `preferences` (section 9), present where the run's task's requester is a
+  person and its authority holds the asking family: the scope's index lines,
+  every one, in name order, the oldest first, each `N. DESCRIPTION`, `N` its
+  place from 1, or the one line `None kept.`. It is required, and its budget
+  holds `notes.party_entries` lines of `notes.party_bytes` numbered, so it is
+  never cut; a scope whose index cannot be read fails the brief as the notes
+  index does (9.1). The notes index (section 10) never lists the scope.
+- **Read and kept by its party alone:** the party reads the scope through a
+  client (`../client/domain/contract.md`, section 6) and corrects or deletes
+  its entries whatever their roles, project 0 named as a deployment's note
+  names it. No other party reads it, an owner of the deployment included: a
+  read is answered unknown, a correction or a deletion refused as unknown.
+- **Its runs' parts are its party's:** a turn of a task whose requester is a
+  person shows its brief's `preferences` section and the calls of the
+  application's private tools to that person alone. The application names
+  its private tools in the core's settings, temper's `remember` among them,
+  and those tools and the section's title as its runs' briefs render it in
+  the client component's, which projects. Each turn the core answers to any
+  other party, on its own (`Turn`) or in an activity page, and every turn a
+  run reads as its person (7.3), is marked *withheld*, and the protocol
+  layer that carries it projects it before it leaves: in the turn's system
+  text and each text block of its messages, the section's heading line and
+  the lines after it that are empty, `None kept.` or a number then `. `
+  become the heading and one line, `Withheld: shown to its
+  person alone.`, and each private tool's call keeps its tool and position
+  with its input `{}` and its result that line. A run's live document
+  (`../client/domain/contract.md`, 7.3) shows a private tool's call and the
+  input being written to the task's requester alone, and to every other
+  follower the call's tool alone. The stored turn stays whole, so that the
+  run resumes from it and its person reads it as it was.
+- **Bounded and erased with what holds them:** the scope's index is kept as
+  every scope's is, evicted least recently used (section 10), and parties are
+  never erased (people.md, section 3), so neither is their scope; a party's
+  erasure is later, with its scope.
 
 ## 11. Views
 
@@ -2151,11 +2324,11 @@ switch, switched, and the manifest naming the position then; a live set
 past limits lowered since, refused before the switch, the generation
 patched from still active and unchanged, and a start of the build before
 opening it as it was; a task naming a project the copy does not hold, a
-link that cannot be made, panicking before the switch with the task and
-the project named, the generation patched from the same; a crash during
-the restore, the next start patching a fresh copy; and a start with
-nothing pending, whose switch step switches nothing and commits the
-wires alone.
+link that cannot be made, refusing the start before the switch with the
+task and the project named, the generation patched from the same; a
+crash during the restore, the next start patching a fresh copy; and a
+start with nothing pending, whose switch step switches nothing and
+commits the wires alone.
 
 Its referee holds the core to core.md, section 11, seen from outside;
 applications' worlds reuse it on jig's conformance world (testing.md,
@@ -2163,11 +2336,12 @@ section 5).
 
 ## 16. Open questions
 
-- **A run reading as its person** (7.3, section 11): the run's settings
-  proposal read checks its family and its task's project, with no party's
-  visibility. A person's project views need a separate run read under that
-  person's access checks before an application can use them for an explaining
-  chat. The asking family alone supplies no such read.
+- **A person's whole `me` for a run** (7.3): a run's read as its person
+  reads no frame, which spans the person's projects, so an application
+  composes what the person is in the run's project from the project, its
+  inbox filtered by it and its task queries. Default: as it is; a frame
+  narrowed to one project if an application needs the person's pool or
+  offer there and no project read gives it.
 
 - **A run's `later`** (7.3): a run's `delegate` and `amend` name no
   `later`, so only a party's request or a template gives one. A tool member
@@ -2184,6 +2358,11 @@ section 5).
   refuse the fresh proposal and retain the pending set. Replacement
   grants no extra slot.
 
+- **A party's scope beyond its asking runs** (10.1): whether a delegate
+  works for the person two tasks up and reads their preferences, whether
+  other kinds of `draft/notes-memory.md` take a scope, and whether a run's
+  own `note` and `recall` name a party's scope. Default: an asking run of
+  the person's own task alone, through its application's named actions.
 - **A line range on `recall`:** `recall` returns a note's whole body, which costs
   input, not output. A range joins it only if a walk shows it's needed
   (section 10; the user's idea, 2026-11-05).
@@ -2191,19 +2370,17 @@ section 5).
   out of the live state with what links through it, kept in the store,
   named in the start's notes to a party with a role in the deployment,
   and its child's sweep skipped, so that a writer's bug costs a record
-  and not the start. For now it panics (the user, 10-28); after the
-  first release.
-- **A duplicate person's identity,** at a start (section 6): a link
-  that cannot be made, so it panics, naming its row. Whether it refuses
-  the start instead, beside section 6's refusals, a cause of people's
-  and a failure of the core's. Default: it panics; the user's to
-  decide.
-- **A transcript's load with no slot** (9.1, 7.2): a root whose load table
-  is full answers `TranscriptLoad::Failed`, as it does for a page it cannot
-  take, so room that frees by itself counts as transient, and the try it
-  spends makes the next run start fresh from the tail rather than resume.
-  Capacity would need `TranscriptLoad` to say which. Default: as built,
-  until the user says.
+  and not the start. For now it refuses the start, naming the record
+  and its link (request `store-crash-safe`, 11-09); after the first
+  release. A tool that repairs such a store is not designed: that
+  request leaves it out.
+- **A transcript's load with no slot** (9.1, 7.2): `TranscriptLoad` has
+  no capacity answer, so a root never answers one for room: it keeps the
+  activation due while its load table is full, and a window's later pages
+  in the slot its first took (temper's `domain/root.md`, 8). A root that
+  answered `TranscriptLoad::Failed` for room would count it as transient,
+  and the try it spent would make the next run start fresh from the tail
+  rather than resume. Default: no capacity answer, until the user says.
 
 - **A fresh attempt's tail, lost before its first turn.** An attempt
   that starts fresh from a closed window, or past the resume limit,
@@ -2555,7 +2732,14 @@ judges and keeps it within the change's decision.
   compares them with those it stored, and tells the core which of its
   settings' defaults differ and their sizes, so that a changed default
   no change is over joins the release's revision (17.7), the decision
-  in which the connector saves the new ones. A stored value it cannot
+  in which the connector saves the new ones. It also names, by kind,
+  scope and number, each default it stored that the application no
+  longer gives: a setting that follows one of those is removed in that
+  revision, its state erased. A setting that follows a default its
+  connector neither reports nor names, as one a reset returned to a
+  default the application gives its connector for no one scope, or
+  gives none of, keeps its state, its size and its slot (below), and
+  the release's revision does not name it. A stored value it cannot
   read refuses the start, naming it, as a record it cannot read does; a
   default past its kind's bounds refuses it, naming the kind; and a
   stored setting, the core's or the connector's, of a kind the
@@ -2758,7 +2942,7 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
     lowered since, or a release's revision that would pass them, refuse
     the start, saying which, as a live set past lowered limits does. A
     task or a claim naming a revision the store holds no record of is a
-    link that cannot be made, and panics (section 6).
+    link that cannot be made, and refuses the start (section 6).
 
   A saved project policy above the current policy byte budget refuses the
   start naming its project and policy; the named restore failure is retained

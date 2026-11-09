@@ -93,7 +93,7 @@ fn settled(world: &mut World, request: Request) -> Vec<Event> {
     panic!("fixture read did not settle");
 }
 fn bytes(events: &[Event]) -> &[u8] {
-    let [Event::Turns { owner, turns, next: None }] = events else { panic!("turn terminal: {events:?}") };
+    let [Event::Turns { owner, turns, next: None, cut: None }] = events else { panic!("turn terminal: {events:?}") };
     assert_eq!(*owner, READER);
     assert_eq!(turns.len(), 1);
     let turn = &turns[0];
@@ -141,11 +141,27 @@ fn patched_frames_past_bounds_match_current_boundaries() {
     for read in kinds() {
         let reference = settled(&mut current, ask(read, charge - 1));
         let patched = settled(&mut behind, ask(read, charge - 1));
-        assert!(
-            matches!(reference.as_slice(), [Event::Unread { owner }] if *owner == READER),
-            "{read:?}: {reference:?}"
-        );
-        assert!(matches!(patched.as_slice(), [Event::Unread { owner }] if *owner == READER), "{read:?}: {patched:?}");
+        if matches!(read, TranscriptRead::Window { .. }) {
+            for events in [&reference, &patched] {
+                let [Event::Turns { owner, turns, next: None, cut }] = events.as_slice() else {
+                    panic!("cut window {read:?}: {events:?}")
+                };
+                assert_eq!(*owner, READER);
+                assert_eq!(*cut, Some(u32::try_from(expected.len()).expect("fixture length")));
+                let mut turn = root::turn(frames::TASK, frames::ATTEMPT, frames::TURN, &[]);
+                turn.spent = frames::SPENT;
+                assert_eq!(turns.as_ref(), &[turn]);
+            }
+        } else {
+            assert!(
+                matches!(reference.as_slice(), [Event::Unread { owner }] if *owner == READER),
+                "{read:?}: {reference:?}"
+            );
+            assert!(
+                matches!(patched.as_slice(), [Event::Unread { owner }] if *owner == READER),
+                "{read:?}: {patched:?}"
+            );
+        }
     }
 }
 
@@ -440,7 +456,9 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
                 assert_eq!(events.len(), 1, "{events:?}");
                 events = answer(&mut world, events.remove(0), None, u64::from(*index) * stride);
             }
-            let [Event::Turns { owner, turns, next }] = events.as_slice() else { panic!("page terminal: {events:?}") };
+            let [Event::Turns { owner, turns, next, cut: None }] = events.as_slice() else {
+                panic!("page terminal: {events:?}")
+            };
             assert_eq!(*owner, READER);
             // store.md 8.3 selects a page from either end without promising its turn order.
             let mut page_turns: Vec<_> = turns.iter().map(|turn| turn.turn - 1).collect();

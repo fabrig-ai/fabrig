@@ -1,4 +1,4 @@
-//! Role and rule pages read the forge's view (temper/docs/design/client/README.md, 3.5 and 5.16).
+//! How work runs, role and rule pages read the forge's view (temper/docs/design/client/README.md, 3.5 and 5.16).
 use super::Request;
 use crate::{Address, forge, owner::Owner};
 use alloc::boxed::Box;
@@ -41,10 +41,15 @@ impl Roles {
         out: &mut Queue<Request>,
     ) {
         let project = match address {
-            Address::Role { project, .. } | Address::Rule { project, .. } => *project,
-            Address::Inbox { .. }
+            Address::Settings { project } | Address::Role { project, .. } | Address::Rule { project, .. } => *project,
+            Address::AllHome
+            | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Work { .. }
+            | Address::Remembered
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -55,7 +60,7 @@ impl Roles {
             | Address::Home { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
-            | Address::Settings { .. }
+            | Address::Team { .. }
             | Address::Repositories { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
@@ -158,6 +163,7 @@ impl Roles {
 
 fn view_address(address: &Address) -> Box<[u8]> {
     match address {
+        Address::Settings { .. } => Box::from(b"roles".as_slice()),
         Address::Role { charter, .. } => {
             skein_lib::bytes::concat(&[b"charter ", Decimal::of(u64::from(*charter)).as_bytes()])
         }
@@ -167,9 +173,14 @@ fn view_address(address: &Address) -> Box<[u8]> {
             b"/",
             Decimal::of(u64::from(*number)).as_bytes(),
         ]),
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Work { .. }
+        | Address::Remembered
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -180,7 +191,7 @@ fn view_address(address: &Address) -> Box<[u8]> {
         | Address::Home { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
-        | Address::Settings { .. }
+        | Address::Team { .. }
         | Address::Repositories { .. }
         | Address::Models { .. }
         | Address::Builders { .. }

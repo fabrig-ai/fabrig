@@ -1,4 +1,5 @@
-//! A bounded whole comparison, reversed before its oldest-first page (forge.md, 5.2).
+//! Keeps the oldest commits within its capacity: Forgejo sends them newest
+//! first (skein/docs/design/forge.md, 5.2).
 use super::{
     Body, Heard,
     plan::{Bounds, Step},
@@ -9,7 +10,7 @@ use crate::{
     api,
     forgejo::{document as d, request::Request},
 };
-use skein_lib::{List, len_u64, usize_of};
+use skein_lib::{List, Queue, len_u64, usize_of};
 
 #[derive(Debug)]
 pub(super) struct Plan {
@@ -17,8 +18,9 @@ pub(super) struct Plan {
     before: api::Commit,
     after: api::Commit,
     skip: u32,
-    commits: List<api::CommitMessage>,
+    commits: Queue<api::CommitMessage>,
     held: u64,
+    given: u32,
 }
 impl Plan {
     pub(super) fn new(
@@ -39,7 +41,7 @@ impl Plan {
                 .checked_div(u32::try_from(size_of::<api::CommitMessage>()).expect("commit width"))
                 .expect("nonzero width"),
         );
-        Ok(Self { row, before, after, skip, commits: List::with_capacity(capacity), held: 0 })
+        Ok(Self { row, before, after, skip, commits: Queue::with_capacity(capacity), held: 0, given: 0 })
     }
     pub(super) fn begin(&mut self) -> Step {
         Step::send(Request::Commits {
@@ -98,24 +100,35 @@ impl Plan {
             parents.push(reading::commit(parent, format).ok_or(api::Error::InvalidAnswer)?).expect("one parent per id");
         }
         let value = api::CommitMessage { id, parents: parents.into_boxed(), message: value.message };
-        let size = u64::try_from(size_of::<api::CommitMessage>())
-            .expect("commit width")
-            .checked_add(len_u64(value.parents.len()).checked_mul(32).ok_or(api::Error::TooLarge)?)
-            .ok_or(api::Error::TooLarge)?
-            .checked_add(len_u64(value.message.len()))
-            .ok_or(api::Error::TooLarge)?;
-        self.held = self.held.checked_add(size).ok_or(api::Error::TooLarge)?;
-        if self.held > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+        let size = commit_bytes(&value).ok_or(api::Error::TooLarge)?;
+        self.given = self.given.checked_add(1).ok_or(api::Error::TooLarge)?;
+        if size > u64::from(bounds.answer_bytes) {
+            self.commits.clear();
+            self.held = 0;
+            return Ok(());
         }
-        self.commits.push(value).or(Err(api::Error::TooLarge))?;
+        // Each removal gives up a newer commit; the kept length bounds the drain.
+        for _ in 0..self.commits.len() {
+            if self.commits.room() > 0
+                && self.held.checked_add(size).ok_or(api::Error::TooLarge)? <= u64::from(bounds.answer_bytes)
+            {
+                break;
+            }
+            let newer = self.commits.pop().expect("the kept length bounds removals");
+            self.held = self
+                .held
+                .checked_sub(commit_bytes(&newer).expect("kept commit bytes fit"))
+                .expect("held counts every kept commit");
+        }
+        self.held = self.held.checked_add(size).ok_or(api::Error::TooLarge)?;
+        self.commits.push(value);
         Ok(())
     }
 
     fn done(&mut self, body: Body, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         match body {
             Body::Document(d::Document::Compare(compare)) => {
-                if compare.total_commits != u64::from(self.commits.len()) {
+                if compare.total_commits != u64::from(self.given) {
                     return Err(api::Error::InvalidAnswer);
                 }
             }
@@ -127,12 +140,30 @@ impl Plan {
             }
         }
         let end = self.skip.checked_add(bounds.page_size).ok_or(api::Error::TooLarge)?;
-        let more = self.commits.len() > end;
-        let mut page = List::with_capacity(bounds.page_size.min(self.commits.len().saturating_sub(self.skip)));
-        let commits = core::mem::replace(&mut self.commits, List::with_capacity(0)).into_boxed();
-        for value in commits.into_iter().rev().skip(usize_of(self.skip)).take(usize_of(bounds.page_size)) {
-            page.push(value).expect("page capacity");
+        let needed = self.given.min(end);
+        if self.commits.len() < needed {
+            return Err(api::Error::TooLarge);
         }
-        Ok(Some(Step::Done(Ok(api::Answer::Commits { commits: page.into_boxed(), more }))))
+        let more = self.given > end;
+        let count = needed.saturating_sub(self.skip);
+        let mut page = List::with_capacity(count);
+        let kept = self.commits.len();
+        for position in 0..kept {
+            let value = self.commits.pop().expect("the kept length bounds removals");
+            if position >= kept.saturating_sub(needed) && page.len() < count {
+                page.push(value).expect("page capacity");
+            }
+        }
+        self.held = 0;
+        let mut commits = page.into_boxed();
+        commits.reverse();
+        Ok(Some(Step::Done(Ok(api::Answer::Commits { commits, more }))))
     }
+}
+
+fn commit_bytes(value: &api::CommitMessage) -> Option<u64> {
+    u64::try_from(size_of::<api::CommitMessage>())
+        .expect("commit width")
+        .checked_add(len_u64(value.parents.len()).checked_mul(32)?)?
+        .checked_add(len_u64(value.message.len()))
 }

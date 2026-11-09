@@ -228,6 +228,7 @@ impl Clients {
                 None => None,
             };
             Ok(kit::Settings {
+                private: temper_engine_smith::private(),
                 link_secret: seeds.link_secret.clone(),
                 local_secret: seeds.local_secret.clone(),
                 provider,

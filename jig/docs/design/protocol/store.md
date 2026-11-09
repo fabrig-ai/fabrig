@@ -1139,6 +1139,15 @@ the committed length. The next open cuts the file to its committed length
   task prepares. The core asks only when its conversation has a window,
   and names the turn that opens it, as it keeps it (`../domain/engine.md`,
   5.4); a window that starts at another turn fails the read as unread.
+- **A window's turn past its page's room** is handed on cut: its fields
+  and its transcript's length, not its bytes, as a party's page has a
+  turn past its bound, alone in its page, with the continuation past its
+  frame (`Event::Turns`, `cut`). A page that already holds a turn ends
+  before it, so the next page starts at it. A window's page therefore
+  always moves on, and a window's read is never unread for a turn's
+  size: unread stays for a window that starts at another turn and for a
+  frame unread or refused (below). The core keeps the cut turn's place
+  and length, never its bytes (`../domain/engine.md`, 7.2).
 - **A turn,** for a party's read: from its attempt's first turn, walking
   frames forwards to its number. A turn read alone is bounded by the
   read's byte bound (7.3): past it, the read answers the turn's size in
@@ -1150,9 +1159,10 @@ the committed length. The next open cuts the file to its committed length
   bound has its fields and length read, not its bytes.
 - **A page of a task's turns,** forwards or backwards, from a cursor that
   is an offset the component gives and takes back.
-- **Direct complete-turn requests** that cannot produce a turn under the
-  read's room terminate `Unread`, never a retryable empty page at an
-  unchanged offset; a nonempty prefix may give a continuation. A party's
+- **Direct complete-turn requests** other than a window's that cannot
+  produce a turn under the read's room terminate `Unread`, never a
+  retryable empty page at an unchanged offset; a nonempty prefix may give
+  a continuation. A party's
   single-turn `TooLarge` answer is unchanged.
 - **A tail,** for a fresh run's brief: the window's last turns as text,
   each rendered by the host's protocol layer when loaded, and each turn's
@@ -2280,6 +2290,20 @@ Each within jig's suites' budgets.
   that and one whole uncertain one, never part of one; no turn readable
   past its commit and none missing before it; numbers that match the
   header; pages equal to a model's.
+- **The core's world on the simulated disk,** for a decision's
+  durability across families (`../domain/engine.md`, 5.1 and 6): the
+  core world's directory-backed store (`jig-test-store-files`), killed
+  at a chosen file operation of a chosen commit, and the engine started
+  again through its link pass. Its rows: a kill at each operation of a
+  decision's commit (after each record's bytes, mid-frame, between
+  families), for a decision that makes a task and the person task
+  linking a person, and one that makes a person and a task linking
+  it; a second kill at each operation of the restart that follows the
+  first, and of the commits after it; a kill at each step of a
+  snapshot with commits racing it; a kill with several commits in
+  flight. Its referee: the start opens, never refused and never a
+  panic, with the last acknowledged decision, or that and one whole
+  uncertain one, never part of one.
 - **Generations and patching,** in the store's world: a fixture owner's
   patch sets over a store at an older level, patched, checked, opened
   `pending`, switched only when its root asks, never before, and a

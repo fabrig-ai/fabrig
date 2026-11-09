@@ -448,21 +448,28 @@ fn welcome(root: &Domain) -> bool {
         Address::Welcome { .. } => true,
         Address::Forges
         | Address::ConnectForge { .. }
+        | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        // page-view: draw Remembered.
+        | Address::Remembered
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => false,

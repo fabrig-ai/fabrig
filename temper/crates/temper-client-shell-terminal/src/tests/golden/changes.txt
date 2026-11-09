@@ -1,29 +1,35 @@
-== One change is on the way to main. == Live
+== temper == Live
 First:
   [1] temper
   [2] First (pressed)
   New project:
     [3] New project: (empty) (enter sends)
     [4] Create
-  [5] Settings for First
-  [6] Home
-  [7] Needs you
-  [8] Chats
-  [9] Changes (current)
-  [10] + New chat
-  More ways to start work:
-    [11] Chat
-      Ask about the code or ask for a change.
-    [12] Goal
-      Agents plan a larger change and land it.
-    [13] All ways to start work
-  [14] Settings
+  [5] How work runs for First
+  [6] Deployment
+  [7] Home
+  [8] Needs you
+  [9] Work (current)
+  [10] How work runs
+  New draft or change:
+    [11] Draft
+      A design session that ends in a goal, best had in the terminal.
+    [12] Change
+      Ask for one change.
+  [13] Away
+  [14] Deployment
   * Pat
-First · landing
-1 queued · last landed just now. Each change is checked on top of main before it lands.
+First · Work
+Everything on First, in the words of the agent doing it. A goal opens to its tasks and changes; a chat that started work sits with what it started; a draft waits for its goal.
+1 queued · last landed just now
+Work's filters:
+  [15] All
+  [16] Changes (current)
+## One change is on the way to main.
+Each change is checked on top of main before it lands.
 Queue:
   ## Queue
-  - [15] Store: policy record · checking · checks started just now
+  - [17] Store: policy record · checking · checks started just now
 Landed recently:
   ## Landed recently
-  - [16] A landed change · 00:00
+  - [18] A landed change · 00:00

@@ -19,7 +19,8 @@ enum Last { exact: Blob, open: Blob }
 record Pattern { segments: list 1024 bytes 1024, last: Last }
 record Goal { project: u32, goal: u64 }
 record Resources { project: u32, connector: u16, pattern: Pattern }
-enum NoteScope { deployment, project: Project, goal: Goal, resources: Resources }
+record NoteScopeParty { party: u64 }
+enum NoteScope { deployment, project: Project, goal: Goal, resources: Resources, party: NoteScopeParty }
 record ScopedNotes { scope: NoteScope, description: option bytes 1024 }
 record Question { task: u64, message: u64 }
 record Reply { task: u64, activity: u64 }

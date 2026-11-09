@@ -9,6 +9,7 @@ use alloc::collections::BTreeSet;
 use jig_client::{Family, Readable, Readout, contract as c};
 use skein_lib::{List, Reader};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_protocol_reaches::{Classes, Way, classes_from, classes_record};
 pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
     if call.tool != rows::SETTING_AT || call.form != 2 && call.form != 4 {
         return true;
@@ -76,8 +77,15 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
     let decoded = match kind {
         1 | 2 => w::LandingRule::decode(&w::CEILINGS, &mut reader).is_ok(),
         3 => w::ForgeCharter::decode(&w::CEILINGS, &mut reader).is_ok(),
+        11 => w::TemplateGoal::decode(&w::CEILINGS, &mut reader).is_ok(),
         6 => w::ProjectQuestions::decode(&w::CEILINGS, &mut reader).is_ok(),
         7 => w::ProjectWays::decode(&w::CEILINGS, &mut reader).is_ok(),
+        8 => match w::ProjectClasses::decode(&w::CEILINGS, &mut reader) {
+            Ok(record) => classes_from(&record).check().is_ok(),
+            Err(_) => false,
+        },
+        9 => w::CharterWords::decode(&w::CEILINGS, &mut reader).is_ok(),
+        10 => w::ProjectWords::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
     decoded && reader.is_empty()
@@ -103,9 +111,15 @@ fn stock(kind: u32) -> Option<c::SettingValue> {
         7 => {
             let value = w::ProjectWays::new(
                 &w::CEILINGS,
-                w::ProjectWaysParts { skein_bools: [true, false, false, false], way: 0 },
+                w::ProjectWaysParts { drafts: true, goals: false, changes: false, way: 0 },
             )
             .expect("stock ways");
+            let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
+            value.encode(&mut out).expect("fixed stock record");
+            out.finish()
+        }
+        8 => {
+            let value = classes_record(&Classes::stock(Way::AgentsReview)).expect("stock classes fit");
             let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
             value.encode(&mut out).expect("fixed stock record");
             out.finish()
@@ -164,10 +178,20 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
     if call.form == 4 {
         let Some(Value::Project(Project::Number(project))) = value(call, 1) else { unreachable!("resolved project") };
         let Some(Value::Word(kind)) = value(call, 0) else { unreachable!("setting kind") };
-        return Some(c::Setting::Application { kind: if *kind == 0 { 7 } else { 6 }, scope: *project, number: 1 });
+        return Some(c::Setting::Application {
+            kind: match *kind {
+                0 => 7,
+                1 => 6,
+                2 => 8,
+                3 => 10,
+                _ => unreachable!("project setting kind"),
+            },
+            scope: *project,
+            number: 1,
+        });
     }
-    if call.form == 2 || call.form == 3 {
-        let scope = if call.form == 3 {
+    if call.form == 2 || call.form == 3 || call.form == 5 || call.form == 6 {
+        let scope = if call.form == 3 || call.form == 5 || call.form == 6 {
             0
         } else {
             match value(call, 2) {
@@ -177,7 +201,11 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
             }
         };
         return Some(c::Setting::Application {
-            kind: if call.form == 3 {
+            kind: if call.form == 6 {
+                11
+            } else if call.form == 5 {
+                9
+            } else if call.form == 3 {
                 3
             } else if scope == 0 {
                 1
@@ -199,7 +227,7 @@ use crate::jig::table::{
 #[expect(clippy::indexing_slicing, reason = "the host extends the kit's two fixed setting forms in order")]
 pub const SETTING: Tool = Tool {
     prints:
-        b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON; temper's settings also show their state",
+        b"`KIND N, revision R`, or `rules, revision R`, then the whole value; project classes in words; temper's settings also show their state",
     forms: &[
         rows::SETTING.forms[0],
         rows::SETTING.forms[1],
@@ -241,10 +269,10 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"project-ways|project-questions",
-                Kind::Word { set: &[b"project-ways", b"project-questions"] },
+                b"project-ways|project-questions|project-classes|project-words",
+                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-classes", b"project-words"] },
                 Required,
-                b"A project's ways or questions",
+                b"A project's ways, questions, classes or words",
             ),
             positional(
                 b"project",
@@ -252,6 +280,40 @@ pub const SETTING: Tool = Tool {
                 Kind::Project { empty: false },
                 Required,
                 b"The project by number or name",
+            ),
+            revision_flag(),
+        ],
+        &[
+            positional(
+                b"kind",
+                b"charter-words",
+                Kind::Word { set: &[b"charter-words"] },
+                Required,
+                b"A charter's words",
+            ),
+            positional(
+                b"number",
+                b"NUMBER",
+                Kind::NumberRange { min: 1, max: 4_294_967_295 },
+                Required,
+                b"The charter's number",
+            ),
+            revision_flag(),
+        ],
+        &[
+            positional(
+                b"kind",
+                b"template-goal",
+                Kind::Word { set: &[b"template-goal"] },
+                Required,
+                b"A goal template's work",
+            ),
+            positional(
+                b"number",
+                b"NUMBER",
+                Kind::NumberRange { min: 1, max: 4_294_967_295 },
+                Required,
+                b"The template's number",
             ),
             revision_flag(),
         ],
@@ -266,11 +328,15 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
     }
     out.put(match kind {
         3 => b"forge-charter ",
+        11 => b"template-goal ",
         6 => b"project-questions ",
         7 => b"project-ways ",
+        8 => b"project-classes ",
+        9 => b"charter-words ",
+        10 => b"project-words ",
         _ => b"landing-rule ",
     });
-    out.number(u64::from(if kind == 6 || kind == 7 { scope } else { number }));
+    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 { scope } else { number }));
     if kind == 2 {
         out.put(b" --project ");
         out.number(u64::from(scope));
@@ -279,7 +345,32 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
 }
 
 mod value;
-pub(crate) use value::render;
+pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Encoder) -> bool {
+    let mut reader = Reader::new(bytes);
+    match kind {
+        9 => {
+            let Ok(value) = w::CharterWords::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.string(value.line());
+        }
+        10 => {
+            let Ok(value) = w::ProjectWords::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"headline");
+            out.string(value.headline());
+            out.key(b"lede");
+            out.string(value.lede());
+            out.object_end();
+        }
+        _ => return value::render(kind, bytes, out),
+    }
+    true
+}
 
 const fn revision_flag() -> crate::jig::table::Argument {
     flag(

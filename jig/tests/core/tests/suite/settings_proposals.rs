@@ -517,11 +517,19 @@ fn pending_reviews_survive_restart_and_a_release_withdraws_them() {
         } else {
             root::Key::Core(core::Key::Tasks(tasks::Key::PersonProposal(proposal)))
         };
+        let root::Key::Core(target) = missing.clone() else { panic!("core proposal target") };
+        let record = if erase_set {
+            core::Key::Tasks(tasks::Key::PersonProposal(proposal))
+        } else {
+            let root::Key::Core(key) = proposal_set_key(OWNER, proposal) else { panic!("settings proposal key") };
+            key
+        };
         let removed = inconsistent.erase(missing).expect("one side of the durable pair");
-        let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            inconsistent.restart_with(configuration().0);
-        }))
-        .expect_err("missing proposal counterpart asserts at Link");
+        inconsistent.restart_with(configuration().0);
+        assert_eq!(
+            inconsistent.domain.start_failure().map(|(_, failure)| failure),
+            Some(core::start::Failure::Link { record, linked: core::Linked::Record(target) })
+        );
         assert_eq!(inconsistent.domain.start_phase(), Some(core::start::Phase::Link));
         assert!(!inconsistent.domain.ready(), "missing set: {erase_set}");
         inconsistent.seed(Box::new([removed]));

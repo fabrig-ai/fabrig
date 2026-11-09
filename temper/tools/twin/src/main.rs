@@ -11,6 +11,7 @@ fn main() -> ExitCode {
         }
     }
 }
+#[expect(clippy::disallowed_methods, reason = "cli C8: the twin tool's arguments, until it is a binary of temper/bin/")]
 fn run() -> Result<(), String> {
     let mut data = None;
     let mut base = None;

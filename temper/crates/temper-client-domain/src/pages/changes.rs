@@ -47,6 +47,9 @@ impl Changes {
     pub(super) const fn next(&self) -> u64 {
         self.next
     }
+    pub(super) fn reserve(&mut self, next: u64) {
+        self.next = self.next.max(next);
+    }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
         if let Some(handle) = self.handle {
             unwatch(handle, out);
@@ -176,6 +179,16 @@ impl Changes {
     #[must_use]
     pub const fn state(&self) -> &State {
         &self.state
+    }
+    /// The goal named by a listed task, once its read has arrived (client/README.md, 3.5).
+    #[must_use]
+    pub fn goal(&self, task: u64) -> Option<u64> {
+        for row in &self.reads {
+            if row.task == task {
+                return row.document.as_ref()?.goal;
+            }
+        }
+        None
     }
     /// Where a listed task came from, once its read has arrived.
     #[must_use]

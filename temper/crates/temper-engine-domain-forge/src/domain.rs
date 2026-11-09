@@ -133,6 +133,7 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 
 /// The bounded forge connector subtree.
 #[derive(Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "the volatile full-outbox mark is independent of connector phases")]
 pub struct Domain {
     retire_pending: bool,
     watch_due: Option<skein_lib::Time>,
@@ -208,6 +209,7 @@ pub struct Domain {
     /// Each forge's git identity, the application credential its runs push
     /// and fetch with (protocol/credentials.md).
     pub(crate) identities: Map<u16, u32>,
+    pub(crate) workflows: crate::workflows::State,
     pub(crate) capabilities: Map<Token, crate::capabilities::Pending>,
     pub(crate) stopping: bool,
     pub(crate) landing: crate::landing::State,
@@ -236,6 +238,9 @@ pub struct Domain {
     pub(crate) brief_held: Map<Token, held::Held>,
     merge_kind: Option<(u32, u32)>,
     projection_due: Map<u64, skein_lib::Wall>,
+    /// Volatile: a projection met the full outbox since the root's step began
+    /// (temper/docs/design/domain/forge.md, 12). Never saved; false after a restore.
+    full_outbox_met: bool,
     change_due: Map<u64, skein_lib::Wall>,
     /// True wakes the procedure too; false steps only its pending dependents.
     pub(crate) procedure_wakes: Map<u64, bool>,
@@ -588,6 +593,18 @@ impl Domain {
         self.projection_due.remove(&goal);
     }
 
+    /// Whether a projection met the full outbox since the root's step began
+    /// (temper/docs/design/domain/forge.md, 12).
+    #[must_use]
+    pub fn full_outbox_met(&self) -> bool {
+        self.full_outbox_met
+    }
+
+    /// The root's step begins: forget what the last one's projections met.
+    pub fn begin_step(&mut self) {
+        self.full_outbox_met = false;
+    }
+
     /// Available outbox room including the root's staged descriptions.
     #[must_use]
     pub fn effect_room(&self, limits: &Limits, staged: u32) -> bool {
@@ -708,6 +725,7 @@ impl Domain {
             adoptions: Map::with_capacity(l.adoptions),
             application: adoption::State::new(l),
             capabilities: Map::with_capacity(l.repositories),
+            workflows: crate::workflows::State::new(l),
             writers,
             identities: credentials,
             stopping: false,
@@ -735,6 +753,7 @@ impl Domain {
             brief_held: Map::with_capacity(l.brief_sections),
             merge_kind: None,
             projection_due: Map::with_capacity(l.issues),
+            full_outbox_met: false,
             change_due: Map::with_capacity(l.changes),
             procedure_wakes: Map::with_capacity(l.changes),
             settling: Map::with_capacity(l.changes),
@@ -833,6 +852,11 @@ impl Domain {
                 return None;
             }
             for (_, pending) in &self.steps {
+                if pending.entry < *number {
+                    return None;
+                }
+            }
+            for (_, pending) in &self.landing.pending {
                 if pending.entry < *number {
                     return None;
                 }
@@ -1419,14 +1443,14 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::MakingAgain { key } => {
             d.making_acts.remove(&key);
         }
-        Event::SetAway { request, token, party, project, on, until, kinds } => {
-            crate::away::set_away(d, env, request, token, party, project, on, until, kinds, out);
+        Event::SetAway { request, token, party, project, on, until } => {
+            crate::away::set_away(d, env, request, token, party, project, on, until, out);
         }
         Event::Overturn { request, token, party, project, number } => {
             crate::away::overturn(d, request, token, party, project, number, out);
         }
-        Event::Decided { to, key, party, project, task, call } => {
-            crate::away::decided(d, env, to, key, party, project, task, call, out);
+        Event::Decided { to, key, party, project, task, always, call } => {
+            crate::away::decided(d, env, to, key, party, project, task, always, call, out);
         }
         Event::Looked { request, token, party, project } => {
             crate::status::looked(d, env, request, token, party, project, out);
@@ -1917,7 +1941,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 } else if d.adoptions.contains_key(&owner) {
                     adoption::adoption_read(d, env, owner, result, out);
                 } else if d.landings.contains_key(&owner) {
-                    landing_read(d, owner, result, out);
+                    landing_read(d, env, owner, result, out);
                 } else if d.goal_file_reads.contains_key(&owner) {
                     topics::answer(d, env, owner, result, out);
                 } else if d.makings.contains_key(&owner) {
@@ -1926,6 +1950,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     step_read(d, env, owner, result, out);
                 } else if d.pending_ci.contains_key(&owner) {
                     ci_read(d, owner, result, out);
+                } else if d.workflows.reading(owner) {
+                    crate::workflows::answered(d, env, owner, result, out);
                 } else if crate::is_root_read(owner) {
                     emit(out, Request::Read { owner, result });
                 } else {
@@ -3307,15 +3333,20 @@ fn status(ci: skein_forge::api::Ci) -> change::Status {
     }
 }
 
+// Any listed commit, or a range too large to list, disproves containment
+// (temper/docs/design/domain/forge.md, 5.3).
 fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> change::Status {
     match result {
-        Ok(skein_forge::api::Answer::Commits { commits, more: false }) => {
-            if commits.is_empty() {
-                change::Status::Passed
-            } else {
+        Ok(skein_forge::api::Answer::Commits { commits, more }) => {
+            if !commits.is_empty() {
                 change::Status::Failed
+            } else if more {
+                change::Status::Unknown
+            } else {
+                change::Status::Passed
             }
         }
+        Err(skein_forge::api::Error::TooLarge) => change::Status::Failed,
         Ok(_) | Err(_) => change::Status::Unknown,
     }
 }
@@ -4962,7 +4993,11 @@ fn project(
         },
         issues::Decision::Hold => fail_projection(d, env, goal, Some(repository), closing, out),
         issues::Decision::Effect(effect) => {
-            if d.entries.len() == env.limits.entries || d.entries.contains_key(&number) {
+            if d.entries.len() == env.limits.entries {
+                wait_for_room(d, env, goal, out);
+                return;
+            }
+            if d.entries.contains_key(&number) {
                 emit(out, Request::ProjectAfter { goal, when: None });
                 return;
             }
@@ -4997,6 +5032,16 @@ fn project(
             emit(out, Request::ProjectionEffect { row, entry, description });
         }
     }
+}
+
+/// A projection meeting the full outbox waits the policy's interval
+/// (temper/docs/design/domain/forge.md, 12).
+fn wait_for_room(d: &mut Domain, env: &Env<Limits>, goal: u64, out: &mut Queue<Request>) {
+    let when =
+        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.issue_policy.interval.as_nanos()));
+    d.projection_due.insert(goal, when).expect("one deadline per issue");
+    d.full_outbox_met = true;
+    emit(out, Request::ProjectAfter { goal, when: Some(when) });
 }
 
 fn projection_limits(d: &Domain, limits: &Limits, prior: &IssueRow, view: &issues::GoalView) -> Option<issues::Limits> {
@@ -5694,16 +5739,21 @@ fn branch_changed(
     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(row.clone()) });
     wake_head_dependents(d, &row.name, previous, commit);
     crate::tiers::observed(d, env, resource.repository, &branch, previous, commit, out);
-    let Some(before) = previous else { return };
+    let Some(before) = previous else {
+        crate::workflows::first_tip(d, env, resource.repository, &branch, commit, out);
+        return;
+    };
     if before == commit {
         return;
     }
-    let topic = Topic::Landings { repository: resource.repository, branch };
+    let topic = Topic::Landings { repository: resource.repository, branch: branch.clone() };
     if d.landings.len() >= env.limits.landings.max(env.limits.client.resources) {
+        crate::workflows::landed(d, env, resource.repository, &branch, commit, None, out);
         publish(d, topic, News::Landing { before, after: commit, files: None }, out);
         return;
     }
     let Some(sequence) = d.sequence.checked_add(1) else {
+        crate::workflows::landed(d, env, resource.repository, &branch, commit, None, out);
         publish(d, topic, News::Landing { before, after: commit, files: None }, out);
         return;
     };
@@ -5724,6 +5774,7 @@ fn branch_changed(
 
 fn landing_read(
     d: &mut Domain,
+    env: &Env<Limits>,
     owner: Token,
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
     out: &mut Queue<Request>,
@@ -5741,6 +5792,14 @@ fn landing_read(
         }
         Ok(_) | Err(_) => None,
     };
+    match &pending.topic {
+        Topic::Landings { repository, branch } => {
+            crate::workflows::landed(d, env, *repository, branch, pending.after, files.as_deref(), out);
+        }
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {
+            unreachable!("landing comparison belongs to a landing")
+        }
+    }
     publish(d, pending.topic, News::Landing { before: pending.before, after: pending.after, files }, out);
 }
 

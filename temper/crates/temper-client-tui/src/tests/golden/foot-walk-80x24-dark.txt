@@ -1,0 +1,58 @@
+╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
+│ 3 changes landed overnight.                                                  │
+│                                   written by the status agent 07:42 · /brief │
+╰──────────────────────────────────────────────────────────────────────────────╯
+ Where you left off
+   Hello   Away mode, a chat · 08:12 · waiting on you                  /chats 1
+   Hello   csv-export, a goal · 07:42 · Working
+
+ Needs you
+   ? Hello   csv-export: comma or semicolon?                       n walks them
+
+ Start
+   /change   one change, run as Hello's way says
+   /ask      Ask temper
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+csv-export: comma or semicolon?
+❯ 1. Comma
+  2. Semicolon
+  3. Tell it something else
+  4. Next
+--
+aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
+a..............................................................................a
+a...................................dddddddddddddddddddddddddddddddddddddddddd.a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+.cccccccccccccccccc.............................................................
+...cccccccc.........ddddddddddddddddddddddddddddddddd..................dddddddd.
+...cccccccc..........dddddddddddddddddddddddddd.................................
+................................................................................
+.ccccccccc......................................................................
+...e.cccccccc......................................................dddddddddddd.
+................................................................................
+.ccccc..........................................................................
+...ccccccccccddddddddddddddddddddddddddddddddddd................................
+...ccccccccccdddddddddd.........................................................
+................................................................................
+................................................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ee..............................................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ccccccccccccccccccccccccccccccc.................................................
+ffffffffffffffffffffffffffffffgggggggggggggggggggggggggggggggggggggggggggggggggg
+cccccccccccccccccccccccccccccc..................................................
+cccccccccccccccccccccccccccccc..................................................
+cccccccccccccccccccccccccccccc..................................................
+--
+a: fore #6A655C
+b: fore #E08A68 bold
+c: bold
+d: fore #9A9388
+e: fore #E08A68
+f: fore #E08A68 back #2D2C2A bold
+g: back #2D2C2A bold
+cursor 17 2

@@ -8,7 +8,7 @@ File, pull-file and compare replies fit the smaller of core.call_answer_bytes le
 
 ## decided
 
-Ask whether your goal may decide while its person is away. Carry on only if decided; otherwise ask with message, as a question.
+Ask whether you may decide this for your person. Carry on only if decided; otherwise ask them with message, as a question.
 
 A write.
 
@@ -16,7 +16,9 @@ A write.
 - `options`: a list; required. Two to six options, each at most 120 bytes.
 - `took`: an integer from 0 to 5; required. The chosen option's index, starting at zero.
 - `why`: text; required. Why you chose it, at most 400 bytes.
-- `kind`: one of `implementation`, `retry`, `wording`, `dependency` or `other`; required.
+- `kind`: one of `wording`, `retry`, `implementation`, `tests`, `dependency`, `departure`, `money`, `irreversible`, `rules` or `other`; required.
+- `paths`: a list; optional. At most 16 repository-relative paths the choice would change, each 1 to 256 bytes with no leading /.
+- `under`: an integer from 1 to 20; optional. The item with words of settings project-classes that covers this choice.
 
 ## goal
 
@@ -434,7 +436,7 @@ A read.
 
 ## see
 
-Read temper by address, in your project: settings, revisions, proposals, temper's pages, a repository's file. Each answer ends with what to read next.
+Read temper by address, as your person, in your project: its work, changes, settings, proposals, pages and files. Each answer ends with what to read next.
 
 A read.
 
@@ -448,3 +450,13 @@ A write.
 
 - `action`: one of `write`, `append` or `replace`; required. write: the whole document; append: a section at its end; replace: the section under body's first ## heading.
 - `body`: text; required. Markdown: the whole document, or one section beginning with its ## heading.
+
+## remember
+
+Keep a line about your person across their chats, only when they ask: add one, or change or drop one by its number. Each answer is the whole list.
+
+A write.
+
+- `action`: one of `add`, `change` or `drop`; required.
+- `line`: an integer from 1 to 4294967295; optional. The line's number, for change and drop.
+- `text`: text; optional. One line, at most 120 bytes.

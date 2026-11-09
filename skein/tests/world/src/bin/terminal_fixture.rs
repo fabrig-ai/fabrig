@@ -126,6 +126,7 @@ impl Host for Terminal {
         skein_io::operations(&self.limits).expect("small limits")
     }
 }
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the terminal fixture command line")]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     match std::env::args().nth(1).as_deref() {

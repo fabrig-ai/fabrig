@@ -10,7 +10,7 @@ The tree limit counts all tasks made over the requester's tree's life, including
 
 A change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).
 
-temper sizes the engine's watch rooms itself: a stream holds 19 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.
+temper sizes the engine's watch rooms itself: a stream holds 22 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.
 
 ## tasks
 
@@ -145,7 +145,7 @@ temper sizes the engine's watch rooms itself: a stream holds 19 watches, and the
 ## brief
 
 - `brief.briefs`: count, 4. Bounds briefs gathering at once.
-- `brief.sections`: count, 8. Bounds sections in one brief.
+- `brief.sections`: count, 9. Bounds sections in one brief.
 - `brief.read_bytes`: bytes, 8,192. Bounds size a connector may report for one section.
 - `brief.brief_bytes`: bytes, 16,384. Bounds total size of one completed brief.
 
@@ -178,6 +178,8 @@ temper sizes the engine's watch rooms itself: a stream holds 19 watches, and the
 
 - `notes.scopes`: count, 8. Bounds scope indexes kept in memory at once.
 - `notes.entries_per_scope`: count, 16. Bounds entries admitted in one scope.
+- `notes.party_entries`: count, 12. Bounds entries admitted in one party's scope.
+- `notes.party_bytes`: bytes, 120. Bounds description bytes in one party's scope.
 - `notes.pattern_bytes`: bytes, 256. Bounds bytes in one connector pattern.
 - `notes.description_bytes`: bytes, 256. Bounds bytes in one note description line.
 - `notes.body_bytes`: bytes, 32,768. Bounds bytes in one note body.
@@ -242,6 +244,7 @@ temper sizes the engine's watch rooms itself: a stream holds 19 watches, and the
 - `core.brief_core_budgets.attempts`: bytes, 1,024. Bounds attempt section text bytes in one brief.
 - `core.brief_core_budgets.plan`: bytes, 2,048. Bounds plan section text bytes in one brief.
 - `core.brief_core_budgets.notes`: bytes, 2,048. Bounds note index text bytes in one brief.
+- `core.brief_core_budgets.preferences`: bytes, 2,048. Bounds whole requester preferences in one brief.
 - `core.public.goals`: count, 0. Bounds live public goals per board.
 - `core.public.ended`: count, 0. Bounds ended public goals kept per project.
 - `core.public.lines`: count, 0. Bounds public lines per goal and delegates per card.

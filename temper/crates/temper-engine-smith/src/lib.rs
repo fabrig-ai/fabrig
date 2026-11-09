@@ -12,6 +12,23 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(test, expect(clippy::manual_map, reason = "step code matches optional fields without closures"))]
 extern crate alloc;
+use alloc::boxed::Box;
+
+/// The requester's preferences section title (domain/agent.md, 8.4.4).
+pub const PREFERENCES_TITLE: &[u8] = b"Kept about this person";
+
+/// The tools whose calls are the person's alone (domain/agent.md, 8.4.4).
+pub const PRIVATE_TOOLS: [&[u8]; 1] = [b"remember"];
+
+/// The turn parts shown to its person alone (domain/agent.md, 8.4.4).
+#[must_use]
+pub fn private() -> jig_protocol_transcript::Private {
+    let mut tools = skein_lib::List::with_capacity(1);
+    for tool in PRIVATE_TOOLS {
+        tools.push(Box::from(tool)).expect("private tool names");
+    }
+    jig_protocol_transcript::Private { title: PREFERENCES_TITLE.into(), tools }
+}
 
 mod answers;
 mod calls;
@@ -24,6 +41,7 @@ pub mod kinds;
 mod nested;
 mod notes;
 mod reference;
+mod remember;
 pub mod room;
 mod see;
 mod settings;
@@ -33,11 +51,12 @@ pub use answers::{answer, answer_bounded, answer_for_task, answer_for_tool, unas
 pub use calls::{call, call_configured, call_in, tools};
 pub use finish::{ChangeResource, Terminal, result, turn};
 pub use reference::reference;
+pub use see::addresses::see_reference;
 pub use see::{ADDRESSES, SEE_PART, see_answer};
 pub use settings::{
     settings_answer, settings_answer_bounded, settings_note, settings_repository_answer, settings_text,
 };
-pub use start::{charter, fit_brief, fit_brief_bytes, section, start};
+pub use start::{charter, section, start};
 
 fn decimal(bytes: &[u8], member: &'static [u8]) -> Result<u64, Problem> {
     if bytes.is_empty() {

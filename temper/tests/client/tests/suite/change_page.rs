@@ -57,7 +57,7 @@ fn progress(world: &mut ClientWorld) {
         "engine progress: {outcome:?}"
     );
 }
-fn review(world: &mut ClientWorld, client: ClientId, goal: u64) -> u64 {
+pub(super) fn review(world: &mut ClientWorld, client: ClientId, goal: u64) -> u64 {
     let assigned = loop {
         if let Some(task) = gate_task(world.front(), goal) {
             break task;
@@ -70,7 +70,7 @@ fn review(world: &mut ClientWorld, client: ClientId, goal: u64) -> u64 {
     see(world, client, fixtures::plan_item(task, b"Running"));
     task
 }
-fn finish_review(world: &mut ClientWorld, task: u64) {
+pub(super) fn finish_review(world: &mut ClientWorld, task: u64) {
     let attempt = world.front().hosted_attempt(task).expect("hosted review");
     world.front().engine.answer(
         Token::new(7),

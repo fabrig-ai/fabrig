@@ -78,6 +78,7 @@ const LIMITS: Limits = Limits {
     trees_in_flight: 2,
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
+    decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,
@@ -155,6 +156,7 @@ fn configured() -> [Configured; 2] {
 }
 fn adopted() -> Repository {
     Repository {
+        workflows: Box::default(),
         project: 5,
         home: true,
         provider: REPO,
@@ -258,6 +260,7 @@ fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
                     None => Follows::Landing,
                 },
                 span: None,
+                description: Box::default(),
             })
             .expect("fixture tiers");
     }

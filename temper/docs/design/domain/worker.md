@@ -115,8 +115,21 @@ and file operations.
 The worker's service loop admits by the root's watermark (skein's
 programming-model.md, 7.1). The queues between the root's children are
 uncapped and no route reserves room. The held entrance is the link's
-capped edge, and the link is read only after its last output has been
-taken; a host's channel and the kernel's queues stay capped.
+capped edge; a host's channel and the kernel's queues stay capped.
+
+- **The link is read and fired on every pass,** whatever the entrance
+  holds (jig's `protocol/channel.md`, 9, *Reading never waits for the
+  root*): its pings come and go under any load, and the engine's records
+  wait in the entrance, never unread in the socket. A socket left unread
+  starves the pings both ways, and the engine loses a healthy link at
+  its silence deadline.
+- **The entrance holds the engine's cap:** as many records as the
+  engine's output cap to a worker has frames (jig's
+  `jig_protocol_worker_wire::sizes::engine_cap`, from the link's sizes),
+  and the link's own state beside them (ready, lost, a grace passed). The
+  engine never has more new work outstanding on a worker than that cap,
+  so the entrance never fills while the engine keeps it; a record past
+  it breaks the engine's contract and faults the link.
 
 - **The backlog** is the entries in the uncapped queues between the
   service's components and the root's children; **the watermark** a
@@ -437,6 +450,44 @@ Before writing the request or starting the command, the job capability
 refuses a command path that is absolute or contains a `..` segment. The path
 resolves relative to the job's workspace root (2026-11-04).
 
+A merge job prepares whatever the count of the files in conflict. Past
+the checkout's `conflicts`, every file stays marked in the tree and
+unmerged in the index, and the checkout names the first `conflicts` of
+them (section 5; `../protocol/git.md`, 4.6). The command reads the
+index, never that list, and stages each file it settles, so its delivery
+lists only the files it left (2026-11-09).
+
+A job's failure is a line on the side that met it, and on the engine's
+too (2026-11-09):
+
+- **On the worker,** when its hub answers a job failed or refused, one
+  line on its stderr: `<binary> worker: run RUN attempt ATTEMPT job KIND
+  VERB failed CLASS: WHY`, or `refused REASON: WHY`. RUN and ATTEMPT are
+  the assignment's, KIND and VERB the kind's entry, CLASS the job's
+  failure as jig types it (`Unprepared(Transient)`, `Failed`,
+  `Undelivered(Failed)` and the rest; jig's `domain/hosts.md`, 6.9).
+- **The why** is what the worker saw. A preparation that failed names its
+  step (clone, fetch, the base's fetch, check out, merge) and git's
+  fault, then the end of git's error output where the operation kept it.
+  A command's failure names its exit or signal and the end of its error
+  output. A passed deadline says so. A result missing or past its bound
+  says which. A delivery not made names the push's outcome and its
+  diagnostic. A refusal names its cause. Where jig's answer carries a
+  detail (a preparation's, a command's, a start's), the why is that
+  detail, within the host's `detail_bytes`; a delivery's and a deadline's
+  answers carry none (jig's `domain/hosts.md`, 6.9), so their why is the
+  worker's line alone.
+- **On the engine,** when the hub accepts that answer, section 4.3's
+  operator line, in its form: `<binary> serve: task TASK run RUN attempt
+  ATTEMPT failed CLASS: job KIND: DETAIL`, or `refused REASON: job KIND:
+  WHY`. A job held for its failures has the way out of a run's (`temper
+  help hold`), so the engine's log names each of its failures as it does
+  a run's. An assignment the engine cannot encode, which it answers
+  itself as refused, is the engine's line alone.
+- **Each line** is written once per answer, escaped to one line, its why
+  cut to its last 4,096 bytes, as 4.3's is. The lines are operator output:
+  no fact, turn, result or hold holds them, and no LLM is shown them.
+
 ## 5. Checkouts
 
 The checkout child domain is the worker's workspace capability (jig's
@@ -499,7 +550,10 @@ runs as contained processes and whose output it parses.
   tree as the merge, with two parents, the branch's head and the base
   commit, even when the tree is unchanged from either; a file the merge
   left in conflict that still holds a conflict marker is refused at
-  push, and the run is told which. A producer's start, the one naming its
+  push, and the run is told which. More files in conflict than the
+  checkout's `conflicts` still make a merge in progress: each stays
+  marked, and the start names the first `conflicts` of them, in git's
+  order (`../protocol/git.md`, 4.6). A producer's start, the one naming its
   landing branch (`forge.md`, 8.11), first asks whether its branch already
   contains the base: if so there is nothing to merge, and it goes on as a
   start from that branch or saved work does, with no merge state and no
@@ -822,7 +876,10 @@ for; and that nothing is live once it settles.
   first channel (jig's `domain/hosts.md`, section 12).
 - **A hold naming its run's last failure.** A task held `out of tries:
   run failures` names no failure: the reason is 4.3's operator line
-  alone. The ending reaches the hub as its class
+  alone. A job held out of tries is the same, its reasons 4.4's lines,
+  and the change would name a job's last failure too; temper/migration
+  answered on 2026-11-09 that words in a job's hold wait until a
+  deployment's job lines have been read. The ending reaches the hub as its class
   (`jig-domain-hub-link/src/payload.rs`) and every durable record holds
   the class (jig's `tasks_v9` and `core_v6`), so naming it stores the
   last failure's bounded text with the hold. No LLM is shown this detail,

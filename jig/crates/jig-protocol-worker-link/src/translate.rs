@@ -82,6 +82,12 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v9::Limits) -> Option<Frame> {
 
 pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v9::Limits) -> Option<Frame> {
     match up {
+        host::LinkUp::Draining => {
+            let record = wire::Draining::new(limits, wire::DrainingParts {}).ok()?;
+            let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
+            record.encode(&mut body).ok()?;
+            frame(wire::Kind::Draining.number(), body.finish())
+        }
         host::LinkUp::ListRead { read, outcome } => list_read_frame(read, outcome, limits),
         host::LinkUp::JobAnswer { run, attempt, answer } => job_answer_frame(run, attempt, answer, parts, limits),
 
@@ -602,7 +608,8 @@ pub(crate) fn down(
             }
         }
         // TurnBusy is decoded below the hub by the component; up kinds are invalid here.
-        wire::Kind::ListRead
+        wire::Kind::Draining
+        | wire::Kind::ListRead
         | wire::Kind::JobAnswer
         | wire::Kind::Logins
         | wire::Kind::SignedOut

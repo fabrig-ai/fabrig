@@ -122,6 +122,7 @@ pub(crate) fn main(
             b.close();
         }
     }
+    super::needs::decided(b, root, words, bindings, times);
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
 }
@@ -320,11 +321,13 @@ fn entry(
             return;
         }
         if crate::cards::proposal::settings(b, root, card, words, bindings, false) {
+            super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card));
             b.close();
             return;
         }
         body(b, page, words);
         crate::cards::proposal_reason(b, page);
+        super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card));
         if has_facts(page) {
             let proposal = crate::cards::proposal_has_rows(page);
             if !proposal {
@@ -343,6 +346,8 @@ fn entry(
             let name = open_task_name(words, task);
             control(b, bindings, Role::Link, &name, Act::Go { address: Address::Task { task } });
         }
+    } else if !update {
+        super::needs::why_line(b, root, words, bindings, temper_client_domain::pages::needs::Need::Card(card));
     } else if update && let Some(task) = source_task(card.object) {
         b.open(Role::Heading { level: 3 });
         b.style(look::TITLE);

@@ -77,6 +77,11 @@ fn every_settings_read_form_and_offset_decodes() {
             SettingsRead::Setting { setting: s::Setting::ProjectPolicy { project: 3 }, revision: 0 },
             0,
         ),
+        (
+            br#"{"setting":{"kind":"template-goal","number":4}}"#,
+            SettingsRead::Setting { setting: s::Setting::Application { kind: 11, scope: 0, number: 4 }, revision: 0 },
+            0,
+        ),
         (br#"{"revision":4,"from":9}"#, SettingsRead::Revision { number: 4 }, 9),
         (br#"{"history":{},"from":10}"#, SettingsRead::Revisions { before: None }, 10),
         (br#"{"history":{"before":4},"from":11}"#, SettingsRead::Revisions { before: Some(4) }, 11),
@@ -88,7 +93,7 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Required for charter, template, policy, model, landing-rule and forge-charter; the other kinds take none.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Charter/template/policy/model/landing-rule/forge-charter/charter-words number; template-goal: template's; else none.""#).is_some());
         }
     }
     for (input, why) in [
@@ -101,6 +106,8 @@ fn settings_bad_fields_are_refused_by_name() {
         (br#"{"setting":{"kind":"model"}}"#, Problem::Needs { kind: b"model", member: b"number" }),
         (br#"{"setting":{"kind":"landing-rule"}}"#, Problem::Needs { kind: b"landing-rule", member: b"number" }),
         (br#"{"setting":{"kind":"forge-charter"}}"#, Problem::Needs { kind: b"forge-charter", member: b"number" }),
+        (br#"{"setting":{"kind":"template-goal"}}"#, Problem::Needs { kind: b"template-goal", member: b"number" }),
+        (br#"{"setting":{"kind":"template-goal","number":4,"project":1}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"rules","number":1}}"#, Problem::Range(b"number")),
         (br#"{"setting":{"kind":"charter","number":1,"project":1}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"forge-charter","number":1,"project":1}}"#, Problem::Range(b"project")),
@@ -118,6 +125,8 @@ fn settings_bad_fields_are_refused_by_name() {
         (br#"{"history":[],"from":0}"#, Problem::Type(b"history")),
         (br#"{"history":{"before":0}}"#, Problem::Range(b"before")),
         (br#"{"history":{},"revision":1}"#, Problem::Range(b"history")),
+        (br#"{"setting":{"kind":"charter-words"}}"#, Problem::Needs { kind: b"charter-words", member: b"number" }),
+        (br#"{"setting":{"kind":"charter-words","number":4,"project":7}}"#, Problem::Range(b"project")),
     ] {
         assert_eq!(decoded(b"settings", input).expect_err("invalid read"), why);
     }
@@ -509,6 +518,14 @@ fn settings_proposals_carry_typed_landing_values() {
                 approvals: Box::new([]),
             }),
         ),
+        (
+            br#"{"against":1,"reason":"words","items":[{"setting":{"kind":"charter-words","number":1},"set":"Reviews changes"}]}"#,
+            9, 0, settings::Value::CharterWords(b"Reviews changes".as_slice().into()),
+        ),
+        (
+            br#"{"against":1,"reason":"words","items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review changes."}}]}"#,
+            10, 7, settings::Value::ProjectWords(settings::ProjectWords { headline: b"Our way".as_slice().into(), lede: b"We review changes.".as_slice().into() }),
+        ),
     ] {
         let bytes = crate::kinds::encode(&value);
         let size = u32::try_from(bytes.len()).expect("fixture encoding");
@@ -692,37 +709,63 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
 
 #[test]
 fn a_runs_proposal_carries_the_forges_charter_number() {
-    let call = decided(
-        b"propose_settings",
-        br#"{"against":1,"reason":"the change charter","items":[{"setting":{"kind":"forge-charter","number":1},"set":2}]}"#,
-    ).expect("forge charter proposal");
-    let engine::Tool::ProposeSettings { items, kinds, .. } = call.tool else { panic!("settings proposal") };
-    assert_eq!(items[0].setting, s::Setting::Application { kind: 3, scope: 0, number: 1 });
-    assert_eq!(kinds.len(), 1);
-    assert_eq!((kinds[0].kind, kinds[0].scope, kinds[0].number), (3, 0, 1));
-    assert_eq!(kinds[0].value.value, temper_engine_domain_forge::settings::Value::Charter(2));
+    use temper_engine_domain_forge::settings::{TemplateGoal, Value};
+    for (input, kind, number, value) in [
+        (br#"{"against":1,"reason":"the change charter","items":[{"setting":{"kind":"forge-charter","number":1},"set":2}]}"#.as_slice(), 3, 1, Value::Charter(2)),
+        (br#"{"against":1,"reason":"the goal's work","items":[{"setting":{"kind":"template-goal","number":4},"set":{"design":true,"close_out":false}}]}"#, 11, 4, Value::Goal(TemplateGoal { design: true, close_out: false })),
+    ] {
+        let call = decided(b"propose_settings", input).expect("typed proposal");
+        let engine::Tool::ProposeSettings { items, kinds, .. } = call.tool else { panic!("settings proposal") };
+        assert_eq!(items[0].setting, s::Setting::Application { kind, scope: 0, number });
+        assert_eq!(kinds.len(), 1);
+        assert_eq!((kinds[0].kind, kinds[0].scope, kinds[0].number), (kind, 0, number));
+        assert_eq!(kinds[0].value.value, value);
+    }
+    let crate::Decoded::Answered(answer) = decoded(b"propose_settings", br#"{"against":1,"reason":"bad scope","items":[{"setting":{"kind":"template-goal","number":4,"project":1},"set":{"design":true,"close_out":false}}]}"#).expect("form refusal") else { panic!("project refused") };
+    let (body, error) = answer.into_parts();
+    assert!(error);
+    assert_eq!(body.as_ref(), b"settings file item 1: template-goal.project: unknown member");
 }
 
 #[test]
 fn settings_proposals_carry_typed_project_questions() {
-    let call = decided(b"propose_settings", br#"{"against":1,"reason":"questions","items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#).expect("questions proposal");
-    let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
-    let value =
-        temper_engine_domain_forge::settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman);
-    let size = u32::try_from(crate::kinds::encode(&value).len()).expect("questions encoding");
-    assert_eq!(
-        kinds.as_ref(),
-        &[engine::KindValue {
-            kind: 6,
-            scope: 7,
-            number: 1,
-            value: temper_engine_domain_forge::settings::SizedValue { value, size }
-        }]
-    );
+    for (input, kind, value) in [
+        (
+            br#"{"against":1,"reason":"questions","items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#.as_slice(),
+            6,
+            temper_engine_domain_forge::settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman),
+        ),
+        (
+            br#"{"against":1,"reason":"classes","items":[{"setting":{"kind":"project-classes","project":7},"set":{"items":[{"kind":"implementation","class":"decide"}],"sets":[]}}]}"#,
+            8,
+            temper_engine_domain_forge::settings::Value::Classes(temper_protocol_reaches::Classes {
+                items: Box::new([temper_protocol_reaches::Item {
+                    subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Implementation),
+                    words: Box::default(),
+                    class: temper_protocol_reaches::Class::Decide,
+                }]),
+                sets: Box::default(),
+            }),
+        ),
+    ] {
+        let call = decided(b"propose_settings", input).expect("project settings proposal");
+        let engine::Tool::ProposeSettings { kinds, .. } = call.tool else { panic!("settings proposal") };
+        let size = u32::try_from(crate::kinds::encode(&value).len()).expect("project setting encoding");
+        assert_eq!(
+            kinds.as_ref(),
+            &[engine::KindValue {
+                kind,
+                scope: 7,
+                number: 1,
+                value: temper_engine_domain_forge::settings::SizedValue { value, size }
+            }]
+        );
+    }
 }
 #[test]
 fn project_settings_reads_require_project_and_refuse_number() {
-    for (kind, number) in [("project-ways", 7), ("project-questions", 6)] {
+    for (kind, number) in [("project-ways", 7), ("project-questions", 6), ("project-classes", 8), ("project-words", 10)]
+    {
         let bytes = format!(r#"{{"setting":{{"kind":"{kind}","project":7}},"revision":2}}"#);
         let call = decided(b"settings", bytes.as_bytes()).expect("project read");
         assert_eq!(
@@ -915,7 +958,7 @@ fn inventory_people_forms_share_repository_pagination() {
     )
     .into_parts();
     assert!(error);
-    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n", "context belongs only to an inventory");
+    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory; project-ways, project-questions, project-classes, project-words: project, no number; charter-words, template-goal: number, no project.\nend\n", "context belongs only to an inventory");
 }
 
 #[test]

@@ -1,0 +1,134 @@
+//! Team's parts and moves (temper/docs/design/client/README.md, 3.5, Team;
+//! temper/docs/design/draft/surfaces.md, 12 and 14).
+use jig_client::contract as c;
+use jig_client_kit::stories;
+use skein_lib::{List, Rng};
+use std::panic::catch_unwind;
+use temper_client_domain::pages::team::{self, Person, Waits};
+
+// Small documents with repeated parties and readers who need not belong to
+// the project, each seed independently replayable.
+const SEEDS: u64 = 256;
+const MAX_MEMBERS: u32 = 12;
+const MEMBER_PARTIES: u64 = 6;
+const READER_PARTIES: u64 = 7;
+const MAX_OTHERS: u64 = 8;
+
+fn random_count(rng: &mut Rng) -> u32 {
+    u32::try_from(rng.between(0, u64::from(u32::MAX))).expect("a u32 count")
+}
+
+fn random_role(rng: &mut Rng) -> c::HeldRole {
+    match rng.below(5) {
+        0 => c::HeldRole::Owner,
+        1 => c::HeldRole::Maintainer,
+        2 => c::HeldRole::Member,
+        3 => c::HeldRole::Observer,
+        _ => c::HeldRole::Policy { role: random_count(rng) },
+    }
+}
+
+fn random_waits(rng: &mut Rng) -> Waits {
+    Waits {
+        questions: random_count(rng),
+        reviews: random_count(rng),
+        proposals: random_count(rng),
+        held: random_count(rng),
+        person_tasks: random_count(rng),
+        cut: rng.chance(500),
+    }
+}
+
+fn random_project(rng: &mut Rng) -> c::Project {
+    let mut project = stories::project();
+    project.members = List::with_capacity(MAX_MEMBERS);
+    for member in 0..rng.between(0, u64::from(MAX_MEMBERS)) {
+        let party = rng.between(1, MEMBER_PARTIES);
+        let kind = if rng.chance(500) { c::PartyKind::Person } else { c::PartyKind::Service };
+        let role = random_role(rng);
+        let name = if rng.chance(500) { String::new() } else { format!("name-{member}") };
+        let login = format!("login-{member}");
+        project
+            .members
+            .push(c::ProjectMember {
+                party,
+                kind,
+                role,
+                name: c::DocumentText::complete(stories::text(name.as_bytes())),
+                login: c::DocumentText::complete(stories::text(login.as_bytes())),
+            })
+            .expect("random members fit");
+    }
+    project.cut = rng.chance(500);
+    project
+}
+
+// Read the document once, keeping the first person of each party, then move
+// the reader to the front independently of gather's ordering algorithm.
+fn oracle(project: &c::Project, you: u64, yours: Option<Waits>, others: &[(u64, Waits)]) -> Vec<Person> {
+    let mut people: Vec<Person> = Vec::new();
+    for member in &project.members {
+        if member.kind != c::PartyKind::Person || people.iter().any(|person| person.party == member.party) {
+            continue;
+        }
+        let name = if member.name.bytes().is_empty() { member.login.bytes() } else { member.name.bytes() };
+        let waits = if member.party == you {
+            yours
+        } else {
+            others.iter().find(|(party, _)| *party == member.party).map(|(_, waits)| *waits)
+        };
+        people.push(Person {
+            party: member.party,
+            you: member.party == you,
+            name: name.into(),
+            role: member.role,
+            waits,
+        });
+    }
+    if let Some(at) = people.iter().position(|person| person.party == you) {
+        let reader = people.remove(at);
+        people.insert(0, reader);
+    }
+    people
+}
+
+fn sweep(seed: u64) {
+    let mut rng = Rng::new(seed);
+    let mut project = random_project(&mut rng);
+    let you = rng.between(1, READER_PARTIES);
+    let yours = if rng.chance(500) { Some(random_waits(&mut rng)) } else { None };
+    let others: Vec<_> =
+        (0..rng.between(0, MAX_OTHERS)).map(|_| (rng.between(1, READER_PARTIES), random_waits(&mut rng))).collect();
+    let expected = oracle(&project, you, yours, &others);
+    let facts = team::gather(&project, you, yours, &others);
+    assert_eq!(
+        facts.people.as_slice(),
+        expected,
+        "seed {seed}: first Person members once, reader first, document order, names, roles and first waits"
+    );
+    assert_eq!(facts.cut, project.cut, "seed {seed}: document cut");
+    assert_eq!(facts.triager, None, "seed {seed}: triager is unread");
+    assert_eq!(facts.standing_roles, None, "seed {seed}: standing roles are unread");
+    assert_eq!(
+        team::parts(&facts),
+        team::Parts { people: !expected.is_empty(), triager: false },
+        "seed {seed}: parts show exactly when their facts exist"
+    );
+
+    for member in project.members.iter_mut() {
+        member.role = random_role(&mut rng);
+    }
+    let moved = team::gather(&project, you, yours, &others);
+    assert_eq!(
+        moved.people.iter().map(|person| person.party).collect::<Vec<_>>(),
+        expected.iter().map(|person| person.party).collect::<Vec<_>>(),
+        "seed {seed}: a move of roles never hides or reorders a person"
+    );
+}
+
+#[test]
+fn team_parts_follow_their_rules() {
+    for seed in 1..=SEEDS {
+        assert!(catch_unwind(|| sweep(seed)).is_ok(), "seed {seed}: Team parts sweep panicked");
+    }
+}

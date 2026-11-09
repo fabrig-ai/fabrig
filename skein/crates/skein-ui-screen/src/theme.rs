@@ -100,6 +100,10 @@ pub struct StyleLook {
     /// Replaces an active options item's name paint over its region, beneath active and focus paint.
     /// None keeps the item's composed paint; descriptions, marks and bands are unchanged.
     pub active_name: Option<Paint>,
+    /// On a focused text field or text area carrying this token: the paint
+    /// laid over the node's own paint on its value and its caret's cell, in
+    /// place of the focus's paint (ui-screen.md, 3 and 5.4).
+    pub focused_value: Option<Paint>,
     pub spaced: bool,
 }
 

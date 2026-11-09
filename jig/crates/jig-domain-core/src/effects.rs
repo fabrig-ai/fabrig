@@ -449,8 +449,8 @@ pub(crate) fn connector(
         // The root maps connector completion to start_done for the phase it is serving.
         | connector::Event::RestartDone { .. } => {}
         connector::Event::SettingsJudged { owner, judged } => return crate::settings::application::judged(core, env, work, owner, judged),
-        connector::Event::SettingsDefaults { connector, defaults } => {
-            crate::settings::application::defaults(core, connector, defaults);
+        connector::Event::SettingsDefaults { connector, defaults, dropped } => {
+            crate::settings::application::defaults(core, connector, defaults, dropped);
         }
     }
     out
@@ -1386,6 +1386,7 @@ fn settled(
             | CallPart::DelegationDenied { .. }
             | CallPart::DelegationRefused(_)
             | CallPart::NoteWritten { .. }
+            | CallPart::NoteDeleted { .. }
             | CallPart::NoteRecalled { .. }
             | CallPart::NoteRefused(_)
             | CallPart::Revised { .. }

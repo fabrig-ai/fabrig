@@ -1,6 +1,13 @@
 # tools: status
 
-2026-11-08. Remaining gaps between temper's code and [tools.md](tools.md).
+2026-11-09. Remaining gaps between temper's code and [tools.md](tools.md).
+
+Sections 5.2 and 5.3 have no known gap in a project's classes, by plan
+`ui-reaches`: `temper ctl settings show project-classes` and a settings
+file's `project-classes`, `decide`, `ask` and `ask-away`, refused as
+`Classes::check` refuses; a settings file's project ways take no `away`,
+refused as an unknown member (`temper-settings-form`'s
+`settings_file_tests.rs`), and the help pages name kind 8.
 
 Section 5.3's Ask temper start uses `chat start --template 5`, under
 charter 11, in the help and chat-template fixtures. The joined world
@@ -14,6 +21,14 @@ including restored requests. Section 11.2's joined client-world story
 declares, forgets and declares the same name again, observes the worker's
 login-check dispatch, and checks a live name's exit-2 refusal and advice.
 Its worker is fake; it establishes no real login's usability.
+
+Section 5.3 has no known gap in a setting's words: `settings show
+charter-words NUMBER` and `settings show project-words PROJECT`, with
+`--revision` and `--json`, the stock's line marked so and "none kept"
+with none, and `charter-words` and `project-words` as a settings file's
+SETTING and VALUE, applied and read back. The joint world's
+`settings_show_prints_a_projects_ways_and_questions`, the settings
+form's tables and the `help_settings_show` golden hold it.
 
 - **Departs:** 5.5, from `ui-account-again`'s request for each fixable
   account-act refusal to say why and what next: the plan limits the new
@@ -51,6 +66,21 @@ Section 5.3 also has the stored-policy refusal's supplied bytes and
 the JSON member is `stored_policy`. The refusal table holds charter 5,
 supplied 70112 and maximum 65536. Malformed parts still name no part
 in the engine's refusal, as the draft's status records.
+Section 5.3 has no known gap in a goal template's work: `settings show
+template-goal N [--revision R] [--json]` prints `design` and `close_out`,
+or with none "none kept", a settings file's `template-goal` item is
+read, proposed and applied, and a proposal card names it
+`template-goal N` (`temper-client-tools`' tables
+`forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_json`
+and `forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals`;
+`tests/client`'s `each_kind_through_ctl_proposed_shown_accepted_and_restored`).
+
+Section 11.2's joined story of a settings file of each kind proposed,
+shown, accepted and restored (`tests/client`'s `settings_tools.rs`,
+`each_kind_through_ctl_proposed_shown_accepted_and_restored`) runs
+through its restart: a project's rule 1 reset to the every-project
+default keeps its retained state (`../protocol/configuration.status.md`,
+13.2 and 13.4).
 
 Sections 5.2 and 6.1 have no known gap in next-run bounds explanations,
 hello figures, charter-bearing shortfalls or their JSON. The waiting
@@ -120,13 +150,7 @@ unknown-proposal explanation; the generated help states the same limit.
   the joined story of a model's amendment (`tests/client`'s
   `amend_tools.rs` parses `--model` alone); the joined stories of
   `playground end`, `forge remove`, and a set up or a connect without
-  FORGE, which `temper-client-tools`' own step tests hold alone; the
-  joined story of a settings file of each kind proposed, shown, accepted
-  and restored (`tests/client`'s `settings_tools.rs`,
-  `each_kind_through_ctl_proposed_shown_accepted_and_restored`),
-  ignored pending the shared project defaults' retained state across restart
-  (`../protocol/configuration.md`, 13.2 and 13.4; jig's `domain/engine.md`,
-  17.5); the joint component correlates
+  FORGE, which `temper-client-tools`' own step tests hold alone; the joint component correlates
   forge setting reads, including historical revision values. 11.3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.

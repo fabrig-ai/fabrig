@@ -78,6 +78,7 @@ pub const LIMITS: d::Limits = d::Limits {
     trees_in_flight: 2,
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
+    decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,
@@ -110,6 +111,7 @@ pub const LIMITS: d::Limits = d::Limits {
 
 fn repository(provider: Repository, prefix: &[u8], review: bool) -> d::Stored {
     d::Stored::Repository(d::Repository {
+        workflows: Box::default(),
         project: 1,
         home: true,
         provider,

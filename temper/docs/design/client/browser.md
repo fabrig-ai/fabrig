@@ -249,17 +249,23 @@ replay says the same clocks (`README.md`, 5.12).
   |---|---|
   | `Inbox { filter }` | `/`, and its filter's query |
   | `Home { project }` | `/projects/<project>` |
+  | `AllHome` | `/home` (`README.md`, 3.5, *Home on All projects*) |
   | `Changes { project }` | `/projects/<project>/changes` |
+  | `Work { project, filter }` | `/projects/<project>/work`, and its filter's query |
   | `Settings { project }` | `/projects/<project>/settings` |
   | `Repositories { project }` | `/projects/<project>/settings/repositories` |
+  | `Models { project }` | `/projects/<project>/settings/models` |
   | `Builders { project }` | `/projects/<project>/settings/builders` |
   | `Role { project, charter }` | `/projects/<project>/settings/roles/<charter>` |
   | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
   | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
+  | `Team { project }` | `/projects/<project>/team` |
   | `Chats { filter }` | `/chats`, and its filter's query |
   | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
   | `Accounts` | `/accounts` |
+  | `Members` | `/deployment/members` |
+  | `Limits` | `/deployment/limits` |
   | `Chat { task }` | `/chats/<task>` |
   | `Task { task }` | `/tasks/<task>` |
   | `Adopt { project }` | `/projects/<project>/adopt` |
@@ -295,6 +301,12 @@ replay says the same clocks (`README.md`, 5.12).
   `Authorize`'s query, kept as it came and never printed again, alone
   are in an address, and another page's query is dropped, `/chats/7?x=1`
   replaced with `/chats/7`.
+- **Work's filter is its query,** as the chats list's: none for All, so
+  that `/projects/<project>/work` is Work whole, and `?show=drafts` for
+  Drafts. A `show` that doesn't read as Drafts, or a field of another name,
+  is dropped, and the address replaced with the printed one. Work's other
+  filters are their pages' addresses, Goals' and Changes' (`README.md`, 3.5,
+  *Work*).
 - **The chats list's filter is its query,**
   as the inbox's (the user's pick, 10-23): none for "All", so that
   `/chats` is the list whole; `?state=live` for "Live",
@@ -694,17 +706,47 @@ replay says the same clocks (`README.md`, 5.12).
   column. On a phone, at 760 px and under, the column is one, the rail
   a top bar of the switcher alone, the brand's star before the
   project's name, its menu at least 220 px wide, and the tab bar fixed
-  at the foot, five links in five columns as wide as their words, each on
-  one line at any phone's width, a "Needs you" count included, and four
-  while `me` offers no Ask temper (the look request `ask-temper-place`),
-  the page leaving it room; while To begin shows, three equal tabs, on Home
-  and on Ask temper's page, whose chat layout draws no tab bar otherwise,
-  its composer and model picker standing wholly over them, the page's foot
-  raised by the tabs' 64 px and the safe area (`README.md`, 3.5 and 5.3). The link's state
+  at the foot, four links in four columns as wide as their words, Home,
+  Needs, Work and Ask, each on one line at any phone's width, the Needs
+  count included, and three while `me` offers no Ask temper (the look
+  request `ask-temper-place`),
+  the page leaving it room; while To begin shows, three equal tabs. Ask
+  temper's page and an Ask temper chat, the Ask tab's, keep the tabs, where
+  every other chat layout draws none, its composer and model picker standing
+  wholly over them, the page's foot raised by the tabs' 64 px and the safe
+  area (`README.md`, 3.5 and 5.3). Needs you's open card takes the top bar
+  with its own, `temper-needs-bar` (`README.md`, 3.5, *Needs you*), as a
+  chat's bar does, the night switch keeping its place. The link's state
   shows at the rail's foot, with its dot, while it is not live. The person's
   menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
   `temper.css` hides over 760 px, stands at that width alone (`README.md`, 3.5
   and 5.3).
+- **The rail as the whole story draws it** (`README.md`, 5.3; the mockups'
+  `whole-story.css`, `.rail`, `.nav`, `.nav .sep`, `.new` and `.foot`, in the
+  greenfield mock's paper and ink): the hairline after "Ask temper",
+  `div.temper-rail-sep`, a rule of the rail's line colour 8 px over and
+  under, inset as the entries are; the new box, "+ New draft or change" or
+  "+ New change", the dashed box `div.temper-rail-new` keeps, one button or
+  one link filling it, its menu the panel the box opened before; "Deployment"
+  at the foot, a row as the link's state's, above the person's row, its
+  dots after its word. The rules go under `temper.css`'s marker `/* ==== ui:
+  rail ==== */`, before the switcher's; the rules they replace go where they
+  stand.
+- **Work's look** (`README.md`, 3.5, *Work*; the mockup's `work.html` and
+  `whole-story.css`): the head as Home's intro, its kicker, headline and lede,
+  the landing's line in `small` under the lede; the filters, the mockup's
+  `.chips`, a chip each, the current one `.chip.sig`; each section's head
+  `.shead`, its title at the left and its quiet line at the right; each card
+  the mockup's `.card`, its from line `.from` led by its tag, `.who.a` for a
+  goal, `.who.c` for a change, `.who.p` for a chat and a draft, its
+  headline `.q`, a goal's bar 6 px high on the hairline's grey, its done part
+  ink, its rows `.rows`, its byline `.byline`; a landed row `.row`, its time
+  mono. Its rules go under `temper.css`'s marker `/* ==== ui: work ==== */`,
+  before Goals'. On a phone the column is one, the cards full width.
+- **Deployment's frame** is How work runs' tabs' frame, `.col`, its head and
+  its tab bar the same rules, its kicker "Deployment"; Members' and Limits'
+  lines are Repositories' and Workers' `.setting` lines. Its rules go under
+  `/* ==== ui: settings ==== */`.
 - **A selector a browser accepts:** no rule of the shell's stylesheets
   nests `:has()` inside another `:has()`, which Chromium refuses, and the
   whole rule with it, without a word. What a rule asks of a child's own
@@ -720,9 +762,16 @@ replay says the same clocks (`README.md`, 5.12).
   tab bar's padding, a chat's foot, and the toast, 88 px over it, clear of the
   tabs.
 - **What a phone presses,** at 760 px and under: a control scrolled into view
-  stops clear of the tab bar, and the connection flows' primaries, Settings'
-  and a dialog's stand at least 44 px tall. Every other control keeps what the
-  mock draws.
+  stops clear of the tab bar, and every target stands at least 44 px tall to
+  a press (`../draft/surfaces.md`, section 10): the connection flows'
+  primaries, Settings' and a dialog's, and every control of the frame, Home,
+  Needs you, Work, Ask temper's page and an Ask temper chat; and any chat's
+  bar and composer, which one layout gives every chat (`README.md`, 3.5,
+  *One layout for every chat*). A control the mockups draw smaller,
+  the Away chip's 36 px pill, the night switch's 30 px circle, a way's tab,
+  keeps its drawing and takes a 44 px target around it, by its padding or a
+  transparent `::after` over it. A link inside a line of words is no target
+  of its own. Every other control keeps what the mock draws.
 - **No frame but the top bar outside a project** (`README.md`, 5.1; the
   look request `outside-pages`): a page that is no project's has no
   navigation, switcher or menu, at any width; the top bar is drawn as
@@ -812,6 +861,12 @@ replay says the same clocks (`README.md`, 5.12).
   tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
   SVG laid out by width where the page has two), the selector names what is drawn and
   keeps the request's declarations.
+  The drawing's rules (the path's and the legend's) and the tabs', line's,
+  card's and act's hold under How work runs' frame as under Ask temper's
+  page (`README.md`, 5.13), each selector naming both. With a fourth tab,
+  "Yours", at 760 px and under the tabs stand two by two, as the whole
+  story's `whole-story.css` has them, so that "Agents review" keeps its
+  words whole on a phone.
   A path's marks take no stroke but their own rules', as the request's
   page has none: skein's default stroke for a scene's marks (skein's
   `ui-web.md`, 12) gives way under `.temper-ways-path` by one rule of the
@@ -819,6 +874,20 @@ replay says the same clocks (`README.md`, 5.12).
   rule names, outweighing skein's rule and outweighed by every mark's own
   (the line's, the boundary's, a person's ring, the halo, the caret, a
   focused stop's area); skein's rule stays as it is.
+  Who acts is the whole story's marks (`web/whole-story/whole-story.css`,
+  `.ways-*`; `../draft/surfaces.md`, 13), orange the person's alone: a
+  person's ring `--gf-paper` stroked `--gf-signal` at 2; an agent's star
+  `--gf-ink`, and outlined when needed, `--gf-paper` stroked `--gf-ink`
+  at 1.3 with round joins; code's square `--gf-muted`, and outlined,
+  `--gf-paper` stroked `--gf-muted` at 1.3; a stop's small words 10 px
+  in `--gf-faint`; the legend's agent "✦" in `--gf-ink` and its agent
+  when needed the outlined star. The line's base is `--gf-line-2` at
+  1.5; each rise's fade (`README.md`, 5.16) is the look request's, its
+  stops coloured by their tokens: a person's `--gf-signal` at .8 at its
+  mark, .28 at the dotted line, `--gf-line-2` at the base; an agent's
+  `--gf-ink` at .3 and .1, the whole story's lighter tone for an agent
+  (`.ways-rise.a`), then `--gf-line-2`. Night takes the same tokens'
+  night values.
 - **How work runs' look** (`README.md`, 5.13, *The page*) is the whole
   story's `web/whole-story/how.html`, its `whole-story.css` rules taken
   exactly, values and all, in `temper.css` under `/* ==== ui: how ==== */`,
@@ -830,30 +899,24 @@ replay says the same clocks (`README.md`, 5.12).
     "Ask temper to change this" a `.btn.dark`, Settings' primary;
   - *a section's head,* `.shead`: its title and, at its right,
     `temper-how-way`, "the way: NAME", as `.shead span`;
-  - *the path in lanes,* `temper-how-scroll`, `.scroll`, holding the table
-    `temper-how-path`, `.path`'s border, radius, surface and cells' padding
-    and hairlines, its columns 84 px for the lanes' names and at least 92
-    px a stop, so that it scrolls sideways in its box where they don't fit;
-    a column header `temper-how-head`, `.path .h`; a lane's row header
-    `temper-how-lane`, `.path .lane`; a stop's button a pill, `.step`, in
-    who acts' colours, `temper-how-person` the signal's pale ground and
-    ink (`.step.p`), `temper-how-agent` blue (`.step.a`) and
-    `temper-how-code` slate (`.step.c`), the open one ringed in its own
-    ink; a bar's cells `temper-how-bar`, a rule 2 px wide of ink down
-    their middle, its header in ink; the authority row's cell
-    `temper-how-line`, `.line`'s dashed rule and faint mono words; the
-    last row with no hairline under it, as `.path .last`;
-  - *who acts' colours* as tokens of the frame, `--gf-agent`,
-    `--gf-agent-pale`, `--gf-code` and `--gf-code-pale`, the mock's values by
-    day and the night palette's by night (*Day and night,* below), a
-    person's the signal's existing tokens;
+  - *the path,* Ask temper's drawing and legend under their own rules
+    (*Ask temper's ways,* above), who acts by the path's marks alone: no
+    lanes, no pills, no colour of its own;
   - *the ways' tabs, line, card and act* take Ask temper's ways' rules
     (above), the same declarations under the frame's scope: the card under
-    the table with no caret;
+    the drawing, its caret across;
+  - *Roles,* `whole-story.css`' `.rows` and `.role` rules taken exactly:
+    a role's row `.role > summary`'s grid, 200 px for the name, its line
+    small and muted, the model at its right with a "›" turning down while
+    open; opened, `.role > dl`'s terms and `.role-more`'s link under its
+    hairline; at 760 px and under the line under the name, the terms
+    stacked; on tokens of its own, `temper-how-roles`, `temper-how-role`,
+    `temper-how-role-line`, `temper-how-role-model` and
+    `temper-how-role-more`;
   - *Budgets' row,* `temper-how-row`, `.row`'s grid with the first column
     200 px, its small words muted and its figure at its right;
   - *on a phone,* at 760 px and under, the column takes the frame's phone
-    width and the table keeps its columns, scrolling sideways.
+    width and the path runs down the page, as on Ask temper's page.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
@@ -884,6 +947,17 @@ replay says the same clocks (`README.md`, 5.12).
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
+- **Team's look** (`README.md`, 3.5, *Team*; the whole story's `team.html`
+  and `team/team.html`, and `whole-story.css`): its intro as Work's and
+  Home's, kicker, headline and lede, in a column 1020 px wide at most
+  (`.col.wide`); People's head the mockup's `.shead`, its title at the
+  left; the people a grid of boxes, `.grid3`, columns at least 240 px
+  wide filling the row, 16 px apart, each box `.box`, on the surface's
+  ground with the hairline's border, 12 px round, 18 px by 20 px inside,
+  8 px between its lines: the name in bold, the role in `small` and
+  `muted`, the line in `small`. On a phone the grid is one column, each
+  box full width. Its rules go under `temper.css`'s marker `/* ==== ui:
+  team ==== */`, before Settings', on tokens of its own, `temper-team*`.
 - **A page target draws no ring:** anything given `tabindex=-1` only to take
   focus (`main`, a heading, a document's section) draws no outline, by
   `skein-ui.css` (skein's `ui-web.md`, 12), and `temper.css` says so again of
@@ -1026,7 +1100,10 @@ replay says the same clocks (`README.md`, 5.12).
 
 The `temper` binary holds its bundle, so that `temper box` and `temper
 serve` serve the browser with nothing beside the binary, and `cargo
-build` in a checkout makes that binary. It is a person's convenience:
+build` in a checkout makes that binary. The engine's binary,
+`temper-engine`, holds the same bundle through the same crate, the only
+one of a deployment's binaries that does (`../protocol/README.md`,
+4.2). It is a person's convenience:
 the machine's builds keep building the way that serves their work,
 without it.
 
@@ -1968,13 +2045,30 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
+| `all-home` | the at-scale world's four projects, vsr, vsr-rs, cowsql and fabrig: three new briefs, two needs across two projects, four decisions, fabrig's main red; the whole story's `home.html`, and `phone-home.html` at a phone's width |
+| `all-home-nothing-new` | the four projects with nothing landed since the last look, no brief new and no need: the kicker, "The last change landed SPAN ago.", "Nothing needs you." and Projects |
+| `all-home-one-project` | one project read: no Projects, the headline "N changes landed in PROJECT." |
+| `all-home-away` | `all-home` with Away on for vsr-rs and cowsql: the switch and the chip "Away on 2 of 4", not pressed (`README.md`, 3.5, *Away*, *On All projects*) |
+| `all-home-away-on` | `all-home-away` after a press, each answer Away: the switch "Away until 08:00", pressed, and the toast "Away turned on for 2 projects: agents decide within their limits." |
+| `night-all-home` | `all-home` by night |
+| `home-step-pair` | a project's Home under You approve: a brief, what landed, an approval's card leading with "Review on GitHub ↗" and a question (`../draft/surfaces.md`, 12, Pair) |
+| `home-step-team` | a project's Home with Decided for you and a question (12, Team) |
+| `home-step-stock` | a project's Home with a brief and Decided for you, no need (12, Stock) |
+| `home-step-scale` | a project's Home with a question and a funds card (12, At scale) |
+| `needs-list` | Needs you across two projects, three open: the first open, the others closed rows; Decided for you under them; the whole story's `needs.html`, and `phone-need.html` at a phone's width |
+| `needs-list-second` | `needs-list` with its second row opened |
+| `needs-tell` | `needs-list` with words written in "Or tell it something else" and Send shown |
+| `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first |
+| `night-needs` | `needs-list` by night |
 | `home-try-stopped` | a failed trial below Home's intro: "WHO didn’t answer when tried" and Try again; no change to its counts |
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
 | `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
+| `home-decided` | hand-made Home deliveries: two `Decision`s of a chat and a goal, no Away row: the everyday kicker and headline, "Decided for you · 2" with each row's "Allowed:" line, and "Needs you" |
 | `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
-| `settings-away` | *How work runs* with the section `#away`, the defaults ticked |
+| `settings-away` | *How work runs* with the section `#away` as a view of Agents review's classes: "Agents decide, then tell you: …", three checks ticked, the locked last line and "Away until" |
+| `settings-away-you-approve` | *How work runs* on You approve's classes: the section's checks all unticked, no "Away until", and no Away switch in the rail |
 | `home-begin-both-left` | hand-made Home deliveries: both steps left, the repository first; first repository offered; the rail's Home and Ask temper alone, the phone's three tabs |
 | `home-begin-ask-left` | hand-made Home deliveries: repository adopted, "temper can change its code now."; "Tell temper how you work" left, its act staying in Ask temper (the look request `to-begin-two-steps`'s page) |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
@@ -2049,18 +2143,17 @@ from the engine's own answers, is where the look is tuned.
 | `settings-drafts-off` | `settings` with "Chats can write drafts" off |
 | `settings-goals-off` | `settings` with Goals hidden: no ways of working, and the rail without "Goals" |
 | `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
-| `settings-away-off` | `settings` with the Away switch hidden |
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
-| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", the path in lanes with "verify" before main's bar, no act but "Keep it" while To begin's first step is left; the foot's switches (`README.md`, 5.13, *The page*) |
-| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" in You's lane |
-| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Budgets' row "Goals", "80" |
+| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; the foot's switches (`README.md`, 5.13, *The page*) |
+| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line |
+| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer with the coordinator and the foreman, Budgets' row "Goals", "80" |
 | `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", a fourth tab, "Yours", current and shown, no act |
-| `how-card` | `how` with the review's stop pressed: its cell current, its card under the table, its model, what it can do and what it is asked to, "Open the reviewer ›" |
-| `night-how` | `how` with the night switch pressed: who acts' colours by night |
+| `how-card` | `how` with the review's stop pressed: its ring and words, its card under the drawing with its caret, its model, what it can do and what it is asked to, "Open the reviewer ›" |
+| `night-how` | `how` with the night switch pressed: the path's marks by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
-| `forges-in-settings` | `Forges` inside Settings' frame |
-| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot at a phone's width alone |
+| `forges-in-settings` | `Forges` inside Deployment's frame |
+| `accounts-in-settings` | `Accounts` inside Deployment's frame, "Sign out" at its foot at a phone's width alone |
 | `forges-empty` | the Forges tab's quiet band, in a world with no forge |
 | `forges-setting-up` | the first run's Forges at step 6: a row setting up |
 | `forges-fetching` | the first run's Forges at step 24: a row fetching Forgejo, its percent in its summary |
@@ -2138,8 +2231,33 @@ from the engine's own answers, is where the look is tuned.
 | `chats-drafts` | the Chats page under Drafts: "writes away-mode.md" |
 | `ask-chat-document` | an Ask temper chat in Chat, its document written |
 | `ask-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
-| `rail-new-menu` | the rail's "+ New chat" with its menu open |
+| `rail-new-menu` | the rail's "+ New draft or change" with its menu open: Draft, Change and Ask temper |
 | `rail-person-menu` | the rail's person with its menu open |
+| `rail-new-change` | a project offering no drafts, as at Pair: the rail's "+ New change", a link, no menu |
+| `rail-all-projects` | a person in two projects, the switcher open: "All projects", "2 projects", first |
+| `rail-across` | *Needs you* across projects: the switcher names "All projects", the rail's Work and How work runs the project last open |
+| `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts; four changes landed this week |
+| `work-pair` | hand-made deliveries after `pair/work.html`: chats and their changes alone, drafts not offered; no Drafts or Goals filter, the rail's "+ New change" |
+| `work-drafts` | `work` under Drafts: the drafts' cards alone |
+| `work-goals` | `work` under Goals: Work's head and filters, the goals' list under them, its heading at level 2 |
+| `work-changes` | `work` under Changes: Work's head and filters, the queue and what landed under them |
+| `work-empty` | hand-made deliveries with nothing listed: "Nothing in flight yet.", All alone among the filters |
+| `members` | Deployment's Members: the deployment's line, two projects' members with their roles |
+| `members-refused` | Members with one project's read refused: its title and "Read by the project’s members." |
+| `limits` | Deployment's Limits: the capacities, two waiting attempts, and two projects' tasks |
+| `limits-not-owner` | Limits for a person with no role in the deployment: its one line |
+| `night-work` | `work` with the night look on |
+| `night-limits` | `limits` with the night look on |
+| `remembered-none` | "What temper remembers about you" with none kept: its quiet band (`README.md`, 5.17) |
+| `remembered-three` | three lines, two kept by an Ask temper chat and one changed by the person, each with "Change" and "Delete" |
+| `remembered-full` | twelve lines, and the full list's line under the last |
+| `remembered-changing` | `remembered-three` with a line's field open, "Save" and "Cancel" |
+| `remembered-refused` | `remembered-three` after a change refused as moved: its line under the row |
+| `night-remembered-none` | `remembered-none` with the night look on |
+| `night-remembered-three` | `remembered-three` with the night look on |
+| `night-remembered-full` | `remembered-full` with the night look on |
+| `night-remembered-changing` | `remembered-changing` with the night look on |
+| `night-remembered-refused` | `remembered-refused` with the night look on |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |
@@ -2153,6 +2271,14 @@ from the engine's own answers, is where the look is tuned.
 | `needs-held` | a held task's card |
 | `needs-funds` | a held task out of budget: "S of L used." |
 | `needs-plain-words` | a question in no line form: "Reply…" alone |
+| `needs-decided` | the unfiltered *Needs you*: a question, then *Decided for you* with rows of two projects, each "PROJECT · TITLE · 01:05" |
+| `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." and "Stop asking" |
+| `needs-stop-asking` | `needs-why` with Stop asking open for an owner: "Let agents decide implementation choices, then tell you." with "Apply", and "Keep asking" |
+| `needs-stop-asking-set` | a question that changes a path set, Stop asking open for a member: the words offer's field, the split, each with "Propose" |
+| `needs-only-you` | the unfiltered *Needs you* (`README.md`, 3.5, **Only you**): a question, then "Only you · 2", a signed-out ChatGPT sign-in and an expiring Claude Code login, each with "Sign in again" |
+| `needs-only-you-done` | no card open: "Nothing needs you.", "Home", then "Only you · 1", a signed-out ChatGPT sign-in |
+| `night-needs-only-you` | `needs-only-you` with the night look on |
+| `accounts-expiring` | Accounts (`README.md`, 5.5, *Each state*): a ChatGPT sign-in read as expiring, "Expiring: sign in again before it ends." and "Continue with ChatGPT" |
 | `goal-running` | first-run-projects, running: six of nine tasks in, its report, Left and Risk, the bar, three waiting lines, "6 landed" folded |
 | `goal-needs-funds` | first-run-projects held for funds: "needs funds", its band with Release and Leave held |
 | `goal-needs-question` | welcome-stall with an open question: its band and its parsed choices, the recommended one primary |
@@ -2168,7 +2294,7 @@ from the engine's own answers, is where the look is tuned.
 | `goal-toast` | `goal-running` paused, its toast showing |
 | `goal-sending` | `goal-running` with the person's words sent and one being sent, the composer holding its next words |
 | `start-goal` | Goals with "Start one from a draft" pressed: the sheet with no draft, its Draft field and two ways |
-| `start-goal-draft` | the sheet opened with first-run-projects.md, its name, its default way and "When it needs you", following the away switch |
+| `start-goal-draft` | the sheet opened with first-run-projects.md, its name, its default way and "When it needs you", as the project says |
 | `start-goal-refused` | `start-goal-draft` after a refused start: "Always ask" chosen, `.sheet-error` in jig's words |
 | `task-solo-T3` | the solo world's goal T3, on `goal.html`'s page |
 | `accounts-solo` | the solo world's accounts |
@@ -2272,6 +2398,9 @@ from the engine's own answers, is where the look is tuned.
 | `approve-busy` | a read answered busy: "temper couldn't answer just now" and Try again |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
+| `team` | hand-made deliveries after the whole story's `team/team.html`: two people, the person reading the project's owner with two questions and a review waiting, and Sam, a member, with a question waiting on one of Sam's chats; "Two of you."; a service member left out |
+| `team-alone` | one person, nothing waiting: "Just you." and one box, "Nothing waits on you." |
+| `night-team` | `team` with the night look on |
 | `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
 | `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |
 | `task-releasing-uncertain` | a release with an uncertain effect and its two choices |

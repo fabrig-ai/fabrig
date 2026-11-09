@@ -65,7 +65,7 @@ pub(crate) fn inputs(
     let mut agents = List::<ways::Agent>::uncapped();
     let goal = match start {
         ways::Start::Chat => None,
-        ways::Start::Goal { charter } => Some(charter),
+        ways::Start::Goal { charter, .. } => Some(charter),
     };
     for number in [Some(charters.change), Some(charters.review), goal].into_iter().flatten() {
         let mut held = false;
@@ -87,15 +87,32 @@ pub(crate) fn inputs(
         producer: charters.change,
         reviewer: charters.review,
         by: domain.forge.landing_way(project),
+        merge_job: domain.forge.merge_job(project).is_some(),
         roles: ordered.into_boxed(),
         agents: agents.into_boxed(),
     }
 }
 
 fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Repository, other: bool) -> ways::Repository {
+    let mut workflows = List::uncapped();
+    let checks = domain.forge.repository_gates(project, repository.provider);
+    for workflow in &repository.workflows {
+        let mut dispatched = false;
+        if let Some(checks) = checks {
+            for gate in &checks.gates {
+                dispatched |= workflow == &gate.workflow;
+            }
+            for tier in &checks.tiers {
+                dispatched |= workflow == &tier.workflow;
+            }
+        }
+        if !dispatched {
+            workflows.push(workflow.clone()).expect("repository workflows");
+        }
+    }
     let mut gates = List::uncapped();
     let mut tiers = List::uncapped();
-    if let Some(checks) = domain.forge.repository_gates(project, repository.provider) {
+    if let Some(checks) = checks {
         for gate in &checks.gates {
             gates.push(gate.name.clone()).expect("configured test gates");
         }
@@ -104,7 +121,11 @@ fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Reposito
                 continue;
             }
             tiers
-                .push(ways::Tier { name: tier.name.clone(), follows: tier.follows.clone() })
+                .push(ways::Tier {
+                    name: tier.name.clone(),
+                    follows: tier.follows.clone(),
+                    description: tier.description.clone(),
+                })
                 .expect("configured tiers");
         }
     }
@@ -118,6 +139,7 @@ fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Reposito
             forge::Protection::Rule(rule) => rule.contexts.clone(),
             forge::Protection::Unknown | forge::Protection::Absent => Box::default(),
         },
+        workflows: workflows.into_boxed(),
         gates: gates.into_boxed(),
         tiers: tiers.into_boxed(),
     }
@@ -127,7 +149,14 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
     match domain.forge.setting(7, project, 1) {
         Some(settings::SizedValue { value: settings::Value::Ways(value), .. }) => Some(value),
         Some(settings::SizedValue {
-            value: settings::Value::Rule(_) | settings::Value::Charter(_) | settings::Value::Questions(_),
+            value:
+                settings::Value::Rule(_)
+                | settings::Value::Charter(_)
+                | settings::Value::Goal(_)
+                | settings::Value::Questions(_)
+                | settings::Value::CharterWords(_)
+                | settings::Value::Classes(_)
+                | settings::Value::ProjectWords(_),
             ..
         })
         | None => None,
@@ -159,7 +188,10 @@ fn start(domain: &Domain, project: u32, items: &[ways::Item]) -> ways::Start {
                 && resource.symbol == super::forge_route::GOAL_BRANCH_SYMBOL
             {
                 return match template.executor {
-                    TemplateExecutor::Charter(charter) => ways::Start::Goal { charter },
+                    TemplateExecutor::Charter(charter) => {
+                        let goal = ways::laid_goal(domain.forge.template_goal(template.number), template.number, items);
+                        ways::Start::Goal { charter, design: goal.design, close_out: goal.close_out }
+                    }
                     TemplateExecutor::Chosen => ways::Start::Chat,
                 };
             }
@@ -194,6 +226,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         entries
             .push(ways::WayEntry {
                 name: way.name.clone(),
+                headline: way.headline.clone(),
                 line: way.line.clone(),
                 path,
                 items,
@@ -207,6 +240,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         ways: entries.into_boxed(),
         current: ways::current(&paths.into_boxed(), &own),
         own,
+        words: domain.forge.project_words(project).cloned(),
         may_change: domain.core.people.role(party, project) == Some(jig_domain_people::Role::Owner),
     }
 }

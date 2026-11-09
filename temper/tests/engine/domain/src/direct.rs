@@ -205,9 +205,9 @@ impl Driver {
                 }
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, bytes }) => {
                     self.loads.push((owner, range.clone()));
-                    let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    let terminal = self.store.page_terminal(&range, after.as_ref(), most);
                     self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
-                    assert!(rows.len() <= usize::try_from(most).expect("small count"));
+
                     assert!(bytes >= self.env.limits.loads.bytes);
                     if self.fail_archive_once
                         && matches!(
@@ -220,13 +220,17 @@ impl Driver {
                         self.fail_archive_once = false;
                         self.events.push_back(engine::Event::Store(engine::StoreInput::Unloaded { owner }));
                     } else {
-                        let texts = transcript_texts(&range, &rows);
-                        self.events.push_back(engine::Event::Store(engine::StoreInput::Loaded {
-                            owner,
-                            rows,
-                            next,
-                            texts,
-                        }));
+                        let terminal = match terminal {
+                            engine::StoreInput::Loaded { rows, next, texts, .. } => {
+                                assert!(rows.len() <= usize::try_from(most).expect("small count"));
+                                let texts = transcript_texts(texts, &rows);
+                                engine::StoreInput::Loaded { owner, rows, next, texts }
+                            }
+                            engine::StoreInput::Unloaded { .. } => engine::StoreInput::Unloaded { owner },
+                            terminal @ engine::StoreInput::Uncommitted { .. } => terminal,
+                            terminal => panic!("page terminal: {terminal:?}"),
+                        };
+                        self.events.push_back(engine::Event::Store(terminal));
                     }
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
@@ -578,19 +582,26 @@ pub fn say_ask(sign_in: u64, task: u64, key: u8) -> engine::Event {
 /// The service renders a transcript window's turns as text (temper-service
 /// store/ranges.rs); this world's turns are text already, so each turn's
 /// rendering is its own bytes' end within the tail.
-fn transcript_texts(range: &temper_engine_domain::Range, rows: &[Record]) -> Option<engine::TranscriptTexts> {
-    if !matches!(range, temper_engine_domain::Range::Core(temper_engine_domain::CoreRange::TaskTranscript { .. })) {
-        return None;
-    }
+fn transcript_texts(texts: Option<engine::TranscriptTexts>, rows: &[Record]) -> Option<engine::TranscriptTexts> {
+    let texts = texts?;
     let tail = usize::try_from(engine::TRANSCRIPT_TAIL_BYTES).expect("tail fits usize");
     Some(
-        rows.iter()
-            .map(|row| {
-                let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = row else {
-                    return None;
+        texts
+            .into_iter()
+            .enumerate()
+            .map(|(index, text)| {
+                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn)))) =
+                    rows.get(index)
+                else {
+                    return text;
                 };
-                let start = turn.transcript.len().saturating_sub(tail);
-                Some(Box::from(&turn.transcript[start..]))
+                match text {
+                    engine::TurnText::Cut(bytes) => engine::TurnText::Cut(bytes),
+                    engine::TurnText::Rendered(_) | engine::TurnText::Unrendered => {
+                        let start = turn.transcript.len().saturating_sub(tail);
+                        engine::TurnText::Rendered(Box::from(&turn.transcript[start..]))
+                    }
+                }
             })
             .collect(),
     )

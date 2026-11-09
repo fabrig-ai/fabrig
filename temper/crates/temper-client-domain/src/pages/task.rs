@@ -461,12 +461,16 @@ impl Task {
             | Act::Switcher(_)
             | Act::Away(_)
             | Act::Terminal(_)
+            | Act::Remembered(_)
             | Act::Models(_)
+            | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
             | Act::ConnectModel(_)
+            | Act::AskLine { .. }
+            | Act::AskWith { .. }
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::WayTab { .. }
@@ -597,12 +601,16 @@ impl Task {
             | Act::Switcher(_)
             | Act::Away(_)
             | Act::Terminal(_)
+            | Act::Remembered(_)
             | Act::Models(_)
+            | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
             | Act::ConnectModel(_)
+            | Act::AskLine { .. }
+            | Act::AskWith { .. }
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::WayTab { .. }

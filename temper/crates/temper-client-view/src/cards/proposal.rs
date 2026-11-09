@@ -709,6 +709,7 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
             let (kind, project) = match value {
                 Proposed::Ways { project, .. } => (7, *project),
                 Proposed::Questions { project, .. } => (6, *project),
+                Proposed::Classes { project, .. } => (8, *project),
             };
             rows.push(c::RevisionItemHead {
                 setting: c::Setting::Application { kind, scope: project, number: 1 },
@@ -759,7 +760,13 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
                         );
                         rendered = true;
                     }
-                    Proposed::Ways { .. } | Proposed::Questions { .. } => {}
+                    Proposed::Classes { project, classes }
+                        if item.setting == (c::Setting::Application { kind: 8, scope: *project, number: 1 }) =>
+                    {
+                        proposed_classes(b, classes, words);
+                        rendered = true;
+                    }
+                    Proposed::Ways { .. } | Proposed::Questions { .. } | Proposed::Classes { .. } => {}
                 }
             }
         }
@@ -887,10 +894,6 @@ fn proposed_ways(
             Word::SettingsProposalChanges,
             if ways.changes { Word::SettingsProposalShown } else { Word::SettingsProposalHidden },
         ),
-        (
-            Word::SettingsProposalAway,
-            if ways.away { Word::SettingsProposalShown } else { Word::SettingsProposalHidden },
-        ),
     ] {
         setting_line(b, &words.say(word, &[Hole::Name(words.say(value, &[]))]));
     }
@@ -907,6 +910,83 @@ fn proposed_ways(
         b,
         &words.say(Word::SettingsProposalWay, &[super::name(skein_lib::Decimal::of(u64::from(ways.way)).as_bytes())]),
     );
+}
+/// The table's subjects in the settings order (client/README.md, 5.13, The card in a chat).
+pub(crate) fn class_objects(
+    words: &Words,
+    classes: &temper_protocol_reaches::Classes,
+    class: temper_protocol_reaches::Class,
+) -> Box<[u8]> {
+    use temper_protocol_reaches::{Kind, Subject};
+    let mut objects = skein_lib::List::uncapped();
+    for kind in Kind::ALL {
+        if kind.fixed() {
+            continue;
+        }
+        let subject = Subject::Kind(kind);
+        if classes.class_of(subject) == class {
+            objects.push(crate::shared::object(words, subject, 0, Some(classes))).expect("bounded subjects");
+        }
+    }
+    for (index, item) in classes.items.iter().enumerate() {
+        let own_kind = match item.subject {
+            Subject::Kind(_) => item.words.is_empty(),
+            Subject::Set(_) => false,
+        };
+        if !own_kind && item.class == class {
+            let under = u8::try_from(index).expect("bounded classes").checked_add(1).expect("bounded classes");
+            objects.push(crate::shared::object(words, item.subject, under, Some(classes))).expect("bounded subjects");
+        }
+    }
+    for set in &classes.sets {
+        let subject = Subject::Set(set.number);
+        let mut own = false;
+        for item in &classes.items {
+            if item.subject == subject && item.words.is_empty() {
+                own = true;
+                break;
+            }
+        }
+        if !own && classes.class_of(subject) == class {
+            objects.push(crate::shared::object(words, subject, 0, Some(classes))).expect("bounded subjects");
+        }
+    }
+    comma_join(objects.as_slice())
+}
+fn comma_join(objects: &[Box<[u8]>]) -> Box<[u8]> {
+    let mut length = 0_usize;
+    for (index, object) in objects.iter().enumerate() {
+        if index != 0 {
+            length = length.checked_add(2).expect("bounded subjects");
+        }
+        length = length.checked_add(object.len()).expect("bounded subjects");
+    }
+    let mut writer = skein_lib::Writer::new(length);
+    for (index, object) in objects.iter().enumerate() {
+        if index != 0 {
+            writer.put(b", ").expect("bounded subjects");
+        }
+        writer.put(object).expect("bounded subjects");
+    }
+    writer.finish()
+}
+fn proposed_classes(b: &mut Builder, classes: &temper_protocol_reaches::Classes, words: &Words) {
+    use temper_protocol_reaches::Class;
+    setting_line(b, &words.say(Word::ClassesTitle, &[]));
+    for (class, word) in
+        [(Class::Decide, Word::ClassesDecide), (Class::Ask, Word::ClassesAsk), (Class::AskAway, Word::ClassesAskAway)]
+    {
+        let objects = class_objects(words, classes, class);
+        if !objects.is_empty() {
+            setting_line(b, &words.say(word, &[Hole::Name(objects)]));
+        }
+    }
+    for set in &classes.sets {
+        setting_line(
+            b,
+            &words.say(Word::ClassesSet, &[Hole::Name(set.name.clone()), Hole::Name(comma_join(&set.patterns))]),
+        );
+    }
 }
 fn setting_name(root: &temper_client_domain::Domain, item: &c::RevisionItemHead, words: &Words) -> Box<[u8]> {
     let base = match template_name(root, item.setting, words) {
@@ -942,8 +1022,12 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
         c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),
         c::Setting::Application { kind: 3, number, .. } => (b"forge charter".as_slice(), Some(number)),
+        c::Setting::Application { kind: 11, number, .. } => (b"template-goal".as_slice(), Some(number)),
         c::Setting::Application { kind: 6, scope, .. } => (b"project-questions".as_slice(), Some(scope)),
         c::Setting::Application { kind: 7, scope, .. } => (b"project-ways".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 8, scope, .. } => (b"project-classes".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 9, number, .. } => (b"charter-words".as_slice(), Some(number)),
+        c::Setting::Application { kind: 10, scope, .. } => (b"project-words".as_slice(), Some(scope)),
         c::Setting::Application { kind, scope, number } => {
             return joined(&[
                 b"application kind ",

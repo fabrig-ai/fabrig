@@ -190,7 +190,23 @@ fn restore_configuration(limits: &engine::Limits) -> engine::Config {
     let kinds = temper_engine_domain_world::kinds::configuration(limits);
     config.core.kinds = kinds.core.kinds;
     config.core.defaults.charters = kinds.core.defaults.charters;
-    config.kinds_stock = kinds.kinds_stock;
+    let mut stock = kinds.kinds_stock.into_vec();
+    // This story keeps template 4's neither value independently of the binary's stock.
+    stock.retain(|value| value.kind != 11 || value.number != 4);
+    let value = temper_engine_domain_forge::settings::Value::Goal(temper_engine_domain_forge::settings::TemplateGoal {
+        design: false,
+        close_out: false,
+    });
+    stock.push(temper_engine_domain_forge::settings::Stock {
+        kind: 11,
+        scope: 0,
+        number: 4,
+        value: temper_engine_domain_forge::settings::SizedValue {
+            size: temper_engine_smith::kinds::size(&value),
+            value,
+        },
+    });
+    config.kinds_stock = stock.into_boxed_slice();
     config
 }
 
@@ -231,6 +247,11 @@ const KINDS: &[SettingWalk] = &[
         selector: r#"{"kind":"forge-charter","number":1}"#,
         name: "forge-charter 1",
         show: &[b"forge-charter", b"1"],
+    },
+    SettingWalk {
+        selector: r#"{"kind":"template-goal","number":4}"#,
+        name: "template-goal 4",
+        show: &[b"template-goal", b"4"],
     },
     SettingWalk {
         selector: r#"{"kind":"project-policy","project":1}"#,
@@ -278,6 +299,12 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
                 let value = w::ForgeCharter::new(&w::CEILINGS, parts).expect("changed charter");
                 let mut writer = Writer::new(usize::try_from(value.measure()).expect("charter bytes"));
                 value.encode(&mut writer).expect("measured charter");
+                *bytes = writer.finish();
+            } else if matches!(setting, c::Setting::Application { kind: 11, .. }) {
+                let value = w::TemplateGoal::new(&w::CEILINGS, w::TemplateGoalParts { design: true, close_out: true })
+                    .expect("changed goal work");
+                let mut writer = Writer::new(usize::try_from(value.measure()).expect("goal work bytes"));
+                value.encode(&mut writer).expect("measured goal work");
                 *bytes = writer.finish();
             } else {
                 let mut parts =
@@ -329,11 +356,14 @@ fn ctl_accept(world: &mut ClientWorld, agent: ClientId, proposal: &str, key: &[u
 }
 
 #[test]
-#[ignore = "temper/docs/design/protocol/configuration.md, 13.2 and 13.4: a restored shared project default loses its retained state at restart"]
 fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
     let mut world = restore_world();
     let agent = fixtures::agent(&mut world);
     let project_before = call(&mut world, agent, &[b"project", b"show", b"1"]);
+    assert_eq!(
+        call(&mut world, agent, &[b"settings", b"show", b"template-goal", b"4"]),
+        "template-goal 4, revision 1\n{\"design\":false,\"close_out\":false}\ndefault, 2 bytes\n"
+    );
     let originals: Vec<_> = KINDS.iter().map(|kind| show_value(&mut world, agent, kind)).collect();
     let mut changed = originals.clone();
     let mut items = Vec::new();
@@ -353,9 +383,24 @@ fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
         );
     }
     ctl_accept(&mut world, agent, &proposal, b"accept-every-kind");
-    assert!(call(&mut world, agent, &[b"settings", b"show"]).starts_with("newest revision 2\n"));
+    let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+    assert!(inventory.starts_with("newest revision 2\n"));
+    for name in ["landing-rule", "forge-charter", "template-goal"] {
+        assert!(inventory.contains(name), "{inventory}");
+    }
     let revision = call(&mut world, agent, &[b"revision", b"show", b"2"]);
     for (kind, (setting, changed)) in KINDS.iter().zip(&changed) {
+        let mut words = vec![b"settings".as_slice(), b"show"];
+        words.extend_from_slice(kind.show);
+        let shown = call(&mut world, agent, &words);
+        assert!(shown.contains(&value_json(*setting, changed.clone())), "{shown}");
+        if matches!(setting, c::Setting::Application { kind: 11, .. }) {
+            assert_eq!(
+                shown,
+                "template-goal 4, revision 2\n{\"design\":true,\"close_out\":true}\nchanged at revision 2, 2 bytes\n"
+            );
+        }
+        assert_eq!(show_value(&mut world, agent, kind), (*setting, changed.clone()), "{}", kind.name);
         let line = revision
             .lines()
             .position(|line| line.trim_start().starts_with(&format!("{}:", kind.name)))
@@ -525,7 +570,7 @@ fn revision_world() -> ClientWorld {
     limits.people.initial_owners = 2;
     limits.people.requests = 16;
     limits.settings.history = 4;
-    limits.tasks.charters = 8;
+    limits.tasks.charters = 12; // Kind 9's stock lines run up to charter 12.
     let mut config = restore_configuration(&limits);
     let mut charter = config.core.defaults.charters[0].clone();
     charter.number = 6;
@@ -637,14 +682,15 @@ fn restored_forge_outputs(world: &mut ClientWorld, agent: ClientId) -> [String; 
     })
 }
 
-const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
+const PROJECT_WAYS_FILE: &str = r#"{"items":[{"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"way":0}},{"setting":{"kind":"project-questions","project":1},"set":"foreman"}]}"#;
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the table checks ways, questions and words through the joined ctl path")]
 fn settings_show_prints_a_projects_ways_and_questions() {
     let mut world = revision_world();
     let agent = fixtures::agent(&mut world);
     for (kind, value) in [
-        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":false,"changes":false,"way":0}"#),
         (b"project-questions", "\"none\""),
     ] {
         let shown = call(&mut world, agent, &[b"settings", b"show", kind, b"1"]);
@@ -659,7 +705,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     assert!(inventory.contains("project-ways 1") && inventory.contains("project-questions 1"), "{inventory}");
     let project = configuration().core.seed_projects[0].name.as_bytes().to_vec();
     for (kind, value) in [
-        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}"#),
+        (b"project-ways".as_slice(), r#"{"drafts":true,"goals":true,"changes":false,"way":0}"#),
         (b"project-questions", "\"foreman\""),
     ] {
         for selector in [b"1".as_slice(), project.as_ref()] {
@@ -689,6 +735,77 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let historical =
         call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1", b"--revision", b"2", b"--json"]);
     assert!(historical.contains("\"value\":\"foreman\""), "{historical}");
+    for (kind, selector, value, owners, name, initial) in [
+        (
+            b"charter-words".as_slice(),
+            r#"{"kind":"charter-words","number":1}"#,
+            r#""reviews every change""#,
+            "to the deployment's owners",
+            "charter-words 1",
+            r#""talks with you and asks for the changes""#,
+        ),
+        (
+            b"project-words",
+            r#"{"kind":"project-words","project":1}"#,
+            r#"{"headline":"Our way","lede":"We review every change."}"#,
+            "to project 1's owners",
+            "project-words 1",
+            "null",
+        ),
+    ] {
+        let mut world = revision_world();
+        let agent = fixtures::agent(&mut world);
+        for json in [false, true] {
+            let mut argv = vec![b"settings".as_slice(), b"show", kind, b"1"];
+            if json {
+                argv.push(b"--json");
+            }
+            let shown = call(&mut world, agent, &argv);
+            let expected = if json {
+                format!("\"value\":{initial}")
+            } else if initial == "null" {
+                "\nnone\n".to_owned()
+            } else {
+                format!("\n{initial}\n")
+            };
+            assert!(shown.contains(&expected), "{shown}");
+        }
+        let file = format!(r#"{{"items":[{{"setting":{selector},"set":{value}}}]}}"#);
+        let proposal = submit_file(&mut world, agent, &file, owners);
+        for json in [false, true] {
+            let mut argv = vec![b"proposal".as_slice(), b"show", proposal.as_bytes()];
+            if json {
+                argv.push(b"--json");
+            }
+            let shown = call(&mut world, agent, &argv);
+            assert!(shown.contains(value), "{shown}");
+            assert!(shown.contains(if json { core::str::from_utf8(kind).unwrap() } else { name }), "{shown}");
+        }
+        ctl_accept(&mut world, agent, &proposal, b"accept-words");
+        let inventory = call(&mut world, agent, &[b"settings", b"show"]);
+        assert!(inventory.contains(name), "{inventory}");
+        for json in [false, true] {
+            for historical in [false, true] {
+                let mut argv = vec![b"settings".as_slice(), b"show", kind, b"1"];
+                if historical {
+                    argv.extend([b"--revision".as_slice(), b"2"]);
+                }
+                if json {
+                    argv.push(b"--json");
+                }
+                let shown = call(&mut world, agent, &argv);
+                assert!(shown.contains(value), "{shown}");
+                assert!(!shown.contains("the stock"), "{shown}");
+            }
+            let mut argv = vec![b"revision".as_slice(), b"show", b"2"];
+            if json {
+                argv.push(b"--json");
+            }
+            let shown = call(&mut world, agent, &argv);
+            assert!(shown.contains(value), "{shown}");
+            assert!(shown.contains(if json { core::str::from_utf8(kind).unwrap() } else { name }), "{shown}");
+        }
+    }
 }
 
 #[test]

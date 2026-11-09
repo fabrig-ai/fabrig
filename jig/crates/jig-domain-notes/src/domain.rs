@@ -119,14 +119,29 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             } else if !valid_new(&entry, &env.limits) {
                 push(out, Request::Refused { owner, why: new_refusal(&entry, &env.limits) });
             } else {
-                begin(domain, owner, Action::WriteLines { entry, recalled, range }, out);
+                match entry.scope {
+                    Scope::Party { .. } => push(
+                        out,
+                        Request::Refused {
+                            owner,
+                            why: Refusal::PastBound {
+                                bytes: u32::try_from(entry.body.len()).unwrap_or(u32::MAX),
+                                bound: 0,
+                            },
+                        },
+                    ),
+                    Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } | Scope::Resources { .. } => {
+                        begin(domain, owner, Action::WriteLines { entry, recalled, range }, out);
+                    }
+                }
             }
         }
         Event::Edit { owner, party, name, scope, change } => {
             if domain.busy() {
                 push(out, Request::Refused { owner, why: Refusal::Busy });
-            } else if !valid_scope(&scope, &env.limits) || !valid_change(&change, &env.limits) {
-                push(out, Request::Refused { owner, why: Refusal::Oversized });
+            } else if !valid_scope(&scope, &env.limits) || !valid_change(&scope, &change, &env.limits) {
+                let why = change_refusal(&scope, &change, &env.limits);
+                push(out, Request::Refused { owner, why });
             } else {
                 begin(domain, owner, Action::Edit { party, name, scope, change }, out);
             }
@@ -207,7 +222,7 @@ fn loaded(domain: &mut Domain, env: &Env<Limits>, owner: Token, rows: Rows, more
                 pending.load_owner = domain.next_load_token();
                 push(out, Request::Load { owner: pending.load_owner, range: Range::Lines { scope, after } });
                 domain.pending = Some(pending);
-            } else if count >= env.limits.entries_per_scope {
+            } else if count >= scope_entries(&scope, &env.limits) {
                 push(out, Request::Refused { owner: pending.owner, why: Refusal::Full });
             } else {
                 match pending.action {
@@ -376,19 +391,62 @@ fn save_entry(owner: Token, entry: Entry, change: LineChange, out: &mut Queue<Re
 #[must_use]
 pub fn valid_new(entry: &New, limits: &Limits) -> bool {
     valid_scope(&entry.scope, limits)
-        && valid_text(&entry.description, limits.description_bytes, true)
-        && valid_text(&entry.body, limits.body_bytes, false)
+        && valid_text(&entry.description, description_bound(&entry.scope, limits), true)
+        && valid_text(&entry.body, body_bound(&entry.scope, limits), false)
         && valid_references(&entry.references, limits)
 }
 
-/// What a write's shape rejects: a body past its bound says so; anything else is oversized.
+/// What a write's shape rejects: a party's line or a body past its bound says so.
 #[must_use]
 pub fn new_refusal(entry: &New, limits: &Limits) -> Refusal {
-    let bytes = u32::try_from(entry.body.len()).unwrap_or(u32::MAX);
-    if entry.body.len() > usize::try_from(limits.body_bytes).expect("body bound fits usize") {
-        Refusal::PastBound { bytes, bound: limits.body_bytes }
+    text_refusal(&entry.scope, &entry.description, &entry.body, limits)
+}
+
+fn text_refusal(scope: &Scope, description: &[u8], body: &[u8], limits: &Limits) -> Refusal {
+    let description_bytes = u32::try_from(description.len()).unwrap_or(u32::MAX);
+    let body_bytes = u32::try_from(body.len()).unwrap_or(u32::MAX);
+    match scope {
+        Scope::Party { .. }
+            if description.len() > usize::try_from(limits.party_bytes).expect("line bound fits usize") =>
+        {
+            return Refusal::PastBound { bytes: description_bytes, bound: limits.party_bytes };
+        }
+        Scope::Party { .. }
+        | Scope::Deployment
+        | Scope::Project { .. }
+        | Scope::Goal { .. }
+        | Scope::Resources { .. } => {}
+    }
+    let bound = body_bound(scope, limits);
+    if body.len() > usize::try_from(bound).expect("body bound fits usize") {
+        Refusal::PastBound { bytes: body_bytes, bound }
     } else {
         Refusal::Oversized
+    }
+}
+
+fn description_bound(scope: &Scope, limits: &Limits) -> u32 {
+    match scope {
+        Scope::Party { .. } => limits.party_bytes,
+        Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } | Scope::Resources { .. } => {
+            limits.description_bytes
+        }
+    }
+}
+
+fn body_bound(scope: &Scope, limits: &Limits) -> u32 {
+    match scope {
+        Scope::Party { .. } => 0,
+        Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } | Scope::Resources { .. } => limits.body_bytes,
+    }
+}
+
+fn scope_entries(scope: &Scope, limits: &Limits) -> u32 {
+    match scope {
+        Scope::Party { .. } => limits.party_entries,
+        Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } | Scope::Resources { .. } => {
+            limits.entries_per_scope
+        }
     }
 }
 
@@ -403,8 +461,8 @@ pub fn valid_entry(entry: &Entry, limits: &Limits) -> bool {
         && entry.revision != 0
         && author_valid
         && valid_scope(&entry.scope, limits)
-        && valid_text(&entry.description, limits.description_bytes, true)
-        && valid_text(&entry.body, limits.body_bytes, false)
+        && valid_text(&entry.description, description_bound(&entry.scope, limits), true)
+        && valid_text(&entry.body, body_bound(&entry.scope, limits), false)
         && valid_references(&entry.references, limits)
 }
 
@@ -426,14 +484,24 @@ pub fn valid_line(line: &Line, limits: &Limits) -> bool {
     line.name != 0
         && line.revision != 0
         && valid_scope(&line.scope, limits)
-        && valid_text(&line.description, limits.description_bytes, true)
+        && valid_text(&line.description, description_bound(&line.scope, limits), true)
 }
 
-fn valid_change(change: &Change, limits: &Limits) -> bool {
+fn change_refusal(scope: &Scope, change: &Change, limits: &Limits) -> Refusal {
+    match scope {
+        Scope::Party { .. } => match change {
+            Change::Correct { description, body, .. } => text_refusal(scope, description, body, limits),
+            Change::Delete { .. } => Refusal::Oversized,
+        },
+        Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } | Scope::Resources { .. } => Refusal::Oversized,
+    }
+}
+
+fn valid_change(scope: &Scope, change: &Change, limits: &Limits) -> bool {
     match change {
         Change::Correct { description, body, references, recalled: _ } => {
-            valid_text(description, limits.description_bytes, true)
-                && valid_text(body, limits.body_bytes, false)
+            valid_text(description, description_bound(scope, limits), true)
+                && valid_text(body, body_bound(scope, limits), false)
                 && references.capacity() <= limits.references
         }
         Change::Delete { recalled: _ } => true,
@@ -444,7 +512,7 @@ fn valid_change(change: &Change, limits: &Limits) -> bool {
 #[must_use]
 pub fn valid_scope(scope: &Scope, limits: &Limits) -> bool {
     match scope {
-        Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } => true,
+        Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } | Scope::Party { .. } => true,
         Scope::Resources { project: _, connector: _, pattern } => {
             let segments_fit = match u32::try_from(pattern.segments.len()) {
                 Ok(segments) => segments <= limits.pattern_bytes,

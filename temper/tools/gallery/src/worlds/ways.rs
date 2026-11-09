@@ -3,10 +3,16 @@ use super::{Address, Domain, Event, FirstRun, List, Queue, Request, Then, c, doc
 use skein_lib::{RequestEnvelope, Token, Writer, bytes};
 use temper_client_domain::{Action, pages::Act};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_protocol_reaches::{Classes, Way, classes_record};
 
 const PROJECT: u32 = 1;
 const REVISION: u32 = 1;
 const NAMES: [&str; 3] = ["You approve", "Agents review", "Draft first"];
+const HEADLINES: [&str; 3] = [
+    "You approve every change",
+    "Agents review every change, and code lands it",
+    "Draft first, then agents build it on its own branch",
+];
 const LINES: [&str; 3] = [
     "An agent makes each change; nothing reaches main until you approve it.",
     "An agent makes each change, another reviews it, and code lands it.",
@@ -44,7 +50,7 @@ pub(super) fn setting(name: &str) -> Box<[u8]> {
     let draft = name == "how-draft";
     let ways = w::ProjectWays::new(
         &w::CEILINGS,
-        w::ProjectWaysParts { skein_bools: [draft, draft, false, false], way: if draft { 4 } else { 0 } },
+        w::ProjectWaysParts { drafts: draft, goals: draft, changes: false, way: if draft { 4 } else { 0 } },
     )
     .expect("How project ways");
     let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
@@ -59,6 +65,7 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
             w::StockWay::new(
                 &w::CEILINGS,
                 w::StockWayParts {
+                    headline: HEADLINES[index].as_bytes().into(),
                     name: way_name.as_bytes().into(),
                     line: line.as_bytes().into(),
                     path: delivered_path(index, name),
@@ -79,6 +86,17 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     let panel = w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
+            words: if name == Some("how-yours") {
+                Some(w::ProjectWords::new(
+                    &w::CEILINGS,
+                    w::ProjectWordsParts {
+                        headline: b"Agents review everything, then one of you signs off".as_slice().into(),
+                        lede: b"shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off.".as_slice().into(),
+                    },
+                ).expect("project words"))
+            } else {
+                None
+            },
             project,
             ways,
             current: if yours { None } else { Some(u32::try_from(current).expect("stock way")) },
@@ -100,6 +118,79 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     ] {
         step(root, Event::Client { event: jig_client::Event::Up { up } }, out);
     }
+}
+
+pub(super) fn roles(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    let rows = [
+        (
+            2,
+            "Chat",
+            "For each chat",
+            "read the code and the forge; start sub-agents; never merge",
+            "Help the person with their work.",
+        ),
+        (
+            7,
+            "Ask temper",
+            "When you ask",
+            "read temper's records and the forge; propose settings; never change anything",
+            "Explain how temper works, where work stands and how to configure it.",
+        ),
+        (
+            5,
+            "Coordinator",
+            "For each goal",
+            "read the draft; plan and delegate changes; never merge",
+            "Cut the draft into changes and coordinate their work.",
+        ),
+        (
+            1,
+            "Coding agent",
+            "For each change",
+            "read the code and the forge; change and push its branch; run commands; never merge",
+            "Make the change on its branch and report what changed and what was checked.",
+        ),
+        (
+            6,
+            "Foreman",
+            "When a coding agent asks",
+            "read the facts in its task; never merge",
+            "Answer the coding agent's question within the person's direction.",
+        ),
+        (
+            9,
+            "Status agent",
+            "When you look at Home after landings",
+            "read temper's records and the forge; never merge",
+            "Summarise what landed and where the work stands.",
+        ),
+    ];
+    let roles = rows
+        .into_iter()
+        .map(|(charter, name, who, can, asked)| {
+            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter, card: agent(who, name, can, asked) })
+                .expect("project role")
+        })
+        .collect();
+    let view = w::View::Roles(
+        w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: List::from_boxed(roles) }).expect("project roles"),
+    );
+    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).expect("roles answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::view_answer(&answer)),
+                    },
+                },
+            },
+        },
+        out,
+    );
 }
 
 fn act(root: &mut Domain, action: Act, out: &mut Queue<Request>) {
@@ -222,8 +313,8 @@ fn stop(step: w::PathStep) -> w::Stop {
     use w::{
         Actor::{Agent, Bar, Code, Person},
         PathStep::{
-            Approve, Ask, Branch, Check, Draft, Merge, Plan, Prepare, Produce, ProduceMany, Prove, Repair, Resolve,
-            Review, Turn, Update, Verify,
+            Approve, Ask, Branch, CatchUp, Check, Conflict, Draft, Merge, Plan, Prepare, Produce, ProduceMany, Prove,
+            Repair, Resolve, Review, Turn, Verify,
         },
     };
     let rule = w::Opens::Rule(
@@ -245,7 +336,7 @@ fn stop(step: w::PathStep) -> w::Stop {
             w::Opens::Nothing,
             card("a person · writes the draft with an agent", "you", &[("Starts", "a goal for a draft")]),
         ),
-        Plan => (
+        Plan | w::PathStep::Design | w::PathStep::CloseOut => (
             Agent,
             "plan",
             w::Opens::Charter(
@@ -273,7 +364,7 @@ fn stop(step: w::PathStep) -> w::Stop {
                 agent(
                     who,
                     "the coding agent",
-                    "read the code and the forge; change and push its branch; run commands; never merge or update",
+                    "read the code and the forge; change and push its branch; run commands; never merge",
                     "Make the change on its branch and report what changed and what was checked.",
                 ),
             )
@@ -285,7 +376,10 @@ fn stop(step: w::PathStep) -> w::Stop {
             card(
                 "code · holds a change until CI passes",
                 "CI",
-                &[("Checks", "every check the repository's CI workflows report, at the change's head")],
+                &[
+                    ("Workflows", "ci.yml"),
+                    ("Checks", "every check the repository's CI workflows report, at the change's head"),
+                ],
             ),
         ),
         Review => (
@@ -307,14 +401,14 @@ fn stop(step: w::PathStep) -> w::Stop {
             rule,
             card("a person · decides whether it lands", "owner", &[("Role", "owner"), ("Asks", "1 of them")]),
         ),
-        Update => (
+        Conflict => (
             Code,
-            "update",
+            "conflict",
             w::Opens::Queue,
             card(
-                "code · brings the change up to date with its branch",
+                "code · main has moved in a way that clashes with the change",
                 "the queue",
-                &[("Does", "merges the branch's tip into the change, never by an agent")],
+                &[("When", "the change reaches the front of the queue: main is merged into it, never by an agent")],
             ),
         ),
         Merge => (
@@ -333,10 +427,13 @@ fn stop(step: w::PathStep) -> w::Stop {
             card("code · checks what landed", "main checks", &[("Runs", "the tier main checks after each landing")]),
         ),
         Branch => (Bar, "main", w::Opens::Nothing, card("a branch · where the change lands", "main", &[])),
-        Prepare | Prove | Turn => unreachable!("the gallery ways use the queue"),
+        CatchUp | Prepare | Prove | Turn => unreachable!("the gallery ways use the queue"),
     };
-    w::Stop::new(&w::CEILINGS, w::StopParts { actor, step, words: words.as_bytes().into(), opens, card })
-        .expect("path stop")
+    w::Stop::new(
+        &w::CEILINGS,
+        w::StopParts { needed: false, over: Box::default(), actor, step, words: words.as_bytes().into(), opens, card },
+    )
+    .expect("path stop")
 }
 
 fn branch(stops: Vec<w::Stop>) -> w::BranchPath {
@@ -352,13 +449,28 @@ fn branch(stops: Vec<w::Stop>) -> w::BranchPath {
 }
 fn path(index: usize) -> w::BranchPath {
     use w::PathStep::{
-        Approve, Ask, Branch, Check, Draft, Merge, Plan, Produce, ProduceMany, Repair, Resolve, Review, Update, Verify,
+        Approve, Ask, Branch, Check, Conflict, Draft, Merge, Plan, Produce, ProduceMany, Repair, Resolve, Review,
+        Verify,
     };
     let stops = match index {
-        0 => vec![Ask, Produce, Check, Repair, Check, Approve, Update, Resolve, Merge, Branch],
-        1 => vec![Ask, Produce, Check, Review, Repair, Check, Update, Resolve, Merge, Branch],
+        0 => vec![Ask, Produce, Check, Repair, Check, Approve, Conflict, Resolve, Merge, Branch],
+        1 => vec![Ask, Produce, Check, Review, Repair, Check, Conflict, Resolve, Merge, Branch],
         2 => {
-            vec![Draft, Plan, ProduceMany, Merge, Check, Repair, Branch, Check, Update, Resolve, Merge, Verify, Branch]
+            vec![
+                Draft,
+                Plan,
+                ProduceMany,
+                Merge,
+                Check,
+                Repair,
+                Branch,
+                Check,
+                Conflict,
+                Resolve,
+                Merge,
+                Verify,
+                Branch,
+            ]
         }
         _ => unreachable!("three stock ways"),
     };
@@ -419,8 +531,9 @@ fn delivered_path(index: usize, name: Option<&str>) -> w::BranchPath {
     w::BranchPath::new(&w::CEILINGS, parts).expect("How path")
 }
 
+#[expect(clippy::too_many_lines, reason = "the fixture encodes each stock way's rules, visibility and classes")]
 fn items(project: u32, index: usize) -> List<w::ProposalItem> {
-    let mut items = List::with_capacity(5);
+    let mut items = List::with_capacity(6);
     for number in 1..=4 {
         let edit = if number == 1 || (index == 2 && number == 2) {
             let goal = number == 2;
@@ -487,9 +600,11 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
             .expect("four rules");
     }
     if index == 2 {
-        let ways =
-            w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { skein_bools: [true, true, false, false], way: 4 })
-                .expect("draft goals");
+        let ways = w::ProjectWays::new(
+            &w::CEILINGS,
+            w::ProjectWaysParts { drafts: true, goals: true, changes: false, way: 4 },
+        )
+        .expect("draft goals");
         let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
         ways.encode(&mut writer).expect("measured ways");
         items
@@ -510,5 +625,31 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
             )
             .expect("fifth item");
     }
+    let way = match index {
+        0 => Way::YouApprove,
+        1 => Way::AgentsReview,
+        2 => Way::DraftFirst,
+        _ => unreachable!("three stock ways"),
+    };
+    let classes = classes_record(&Classes::stock(way)).expect("stock classes fit the record");
+    let mut writer = Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
+    classes.encode(&mut writer).expect("measured classes");
+    items
+        .push(
+            w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts {
+                    kind: 8,
+                    scope: project,
+                    number: 1,
+                    edit: w::SettingEdit::Set(
+                        w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: writer.finish() })
+                            .expect("classes value"),
+                    ),
+                },
+            )
+            .expect("classes item"),
+        )
+        .expect("six stock items at most");
     items
 }

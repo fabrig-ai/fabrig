@@ -1,6 +1,14 @@
 # accounts: status
 
-2026-11-08. Where jig's code lags or departs from [accounts.md](accounts.md).
+2026-11-09. Where jig's code lags or departs from [accounts.md](accounts.md).
+
+Section 3.4 has no known gap in a reservation's link at a start: two
+reservations of one name, a source whose account or reservation is
+missing or disagrees with it, and two sources at one place each refuse
+the start as the core's `Failure::Link`, naming the record and the one
+it links to (`jig-domain-accounts/src/restore.rs`, `restore_link`;
+`jig/tests/accounts`'s `start_restore.rs`, such as
+`duplicate_reservations_refuse_with_both_keys`).
 
 Sections 3.4 and 5 have no known gap in declaring a removed program
 source's name again for its original holder. The reservation moves to

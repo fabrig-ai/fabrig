@@ -150,8 +150,11 @@ fn the_small_profile_passes_each_domains_validity() {
         bounds.sitting = Duration::from_millis(1);
         assert!(temper_engine_domain_forge::valid(&bounds));
     }
-    assert!(temper_worker_domain_checkout::valid(&settings.limits.checkout));
-    assert_eq!(temper_worker_protocol_git::check(&settings.limits.git_component, &settings.limits.checkout), Ok(()));
+    assert!(temper_worker_domain_checkout::valid(&settings.limits.checkout.into()));
+    assert_eq!(
+        temper_worker_protocol_git::check(&settings.limits.git_component.into(), &settings.limits.checkout.into()),
+        Ok(())
+    );
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
     assert!(temper_engine_domain::valid(&root));
@@ -236,8 +239,8 @@ fn the_standard_brief_and_its_carriers_share_their_bounds() {
 fn the_standard_profile_passes_each_domains_validity() {
     let own = limits::profile(limits::Profile::Standard);
     assert!(temper_engine_domain_forge::valid(&own.forge));
-    assert!(temper_worker_domain_checkout::valid(&own.checkout));
-    assert_eq!(temper_worker_protocol_git::check(&own.git_component, &own.checkout), Ok(()));
+    assert!(temper_worker_domain_checkout::valid(&own.checkout.into()));
+    assert_eq!(temper_worker_protocol_git::check(&own.git_component.into(), &own.checkout.into()), Ok(()));
     for profile in [jig_protocol_config::Profile::Standard, jig_protocol_config::Profile::Small] {
         let jig = jig_protocol_config::profile(profile);
         let root = limits::engine(&jig, &own).expect("coherent root profile");
@@ -382,7 +385,7 @@ fn each_git_component_limit_has_its_dotted_override() {
             expected,
             "{name:?}"
         );
-        assert_eq!(temper_worker_protocol_git::check(&git, &limits.checkout), Ok(()), "{name:?}");
+        assert_eq!(temper_worker_protocol_git::check(&git.into(), &limits.checkout.into()), Ok(()), "{name:?}");
     }
 }
 
@@ -708,7 +711,7 @@ fn server_connections_carry_the_box_streams_and_four_calls() {
 fn the_watch_rooms_follow_the_streams() {
     let settings = fixtures::engine();
     let mut jig = settings.jig.limits;
-    for (streams, room) in [(2, 38), (8, 152)] {
+    for (streams, room) in [(2, 44), (8, 176)] {
         jig.clients.streams = streams;
         let root = limits::engine(&jig, &settings.limits).expect("admitted streams");
         assert_eq!(root.streams, streams);
@@ -724,7 +727,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
     let document = engine_overrides(br#""clients.streams":126322568"#);
     let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&problems).as_ref(),
-        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 19, with two slots per watch)\n");
+        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 22, with two slots per watch)\n");
     let mut settings = fixtures::engine();
     settings.jig.limits.clients.streams = u32::MAX;
     assert!(limits::engine(&settings.jig.limits, &settings.limits).is_none());
@@ -733,7 +736,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
 #[test]
 fn small_holds_two_document_sections_with_their_own_budget_and_override() {
     let mut limits = limits::profile(limits::Profile::Small);
-    assert_eq!(limits.root.brief.sections, 8);
+    assert_eq!(limits.root.brief.sections, 9);
     assert_eq!(limits.root.brief.budgets.document, 4096);
     assert_eq!(limits.forge.brief_sections, limits.root.brief.briefs * limits.root.brief.sections * 2);
     assert_eq!(limits::apply(&mut limits, b"root.brief.budgets.document", 2048), Ok(()));

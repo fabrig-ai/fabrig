@@ -24,7 +24,7 @@ fn the_reference_golden_decodes() {
             ObligationKind::Gap(_) => 2,
         }] += 1;
     }
-    assert_eq!(counts, [68, 13, 0]);
+    assert_eq!(counts, [70, 13, 0]);
     assert_eq!(golden.free, ["project-questions", "policy"]);
     assert_eq!(golden.rules.len(), 16);
     for rule in &golden.rules {
@@ -129,7 +129,7 @@ fn role_and_anchor_failures_name_the_path() {
 #[test]
 fn the_profile_decodes_as_a_settings_file() {
     let profile = golden::profile().expect("profile");
-    assert_eq!(profile.items.len(), 8);
+    assert_eq!(profile.items.len(), 9);
     assert!(profile.items.iter().all(|item| matches!(item.edit, Edit::Set(_))));
 }
 #[test]

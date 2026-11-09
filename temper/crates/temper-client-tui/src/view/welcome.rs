@@ -39,21 +39,27 @@ pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
     match root.pages().address() {
         Address::Chat { .. } => return false,
         Address::Home { .. }
+        | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Ask { .. }
+        | Address::Remembered
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Task { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Team { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }

@@ -885,6 +885,7 @@ fn linked_is_emitted_after_ready_at_each_opening() {
             .prefix,
     );
     stand.worker.up(fixtures::NOW, io::Event::Closed { owner });
+    assert_eq!(stand.worker.notes().pop(), Some(lost_note(link::Loss::Closed(skein_channel::Closed::Stream))));
     stand.worker.iterate(fixtures::NOW, Wall::EPOCH);
     let at = stand.worker.next_deadline().expect("redial");
     stand.worker.iterate(at, Wall::EPOCH);
@@ -915,7 +916,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
         (Closed::RefusedHere(jig_protocol_worker_link::REFUSED_LIMITS), crate::Refusal::Terms),
         (Closed::RefusedHere(jig_protocol_worker_link::REFUSED_FRAMING), crate::Refusal::Malformed),
     ] {
-        stand.worker.link(fixtures::NOW, link::Request::Fact { why });
+        stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(why) });
         assert_eq!(
             stand.worker.notes().pop(),
             Some(crate::Note::Refused {
@@ -927,7 +928,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
         stand.worker.link(fixtures::NOW, link::Request::Dial);
         let Some(io::Request::Connect { .. }) = stand.worker.io().pop() else { panic!("redial reaches IO") };
     }
-    stand.worker.link(fixtures::NOW, link::Request::Fact { why: Closed::Stream });
+    stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(Closed::Stream) });
     assert!(stand.worker.notes().is_empty());
 }
 
@@ -954,19 +955,15 @@ fn a_worker_alone_has_no_engine_or_store_and_a_second_signal_aborts() {
 fn settle_worker_service(linked: bool) {
     let mut service = alone_service();
     let mut stand = socket_stand();
+    let link_owner = Token::new(
+        worker_settings::prepare(&fixtures::worker_settings(), &fixtures::worker_agent(), &fixtures::worker_limits())
+            .unwrap()
+            .prefix,
+    );
     if linked {
         LinkPeer::new().open(&mut stand.worker);
     } else {
-        let owner = Token::new(
-            worker_settings::prepare(
-                &fixtures::worker_settings(),
-                &fixtures::worker_agent(),
-                &fixtures::worker_limits(),
-            )
-            .unwrap()
-            .prefix,
-        );
-        stand.worker.up(fixtures::NOW, io::Event::Failed { owner, error: io::Error::Unreachable });
+        stand.worker.up(fixtures::NOW, io::Event::Failed { owner: link_owner, error: io::Error::Unreachable });
     }
     service.worker = Some(stand.worker);
     service.shutdown();
@@ -974,28 +971,21 @@ fn settle_worker_service(linked: bool) {
     let now = if linked { fixtures::NOW } else { fixtures::NOW.saturating_add(Duration::from_secs(60)) };
     for _ in 0_u16..1000 {
         stand.worker.iterate(now, Wall::EPOCH);
+        let mut link_right = None;
         // The link's Close is answered by its socket owner, as IO would.
         for _ in 0..stand.worker.io().len() {
             let request = stand.worker.io().pop().unwrap();
             match request {
                 io::Request::Close { .. } | io::Request::Abort { .. } => {
-                    stand.worker.up(
-                        now,
-                        io::Event::Closed {
-                            owner: Token::new(
-                                worker_settings::prepare(
-                                    &fixtures::worker_settings(),
-                                    &fixtures::worker_agent(),
-                                    &fixtures::worker_limits(),
-                                )
-                                .unwrap()
-                                .prefix,
-                            ),
-                        },
-                    );
+                    stand.worker.up(now, io::Event::Closed { owner: link_owner });
                 }
                 io::Request::Connect { owner, .. } => {
                     stand.worker.up(now, io::Event::Failed { owner, error: io::Error::Unreachable });
+                }
+                io::Request::Output { stream, down: skein_lib::stream::OutputDown::Room { right, .. } }
+                    if stream == Token::new(44) =>
+                {
+                    assert!(link_right.replace(right).is_none(), "one link write right at a time");
                 }
                 io::Request::Stream { stream, .. } | io::Request::Output { stream, .. } if stream == Token::new(44) => {
                 }
@@ -1013,6 +1003,18 @@ fn settle_worker_service(linked: bool) {
         }
         stand.drain();
         stand.input();
+        if let Some(right) = link_right {
+            stand.worker.up(
+                now,
+                io::Event::Output {
+                    owner: link_owner,
+                    up: skein_lib::stream::OutputUp::Settled {
+                        right,
+                        outcome: skein_lib::stream::OutputOutcome::Granted,
+                    },
+                },
+            );
+        }
         if stand.worker.is_empty() {
             break;
         }
@@ -1051,16 +1053,16 @@ fn repeated_refusals_are_noted_once_until_the_reason_changes_or_the_worker_links
     const TWO_REFUSALS: u32 = 2;
     let mut stand = socket_stand();
     for _ in 0_u8..2 {
-        stand.worker.link(fixtures::NOW, link::Request::Fact { why: Closed::RefusedPeer(256) });
+        stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(Closed::RefusedPeer(256)) });
     }
     assert_eq!(stand.worker.notes().len(), ONE_REFUSAL);
     stand.worker.link(
         fixtures::NOW,
-        link::Request::Fact { why: Closed::RefusedHere(jig_protocol_worker_link::REFUSED_LIMITS) },
+        link::Request::Fact { why: link::Loss::Closed(Closed::RefusedHere(jig_protocol_worker_link::REFUSED_LIMITS)) },
     );
     assert_eq!(stand.worker.notes().len(), TWO_REFUSALS);
     LinkPeer::new().open(&mut stand.worker);
-    stand.worker.link(fixtures::NOW, link::Request::Fact { why: Closed::RefusedPeer(256) });
+    stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(Closed::RefusedPeer(256)) });
     for reason in [crate::Refusal::Peer(256), crate::Refusal::Terms] {
         assert_eq!(stand.worker.notes().pop(), Some(refusal_note(reason)));
     }
@@ -1073,6 +1075,48 @@ fn repeated_refusals_are_noted_once_until_the_reason_changes_or_the_worker_links
     );
     assert_eq!(stand.worker.notes().pop(), Some(refusal_note(crate::Refusal::Peer(256))));
     assert!(stand.worker.notes().is_empty(), "three refusals with Linked between the second and third");
+}
+
+#[test]
+fn a_linked_loss_is_noted_once_and_a_refused_dial_has_no_lost_line() {
+    let mut stand = socket_stand();
+    LinkPeer::new().open(&mut stand.worker);
+    while stand.worker.notes().pop().is_some() {}
+    let settings = fixtures::worker_settings();
+    let now = fixtures::NOW.saturating_add(settings.jig.limits.link.silence);
+    stand.worker.iterate(now, Wall::EPOCH);
+    assert_eq!(stand.worker.notes().pop(), Some(lost_note(link::Loss::Silence)));
+    // The linked loss's Fact is consumed once, even if seen again.
+    stand.worker.link(now, link::Request::Fact { why: link::Loss::Silence });
+    stand.worker.iterate(now, Wall::EPOCH);
+    assert!(stand.worker.notes().is_empty());
+    let mut refused = socket_stand();
+    refused
+        .worker
+        .link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(skein_channel::Closed::RefusedPeer(256)) });
+    assert_eq!(refused.worker.notes().pop(), Some(refusal_note(crate::Refusal::Peer(256))));
+    assert!(refused.worker.notes().is_empty(), "a dial that never linked has no lost line");
+}
+
+fn lost_note(why: link::Loss) -> crate::Note {
+    crate::Note::Lost { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()), why }
+}
+
+#[test]
+fn a_workers_listener_failure_is_noted_before_the_service_finishes() {
+    let mut service = fixtures::started();
+    let owner = Token::new(crate::tokens::WORKER_LISTENERS);
+    service.told.push(io::Event::Failed { owner, error: io::Error::Unreachable });
+    crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
+    let address = Some(io::Addr::InProcess(io::Name::new(b"workers").unwrap()));
+    assert_eq!(
+        service.notes().pop(),
+        Some(crate::Note::WorkerListenerFailed { address, error: Some(io::Error::Unreachable) })
+    );
+    assert!(!service.is_empty(), "the listener's line does not wait for shutdown");
+    service.told.push(io::Event::Closed { owner });
+    crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
+    assert!(service.notes().is_empty(), "the closing event does not repeat the failure");
 }
 
 fn refusal_note(reason: crate::Refusal) -> crate::Note {

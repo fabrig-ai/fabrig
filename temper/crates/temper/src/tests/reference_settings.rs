@@ -12,8 +12,8 @@ const FOREMAN: u32 = 6;
 const TRIAGE: u32 = 8;
 const STATUS: u32 = 9;
 const GOAL: u32 = 4;
-// The reference supplies five charters, one template and two landing rules.
-const ITEMS: u32 = 8;
+// The reference supplies five charters, one template, its work and two landing rules.
+const ITEMS: u32 = 9;
 
 fn value(items: &List<SettingItem>, setting: Setting) -> &SettingValue {
     for item in items {
@@ -167,6 +167,20 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(later.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(later.main.effort.as_ref().expect("later coordinator effort").bytes(), b"high");
     assert_eq!(later.subagents, llm.subagents);
+    let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 11, scope: 0, number: GOAL })
+    else {
+        panic!("goal template's work")
+    };
+    let decoded = temper_engine_smith::kinds::decode(
+        11,
+        bytes,
+        &temper_engine_smith::kinds::Bounds { segments: 16, segment_bytes: 4096, gates: 64, approvals: 64 },
+    )
+    .expect("reference goal template's work");
+    let temper_engine_domain_forge::settings::Value::Goal(work) = decoded.value else {
+        panic!("goal template's work record")
+    };
+    assert_eq!((work.design, work.close_out), (true, true));
 }
 
 // Rules pin the shared instructions or the wake parts selected by their on names.
@@ -573,7 +587,7 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
 
 fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 2] {
     use jig_client::contract::AuthorityExecutor as Executor;
-    let fifteen = vec![
+    let sixteen = vec![
         Executor::Charter(1),
         Executor::Charter(2),
         Executor::Charter(4),
@@ -582,6 +596,7 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 2] 
         Executor::Charter(DESIGNER),
         Executor::Charter(STATUS),
         Executor::Charter(11),
+        Executor::Charter(12),
         Executor::Procedure(2),
         Executor::Procedure(3),
         Executor::Procedure(4),
@@ -590,8 +605,8 @@ fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 2] 
         Executor::Role(1),
         Executor::Role(2),
     ];
-    let fourteen = fifteen.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
-    [fourteen, fifteen]
+    let fifteen = sixteen.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
+    [fifteen, sixteen]
 }
 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
@@ -666,7 +681,7 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
     )
     .expect("reference ways");
     let temper_engine_domain_forge::settings::Value::Ways(ways) = decoded.value else { panic!("project ways record") };
-    assert_eq!((ways.drafts, ways.goals, ways.changes, ways.away, ways.way), (true, true, true, true, 4));
+    assert_eq!((ways.drafts, ways.goals, ways.changes, ways.way), (true, true, true, 4));
 
     let setting = Setting::Application { kind: 2, scope: 1, number: 1 };
     assert_eq!(items.get(1).expect("project landing rule second").setting, setting);
@@ -677,8 +692,15 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
         &temper_engine_smith::kinds::Bounds { segments: 8, segment_bytes: 64, gates: 4, approvals: 4 },
     )
     .expect("reference project rule codec");
-    let bounds =
-        settings::Bounds { landing_rules: 2, gates: 4, roles: 4, charters: 12, segments: 8, segment_bytes: 64 };
+    let bounds = settings::Bounds {
+        landing_rules: 2,
+        gates: 4,
+        roles: 4,
+        charters: 12,
+        segments: 8,
+        segment_bytes: 64,
+        templates: 4,
+    };
     for (kind, scope, expected) in [(2, 1, Ok(())), (1, 0, Err(settings::Refusal::Pattern))] {
         let item = settings::Item { kind, scope, number: 1, value: Some(decoded.value.clone()) };
         assert_eq!(settings::judge(&item, &bounds), expected, "reference rule as kind {kind}");

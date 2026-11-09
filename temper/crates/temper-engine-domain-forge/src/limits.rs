@@ -57,6 +57,8 @@ pub struct Limits {
     pub tiers: TierLimits,
     /// Project judge tables retained beside committed policy.
     pub judge_projects: u32,
+    /// Retained decided and asked rows per project (temper/docs/design/domain/forge.md, 5.9).
+    pub decided_per_project: u32,
     /// Criteria in each deployment or project judge table.
     pub judge_criteria: u32,
     /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration.md, 13.2).
@@ -80,10 +82,10 @@ pub struct Limits {
 }
 
 impl Limits {
-    /// Retained decisions per project (temper/docs/design/domain/forge.md, 5.9).
+    /// Retained decided and asked rows in the family (temper/docs/design/domain/forge.md, 5.9).
     #[must_use]
     pub const fn decided(&self) -> u32 {
-        self.judge_projects.saturating_mul(64)
+        self.judge_projects.saturating_mul(self.decided_per_project)
     }
     /// Eight times members times projects, saturating (temper/docs/design/domain/forge.md, 5.5).
     #[must_use]
@@ -112,6 +114,8 @@ pub fn valid(l: &Limits) -> bool {
         // The store's failure and flake lists hold at most 1024 test ids.
         || l.tiers.failing_tests > 1024
         || l.tiers.test_id_bytes == 0
+        || l.decided_per_project == 0
+        || l.judge_projects.checked_mul(l.decided_per_project).is_none()
         || l.forges == 0
         || l.repositories == 0
         || l.tasks == 0

@@ -15,7 +15,7 @@ use temper_client_domain::{
         terminal::{self, Command, Font, Theme},
     },
 };
-use temper_client_tui::{Event, Local, Note, Scheme};
+use temper_client_tui::{Event, Local, Note, Own, Scheme, Told, WalkStep};
 
 fn host() -> Host {
     Host::new(&Settings { limits: limits::tui() }, 7, Time::ZERO, Wall::EPOCH)
@@ -29,7 +29,7 @@ fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rg
     host.report(Report::Start(Start {
         front: false,
         size: Size { columns: 80, rows: 24 },
-        scheme: Scheme::Dark,
+        scheme: Some(Scheme::Dark),
         background,
         boxed,
         address: b"127.0.0.1:8367".as_slice().into(),
@@ -286,7 +286,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         let duties = host.report(Report::Start(Start {
             front: false,
             size: Size { columns: 80, rows: 24 },
-            scheme: Scheme::Dark,
+            scheme: Some(Scheme::Dark),
             background: None,
             boxed: false,
             address: address.as_bytes().into(),
@@ -420,6 +420,31 @@ fn approval_opened_reports_reach_the_tui() {
             Some(if opened { temper_client_tui::Browser::Opened } else { temper_client_tui::Browser::None })
         );
     }
+    let page = b"http://127.0.0.1:8367/projects/3".as_slice();
+    let other = b"http://127.0.0.1:8367/chats/9".as_slice();
+    for (approval, pages, results) in [
+        (false, vec![page], vec![(false, Some(page))]),
+        (false, vec![page], vec![(true, None)]),
+        (false, vec![page, other], vec![(false, Some(page)), (false, Some(other))]),
+        (true, vec![page], vec![(false, None), (false, Some(page))]),
+    ] {
+        let mut host = if approval {
+            let mut host = self::host();
+            let exchange = ask(&start(&mut host, None));
+            reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
+            host
+        } else {
+            signed_host(true).0
+        };
+        for address in pages {
+            let duties = give(&mut host, Event::Open { address: address.into() });
+            assert_eq!(duties.open.as_deref(), Some(address));
+        }
+        for (opened, note) in results {
+            host.report(Report::Opened { opened });
+            assert_eq!(host.state().not_opened(), note, "approval={approval}, opened={opened}");
+        }
+    }
 }
 
 #[test]
@@ -429,6 +454,7 @@ fn the_opener_gets_one_argument_and_no_terminal_descriptors() {
     for (program, address, env) in [
         ("/usr/bin/xdg-open", "http://127.0.0.1:8367/terminal?code=WDJB-MJHT", vec!["DISPLAY=:1", "PATH=/usr/bin"]),
         ("/usr/bin/open", "http://127.0.0.1:9000/terminal?code=BCDF-GHJK", vec!["HOME=/person"]),
+        ("/usr/bin/xdg-open", "http://127.0.0.1:8367/projects/3", vec!["DISPLAY=:1"]),
     ] {
         let opener = Opener {
             program: program.as_bytes().into(),
@@ -494,6 +520,7 @@ enum LocalWant {
     Ask,
     Send,
     SendHeld,
+    Connecting,
     Wait,
     Keep,
     Pasted,
@@ -516,7 +543,7 @@ struct LocalRow {
 #[expect(clippy::too_many_lines, reason = "one table holds the engine-link outcomes and sign-out judgements")]
 fn the_engines_link_signs_in_and_falls_back() {
     use LocalAct::{Answer, Approve, Connect, Due, End, Found, Lost, Paste};
-    use LocalWant::{Ask, Ended, Keep, Pasted, Quiet, Read, Send, SendHeld, Taking, Until, Wait};
+    use LocalWant::{Ask, Connecting, Ended, Keep, Pasted, Quiet, Read, Send, SendHeld, Taking, Until, Wait};
     let found = || Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET)));
     let fresh = || Found(Some(local_link("127.0.0.1:8367", FRESH_SECRET)));
     let row = |name, steps| LocalRow { front: false, name, local: true, note: None, held: false, first: Read, steps };
@@ -601,6 +628,23 @@ fn the_engines_link_signs_in_and_falls_back() {
         rows.push(row(name, vec![(found(), Send), (Answer(answer), Ask)]));
     }
     rows.push(row("lost", vec![(found(), Send), (Lost, Ask)]));
+    for (name, answer) in [("front not ready", w::SignInAnswer::NotReady), ("front busy", w::SignInAnswer::Busy)] {
+        rows.push(LocalRow {
+            front: true,
+            name,
+            local: true,
+            note: None,
+            held: false,
+            first: Read,
+            steps: vec![
+                (found(), Send),
+                (Answer(answer), Connecting),
+                (Due(SECOND), Send),
+                (Answer(signed_in_answer()), Keep),
+                (Connect, Until),
+            ],
+        });
+    }
     for (name, wall, want) in [
         ("before slack", 239_999_999_999, Ended),
         ("at slack", 240_000_000_000, Read),
@@ -765,20 +809,25 @@ fn the_engines_link_signs_in_and_falls_back() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-fn local_row(row: LocalRow, failures: &mut Vec<String>) {
-    let mut host = host();
-    let duties = host.report(Report::Start(Start {
-        front: row.front,
+fn start_local(host: &mut Host, front: bool, local: bool, credential: Option<Secret>, note: Option<Note>) -> Duties {
+    host.report(Report::Start(Start {
+        front,
         size: Size { columns: 80, rows: 24 },
-        scheme: Scheme::Dark,
+        scheme: Some(Scheme::Dark),
         background: None,
         boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
-        local: row.local,
+        local,
         kept: Vec::new(),
-        credential: row.held.then(|| Secret::new(Box::new([7; 40]))),
-        note: row.note,
-    }));
+        credential,
+        note,
+    }))
+}
+
+fn local_row(row: LocalRow, failures: &mut Vec<String>) {
+    let mut host = host();
+    let duties =
+        start_local(&mut host, row.front, row.local, row.held.then(|| Secret::new(Box::new([7; 40]))), row.note);
     if host.state().front() != row.front {
         failures.push(format!("{}: front state", row.name));
     }
@@ -857,7 +906,7 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
         LocalWant::Read => (true, 0, 0, None, None),
         LocalWant::Ask => (false, 1, 0, None, None),
         LocalWant::Send | LocalWant::SendHeld | LocalWant::Pasted => (false, 0, 1, None, None),
-        LocalWant::Wait | LocalWant::Quiet | LocalWant::Taking => (false, 0, 0, None, None),
+        LocalWant::Connecting | LocalWant::Wait | LocalWant::Quiet | LocalWant::Taking => (false, 0, 0, None, None),
         LocalWant::Keep => (false, 0, 0, None, Some(Some(Secret::new(Box::new([7; 40]))))),
         LocalWant::Until => (false, 0, 0, Some(Note::Until(Wall::from_nanos(UNTIL))), None),
         LocalWant::Ended => (false, 1, 0, Some(Note::SignedOut), Some(None)),
@@ -878,12 +927,17 @@ fn local_check(host: &mut Host, duties: &Duties, want: LocalWant, name: &str, fa
     if (keep.is_some() || matches!(want, LocalWant::Quiet | LocalWant::SendHeld)) && duties.keep != keep {
         failures.push(format!("{name}: credential duty"));
     }
-    if matches!(want, LocalWant::Read | LocalWant::Wait) && host.state().local() != Local::Signing {
+    if matches!(want, LocalWant::Read | LocalWant::Wait | LocalWant::Connecting)
+        && host.state().local() != Local::Signing
+    {
         failures.push(format!("{name}: local signing screen"));
     }
     let frame = host.frame();
     let print = frame.print();
     let text = String::from_utf8(frame.text().into_vec()).expect("UTF-8 frame");
+    if matches!(want, LocalWant::Connecting) && !text.contains("Connecting") {
+        failures.push(format!("{name}: connecting text"));
+    }
     if matches!(want, LocalWant::Read) && !host.state().front() && !text.contains("Connecting to 127.0.0.1:8367") {
         failures.push(format!("{name}: connecting text"));
     }
@@ -1103,13 +1157,17 @@ pub(crate) fn launchpad_me(projects: bool) -> w::Me {
                 },
             )
             .expect("project");
-            let mut writer = Writer::new(usize::try_from(project.measure()).expect("project size"));
-            project.encode(&mut writer).expect("project fits");
-            projects.push(writer.finish());
+            projects.push(project_bytes(&project));
         }
         me.projects = pieces(&projects);
     }
     w::Me::new(&w::CEILINGS, me).expect("Me")
+}
+
+fn project_bytes(project: &w::MeProject) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(project.measure()).expect("project size"));
+    project.encode(&mut writer).expect("project fits");
+    writer.finish()
 }
 
 pub(crate) fn watch(duties: &Duties, subject: &w::Subject) -> u64 {
@@ -1212,6 +1270,380 @@ fn left_off_host() -> Host {
     home_host(false)
 }
 
+#[test]
+fn typing_open_opens_the_selected_launchpad_chat() {
+    for size in [Size { columns: 80, rows: 24 }, Size { columns: 120, rows: 40 }] {
+        for selected in [true, false] {
+            let mut host = left_off_host();
+            host.report(Report::Resize(size));
+            host.frame();
+            if selected {
+                host.report(Report::Key(Key::Up));
+                host.frame();
+                assert_eq!(host.state().left_off(), Some(NEWEST));
+            }
+            let address = if selected {
+                b"http://127.0.0.1:8367/chats/9".as_slice()
+            } else {
+                b"http://127.0.0.1:8367/projects/3".as_slice()
+            };
+            check_typed_open(&mut host, size, address);
+        }
+    }
+}
+
+fn goal_me() -> w::Me {
+    let mut me = launchpad_me(true).into_parts();
+    let mut reader = Reader::new(&me.projects);
+    let project = skein_codec::piece::split(&mut reader).expect("project piece").expect("project");
+    let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&project)).expect("project").into_parts();
+    let mut reader = Reader::new(&project.templates);
+    let template = skein_codec::piece::split(&mut reader).expect("template piece").expect("template");
+    let mut template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&template)).expect("template").into_parts();
+    template.number = jig_client::shapes::GOAL;
+    template.label = 10;
+    let template = w::Template::new(&w::CEILINGS, template).expect("goal template");
+    let mut writer = Writer::new(usize::try_from(template.measure()).expect("template size"));
+    template.encode(&mut writer).expect("template fits");
+    project.templates = [project.templates.as_ref(), pieces(&[writer.finish()]).as_ref()].concat().into();
+    me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, project).expect("goal project"))]);
+    w::Me::new(&w::CEILINGS, me).expect("Me")
+}
+
+fn goal_tasks() -> w::Tasks {
+    let mut row = records::task_line_record().into_parts();
+    row.chip = chat_chip(NEWEST, b"Goal");
+    row.project = 3;
+    row.label = 10;
+    row.requester = w::Requester::Person(
+        w::RequesterPerson::new(&w::CEILINGS, w::RequesterPersonParts { value: 7 }).expect("person"),
+    );
+    let row = w::TaskLine::new(&w::CEILINGS, row).expect("goal row");
+    let mut writer = Writer::new(usize::try_from(row.measure()).expect("goal size"));
+    row.encode(&mut writer).expect("goal fits");
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).expect("goal")
+}
+
+fn goal_host() -> Host {
+    let (mut host, me_watch, _) = signed_host(true);
+    let duties = delivery(&mut host, me_watch, &w::DeliveryValue::Me(goal_me()));
+    let mut duties = admit(&mut host, duties);
+    let tasks = goal_tasks();
+    for _ in 0..host.env.limits.client.domain.watches {
+        let subjects: Vec<_> = duties
+            .asked
+            .iter()
+            .filter_map(|request| {
+                let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
+                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+                if open.subject().owner() != &w::Owner::Jig {
+                    return None;
+                }
+                let subject =
+                    w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+                matches!(&subject, w::Subject::Tasks(tasks) if *tasks.query().label() == Some(10)).then_some(subject)
+            })
+            .collect();
+        for subject in subjects {
+            let watched = watch(&duties, &subject);
+            let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
+            duties.asked.extend(admit(&mut host, arrived).asked);
+        }
+        if host.root.pages().goals().is_some_and(|goals| goals.live(host.root.client()).is_some()) {
+            break;
+        }
+        let due = root::next_deadline(&host.root).expect("goal watch retry");
+        host.clocks(due, Wall::EPOCH);
+        let again = host.report(Report::Due);
+        duties.asked.extend(admit(&mut host, again).asked);
+    }
+    host.frame();
+    host
+}
+
+#[test]
+fn typing_open_opens_the_selected_launchpad_goal() {
+    for size in [Size { columns: 80, rows: 24 }, Size { columns: 120, rows: 40 }] {
+        let mut host = goal_host();
+        host.report(Report::Resize(size));
+        host.frame();
+        host.report(Report::Key(Key::Up));
+        host.frame();
+        assert_eq!(host.state().left_off(), Some(NEWEST));
+        check_typed_open(&mut host, size, b"http://127.0.0.1:8367/tasks/9");
+    }
+}
+
+fn check_typed_open(host: &mut Host, size: Size, address: &[u8]) {
+    key_words(host, "/open");
+    let duties = host.report(Report::Key(Key::Enter));
+    assert_eq!(duties.open.as_deref(), Some(address), "{size:?}: focused page");
+    host.report(Report::Opened { opened: false });
+    assert_eq!(host.state().not_opened(), Some(address));
+    let address = core::str::from_utf8(address).expect("ordinary address");
+    assert!(text(host).contains(&format!("Open {address} in your browser.")));
+}
+
+#[test]
+fn launchpad_selection_clears_after_command_composition() {
+    for (words, key) in [("", Key::Char('a')), ("/", Key::Escape), ("/open", Key::Escape), ("/new", Key::Enter)] {
+        let mut host = left_off_host();
+        host.frame();
+        host.report(Report::Key(Key::Up));
+        host.frame();
+        key_words(&mut host, words);
+        assert_eq!(host.state().left_off(), Some(NEWEST), "{words}: composing");
+        host.report(Report::Key(key));
+        host.frame();
+        assert_eq!(host.state().left_off(), None, "{words}: cleared");
+    }
+}
+
+#[test]
+fn a_kept_theme_starts_the_next_host_in_it() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    for (bytes, scheme, expected) in [
+        (Some(b"light".as_slice()), None, Scheme::Light),
+        (Some(b"junk".as_slice()), None, Scheme::Dark),
+        (Some(b"junk".as_slice()), Some(Scheme::Light), Scheme::Light),
+        (None, None, Scheme::Dark),
+    ] {
+        let mut host = host();
+        let mut kept = vec![jig_client::Record { key: b"other".as_slice().into(), bytes: Box::new([]) }];
+        if let Some(bytes) = bytes {
+            kept.push(jig_client::Record { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() });
+            kept.push(jig_client::Record { key: THEME_KEY.into(), bytes: bytes.into() });
+        }
+        host.start(
+            Start {
+                front: false,
+                size: Size { columns: 80, rows: 24 },
+                scheme,
+                background: None,
+                boxed: false,
+                address: b"127.0.0.1:8367".as_slice().into(),
+                local: false,
+                note: None,
+                kept,
+                credential: None,
+            },
+            &mut Duties::default(),
+        );
+        // Only the other record reaches jig's store reader, which drops its invalid bytes.
+        let mut dropped = 0;
+        while let Some(request) = host.out.pop() {
+            if let root::Request::Dropped { count } = request {
+                dropped += count;
+            }
+        }
+        assert_eq!(dropped, 1, "every theme record is taken before the root's Start");
+        host.report(Report::Due);
+        assert_eq!(
+            host.root.pages().look().theme,
+            match expected {
+                Scheme::Light => Theme::Light,
+                Scheme::Dark => Theme::Dark,
+            }
+        );
+        assert_eq!(host.theme, temper_client_tui::theme(expected, None));
+        let expected_choice = bytes.map_or(ThemeChoice::Auto, ThemeChoice::read);
+        assert_eq!(host.choice, expected_choice);
+        assert_eq!(host.state().theme_choice(), expected_choice);
+        assert_eq!(host.state().terminal_scheme(), scheme);
+    }
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one ordered-write story takes choices before answering root and host writes"
+)]
+fn a_theme_write_answer_never_reaches_the_root() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    for (closing, erase_first) in [(false, false), (true, false), (false, true)] {
+        let (mut host, _, _) = signed_host(false);
+        let first = jig_client::Key { asker: jig_client::Asker::JIG, number: 1001 };
+        let second = jig_client::Key { asker: jig_client::Asker::JIG, number: 1002 };
+        let send = |key| root::Event::Client {
+            event: jig_client::Event::Send {
+                key,
+                name: None,
+                request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop { project: 3, task: 9 })),
+            },
+        };
+        key_words(&mut host, "/theme");
+        host.report(Report::Key(Key::Enter));
+        host.frame();
+        host.report(Report::Key(Key::Down));
+        host.step(send(first));
+        if erase_first {
+            let duties = host.report(Report::Due);
+            assert!(matches!(duties.asked.as_slice(), [Request::Save { .. }]));
+            host.heard(jig_client::Event::NotStored);
+            assert!(host.root.client().pending(first).is_none());
+        }
+        let duties = host.report(Report::Key(Key::Enter));
+        let writes: Vec<_> = duties
+            .asked
+            .iter()
+            .filter(|request| matches!(request, Request::Save { .. } | Request::Erase { .. }))
+            .collect();
+        let [root_write, Request::Save { records }] = writes.as_slice() else {
+            panic!("root write followed by theme save: {writes:?}");
+        };
+        if erase_first {
+            assert!(matches!(root_write, Request::Erase { .. }));
+        } else {
+            let Request::Save { records: root_records } = root_write else {
+                panic!("root save");
+            };
+            assert!(!root_records.as_slice().iter().any(|record| record.key.as_ref() == THEME_KEY));
+        }
+        assert_eq!(
+            records.as_slice(),
+            &[jig_client::Record { key: THEME_KEY.into(), bytes: b"light".as_slice().into() }]
+        );
+        assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
+        host.step(send(second));
+        let duties = host.report(Report::Due);
+        assert_eq!(duties.asked.iter().filter(|request| matches!(request, Request::Save { .. })).count(), 1);
+        if closing {
+            assert!(host.report(Report::Key(Key::Control(b'c'))).close);
+        }
+        let requests = |duties: &Duties| {
+            duties
+                .asked
+                .iter()
+                .filter(|request| matches!(request, Request::Exchange { message: Message::Request(_), .. }))
+                .count()
+        };
+        assert_eq!(requests(&host.report(Report::Heard(jig_client::Event::Stored))), 0);
+        let before = host.root.client().pending(second).expect("second root write waits");
+        let refused = host.report(Report::Heard(jig_client::Event::NotStored));
+        assert!(refused.asked.is_empty(), "host refusal emits no root duties: {:?}", refused.asked);
+        empty(&refused);
+        assert_eq!(
+            host.root.client().pending(second),
+            Some(before),
+            "host refusal cannot answer the root's next write"
+        );
+        assert_eq!(
+            requests(&host.report(Report::Heard(jig_client::Event::Stored))),
+            if erase_first { 1 } else { 2 },
+            "three answers release only the root's saved requests"
+        );
+        assert_eq!(host.root_writes.len(), 0);
+        if !closing {
+            key_words(&mut host, "/theme");
+            host.report(Report::Key(Key::Enter));
+            host.frame();
+            host.report(Report::Key(Key::Down));
+            let duties = host.report(Report::Key(Key::Enter));
+            let [Request::Save { records }] = duties.asked.as_slice() else {
+                panic!("next choice writes whole");
+            };
+            assert_eq!(
+                records.as_slice(),
+                &[jig_client::Record { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() }]
+            );
+            host.report(Report::Heard(jig_client::Event::Stored));
+            let look = host.root.pages().look();
+            let mut duties = Duties::default();
+            host.keep_theme(ThemeChoice::Auto, &mut duties);
+            assert_eq!(host.root.pages().look(), look, "keeping a theme preserves the root's other look fields");
+            assert_eq!(host.choice, ThemeChoice::Auto);
+            let [Request::Save { records }] = duties.asked.as_slice() else {
+                panic!("Auto is saved too");
+            };
+            assert_eq!(
+                records.as_slice(),
+                &[jig_client::Record { key: THEME_KEY.into(), bytes: b"auto".as_slice().into() }]
+            );
+        }
+    }
+}
+
+#[test]
+fn the_theme_list_takes_keeps_and_notices_a_choice() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    let (mut host, _, _) = signed_host(false);
+    for (command, sent) in [("/theme", false), ("/th", false), ("/theme", true), ("/th", true)] {
+        key_words(&mut host, command);
+        let duties = if sent { give(&mut host, Event::Send) } else { host.report(Report::Key(Key::Enter)) };
+        empty(&duties);
+        host.frame();
+        assert!(host.state().theme_list());
+        assert!(host.words().is_empty());
+        assert_eq!(host.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Auto) }));
+        empty(&host.report(Report::Key(Key::Escape)));
+        assert!(!host.state().theme_list());
+    }
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    host.report(Report::Key(Key::Down));
+    let duties = host.report(Report::Key(Key::Enter));
+    let [Request::Save { records }] = duties.asked.as_slice() else {
+        panic!("one theme saved: {:?}", duties.asked);
+    };
+    let kept = records.as_slice().to_vec();
+    assert_eq!(kept, [jig_client::Record { key: THEME_KEY.into(), bytes: b"light".as_slice().into() }]);
+    assert_eq!(host.root.pages().look().theme, Theme::Light);
+    assert_eq!(host.state().theme_choice(), ThemeChoice::Light);
+    assert_eq!(
+        host.state().notice(),
+        Some(&temper_client_tui::Notice::Theme { choice: ThemeChoice::Light, terminal: Some(Scheme::Dark) })
+    );
+    assert!(text(&mut host).contains("Theme: light."));
+    assert!(!host.state().theme_list());
+    assert!(host.words().is_empty());
+    assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
+    let palette = temper_client_tui::theme::palette(Scheme::Light);
+    let frame = host.frame();
+    assert!(
+        (0..frame.size().rows)
+            .filter_map(|row| frame.row(row))
+            .flatten()
+            .any(|cell| palette.iter().any(|(_, colour)| cell.paint.fore == Some(*colour)))
+    );
+    host.report(Report::Heard(jig_client::Event::Stored));
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    assert_eq!(host.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Light) }));
+    host.report(Report::Key(Key::Char('h')));
+    assert!(!host.state().theme_list());
+    assert_eq!(host.words(), b"h");
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    host.report(Report::Key(Key::Up));
+    host.report(Report::Key(Key::Enter));
+    assert_eq!(host.state().theme_choice(), ThemeChoice::Auto);
+    assert_eq!(host.root.pages().look().theme, Theme::Dark);
+
+    let mut restarted = self::host();
+    restarted.report(Report::Start(Start {
+        front: true,
+        size: Size { columns: 80, rows: 24 },
+        scheme: None,
+        background: None,
+        boxed: true,
+        address: b"127.0.0.1:8367".as_slice().into(),
+        local: false,
+        note: None,
+        kept,
+        credential: None,
+    }));
+    give(&mut restarted, Event::Own { command: Own::Theme });
+    restarted.frame();
+    assert_eq!(restarted.state().theme_choice(), ThemeChoice::Light);
+    assert_eq!(restarted.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Light) }));
+    restarted.report(Report::Key(Key::Up));
+    restarted.report(Report::Key(Key::Enter));
+    assert_eq!(restarted.state().terminal_scheme(), None);
+    assert_eq!(restarted.state().theme_choice(), ThemeChoice::Auto);
+    assert_eq!(restarted.root.pages().look().theme, Theme::Dark);
+    assert!(text(&mut restarted).contains("Theme: auto, dark: your terminal doesn't say."));
+}
+
 fn person_chat(host: &mut Host) {
     let duties = give(host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
     let task_watch = watch(
@@ -1295,13 +1727,40 @@ fn no_project_composer_accepts_commands() {
     let (mut host, _, _) = signed_host(false);
     key_words(&mut host, "/");
     let frame = text(&mut host);
-    for command in ["/theme", "/help", "/exit", "Close temper"] {
+    for command in ["/theme", "/help", "/quit", "Close temper"] {
         assert!(frame.contains(command), "offered command list: {command}\n{frame}");
     }
-    key_words(&mut host, "exit");
-    assert!(text(&mut host).contains("❯ /exit"));
-    assert!(host.report(Report::Key(Key::Enter)).close, "/exit must close from the launchpad");
+    key_words(&mut host, "quit");
+    assert!(text(&mut host).contains("❯ /quit"));
+    assert!(host.report(Report::Key(Key::Enter)).close, "/quit must close from the launchpad");
     assert!(host.words().is_empty(), "closing clears the command composer");
+    for (words, complete) in [("/q", false), ("/q", true), ("/qu", true), ("/exit", false)] {
+        let (mut host, _, _) = signed_host(false);
+        key_words(&mut host, words);
+        if complete {
+            host.frame();
+            empty(&host.report(Report::Key(Key::Tab)));
+            assert_eq!(host.words(), b"/quit", "Tab completes the listed closing command");
+        }
+        assert!(host.report(Report::Key(Key::Enter)).close, "{words} must close from the launchpad");
+        assert!(host.words().is_empty(), "closing clears the command composer");
+    }
+    for words in ["/ex", "/exi"] {
+        let (mut host, _, _) = signed_host(false);
+        key_words(&mut host, words);
+        assert!(!text(&mut host).contains("Close temper"), "an alias prefix draws no list");
+        host.frame();
+        empty(&host.report(Report::Key(Key::Tab)));
+        assert_eq!(host.words(), words.as_bytes(), "Tab never completes the hidden alias");
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(
+            host.state().notice(),
+            Some(&temper_client_tui::Notice::Unknown { words: words.as_bytes().into() }),
+            "an alias prefix is unknown"
+        );
+        assert!(host.words().is_empty(), "unknown commands clear the composer");
+        assert!(!text(&mut host).contains("Close temper"), "an unknown command draws no list");
+    }
     for words in ["/theme", "/help", "/zz", "hello", "q", "/"] {
         no_project_keys(words);
     }
@@ -1326,14 +1785,66 @@ fn no_project_lifecycle() {
             host.frame();
             empty(&host.report(Report::Key(Key::Char('q'))));
             assert_eq!(host.state().field(), b"q", "sign-in typing uses its own field");
+            assert_eq!(host.state().command_words(), b"/he", "sign-out keeps command words");
+            assert_eq!(host.state().box_written(), written);
         } else {
             delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
             assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
-            assert!(host.words().is_empty(), "navigation opens an empty project composer");
-            assert!(!text(&mut host).contains("❯ /he"));
+            assert_eq!(host.words(), b"/he", "navigation carries words into the project composer");
+            assert!(text(&mut host).contains("❯ /he"));
+            assert!(host.state().command_words().is_empty(), "navigation clears the no-project composer");
+            assert!(host.state().box_written() > written);
         }
-        assert!(host.state().command_words().is_empty(), "screen transitions clear command words");
-        assert!(host.state().box_written() > written);
+    }
+}
+
+#[test]
+fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
+    for (front, first) in [(true, "Welcome. Set temper up"), (false, "Connecting to 127.0.0.1:8367")] {
+        let mut host = host();
+        let start = start_local(&mut host, front, true, None, None);
+        assert!(start.local);
+        assert!(text(&mut host).contains(first));
+        empty(&host.report(Report::Key(Key::Char('a'))));
+        assert!(text(&mut host).contains("❯ a"), "first frame, front {front}");
+        assert!(host.state().field().is_empty());
+        let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
+        let exchange = local_exchange(&signing);
+        assert_eq!(signing.asked.len(), 1, "only the sign-in request");
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert!(text(&mut host).contains("Still signing in"));
+        assert_eq!(host.words(), b"a");
+        let duties = reply(&mut host, exchange, sign_in_bytes(&signed_in_answer()));
+        admit(&mut host, duties);
+        assert_eq!(host.words(), b"a", "the sign-in's link change keeps words");
+        let hello = hello_for(&host);
+        let duties =
+            host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+        let duties = admit(&mut host, duties);
+        let me = watch(&duties, &w::Subject::Me);
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(host.words(), b"a", "Enter before me keeps words");
+        assert!(text(&mut host).contains("Still signing in"));
+        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(false)));
+        admit(&mut host, duties);
+        assert_eq!(host.words(), b"a", "no project keeps words");
+        assert!(text(&mut host).contains("❯ a"));
+        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
+        admit(&mut host, duties);
+        assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+        assert_eq!(host.root.pages().chats().expect("Home composer").words.as_ref(), b"a");
+        assert!(text(&mut host).contains("❯ a"));
+        let duties = host.report(Report::Key(Key::Enter));
+        let duties = admit(&mut host, duties);
+        let asks = sent_ask(&duties);
+        let [(_, w::Ask::Create(create))] = asks.as_slice() else {
+            panic!("Enter after landing starts a chat: {asks:?}");
+        };
+        let mut reader = Reader::new(create.tasks());
+        let bytes = skein_codec::piece::split(&mut reader).expect("task piece").expect("created task");
+        let task = w::NewTask::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("new task");
+        assert_eq!(create.project(), 3);
+        assert_eq!(task.spec().words(), b"a");
     }
 }
 
@@ -1344,14 +1855,25 @@ fn no_project_keys(words: &str) {
     let duties = host.report(Report::Key(if words == "/" { Key::Escape } else { Key::Enter }));
     empty(&duties);
     match words {
-        "/theme" => assert_eq!(host.root.pages().look().theme, Theme::Light),
+        "/theme" => {
+            assert!(host.state().theme_list());
+            host.frame();
+            host.report(Report::Key(Key::Down));
+            let duties = host.report(Report::Key(Key::Enter));
+            assert!(matches!(duties.asked.as_slice(), [Request::Save { .. }]));
+            empty(&host.report(Report::Heard(jig_client::Event::Stored)));
+            assert_eq!(host.root.pages().look().theme, Theme::Light);
+        }
         "/help" => {
             assert_eq!(host.root.pages().notes().last(), Some(&terminal::Note::Help));
-            assert!(text(&mut host).contains("/exit"), "help must render its commands");
+            assert!(text(&mut host).contains("/quit"), "help must render its commands");
         }
         "/zz" => {
-            assert_eq!(host.state().unknown(), Some(b"/zz".as_slice()));
-            assert!(text(&mut host).contains("Unknown command /zz."));
+            assert_eq!(
+                host.state().notice(),
+                Some(&temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() })
+            );
+            assert!(text(&mut host).contains("Unknown command /zz · /help lists them"));
         }
         "hello" | "q" => {
             assert_eq!(host.words(), words.as_bytes(), "ordinary words send nothing");
@@ -1372,6 +1894,67 @@ fn no_project_keys(words: &str) {
     }
     host.frame();
     assert!(host.report(Report::Key(Key::Control(b'c'))).close, "Ctrl+C closes anywhere");
+}
+
+#[test]
+fn a_notice_stands_six_seconds_and_a_newer_replaces_it() {
+    use temper_client_tui::Notice;
+    let (mut host, _, _) = signed_host(true);
+    let first = Notice::Unknown { words: b"/qiut".as_slice().into() };
+    let end = Time::ZERO.saturating_add(Duration::from_secs(6));
+    typed(&mut host, b"/qiut");
+    empty(&give(&mut host, Event::Send));
+    assert_eq!(host.state().notice(), Some(&first));
+    assert_eq!(host.deadline(), skein_lib::earliest(root::next_deadline(&host.root), Some(end)));
+    assert!(host.words().is_empty());
+    assert!(host.root.pages().notes().is_empty());
+    assert!(host.root.pages().listing().is_none());
+    let frame = text(&mut host);
+    let line = frame.lines().find(|line| line.contains("Unknown command /qiut")).expect("quiet notice");
+    assert!(line.contains("● Live"), "notice and link share the quiet line");
+    assert_eq!(frame.matches("Unknown command").count(), 1);
+    host.frame();
+    empty(&host.report(Report::Key(Key::Char('x'))));
+    assert_eq!(host.state().notice(), Some(&first), "a key leaves the notice");
+    typed(&mut host, b"");
+    give(&mut host, Event::Send);
+    assert_eq!(host.state().notice(), Some(&first), "a send leaves the notice");
+    typed(&mut host, b"/new");
+    give(&mut host, Event::Send);
+    assert_eq!(host.state().notice(), Some(&first), "/new leaves the notice");
+    host.clocks(Time::ZERO.saturating_add(Duration::from_secs(3)), Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), Some(&first), "a due before the end leaves it");
+    typed(&mut host, b"/other");
+    give(&mut host, Event::Send);
+    let second = Notice::Unknown { words: b"/other".as_slice().into() };
+    let later = Time::ZERO.saturating_add(Duration::from_secs(9));
+    assert_eq!(host.state().notice(), Some(&second));
+    assert_eq!(host.deadline(), skein_lib::earliest(root::next_deadline(&host.root), Some(later)));
+    host.clocks(end, Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), Some(&second), "the replaced end cannot lower it");
+    host.clocks(later, Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), None);
+    assert_eq!(host.deadline(), root::next_deadline(&host.root));
+    assert!(!text(&mut host).contains("Unknown command"));
+    // With no background retry pending, the notice itself is the next deadline.
+    let (mut quiet, _, _) = signed_host(false);
+    typed(&mut quiet, b"/zz");
+    give(&mut quiet, Event::Send);
+    assert_eq!(quiet.deadline(), Some(end));
+    for (words, seconds) in [(b"/chats 9".as_slice(), 6), (b"/zz".as_slice(), 7)] {
+        let (mut host, _, _) = signed_host(true);
+        typed(&mut host, words);
+        give(&mut host, Event::Send);
+        assert_eq!(host.state().notice(), Some(&Notice::Unknown { words: words.into() }));
+        assert!(host.words().is_empty());
+        assert!(host.root.pages().notes().is_empty());
+        host.clocks(Time::ZERO.saturating_add(Duration::from_secs(seconds)), Wall::EPOCH);
+        host.report(Report::Due);
+        assert_eq!(host.state().notice(), None, "at and past the end");
+    }
 }
 
 fn sent_ask(duties: &Duties) -> Vec<(skein_lib::Token, w::Ask)> {
@@ -1445,7 +2028,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.report(Report::Start(Start {
                     front: false,
                     size: Size { columns: 80, rows: 24 },
-                    scheme: if light { Scheme::Light } else { Scheme::Dark },
+                    scheme: Some(if light { Scheme::Light } else { Scheme::Dark }),
                     background: None,
                     boxed: false,
                     address: b"127.0.0.1:8367".as_slice().into(),
@@ -1463,6 +2046,9 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
             "theme" => {
                 typed(&mut host, b"/theme");
                 give(&mut host, Event::Send);
+                host.frame();
+                host.report(Report::Key(Key::Down));
+                host.report(Report::Key(Key::Enter));
                 let palette = temper_client_tui::theme::palette(Scheme::Light);
                 let light = host.root.pages().look().theme == Theme::Light;
                 let frame = host.frame();
@@ -1538,9 +2124,287 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
     assert!(failures.is_empty(), "host rows: {failures:?}");
 }
 
+#[derive(Clone, Copy, Debug)]
+enum LaunchAt {
+    Home,
+    Aside,
+    AsideByKey,
+    Need,
+    NewChat,
+}
+
+#[derive(Debug)]
+enum LaunchWant {
+    Started { label: u32, words: &'static [u8], from: Address },
+    Words(&'static [u8]),
+    Chat(u64),
+    Unknown,
+    Brief,
+    Reply,
+    Walk,
+    Opened,
+    New,
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table checks launchpad commands and refused starts")]
+fn the_launchpad_takes_its_own_words() {
+    for (words, at, want) in [
+        (
+            b"/change Add a CSV export".as_slice(),
+            LaunchAt::Home,
+            LaunchWant::Started { label: 8, words: b"Add a CSV export", from: Address::NewChat { draft: false } },
+        ),
+        (b"/change", LaunchAt::Home, LaunchWant::Words(b"/change ")),
+        (b"/c", LaunchAt::Home, LaunchWant::Words(b"/change ")),
+        (b"/", LaunchAt::Home, LaunchWant::Words(b"/change ")),
+        (b"/ask", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
+        (b"/a", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
+        (b"/n", LaunchAt::Need, LaunchWant::New),
+        (b"/needs", LaunchAt::Need, LaunchWant::Walk),
+        (b"/open", LaunchAt::Home, LaunchWant::Opened),
+        (
+            b"/ask What landed?",
+            LaunchAt::Home,
+            LaunchWant::Started { label: 7, words: b"What landed?", from: Address::Home { project: 3 } },
+        ),
+        (
+            b"/ask What landed?",
+            LaunchAt::NewChat,
+            LaunchWant::Started { label: 7, words: b"What landed?", from: Address::Home { project: 3 } },
+        ),
+        (b"/chats 1", LaunchAt::Home, LaunchWant::Chat(NEWEST)),
+        (b"/chats 2", LaunchAt::Home, LaunchWant::Unknown),
+        (b"/br", LaunchAt::Home, LaunchWant::Brief),
+        (b"Use a comma", LaunchAt::Aside, LaunchWant::Reply),
+        (b"Use a comma", LaunchAt::AsideByKey, LaunchWant::Reply),
+        (
+            b"Please help",
+            LaunchAt::Home,
+            LaunchWant::Started { label: 7, words: b"Please help", from: Address::Home { project: 3 } },
+        ),
+    ] {
+        let aside = matches!(at, LaunchAt::Aside | LaunchAt::AsideByKey);
+        let mut host = if matches!(at, LaunchAt::Aside | LaunchAt::AsideByKey | LaunchAt::Need) {
+            waiting_at(false)
+        } else {
+            one_chat_host(matches!(&want, LaunchWant::Brief))
+        };
+        if matches!(at, LaunchAt::NewChat) {
+            host.went(Address::NewChat { draft: false });
+            let duties = host.report(Report::Due);
+            admit(&mut host, duties);
+        }
+        let object = aside.then(|| shared_question(&host));
+        if let Some(object) = object {
+            host.tell(Told::Walk { by_key: matches!(at, LaunchAt::AsideByKey) });
+            give(&mut host, Event::Aside { object });
+        }
+        typed(&mut host, words);
+        let duties = give(&mut host, Event::Send);
+        match want {
+            LaunchWant::Started { label, words: expected, from } => {
+                assert_eq!(host.root.pages().address(), &from, "{words:?}");
+                let mut duties = admit(&mut host, duties);
+                if sent_ask(&duties).is_empty() {
+                    // Returning from New Chat can fill the exchange slots with page reads.
+                    host.clocks(
+                        host.env.now.saturating_add(host.env.limits.client.domain.backoff.first),
+                        host.env.wall,
+                    );
+                    let more = host.report(Report::Due);
+                    duties.asked.extend(admit(&mut host, more).asked);
+                }
+                let asks = sent_ask(&duties);
+                let [(exchange, w::Ask::Create(create))] = asks.as_slice() else {
+                    panic!("{at:?}, {words:?}: {asks:?}")
+                };
+                let mut reader = Reader::new(create.tasks());
+                let bytes = skein_codec::piece::split(&mut reader).expect("task piece").expect("created task");
+                let task = w::NewTask::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("new task");
+                assert_eq!((create.project(), task.label(), task.spec().words()), (3, label, expected), "{words:?}");
+                reply(&mut host, *exchange, created_bytes(NEWEST));
+                assert_eq!(host.root.pages().address(), &Address::Chat { task: NEWEST }, "started chat opened");
+                assert!(host.words().is_empty(), "started chat box cleared");
+            }
+            LaunchWant::Words(expected) => assert_eq!(host.words(), expected, "{words:?}"),
+            LaunchWant::Chat(task) => assert_eq!(host.root.pages().address(), &Address::Chat { task }, "{words:?}"),
+            LaunchWant::Unknown => assert_eq!(
+                host.state().notice(),
+                Some(&temper_client_tui::Notice::Unknown { words: words.into() }),
+                "{words:?}"
+            ),
+            LaunchWant::Brief => assert!(host.state().brief_shown(), "{words:?}"),
+            LaunchWant::Walk => {
+                assert!(host.state().walk().is_some_and(|walk| !walk.by_key()), "{words:?}");
+                assert!(host.words().is_empty());
+            }
+            LaunchWant::Opened => {
+                assert_eq!(duties.open.as_deref(), Some(b"http://127.0.0.1:8367/projects/3".as_slice()));
+                assert!(host.words().is_empty());
+            }
+            LaunchWant::New => {
+                assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+                assert!(host.state().walk().is_none(), "/n runs /new before /needs");
+            }
+            LaunchWant::Reply => {
+                let object = object.expect("aside question");
+                let answered =
+                    host.root.pages().needs().answered(Wall::EPOCH, root::pages::needs::ANSWERED_ON_HOME, Some(3));
+                assert!(
+                    answered.iter().any(|line| line.object == object
+                        && line.label == root::pages::needs::Label::Reply(b"Use a comma".as_slice().into())),
+                    "reply words reach card"
+                );
+                assert!(host.state().walk().is_some_and(|walk| walk.shown(&object)), "answered need marked shown");
+                assert!(host.words().is_empty());
+            }
+        }
+    }
+    for missing_template in [true, false] {
+        let (mut host, me_watch, _) = signed_host(true);
+        if missing_template {
+            let mut me = launchpad_me(true).into_parts();
+            let mut projects = Vec::new();
+            let mut reader = Reader::new(&me.projects);
+            while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("project piece") {
+                let mut project =
+                    w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("project").into_parts();
+                project.templates = Box::default();
+                let project = w::MeProject::new(&w::CEILINGS, project).expect("project without templates");
+                projects.push(project_bytes(&project));
+            }
+            me.projects = pieces(&projects);
+            delivery(&mut host, me_watch, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).expect("no template")));
+        }
+        typed(&mut host, b"/change Add a CSV export");
+        let duties = give(&mut host, Event::Send);
+        if !missing_template {
+            let asks = sent_ask(&duties);
+            let [(exchange, _)] = asks.as_slice() else { panic!("one change start: {asks:?}") };
+            let answer = w::Final::Refused(
+                w::Refused::new(&w::CEILINGS, w::RefusedParts { refusal: w::Refusal::NotOffered, at: None })
+                    .expect("refusal"),
+            );
+            reply(&mut host, *exchange, final_bytes(&answer));
+        }
+        assert_eq!(host.root.pages().address(), &Address::NewChat { draft: false }, "refusal stays with its composer");
+        assert_eq!(host.words(), b"Add a CSV export", "refused words retained");
+        let refusal = temper_client_view::shared::refusal(&host.root, host.view.words().view());
+        assert!(refusal.is_some(), "missing template={missing_template}: refusal drawn under box");
+        host.went(Address::Home { project: 3 });
+        assert!(
+            host.root.pages().chats().is_some_and(|chats| chats.refusal.is_none() && chats.outcome.is_none()),
+            "leaving NewChat drops refusal"
+        );
+    }
+}
+
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table holds the host's TUI event translations")]
 fn each_event_becomes_its_acts() {
+    let page = b"http://127.0.0.1:8367/projects/3".as_slice();
+    for (event, words, brief, walking, open) in [
+        (Event::Own { command: Own::Change }, b"/change ".as_slice(), false, false, None),
+        (Event::Own { command: Own::Ask }, b"/ask ".as_slice(), false, false, None),
+        (Event::Own { command: Own::Brief }, b"".as_slice(), true, false, None),
+        (Event::Own { command: Own::Needs }, b"".as_slice(), false, true, None),
+        (Event::Own { command: Own::Open }, b"".as_slice(), false, false, Some(page)),
+        (Event::Open { address: page.into() }, b"".as_slice(), false, true, Some(page)),
+        (Event::EndWalk, b"".as_slice(), false, false, None),
+    ] {
+        let (mut host, _, _) = signed_host(true);
+        host.tell(Told::Walk { by_key: true });
+        let before = host.state().box_written();
+        let mut duties = Duties::default();
+        host.event(event.clone(), &mut duties);
+        assert_eq!(host.words(), words, "{event:?}");
+        assert!(words.is_empty() || host.state().box_written() > before, "{event:?}: box write count");
+        assert_eq!(host.state().brief_shown(), brief, "{event:?}");
+        assert_eq!(host.state().walk().is_some(), walking, "{event:?}");
+        assert_eq!(duties.open.as_deref(), open, "{event:?}");
+        assert!(duties.asked.is_empty(), "{event:?}");
+    }
+    for (projects, chat, selected, address) in [
+        (false, false, false, None),
+        (true, false, false, Some(b"http://127.0.0.1:8367/projects/3".as_slice())),
+        (true, true, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+        (true, false, true, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+    ] {
+        let mut host = if projects { left_off_host() } else { signed_host(false).0 };
+        if chat {
+            give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
+        }
+        if selected {
+            host.report(Report::Key(Key::Down));
+        }
+        assert_eq!(give(&mut host, Event::Own { command: Own::Open }).open.as_deref(), address);
+    }
+    for (chat, words, after, event, walking, expected) in [
+        (false, b"".as_slice(), None, Event::Own { command: Own::Needs }, true, b"".as_slice()),
+        (false, b"a".as_slice(), None, Event::Typed { value: b"an".as_slice().into() }, false, b"an".as_slice()),
+        (true, b"".as_slice(), None, Event::Typed { value: b"n".as_slice().into() }, false, b"n".as_slice()),
+        (false, b"".as_slice(), Some('o'), Event::Own { command: Own::Needs }, false, b"no".as_slice()),
+    ] {
+        let mut host = waiting_at(chat);
+        typed(&mut host, words);
+        host.frame();
+        assert_eq!(host.event_of(&Key::Char('n')), Some(event.clone()), "chat={chat}, words={words:?}");
+        host.report(Report::Key(Key::Char('n')));
+        if let Some(character) = after {
+            host.frame();
+            host.report(Report::Key(Key::Char(character)));
+        }
+        assert_eq!(host.words(), expected, "chat={chat}, words={words:?}, after={after:?}");
+        assert_eq!(host.state().walk().is_some_and(|walk| walk.by_key() && !walk.taken()), walking);
+    }
+    for (by_key, taken, expected) in
+        [(false, false, b"o".as_slice()), (true, true, b"o".as_slice()), (true, false, b"no".as_slice())]
+    {
+        let mut host = waiting_at(false);
+        host.tell(Told::Walk { by_key });
+        if taken {
+            host.tell(Told::Walked { object: shared_question(&host) });
+        }
+        host.typed(b"o".as_slice().into());
+        assert_eq!(host.words(), expected, "by_key={by_key}, taken={taken}");
+        assert!(host.state().walk().is_none(), "typing ends the prompt");
+        assert!(host.state().field().is_empty(), "walking keys belong only to the box");
+    }
+    for (step, label, open) in [
+        (
+            WalkStep::Choose { words: b"Comma".as_slice().into() },
+            Some(root::pages::needs::Label::Choice(b"Comma".as_slice().into())),
+            None,
+        ),
+        (WalkStep::Open { address: page.into() }, None, Some(page)),
+        (WalkStep::Next, None, None),
+    ] {
+        let mut host = waiting_host();
+        let object = shared_question(&host);
+        host.tell(Told::Walk { by_key: false });
+        let duties = give(&mut host, Event::Walk { object, step: step.clone() });
+        let answered = host.root.pages().needs().answered(Wall::EPOCH, root::pages::needs::ANSWERED_ON_HOME, Some(3));
+        assert_eq!(
+            answered.iter().find(|line| line.object == object).map(|line| &line.label),
+            label.as_ref(),
+            "{step:?}: only a choice answers, in its words"
+        );
+        assert_eq!(duties.open.as_deref(), open, "{step:?}: page opened");
+        assert!(host.state().walk().is_some_and(|walk| walk.shown(&object) && walk.taken()), "{step:?}: need shown");
+    }
+    for (own, brief, walk) in [(Own::Brief, true, false), (Own::Needs, false, true), (Own::Open, false, false)] {
+        let mut host = waiting_at(false);
+        give(&mut host, Event::Command { command: Command::Model });
+        typed(&mut host, own.name());
+        let before = host.state().box_written();
+        give(&mut host, Event::Own { command: own });
+        assert!(host.words().is_empty(), "{own:?}: command box cleared");
+        assert!(host.root.pages().listing().is_none(), "{own:?}: standing list dismissed");
+        assert!(host.state().box_written() > before, "{own:?}: box write advances");
+        assert_eq!(host.state().brief_shown(), brief, "{own:?}");
+        assert_eq!(host.state().walk().is_some_and(|walk| !walk.by_key()), walk, "{own:?}");
+    }
     let mut failures = Vec::new();
     for row in [
         "stop",
@@ -1580,7 +2444,9 @@ fn each_event_becomes_its_acts() {
                     passed &= host.event_of(&key) == Some(Event::LeftOff { task: Some(task) });
                     host.report(Report::Key(key));
                     passed &= host.state().left_off() == Some(task)
-                        && text(&mut host).lines().any(|line| line.starts_with(&format!(" ❯ {title}")));
+                        && text(&mut host)
+                            .lines()
+                            .any(|line| line.starts_with(&format!(" ❯ Project   {title}, a chat")));
                 }
                 passed
             }
@@ -1618,9 +2484,9 @@ fn each_event_becomes_its_acts() {
                     host.frame();
                     let event = host.event_of(&Key::Down);
                     host.report(Report::Key(Key::Down));
-                    host.state().left_off().is_none()
+                    host.state().left_off() == Some(NEWEST)
                         && event.is_none()
-                        && text(&mut host).lines().any(|line| line.starts_with("❯ /chats"))
+                        && text(&mut host).lines().any(|line| line.starts_with("❯ /ask"))
                 }
             }
             "stop" => give(&mut host, Event::Stop).close,
@@ -1683,19 +2549,22 @@ fn each_event_becomes_its_acts() {
                 let before = host.state().box_written();
                 let duties = give(&mut host, Event::Send);
                 duties.asked.is_empty()
-                    && host.state().unknown() == Some(b"/zz".as_slice())
+                    && host.state().notice()
+                        == Some(&temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() })
                     && host.root.pages().chats().is_some_and(|chat| chat.words.is_empty())
                     && host.state().box_written() > before
             }
             "unknown send" | "unknown went" => {
-                host.tell(temper_client_tui::Told::Unknown { words: Some(b"/zz".as_slice().into()) });
+                host.tell(temper_client_tui::Told::Notice {
+                    notice: Some(temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() }),
+                });
                 if row == "unknown send" {
                     give(&mut host, Event::Send);
                 } else {
                     host.out.push(root::Request::Show { address: Address::Chat { task: 9 }, replace: false });
                     host.report(Report::Due);
                 }
-                host.state().unknown().is_none()
+                host.state().notice().is_some()
             }
             "no project" => {
                 typed(&mut host, b"Please help");
@@ -1807,6 +2676,11 @@ fn read_exchange(duties: &Duties, wanted: &str) -> skein_lib::Token {
                 let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope");
                 if owned.owner() == &w::Owner::Jig {
                     let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("read");
+                    if wanted == "updates"
+                        && matches!(&read, w::Read::Inbox(read) if read.group() == &w::InboxReadGroup::Updates)
+                    {
+                        return Some(*exchange);
+                    }
                     if matches!(
                         (&read, wanted),
                         (w::Read::Inbox(_), "inbox")
@@ -1837,55 +2711,86 @@ fn read_reply(host: &mut Host, exchange: skein_lib::Token, value: &w::ReadValue)
     reply(host, exchange, writer.finish())
 }
 
-#[expect(clippy::too_many_lines, reason = "one wire fixture delivers a waiting chat and its answerable question")]
 fn waiting_host() -> Host {
+    waiting_at(true)
+}
+
+fn shared_question(host: &Host) -> jig_client::contract::ObjectKey {
+    temper_client_view::shared::need_prompts(&host.root, host.view.words().view())
+        .first()
+        .expect("fixture question")
+        .object
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one wire fixture delivers a waiting chat or launchpad and its answerable question"
+)]
+fn waiting_at(chat: bool) -> Host {
     let (mut host, _, mut watches) = signed_host(true);
     // The fixture supplies the terminal look so event rows isolate event translation.
     host.step(root::Event::LookKept { look: terminal::Look { terminal: true, ..terminal::Look::default() } });
     host.step(root::Event::Went { place: Place::Address(Address::Home { project: 3 }) });
     watches.asked.extend(host.report(Report::Due).asked);
-    host.step(root::Event::Went { place: Place::Address(Address::Chat { task: 7 }) });
+    if chat {
+        host.step(root::Event::Went { place: Place::Address(Address::Chat { task: 7 }) });
+    }
     let duties = host.report(Report::Due);
     let duties = admit(&mut host, duties);
-    let task_watch = watch(
-        &duties,
-        &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).expect("task subject")),
-    );
-    let mut task = records::task_record().into_parts();
-    task.project = 3;
-    let offered = w::Offered::new(
-        &w::CEILINGS,
-        w::OfferedParts { act: w::ActKind::Message, admission: w::Admission::Allowed, effect: None },
-    )
-    .expect("message offered");
-    let mut writer = Writer::new(usize::try_from(offered.measure()).expect("offer size"));
-    offered.encode(&mut writer).expect("offer fits");
-    task.acts = pieces(&[writer.finish()]);
-    task.chip = records::owner_chip_record(
-        w::ChipPhase::Active(
-            w::ChipPhaseActive::new(&w::CEILINGS, w::ChipPhaseActiveParts { value: w::RunStage::Idle }).expect("idle"),
-        ),
-        w::Phase::Active,
-    );
-    task.waits_on = w::WaitsOn::Party(
-        w::WaitsOnParty::new(
-            &w::CEILINGS,
-            w::WaitsOnPartyParts {
-                whom: w::Whom::Person(
-                    w::WhomPerson::new(&w::CEILINGS, w::WhomPersonParts { value: 7 }).expect("person"),
-                ),
-                entries: 1,
-                task: 7,
-                kind: w::WaitedFor::Question,
-            },
+    watches.asked.extend(duties.asked);
+    if !chat {
+        host.clocks(Time::from_nanos(host.env.limits.client.domain.backoff.first.as_nanos()), Wall::EPOCH);
+        let duties = host.report(Report::Due);
+        watches.asked.extend(admit(&mut host, duties).asked);
+    }
+    let task_watch = chat.then(|| {
+        watch(
+            &watches,
+            &w::Subject::Task(
+                w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).expect("task subject"),
+            ),
         )
-        .expect("waiting"),
-    );
-    let duties = delivery(
-        &mut host,
-        task_watch,
-        &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).expect("task"))),
-    );
+    });
+    let duties = if let Some(task_watch) = task_watch {
+        let mut task = records::task_record().into_parts();
+        task.project = 3;
+        let offered = w::Offered::new(
+            &w::CEILINGS,
+            w::OfferedParts { act: w::ActKind::Message, admission: w::Admission::Allowed, effect: None },
+        )
+        .expect("message offered");
+        let mut writer = Writer::new(usize::try_from(offered.measure()).expect("offer size"));
+        offered.encode(&mut writer).expect("offer fits");
+        task.acts = pieces(&[writer.finish()]);
+        task.chip = records::owner_chip_record(
+            w::ChipPhase::Active(
+                w::ChipPhaseActive::new(&w::CEILINGS, w::ChipPhaseActiveParts { value: w::RunStage::Idle })
+                    .expect("idle"),
+            ),
+            w::Phase::Active,
+        );
+        task.waits_on = w::WaitsOn::Party(
+            w::WaitsOnParty::new(
+                &w::CEILINGS,
+                w::WaitsOnPartyParts {
+                    whom: w::Whom::Person(
+                        w::WhomPerson::new(&w::CEILINGS, w::WhomPersonParts { value: 7 }).expect("person"),
+                    ),
+                    entries: 1,
+                    task: 7,
+                    kind: w::WaitedFor::Question,
+                },
+            )
+            .expect("waiting"),
+        );
+        delivery(
+            &mut host,
+            task_watch,
+            &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).expect("task"))),
+        )
+    } else {
+        Duties::default()
+    };
     let duties = admit(&mut host, duties);
     let window = host.root.pages().inbox().expect("waiting inbox").window;
     watches.asked.extend(duties.asked);
@@ -1898,6 +2803,20 @@ fn waiting_host() -> Host {
     let duties =
         delivery(&mut host, inbox_watch, &w::DeliveryValue::Inbox(w::Inbox::new(&w::CEILINGS, inbox).expect("inbox")));
     let query = read_exchange(&duties, "inbox");
+    if !chat {
+        let updates = read_exchange(&duties, "updates");
+        read_reply(
+            &mut host,
+            updates,
+            &w::ReadValue::Inbox(
+                w::InboxPage::new(
+                    &w::CEILINGS,
+                    w::InboxPageParts { selection: None, cut: false, rows: Box::default(), before: None, after: None },
+                )
+                .expect("empty updates"),
+            ),
+        );
+    }
     let entry = w::InboxEntry::new(
         &w::CEILINGS,
         w::InboxEntryParts {
@@ -1943,10 +2862,6 @@ fn waiting_host() -> Host {
     offered.encode(&mut writer).expect("offer fits");
     question.acts = pieces(&[writer.finish()]);
     read_reply(&mut host, query, &w::ReadValue::Question(w::Question::new(&w::CEILINGS, question).expect("question")));
-    assert!(
-        temper_client_view::shared::question(&host.root, host.view.words().view()).is_some(),
-        "fixture's answerable question"
-    );
     host
 }
 
@@ -2022,16 +2937,23 @@ fn created_bytes(task: u64) -> Box<[u8]> {
     let outcome = w::Outcome::Document(
         w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: outcome }).expect("document outcome"),
     );
-    let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
+    final_bytes(&w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done")))
+}
+
+fn final_bytes(answer: &w::Final) -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(answer.measure()).expect("final size"));
     answer.encode(&mut writer).expect("final fits");
-    let answer = w::KeyedAnswer::FinalAnswer(
+    keyed_bytes(
         w::Owned::new(
             &w::CEILINGS,
             w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
         )
         .expect("final document"),
-    );
+    )
+}
+
+fn keyed_bytes(document: w::Owned) -> Box<[u8]> {
+    let answer = w::KeyedAnswer::FinalAnswer(document);
     let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
     answer.encode(&mut writer).expect("answer fits");
     writer.finish()
@@ -2096,14 +3018,15 @@ fn in_front_quitting_asks_while_work_runs() {
         ("front idle", true, false, vec![(close(), closed())]),
         ("ask twice", true, true, vec![(close(), asked()), (close(), FrontWant::Quit { close: true, asking: true })]),
         (
-            "exit",
+            "quit",
             true,
             true,
             vec![
-                (FrontAct::Send(b"/exit"), asked()),
-                (FrontAct::Send(b"/exit"), FrontWant::Quit { close: true, asking: true }),
+                (FrontAct::Send(b"/quit"), asked()),
+                (FrontAct::Send(b"/quit"), FrontWant::Quit { close: true, asking: true }),
             ],
         ),
+        ("exit alias", true, true, vec![(FrontAct::Send(b"/exit"), asked())]),
         (
             "stay",
             true,
@@ -2178,7 +3101,8 @@ fn in_front_quitting_asks_while_work_runs() {
                     duties.asked.is_empty()
                         && !duties.close
                         && host.state().log_shown() == shown
-                        && host.state().unknown() == unknown
+                        && host.state().notice()
+                            == unknown.map(|words| temper_client_tui::Notice::Unknown { words: words.into() }).as_ref()
                         && host.words().is_empty()
                 }
                 FrontWant::Line(line) => {
@@ -2207,16 +3131,163 @@ fn working_chip(task: u64, title: &[u8]) -> w::Chip {
 }
 
 pub(crate) fn home_host(running: bool) -> Host {
+    home_with_brief(&home_tasks(running), false)
+}
+
+fn one_chat_host(brief: bool) -> Host {
+    let mut tasks = home_tasks(false).into_parts();
+    let mut reader = Reader::new(&tasks.rows);
+    skein_codec::piece::split(&mut reader).expect("older chat");
+    let newest = skein_codec::piece::split(&mut reader).expect("newest chat").expect("one chat");
+    tasks.rows = pieces(&[newest]);
+    home_with_brief(&w::Tasks::new(&w::CEILINGS, tasks).expect("one chat"), brief)
+}
+
+fn home_with_brief(tasks: &w::Tasks, brief: bool) -> Host {
     let (mut host, _, mut duties) = signed_host(true);
     // The first wave can fill the exchange slots; give its watch retry a turn.
     host.clocks(Time::from_nanos(host.env.limits.client.domain.backoff.first.as_nanos()), Wall::EPOCH);
     let again = host.report(Report::Due);
     duties.asked.extend(admit(&mut host, again).asked);
     let subject = home_subject(&duties);
-    let watched = watch(&duties, &subject);
-    delivery(&mut host, watched, &w::DeliveryValue::Tasks(home_tasks(running)));
+    // Navigation replaces the rail's watch; rows go to the current page's watch.
+    for _ in 0..host.env.limits.client.domain.watches {
+        let watched = watch(&duties, &subject);
+        let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
+        duties.asked.extend(admit(&mut host, arrived).asked);
+        let chats = host.root.pages().chats().expect("launchpad chats");
+        if chats.live(host.root.client()).is_some() {
+            break;
+        }
+        let due = root::next_deadline(&host.root).expect("chat watch retry");
+        host.clocks(due, Wall::EPOCH);
+        let again = host.report(Report::Due);
+        duties.asked.extend(admit(&mut host, again).asked);
+    }
+    if brief {
+        deliver_brief(&mut host, &mut duties);
+    }
     host.frame();
     host
+}
+
+fn deliver_brief(host: &mut Host, duties: &mut Duties) {
+    use temper_client_protocol_wire::{self as wire, v1 as f};
+    let jig_client::Watchable::Family { record, .. } =
+        root::forge::status::watch(3, &host.env.limits.forge).expect("status watch")
+    else {
+        panic!("family watch")
+    };
+    let watched = duties
+        .asked
+        .iter()
+        .find_map(|request| {
+            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+            if open.subject().owner() == &w::Owner::Jig {
+                return None;
+            }
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record()))
+                .expect("family subject");
+            (envelope.record() == record.bytes.as_ref()).then_some(open.watch())
+        })
+        .expect("status watched");
+    let ended = duties
+        .asked
+        .iter()
+        .filter_map(|request| {
+            let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+            if open.watch() == watched {
+                return None;
+            }
+            let end = if open.subject().owner() == &w::Owner::Jig {
+                matches!(
+                    w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject"),
+                    w::Subject::Settings
+                )
+            } else {
+                true
+            };
+            end.then_some(open.watch())
+        })
+        .collect::<Vec<_>>();
+    for watch in ended {
+        let event = w::StreamEvent::Ended(
+            w::WatchEnded::new(&w::CEILINGS, w::WatchEndedParts { watch, why: w::WatchEnd::Unknown })
+                .expect("background watch ended"),
+        );
+        let more = host.report(Report::Heard(jig_client::Event::Streamed {
+            message: jig_client::Streamed::Record(stream_bytes(&event)),
+        }));
+        duties.asked.extend(stored(host, more).asked);
+    }
+    let document = brief_document();
+    let event = w::StreamEvent::Delivery(
+        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: watched, document }).expect("status delivery"),
+    );
+    host.report(Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(stream_bytes(&event)),
+    }));
+    // The look's answer makes the delivered status visible.
+    for request in &duties.asked {
+        let Request::Exchange { exchange, message: Message::Request(bytes), .. } = request else { continue };
+        let ask = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed ask");
+        if ask.owner() != &w::Owner::Jig {
+            let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome: f::Outcome::Looked }).expect("looked");
+            let document = w::Owned::new(
+                &w::CEILINGS,
+                w::OwnedParts {
+                    owner: ask.owner().clone(),
+                    version: wire::CLIENT_VERSION,
+                    record: wire::answer(&answer),
+                },
+            )
+            .expect("looked answer");
+            reply(host, *exchange, keyed_bytes(document));
+        }
+    }
+}
+
+fn brief_document() -> w::Owned {
+    use temper_client_protocol_wire::{self as wire, v1 as f};
+    let status = f::ProjectStatus::new(
+        &f::CEILINGS,
+        f::ProjectStatusParts {
+            project: 3,
+            landed: 1,
+            last_landed: Some(1),
+            previous: Some(0),
+            seen: 0,
+            queued: 0,
+            red: false,
+            branch: b"main".as_slice().into(),
+            brief: Some(
+                f::StatusBrief::new(
+                    &f::CEILINGS,
+                    f::StatusBriefParts {
+                        sentence: b"One change landed.".as_slice().into(),
+                        lede: b"The CSV export landed.".as_slice().into(),
+                        at: 1,
+                        landed: 1,
+                    },
+                )
+                .expect("brief"),
+            ),
+        },
+    )
+    .expect("project status");
+    w::Owned::new(
+        &w::CEILINGS,
+        w::OwnedParts {
+            owner: w::Owner::Family(
+                w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge owner"),
+            ),
+            version: wire::CLIENT_VERSION,
+            record: wire::project_status(&status),
+        },
+    )
+    .expect("status document")
 }
 
 pub(crate) fn home_tasks(running: bool) -> w::Tasks {

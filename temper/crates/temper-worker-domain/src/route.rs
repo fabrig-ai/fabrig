@@ -56,6 +56,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             if !domain.host.is_hosting(run, attempt) {
                 workspace::forget(domain, run, attempt);
                 domain.job_specs.remove(&(run, attempt));
+                domain.job_evidence.remove(&(run, attempt));
             }
         }
         Event::Link(down) => host_step(domain, env, host::Event::Down(down)),
@@ -265,6 +266,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         }
                         up @ (host::LinkUp::Piece { .. }
                         | host::LinkUp::ListRead { .. }
+                        | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }

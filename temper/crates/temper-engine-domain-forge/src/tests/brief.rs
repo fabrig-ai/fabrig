@@ -269,7 +269,7 @@ fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
     owner
 }
 
-fn pull_section(body: &[u8]) -> Box<[u8]> {
+fn pending_pull(body: &[u8], state: temper_engine_domain_forge_change::State) -> (Domain, Token) {
     let mut config = configured()[0].clone();
     config.git = b"https://forge.example".as_slice().into();
     let mut d = setup_domain(&[config], false);
@@ -277,10 +277,7 @@ fn pull_section(body: &[u8]) -> Box<[u8]> {
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
     row.change.last_head = Some(HEAD);
-    row.change.state = temper_engine_domain_forge_change::State::Repairing {
-        requested: true,
-        why: temper_engine_domain_forge_change::Repair::Ci,
-    };
+    row.change.state = state;
     outputs(&mut d, Event::Change { row });
     let owner = planned_read(
         &mut d,
@@ -309,6 +306,18 @@ fn pull_section(body: &[u8]) -> Box<[u8]> {
     pull.commit = HEAD;
     pull.base_commit = None;
     assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), &mut out));
+    (d, owner)
+}
+
+fn pull_section(body: &[u8]) -> Box<[u8]> {
+    let (mut d, owner) = pending_pull(
+        body,
+        temper_engine_domain_forge_change::State::Repairing {
+            requested: true,
+            why: temper_engine_domain_forge_change::Repair::Ci,
+        },
+    );
+    let mut out = Queue::uncapped();
     assert!(brief::brief_answer(
         &mut d,
         owner,
@@ -316,6 +325,76 @@ fn pull_section(body: &[u8]) -> Box<[u8]> {
         &mut out
     ));
     take(&mut d)
+}
+
+fn resolution_section(files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
+    let (mut d, owner) = pending_pull(
+        b"Whole body",
+        temper_engine_domain_forge_change::State::Resolving { requested: true, base: fixtures::BASE },
+    );
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::PullFiles { head: HEAD, files, more: false }), &mut out));
+    assert_eq!(
+        out.pop(),
+        Some(Request::BriefClient {
+            event: skein_forge_client::Event::Read {
+                owner,
+                repository: REPO,
+                read: Read::Compare { before: HEAD, after: fixtures::BASE },
+            },
+        })
+    );
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Compare {
+            before: HEAD,
+            after: fixtures::BASE,
+            contains_before: false,
+            files: Box::default(),
+            commits: Box::default(),
+        }),
+        &mut out
+    ));
+    take(&mut d)
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the table formats literal expected file contents")]
+fn a_resolutions_files_are_carried_whole_or_named() {
+    use skein_forge::api::File;
+    type Row = (&'static str, Box<[File]>, Box<str>);
+    let a =
+        File { path: b"a".as_slice().into(), before: Some(Box::new([b'x'; 100])), after: Some(Box::new([b'y'; 120])) };
+    let b = File { path: b"b".as_slice().into(), before: None, after: Some(Box::new([b'z'; 50])) };
+    let codec = File {
+        path: b"codec".as_slice().into(),
+        before: Some(Box::new([b'p'; 3000])),
+        after: Some(Box::new([b'q'; 3000])),
+    };
+    let whole_a = format!("File: a\nBefore:\n{}\nAfter:\n{}\n", "x".repeat(100), "y".repeat(120));
+    let whole_b = format!("File: b\nBefore:\n\nAfter:\n{}\n", "z".repeat(50));
+    let named = "File: codec\n[not carried, past the brief's room: 3000 bytes before, 3000 bytes after; read it in your checkout]\n";
+    let rows: [Row; 4] = [
+        ("small_files_whole", Box::new([a.clone(), b]), format!("{whole_a}{whole_b}").into()),
+        ("a_large_file_named", Box::new([codec.clone()]), named.into()),
+        ("named_then_whole", Box::new([codec, a]), format!("{named}{whole_a}").into()),
+        ("an_added_large_file", Box::new([File { path: b"codec".as_slice().into(), before: None, after: Some(Box::new([b'q'; 6000])) }]),
+            "File: codec\n[not carried, past the brief's room: absent before, 6000 bytes after; read it in your checkout]\n".into()),
+    ];
+    let mut failed = skein_lib::List::with_capacity(4);
+    for (name, files, expected) in rows {
+        let bytes = resolution_section(files);
+        let section = text(&bytes).split_once("Files and diff:\n").expect("files heading").1;
+        let contents = match section.split_once("What landed in the base:\n") {
+            Some((files, _)) => Some(files),
+            None => None,
+        };
+        if contents != Some(expected.as_ref()) {
+            failed.push(name).expect("at most one failure per row");
+        }
+    }
+    assert!(failed.is_empty(), "files must be whole or named; failed rows: {:?}", failed.as_slice());
 }
 
 #[test]

@@ -85,6 +85,7 @@ pub(crate) fn answered(
             row.settings = settings;
             row.protection = protection;
             out.push(Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.clone()) });
+            crate::workflows::read(d, env, repository, None, out);
             return;
         }
     };

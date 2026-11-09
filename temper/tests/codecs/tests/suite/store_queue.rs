@@ -24,6 +24,10 @@ fn entry(queued: bool) -> Stored {
     }
 }
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
+)]
 fn queued_and_unqueued_entries_have_v11_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -47,8 +51,19 @@ fn queued_effect_outcomes_and_merge_answers_round_trip_durably() {
     for answer in [
         CallPayload::Effect { entry: 1, deadline: skein_lib::Wall::EPOCH, outcome: Some(Outcome::Queued) },
         CallPayload::Read(Box::new(Ok(Answer::Queued))),
-        CallPayload::Decided { took: None },
-        CallPayload::Decided { took: Some(Box::from(b"Small".as_slice())) },
+        CallPayload::Decided { took: None, reach: None },
+        CallPayload::Decided {
+            took: Some(Box::from(b"Small".as_slice())),
+            reach: Some(temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            }),
+        },
     ] {
         let value = Stored::Call { key: NamedCall { task: 1, attempt: 2, completion: 3, position: 4 }, answer };
         let bytes = records::encode(&value);

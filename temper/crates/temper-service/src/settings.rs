@@ -1,6 +1,5 @@
 //! Typed engine and worker settings; startup supplies the values.
 use alloc::boxed::Box;
-use jig_domain_link::Bounds;
 use skein_lib::{List, Secret};
 
 /// The scripted provider and its key file (temper/docs/design/protocol/setup.md, 8.4).
@@ -104,6 +103,8 @@ pub struct Setup {
 pub struct Engine {
     /// Checked receiving agent reply allowance; none when no local agent is configured.
     pub host_reply_bytes: Option<u32>,
+    /// The local agent's charter allowance, smith's `run_bytes`; none when no local agent is configured.
+    pub agent_charter_bytes: Option<u64>,
     /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent.md, 4.3).
     pub host_part: Option<temper_engine_domain::room::HostPart>,
     pub machine: temper_forge_setup::machine::Machine,
@@ -144,20 +145,10 @@ pub struct Program {
     pub path: Box<[u8]>,
     pub directory: Box<[u8]>,
 }
-/// The worker's agent profile, which the binary reads from smith's
-/// agent configuration, as jig's reference service's `Agent`
-/// (`lib.rs:36-41`); 09 builds the worker's host half from it.
-#[derive(Debug)]
-pub struct Agent {
-    /// Receiving run bounds, including the protocol's measured schema costs.
-    pub run_limits: smith_domain_run::Limits,
-    pub tool_payload: u32,
-    pub programs: Box<[Program]>,
-    pub endpoints: smith_protocol_channel::Endpoints,
-    pub limits: smith_host_protocol::Limits,
-    pub bounds: Bounds,
-    pub host_limits: smith_host_domain::Limits,
-}
+#[cfg(not(feature = "worker"))]
+pub use crate::unbuilt::Agent;
+#[cfg(feature = "worker")]
+pub use crate::worker_settings::Agent;
 
 /// A worker's settings: jig's part and temper's (protocol/configuration.md,
 /// section 4); 09 builds the worker from it.

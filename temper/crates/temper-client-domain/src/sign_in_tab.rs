@@ -29,9 +29,13 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
                 way.source = Some(*source);
                 out.push(Request::Show { address, replace: true });
             }
-            Address::Inbox { .. }
+            Address::AllHome
+            | Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Remembered
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -41,12 +45,14 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Role { .. }
             | Address::Rule { .. }
             | Address::Repositories { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Ask { .. }
             | Address::Adopt { .. } => {}

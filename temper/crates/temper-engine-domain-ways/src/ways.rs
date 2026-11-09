@@ -5,10 +5,13 @@ use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StockWay {
     pub name: Box<[u8]>,
+    pub headline: Box<[u8]>,
     pub line: Box<[u8]>,
     /// The project's rules it sets, by number, each of 1 to `RULES`; every other number of 1 to `RULES` it removes.
     pub rules: Box<[(u32, temper_engine_domain_forge::settings::LandingRule)]>,
     pub ways: Option<Laid>,
+    /// The classes table the way sets whole; none for a world's way that sets none.
+    pub classes: Option<temper_protocol_reaches::Classes>,
     /// Whether the way needs charter 5, role 0 and job 3 in the project's policy's delegation.
     pub delegation: bool,
 }
@@ -38,6 +41,7 @@ pub enum Edit {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct WayEntry {
     pub name: Box<[u8]>,
+    pub headline: Box<[u8]>,
     pub line: Box<[u8]>,
     pub path: Path,
     pub items: Box<[Item]>,
@@ -49,6 +53,7 @@ pub struct WaysDocument {
     pub ways: Box<[WayEntry]>,
     pub current: Option<u32>,
     pub own: Path,
+    pub words: Option<temper_engine_domain_forge::settings::ProjectWords>,
     pub may_change: bool,
 }
 
@@ -60,13 +65,14 @@ pub enum View {
     Proposal { before: Path, after: Path },
     Charter { charter: u32, card: Card },
     Rule { kind: u32, number: u32, card: Card },
+    Roles(Box<[(u32, Card)]>),
     NotDrawn(Box<[u8]>), // one line, at most 512 bytes
 }
 
 use skein_lib::{List, Map};
-use temper_engine_domain_forge::settings::{Held, ProjectWays, Value, project_stock};
+use temper_engine_domain_forge::settings::{Held, ProjectWays, TemplateGoal, Value, project_stock};
 
-/// The way's rules in number order, then kind 7 where the way lays it.
+/// The way's rules in number order, then kind 7 and kind 8 where the way lays them.
 #[must_use]
 pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[Item]> {
     let mut items = List::uncapped();
@@ -88,6 +94,11 @@ pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[I
         items
             .push(Item { kind: 7, scope: project, number: 1, edit: Edit::Set(Value::Ways(value)) })
             .expect("one ways item");
+    }
+    if let Some(table) = &way.classes {
+        items
+            .push(Item { kind: 8, scope: project, number: 1, edit: Edit::Set(Value::Classes(table.clone())) })
+            .expect("one classes item");
     }
     items.into_boxed()
 }
@@ -114,7 +125,13 @@ pub fn laid(rules: &[Held], stock: &[Held], project: u32, items: &[Item]) -> Box
                 Value::Rule(rule) => {
                     own.insert(item.number, rule.clone()).expect("edited project rule");
                 }
-                Value::Charter(_) | Value::Questions(_) | Value::Ways(_) => {}
+                Value::Charter(_)
+                | Value::Goal(_)
+                | Value::Questions(_)
+                | Value::CharterWords(_)
+                | Value::Classes(_)
+                | Value::ProjectWords(_)
+                | Value::Ways(_) => {}
             },
             Edit::Remove => {
                 own.remove(&item.number);
@@ -144,9 +161,42 @@ pub fn laid_ways(ways: Option<&ProjectWays>, project: u32, items: &[Item]) -> Pr
         match &item.edit {
             Edit::Set(value) => match value {
                 Value::Ways(ways) => result = *ways,
-                Value::Rule(_) | Value::Charter(_) | Value::Questions(_) => {}
+                Value::Rule(_)
+                | Value::Charter(_)
+                | Value::Goal(_)
+                | Value::Questions(_)
+                | Value::CharterWords(_)
+                | Value::Classes(_)
+                | Value::ProjectWords(_) => {}
             },
             Edit::Remove => result = own_ways(None),
+        }
+    }
+    result
+}
+
+/// A goal template's work with a decision's items laid over it, kind 11
+/// (temper/docs/design/protocol/configuration.md, 13.2): an item of kind 11 at scope 0
+/// and the template's number sets it, its removal leaves neither.
+#[must_use]
+pub fn laid_goal(goal: Option<TemplateGoal>, template: u32, items: &[Item]) -> TemplateGoal {
+    let mut result = goal.unwrap_or_default();
+    for item in items {
+        if item.kind != 11 || item.scope != 0 || item.number != template {
+            continue;
+        }
+        match &item.edit {
+            Edit::Set(value) => match value {
+                Value::Goal(goal) => result = *goal,
+                Value::Rule(_)
+                | Value::Charter(_)
+                | Value::Questions(_)
+                | Value::Ways(_)
+                | Value::CharterWords(_)
+                | Value::Classes(_)
+                | Value::ProjectWords(_) => {}
+            },
+            Edit::Remove => result = TemplateGoal::default(),
         }
     }
     result
@@ -157,7 +207,13 @@ fn own_ways(ways: Option<&ProjectWays>) -> ProjectWays {
         Some(ways) => *ways,
         None => match project_stock(7).expect("kind 7 has stock").value {
             Value::Ways(ways) => ways,
-            Value::Rule(_) | Value::Charter(_) | Value::Questions(_) => unreachable!("kind 7 is ways"),
+            Value::Rule(_)
+            | Value::Charter(_)
+            | Value::Goal(_)
+            | Value::Questions(_)
+            | Value::CharterWords(_)
+            | Value::Classes(_)
+            | Value::ProjectWords(_) => unreachable!("kind 7 is ways"),
         },
     }
 }

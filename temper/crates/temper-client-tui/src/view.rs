@@ -1,6 +1,6 @@
 //! The TUI's screens from the client and the TUI's state (temper/docs/design/client/README.md, 6.14 and 7.1).
 use crate::{
-    Browser, Event, Local, Refusal, Signing, Tui, approval_address, look,
+    Browser, Event, Local, Own, Refusal, Signing, Tui, approval_address, look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
@@ -8,13 +8,14 @@ use jig_client::{ApprovalCode, Link, NotAsked, NotSignedIn, Taking};
 use skein_lib::{List, Queue, Token, Wall, bytes::copy_of};
 use skein_ui::phrases::Hole;
 use skein_ui::{Act, Binding, Builder, EntryKind, NodeId, Patch, Role, Run, State, Style, Tree};
-use temper_client_domain::{Domain, asked};
+use temper_client_domain::{Address, Domain, asked};
 use temper_client_view::words::{TimeForm, Word as Shared};
 
 pub(crate) mod chat;
 pub(crate) mod foot;
 pub(crate) mod front;
 pub(crate) mod launchpad;
+pub(crate) mod printed;
 pub(crate) mod welcome;
 pub(crate) mod work;
 pub use work::work_runs;
@@ -53,7 +54,12 @@ pub struct View {
     shown: u64,
     binds: Binds,
     escape: Option<Event>,
-    left_off: List<u64>,
+    left_off: List<(u64, launchpad::LeftKind)>,
+    selected_event: Option<Event>,
+    authority: Box<[u8]>,
+    page: Option<Box<[u8]>>,
+    focus: Option<Box<[u8]>>,
+    walkable: bool,
     selected: Option<u64>,
     box_empty: bool,
     left_off_arrows: bool,
@@ -70,6 +76,11 @@ impl View {
             binds: Binds { events: List::with_capacity(limits.bindings) },
             escape: None,
             left_off: List::with_capacity(3),
+            selected_event: None,
+            authority: Box::default(),
+            page: None,
+            focus: None,
+            walkable: false,
             selected: None,
             box_empty: false,
             left_off_arrows: false,
@@ -245,6 +256,18 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     }
     tick
 }
+/// The sign-in screen is drawn while signed out with no sign-in from a link under way.
+#[must_use]
+pub fn sign_in_drawn(root: &Domain, tui: &Tui) -> bool {
+    root.client().link().state == Link::SignedOut && tui.local() != Local::Signing
+}
+
+/// The sign-in has not landed: the link is signed out, or `me` is not yet read.
+#[must_use]
+pub fn landing(root: &Domain) -> bool {
+    root.client().link().state == Link::SignedOut || root.pages().me(root.client()).is_none()
+}
+
 /// Rebuild when the root's shown count or the TUI's revision changes, or the tick is reached.
 pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Queue<Patch>) {
     let root_shown = temper_client_domain::shown(root);
@@ -256,8 +279,13 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     if view.built == Some((root_shown, revision)) && !ticked {
         return;
     }
-    let signed_out = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
-    if signed_out {
+    view.authority = copy_of(tui.address());
+    view.page = page_focus(root, tui.address());
+    view.focus = view.page.clone();
+    view.walkable = has_needs(root);
+    if sign_in_drawn(root, tui) {
+        view.selected_event = None;
+        view.walkable = false;
         view.left_off.clear();
         view.selected = None;
         view.box_empty = false;
@@ -280,29 +308,33 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
             Body::Welcome(welcome::read(root, tui, &view.words, wall))
         } else {
             match root.pages().address() {
-                temper_client_domain::Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
-                temper_client_domain::Address::Home { .. }
-                | temper_client_domain::Address::Inbox { .. }
-                | temper_client_domain::Address::Chats { .. }
-                | temper_client_domain::Address::NewChat { .. }
-                | temper_client_domain::Address::Ask { .. }
-                | temper_client_domain::Address::Accounts
-                | temper_client_domain::Address::Forges
-                | temper_client_domain::Address::ConnectForge { .. }
-                | temper_client_domain::Address::ConnectModel { .. }
-                | temper_client_domain::Address::Welcome { .. }
-                | temper_client_domain::Address::Task { .. }
-                | temper_client_domain::Address::Goals { .. }
-                | temper_client_domain::Address::Changes { .. }
-                | temper_client_domain::Address::Settings { .. }
-                | temper_client_domain::Address::Models { .. }
-                | temper_client_domain::Address::Builders { .. }
-                | temper_client_domain::Address::Role { .. }
-                | temper_client_domain::Address::Rule { .. }
-                | temper_client_domain::Address::Repositories { .. }
-                | temper_client_domain::Address::Adopt { .. } => {
-                    Body::Launchpad(launchpad::read(root, tui, &view.words, wall))
-                }
+                Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
+                Address::Home { .. }
+                | Address::AllHome
+                | Address::Inbox { .. }
+                | Address::Chats { .. }
+                | Address::NewChat { .. }
+                | Address::Ask { .. }
+                | Address::Remembered
+                | Address::Members
+                | Address::Limits
+                | Address::Accounts
+                | Address::Forges
+                | Address::ConnectForge { .. }
+                | Address::ConnectModel { .. }
+                | Address::Welcome { .. }
+                | Address::Task { .. }
+                | Address::Work { .. }
+                | Address::Goals { .. }
+                | Address::Changes { .. }
+                | Address::Settings { .. }
+                | Address::Models { .. }
+                | Address::Builders { .. }
+                | Address::Team { .. }
+                | Address::Role { .. }
+                | Address::Rule { .. }
+                | Address::Repositories { .. }
+                | Address::Adopt { .. } => Body::Launchpad(launchpad::read(root, tui, &view.words, wall)),
             }
         };
         let data = Signed { body, foot: foot::read(root, tui, &view.words, wall) };
@@ -319,12 +351,26 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
     };
     view.left_off.clear();
     view.selected = None;
+    view.selected_event = None;
+    view.focus = view.page.clone();
     match &signed.body {
         Body::Launchpad(part) => {
             for line in &part.left_off {
-                view.left_off.push(line.task).expect("three left-off tasks");
+                view.left_off.push((line.task, line.kind)).expect("three left-off tasks");
                 if part.selected == Some(line.task) {
                     view.selected = part.selected;
+                    let page = match line.kind {
+                        launchpad::LeftKind::Chat { .. } => Address::Chat { task: line.task },
+                        launchpad::LeftKind::Goal => Address::Task { task: line.task },
+                    };
+                    let address = page_address(&view.authority, &page);
+                    view.selected_event = Some(match line.kind {
+                        launchpad::LeftKind::Chat { .. } => {
+                            Event::Act { act: temper_client_domain::pages::Act::Go { address: page } }
+                        }
+                        launchpad::LeftKind::Goal => Event::Open { address: address.clone() },
+                    });
+                    view.focus = Some(address);
                 }
             }
         }
@@ -335,6 +381,11 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         None => false,
     };
     view.left_off_arrows = view.box_empty && signed.foot.list.is_none();
+    view.walkable &= view.left_off_arrows
+        && match &signed.body {
+            Body::Launchpad(part) => part.project.is_some(),
+            Body::Chat(_) | Body::Welcome(_) => false,
+        };
     view.binds.events.clear();
     let mut b = view.render.builder();
     b.open(Role::Page);
@@ -375,13 +426,9 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
                 Some(Event::SignIn)
             } else if bound.binding.token == BOX {
                 if view.box_empty
-                    && let Some(task) = view.selected
+                    && let Some(event) = &view.selected_event
                 {
-                    Some(Event::Act {
-                        act: temper_client_domain::pages::Act::Go {
-                            address: temper_client_domain::Address::Chat { task },
-                        },
-                    })
+                    Some(event.clone())
                 } else {
                     Some(Event::Send)
                 }
@@ -422,8 +469,8 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
             Command::Pause => chat,
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
-            Command::Theme | Command::Help | Command::Exit => true,
-            Command::Draft | Command::Goal | Command::Font => false,
+            Command::Help | Command::Exit => true,
+            Command::Draft | Command::Goal | Command::Font | Command::Theme => false,
         };
         if screen && temper_client_view::shared::offered(root, task, command) {
             commands.push(command).expect("at most Command::ALL commands");
@@ -447,7 +494,8 @@ pub fn arrow(view: &View, arrow: Arrow) -> Option<Event> {
     }
     let mut picked = 0;
     for index in 0..view.left_off.len() {
-        if view.left_off.get(index).copied() == view.selected {
+        let task = view.left_off.get(index).expect("bounded left-off row").0;
+        if Some(task) == view.selected {
             picked = match arrow {
                 Arrow::Up => index.saturating_sub(1),
                 Arrow::Down => index.saturating_add(1).min(view.left_off.len().saturating_sub(1)),
@@ -455,5 +503,78 @@ pub fn arrow(view: &View, arrow: Arrow) -> Option<Event> {
             break;
         }
     }
-    Some(Event::LeftOff { task: Some(*view.left_off.get(picked)?) })
+    Some(Event::LeftOff { task: Some(view.left_off.get(picked)?.0) })
+}
+
+fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
+    if root.client().link().state == Link::SignedOut {
+        return None;
+    }
+    let page = if let Some(chat) = root.pages().chat() {
+        Address::Chat { task: chat.task }
+    } else {
+        Address::Home { project: root.pages().project()? }
+    };
+    Some(page_address(authority, &page))
+}
+fn page_address(authority: &[u8], page: &Address) -> Box<[u8]> {
+    skein_lib::bytes::concat(&[b"http://", authority, &temper_client_domain::address::print(page)])
+}
+fn has_needs(root: &Domain) -> bool {
+    match root.pages().inbox() {
+        Some(inbox) => !root.pages().needs().needs(inbox, root.forge().approvals()).is_empty(),
+        None => false,
+    }
+}
+/// The launchpad's walk key on the tree last built (client/README.md, 6.14).
+#[must_use]
+pub fn walk_key(view: &View) -> Option<Event> {
+    if view.walkable { Some(Event::Own { command: Own::Needs }) } else { None }
+}
+/// A chat's number among the displayed left-off rows (client/README.md, 6.14).
+#[must_use]
+pub fn chat_number(view: &View, number: u32) -> Option<u64> {
+    for (task, kind) in &view.left_off {
+        match kind {
+            launchpad::LeftKind::Chat { number: held } if *held == number => return Some(*task),
+            launchpad::LeftKind::Chat { .. } | launchpad::LeftKind::Goal => {}
+        }
+    }
+    None
+}
+/// The whole web address of the displayed focus (client/README.md, 6.14).
+#[must_use]
+pub fn focus(view: &View) -> Option<&[u8]> {
+    view.focus.as_deref()
+}
+/// The TUI's own commands in their offered order (client/README.md, 6.14).
+#[must_use]
+pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
+    let mut commands = List::with_capacity(6);
+    if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
+        commands.push(Own::Theme).expect("one theme command");
+        return commands.into_boxed();
+    }
+    if root.pages().chat().is_some() {
+        commands.push(Own::Open).expect("one chat command");
+    } else if let Some(project) = root.pages().project() {
+        // Only the brief is read here; its availability does not depend on the clock.
+        let brief = temper_client_domain::pages::home::facts(root, project, Wall::from_nanos(0)).brief().is_some();
+        let no_list = root.pages().listing().is_none()
+            && temper_client_view::shared::confirmation(root).is_none()
+            && !tui.quitting();
+        for command in Own::ALL {
+            let offered = match command {
+                Own::Change | Own::Ask | Own::Open => true,
+                Own::Theme => false,
+                Own::Brief => brief,
+                Own::Needs => no_list && has_needs(root),
+            };
+            if offered {
+                commands.push(command).expect("at most Own::ALL commands");
+            }
+        }
+    }
+    commands.push(Own::Theme).expect("theme counted");
+    commands.into_boxed()
 }

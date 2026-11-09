@@ -31,12 +31,6 @@ record Install { forge: u16 back: option bytes 512 }
 record Reachable { forge: u16 installation: option u64 page: u32 }
 record Accept { forge: u16 installation: u64 }
 
-# A person's dismissals (client/README.md, 4.6).
-record ToBegin { project: u32 }
-record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
-enum PersonFact { to_begin: ToBegin goal_from: GoalFrom }
-record Dismiss { what: PersonFact }
-versioned record Dismissals { dismissed: list 8192 PersonFact }
 # A model's trial (temper/docs/design/domain/trial.md, 6).
 record TryAccount { account: u32 again: bool }
 enum TrialStep { starts, answers }
@@ -59,12 +53,27 @@ versioned record Approvals { rows: list 32 ApprovalRow more: u32 }
 record Looked { project: u32 }
 
 # Away and decisions (temper/docs/design/client/README.md, 4.6).
-record SetAway { project: u32 on: bool until: option u64 kinds: u8 }
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachClass { decide, ask, ask_away, wait }
+record ReachSet { number: u8 }
+record ReachKindOf { kind: ReachKind }
+enum ClassSubject { kind: ReachKindOf, set: ReachSet }
+# A person's dismissals (client/README.md, 4.6).
+record ToBegin { project: u32 }
+record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
+record KeepAsking { project: u32 subject: ClassSubject at: u64 }
+enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking }
+record Dismiss { what: PersonFact }
+versioned record Dismissals { dismissed: list 8192 PersonFact }
+enum ReachReason { kind, set: ReachSet, always }
+record Reach { kind: ReachKind class: ReachClass reason: ReachReason under: u8 sets: u8 matched: u8 away: bool }
+record SetAway { project: u32 on: bool until: option u64 }
 record Overturn { project: u32 number: u32 }
-record AwayRow { project: u32 since: u64 until: option u64 kinds: u8 landed: u64 off: option u64 }
+record AwayRow { project: u32 since: u64 until: option u64 landed: u64 off: option u64 }
 versioned record Aways { rows: list 1024 AwayRow }
-record Decision { number: u32 task: u64 at: u64 question: bytes 400 took: bytes 120 why: bytes 400 overturned: bool }
-versioned record Decisions { project: u32 rows: list 64 Decision }
+record Decision { number: u32 task: u64 at: u64 question: bytes 400 took: bytes 120 why: bytes 400 overturned: bool reach: Reach }
+record Asked { number: u32 task: u64 at: u64 reach: Reach }
+versioned record Decisions { project: u32 rows: list 128 Decision asked: list 128 Asked cut: bool }
 enum OverturnRefusal { already, unknown }
 record OverturnRefused { reason: OverturnRefusal }
 
@@ -137,7 +146,7 @@ record ProposalItem { kind: u32 scope: u32 number: u32 edit: SettingEdit }
 versioned record ProposalItemsAnswer { items: list 1024 ProposalItem owned_approval: bool }
 # A branch's path (temper/docs/design/domain/forge.md, 8.13; client/README.md, 4.6).
 enum Actor { person, agent, code, bar }
-enum PathStep { ask, draft, plan, produce, produce_many, check, review, repair, approve, update, resolve, merge, prepare, prove, turn, verify, branch }
+enum PathStep { ask, draft, plan, produce, produce_many, check, review, repair, approve, conflict, resolve, merge, catch_up, prepare, prove, turn, verify, branch, design, close_out }
 record OpensCharter { charter: u32 }
 record OpensRule { kind: u32 scope: u32 number: u32 }
 record OpensGate { number: u32 charter: u32 }
@@ -145,20 +154,23 @@ record OpensTier { name: bytes 32 }
 enum Opens { nothing, charter: OpensCharter, rule: OpensRule, gate: OpensGate, tier: OpensTier, queue, turn }
 record Fact { label: text 32 value: text 184 }
 record Card { who: text 128 name: text 64 facts: list 4 Fact }
-record Stop { actor: Actor step: PathStep words: text 64 opens: Opens card: Card }
+record Stop { actor: Actor step: PathStep words: text 64 needed: bool over: text 16 opens: Opens card: Card }
 record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list 24 Stop }
 # A project's stock ways, watched (client/README.md, 4.6; configuration.md, 13.10).
-record StockWay { name: text 64 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
+record CharterWords { line: text 120 }
+record ProjectWords { headline: text 120 lede: text 480 }
+record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
 record WaysSubject { project: u32 }
-versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath may_change: bool }
+versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords may_change: bool }
 # A view, read when shown (client/README.md, 4.6 and 5.16).
 record ViewRead { project: u32 address: text 512 }
 record WayView { name: text 64 line: text 256 path: BranchPath current: bool }
 record ProposalView { before: BranchPath after: BranchPath }
 record CharterView { charter: u32 card: Card }
 record RuleView { kind: u32 number: u32 card: Card }
+record RolesView { roles: list 16 CharterView }
 record NotDrawn { words: text 512 }
-enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, not_drawn: NotDrawn }
+enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, roles: RolesView, not_drawn: NotDrawn }
 versioned record ViewAnswer { view: View }
 
 enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead }
@@ -271,6 +283,11 @@ record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
 record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
 record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
 record ForgeCharter { charter: u32 }
+record TemplateGoal { design: bool close_out: bool }
 enum QuestionsRoute { none, foreman, up }
 record ProjectQuestions { route: QuestionsRoute }
-record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }
+record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
+# What reaches a person (temper/docs/design/domain/forge.md, 5.10).
+record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }
+record PathSet { number: u8 name: bytes 40 patterns: list 6 bytes 80 }
+record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }

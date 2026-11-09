@@ -122,15 +122,6 @@ impl Service {
         }
     }
 
-    /// The worker domain, for a world to inspect before requesting shutdown.
-    #[must_use]
-    pub fn worker_domain(&self) -> Option<&temper_worker_domain::Domain> {
-        match &self.worker {
-            Some(worker) => Some(&worker.root),
-            None => None,
-        }
-    }
-
     /// Keep matching workspace clones on the worker, when one is present.
     pub fn reuse_workspaces(&mut self) {
         if let Some(worker) = &mut self.worker {
@@ -145,6 +136,7 @@ impl Service {
         }
     }
 
+    #[cfg(feature = "worker")]
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,
@@ -247,7 +239,7 @@ impl Service {
         forge.log_origin_limit = settings.limits.forges.log_origins;
         let notes = Queue::with_capacity(settings.limits.forge.forges);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
-        let mut core = jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed);
+        let mut core = core_config(&settings.jig, seeds);
         core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
         core.jobs = limits::merge_jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
@@ -305,9 +297,11 @@ impl Service {
     // The stock small profile's Prepared::room:
     // twice its worker root output bound of 5,099. These kernel-facing
     // process queues retain that capacity independently of the watermark.
+    #[cfg(feature = "worker")]
     const WORKER_ALONE_QUEUE: u32 = 10_198;
 
     /// Build the worker and shared IO without allocating any engine children.
+    #[cfg(feature = "worker")]
     pub(crate) fn worker_alone(
         settings: &settings::Worker,
         limits: &limits::Limits,
@@ -319,7 +313,7 @@ impl Service {
         let io_limits = settings.jig.limits.io;
         crate::worker_settings::prepare(settings, agent, limits)?;
         let queue = Self::WORKER_ALONE_QUEUE;
-        let worker_operations = crate::worker_settings::operations(&limits.git_component)
+        let worker_operations = crate::worker_settings::configured_operations(&limits.git_component)
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
         let operations = worker_alone_operations(&io_limits, worker_operations)
             .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
@@ -589,7 +583,12 @@ impl Service {
     /// Operator diagnostics, taken by the binary.
     pub fn notes(&mut self) -> &mut Queue<crate::Note> {
         match &mut self.engine {
-            Some(engine) => &mut engine.notes,
+            Some(engine) => {
+                if let Some(worker) = &mut self.worker {
+                    worker.drain_notes(&mut engine.notes);
+                }
+                &mut engine.notes
+            }
             None => self.worker.as_mut().expect("worker alone").notes(),
         }
     }
@@ -621,6 +620,7 @@ impl Service {
                         && engine.forge.above.is_empty()
                         && engine.store.closed()
                         && engine.workers.host.closed()
+                        && engine.workers.notes.is_empty()
                         && engine.clients.closed
                         && engine.clients.io.is_empty()
                         && match &engine.accounts {
@@ -710,6 +710,7 @@ impl Service {
         if let Some(engine) = &self.engine {
             roots.entry(&engine.domain);
         }
+        #[cfg(feature = "worker")]
         if let Some(worker) = &self.worker {
             roots.entry(&worker.root);
         }
@@ -737,6 +738,17 @@ impl Service {
         }
     }
 }
+/// Core settings with the application's private tools (domain/agent.md, 8.4.4).
+pub(crate) fn core_config(config: &jig_protocol_config::Engine, seeds: &settings::Seeds) -> jig_domain_core::Config {
+    let mut core = jig_protocol_config::core(config, seeds.deployment, seeds.seed);
+    let mut tools = List::with_capacity(1);
+    for tool in temper_engine_smith::PRIVATE_TOOLS {
+        tools.push(Box::from(tool)).expect("private tool names");
+    }
+    core.settings.private_tools = tools.into_boxed();
+    core
+}
+
 fn start_problem(member: &[u8], what: What) -> Problems {
     let mut problems = Problems::empty();
     problems.push(Path::root().member(b"engine").member(member), what);
@@ -938,11 +950,6 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 }
 fn route_events(service: &mut Service) {
     for _ in 0..service.told.len() {
-        if let Some(worker) = &service.worker
-            && !worker.link_taken()
-        {
-            break;
-        }
         if box_notes_full(service) {
             break;
         }
@@ -1014,12 +1021,11 @@ fn route_events(service: &mut Service) {
                     accounts.up(accounts::untag(event));
                 }
             } else if !engine.workers.up(service.io_env.now, event, &mut engine.events) && engine.end.is_none() {
-                engine.end = Some(End::Stopped(Stop::Listener {
-                    listener: crate::Listening::Workers,
-                    address: engine.workers.host.listener_address(owner),
-                    error,
-                }));
+                let address = engine.workers.host.listener_address(owner);
+                engine.workers.notes.push(crate::Note::WorkerListenerFailed { address, error });
+                engine.end = Some(End::Stopped(Stop::Listener { listener: crate::Listening::Workers, address, error }));
             }
+            engine.drain_worker_notes();
             for (listener, addr) in [
                 (crate::Listening::Clients, engine.clients.listening.take()),
                 (crate::Listening::Workers, engine.workers.host.listening.take()),

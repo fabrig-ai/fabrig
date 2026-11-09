@@ -38,6 +38,7 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
                     limits,
                     w::StockWayParts {
                         name: way.name,
+                        headline: way.headline,
                         line: way.line,
                         path: path(way.path, limits)?,
                         items,
@@ -55,6 +56,13 @@ pub fn ways_panel(document: ways::WaysDocument, limits: &w::Limits) -> Option<Bo
             ways: entries,
             current: document.current,
             own: path(document.own, limits)?,
+            words: match document.words {
+                Some(words) => Some(
+                    w::ProjectWords::new(limits, w::ProjectWordsParts { headline: words.headline, lede: words.lede })
+                        .ok()?,
+                ),
+                None => None,
+            },
             may_change: document.may_change,
         },
     )
@@ -81,6 +89,18 @@ pub(super) fn view_answer(view: ways::View, limits: &w::Limits) -> Option<Box<[u
         ways::View::Rule { kind, number, card: value } => {
             w::View::Rule(w::RuleView::new(limits, w::RuleViewParts { kind, number, card: card(value, limits)? }).ok()?)
         }
+        ways::View::Roles(values) => {
+            let mut roles = List::with_capacity(limits.roles_view_roles);
+            for (charter, value) in values {
+                roles
+                    .push(
+                        w::CharterView::new(limits, w::CharterViewParts { charter, card: card(value, limits)? })
+                            .ok()?,
+                    )
+                    .ok()?;
+            }
+            w::View::Roles(w::RolesView::new(limits, w::RolesViewParts { roles }).ok()?)
+        }
         ways::View::NotDrawn(words) => w::View::NotDrawn(w::NotDrawn::new(limits, w::NotDrawnParts { words }).ok()?),
     };
     let answer = w::ViewAnswer::new(limits, w::ViewAnswerParts { view }).ok()?;
@@ -106,7 +126,8 @@ fn path(value: ways::Path, limits: &w::Limits) -> Option<w::BranchPath> {
             ways::Step::Review => w::PathStep::Review,
             ways::Step::Repair => w::PathStep::Repair,
             ways::Step::Approve => w::PathStep::Approve,
-            ways::Step::Update => w::PathStep::Update,
+            ways::Step::Conflict => w::PathStep::Conflict,
+            ways::Step::CatchUp => w::PathStep::CatchUp,
             ways::Step::Resolve => w::PathStep::Resolve,
             ways::Step::Merge => w::PathStep::Merge,
             ways::Step::Prepare => w::PathStep::Prepare,
@@ -114,6 +135,8 @@ fn path(value: ways::Path, limits: &w::Limits) -> Option<w::BranchPath> {
             ways::Step::Turn => w::PathStep::Turn,
             ways::Step::Verify => w::PathStep::Verify,
             ways::Step::Branch => w::PathStep::Branch,
+            ways::Step::Design => w::PathStep::Design,
+            ways::Step::CloseOut => w::PathStep::CloseOut,
         };
         let opens = match stop.opens {
             ways::Opens::Nothing => w::Opens::Nothing,
@@ -134,7 +157,15 @@ fn path(value: ways::Path, limits: &w::Limits) -> Option<w::BranchPath> {
             .push(
                 w::Stop::new(
                     limits,
-                    w::StopParts { actor, step, words: stop.words, opens, card: card(stop.card, limits)? },
+                    w::StopParts {
+                        actor,
+                        step,
+                        words: stop.words,
+                        needed: stop.needed,
+                        over: stop.over,
+                        opens,
+                        card: card(stop.card, limits)?,
+                    },
                 )
                 .ok()?,
             )

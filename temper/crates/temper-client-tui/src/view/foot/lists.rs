@@ -1,11 +1,12 @@
 //! The first standing list (temper/docs/design/client/README.md, 6.14 and 6.17).
 use super::{Binds, Event, OptionItem, Options, Words, look, text};
-use crate::{Tui, view::front, words::Word};
+use crate::{Own, Scheme, Tui, WalkStep, theme::ThemeChoice, view::front, words::Word};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, State, phrases::Hole};
 use temper_client_domain::{
-    Domain,
+    Address, Domain,
+    address::{self, Filter},
     pages::{
         Act, needs,
         terminal::{Command, Listing},
@@ -16,6 +17,12 @@ use temper_client_view::shared;
 pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Options> {
     if let Some(quit) = front::quit(root, tui, words) {
         return Some(quit);
+    }
+    if tui.theme_list() {
+        return Some(theme(tui, words));
+    }
+    if let Some(prompt) = walk(root, tui, words) {
+        return Some(prompt);
     }
     if let Some(confirmation) = shared::confirmation(root) {
         return Some(Options {
@@ -66,7 +73,7 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
             escape: Event::Dismiss,
         });
     }
-    if let Some(commands) = commands(root, words, value, tui.front()) {
+    if let Some(commands) = commands(root, tui, words, value) {
         return Some(commands);
     }
     if root.pages().chat().is_none() || !value.is_empty() {
@@ -76,9 +83,46 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
     question_list(question, tui.aside(), words)
 }
 
+fn theme(tui: &Tui, words: &Words) -> Options {
+    let mut items = List::with_capacity(3);
+    for choice in ThemeChoice::ALL {
+        let name = match choice {
+            ThemeChoice::Auto => Word::ThemeAuto,
+            ThemeChoice::Light => Word::ThemeLight,
+            ThemeChoice::Dark => Word::ThemeDark,
+        };
+        let description = if choice == ThemeChoice::Auto {
+            words.say(
+                match tui.terminal_scheme() {
+                    Some(Scheme::Light) => Word::ThemeAutoLight,
+                    Some(Scheme::Dark) => Word::ThemeAutoDark,
+                    None => Word::ThemeAutoNone,
+                },
+                &[],
+            )
+        } else {
+            Box::default()
+        };
+        items
+            .push(OptionItem {
+                name: words.say(name, &[]),
+                words: description,
+                selected: choice == tui.theme_choice(),
+                event: Event::Theme { choice: Some(choice) },
+            })
+            .expect("three theme choices");
+    }
+    Options {
+        head: Some(words.say(Word::ThemeHead, &[])),
+        name: words.say(Word::ThemeHead, &[]),
+        items: items.into_boxed(),
+        escape: Event::Theme { choice: None },
+    }
+}
+
 #[expect(clippy::disallowed_methods, reason = "commands reject Unicode whitespace in validated UTF-8 composer words")]
-fn commands(root: &Domain, words: &Words, value: &[u8], front: bool) -> Option<Options> {
-    if !value.starts_with(b"/") {
+fn commands(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Options> {
+    if crate::landing(root) || !value.starts_with(b"/") {
         return None;
     }
     for character in core::str::from_utf8(value).expect("composer words are UTF-8").chars() {
@@ -86,27 +130,11 @@ fn commands(root: &Domain, words: &Words, value: &[u8], front: bool) -> Option<O
             return None;
         }
     }
-    let mut items = List::with_capacity(14);
-    for command in crate::offered(root, words) {
-        if front && command == Command::Exit && crate::LOG_COMMAND.starts_with(value) {
-            items
-                .push(OptionItem {
-                    name: copy_of(crate::LOG_COMMAND),
-                    words: words.say(Word::LogCommand, &[]),
-                    selected: false,
-                    event: Event::Log,
-                })
-                .expect("commands and /log counted");
-        }
-        if command.name().starts_with(value) {
-            items
-                .push(OptionItem {
-                    name: copy_of(command.name()),
-                    words: description(command, words, front),
-                    selected: false,
-                    event: Event::Command { command },
-                })
-                .expect("at most Command::ALL commands");
+    let commands = command_items(root, tui, words);
+    let mut items = List::with_capacity(u32::try_from(commands.len()).expect("commands fit"));
+    for item in commands {
+        if item.name.starts_with(value) {
+            items.push(item).expect("offered commands counted");
         }
     }
     if items.is_empty() {
@@ -119,6 +147,120 @@ fn commands(root: &Domain, words: &Words, value: &[u8], front: bool) -> Option<O
             escape: Event::Dismiss,
         })
     }
+}
+// Both the list and /help read this order, including front's /log before /quit.
+pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[OptionItem]> {
+    let commands = crate::offered(root, words);
+    let own = crate::offered_own(root, tui);
+    let capacity = commands.len().checked_add(own.len()).expect("commands fit").checked_add(1).expect("log fits");
+    let mut items = List::with_capacity(u32::try_from(capacity).expect("commands fit"));
+    for command in &own {
+        match command {
+            Own::Change | Own::Ask => items.push(own_item(*command, words)).expect("own commands counted"),
+            Own::Brief | Own::Needs | Own::Open | Own::Theme => {}
+        }
+    }
+    for command in commands {
+        if command == Command::Help {
+            items.push(own_item(Own::Theme, words)).expect("theme counted");
+        }
+        if tui.front() && command == Command::Exit {
+            items
+                .push(OptionItem {
+                    name: copy_of(crate::LOG_COMMAND),
+                    words: words.say(Word::LogCommand, &[]),
+                    selected: false,
+                    event: Event::Log,
+                })
+                .expect("log counted");
+        }
+        items
+            .push(OptionItem {
+                name: copy_of(crate::command_name(command)),
+                words: description(command, words, tui.front()),
+                selected: false,
+                event: Event::Command { command },
+            })
+            .expect("root commands counted");
+        if command == Command::Chats {
+            for command in &own {
+                match command {
+                    Own::Brief | Own::Needs | Own::Open => {
+                        items.push(own_item(*command, words)).expect("own commands counted");
+                    }
+                    Own::Change | Own::Ask | Own::Theme => {}
+                }
+            }
+        }
+    }
+    items.into_boxed()
+}
+fn own_item(command: Own, words: &Words) -> OptionItem {
+    let word = match command {
+        Own::Change => Word::ChangeCommand,
+        Own::Ask => Word::AskTemper,
+        Own::Brief => Word::BriefCommand,
+        Own::Needs => Word::NeedsCommand,
+        Own::Open => Word::OpenCommand,
+        Own::Theme => Word::ThemeCommand,
+    };
+    OptionItem {
+        name: copy_of(command.name()),
+        words: words.say(word, &[]),
+        selected: false,
+        event: Event::Own { command },
+    }
+}
+pub(crate) fn walk(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
+    let walk = tui.walk()?;
+    for prompt in shared::need_prompts(root, words.view()) {
+        if walk.shown(&prompt.object) {
+            continue;
+        }
+        let (name, address) = match prompt.act {
+            shared::NeedAct::Answer(question) => return Some(question_options(question, words, true)),
+            shared::NeedAct::Review { words, address } => (words, address),
+            shared::NeedAct::Web => {
+                let path =
+                    address::print(&Address::Inbox { filter: Filter { project: prompt.project, ..Filter::ALL } });
+                (words.say(Word::OpenOnWeb, &[]), super::notes::join(&[b"http://", tui.address(), &path]))
+            }
+        };
+        let mut items = List::with_capacity(2);
+        items
+            .push(OptionItem {
+                name: numbered(&name, 1, words),
+                words: Box::default(),
+                selected: false,
+                event: Event::Walk { object: prompt.object, step: WalkStep::Open { address } },
+            })
+            .expect("open counted");
+        next(&mut items, prompt.object, words);
+        return Some(Options {
+            name: prompt.line.words.clone(),
+            head: Some(prompt.line.words),
+            items: items.into_boxed(),
+            escape: Event::EndWalk,
+        });
+    }
+    None
+}
+fn numbered(name: &[u8], number: u64, words: &Words) -> Box<[u8]> {
+    super::notes::join(&[&words.say(Word::Numbered, &[Hole::Number(number)]), name])
+}
+fn next(items: &mut List<OptionItem>, object: jig_client::contract::ObjectKey, words: &Words) {
+    items
+        .push(OptionItem {
+            name: numbered(
+                &words.say(Word::Next, &[]),
+                u64::from(items.len()).checked_add(1).expect("next number fits"),
+                words,
+            ),
+            words: Box::default(),
+            selected: false,
+            event: Event::Walk { object, step: WalkStep::Next },
+        })
+        .expect("next counted");
 }
 pub(super) fn description(command: Command, words: &Words, front: bool) -> Box<[u8]> {
     if command == Command::Exit {
@@ -135,8 +277,11 @@ pub(crate) fn question_list(
     if Some(question.object) == aside {
         return None;
     }
+    Some(question_options(question, words, false))
+}
+fn question_options(question: shared::Question, words: &Words, walking: bool) -> Options {
     let mut items = List::with_capacity(
-        u32::try_from(question.choices.len()).expect("parsed choices fit").checked_add(1).expect("else fits"),
+        u32::try_from(question.choices.len()).expect("parsed choices fit").checked_add(2).expect("else and next fit"),
     );
     for primary in [true, false] {
         for (index, choice) in question.choices.iter().enumerate() {
@@ -153,8 +298,15 @@ pub(crate) fn question_list(
                     name: super::notes::join(&[&numbered, &choice.words]),
                     words: Box::default(),
                     selected,
-                    event: Event::Act {
-                        act: Act::Needs(needs::Act::Choose { object: question.object, words: choice.words.clone() }),
+                    event: if walking {
+                        Event::Walk { object: question.object, step: WalkStep::Choose { words: choice.words.clone() } }
+                    } else {
+                        Event::Act {
+                            act: Act::Needs(needs::Act::Choose {
+                                object: question.object,
+                                words: choice.words.clone(),
+                            }),
+                        }
                     },
                 })
                 .expect("parsed choices fit");
@@ -170,12 +322,15 @@ pub(crate) fn question_list(
             event: Event::Aside { object: question.object },
         })
         .expect("else fits");
-    Some(Options {
+    if walking {
+        next(&mut items, question.object, words);
+    }
+    Options {
         name: question.head.clone(),
         head: Some(question.head),
         items: items.into_boxed(),
-        escape: Event::Aside { object: question.object },
-    })
+        escape: if walking { Event::EndWalk } else { Event::Aside { object: question.object } },
+    }
 }
 pub(super) fn draw(b: &mut Builder, list: &Options, binds: &mut Binds) {
     b.open(Role::Region);

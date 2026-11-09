@@ -97,8 +97,43 @@ pub enum Word {
     LogEmpty,
     ExitFront,
     KeyCloseFront,
+    KindChat,
+    KindGoal,
+    ChatNumber,
+    WalksThem,
+    MoneyNeed,
+    SignOffNeed,
+    StartHead,
+    ChangeStart,
+    ChangeCommand,
+    BriefCommand,
+    NeedsCommand,
+    OpenCommand,
+    BriefMore,
+    BoxStart,
+    ToWalk,
+    Next,
+    OpenOnWeb,
+    WalkDone,
+    OpenAt,
+    KeyWalk,
+    UnknownNotice,
+    SigningInNotice,
+    ThemeCommand,
+    ThemeHead,
+    ThemeAuto,
+    ThemeLight,
+    ThemeDark,
+    ThemeAutoLight,
+    ThemeAutoDark,
+    ThemeAutoNone,
+    ThemeNoticeAutoLight,
+    ThemeNoticeAutoDark,
+    ThemeNoticeAutoNone,
+    ThemeNoticeLight,
+    ThemeNoticeDark,
 }
-pub(crate) const ALL: [Word; 87] = [
+pub(crate) const ALL: [Word; 122] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -186,6 +221,41 @@ pub(crate) const ALL: [Word; 87] = [
     Word::LogEmpty,
     Word::ExitFront,
     Word::KeyCloseFront,
+    Word::KindChat,
+    Word::KindGoal,
+    Word::ChatNumber,
+    Word::WalksThem,
+    Word::MoneyNeed,
+    Word::SignOffNeed,
+    Word::StartHead,
+    Word::ChangeStart,
+    Word::ChangeCommand,
+    Word::BriefCommand,
+    Word::NeedsCommand,
+    Word::OpenCommand,
+    Word::BriefMore,
+    Word::BoxStart,
+    Word::ToWalk,
+    Word::Next,
+    Word::OpenOnWeb,
+    Word::WalkDone,
+    Word::OpenAt,
+    Word::KeyWalk,
+    Word::UnknownNotice,
+    Word::SigningInNotice,
+    Word::ThemeCommand,
+    Word::ThemeHead,
+    Word::ThemeAuto,
+    Word::ThemeLight,
+    Word::ThemeDark,
+    Word::ThemeAutoLight,
+    Word::ThemeAutoDark,
+    Word::ThemeAutoNone,
+    Word::ThemeNoticeAutoLight,
+    Word::ThemeNoticeAutoDark,
+    Word::ThemeNoticeAutoNone,
+    Word::ThemeNoticeLight,
+    Word::ThemeNoticeDark,
 ];
 
 #[derive(Clone, Copy)]
@@ -194,6 +264,7 @@ enum Slot {
     State,
     Code,
     ApprovalAddress,
+    PageAddress,
     Port,
     Span,
     Number,
@@ -212,6 +283,7 @@ impl Slot {
             | Self::State
             | Self::Code
             | Self::ApprovalAddress
+            | Self::PageAddress
             | Self::Port
             | Self::Span
             | Self::Clock
@@ -227,6 +299,8 @@ impl Slot {
             Self::Address => 64,
             Self::Code => 9,
             Self::ApprovalAddress => 95,
+            // http://, the bounded authority, /tasks/ and twenty task digits.
+            Self::PageAddress => 98,
             Self::Port => 5,
             Self::Span | Self::Label => 32,
             Self::Number => 20,
@@ -236,6 +310,7 @@ impl Slot {
     }
 }
 impl Word {
+    #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps each phrase number stable")]
     const fn number(self) -> u16 {
         match self {
             Self::Title => 0,
@@ -325,13 +400,69 @@ impl Word {
             Self::LogEmpty => 87,
             Self::ExitFront => 88,
             Self::KeyCloseFront => 89,
+            Self::KindChat => 90,
+            Self::KindGoal => 91,
+            Self::ChatNumber => 92,
+            Self::WalksThem => 93,
+            Self::MoneyNeed => 94,
+            Self::SignOffNeed => 95,
+            Self::StartHead => 96,
+            Self::ChangeStart => 97,
+            Self::ChangeCommand => 98,
+            Self::BriefCommand => 99,
+            Self::NeedsCommand => 100,
+            Self::OpenCommand => 101,
+            Self::BriefMore => 102,
+            Self::BoxStart => 103,
+            Self::ToWalk => 104,
+            Self::Next => 105,
+            Self::OpenOnWeb => 106,
+            Self::WalkDone => 107,
+            Self::OpenAt => 108,
+            Self::KeyWalk => 109,
+            Self::UnknownNotice => 110,
+            Self::SigningInNotice => 111,
+            Self::ThemeCommand => 112,
+            Self::ThemeHead => 113,
+            Self::ThemeAuto => 114,
+            Self::ThemeLight => 115,
+            Self::ThemeDark => 116,
+            Self::ThemeAutoLight => 117,
+            Self::ThemeAutoDark => 118,
+            Self::ThemeAutoNone => 119,
+            Self::ThemeNoticeAutoLight => 120,
+            Self::ThemeNoticeAutoDark => 121,
+            Self::ThemeNoticeAutoNone => 122,
+            Self::ThemeNoticeLight => 123,
+            Self::ThemeNoticeDark => 124,
         }
     }
     const fn id(self) -> PhraseId {
         PhraseId { owner: look::OWNER, number: self.number() }
     }
+    #[expect(clippy::too_many_lines, reason = "one exhaustive table holds every TUI phrase and its holes")]
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::KindChat => (&[b", a chat"], &[]),
+            Self::KindGoal => (&[b", a goal"], &[]),
+            Self::ChatNumber => (&[b"/chats ", b""], &[Slot::Number]),
+            Self::WalksThem => (&[b"n walks them"], &[]),
+            Self::MoneyNeed => (&[b"$"], &[]),
+            Self::SignOffNeed => (&[b"\xe2\x9c\x93"], &[]),
+            Self::StartHead => (&[b"Start"], &[]),
+            Self::ChangeStart => (&[b"one change, run as ", b"'s way says"], &[Slot::Title]),
+            Self::ChangeCommand => (&[b"One change, run as the project's way says"], &[]),
+            Self::BriefCommand => (&[b"The brief, whole"], &[]),
+            Self::NeedsCommand => (&[b"Walk what needs you"], &[]),
+            Self::OpenCommand => (&[b"Open this on the web"], &[]),
+            Self::BriefMore => (&[b" \xc2\xb7 /brief"], &[]),
+            Self::BoxStart => (&[b"Ask for a change, or ask temper.  / for commands"], &[]),
+            Self::ToWalk => (&[b"n to walk"], &[]),
+            Self::Next => (&[b"Next"], &[]),
+            Self::OpenOnWeb => (&[b"Open it on the web"], &[]),
+            Self::WalkDone => (&[b"Nothing else needs you."], &[]),
+            Self::OpenAt => (&[b"Open ", b" in your browser."], &[Slot::PageAddress]),
+            Self::KeyWalk => (&[b"n walks what needs you"], &[]),
             Self::BoxPurpose => (&[b"on this machine, to try it"], &[]),
             Self::WelcomeOpen => (&[b"Welcome. Set temper up in your browser: open this link on this machine."], &[]),
             Self::LinkOnce => (&[b"It signs you in as this temper's owner, once, within 2 hours."], &[]),
@@ -422,6 +553,22 @@ impl Word {
             Self::ApprovalNotAskedRefused => (&[b"This temper doesn't sign terminals in from the browser. Paste the link it printed instead."], &[]),
             Self::ApprovalNotAskedBusy => (&[b"Too many terminals are waiting to sign in. Press Enter to ask again in a moment."], &[]),
             Self::ApprovalNotAskedDown => (&[b"temper is starting or stopping, or out of reach. Press Enter to ask again."], &[]),
+            Self::UnknownNotice => (&[b"Unknown command ", b" \xc2\xb7 /help lists them"], &[Slot::Title]),
+            Self::SigningInNotice => (&[b"Still signing in"], &[]),
+            Self::ThemeCommand => (&[b"Auto, light or dark"], &[]),
+            Self::ThemeHead => (&[b"Theme. Auto follows your terminal."], &[]),
+            Self::ThemeAuto => (&[b"Auto"], &[]),
+            Self::ThemeLight => (&[b"Light"], &[]),
+            Self::ThemeDark => (&[b"Dark"], &[]),
+            Self::ThemeAutoLight => (&[b"light, as your terminal says"], &[]),
+            Self::ThemeAutoDark => (&[b"dark, as your terminal says"], &[]),
+            Self::ThemeAutoNone => (&[b"dark: your terminal doesn't say"], &[]),
+            Self::ThemeNoticeAutoLight => (&[b"Theme: auto, light as your terminal says."], &[]),
+            Self::ThemeNoticeAutoDark => (&[b"Theme: auto, dark as your terminal says."], &[]),
+            Self::ThemeNoticeAutoNone => (&[b"Theme: auto, dark: your terminal doesn't say."], &[]),
+            Self::ThemeNoticeLight => (&[b"Theme: light."], &[]),
+            Self::ThemeNoticeDark => (&[b"Theme: dark."], &[]),
+
         }
     }
     pub(crate) fn capacity(self, domain: &Limits) -> Option<u32> {
@@ -443,6 +590,7 @@ impl Word {
 #[derive(Debug)]
 pub struct Words {
     book: Phrasebook,
+    notice_bytes: u32,
     view: temper_client_view::words::Words,
 }
 impl Words {
@@ -517,10 +665,34 @@ impl Words {
             holes: 2,
             segments: segment_count,
             text_bytes: literal_bytes,
-            hole_bytes: domain.client.domain.text.max(95),
+            hole_bytes: domain.client.domain.text.max(98),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { book, view })
+        Ok(Words { book, view, notice_bytes: domain.client.domain.text })
+    }
+    pub(crate) fn notice(&self, notice: &crate::Notice) -> Box<[u8]> {
+        match notice {
+            crate::Notice::Unknown { words } => {
+                let bounded = skein_lib::bytes::utf8_prefix(
+                    words,
+                    usize::try_from(self.notice_bytes).expect("notice hole fits memory"),
+                );
+                self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
+            }
+            crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+            crate::Notice::Theme { choice, terminal } => {
+                let word = match choice {
+                    crate::theme::ThemeChoice::Auto => match terminal {
+                        Some(crate::Scheme::Light) => Word::ThemeNoticeAutoLight,
+                        Some(crate::Scheme::Dark) => Word::ThemeNoticeAutoDark,
+                        None => Word::ThemeNoticeAutoNone,
+                    },
+                    crate::theme::ThemeChoice::Light => Word::ThemeNoticeLight,
+                    crate::theme::ThemeChoice::Dark => Word::ThemeNoticeDark,
+                };
+                self.say(word, &[])
+            }
+        }
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {

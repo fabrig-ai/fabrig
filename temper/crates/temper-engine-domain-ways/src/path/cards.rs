@@ -34,7 +34,7 @@ pub(super) fn card(who: &[u8], name: &[u8], facts: Box<[Fact]>) -> Card {
 }
 
 pub(super) fn stop(actor: Actor, step: Step, words: &[u8], opens: Opens, card: Card) -> Stop {
-    Stop { actor, step, words: text(words, WORDS), opens, card }
+    Stop { actor, step, words: text(words, WORDS), opens, card, needed: false, over: Box::default() }
 }
 
 pub(super) fn agent_card(inputs: &Inputs, charter: u32, who: &[u8], name: &[u8]) -> Card {
@@ -42,39 +42,57 @@ pub(super) fn agent_card(inputs: &Inputs, charter: u32, who: &[u8], name: &[u8])
         if agent.charter != charter {
             continue;
         }
-        let mut model = List::uncapped();
-        if let Some(value) = &agent.model {
-            append(&mut model, value);
-        }
-        if let Some(value) = &agent.effort {
-            if !model.is_empty() {
-                append(&mut model, " · ".as_bytes());
-            }
-            append(&mut model, value);
-        }
-        if agent.model.is_none() && agent.effort.is_none() {
-            append(&mut model, b"no model");
-        }
-        if !agent.usable {
-            append(&mut model, " · no account runs it now".as_bytes());
-        }
-        let asked = bytes::concat(&[
-            "“".as_bytes(),
-            &cut_on_word(&agent.asked, ASKED.checked_sub("“”".len()).expect("quote room")),
-            "”".as_bytes(),
-        ]);
-        return card(
-            who,
-            name,
-            Box::new([
-                fact(b"Model", model.as_slice()),
-                fact(b"Can", &agent.can),
-                Fact { label: text(b"Asked to", LABEL), value: asked },
-            ]),
-        );
+        return role_card(agent, who, name);
     }
     let value = bytes::concat(&[b"charter ", &number(charter)]);
     card(who, name, Box::new([fact(b"Charter", &value)]))
+}
+
+/// The coordinator's agent facts followed by its order or landing (temper/docs/design/domain/forge.md, 8.13).
+pub(super) fn coordinator_card(inputs: &Inputs, charter: u32, who: &[u8], extra: Fact) -> Card {
+    let mut card = agent_card(inputs, charter, who, b"the coordinator");
+    let mut facts = List::uncapped();
+    for fact in card.facts {
+        facts.push(fact).expect("agent facts fit memory");
+    }
+    facts.push(extra).expect("one coordinator fact follows the agent facts");
+    card.facts = facts.into_boxed();
+    card
+}
+
+/// An agent’s role facts (temper/docs/design/domain/forge.md, 8.13).
+#[must_use]
+pub fn role_card(agent: &super::Agent, who: &[u8], name: &[u8]) -> Card {
+    let mut model = List::uncapped();
+    if let Some(value) = &agent.model {
+        append(&mut model, value);
+    }
+    if let Some(value) = &agent.effort {
+        if !model.is_empty() {
+            append(&mut model, " · ".as_bytes());
+        }
+        append(&mut model, value);
+    }
+    if agent.model.is_none() && agent.effort.is_none() {
+        append(&mut model, b"no model");
+    }
+    if !agent.usable {
+        append(&mut model, " · no account runs it now".as_bytes());
+    }
+    let asked = bytes::concat(&[
+        "“".as_bytes(),
+        &cut_on_word(&agent.asked, ASKED.checked_sub("“”".len()).expect("quote room")),
+        "”".as_bytes(),
+    ]);
+    card(
+        who,
+        name,
+        Box::new([
+            fact(b"Model", model.as_slice()),
+            fact(b"Can", &agent.can),
+            Fact { label: text(b"Asked to", LABEL), value: asked },
+        ]),
+    )
 }
 
 pub(super) fn append(out: &mut List<u8>, value: &[u8]) {

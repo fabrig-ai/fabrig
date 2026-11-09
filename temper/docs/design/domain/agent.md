@@ -132,7 +132,10 @@ whose charter is an asking one (4.3) is given no repository, whatever
 its project's home and context repositories (`root.md`, 7.1; 8.4), so it
 runs with no workspace: no checkout, no file tools, no shell, and smith
 says nothing of a checkout (smith's `domain/run.md`, 3.3; through Claude
-Code, smith's `protocol/programs.md`, 5.1).
+Code, smith's `protocol/programs.md`, 5.1). A run whose charter names none
+of `inspect`, `modify` and `shell` is given no repository either, whatever
+its project's repositories, since it could neither read, write nor run
+anything in one: the drafter's runs so (8.5), and keep their sub-agents.
 
 ### 4.3 Tools
 
@@ -164,23 +167,27 @@ Code, smith's `protocol/programs.md`, 5.1).
   `domain/engine.md`, 7.1) and its task's authority has it, and the
   charter is no asking one (below): no stock charter, since charter 11 is
   an asking charter, and a charter of a deployment's own that names the
-  family (`../protocol/configuration.md`, 13.4).
+  family (`../protocol/configuration.md`, 13.4). The delegate family's,
+  `goal`, `change` and `delegate`, are declared only where the run's
+  charter names that family in its `tools`, so that a charter that starts
+  nothing, the drafter's (8.5), is offered none of them; where it does, its
+  task's authority decides each call, as below.
 - **A charter that names the asking family is declared its own tools
   alone** (jig's `domain/authority.md`, section 3): an asking charter is
   one whose `tools` name the asking family and no family but it and
   settings, so that a mask of every family, as a record with none decodes
-  (jig's `RunPolicy::EVERY_FAMILY`), is none. It is declared `see` and `document`,
-  the asking family's, where its task's authority holds that family, and
-  `propose_settings` in its asking form where the charter names the
-  settings family and its task's authority holds it (8.4); no other host
+  (jig's `RunPolicy::EVERY_FAMILY`), is none. It is declared `see`, `document`
+  and `remember`, the asking family's, where its task's authority holds that
+  family, and `propose_settings` in its asking form where the charter names
+  the settings family and its task's authority holds it (8.4); no other host
   tool, of any family, whatever the charter's other families, and
   neither `settings` nor `read_docs`, which `see` reads in their place.
   smith's `wait` is granted as for any Open run. The asking tools are
   declared to no other charter. A tool a run never calls costs every
   request and blurs what it does, so for these charters the rule above,
   every host tool in every charter, does not hold. Authority decides
-  each call by its family as for every charter: `see` and `document` by
-  the asking family, `propose_settings` by the settings family. The task's authority decides
+  each call by its family as for every charter: `see`, `document` and
+  `remember` by the asking family, `propose_settings` by the settings family. The task's authority decides
   each call by its family (jig's `domain/authority.md`, sections 3 and
   8.5): a call beyond it is answered beyond authority, naming what it
   lacked, and the run may `propose` it instead. A refused tool family
@@ -269,9 +276,19 @@ Code, smith's `protocol/programs.md`, 5.1).
 - **The brief fits the room its charter leaves.** smith counts a run's
   brief in its host part, beside the charter's offered tools, its
   instructions and the finish and deliver schemas. Before sending an
-  assignment, the engine fits gathered sections to the configured
-  `hub.charter_bytes` envelope for both the encoded charter, including
-  framing, and its decoded ownership. Instructions, tools, contracts,
+  assignment, the engine fits gathered sections to its charter bound for
+  both the encoded charter, including framing, and its decoded ownership.
+  The bound is the smaller of the configured `hub.charter_bytes` and the
+  charter allowance of the worker that receives it, so the engine never
+  sends a run a charter its worker would refuse: a worker refuses at
+  decoding a charter whose ownership passes its smith `run_bytes`, before
+  its own fit. Where the process has a local agent, that allowance is the
+  agent's `run_bytes`, as a task read's room is its `host_reply_text`
+  (`root.md`, 5.2). Where it doesn't know its worker's, it takes smith's
+  at its floor, 65,536, which the stock agent's `tool_payload` of 10,662
+  does not raise (smith's `protocol/limits.md`, 3.10): the smaller of the
+  two defaults, and how the engine learns a remote worker's is section
+  10's. Instructions, tools, contracts,
   models and run identity stay whole. The worker service also fits the
   brief after the workspace is prepared and before encoding the start,
   using the receiving run's limits and measured schema costs. It fits both
@@ -279,9 +296,10 @@ Code, smith's `protocol/programs.md`, 5.1).
   charges the prepared workspace against `run_bytes`, including resolved
   host paths and conflict paths. Smith supplies that remaining allowance
   through `charter_room`; temper keeps the incoming charter allowance too.
-  `temper-engine-smith` owns
-  the fitter; its typed start takes explicit receiving limits and fits
-  the brief too. A brief already within each entrance's room is kept
+  `temper-protocol-brief` owns
+  the fitter, which the engine's translation, `temper-engine-smith`, and
+  the worker service each link; the translation's typed start takes
+  explicit receiving limits and fits the brief too. A brief already within each entrance's room is kept
   whole. Otherwise, fitting cuts bodies from the last
   section in the core's order, at UTF-8 boundaries, keeping each cut
   section's title and ending its body with its own line:
@@ -423,21 +441,33 @@ Code, smith's `protocol/programs.md`, 5.1).
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
-- **`decided`,** of the control family, offered as every host tool is, a
-  goal's alone by what it answers: `{ question, options, took, why, kind
-  }`, `options` 2 to 6 words of the agent's, `took` an index into them,
-  `kind` one of `implementation`, `retry`, `wording`, `dependency` and
-  `other`; `question` at most 400 bytes, each option 120, `why` 400, a
-  call past those refused at decoding, saying so. The forge judges it
-  (`forge.md`, 5.9): "Decided: carry on with TOOK." with a `Decided` row
-  saved, or "Ask: your person is here or this kind waits for them. Ask
-  with message, as a question; if your brief says [Requested by person N],
-  with delegate, a person task addressed to person N." Named and decided
+- **`decided`,** of the control family, offered as every host tool is, to
+  every task whose question would reach a person (`forge.md`, 5.9): `{
+  question, options, took, why, kind, paths, under }`, `options` 2 to 6
+  words of the agent's, `took` an index into them, `kind` one of the ten
+  of `forge.md`, 5.10, `wording`, `retry`, `implementation`, `tests`,
+  `dependency`, `departure`, `money`, `irreversible`, `rules` and `other`;
+  `paths`, optional, at most 16 repository-relative paths of at most 256
+  bytes that the choice would change; `under`, optional, the number of an
+  item with words of the project's classes the choice falls under;
+  `question` at most 400 bytes, each option 120, `why` 400, a call past
+  those refused at decoding, saying so. The forge judges it (`forge.md`,
+  5.9 and 5.10): "Decided: carry on with TOOK." with a `Decided` row
+  saved, or "Ask: REASON. Ask with message, as a question; if your brief
+  says [Requested by person N], with delegate, a person task addressed to
+  person N.", REASON from its reach: "money always waits for your
+  person", "implementation asks your person, even when away",
+  "implementation asks your person while they are here", "changes to
+  path set N ask your person, even when away", whose name `settings
+  project-classes` reads (8.4.1), "your words say Asks: always", "your person's decided list is full for today" where the
+  class decided and no row had room, and, for a caller with no person,
+  "no person is asked through you: ask your requester". Named and decided
   once, as `change`. Funds, sign-ins, machines, a plan's go-ahead and
-  anything hard to reverse are
-  kind `other`, by the charter's words (`../protocol/configuration.md`,
-  13.4). A goal that overturned words reach (`../client/README.md`, 3.5)
-  asks it by its requester's route (8.2), and waits. Nothing in the engine
+  anything hard to reverse are `money` or `irreversible` and always wait,
+  by the charter's words (`../protocol/configuration.md`, 13.4); a change
+  to the classes, a landing rule or a standing role's rules is `rules`.
+  A task that overturned words reach (`../client/README.md`, 3.5) asks it
+  by its requester's route (8.2), and waits. Nothing in the engine
   answers a question for it, and one that skips the tool waits as ever.
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
@@ -528,7 +558,8 @@ any `delegate` (jig's authority, named and decided once):
   forge's (the demo's);
 - **the delegate:** the change procedure (forge.md, 8.1) with the words,
   the repository's resource and its landing branch: the one the call
-  names (below), or with none the repository's default branch; a
+  names (below), or with none the applicable held goal branch, otherwise
+  the repository's default branch; a
   change's contract, its words bounded by the deployment's
   `tasks.result_bytes`;
 - **its authority, the run's own narrowed:** the run's grants of the
@@ -565,11 +596,15 @@ delegate from what it knows:
 {"words": "...", "branch": "run", "landing": "goal"}
 ```
 
-- **`landing`:** `"goal"`, the requester's own goal branch,
-  `temper/<root>/g<task>` in the change's repository (forge.md, section
-  11), which the requester holds; or a branch's name in the repository;
-  left out, the repository's default branch. `"goal"` from a run whose
-  task holds no goal branch in that repository is refused, saying so; a
+- **`landing`:** `"goal"`, the nearest goal branch held by the requester
+  or one of its ancestors in the change's repository (forge.md, 11.1);
+  or a branch's name in the repository. Left out, that held goal branch,
+  otherwise the repository's default branch. Ordinary child changes,
+  including calls from the goal's subtree, cannot name a destination
+  outside that held branch: the whole call is refused before any delegate
+  is made. `"branch": "mine"` deliberately lands the requester's held goal
+  branch whole, defaulting to the repository's default branch. `"goal"`
+  with no applicable held goal branch is refused, saying so; a
   name that is not a branch's (an empty segment) is refused, naming it;
   a branch the repository lacks holds the change at its opening, the
   forge refusing its pull request (forge.md, 8.2).
@@ -993,7 +1028,7 @@ the fresh preparation above.
 | a foreman (forge.md, 8.11) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
-| Ask temper (8.4) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale (8.1) | `see`, `document`, `propose_settings` in its asking form; `wait` | its person closes it |
+| Ask temper (8.4) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale (8.1) | `see`, `document`, `remember`, `propose_settings` in its asking form; `wait` | its person closes it |
 
 The change's agents run under the charters the change was made with,
 kept on it whatever later changes of settings make them
@@ -1107,18 +1142,30 @@ otherwise teach.
   removal, its withdrawal (`../protocol/configuration.md`, 13.4). A
   model's setting names no account.
   A read of a project's ways or questions with none stored answers the
-  stock (`../protocol/configuration.md`, 13.4), never unknown. A read that
+  stock (`../protocol/configuration.md`, 13.4), never unknown; one of a
+  project's words with none stored answers that the project has none,
+  and its way's words stand. A read that
   finds nothing is an error whose words say it was not read and that this
   says nothing about the settings.
 - **The kinds it reads and proposes** are a settings file's
   (`../client/tools.md`, 5.3): `charter`, `template`, `policy`, `model`,
   `rules`, `landing-rule` (with its `project`, the deployment's when left
-  out), `forge-charter`, `project-policy`, `project-ways` and
-  `project-questions` (each with its `project`), each named and valued as
+  out), `forge-charter`, `charter-words` (with the charter's number),
+  `project-policy`, `project-ways`, `project-questions`, `project-classes` and
+  `project-words` (each with its `project`), each named and valued as
   the file names and values it, so that a description's landing rules,
   the forge's charters and a project's own policy are proposed as its
   charters are. `see` reads them at the chat's own project (8.4.1); a
   project's own policy is no address of its (section 10).
+- **A goal template's work,** `template-goal` with the template's number
+  (`../protocol/configuration.md`, 13.2, kind 11), `{"design": BOOL,
+  "close_out": BOOL}`, is read and proposed as a template is, beside it:
+  a proposal of a goal template whose charter designs the goal first or
+  makes a close-out carries the template's work saying so, and a read of
+  one with none stored answers that its coordinator plans and makes no
+  close-out, never unknown. The tools' declarations name it, as they
+  name every kind they take; Ask temper's instructions add no words for
+  it, as they stand at their bound.
 - **Structure and rules:** a sentence of a description that changes what
   temper's engine wakes, schedules, permits, pays for, lands or holds is
   structure, and becomes settings; one that only changes how an agent
@@ -1427,17 +1474,18 @@ proposal of settings an owner accepts (8.1).
   (`../protocol/configuration.md`, 13.4);
   its `tools` the asking and settings families,
   3,072; no inspect, modify, shell or agents; so its runs have no workspace
-  (4.2) and are declared `see`, `document` and `propose_settings` alone (4.3),
-  with smith's `wait`. It names no repository and delegates nothing.
+  (4.2) and are declared `see`, `document`, `remember` and `propose_settings`
+  alone (4.3), with smith's `wait`. It names no repository and delegates
+  nothing.
 - **Its instructions,** `ask.txt`, held in the binary in the `stock` module:
-  `../draft/ask-temper.md`, section 8, whole, but its part *Remembering*,
-  which joins with `remember`, and of its part *Showing* all but the first
+  `../draft/ask-temper.md`, section 8, whole, its part *Remembering* among
+  them, but of its part *Showing* all but the first
   step: its first paragraph, its `view` example, its Views line naming
   `path`, `way`, `charter` and `proposal` alone, and its paragraph on ways,
   the views the client draws (`../client/README.md`, 5.16); the other views
   and the sketches join with M3b, since a view or a mark not built yet shows
-  as code. They name every address of `see`'s, those built and those not
-  yet (8.4.1).
+  as code. They name every address of `see`'s (8.4.1), and are at most 10,240
+  bytes, `../draft/ask-temper.md`, 4.1's 10 KB, which the stock's test holds.
 - **Its authority** is its chat's, policy 1's for its role: the rules and policy
   1 hold the asking family beside the others, and the delegation names charter
   11, so that a project made from the stock may start it
@@ -1458,26 +1506,30 @@ proposal of settings an owner accepts (8.1).
   --template 5 TEXT` (`../client/tools.md`, 5.3).
 - **Its tests:** focused and fuzzy alone; its judgement is the user's, by trying
   it. The first request's bound, on both shapes; its runs' declarations,
-  `see`, `document` and `propose_settings`, and no workspace; Claude Code's
-  arguments for a run with no workspace on the fake program (smith's
-  `protocol/programs.md`, section 8); `see`'s built addresses as rows of one
-  table (8.4.1); `document`'s writes and refusals (8.4.3); `propose_settings`'s
-  asking form (8.4.2).
+  `see`, `document`, `remember` and `propose_settings`, and no workspace;
+  Claude Code's arguments for a run with no workspace on the fake program
+  (smith's `protocol/programs.md`, section 8); `see`'s built addresses as rows
+  of one table (8.4.1); `document`'s writes and refusals (8.4.3);
+  `propose_settings`'s asking form (8.4.2); `remember`'s writes, refusals and
+  the person's list in the brief, withheld from the project's other roles
+  (8.4.4).
 
 #### 8.4.1 `see`
 
-Ask temper's one read, by address (`../draft/ask-temper.md`, 5.1). In its first
-milestone it reads what configuring reads (8.1), through the run reads
-that exist, and every other address of the draft's answers that it is not there
-yet, so that its instructions name every address from the first. Reading as the
-chat's person, the draft's other addresses and its rules for how an answer reads
-are its second milestone's (section 10).
+Ask temper's one read, by address (`../draft/ask-temper.md`, 5.1). What
+configuring reads (8.1), the settings, their history and proposals, temper's
+pages and a repository's file, it reads through the run's own reads. Where work
+stands and how it ran, the project, its goals and tasks, a task's tree,
+activity and turns, its changes and what waits on the person, it reads as the
+chat's person, of the chat's project alone, through jig's run read as its person
+(jig's `domain/engine.md`, 7.3), over the reads a client makes
+(`../client/tools.md`, 5.2 and 5.5).
 
 - **Its declaration:** one member, `address`, a line of text, at most 512 bytes
-  once trimmed; its description, "Read temper by address, in your project:
-  settings, revisions, proposals, temper's pages, a repository's file. Each
+  once trimmed; its description, "Read temper by address, as your person, in
+  your project: its work, changes, settings, proposals, pages and files. Each
   answer ends with what to read next." The addresses themselves are in its
-  instructions (8.4), not its schema.
+  instructions (8.4) and on its reference page (below), not its schema.
 - **Decided by the asking family** before anything is read, as every call is by
   its family (4.3; jig's `domain/authority.md`, section 3); a run whose authority
   lacks it is answered beyond authority, naming the family. Then each read takes
@@ -1499,16 +1551,27 @@ are its second milestone's (section 10).
   (`../protocol/documentation.md`, section 5): it is decided by the asking
   family, and a part of up to 6,144 bytes is held to the call's own answer
   allowance, where an answer made at decode is held to 2,048 bytes.
+- **Read as the person:** an address the table's *Over* names a read "as the
+  person" for is read by one or more of jig's run reads as its person, the
+  chat's requester (jig's `domain/engine.md`, 7.3), in the order the row names
+  them, each answered to the call's flight in the root, which asks the next and,
+  once the last is answered, delivers what they read, with the names its
+  numbers need (people, charters, the project's), as `see`'s host delivery. A
+  forge's read among them is jig's application read, which the core admits as
+  it admits the person's, and the forge answers with its document for that
+  person, made as its watch's is (`root.md`, 5.1 and 5.3), to the call's flight.
 
 | Address | Answers | Over | `see:` |
 |---|---|---|---|
-| `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings` |
+| `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings` |
 | `settings charter N`, `template N`, `policy N`, `model N`, `forge-charter N`, `settings rules` | that setting whole, at the newest revision, as `settings` gives it | the family's setting read | `settings · revisions · help settings-fields` |
+| `settings template-goal N` | template N's work: whether its coordinator designs first and makes a close-out, or, with none stored, that it plans and makes none, marked so (8.1) | the family's setting read, kind 11 | `settings template N · ways · help settings-fields` |
 | `settings landing-rule N [project]` | a landing rule whole: the deployment's, or with `project` the chat's project's | the family's setting read, kinds 1 and 2 | `settings landing · settings · help landing-rule` |
-| `settings project-ways`, `settings project-questions` | the chat's project's ways or questions, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7 and 6 | `settings · revisions · help settings-fields` |
+| `settings project-ways`, `settings project-questions`, `settings project-classes` | the chat's project's ways, questions or classes, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7, 6 and 8 | `settings · revisions · help settings-fields` |
+| `settings charter-words N`, `settings project-words` | a charter's words, at the stock's where none is stored, marked so, or that it has none; the chat's project's words, or that it has none (8.1) | the family's setting read, kinds 9 and 10 | `settings · revisions · help settings-fields` |
 | `settings landing` | the project's landing: by queue or by turn, its merge job or none, its after-landing retries and a verification's bound, and each of its repositories with how many gates and tiers it has; then that it is no setting yet, set in temper's configuration by whoever runs temper here, so that no proposal changes it | the forge's landing state, from the configuration's `landing` member (`../protocol/configuration.md`, section 3), which kinds 4 and 5 are to hold (13.2) | `settings gates OWNER/NAME · settings landing-rule N [project] · help landing` |
-| `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows; then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
-| `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../protocol/configuration.md`, 13.10): a block a way, its name, then `now` where the project runs it, its line, and its path as one line of stops, each its words and its actor in brackets, joined by ` → `; then, where the project runs none, `Yours`, its own path; then whether the person may change the settings, in a line | the root's `ways` document (`forge.md`, 8.13), made as the client's is | `settings rules · settings landing · settings project-ways · help settings` |
+| `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows, and its description where it has one (`../protocol/configuration.md`, section 3); then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
+| `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../protocol/configuration.md`, 13.10): a block a way, its name, then `now` where the project runs it, its headline, its line, and its path as one line of stops, each its words and, in brackets, its actor, then `, when needed` for a stop made only when needed and `; ` and its small words where it has them (`repair (an agent, when needed; tests, review)`), joined by ` → `; then, where the project runs none, `Yours`, its own path; then whether the person may change the settings, in a line | the root's `ways` document (`forge.md`, 8.13), made as the client's is | `settings rules · settings landing · settings project-ways · settings project-words · settings charter-words N · help settings` |
 | `revisions` | the history's newest page, as `settings`' history read gives it: each revision with who decided it, when, the proposal it came from, and its items without values | the family's history read | `revision N · settings · help revision` |
 | `revision N` | one revision: who decided it, when, from which proposal, whether it moved running work, its items with their values or sizes | the family's revision read | `revisions · proposal tN/K · proposal pN/K · settings` |
 | `proposal tN/K`, `proposal pN/K` | a proposal of settings, a task's in the chat's project or a party's: its reason, its items, its review against the newest settings while waiting, its state and outcome | the family's proposal read (jig's `domain/engine.md`, 7.3), rendered compactly by `temper-settings-form` beside a revision | `revision N · revisions · help proposal` |
@@ -1516,6 +1579,17 @@ are its second milestone's (section 10).
 | `help NAME` | the page whole, `NAME: TITLE` first; a name no page has answers so, then the sections holding its words, as `read_docs` does | the same | `help · help search WORDS` |
 | `help search WORDS` | each section holding every word, a line each, `PAGE: HEADING: LINE`; nothing, saying so; more than eight, ending `more sections match; narrow the words` | the same | `help NAME` |
 | `file OWNER/NAME PATH [BRANCH]` | the file at the branch's head, its bytes, or a directory's entries, as `read_file` gives them, the head first; the repository one of the project's readable repositories, named as the inventory names it (4.3, `repository`); the branch the repository's default branch, as its adoption read the forge's settings, when left out | the forge's `read_branch` for the head, then `read_file` at it | `file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME` |
+| `me` | the person: their name, their role in the project, their pool's budget this period and what is left of it; what waits on them in the project, counted by kind, then the oldest of it a line each, as `inbox` gives it | the project read and the inbox's needs filtered by the project, as the person | `inbox · project · goals · tasks` |
+| `project` | the project by number and name; its repositories, as the inventory names them; its people, each with their role; this period, its number, start and next start, its budget and what is reserved, spent and left; its held tasks, a line each, with what they wait on | the project read, then a task query of the project's held tasks, as the person; the inventory's repositories (8.1) | `goals · tasks · changes · inbox · settings` |
+| `goals`, `goals ended` | its live goals by priority, or its ended goals, the latest ended first: a line each, the goal by number and title, its priority, its state and what it waits on, and its report's headline (8.3), or that it has none | a task query of the project's tracked tasks, live or ended, then the project's notes in a goal's scope, as the person | `task N · task N tree · goals ended`; ended, `task N · goals` |
+| `tasks` | its live tasks, the latest active first: a line each, the task by number and title, its kind (a chat, a goal, a change, or its label's number), its executor, its state and what it waits on, the time of its last activity | a task query of the project's live tasks by last activity, as the person | `task N · goals · inbox` |
+| `task N` | the task: number and title, its kind, its state and what it waits on, its hold's reason where held, its requester (a person by name, a task by number and title), its executor (an agent with its charter by number and name and its model, a procedure, a person), its spend against its budget, its delegates counted, the first lines of what was asked; then a goal's report whole, or an ended task's result with its kept words | the task read, then, for a goal, its report note, as the person | `task N tree · task N activity · change N · tasks` |
+| `task N tree` | its delegates, live then ended, a line each: the task by number and title, its executor (an agent with its charter by number and name and its model, a procedure, a person), its state, its spend, and how many delegates of its own it has | a task query of the task's delegates in the project, its live group, then its ended group, as the person | `task N · task N activity · task N tree` |
+| `task N activity` | its latest events, oldest first, a line each: the time, who acted (its run, a person by name, a task by number), and what: words by their first line, a run begun or ended, a turn as `turn A.T` with each of its calls as one line, its tool and what it did; then, where earlier events were not read, that they were not | the task's activity, its page from its end, as the person | `task N turn A.T · task N · task N tree` |
+| `task N turn A.T` | one turn whole: its brief's parts by their headings, its words, each call with its input and its result, as the turn holds them; a turn past the read's bound by its size | the turn read, as the person | `task N activity · task N` |
+| `change N` | the change: its repository and branch, the landing branch it goes into, its pull request by number, its step now, its checks and gates with their verdicts, the approvals it has and those it needs, its repairs, its questions and holds, and its place in the queue or the turn | the forge's panel of the change, for the person (`../client/forge.md`, a change's panel) | `task N · task N activity · changes · settings gates OWNER/NAME` |
+| `changes` | each landing branch's queue in order, the change that owns it first, a line each: the change by number and title, its step and what it waits on; then the landings by turn under way; then the latest landed, a line each | the forge's `changes` and its landings (`forge.md`, section 9; `../client/README.md`, 4.6), for the person | `change N · settings landing · ways` |
+| `inbox` | what waits on the person in the project, oldest first, a line each: its kind (a question, a proposal, an escalation, a person task), its task by number and title, its words' first line; then that more wait, where more do; each answered on Needs you | the inbox's needs filtered by the project, as the person | `task N · me` |
 | `more TOKEN` | the next part of an answer | its address's | its address's |
 
 - **Bounded:** an answer's body is at most 6,144 bytes of its address's whole
@@ -1535,36 +1609,68 @@ are its second milestone's (section 10).
   ADDRESS reads it from its start.`, an error.
 - **Then what to read next:** a last line, `see: ` and the addresses one level
   down, as the table gives them, joined by ` · `, on every part of an answer but
-  a refusal, a not-yet and an unknown address. Its words are the address forms,
+  a refusal and an unknown address. Its words are the address forms,
   N and OWNER/NAME left for the run to fill from what it read.
-- **Not yet:** `me`, `project`, `goals`, `goals ended`, `tasks`, `task N`, `task N
-  tree`, `task N activity`, `task N turn A.T`, `change N`, `changes` and `inbox`
-  answer `see ADDRESS: not there yet.`, an error, ADDRESS the line as the call
-  gave it.
+- **How an answer reads,** for the addresses read as the person
+  (`../draft/ask-temper.md`, 5.1): temper's nouns; each number with its name, a
+  task's title, a person's name (their login where they have none), a charter's
+  name ("charter 4, the reviewer's"); times in UTC, `2026-11-09 07:40`; money in
+  dollars and cents, as the client shows it, `$12.50`; no acts, keys, digests,
+  cursors or commands; a list as a table of lines, a heading line naming what it
+  lists and how many, then a line a row, its fields in the row's order joined by
+  ` · `; a call as one line, its tool and what it did, the turn holding the
+  rest. A read after an address's first that is answered busy or unknown leaves
+  its part saying so, in a line, and the rest is read.
 - **Unknown:** any other line answers `see: no address ADDRESS; addresses: ` and
   the line of addresses its instructions give (`../draft/ask-temper.md`, section
   8, *Finding out*), an error.
-- **A refusal** says in a line what the read did not reach, in that read's own
-  words, prefixed `see ADDRESS: `, an error: a settings read beyond authority as
+- **A refusal** of an address read as the person, its first read answered
+  unknown, says `see ADDRESS: not read: nothing you may read in this project is
+  there.`, an error, which says nothing of whether it is there in another
+  project; answered busy, `see ADDRESS: not read: temper is busy; read it
+  again.`; in a chat whose requester is no person, `see ADDRESS: not read: this
+  chat has no person to read as.`
+- **A refusal** of the other addresses says in a line what the read did not
+  reach, in that read's own words, prefixed `see ADDRESS: `, an error: a settings read beyond authority as
   `settings` words it, naming the `settings` family; a repository no readable one
   of the project's, naming those it has, and a forge read refused, as `read_file`
   words them. A setting that is not there answers `see ADDRESS: not read: no such
   setting. This says nothing about the settings: see settings lists them.`, an
   error.
-- **What it never reads** in this milestone: anything of another project, since
-  every project the parser names is the chat's own; a person's views, which are a
-  client's (jig's `domain/engine.md`, section 11). Its reads are the run's, so
-  that a member's chat reads no more than its task's authority, a member's,
+- **What it never reads:** anything of another project, since every project the
+  parser names is the chat's own, and a read as the person of another project's
+  task, change or turn answers as one that is not there; more than its person
+  may read from a client, since those reads are the person's; and the person's
+  other projects through `me`, which reads no frame (jig's `domain/engine.md`,
+  section 16). The settings and the forge's files are the run's reads, so that a
+  member's chat reads no more of them than its task's authority, a member's,
   allows.
+- **On its page:** the reference page `see` (`../protocol/documentation.md`,
+  section 8), rendered from `temper-engine-smith`'s table of addresses, a row
+  an address: its form, its line and the addresses one level down; the same
+  table gives an unknown address's line of addresses and each answer's `see:`
+  line.
 - **Its tests:** tables in the engine's domain world, a row an address, beside
   the configuring stories' settings reads (`testing.md`, 6.4): the settings, history
   and page addresses; the forge's, in a world with a project's landing and a
   repository; a proposal waiting, rejected and accepted. Each row checks the
   answer's first line and a part of its text, its body within the bound, its `see:`
   line or its error; a long setting and a long file read whole through `more`; a
-  refusal of the `settings` family; the store unchanged by every read. The parser's
+  refusal of the `settings` family; the store unchanged by every read. The
+  person's addresses as rows of one table in a world with two projects, the
+  chat's with its goals, live and ended tasks, a change with its activity and a
+  turn, and something waiting on the person, and another project with its own:
+  each row its first line, a part of its text, its body within the bound and its
+  `see:` line; a task of the other project, a number with no task, and a chat
+  whose requester is a task, refused; a member's chat reading the same project.
+  A fuzzy test of addresses in the same world: seeded addresses from the
+  grammar, numbers drawn from both projects' tasks and past them, words dropped,
+  doubled and changed, and `more` tokens with seeded offsets; every answer
+  within the call's allowance, an error or ending with its `see:` or `more:`
+  line, none naming the other project's tasks, the store unchanged. The parser's
   rows in the root's own tests, the token's, the cut's and the texts' in
-  `temper-engine-smith`'s.
+  `temper-engine-smith`'s, the person's texts from hand-made documents a row an
+  address.
 
 #### 8.4.2 `propose_settings`, its asking form
 
@@ -1609,6 +1715,17 @@ configuring form's calls (4.3) decode as they do, and one answer serves both.
     proposing call refused, once, so that a set half lost is never proposed.
   - **Only an asking charter's run** gives parts, the runs the form is declared
     to; another's `more` is refused.
+- **Words with the settings** (`../protocol/configuration.md`, 13.2, kinds
+  9 and 10): a proposal carries, beside the settings it proposes, the words
+  the pages say them by, as items of their own: for each charter it sets,
+  its `charter-words`, a line of what the charter does; for a change of
+  how the project's work runs that leaves it on no stock way, its
+  `project-words`, a headline naming the way and its chief departure and a
+  lede of a sentence or two. Ask temper's instructions say to write them, in
+  the person's terms (`ask.txt`'s *Configuring*); the tool checks them as it
+  checks any item of temper's kinds, decoded at the call and judged at
+  acceptance, and adds none of its own. temper enforces no pairing: words
+  are text agents write, and a proposal without them leaves the ones kept.
 - **Approvals at the call:** for an asking charter's run, each landing rule of
   the set, held or its own, that enforces approvals is judged as acceptance judges
   it (`../protocol/configuration.md`, 13.2; `forge.md`, 8.9), for the chat's
@@ -1640,7 +1757,8 @@ configuring form's calls (4.3) decode as they do, and one answer serves both.
   accepted with its host written, and one unknown refused; a set in parts
   proposed whole, with each rule of the parts above as a step of one run; an
   unsatisfiable approval refused at the call, and the configuring form's, on the
-  world's own charter holding the settings family, at acceptance; `more` refused
+  world's own charter holding the settings family, at acceptance; a charter
+  proposed with its words and the project's words, accepted and read back; `more` refused
   to that charter; the answer's words as `temper-engine-smith`'s table.
 
 #### 8.4.3 `document`
@@ -1712,6 +1830,112 @@ its revision and its lines, so that a run names none of them.
   engine's domain world's note tests, each with the stored body and the answer;
   its words as one table of `temper-engine-smith`'s.
 
+#### 8.4.4 `remember`
+
+Ask temper's memory of its person (`../draft/ask-temper.md`, 5.4 and section
+7): a few lines it keeps when the person asks, across their chats, in jig's
+party scope of the chat's requester (jig's `domain/engine.md`, 10.1). The list
+is that scope's entries in name order, oldest first, each numbered by its
+place from 1, as the brief's `preferences` section numbers them; each line an
+entry's description, its body empty.
+
+- **Its declaration:** `remember`, in the asking family, declared to an
+  asking charter alone, beside `see` and `document` (4.3); its description,
+  "Keep a line about your person across their chats, only when they ask: add
+  one, or change or drop one by its number. Each answer is the whole list.";
+  its members `action`, one of `add`, `change` and `drop`, required; `line`,
+  the line's number, for `change` and `drop`; and `text`, the line, for
+  `add` and `change`, described "One line, at most 120 bytes." A call whose
+  members do not fit its action is refused as it is decoded, as `document`'s
+  are.
+- **Its bounds are jig's,** the party scope's: at most `notes.party_entries`
+  lines, 12, each at most `notes.party_bytes`, 120 (jig's
+  `domain/engine.md`, 10.1), so that a correction on the person's page is held
+  as a call is.
+- **The root writes it** (`route/remember.rs`): once the asking family has
+  decided the call (4.3), it takes the chat's requester, a person, else
+  refuses; it loads the party scope's index, as `document` loads its
+  scope's (8.4.3); it checks the text, trimmed of its spaces, one line and
+  not empty, within the bound; and it writes through jig's named actions:
+  `add` a new entry, its references the chat's own number; `change` the
+  entry at that place, at the revision the index gave, its references kept;
+  `drop` that entry, by `NoteDelete` at that revision. jig decides and
+  records the write (jig's `domain/engine.md`, 10.1). Its own refusals,
+  before the write, change nothing and keep no record.
+- **Its answer** is its first line, what changed and how full the list is,
+  then the whole list, a line each, `N. TEXT`, or `None kept.`:
+  - `add`: `remember: line 3 kept; 3 of 12 lines.`
+  - `change`: `remember: line 2 changed; 3 of 12 lines.`
+  - `drop`: `remember: line 2 dropped; 2 of 12 lines.`
+- **Its refusals** are a line each, an error, and change nothing:
+  - a text empty, or of more than one line: `remember: a line is one line of text, not empty; nothing changed.`
+  - past the bound: `remember: the line is 140 bytes, past its bound of 120; nothing changed.`
+  - `add` to a full list: `remember: the list is full, 12 lines; ask which line to change or drop. Nothing changed.`
+  - no such line: `remember: no line 7; the list has 3. Nothing changed.`, or `remember: no line 7; the list is empty. Nothing changed.`
+  - moved during the call: `remember: the list changed while line 2 was changed; nothing changed. Call again.`, `while a line was kept` for an `add`, `while line 2 was dropped` for a `drop`;
+  - a chat whose requester is no person: `remember: this chat keeps nothing for a person; nothing changed.`
+  - jig's notes busy: `remember: busy; nothing changed. Call again.`
+  - the index not loaded: `remember: the list could not be read; nothing changed.`
+  - any other refusal of jig's at the write, in `note`'s words after `remember: `.
+- **In the brief,** the list is jig's `preferences` section (jig's
+  `domain/engine.md`, 9 and 10.1), its title, in `temper-engine-smith`'s
+  `start.rs`, "Kept about this person", so that each run of charter 11
+  reads the whole list and nothing is searched; its budget 2,048 bytes
+  (`../draft/ask-temper.md`, 4.1's 2 KB), which twelve lines of 120 bytes
+  fit numbered.
+- **Seen by the person alone:** `remember` is the root's one private tool,
+  and "Kept about this person" its private section's title (jig's
+  `domain/engine.md`, 10.1), so that a turn's read, an activity page and a
+  run's live call show the list and `remember`'s calls to the chat's
+  person alone, and to every other party withheld. `see task N turn A.T`
+  and `see task N activity` render a turn as jig answers it, withheld for
+  a run's read as its person (jig's `domain/engine.md`, 7.3), since what
+  `see` answers joins a transcript the project's other roles read.
+- **Its tests** (`testing.md`, 6.1): its writes and refusals as rows of the
+  engine's domain world's note tests, each with the stored entries and the
+  answer; its words as one table of `temper-engine-smith`'s; a note
+  remembered in one Ask temper chat and read in the brief of the next; a
+  turn read by another role of the project with the list and the calls
+  withheld, and whole by its person.
+
+### 8.5 The drafter
+
+A design session is a chat with the drafter (`../draft/surfaces.md`, 11.2):
+its person and it design one piece of work, as a draft the person starts a
+goal from. It is template 6, a chat run by charter 12, the drafter's
+(`../protocol/configuration.md`, 13.4), and a chat in every other respect: a
+conversation its person ends, kept, listed among the project's chats.
+
+- **Its instructions** are the `stock` module's `drafter.txt`, held in the
+  binary as every stock charter's, every byte as written: read what the work
+  touches before proposing; ask one question at a time, as numbered choices,
+  the recommendation first with its reason and "Tell me something else" last;
+  take each answer into the draft at once; keep the open points under
+  `## Open questions`; say in one line when none blocks the work; and keep
+  the draft as the chat's document (8.3), a first version whole, then
+  changed by lines. temper/ui writes them, as a chat's.
+- **It reads and starts nothing.** Its charter names every family a chat's
+  does but delegate, so its runs are declared no `goal`, `change` or
+  `delegate` (4.3), and its task's authority, a chat's, would refuse none of
+  them: the declaration is the rail. Its charter names no inspect, modify or
+  shell, so its runs are given no repository (4.2): it reads the project's
+  code through the forge's reads, `read_branch` for a repository's head and
+  then `read_file`, as a chat does (4.3.1), and its model's sub-agents survey
+  where it has them, its charter's `agents` set.
+- **Its draft** is the chat's document (8.3): a `note` in its own task's
+  scope, which its authority's goal scope admits, as a chat's.
+- **A session is kept:** its task is kept and its charter resumes (4.6), so
+  a session opened again continues its conversation; its instructions read
+  the draft and its open points first and take up the first.
+- **A goal starts from its draft** as from a chat's document, by "Start
+  goal…" (`../client/README.md`, 3.5), its ways the project's tracked
+  templates (`../client/README.md`, 5.14); the drafter calls no `goal`.
+- **Where one starts:** on the web, the new chat with a draft where `me`
+  lists template 6 (`../client/README.md`, 3.5, *A new chat*); from `temper
+  ctl`, `chat start --template 6` (`../client/tools.md`, 5.3); in the
+  terminal, `/draft` (`../draft/surfaces.md`, 11.2), which the terminal's
+  design takes up.
+
 ## 9. The world
 
 smith's worlds test the agent itself (smith's documents, each section
@@ -1741,12 +1965,12 @@ host:
 
 ## 10. Open questions
 
-- **Ask temper after M1 and M3a** (8.4, 8.4.1): M2 supplies the remaining
-  reads and person-scoped access; M3b supplies the other views, the Showing
-  part's paragraph on sketches and the actors' marks; M4 supplies preferences
-  (`../draft/ask-temper.execution.md`, section 3). The ChatGPT and Claude Code
-  walk, a real model's use of `see ways` and of the `view` block, and the
-  user's judgement of `ask.txt` follow landing.
+- **Ask temper before M3b** (8.4, 8.4.1, 8.4.4): M3b supplies
+  the other views, the Showing part's paragraph on sketches and the actors'
+  marks (`../draft/ask-temper.execution.md`, section 3). The
+  ChatGPT and Claude Code walk, a real model's use of `see ways`, of the person's
+  addresses, of the `view` block and of `remember`, and the user's judgement
+  of `ask.txt`, its Remembering part among it, follow landing.
 
 - **A real chat choosing `change`** (4.3 and 4.3.2): the owned-forge
   landing story requires the chat's own successful `change`, rather than
@@ -1826,6 +2050,15 @@ host:
   coding charter and the reference's tell a run its own history isn't kept. A
   deployment's own charter is its author's, so a run under one isn't told.
   Default: so.
+- **A charter where the process has no local agent.** The engine does not
+  know its remote worker's charter allowance, so it fits a charter
+  to the smaller of `hub.charter_bytes` and smith's 65,536 (4.3), and a
+  remote worker that takes more, the reference's 127,480 among them,
+  receives its brief cut at 65,536. The worker's hello on jig's link, which
+  names its reply bound (4.3), could carry the allowance beside it, or the
+  engine's document could name it in `hosts.workers`, and the request
+  `landing-behind-main` of 2026-11-08 asks it be sized as that bound is.
+  Default: the smaller of the two defaults.
 - **A `see` answer by its worker's reply bound** (4.3). The protocol layer
   renders a `see` answer within the local agent's bound alone, since its
   hand-out (`HostDelivery::See`) names no call key, so a run on a remote
@@ -1856,10 +2089,10 @@ host:
   families its charter's `tools` names and its task's authority holds
   (jig's `domain/engine.md`, 7.1), each stock charter's named in
   `../protocol/configuration.md`, 13.4; temper's declares by them the
-  `settings` family alone, an asking charter its own tools alone, and
-  every other host tool in every other charter (4.3), and the authority
-  refuses what it does not allow. Whether to declare only what the charter
-  names for the other families too, which the host part's budget (4.3)
+  `settings` and delegate families alone, an asking charter its own tools
+  alone, and every other host tool in every other charter (4.3), and the
+  authority refuses what it does not allow. Whether to declare only what the
+  charter names for the other families too, which the host part's budget (4.3)
   may force, and how a brief teaches an LLM when to delegate a task rather
   than a sub-agent. `withdraw`, offered to a chat and refused by its
   authority, since policy 1 gives no decide family
@@ -1926,16 +2159,12 @@ host:
   across it is refused its next proposing call once, even with no part given.
   Default: as it is; a durable store for them if a real chat meets a restart
   mid-set often enough to matter.
-- **`see`'s second milestone** (8.4.1): reading as the chat's person, of the
-  chat's project alone, through the checks a client's read takes, once jig has
-  a run's read as its party (`../draft/ask-temper.md`, 5.1); the addresses that
-  answer not yet; `../draft/ask-temper.md`, 5.1's rules for how an answer reads,
-  names beside numbers, temper's nouns, money in one unit, no acts, keys or
-  digests, in place of today's renderers' text, the history's "read on" line
-  among it; the reference page `see`, generated from the address table, which
-  the instructions' line stands for until the addresses are whole; and the
-  draft's fuzzy test of addresses, for which no fuzzy table of host decoding
-  exists yet. Default: M2 of `../draft/ask-temper.execution.md`.
+- **How the settings' addresses read** (8.4.1): `../draft/ask-temper.md`,
+  5.1's rules for how an answer reads hold the addresses read as the person; the
+  settings, their history and proposals still read as the settings' renderers
+  write them for ctl and the run's `settings` read, the history's "read on" line
+  among it. Default: as they are, until a walk shows a run misled by one; then
+  each takes the rules in its own read.
 - **A revision's values of temper's kinds through `see`** (8.4.1): `revision N`
   reads as the run's settings read does, which carries no value of temper's kinds
   at that revision, where ctl's `revision show` reads a set landing rule or forge

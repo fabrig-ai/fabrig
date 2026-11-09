@@ -36,6 +36,7 @@ impl World {
             rows,
             startup,
             patch_sets,
+            disk_store,
             mut peers,
             cut,
             clock,
@@ -54,6 +55,7 @@ impl World {
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
         let mut world = Self::empty(configuration, &limits, patch_sets);
+        world.configure_disk(disk_store, patch_sets);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
         }
@@ -161,6 +163,7 @@ impl World {
     }
 
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
+    #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable world tracing")]
     fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::PatchSets) -> World {
         let observer = crate::conformance::Observer::new(&configuration);
         let heap = crate::conformance::Heap::new();
@@ -191,6 +194,7 @@ impl World {
             inbound: Vec::new(),
             answers: Vec::new(),
             settings_answers: Vec::new(),
+            person_answers: Vec::new(),
             proposal_reads: Vec::new(),
             assigned: None,
             last_read: None,

@@ -6,7 +6,9 @@
 //! [`begin`] admits a page request or refuses before IO. The store echoes its
 //! owner through [`loaded`] or [`unloaded`], each emitting at most one terminal
 //! to the live root waiter. [`abandon`] suppresses waiter delivery without
-//! freeing issued IO; [`reclaim`] frees retired slots at iteration end. Every
+//! freeing issued IO. A window's pages keep their load slot: [`next`] re-arms
+//! an answered transcript page in the same pass (temper/docs/design/domain/root.md, 8).
+//! [`reclaim`] frees retired slots and pages not continued at iteration end. Every
 //! emitting entry point requires one reserved output slot. Whole-page row
 //! and deep-byte checks precede any kept prefix. Ordinary reads also check
 //! membership, order and cursor agreement; startup asserts transport progress
@@ -22,7 +24,7 @@ use skein_lib::{Id, List, Queue, Slab, Token};
 /// The root supplies them; the protocol enforces the same decoded-page bound.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
-    /// Maximum issued loads, including abandoned IO awaiting its terminal.
+    /// Maximum load slots, including held continuations and abandoned IO awaiting its terminal.
     pub loads: u32,
     /// Maximum rows requested and accepted in one incoming page.
     pub rows: u32,
@@ -128,7 +130,7 @@ pub enum Request {
     /// Root to store; ends through `loaded` or `unloaded` with this owner. The caller waits for
     /// prerequisite commits before dispatching it.
     Load {
-        /// Generational IO identity, fenced after its terminal and reclaim.
+        /// Generational IO identity, fenced after its last terminal and reclaim.
         owner: Token,
         /// Closed key range that every returned row must belong to.
         range: Range,
@@ -170,6 +172,7 @@ struct Entry {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Phase {
     Waiting,
+    Paging,
     Abandoned,
     Closed,
 }
@@ -190,6 +193,12 @@ impl Loads {
     pub fn new(limits: &Limits) -> Loads {
         assert!(valid(limits), "valid root load limits");
         Loads { limits: *limits, entries: Slab::with_capacity(limits.loads) }
+    }
+
+    /// Whether a page can begin. Retired slots remain taken until reclaim.
+    #[must_use]
+    pub fn has_room(&self) -> bool {
+        !self.entries.is_full()
     }
 
     /// Pure shell idle query: no issued page awaits its terminal or reclaim. Abandoned IO remains
@@ -240,6 +249,36 @@ pub fn begin(
     Some(owner)
 }
 
+/// Re-arm an uncut transcript page's held slot for its waiter in the answering pass.
+/// The cursor must be the answered continuation. No new capacity is needed. The owner
+/// token is kept; each issued page still has exactly one store terminal.
+pub fn next(domain: &mut Loads, waiter: Token, after: Key, most: u32, out: &mut Queue<Request>) -> Option<Token> {
+    assert!(out.room() >= 1, "one root load output reserved");
+    if most == 0 || most > domain.limits.rows {
+        return None;
+    }
+    let mut held = None;
+    for (id, entry) in &domain.entries {
+        if entry.waiter == waiter && entry.phase == Phase::Paging && entry.after.as_ref() == Some(&after) {
+            held = Some(id);
+            break;
+        }
+    }
+    let id = held?;
+    let entry = domain.entries.get_mut(id).expect("held transcript page");
+    entry.phase = Phase::Waiting;
+    entry.most = most;
+    let owner = id.token();
+    out.push(Request::Load {
+        owner,
+        range: entry.range.clone(),
+        after: Some(after),
+        most,
+        bytes: domain.limits.reply_bytes,
+    });
+    Some(owner)
+}
+
 /// Abandon delivery to a waiter. Its issued IO still occupies a slot until the store's actual
 /// terminal; this call neither emits a terminal nor releases that ownership. Unknown, stale and
 /// already abandoned/closed owners are inert.
@@ -247,6 +286,10 @@ pub fn abandon(domain: &mut Loads, owner: Token) {
     if let Some(entry) = domain.entries.get_mut(Id::from_token(owner)) {
         match entry.phase {
             Phase::Waiting => entry.phase = Phase::Abandoned,
+            Phase::Paging => {
+                entry.phase = Phase::Closed;
+                domain.entries.retire(Id::from_token(owner));
+            }
             Phase::Abandoned | Phase::Closed => {}
         }
     }
@@ -269,7 +312,7 @@ pub fn unloaded(domain: &mut Loads, owner: Token, out: &mut Queue<Request>) {
         match entry.phase {
             Phase::Waiting => out.push(Request::Unloaded { waiter: entry.waiter, failure: Failure::Store }),
             Phase::Abandoned => {}
-            Phase::Closed => return,
+            Phase::Paging | Phase::Closed => return,
         }
         entry.phase = Phase::Closed;
         domain.entries.retire(id);
@@ -293,13 +336,23 @@ pub fn loaded(domain: &mut Loads, owner: Token, rows: Box<[Record]>, next: Optio
             domain.entries.retire(id);
             return;
         }
-        Phase::Closed => return,
+        Phase::Paging | Phase::Closed => return,
         Phase::Waiting => {}
     }
     let checked = check(entry, &domain.limits, &rows, next.clone());
     let waiter = entry.waiter;
-    entry.phase = Phase::Closed;
-    domain.entries.retire(id);
+    let paging = kind(&entry.range) == Kind::TaskTranscript && !restarting(waiter);
+    let hold = match &checked {
+        Ok(page) => paging && page.cut.is_none() && next.is_some(),
+        Err(_) => false,
+    };
+    if hold {
+        entry.phase = Phase::Paging;
+        entry.after.clone_from(&next);
+    } else {
+        entry.phase = Phase::Closed;
+        domain.entries.retire(id);
+    }
     match checked {
         Err(failure) => out.push(Request::Unloaded { waiter, failure }),
         Ok(page) => {
@@ -320,9 +373,18 @@ pub fn loaded(domain: &mut Loads, owner: Token, rows: Box<[Record]>, next: Optio
     }
 }
 
-/// Reclaim retired terminal slots at the iteration boundary. Abandoned loads still awaiting their
-/// store terminal cannot be reclaimed.
+/// Retire answered pages not continued in this pass and reclaim terminal slots.
+/// Abandoned loads still awaiting their store terminal cannot be reclaimed.
 pub fn reclaim(domain: &mut Loads) {
+    let mut paging = List::with_capacity(domain.limits.loads);
+    for (id, entry) in &domain.entries {
+        if entry.phase == Phase::Paging {
+            paging.push(id).expect("at most one held page per load slot");
+        }
+    }
+    for id in &paging {
+        domain.entries.retire(*id);
+    }
     domain.entries.reclaim();
 }
 

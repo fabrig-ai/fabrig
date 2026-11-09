@@ -584,6 +584,9 @@ pub fn inbox_page() -> skein_ui::Tree {
             if *kind == b"Proposal" {
                 golden_cards::proposal(&mut builder);
             }
+            if heading == b"Needs you" {
+                golden_cards::why(&mut builder, kind);
+            }
             if heading == b"Updates" {
                 builder.open(Role::Paragraph);
                 builder.text(Run::Plain, &time);
@@ -989,4 +992,7 @@ pub mod golden_cards;
 /// A Changes page supplied at the forge family boundary (client/README.md, 3.5).
 pub fn changes_page() -> skein_ui::Tree {
     page(&client::Address::Changes { project: 1 }, false)
+}
+pub fn team_page() -> skein_ui::Tree {
+    page(&client::Address::Team { project: 1 }, false)
 }

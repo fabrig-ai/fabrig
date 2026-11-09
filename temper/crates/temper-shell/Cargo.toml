@@ -1,6 +1,6 @@
 [package]
 name = "temper-shell"
-description = "What every binary of temper's starts from (protocol/README.md, section 5)"
+description = "Shared command tables, directories, help and engine link files"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -8,8 +8,9 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-skein-lib.workspace = true
 skein-shell.workspace = true
+skein-io.workspace = true
+skein-lib.workspace = true
 temper-docs.workspace = true
 
 [dev-dependencies]

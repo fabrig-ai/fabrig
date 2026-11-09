@@ -1,7 +1,8 @@
 //! The engine boundary, wrapping its typed peers (jig's domain/root.md, 2).
+//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 8).
 pub use crate::route::approvals::{ApprovalRow, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
-use crate::{CallKey, Delivery, Key, Range, Record, Write};
+use crate::{CallKey, Delivery, Key, Range, Record, RunPolicy, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
@@ -147,12 +148,27 @@ pub fn asking(tools: jig_domain_tasks::Tools) -> bool {
     tools.0 & families.ask.0 != 0 && tools.0 & !(families.ask.0 | families.settings) == 0
 }
 
+/// A run of this policy is given no repository: an asking charter's, or one that
+/// names none of inspect, modify and shell (temper/docs/design/domain/agent.md, 4.2).
+#[must_use]
+pub fn no_workspace(policy: &RunPolicy) -> bool {
+    asking(policy.tools) || !(policy.inspect || policy.modify || policy.shell)
+}
+
 /// What a `document` call does with its body (temper/docs/design/domain/agent.md, 8.4.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DocumentAction {
     Write,
     Append,
     Replace,
+}
+
+/// What a `remember` call does to its person's list (domain/agent.md, 8.4.4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RememberAction {
+    Add { text: Box<[u8]> },
+    Change { line: u32, text: Box<[u8]> },
+    Drop { line: u32 },
 }
 
 /// One typed engine tool request from the current worker claim
@@ -169,6 +185,8 @@ pub enum Tool {
     See { line: Box<[u8]>, from: u32 },
     /// Write the chat's one document whole, or one section of it (domain/agent.md, 8.4.3).
     Document { action: DocumentAction, body: Box<[u8]> },
+    /// Keep, change or drop a line about the chat's person (domain/agent.md, 8.4.4).
+    Remember { action: RememberAction },
     /// Propose whole settings to the deployment's owners.
     ProposeSettings {
         against: u32,
@@ -421,8 +439,15 @@ pub enum Event {
     /// The service begins its drain (jig's `domain/engine.md`, 6.1).
     Stop,
 }
-/// Optional protocol renderings in the same order as a transcript load's rows.
-pub type TranscriptTexts = Box<[Option<Box<[u8]>>]>;
+/// A window turn's text or its omitted body's length (temper/docs/design/domain/root.md, 8).
+#[derive(Hash, Debug)]
+pub enum TurnText {
+    Rendered(Box<[u8]>),
+    Unrendered,
+    Cut(u32),
+}
+/// Protocol texts in the same order as a transcript load's rows.
+pub type TranscriptTexts = Box<[TurnText]>;
 
 #[derive(Hash, Debug)]
 pub enum StoreInput {
@@ -447,7 +472,7 @@ pub enum StoreInput {
     },
     Loaded {
         /// Protocol-rendered text in row order, only for transcript window loads.
-        /// Each text is at most the core tail budget; None marks an unreadable turn.
+        /// Each rendering is at most the core tail budget; a cut turn is alone in its page.
         texts: Option<TranscriptTexts>,
         /// Echoed generational load token, fenced after its one terminal and reclaim.
         owner: Token,
@@ -577,7 +602,7 @@ pub enum Application {
     Try { account: u32, again: bool },
     Dismiss { what: forge::PersonFact },
     Looked { project: u32 },
-    SetAway { project: u32, on: bool, until: Option<Wall>, kinds: u8 },
+    SetAway { project: u32, on: bool, until: Option<Wall> },
     Overturn { project: u32, number: u32 },
 }
 /// The family's terminal answer (client/README.md, 4.6).
@@ -1058,6 +1083,7 @@ pub(crate) enum Read {
     Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },
     Document(Box<crate::route::document::DocumentRead>),
+    Remember(Box<crate::route::remember::RememberRead>),
 }
 
 #[derive(Hash, Debug)]
@@ -1165,4 +1191,21 @@ pub struct RunRefusalDiagnostic {
     pub attempt: u64,
     /// The worker's typed refusal, including bounded start words for operators.
     pub reason: jig_domain_host::Refusal,
+}
+
+/// An accepted job's volatile operator evidence (temper/docs/design/domain/worker.md, 4.4).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct JobDiagnostic {
+    pub task: u64,
+    pub run: u64,
+    pub attempt: u64,
+    pub kind: u32,
+    pub ending: JobDiagnosticEnding,
+}
+
+/// Failed and refused job answers only; no result or work reaches the operator sink.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum JobDiagnosticEnding {
+    Failed { failure: jig_domain_host::JobFailure, detail: Box<[u8]> },
+    Refused(jig_domain_host::JobRefusal),
 }

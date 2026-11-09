@@ -76,6 +76,7 @@ fn jobs_mixed_with_runs_keep_their_order() {
                         host::LinkUp::JobAnswer { .. } => 1,
                         host::LinkUp::Answer { .. } => 2,
                         host::LinkUp::ListRead { .. }
+                        | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Piece { .. }

@@ -1,7 +1,7 @@
 //! Away and decision families (temper/docs/design/protocol/store.md, 2).
 use super::{FITS, w};
 use crate::Undecodable;
-use skein_lib::{List, Wall};
+use skein_lib::{List, Reader, Wall, Writer};
 use temper_engine_domain_forge as d;
 
 fn wall(value: Option<u64>) -> Option<Wall> {
@@ -24,19 +24,15 @@ pub(super) fn encode_away(row: &d::Away) -> w::Away {
             project: row.project,
             since: row.since.as_nanos(),
             until: nanos(row.until),
-            kinds: row.kinds,
             landed: row.landed,
             off: nanos(row.off),
         },
     )
     .expect(FITS)
 }
-pub(super) fn decode_away(row: w::Away) -> Result<d::Away, Undecodable> {
-    let w::AwayParts { party, project, since, until, kinds, landed, off } = row.into_parts();
-    if kinds > 15 {
-        return Err(Undecodable);
-    }
-    Ok(d::Away { party, project, since: Wall::from_nanos(since), until: wall(until), kinds, landed, off: wall(off) })
+pub(super) fn decode_away(row: w::Away) -> d::Away {
+    let w::AwayParts { party, project, since, until, landed, off } = row.into_parts();
+    d::Away { party, project, since: Wall::from_nanos(since), until: wall(until), landed, off: wall(off) }
 }
 pub(super) fn encode_decided(row: &d::Decided) -> w::Decided {
     let mut options = List::with_capacity(u32::try_from(row.options.len()).expect("bounded options"));
@@ -56,16 +52,53 @@ pub(super) fn encode_decided(row: &d::Decided) -> w::Decided {
             took: row.took,
             why: row.why.clone(),
             overturned: row.overturned,
+            reach: encode_reach(row.reach),
         },
     )
     .expect(FITS)
 }
 pub(super) fn decode_decided(row: w::Decided) -> Result<d::Decided, Undecodable> {
-    let w::DecidedParts { project, number, party, task, at, question, options, took, why, overturned } =
+    let w::DecidedParts { project, number, party, task, at, question, options, took, why, overturned, reach } =
         row.into_parts();
     let options = options.into_boxed();
-    if !d::DECIDED_OPTIONS.contains(&options.len()) || options.get(usize::from(took)).is_none() {
-        return Err(Undecodable);
+    match took {
+        Some(index) => {
+            if !d::DECIDED_OPTIONS.contains(&options.len()) || options.get(usize::from(index)).is_none() {
+                return Err(Undecodable);
+            }
+        }
+        None => {
+            if !options.is_empty() || !why.is_empty() || overturned {
+                return Err(Undecodable);
+            }
+        }
     }
-    Ok(d::Decided { project, number, party, task, at: Wall::from_nanos(at), question, options, took, why, overturned })
+    let reach = decode_reach(reach)?;
+    Ok(d::Decided {
+        project,
+        number,
+        party,
+        task,
+        at: Wall::from_nanos(at),
+        question,
+        options,
+        took,
+        why,
+        overturned,
+        reach,
+    })
+}
+
+pub(super) fn encode_reach(reach: temper_protocol_reaches::Reach) -> w::Reach {
+    let record = temper_protocol_reaches::reach_record(&reach);
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("reach measure fits"));
+    record.encode(&mut writer).expect("measured reach room");
+    w::Reach::decode(&w::CEILINGS, &mut Reader::new(&writer.finish())).expect("matching reach records")
+}
+pub(super) fn decode_reach(record: w::Reach) -> Result<temper_protocol_reaches::Reach, Undecodable> {
+    use temper_client_protocol_wire::v1;
+    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
+    record.encode(&mut writer).or(Err(Undecodable))?;
+    let record = v1::Reach::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable))?;
+    temper_protocol_reaches::reach_from(&record).ok_or(Undecodable)
 }

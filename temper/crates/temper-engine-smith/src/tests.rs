@@ -145,9 +145,9 @@ fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
 
 #[test]
 fn settings_tools_are_offered_only_with_the_runs_settings_family() {
-    // The registry offers 38 declarations with message and without settings; settings adds two.
-    const WITHOUT_SETTINGS: usize = 38;
-    const WITH_SETTINGS: usize = 40;
+    // Without the charter's delegate family, message and settings add one and two declarations.
+    const WITHOUT_SETTINGS: usize = 35;
+    const WITH_SETTINGS: usize = 37;
     let settings = jig_domain_core::ToolFamilies::JIG.settings;
     let authority = 1 | jig_domain_core::ToolFamilies::JIG.message.0;
     for (charter, authority, allowed, count) in [
@@ -174,6 +174,9 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
             if tool.name.as_ref() != b"settings"
                 && tool.name.as_ref() != b"propose_settings"
                 && tool.name.as_ref() != b"read_task"
+                && tool.name.as_ref() != b"goal"
+                && tool.name.as_ref() != b"change"
+                && tool.name.as_ref() != b"delegate"
             {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
             }
@@ -182,7 +185,8 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
 }
 
 #[test]
-fn settings_tools_need_the_charters_family_too() {
+#[expect(clippy::too_many_lines, reason = "one table checks asking schemas and both charter-family gates")]
+fn settings_and_delegate_tools_need_the_charters_family() {
     type AskingNames = Option<&'static [&'static [u8]]>;
     let stock = 1_539;
     let mut assignment = assignment();
@@ -191,23 +195,48 @@ fn settings_tools_need_the_charters_family_too() {
     let charter = crate::charter(&assignment);
     let mut offered = charter.grants.host_tools.iter();
     for tool in goal_tools(Duration::from_secs(10)) {
-        if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
+        if tool.name.as_ref() != b"settings"
+            && tool.name.as_ref() != b"propose_settings"
+            && tool.name.as_ref() != b"goal"
+            && tool.name.as_ref() != b"change"
+            && tool.name.as_ref() != b"delegate"
+        {
             assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
         }
     }
-    assert_eq!(offered.next(), None, "no settings or additional tools");
+    assert_eq!(offered.next(), None, "no settings, delegate or additional tools");
     let timeout = Duration::from_secs(13);
-    let rows: [(u64, u64, AskingNames); 7] = [
+    let rows: [(u64, u64, AskingNames); 8] = [
         (u64::MAX, u64::MAX, None),
         (3_584, 3_584, None),
-        (3_072, 3_072, Some(&[b"see", b"document", b"propose_settings"])),
-        (2_048, 3_072, Some(&[b"see", b"document"])),
+        (3_072, 3_072, Some(&[b"see", b"document", b"remember", b"propose_settings"])),
+        (2_048, 3_072, Some(&[b"see", b"document", b"remember"])),
         (3_072, 1_024, Some(&[b"propose_settings"])),
         (1_023, u64::MAX, None),
         (1_920, u64::MAX, None),
+        (1_022, u64::MAX, None),
     ];
     for (charter, authority, asking_names) in rows {
         let offered = crate::calls::tools_for(timeout, tasks::Tools(charter), tasks::Tools(authority));
+        if charter == 1_022 {
+            for (name, declared) in [
+                (b"goal".as_slice(), false),
+                (b"change", false),
+                (b"delegate", false),
+                (b"note", true),
+                (b"recall", true),
+                (b"read_branch", true),
+                (b"read_file", true),
+            ] {
+                let mut found = false;
+                for tool in &offered {
+                    if tool.name.as_ref() == name {
+                        found = true;
+                    }
+                }
+                assert_eq!(found, declared, "drafter: {name:?}");
+            }
+        }
         for tool in &offered {
             assert_eq!(tool.timeout, timeout);
         }
@@ -238,10 +267,25 @@ fn settings_tools_need_the_charters_family_too() {
                 engine::RunPolicy::EVERY_FAMILY,
                 tasks::Tools(authority & if charter & 1_024 == 0 { !1_024 } else { u64::MAX }),
             );
-            assert_eq!(offered, expected, "unchanged declarations for charter {charter}");
+            let mut declarations = offered.iter();
+            for tool in &expected {
+                if charter & 1 == 0
+                    && (tool.name.as_ref() == b"goal"
+                        || tool.name.as_ref() == b"change"
+                        || tool.name.as_ref() == b"delegate")
+                {
+                    continue;
+                }
+                assert_eq!(declarations.next(), Some(tool), "unchanged declarations for charter {charter}");
+            }
+            assert_eq!(declarations.next(), None, "no additional tools for charter {charter}");
             let mut proposal = false;
             for tool in &offered {
-                assert!(tool.name.as_ref() != b"see" && tool.name.as_ref() != b"document");
+                assert!(
+                    tool.name.as_ref() != b"see"
+                        && tool.name.as_ref() != b"document"
+                        && tool.name.as_ref() != b"remember"
+                );
                 if tool.name.as_ref() == b"propose_settings" {
                     proposal = true;
                     assert!(
@@ -514,6 +558,7 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[
         (b"see", br#"{"address":" settings charter 3 "}"#, br#"{"address":3}"#),
         (b"document", br##"{"action":"write","body":"# Title"}"##, br#"{"action":"unknown","body":""}"#),
+        (b"remember", br#"{"action":"add","text":"Keep it brief."}"#, br#"{"action":"unknown"}"#),
         (b"settings", br"{}", br#"{"from":-1}"#),
         (b"read_task", br#"{"task":23}"#, br#"{"task":0}"#),
         (b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#, br#"{"against":0,"items":[],"reason":"why"}"#),
@@ -648,6 +693,40 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
             decided(b"document", input.as_bytes()).unwrap().tool,
             engine::Tool::Document { action: expected, body: b"## Section".as_slice().into() }
         );
+    }
+    for (input, expected) in [
+        (
+            br#"{"action":"add","text":"Brief"}"#.as_slice(),
+            engine::RememberAction::Add { text: b"Brief".as_slice().into() },
+        ),
+        (
+            br#"{"action":"change","line":1,"text":"Brief"}"#,
+            engine::RememberAction::Change { line: 1, text: b"Brief".as_slice().into() },
+        ),
+        (br#"{"action":"drop","line":4294967295}"#, engine::RememberAction::Drop { line: u32::MAX }),
+    ] {
+        assert_eq!(decided(b"remember", input).unwrap().tool, engine::Tool::Remember { action: expected });
+    }
+    for (input, expected) in [
+        (br"{}".as_slice(), Problem::Missing(b"action")),
+        (br#"{"action":1}"#, Problem::Type(b"action")),
+        (br#"{"action":"unknown"}"#, Problem::Range(b"action")),
+        (br#"{"action":"add"}"#, Problem::Missing(b"text")),
+        (br#"{"action":"add","text":1}"#, Problem::Type(b"text")),
+        (br#"{"action":"add","text":"Brief","line":1}"#, Problem::Range(b"action")),
+        (br#"{"action":"change","text":"Brief"}"#, Problem::Missing(b"line")),
+        (br#"{"action":"change","line":1}"#, Problem::Missing(b"text")),
+        (br#"{"action":"change","line":1,"text":1}"#, Problem::Type(b"text")),
+        (br#"{"action":"drop"}"#, Problem::Missing(b"line")),
+        (br#"{"action":"drop","line":0}"#, Problem::Range(b"line")),
+        (br#"{"action":"drop","line":-1}"#, Problem::Range(b"line")),
+        (br#"{"action":"drop","line":1.5}"#, Problem::Range(b"line")),
+        (br#"{"action":"drop","line":4294967296}"#, Problem::Range(b"line")),
+        (br#"{"action":"drop","line":"1"}"#, Problem::Type(b"line")),
+        (br#"{"action":"drop","line":1,"text":"Brief"}"#, Problem::Range(b"action")),
+        (br#"{"action":"add","text":"Brief","other":1}"#, Problem::Range(b"remember")),
+    ] {
+        assert_eq!(decided(b"remember", input), Err(expected), "{input:?}");
     }
     let cases = tool_cases();
     let declared = tools(Duration::from_secs(10));
@@ -2304,7 +2383,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: goal into base; run: land run branch; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: goal into base; run: land run branch; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;
@@ -3606,3 +3685,9 @@ mod decided_tool;
 
 #[path = "tests/see.rs"]
 mod see;
+
+#[path = "tests/see_person.rs"]
+mod see_person;
+
+#[path = "tests/remember.rs"]
+mod remember;

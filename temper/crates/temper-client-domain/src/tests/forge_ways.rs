@@ -10,10 +10,11 @@ use crate::{
 use jig_client::{Down, Link, Readable, Readout, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject, Way};
 const OTHER: u32 = 17;
 const NEWEST: u32 = 8;
 const NEXT: u32 = 9;
-const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, away: true, way: 3 };
+const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, way: 3 };
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
@@ -72,6 +73,7 @@ struct Fixture {
     settings: Token,
     me: Token,
     read: Token,
+    classes_read: Token,
 }
 fn opened() -> (Fixture, Queue<Request>) {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
@@ -89,7 +91,8 @@ fn opened() -> (Fixture, Queue<Request>) {
     );
     let settings = opening(&out).expect("session settings");
     let read = reads(&out, 7).first().expect("project ways read").0;
-    (Fixture { root, settings, me: me_watch, read }, out)
+    let classes_read = reads(&out, 8).first().expect("project classes read").0;
+    (Fixture { root, settings, me: me_watch, read, classes_read }, out)
 }
 fn fixture() -> Fixture {
     let (mut f, _) = opened();
@@ -128,11 +131,19 @@ fn value(asked: Asked) -> Box<[u8]> {
             let record = w::ProjectWays::new(
                 &w::CEILINGS,
                 w::ProjectWaysParts {
-                    skein_bools: [value.drafts, value.goals, value.changes, value.away],
+                    drafts: value.drafts,
+                    goals: value.goals,
+                    changes: value.changes,
                     way: value.way,
                 },
             )
             .unwrap();
+            let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
+            record.encode(&mut writer).unwrap();
+            writer
+        }
+        Asked::Classes(classes) => {
+            let record = temper_protocol_reaches::classes_record(&classes).unwrap();
             let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
             record.encode(&mut writer).unwrap();
             writer
@@ -195,6 +206,20 @@ fn stale() -> c::Answer {
     c::Answer::Refused { refusal: c::Refusal::Stale(c::RefusalStale { newest: NEXT }), at: None }
 }
 
+fn controls() -> [(u32, Control, Asked); 2] {
+    [(7, Control::Ways, Asked::Ways(SHOWN)), (8, Control::Classes, Asked::Classes(Classes::stock(Way::YouApprove)))]
+}
+fn initial_read(f: &Fixture, kind: u32, out: &Queue<Request>) -> Token {
+    match kind {
+        7 => f.read,
+        8 => f.classes_read,
+        6 => reads(out, kind)[0].0,
+        _ => panic!("fixture setting kind"),
+    }
+}
+fn stock_classes() -> Asked {
+    Asked::Classes(Classes::stock(Way::AgentsReview))
+}
 #[test]
 fn the_watch_is_held_for_the_session_and_home_reads_it() {
     let (mut f, _) = opened();
@@ -257,17 +282,86 @@ fn the_watch_is_held_for_the_session_and_home_reads_it() {
     }
 }
 #[test]
-fn kind_seven_is_read_as_a_project_opens_and_dropped_as_it_closes() {
-    let mut f = fixture();
-    page(&mut f.root, f.read, Some(value(Asked::Ways(SHOWN))));
-    assert_eq!(f.root.forge().ways(f::PROJECT), Some(SHOWN));
-    let out = go(&mut f.root, Address::Home { project: OTHER });
-    assert_eq!(reads(&out, 7).len(), 1);
-    assert_eq!(reads(&out, 7)[0].1, OTHER);
-    assert_eq!(f.root.forge().ways(f::PROJECT), None);
-    assert_eq!(f.root.forge().ways(OTHER), None);
-    ways::progress(&mut f.root.forge, skein_lib::Time::ZERO, None, false, f::limits().forge, &mut Queue::uncapped());
-    assert_eq!(f.root.forge().ways(OTHER), None);
+fn project_values_are_read_on_open_and_dropped_on_close() {
+    for (kind, control, asked) in controls() {
+        let mut f = fixture();
+        let read = initial_read(&f, kind, &Queue::uncapped());
+        page(&mut f.root, read, Some(value(asked.clone())));
+        assert_eq!(held(&f.root, control), Some(asked));
+        let out = go(&mut f.root, Address::Home { project: OTHER });
+        let found = reads(&out, kind);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].1, OTHER);
+        assert_eq!(held(&f.root, control), None);
+        assert_eq!(f.root.forge().ways(OTHER), None);
+        assert_eq!(f.root.forge().classes(OTHER), None);
+        ways::progress(
+            &mut f.root.forge,
+            skein_lib::Time::ZERO,
+            None,
+            None,
+            false,
+            f::limits().forge,
+            &mut Queue::uncapped(),
+        );
+        assert_eq!(f.root.forge().ways(OTHER), None);
+        assert_eq!(f.root.forge().classes(OTHER), None);
+    }
+    for shown in [Some(OTHER), Some(f::PROJECT), None] {
+        let mut f = fixture();
+        let mut out = Queue::uncapped();
+        ways::progress(
+            &mut f.root.forge,
+            skein_lib::Time::ZERO,
+            Some(f::PROJECT),
+            shown,
+            false,
+            f::limits().forge,
+            &mut out,
+        );
+        if shown != Some(OTHER) {
+            assert!(out.is_empty());
+            continue;
+        }
+        let Some(forge::Request::Client { asked: jig_client::Event::Read { handle, read } }) = out.pop() else {
+            panic!("shown classes read")
+        };
+        let Readable::Family { scope, record, .. } = read else { panic!("family read") };
+        assert_eq!(scope, c::Scope::Project(OTHER));
+        let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().into_parts().read
+        else {
+            panic!("setting")
+        };
+        assert_eq!((setting.kind(), setting.scope()), (8, OTHER));
+        assert!(out.is_empty());
+        let classes = Classes::stock(Way::YouApprove);
+        ways::told(
+            &mut f.root.forge,
+            skein_lib::Time::ZERO,
+            &f.root.client,
+            &Told::Page {
+                handle,
+                page: Readout::Family { family: wire::FORGE, record: Some(value(Asked::Classes(classes.clone()))) },
+            },
+            f::limits().forge,
+            &mut Queue::uncapped(),
+        );
+        assert_eq!(f.root.forge().classes(OTHER), Some(&classes));
+        for next in [Some(OTHER), None] {
+            let mut out = Queue::uncapped();
+            ways::progress(
+                &mut f.root.forge,
+                skein_lib::Time::ZERO,
+                Some(f::PROJECT),
+                next,
+                false,
+                f::limits().forge,
+                &mut out,
+            );
+            assert!(out.is_empty());
+            assert_eq!(f.root.forge().classes(OTHER), if next.is_some() { Some(&classes) } else { None });
+        }
+    }
 }
 #[test]
 fn kind_six_is_read_on_the_tab_alone() {
@@ -287,10 +381,9 @@ fn kind_six_is_read_on_the_tab_alone() {
 fn no_value_is_the_stock() {
     let mut f = fixture();
     page(&mut f.root, f.read, Some(none()));
-    assert_eq!(
-        f.root.forge().ways(f::PROJECT),
-        Some(Ways { drafts: true, goals: false, changes: false, away: false, way: 0 })
-    );
+    assert_eq!(f.root.forge().ways(f::PROJECT), Some(Ways { drafts: true, goals: false, changes: false, way: 0 }));
+    page(&mut f.root, f.classes_read, Some(none()));
+    assert_eq!(f.root.forge().classes(f::PROJECT), Some(&Classes::stock(Way::AgentsReview)));
     let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
     page(&mut f.root, reads(&out, 6)[0].0, Some(none()));
     assert_eq!(f.root.forge().questions(f::PROJECT), Some(Route::None));
@@ -304,20 +397,31 @@ fn a_refused_read_hides_and_a_malformed_value_too() {
         Readout::Limit,
         Readout::NotServed { family: Some(wire::FORGE), served: None },
         Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
+        Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
         Readout::Family { family: wire::FORGE, record: None },
         Readout::Family { family: wire::FORGE, record: Some(malformed) },
     ] {
-        let mut f = fixture();
-        up(&mut f.root, Up::ReadDone { read: f.read, result });
-        assert_eq!(f.root.forge().ways(f::PROJECT), None);
+        for (kind, control, _) in controls() {
+            let mut f = fixture();
+            let read = initial_read(&f, kind, &Queue::uncapped());
+            up(&mut f.root, Up::ReadDone { read, result: result.clone() });
+            assert_eq!(held(&f.root, control), None, "kind {kind}: {result:?}");
+        }
     }
+    let invalid = Classes {
+        items: Box::new([Item { subject: Subject::Kind(Kind::Money), words: Box::new([]), class: Class::Ask }]),
+        sets: Box::new([]),
+    };
+    let mut f = fixture();
+    page(&mut f.root, f.classes_read, Some(value(Asked::Classes(invalid))));
+    assert_eq!(f.root.forge().classes(f::PROJECT), None, "a decodable table must pass check");
 }
 #[test]
 fn a_changed_line_reads_again() {
-    for kind in [7, 6] {
+    for kind in [7, 6, 8] {
         let mut f = fixture();
         let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
-        let read = if kind == 7 { f.read } else { reads(&out, kind)[0].0 };
+        let read = initial_read(&f, kind, &out);
         page(&mut f.root, read, Some(none()));
         for (last, follows) in [
             (Some(NEWEST), c::SettingFollows::Change),
@@ -336,24 +440,29 @@ fn a_changed_line_reads_again() {
 }
 #[test]
 fn one_read_at_a_time() {
-    let mut f = fixture();
-    for last in [NEWEST, NEXT] {
-        assert!(
-            reads(&document(&mut f, last, &[(7, f::PROJECT, Some(last), c::SettingFollows::Change)]), 7).is_empty()
-        );
+    for (kind, control, asked) in controls() {
+        let mut f = fixture();
+        let read = initial_read(&f, kind, &Queue::uncapped());
+        for last in [NEWEST, NEXT] {
+            assert!(
+                reads(&document(&mut f, last, &[(kind, f::PROJECT, Some(last), c::SettingFollows::Change)]), kind)
+                    .is_empty()
+            );
+        }
+        let out = page(&mut f.root, read, Some(none()));
+        let found = reads(&out, kind);
+        assert_eq!(found.len(), 1, "one follow-up for all changes");
+        assert!(reads(&page(&mut f.root, found[0].0, Some(value(asked.clone()))), kind).is_empty());
+        assert_eq!(held(&f.root, control), Some(asked.clone()));
+        let mut f = fixture();
+        let read = initial_read(&f, kind, &Queue::uncapped());
+        assert!(reads(&go(&mut f.root, Address::Home { project: OTHER }), kind).is_empty());
+        let out = page(&mut f.root, read, Some(value(asked)));
+        assert_eq!(held(&f.root, control), None, "the old project's late answer is dropped");
+        let found = reads(&out, kind);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].1, OTHER);
     }
-    let out = page(&mut f.root, f.read, Some(none()));
-    let found = reads(&out, 7);
-    assert_eq!(found.len(), 1, "one follow-up for all changes");
-    assert!(reads(&page(&mut f.root, found[0].0, Some(value(Asked::Ways(SHOWN)))), 7).is_empty());
-    assert_eq!(f.root.forge().ways(f::PROJECT), Some(SHOWN));
-    let mut f = fixture();
-    assert!(reads(&go(&mut f.root, Address::Home { project: OTHER }), 7).is_empty());
-    let out = page(&mut f.root, f.read, Some(value(Asked::Ways(SHOWN))));
-    assert_eq!(f.root.forge().ways(OTHER), None, "the old project's late answer is dropped");
-    let found = reads(&out, 7);
-    assert_eq!(found.len(), 1);
-    assert_eq!(found[0].1, OTHER);
 }
 #[test]
 fn the_link_back_reads_again() {
@@ -362,9 +471,30 @@ fn the_link_back_reads_again() {
     {
         let mut f = fixture();
         let out = go(&mut f.root, address);
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
+            } = request
+                && let w::Read::View(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            {
+                page(&mut f.root, *read, None);
+            }
+        }
         page(&mut f.root, f.read, Some(none()));
+        page(&mut f.root, f.classes_read, Some(none()));
         for (read, _) in &*reads(&out, 6) {
             page(&mut f.root, *read, Some(none()));
+        }
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
+            } = request
+                && let w::Read::View(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            {
+                page(&mut f.root, *read, None);
+            }
         }
         let mut out = Queue::uncapped();
         for link in [Link::Offline, Link::Live] {
@@ -372,13 +502,14 @@ fn the_link_back_reads_again() {
         }
         crate::route::ways_progress(&mut f.root, &f::env(&f::limits()), &mut out);
         assert_eq!(reads(&out, 7).len(), 1);
+        assert_eq!(reads(&out, 8).len(), 1);
         assert_eq!(reads(&out, 6).len(), six);
     }
 }
 #[test]
 fn a_set_sends_one_change_of_one_item_against_the_newest() {
     let mut f = fixture();
-    for asked in [Asked::Ways(SHOWN), Asked::Questions(Route::Up)] {
+    for asked in [Asked::Ways(SHOWN), Asked::Questions(Route::Up), stock_classes()] {
         let mut out = set(&mut f.root, asked.clone());
         let (_, change) = sent(&mut out);
         assert!(out.is_empty());
@@ -389,6 +520,7 @@ fn a_set_sends_one_change_of_one_item_against_the_newest() {
         let expected = match asked {
             Asked::Ways(_) => 7,
             Asked::Questions(_) => 6,
+            Asked::Classes(_) => 8,
         };
         assert_eq!(item.setting, c::Setting::Application { kind: expected, scope: f::PROJECT, number: 1 });
         let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) = &item.edit else {
@@ -401,7 +533,11 @@ fn a_set_sends_one_change_of_one_item_against_the_newest() {
 #[test]
 fn a_second_set_of_a_control_sends_nothing_while_one_is_out() {
     let mut f = fixture();
-    for (control, asked) in [(Control::Ways, Asked::Ways(SHOWN)), (Control::Questions, Asked::Questions(Route::Up))] {
+    for (control, asked) in [
+        (Control::Ways, Asked::Ways(SHOWN)),
+        (Control::Questions, Asked::Questions(Route::Up)),
+        (Control::Classes, stock_classes()),
+    ] {
         set(&mut f.root, asked.clone());
         assert!(set(&mut f.root, asked.clone()).is_empty());
         assert_eq!(f.root.forge().ways_asked(control), Some(&asked));
@@ -409,66 +545,74 @@ fn a_second_set_of_a_control_sends_nothing_while_one_is_out() {
 }
 #[test]
 fn a_stale_refusal_is_sent_once_more_against_its_newest() {
-    let mut f = fixture();
-    let (key, _) = sent(&mut set(&mut f.root, Asked::Ways(SHOWN)));
-    let mut child = Queue::uncapped();
-    assert!(ways::told(
-        &mut f.root.forge,
-        skein_lib::Time::ZERO,
-        &f.root.client,
-        &Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(stale())) },
-        f::limits().forge,
-        &mut child
-    ));
-    let (next, change) = sent(&mut child);
-    assert_eq!(change.against, NEXT);
-    assert_ne!(key, next);
-    assert_eq!(f.root.forge().ways_refused(Control::Ways), None);
-    assert_eq!(f.root.forge().ways_asked(Control::Ways), Some(&Asked::Ways(SHOWN)));
+    for (_, control, asked) in controls() {
+        let mut f = fixture();
+        let (key, _) = sent(&mut set(&mut f.root, asked.clone()));
+        let mut child = Queue::uncapped();
+        assert!(ways::told(
+            &mut f.root.forge,
+            skein_lib::Time::ZERO,
+            &f.root.client,
+            &Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(stale())) },
+            f::limits().forge,
+            &mut child
+        ));
+        let (next, change) = sent(&mut child);
+        assert_eq!(change.against, NEXT);
+        assert_ne!(key, next);
+        assert_eq!(f.root.forge().ways_refused(control), None);
+        assert_eq!(f.root.forge().ways_asked(control), Some(&asked));
+    }
 }
 #[test]
 fn a_second_stale_is_said() {
-    let mut f = fixture();
-    let (key, _) = sent(&mut set(&mut f.root, Asked::Ways(SHOWN)));
-    let mut child = Queue::uncapped();
-    ways::told(
-        &mut f.root.forge,
-        skein_lib::Time::ZERO,
-        &f.root.client,
-        &Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(stale())) },
-        f::limits().forge,
-        &mut child,
-    );
-    let (key, _) = sent(&mut child);
-    assert!(answered(&mut f.root, key, stale()).is_empty());
-    assert_eq!(f.root.forge().ways_asked(Control::Ways), None);
-    assert_eq!(f.root.forge().ways_refused(Control::Ways), Some(&c::Refusal::Stale(c::RefusalStale { newest: NEXT })));
+    for (_, control, asked) in controls() {
+        let mut f = fixture();
+        let (key, _) = sent(&mut set(&mut f.root, asked.clone()));
+        let mut child = Queue::uncapped();
+        ways::told(
+            &mut f.root.forge,
+            skein_lib::Time::ZERO,
+            &f.root.client,
+            &Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(stale())) },
+            f::limits().forge,
+            &mut child,
+        );
+        let (key, _) = sent(&mut child);
+        assert!(answered(&mut f.root, key, stale()).is_empty());
+        assert_eq!(f.root.forge().ways_asked(control), None);
+        assert_eq!(f.root.forge().ways_refused(control), Some(&c::Refusal::Stale(c::RefusalStale { newest: NEXT })));
+    }
 }
 #[test]
 fn a_refusal_is_kept_until_the_next_act() {
-    let mut f = fixture();
-    let (key, _) = sent(&mut set(&mut f.root, Asked::Ways(SHOWN)));
-    answered(
-        &mut f.root,
-        key,
-        c::Answer::Refused { refusal: c::Refusal::Role { held: Some(c::HeldRole::Member) }, at: None },
-    );
-    let refusal = c::Refusal::Role { held: Some(c::HeldRole::Member) };
-    assert_eq!(f.root.forge().ways_refused(Control::Ways), Some(&refusal));
-    page(&mut f.root, f.read, Some(none()));
-    assert_eq!(f.root.forge().ways_refused(Control::Ways), Some(&refusal));
-    set(&mut f.root, Asked::Ways(SHOWN));
-    assert_eq!(f.root.forge().ways_refused(Control::Ways), None);
+    for (kind, control, asked) in controls() {
+        let mut f = fixture();
+        let (key, _) = sent(&mut set(&mut f.root, asked.clone()));
+        answered(
+            &mut f.root,
+            key,
+            c::Answer::Refused { refusal: c::Refusal::Role { held: Some(c::HeldRole::Member) }, at: None },
+        );
+        let refusal = c::Refusal::Role { held: Some(c::HeldRole::Member) };
+        assert_eq!(f.root.forge().ways_refused(control), Some(&refusal));
+        let read = initial_read(&f, kind, &Queue::uncapped());
+        page(&mut f.root, read, Some(none()));
+        assert_eq!(f.root.forge().ways_refused(control), Some(&refusal));
+        set(&mut f.root, asked.clone());
+        assert_eq!(f.root.forge().ways_refused(control), None);
+    }
 }
 #[test]
 fn an_answer_holds_the_value_asked() {
     for (asked, control, kind, stock) in [
         (Asked::Ways(SHOWN), Control::Ways, 7, Asked::Ways(Ways::STOCK)),
         (Asked::Questions(Route::Up), Control::Questions, 6, Asked::Questions(Route::None)),
+        (Asked::Classes(Classes::stock(Way::YouApprove)), Control::Classes, 8, stock_classes()),
     ] {
         let mut f = fixture();
         let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
-        let read = if kind == 7 { f.read } else { reads(&out, kind)[0].0 };
+        let read = initial_read(&f, kind, &out);
         page(&mut f.root, read, Some(none()));
         let (key, _) = sent(&mut set(&mut f.root, asked.clone()));
         let out = answered(
@@ -486,6 +630,10 @@ fn an_answer_holds_the_value_asked() {
 }
 fn held(root: &Domain, control: Control) -> Option<Asked> {
     match control {
+        Control::Classes => match root.forge().classes(f::PROJECT) {
+            Some(classes) => Some(Asked::Classes(classes.clone())),
+            None => None,
+        },
         Control::Ways => match root.forge().ways(f::PROJECT) {
             Some(ways) => Some(Asked::Ways(ways)),
             None => None,
@@ -514,12 +662,14 @@ fn default_way_uses_the_selected_tracked_template_or_the_lowest() {
 
 #[test]
 fn a_read_started_before_the_set_cannot_replace_its_answer() {
-    for (asked, control, kind) in
-        [(Asked::Ways(SHOWN), Control::Ways, 7), (Asked::Questions(Route::Up), Control::Questions, 6)]
-    {
+    for (asked, control, kind) in [
+        (Asked::Ways(SHOWN), Control::Ways, 7),
+        (Asked::Questions(Route::Up), Control::Questions, 6),
+        (stock_classes(), Control::Classes, 8),
+    ] {
         let mut f = fixture();
         let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
-        let prior = if kind == 7 { f.read } else { reads(&out, kind)[0].0 };
+        let prior = initial_read(&f, kind, &out);
         let (key, _) = sent(&mut set(&mut f.root, asked.clone()));
         let out = answered(
             &mut f.root,
@@ -610,6 +760,11 @@ fn proposal_handle(out: &Queue<forge::Request>, key: u64) -> jig_client::Handle 
     *found.get(0).unwrap()
 }
 fn proposed_page(asked: Asked) -> Readout {
+    let kind = match &asked {
+        Asked::Ways(_) => 7,
+        Asked::Questions(_) => 6,
+        Asked::Classes(_) => 8,
+    };
     let value = wire::decode_setting_answer(&value(asked), &w::CEILINGS).unwrap().into_parts().value.unwrap();
     let mut items = List::with_capacity(1);
     items
@@ -617,7 +772,7 @@ fn proposed_page(asked: Asked) -> Readout {
             w::ProposalItem::new(
                 &w::CEILINGS,
                 w::ProposalItemParts {
-                    kind: 7,
+                    kind,
                     scope: f::PROJECT,
                     number: 1,
                     edit: w::SettingEdit::Set(
@@ -695,9 +850,12 @@ fn a_proposals_items_are_read_once_and_bounded() {
     assert_eq!(f.root.forge.proposed(PROPOSAL), None, "an evicted read cannot publish into its replacement");
 }
 fn rule_page(owned_approval: bool) -> Readout {
+    edited_page(2, w::SettingEdit::Removed, owned_approval)
+}
+fn edited_page(kind: u32, edit: w::SettingEdit, owned_approval: bool) -> Readout {
     let items = List::from_boxed(Box::new([w::ProposalItem::new(
         &w::CEILINGS,
-        w::ProposalItemParts { kind: 2, scope: f::PROJECT, number: 1, edit: w::SettingEdit::Removed },
+        w::ProposalItemParts { kind, scope: f::PROJECT, number: 1, edit },
     )
     .unwrap()]));
     let answer =
@@ -707,9 +865,36 @@ fn rule_page(owned_approval: bool) -> Readout {
 #[test]
 fn proposal_reads_keep_owned_approval_and_refusals() {
     for (kind, page, expected, owned) in [
-        (2, rule_page(true), Some([].as_slice()), true),
-        (2, rule_page(false), Some([].as_slice()), false),
-        (1, rule_page(true), Some([].as_slice()), true),
+        (2, rule_page(true), Some(Box::<[ways::Proposed]>::from([])), true),
+        (2, rule_page(false), Some(Box::<[ways::Proposed]>::from([])), false),
+        (1, rule_page(true), Some(Box::<[ways::Proposed]>::from([])), true),
+        (
+            8,
+            proposed_page(stock_classes()),
+            Some(Box::<[ways::Proposed]>::from([ways::Proposed::Classes {
+                project: f::PROJECT,
+                classes: Classes::stock(Way::AgentsReview),
+            }])),
+            false,
+        ),
+        (
+            8,
+            edited_page(8, w::SettingEdit::Removed, false),
+            Some(Box::<[ways::Proposed]>::from([ways::Proposed::Classes {
+                project: f::PROJECT,
+                classes: Classes::stock(Way::AgentsReview),
+            }])),
+            false,
+        ),
+        (
+            8,
+            edited_page(8, w::SettingEdit::Reset, false),
+            Some(Box::<[ways::Proposed]>::from([ways::Proposed::Classes {
+                project: f::PROJECT,
+                classes: Classes::stock(Way::AgentsReview),
+            }])),
+            false,
+        ),
         (7, Readout::Limit, None, false),
     ] {
         let mut f = fixture();
@@ -717,7 +902,7 @@ fn proposal_reads_keep_owned_approval_and_refusals() {
         let handle = proposal_handle(&proposal_read_kind(&mut f.root, PROPOSAL, kind), PROPOSAL);
         assert!(!f.root.forge().owned_approval(PROPOSAL));
         proposal_told(&mut f.root, Told::Page { handle, page });
-        assert_eq!(f.root.forge.proposed(PROPOSAL), expected);
+        assert_eq!(f.root.forge.proposed(PROPOSAL), expected.as_deref());
         assert_eq!(f.root.forge().owned_approval(PROPOSAL), owned);
         assert!(proposal_read_kind(&mut f.root, PROPOSAL, kind).is_empty(), "read once, including a refusal");
     }
@@ -726,7 +911,7 @@ fn proposal_reads_keep_owned_approval_and_refusals() {
 #[test]
 fn a_transient_settings_read_backs_off_and_recovers_without_a_revision_change() {
     use skein_lib::{Duration, Time};
-    for kind in [7, 6] {
+    for kind in [7, 6, 8] {
         for failure in [
             Readout::Limit,
             Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
@@ -735,7 +920,7 @@ fn a_transient_settings_read_backs_off_and_recovers_without_a_revision_change() 
         ] {
             let mut f = fixture();
             let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
-            let mut read = if kind == 7 { f.read } else { reads(&out, kind)[0].0 };
+            let mut read = initial_read(&f, kind, &out);
             let limits = f::limits();
             let mut env = f::env(&limits);
             for seconds in [1, 2, 4, 8, 16, 30, 30] {
@@ -759,7 +944,12 @@ fn a_transient_settings_read_backs_off_and_recovers_without_a_revision_change() 
                 assert_eq!(retry.len(), 1, "one retry of the missing setting");
                 read = retry[0].0;
             }
-            let asked = if kind == 7 { Asked::Ways(Ways::STOCK) } else { Asked::Questions(Route::None) };
+            let (control, asked) = match kind {
+                7 => (Control::Ways, Asked::Ways(Ways::STOCK)),
+                6 => (Control::Questions, Asked::Questions(Route::None)),
+                8 => (Control::Classes, stock_classes()),
+                _ => panic!("fixture setting kind"),
+            };
             let mut out = Queue::uncapped();
             crate::step(
                 &mut f.root,
@@ -776,11 +966,7 @@ fn a_transient_settings_read_backs_off_and_recovers_without_a_revision_change() 
             );
             assert_eq!(forge::next_deadline(f.root.forge()), None);
             assert!(reads(&out, kind).is_empty());
-            if kind == 7 {
-                assert_eq!(f.root.forge().ways(f::PROJECT), Some(Ways::STOCK));
-            } else {
-                assert_eq!(f.root.forge().questions(f::PROJECT), Some(Route::None));
-            }
+            assert_eq!(held(&f.root, control), Some(asked.clone()));
             assert!(!set(&mut f.root, asked).is_empty(), "the recovered control can send its change");
             assert!(env.now > Time::ZERO);
         }
@@ -788,16 +974,16 @@ fn a_transient_settings_read_backs_off_and_recovers_without_a_revision_change() 
 }
 #[test]
 fn leaving_the_settings_scope_cancels_its_read_retry() {
-    for kind in [7, 6] {
+    for kind in [7, 6, 8] {
         let mut f = fixture();
         let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
-        let read = if kind == 7 { f.read } else { reads(&out, kind)[0].0 };
+        let read = initial_read(&f, kind, &out);
         up(&mut f.root, Up::ReadDone { read, result: Readout::Limit });
         assert!(forge::next_deadline(f.root.forge()).is_some());
-        if kind == 7 {
-            up(&mut f.root, Up::SignedOut);
-        } else {
+        if kind == 6 {
             go(&mut f.root, Address::Home { project: f::PROJECT });
+        } else {
+            up(&mut f.root, Up::SignedOut);
         }
         assert_eq!(forge::next_deadline(f.root.forge()), None);
     }

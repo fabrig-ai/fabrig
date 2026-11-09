@@ -25,7 +25,7 @@ fn service(states: u32, life: Duration) -> crate::Service {
 #[expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
-    reason = "figure write mode names and writes the measured page sizes"
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects measured page size output; the test table will pass it; figure write mode names and writes the sizes"
 )]
 pub(super) fn measure_page(name: &str, bytes: usize) {
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
@@ -915,6 +915,7 @@ fn local_store(token: bool) -> crate::store::Store {
 fn local_repository() -> domain::Repository {
     use temper_engine_domain_forge::{Kinds, Protection, Repository, Role};
     Repository {
+        workflows: Box::default(),
         project: 1,
         home: true,
         provider: skein_forge::api::Repository { forge: 1, repository: 41 },
@@ -1849,11 +1850,14 @@ fn github_app_urls_use_the_clients_public_origin() {
 
 #[test]
 fn setup_reconciliation_waits_for_the_mark() {
+    fn restarting() -> Box<crate::Service> {
+        let mut previous = fixtures::ready().engine.unwrap();
+        kept_record(&mut previous.store, 1, Item::AdminToken, b"test-admin");
+        Box::new(fixtures::restarting_from(previous))
+    }
     // The shared service restart fixture's existing iteration horizon.
     const PASSES: u32 = 256;
-    let mut previous = fixtures::ready().engine.unwrap();
-    kept_record(&mut previous.store, 1, Item::AdminToken, b"test-admin");
-    let mut service = fixtures::restarting_from(previous);
+    let mut service = restarting();
     let config = local_config(true, false);
     let mut endpoints = fixtures::configured_endpoints(&config, fixtures::forge_runtime()).unwrap();
     let setup = fixture_setup(&config, &mut endpoints).unwrap();

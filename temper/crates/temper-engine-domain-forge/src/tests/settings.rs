@@ -1,12 +1,15 @@
 //! Values of the forge's kinds and procedure waits
 //! (temper/docs/design/protocol/configuration.md, 13.2 and 13.3).
-use crate::settings::{Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, Value, judge, requires};
+use crate::settings::{
+    Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, TemplateGoal, Value, judge, requires,
+};
 use crate::{GateLast, GatePattern, JudgeFreshness, Requires};
 use alloc::boxed::Box;
 use skein_lib::List;
 
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
-const BOUNDS: Bounds = Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 3, segments: 5, segment_bytes: 8 };
+const BOUNDS: Bounds =
+    Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 3, segments: 5, segment_bytes: 8, templates: 4 };
 const PROJECT: u32 = 1;
 const FIRST_RULE: u32 = 1;
 const GATE: RuleGate = RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Exact };
@@ -140,6 +143,7 @@ fn judge_accepts_rules_within_their_bounds() {
         (3, Some(Kind::Charters)),
         (4, None),
         (5, None),
+        (11, Some(Kind::TemplateGoal)),
         (u32::MAX, None),
     ] {
         assert_eq!(Kind::of(number), expected, "kind {number}");
@@ -278,6 +282,22 @@ fn judge_refuses_each_fault_by_name() {
 
 #[test]
 fn judge_reads_the_forge_charters() {
+    let goal = Item { kind: Kind::TemplateGoal.number(), scope: 0, number: 1, value: None };
+    for (design, close_out) in [(false, false), (false, true), (true, false), (true, true)] {
+        for number in [1, BOUNDS.templates] {
+            let item = Item { number, value: Some(Value::Goal(TemplateGoal { design, close_out })), ..goal.clone() };
+            assert_eq!(judge(&item, &BOUNDS), Ok(()), "{item:?}");
+        }
+    }
+    for (label, item, expected) in [
+        ("goal project scope", Item { scope: PROJECT, ..goal.clone() }, Err(Refusal::Scope)),
+        ("goal number zero", Item { number: 0, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal number past templates", Item { number: BOUNDS.templates + 1, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal wrong value", Item { value: Some(Value::Charter(1)), ..goal.clone() }, Err(Refusal::Value)),
+        ("goal removal or reset", goal, Ok(())),
+    ] {
+        assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
     let base = Item { kind: Kind::Charters.number(), scope: 0, number: 1, value: Some(Value::Charter(1)) };
     for number in [1, 2] {
         let rows = [
@@ -331,6 +351,7 @@ fn refusal_words_are_distinct() {
         Refusal::Approvals,
         Refusal::Charter,
         Refusal::Value,
+        Refusal::Words,
     ];
     for (at, refusal) in refusals.iter().enumerate() {
         assert!(!refusal.words().is_empty(), "{refusal:?}");
@@ -398,25 +419,42 @@ fn requires_reads_rules_that_do_not_enforce() {
 
 #[test]
 fn a_projects_kinds_are_judged() {
-    use crate::settings::ProjectWays;
+    use crate::settings::{ProjectWays, ProjectWords};
     use temper_engine_domain_forge_change::Route;
+    use temper_protocol_reaches::{self as reaches, Classes, Way};
     for (kind, expected) in [
         (6, Value::Questions(Route::None)),
-        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 })),
+        (8, Value::Classes(Classes::stock(Way::AgentsReview))),
+        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: false, way: 0 })),
     ] {
         assert_eq!(crate::settings::project_stock(kind).unwrap().value, expected, "stock {kind}");
     }
+    let invalid = Classes {
+        items: Box::new([reaches::Item {
+            subject: reaches::Subject::Kind(reaches::Kind::Money),
+            words: Box::new([]),
+            class: reaches::Class::Ask,
+        }]),
+        sets: Box::new([]),
+    };
     let values = [
-        (6, Value::Questions(Route::None)),
-        (6, Value::Questions(Route::Foreman)),
-        (6, Value::Questions(Route::Up)),
-        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: u32::MAX })),
+        (6, Value::Questions(Route::None), Ok(())),
+        (6, Value::Questions(Route::Foreman), Ok(())),
+        (6, Value::Questions(Route::Up), Ok(())),
+        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX }), Ok(())),
+        (8, Value::Classes(Classes::stock(Way::AgentsReview)), Ok(())),
+        (8, Value::Classes(invalid), Err(Refusal::Classes(reaches::Refusal::Fixed { item: 1 }))),
+        (
+            10,
+            Value::ProjectWords(ProjectWords { headline: Box::new([b'h'; 120]), lede: Box::new([b'l'; 480]) }),
+            Ok(()),
+        ),
     ];
-    for (kind, value) in values {
+    for (kind, value, set_result) in values {
         assert_eq!(Kind::of(kind).unwrap().number(), kind);
         let base = Item { kind, scope: PROJECT, number: 1, value: Some(value) };
         for (label, item, expected) in [
-            ("set", base.clone(), Ok(())),
+            ("set", base.clone(), set_result),
             ("scope", Item { scope: 0, ..base.clone() }, Err(Refusal::Scope)),
             ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
             ("two", Item { number: 2, ..base.clone() }, Err(Refusal::Number)),
@@ -426,11 +464,51 @@ fn a_projects_kinds_are_judged() {
         ] {
             assert_eq!(judge(&item, &BOUNDS), expected, "{kind}: {label}");
         }
-        let other = if kind == 6 {
-            Value::Ways(ProjectWays { drafts: false, goals: false, changes: false, away: false, way: 0 })
+        let other = if kind == 6 || kind == 8 {
+            Value::Ways(ProjectWays { drafts: false, goals: false, changes: false, way: 0 })
         } else {
             Value::Questions(Route::None)
         };
         assert_eq!(judge(&Item { value: Some(other), ..base }, &BOUNDS), Err(Refusal::Value));
+    }
+    let ways = Value::Ways(ProjectWays { drafts: true, goals: false, changes: false, way: 0 });
+    for (line, expected) in [
+        (Box::from([b'x'; 120].as_slice()), Ok(())),
+        (Box::from([b'x'; 121].as_slice()), Err(Refusal::Words)),
+        (Box::from(b"".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"line\nbreak".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"tab\t".as_slice()), Err(Refusal::Words)),
+        (Box::from("é\u{0085}".as_bytes()), Err(Refusal::Words)),
+        (Box::from(b"\xff".as_slice()), Err(Refusal::Words)),
+        (Box::from("é".as_bytes()), Ok(())),
+    ] {
+        let item = Item { kind: 9, scope: 0, number: 1, value: Some(Value::CharterWords(line)) };
+        assert_eq!(judge(&item, &BOUNDS), expected, "line {item:?}");
+    }
+    let base = Item { kind: 9, scope: 0, number: 1, value: Some(Value::CharterWords(Box::from(b"line".as_slice()))) };
+    assert_eq!(Kind::of(9).unwrap().number(), 9);
+    for (label, item, expected) in [
+        ("scope", Item { scope: PROJECT, ..base.clone() }, Err(Refusal::Scope)),
+        ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
+        ("last charter", Item { number: BOUNDS.charters, ..base.clone() }, Ok(())),
+        ("past charters", Item { number: BOUNDS.charters + 1, ..base.clone() }, Err(Refusal::Number)),
+        ("remove or reset", Item { value: None, ..base.clone() }, Ok(())),
+        ("ways", Item { value: Some(ways.clone()), ..base }, Err(Refusal::Value)),
+        ("project ways", Item { kind: 10, scope: PROJECT, number: 1, value: Some(ways) }, Err(Refusal::Value)),
+    ] {
+        assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
+    for (headline, lede, expected) in [
+        (Box::from([b'h'; 120].as_slice()), Box::from([b'l'; 480].as_slice()), Ok(())),
+        (Box::from([b'h'; 121].as_slice()), Box::from(b"lede".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"headline".as_slice()), Box::from([b'l'; 481].as_slice()), Err(Refusal::Words)),
+    ] {
+        let item = Item {
+            kind: 10,
+            scope: PROJECT,
+            number: 1,
+            value: Some(Value::ProjectWords(ProjectWords { headline, lede })),
+        };
+        assert_eq!(judge(&item, &BOUNDS), expected, "project words {item:?}");
     }
 }

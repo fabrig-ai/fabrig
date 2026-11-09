@@ -4,7 +4,7 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
-pub use temper_engine_domain::RunRefusalDiagnostic;
+pub use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding, RunRefusalDiagnostic};
 pub mod diagnostics;
 pub mod forge;
 pub mod forges;
@@ -27,16 +27,27 @@ pub mod accounts;
 pub mod assignment;
 pub mod clients;
 pub mod family;
+#[cfg(feature = "worker")]
 pub mod identities;
+#[cfg(feature = "worker")]
 pub mod program_sources;
 pub use jig_protocol_engine_clients_http::server;
 pub mod translate;
 pub mod values;
+#[cfg(feature = "worker")]
 mod worker;
+#[cfg(feature = "worker")]
 mod worker_git;
+#[cfg(feature = "worker")]
 pub mod worker_route;
+#[cfg(feature = "worker")]
 pub mod worker_settings;
+#[cfg(feature = "worker")]
 pub use worker::{Worker, WorkerRuntime};
+#[cfg(not(feature = "worker"))]
+mod unbuilt;
+#[cfg(not(feature = "worker"))]
+pub use unbuilt::{Worker, WorkerRuntime};
 pub mod workers;
 pub use accounts::AccountsRuntime;
 mod core_wait;
@@ -177,6 +188,17 @@ pub enum Note {
     RunFailed(temper_engine_domain::RunDiagnostic),
     /// A refused assignment accepted by the hub, for stderr only (domain/worker.md, 4.3).
     RunRefused(RunRefusalDiagnostic),
+    /// A failed or refused job accepted by the engine (domain/worker.md, 4.4).
+    JobAnswered(JobDiagnostic),
+    /// The worker's own job evidence, kept outside facts and results (domain/worker.md, 4.4).
+    WorkerJob {
+        run: u64,
+        attempt: u64,
+        kind: u32,
+        verb: Box<[u8]>,
+        ending: JobDiagnosticEnding,
+        why: Box<[u8]>,
+    },
     /// A forge read refusal with its task, tool, layer and authority findings.
     ReadRefused {
         task: u64,
@@ -226,6 +248,28 @@ pub enum Note {
     Linked {
         worker: Box<[u8]>,
         address: Box<core::net::SocketAddr>,
+    },
+    /// Once per linked link lost (protocol/README.md, 15.3).
+    Lost {
+        worker: Box<[u8]>,
+        address: Box<core::net::SocketAddr>,
+        why: WorkerLoss,
+    },
+    /// A channel that said hello ended (protocol/README.md, 15.3).
+    WorkerLost {
+        worker: Option<Box<[u8]>>,
+        channel: skein_lib::Token,
+        why: EngineWorkerLoss,
+    },
+    /// An opening ended, suppressed by name and reason until hello (protocol/README.md, 15.3).
+    WorkerOpeningEnded {
+        worker: Option<Box<[u8]>>,
+        why: EngineWorkerLoss,
+    },
+    /// A workers' listener failed, reported at once (protocol/README.md, 15.3).
+    WorkerListenerFailed {
+        address: Option<skein_io::Addr>,
+        error: Option<skein_io::Error>,
     },
     Refused {
         worker: Box<[u8]>,
@@ -293,7 +337,10 @@ pub enum Refusal {
     Malformed,
 }
 
+pub use jig_protocol_engine_workers::Loss as EngineWorkerLoss;
+pub use jig_protocol_worker_link::Loss as WorkerLoss;
 pub use jig_protocol_worker_wire::Reason as WorkerRefusalReason;
+pub use skein_channel::Closed as WorkerClosed;
 
 pub use temper_engine_domain::Unsettled;
 

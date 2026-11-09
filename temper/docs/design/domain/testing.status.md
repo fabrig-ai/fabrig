@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-08. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-09. Where temper's code lags or departs from [testing.md](testing.md).
 
 Section 6.1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -57,7 +57,7 @@ all 2,000 seeds and 24,000 drawn checks, with six fixed checks once.
 Shared list append bookkeeping and fixed-width generated measurement
 are cheaper. No test, draw, crash, invariant or ending is removed or
 moved. Remaining mechanisms and reliability investigations are deferred
-in section 11; the measured suite overage remains below.
+in section 11; the suite's measured CPU follows the departures below.
 
 Section 5.2's conformance sweeps fork every live commit from one baseline,
 retaining cold restart and independent readback. Section 5.3's retained
@@ -103,24 +103,12 @@ are deferred in section 11, with all bounds, orders and checks retained.
 
 - **Departs:** 6.1: temper's measured focused request-world sum is
   81.892959 CPU s against 30, and the real-loop focused median
-  is 31.769481 CPU s against its standing 15 s ceiling. The whole-temper
-  fuzzy median is 125.579032 CPU s against the strategy's 120, in three
-  warm serial runs including the driver (119.288299–127.664356 CPU s),
-  within the 180 to which the user raised the budget by half on 11-08,
-  for now, to be revisited.
-  All 81 tests passed in each run, but two runs and the median exceed
-  120; the request's roughly 15 CPU s reduction and reliable headroom
-  are not achieved. The gate's own per-test CPU result is unknown from
-  these serial samples, whose driver and feature unions differ from
-  the request's gate baseline.
-  [`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
-  their accounting limits, retained causes and next decisions.
+  is 31.769481 CPU s against its standing 15 s ceiling.
   The focused measurements, their load and accounting limits, retained
   causes and next decisions are in
   [`limits-worlds.md`](../../development/limits-worlds.md). The whole-temper
   focused suite total remains unknown; package sums include warm nextest
-  overhead.
-  No budget or ceiling has been raised.
+  overhead. Neither the focused 30 nor the 15 s ceiling has been raised.
 
 - **Departs:** 5.3 and 6.1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
@@ -134,12 +122,47 @@ are deferred in section 11, with all bounds, orders and checks retained.
   the closest lower-story candidates. Their placement is the user's to
   decide; no exception or cost-driven move resolves this departure.
 
+Section 6.1's fuzzy suite has no known gap against its 180 CPU s, the
+strategy's 120 raised by half by the user's word of 11-08, for now, to be
+revisited (section 11): the whole-temper fuzzy median is 125.579032 CPU s
+in three warm serial runs including the driver (119.288299–127.664356
+CPU s), all 81 tests passing in each, though two runs and the median
+exceed the 120. The request's roughly 15 CPU s reduction and reliable
+headroom, which section 11 keeps, are not achieved. The gate's own CPU
+result is unknown from these serial samples, whose driver and feature
+unions differ from the request's gate baseline.
+[`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
+their accounting limits, retained causes and next decisions.
+
 Section 2.4's real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses
 real smith and a worker with scripted model replies, fake git and the
 fake forge; no real model or real forge is proved by it. Section 6.5.1's
 reference obligations retain their current charter words; folding in the
 goal-as-designer workflow remains in section 11.
+
+Section 2.1 has no known gap in the merge job's story:
+`a_changes_merge_job_runs_on_its_worker` (`tests/system/tests/suite/merge_job.rs`)
+runs a change's merge job in the composed world, both roots declaring the
+kind as production does (`temper-service`'s `limits::job_kinds` and
+`merge_jobs`) and the job crossing production's translation
+(`assignment::job_down`, `worker_route::job_items` and `job_spec`). Its
+five rows are a clean catch-up of main into a goal's branch, a settled
+conflict, a conflict left for a resolution, a base absent from the cached
+clone until fetched by its id, and `conflicts + 1` files settled; each reads
+the forge's branch and its parents, the job's task ended and the change's
+next step. Its git and forge are the fakes, its command the world's
+(`tests/system/src/composed/merge_job.rs`); the worker's checkout bounds a
+merge's listing as the git layer does (`../protocol/git.status.md`).
+
+- **Design departs:** 2.1, from the request `merge-job-runs-2` of
+  2026-11-09, item 1, decided by its plan's cut: the merge job's story
+  runs in the composed world, whose worker is the real root over the
+  link's translation without bytes, where the request asks for a remote
+  worker. A socket worker and the in-process one share the job's code
+  above the bytes, and the real loop's cluster keeps one path per feature
+  (2.4) and its fake git checks out no command. No story runs a merge job
+  between an engine and a worker over a socket.
 
 Sections 2.4 and 2.6 have the reusable-port chooser and its callers:
 socket-claimed blocks below Linux's configured ephemeral range, the
@@ -240,12 +263,16 @@ the fake's own process story.
   the twins' documents among `temper-playground`'s stories: B0's and
   B1's are still the real loop's own fixtures
   (`tests/real-loop/tests/fixtures/b0`, `b1`). 2.4: B2's twin
-  (`../../development/acceptance.md`, section 8). 2.6:
-  `a_default_box_with_a_sign_in_registration_starts_without_dns` is ignored:
-  a start without DNS fails while the sign-in's endpoints resolve at start.
-  2.6, 5.3: the cluster's 4.6 process story is ignored: a retry placed on a
-  stopping worker's still-linked channel is journaled as an extra refused
-  attempt, until jig takes a draining worker out of placement. 2.6: the
+  (`../../development/acceptance.md`, section 8).
+  2.6, 5.3: the cluster's 4.6 process story is ignored: its fixture
+  expects `engine.llm.models` in the startup configuration, which holds
+  no model since models became settings (`../protocol/configuration.md`,
+  section 2), so the story has not run since ws says it drains, and jig's
+  hub, translation and fleet tests alone hold the drain (jig's
+  `domain/engine.status.md`, its 8), where the request `ignored-misc` of
+  2026-11-08 asked that it run by name and pass, a test whose design has
+  moved being rewritten to it.
+  2.6: the
   playground's stories, in and out and a reset the box's death cut, and
   GitHub gone on after a restart, as `../protocol/setup.status.md` records
   them.
@@ -280,9 +307,7 @@ the fake's own process story.
   establishes no real launch with
   `--model claude-haiku-5-5 --effort low` or live landing. That evidence
   remains after-landing work (11): the plan compiles the live story
-  without running it, and no worker holds its login. The pair's `#[ignore]`
-  reasons still say "a person's sitting" and "owner-run only"
-  (`crates/temper/tests/live.rs`).
+  without running it, and no worker holds its login.
   2.7: the held record's guard is shown on the fake issuer and on stubs
   alone (`crates/temper/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,
@@ -316,6 +341,18 @@ the fake's own process story.
   `Feed`, and the user's request of 11-04 asked that no crate under
   `temper/crates` do so. No reason is recorded, and no debt item holds
   them.
+- **Departs:** 6.5.1: stage one's golden holds a row that neither the
+  reference's table (`../draft/reference-code-production.md`, section
+  14) nor this section's rows have, "the goal template's work": two
+  `equal` obligations, `design` and `close_out` true, for the
+  reference's template 4's work (`../protocol/configuration.md`, 13.9),
+  its subject `template-goal` number 4, not the `goal-template` role, so
+  a proposal whose goal template takes another number is judged at
+  template 4's work there, the stock's neither, and fails both. The plan
+  `ui-p3f-design` added it to keep the golden the profile's values
+  (6.5); the check binds no kind by a template's role
+  (`temper/tools/stage-one/src/check.rs`, `subject_key`), and nothing
+  tells Ask temper to propose it (`agent.status.md`, 8.1).
   2.7: `scripts/proof-live.sh`'s `TEMPER_LIVE_STORE` and
   `TEMPER_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
   `proof-live-github-managed.sh`'s target and evidence default under
@@ -331,7 +368,8 @@ the fake's own process story.
   alias of whoever runs fabrig's development, and the outward check
   matches that name only with digits after it. The same request left it
   in place.
-  2.7: the managed sitting's `fake` and `fake-wide` runs and `startup.rs`'s
+  2.7: the managed sitting's `fake` and `fake-wide` runs,
+  `managed_ready_client`'s fake sitting and `startup.rs`'s
   `the_live_github_configuration_passes_startup_admission` keep
   `fabrig-ai`, where the user's request of 11-04 gives tests on the fake
   forge a neutral owner, because the first are the live sitting's dry
@@ -353,3 +391,29 @@ the fake's own process story.
   sitting kills the box; and a `stat` of the record's path disarms it,
   where the draft has an explicit export, because a record back at its
   path owes nothing whichever return brought it.
+
+- **Not yet:** 2.6, *Two drivers' offline proofs*: no pass in profile
+  `process-temper` is on record for B0's two
+  (`crates/temper/tests/proof_live.rs`) or for `managed_ready_client`'s
+  fake sitting, and no CPU figure against the tier's budgets
+  (`tools/tiers/budgets.toml`). The repair `ignored-tiers/red-83`
+  changed both since the plan compiled and listed them: B0's setup
+  funds its project at the current policy or the rung's figures,
+  whichever is more, and checks it at least the rung's, and its twin
+  chooses the goal's turns from fresh inputs, so that a forge
+  notification before the child's result waits for it
+  (`crates/temper/tests/support/forge_land/rung.rs`); the sitting
+  connects a new forge, makes its project through ctl before Ready
+  adopts and renders no `policies`
+  (`crates/temper/tests/support/managed_sitting.rs`). The next
+  after-landing run proves them (11).
+- **Not yet:** 2.6, 2.7: the managed sitting's driver lags its test.
+  `scripts/proof-live-github-managed.py`'s `configure` still renders
+  `policies` from `projects`, and its `connect_fake` runs
+  `forge connect 1 github` and makes no project, where
+  `managed_sitting.rs` renders none, runs `forge connect github` and
+  makes the project `Sitting`. The test's client
+  role has had no run under the driver since the test took its own
+  sitting, so whether the driver's `fake` run, and its `live` run's
+  engine, still reach the adoption is unknown until the owner's next
+  dry run (11).

@@ -483,11 +483,11 @@ fn the_navigation_marks_only_the_current_page() {
     for (address, current) in [
         (Address::Inbox { filter: Filter::ALL }, Some(b"Needs you".as_slice())),
         (Address::Inbox { filter: Filter { goal: Some(9), ..Filter::ALL } }, Some(b"Needs you".as_slice())),
-        (Address::Chats { filter: ChatsFilter::All }, Some(b"Chats".as_slice())),
-        (Address::Adopt { project: fixtures::PROJECT }, Some(b"Settings".as_slice())),
-        (Address::Accounts, Some(b"Settings".as_slice())),
-        (Address::Chat { task: 9 }, Some(b"Chats".as_slice())),
-        (Address::Task { task: 9 }, None),
+        (Address::Chats { filter: ChatsFilter::All }, Some(b"Work".as_slice())),
+        (Address::Adopt { project: fixtures::PROJECT }, Some(b"How work runs".as_slice())),
+        (Address::Accounts, Some(b"Deployment".as_slice())),
+        (Address::Chat { task: 9 }, Some(b"Work".as_slice())),
+        (Address::Task { task: 9 }, Some(b"Work".as_slice())),
     ] {
         let root = fixtures::root_at(address, &fixtures::domain_limits()).0;
         let view = fixtures::page_view(&root);
@@ -568,6 +568,23 @@ fn the_rail_holds_projects_navigation_and_foot_in_order() {
     let view = fixtures::signed_in_with_project();
     assert_rail(&view, b"Shop");
     assert_switcher(view.tree(), b"Shop", &[(b"Shop", true), (b"Second", false)]);
+    let mut root = fixtures::root_at(
+        temper_client_domain::Address::Team { project: fixtures::PROJECT },
+        &fixtures::domain_limits(),
+    )
+    .0;
+    super::rail::with_people(&mut root, 2);
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        assert_switcher(view.tree(), b"Shop", &[(b"Shop", true), (b"Second", false)]);
+        let id = fixtures::find(view.tree(), Role::Link, b"Team for Shop").expect("Team in the switcher");
+        assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/team".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(Action::Pages(pages::Act::Go {
+                address: temper_client_domain::Address::Team { project: fixtures::PROJECT },
+            }))
+        );
+    }
 }
 
 #[test]
@@ -580,7 +597,7 @@ fn the_switcher_puts_the_open_project_first_and_binds_the_other_project() {
     let mut root = root;
     fixtures::root_event(&mut root, temper_client_domain::Event::Act { action });
     fixtures::build(&mut view, &root);
-    assert_switcher(view.tree(), b"Second", &[(b"Second", true), (b"Shop", false)]);
+    assert_switcher(view.tree(), b"All projects", &[(b"Second", false), (b"Shop", false)]);
 }
 
 fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)]) {
@@ -602,7 +619,9 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
     if panel {
         at = at.checked_add(1).unwrap();
     }
-    for (name, pressed) in projects {
+    for (row_name, pressed) in
+        [(b"All projects".as_slice(), name == b"All projects")].into_iter().chain(projects.iter().copied())
+    {
         let row_end = if nodes[at].styles.as_slice().contains(&crate::look::PROJECTS_ROW) {
             let end = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
             at = at.checked_add(1).unwrap();
@@ -612,15 +631,15 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
         };
         let button = &nodes[at];
         assert_eq!(button.role, Role::Button);
-        assert_eq!(button.name.as_deref(), Some(*name));
-        assert_eq!(button.states.as_slice().contains(&skein_ui::State::Pressed), *pressed);
+        assert_eq!(button.name.as_deref(), Some(row_name));
+        assert_eq!(button.states.as_slice().contains(&skein_ui::State::Pressed), pressed);
         assert!(button.binding.is_some());
         at = match row_end {
             Some(end) => end,
             None => at.checked_add(usize::try_from(button.size).unwrap()).unwrap(),
         };
         if nodes[at].role == Role::Button && nodes[at].name.as_deref() == Some(b"Rename") {
-            assert!(*pressed, "rename belongs to the open project");
+            assert!(pressed, "rename belongs to the open project");
             at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
         }
     }
@@ -635,10 +654,23 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
     assert_eq!(nodes[at].name.as_deref(), Some(b"New project".as_slice()));
     at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
     if panel {
+        if let Some(name) = nodes[at].name.as_deref()
+            && name.starts_with(b"Team for ")
+        {
+            assert_eq!(nodes[at].role, Role::Link);
+            assert_eq!(nodes[at].name.as_deref(), Some(b"Team for Shop".as_slice()));
+            assert!(nodes[at].states.as_slice().contains(&skein_ui::State::Current));
+            at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        }
         assert_eq!(nodes[at].role, Role::Link);
-        assert_eq!(nodes[at].name.as_deref().unwrap().strip_prefix(b"Settings for "), Some(name));
+        assert_eq!(
+            nodes[at].name.as_deref().unwrap().strip_prefix(b"How work runs for "),
+            Some(projects.first().unwrap().0)
+        );
         at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
     }
+    assert_eq!(nodes[at].name.as_deref(), Some(b"Deployment".as_slice()));
+    at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
     assert_eq!(at, end, "the disclosure ends with its acts");
 }
 
@@ -658,14 +690,22 @@ fn the_corner_leads_with_set_up_temper_while_the_playground_runs() {
             }
         }
         let corner = corner.expect("banner corner");
-        let link = &nodes[corner.checked_add(1).unwrap()];
+        let mut setup = None;
+        for (at, node) in nodes.iter().enumerate().skip(corner) {
+            if node.styles.as_slice().contains(&crate::look::LEAVE_PLAYGROUND) {
+                setup = Some(at);
+                break;
+            }
+        }
+        let at = setup.expect("playground setup in the corner");
+        let link = &nodes[at];
         assert_eq!(link.role, Role::Link);
         assert_eq!(link.name.as_deref(), Some(b"Set up temper".as_slice()));
         assert_eq!(link.styles.as_slice(), [crate::look::LEAVE_PLAYGROUND]);
-        let text = &nodes[corner.checked_add(2).unwrap()];
+        let text = &nodes[at.checked_add(1).unwrap()];
         assert_eq!(text.role, Role::Text);
         assert_eq!(text.text.get(0).unwrap().text.as_ref(), b"Set up temper");
-        let region = corner.checked_add(1).unwrap().checked_add(usize::try_from(link.size).unwrap()).unwrap();
+        let region = at.checked_add(usize::try_from(link.size).unwrap()).unwrap();
         assert_eq!(nodes[region].region, Some(crate::frame::link_region()));
         let id = link.id;
         assert_eq!(crate::act(&mut view, id, Act::Press), Some(Action::Forge(forge::Act::EndPlayground)));
@@ -857,7 +897,16 @@ fn deliver_navigation_accounts(
 fn assert_account_mark(root: &temper_client_domain::Domain, expected: Option<(crate::accounts::words::Mark, &[u8])>) {
     let view = fixtures::page_view(root);
     let tree = view.tree();
-    let link = fixtures::person_find(tree, Role::Link, b"Settings").expect("person finds Accounts");
+    let mut in_foot = false;
+    let mut link = None;
+    for node in tree.nodes() {
+        in_foot |= node.styles.as_slice().contains(&crate::look::RAIL_FOOT);
+        if in_foot && node.role == Role::Link && node.name.as_deref() == Some(b"Deployment") {
+            link = Some(node.id);
+            break;
+        }
+    }
+    let link = link.expect("Deployment in the rail's foot");
     let nodes = tree.nodes();
     let mut at = 0;
     for (index, node) in nodes.iter().enumerate() {
@@ -867,7 +916,7 @@ fn assert_account_mark(root: &temper_client_domain::Domain, expected: Option<(cr
     }
     let end = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
     let children = &nodes[at.checked_add(1).unwrap()..end];
-    assert_eq!(children[0].text.get(0).unwrap().text.as_ref(), b"Settings");
+    assert_eq!(children[0].text.get(0).unwrap().text.as_ref(), b"Deployment");
     let mut marks = 0_u32;
     let mut found = None;
     for node in children {
@@ -1560,7 +1609,7 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
         assert_eq!(nodes[at].role, role);
         assert_eq!(nodes[at].styles.as_slice(), [style]);
         if style == crate::look::PROJECTS {
-            assert_eq!(nodes[at].name.as_deref(), Some(project));
+            assert!(nodes[at].name.as_deref() == Some(project) || nodes[at].name.as_deref() == Some(b"All projects"));
         }
         at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
         if style == crate::look::PROJECTS && nodes[at].styles.as_slice().contains(&crate::look::AWAY_CHIP) {
@@ -1578,8 +1627,11 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one project switch checks its frame and Work's reads in both shells")]
 fn goals_opens_in_its_projects_frame() {
     use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
+    // Work's changes and notes, the rail's people and the project's ways and classes open without a goal template.
+    const PROJECT_READS: u32 = 5;
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         for words in [fixtures::words(), fixtures::browser_words()] {
             let address = Address::Goals { project: fixtures::SECOND_PROJECT, filter };
@@ -1591,12 +1643,14 @@ fn goals_opens_in_its_projects_frame() {
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Second");
-            assert_eq!(
-                fixtures::main_text(view.tree()).as_ref(),
-                "Second · goalsA goal turns a draft into landed work.".as_bytes()
+            assert!(fixtures::find(view.tree(), Role::Paragraph, "Second · Work".as_bytes()).is_some());
+            assert!(fixtures::find(view.tree(), Role::Navigation, b"Work's filters").is_some());
+            assert!(
+                skein_lib::bytes::find(&fixtures::main_text(view.tree()), b"A goal turns a draft into landed work.")
+                    .is_some()
             );
             assert!(fixtures::styles(view.tree(), Role::Heading { level: 1 }).is_empty());
-            assert!(fixtures::find(view.tree(), Role::Link, b"Goals").is_some(), "goals page keeps its rail entry");
+            assert!(fixtures::find(view.tree(), Role::Link, b"Work").is_some(), "goals page keeps Work in the rail");
             assert_eq!(skein_ui::outline::check(view.tree()), None);
             for node in view.tree().nodes() {
                 if node.role == Role::Main {
@@ -1627,31 +1681,87 @@ fn goals_opens_in_its_projects_frame() {
                 Event::Went { place: Place::Address(address.clone()) },
                 &mut out,
             );
-            // Switching projects reads its kind-7 ways; Goals has no page watch without a template.
-            assert_eq!(out.len(), 1, "only the new project’s ways are read: {out:?}");
+            assert_eq!(
+                out.len(),
+                PROJECT_READS,
+                "changes, people, notes and the new project's ways and classes: {out:?}"
+            );
+            let Some(Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+            }) = out.pop()
+            else {
+                panic!("changes watch")
+            };
+            assert_eq!(
+                Some(subject),
+                temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
+            );
             let Some(Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
+                        down:
+                            jig_client::Down::Read {
+                                what: jig_client::Readable::Jig(jig_client::contract::Read::Project { project }),
+                                ..
+                            },
                     },
             }) = out.pop()
             else {
-                panic!("project ways read")
+                panic!("rail's project people")
             };
-            let reading =
-                temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                    .unwrap();
-            let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
-                panic!("project ways setting")
+            assert_eq!(project, fixtures::PROJECT);
+            let Some(Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Read {
+                                what:
+                                    jig_client::Readable::Jig(jig_client::contract::Read::Notes {
+                                        scope,
+                                        description,
+                                        after,
+                                    }),
+                                ..
+                            },
+                    },
+            }) = out.pop()
+            else {
+                panic!("chat notes")
             };
-            assert_eq!((setting.kind(), setting.scope()), (7, fixtures::PROJECT));
+            assert_eq!(scope, jig_client::contract::NoteScope::Tasks { project: fixtures::PROJECT });
+            assert_eq!((description, after), (None, None));
+            let mut kinds = skein_lib::List::with_capacity(2);
+            while let Some(request) = out.pop() {
+                let Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
+                        },
+                } = request
+                else {
+                    panic!("project settings read")
+                };
+                let reading = temper_client_protocol_wire::decode_reading(
+                    &record.bytes,
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .unwrap();
+                let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
+                    panic!("project setting")
+                };
+                assert_eq!((setting.scope(), setting.number()), (fixtures::PROJECT, 1));
+                kinds.push(setting.kind()).unwrap();
+            }
+            assert!(kinds.as_slice().contains(&7));
+            assert!(kinds.as_slice().contains(&8));
             assert_eq!(root.pages().address(), &address);
             assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
             fixtures::build(&mut view, &root);
             assert_rail(&view, b"Shop");
-            assert_eq!(
-                fixtures::main_text(view.tree()).as_ref(),
-                "Shop · goalsA goal turns a draft into landed work.".as_bytes()
+            assert!(fixtures::find(view.tree(), Role::Paragraph, "Shop · Work".as_bytes()).is_some());
+            assert!(
+                skein_lib::bytes::find(&fixtures::main_text(view.tree()), b"A goal turns a draft into landed work.")
+                    .is_some()
             );
         }
     }
@@ -1676,6 +1786,7 @@ fn renaming_replaces_the_open_project_row_in_the_rail() {
             &mut bindings,
             fixtures::PROJECT,
             &crate::forge_sign_in::Forges::new(),
+            pages::rail::parts(&pages::rail::facts(&root, fixtures::PROJECT, fixtures::NOW)),
         );
         let tree = builder.finish();
         assert!(fixtures::find(&tree, Role::Button, b"Shop").is_none());
@@ -1830,6 +1941,7 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
                 &mut bindings,
                 fixtures::PROJECT,
                 &crate::forge_sign_in::Forges::new(),
+                pages::rail::parts(&pages::rail::facts(&root, fixtures::PROJECT, fixtures::NOW)),
             );
             crate::pages::document::pane(
                 &mut builder,
@@ -1850,5 +1962,27 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
             }
             assert_eq!(sections, 1);
         }
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "ordinary tests inspect semantic menu rows")]
+fn the_persons_menu_keeps_accounts_remembered_and_sign_out_ordered() {
+    use temper_client_domain::Address;
+    let root = fixtures::root_at(Address::Home { project: fixtures::PROJECT }, &fixtures::domain_limits()).0;
+    let mut view = fixtures::browser_page_view(&root);
+    let nodes = view.tree().nodes();
+    let at = nodes.iter().position(|n| n.role == Role::Menu && n.name.as_deref() == Some(b"Pat")).unwrap();
+    let menu = &nodes[at..at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap()];
+    let items: Vec<_> =
+        menu.iter().filter(|n| n.role == Role::MenuItem).map(|n| (n.id, n.name.clone().unwrap())).collect();
+    assert_eq!(items.len(), 3);
+    for ((id, name), (expected, act)) in items.into_iter().zip([
+        (b"Accounts".as_slice(), pages::Act::Go { address: Address::Accounts }),
+        (b"What temper remembers about you", pages::Act::Go { address: Address::Remembered }),
+        (b"Sign out", pages::Act::SignOut),
+    ]) {
+        assert_eq!(name.as_ref(), expected);
+        assert_eq!(crate::act(&mut view, id, Act::Press), Some(Action::Pages(act)));
     }
 }

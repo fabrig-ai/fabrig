@@ -23,9 +23,13 @@ mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
+pub(crate) mod remember;
 pub(crate) mod see;
 pub(crate) mod ways;
-pub use see::{SeeAnswer, SeeLanding, SeeProposal, SeeRepository, SeeSettings};
+pub use see::{
+    SeeAnswer, SeeLanding, SeeName, SeeNames, SeeNotRead, SeePerson, SeeProposal, SeeRead, SeeRepository, SeeSettings,
+    SeeWords,
+};
 pub(crate) mod settings_parts;
 mod tools;
 pub(crate) mod trials;
@@ -495,7 +499,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
     }
 }
 
-/// One activation's step: `busy` is read here, so the load it allows finds its read slot.
+/// One activation's step: the load it allows finds both its read slot and its load slot.
 fn activate(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -503,7 +507,7 @@ fn activate(
     context: Box<tasks::RunContext>,
     ready: bool,
 ) {
-    let busy = domain.archive_reads.is_full();
+    let busy = domain.archive_reads.is_full() || !domain.loads.has_room();
     let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Activate { context, ready, busy });
     route_core_requests(domain, env, decision, routed);
 }
@@ -552,6 +556,7 @@ pub(crate) fn decide_call(
         | core::CallPart::DelegationDenied { .. }
         | core::CallPart::DelegationRefused(_)
         | core::CallPart::NoteWritten { .. }
+        | core::CallPart::NoteDeleted { .. }
         | core::CallPart::NoteRecalled { .. }
         | core::CallPart::NoteRefused(_)
         | core::CallPart::SettingsRefused(_)

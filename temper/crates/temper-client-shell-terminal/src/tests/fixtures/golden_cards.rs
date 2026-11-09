@@ -53,3 +53,35 @@ pub fn report(builder: &mut Builder, bytes: &[u8]) {
     let report = c::ResultValue::Report(c::DocumentText::complete(jig_client_kit::stories::text(bytes)));
     temper_client_view::cards::value(builder, &report, &super::page_words());
 }
+
+/// The synthetic inbox keeps the shared reason line with its card examples.
+pub fn why(builder: &mut Builder, kind: &[u8]) {
+    use temper_client_domain::pages::{inbox::Card, needs::Need};
+    let group = match kind {
+        b"Proposal" => c::InboxGroup::Proposals,
+        b"Held" => c::InboxGroup::Escalations,
+        b"Question" => c::InboxGroup::Questions,
+        b"Person task" => c::InboxGroup::PersonTasks,
+        _ => unreachable!("needing fixture card"),
+    };
+    let root = temper_client_domain::unlinked(&crate::limits::native().client, 16);
+    let card = Card {
+        object: c::ObjectKey::Task(9),
+        group,
+        project: Some(1),
+        position: None,
+        unread: None,
+        handle: jig_client::Handle { asker: jig_client::Asker::JIG, number: 1 },
+        page: None,
+        whole: None,
+        words: None,
+        key: None,
+        outcome: None,
+    };
+    if let Some(why) = temper_client_view::shared::why(&root, &super::page_words(), Need::Card(&card)) {
+        builder.open(skein_ui::Role::Paragraph);
+        builder.style(temper_client_view::look::WHY);
+        builder.text(skein_ui::Run::Plain, &why);
+        builder.close();
+    }
+}

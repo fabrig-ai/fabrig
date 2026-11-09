@@ -1,4 +1,4 @@
-//! The deployment's agent (temper/docs/design/protocol/README.md, 4.1).
+//! The deployment's agent (temper/docs/design/protocol/README.md, 4.3).
 #![forbid(unsafe_code)]
 
 use std::{
@@ -109,6 +109,10 @@ fn run_arguments(arguments: &[Box<[u8]>]) -> Result<Command, String> {
     }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C6: TEMPER_DUMP_LLM selects the agent request dump directory; temper-agent's table will pass it"
+)]
 pub fn run(command: Command) -> Result<u8, String> {
     let exit = match command {
         Command::Overview => {
@@ -153,7 +157,7 @@ pub fn run(command: Command) -> Result<u8, String> {
 
 fn decoded(configuration: &Path) -> Result<smith_agent_shell::config::Decoded, String> {
     let bytes = smith_agent_shell::config::read_bytes(configuration)?;
-    let bytes = temper_fetch_shell::launcher::substituted(&bytes)?.unwrap_or(bytes);
+    let bytes = temper_launcher::substituted(&bytes)?.unwrap_or(bytes);
     smith_agent_shell::config::decode(&bytes)
 }
 
@@ -170,10 +174,10 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(OsStr::from_bytes(bytes))
 }
 
-/// The binary's version and build commit (temper/docs/design/release.md, section 3).
+/// The binary's version line (temper/docs/design/release.md, section 3).
 #[must_use]
 pub fn version() -> String {
-    format!("{NAME} {} ({})\n", env!("CARGO_PKG_VERSION"), env!("TEMPER_AGENT_COMMIT"))
+    format!("{}\n", temper_version::line(NAME))
 }
 
 fn dump_directory(value: Option<OsString>) -> Option<PathBuf> {

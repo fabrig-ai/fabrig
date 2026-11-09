@@ -1,5 +1,5 @@
 //! One chat borrows its task and retains jig's bounded conversation projection
-//! (temper/docs/design/client/README.md, 3.5).
+//! (temper/docs/design/client/README.md, 3.5 and 5.15).
 pub mod document;
 mod request;
 pub mod sheet;
@@ -10,7 +10,10 @@ use alloc::boxed::Box;
 use document::{Document, Mode, NoteWrite};
 use jig_client::{
     Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c,
-    thread::{Thread, window::End},
+    thread::{
+        Thread,
+        window::{Edge, End},
+    },
 };
 use skein_lib::{Env, List, Map, Queue, Time, Wall};
 pub use views::Shown;
@@ -37,6 +40,7 @@ struct CardRead {
 )]
 pub struct Chat {
     pub mode: Mode,
+    opening_mode: Option<Mode>,
     pub restarting: bool,
     pub decided: Option<(u64, Wall)>,
     pub departed_proposal: Option<u64>,
@@ -66,6 +70,7 @@ pub struct Chat {
     pub next: u64,
     pub thread: Thread,
     to_end: u64,
+    initial_pages: u32,
     pub words: Box<[u8]>,
     pub beyond: u64,
     pub composer_focus: u64,
@@ -118,6 +123,7 @@ impl Chat {
         asking.ask(activity, c::Read::Activity { task, before: None }, out);
         Self {
             mode,
+            opening_mode: Some(mode),
             restarting: false,
             decided: None,
             departed_proposal: None,
@@ -144,6 +150,7 @@ impl Chat {
             run: None,
             current_run: None,
             next: first.checked_add(4).expect("chat handles fit"),
+            initial_pages: thread.limits.lines,
             thread,
             to_end: 0,
             words: Box::default(),
@@ -223,6 +230,8 @@ impl Chat {
         newest
     }
     pub(crate) fn goal_watch(&mut self, client: &Client, forge: &crate::forge::Side, out: &mut Queue<Request>) {
+        // The page refresh runs after every event, including a later arrival of me.
+        self.opening_mode(client);
         let next = match self.goal_fact(client, forge) {
             Some((goal, _)) => Some(goal),
             None => None,
@@ -239,6 +248,20 @@ impl Chat {
                 handle: self.goal_read,
                 subject: Watchable::Jig(c::Subject::Chips { tasks: List::from_boxed(Box::new([goal])) }),
             }));
+        }
+    }
+    fn opening_mode(&mut self, client: &Client) {
+        let Some(opening) = self.opening_mode else { return };
+        if self.mode != opening {
+            self.opening_mode = None;
+            return;
+        }
+        let Some(task) = self.task(client) else { return };
+        let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return };
+        let drafting = super::chats::drafting(me, task.project, &task.chip.executor);
+        self.opening_mode = None;
+        if drafting && opening == Mode::Chat {
+            self.mode = Mode::Split;
         }
     }
     #[must_use]
@@ -513,11 +536,8 @@ impl Chat {
         let why = super::activity::read_end(client, &page);
         if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = page {
             self.asking.answered();
-            let empty_with_more = page.rows.is_empty() && page.before.is_some();
-            ask_activity(&mut self.asking, self.activity, self.thread.page(*page), out);
-            if empty_with_more {
-                ask_activity(&mut self.asking, self.activity, self.thread.older(), out);
-            }
+            let read = self.accept_activity(*page);
+            ask_activity(&mut self.asking, self.activity, read, out);
         } else if let Readout::Jig(c::ReadResult::None(c::ReadNone::SignedOut)) = page
             && client.link().state == jig_client::Link::Starting
             && super::awaits_first_read(&self.thread)
@@ -532,8 +552,60 @@ impl Chat {
             self.asking.ended(now);
         } else {
             self.asking.answered();
+            self.initial_pages = 0;
             self.thread.failed();
         }
+    }
+    fn accept_activity(&mut self, page: c::ActivityPage) -> Option<c::Read> {
+        let previous = self.thread.lines.edges.after.clone();
+        let empty = page.rows.is_empty();
+        let filling = self.initial_pages > 0;
+        if self.initial_pages > 0 {
+            if let Some(jig_client::thread::Reading::Older) = self.thread.reading {
+                let mut weight = 0_u64;
+                for row in self.thread.lines.rows.iter().chain(page.rows.iter()) {
+                    weight = weight.saturating_add(row.weight());
+                }
+                if weight > self.thread.limits.bytes
+                    || self.thread.lines.rows.len().saturating_add(page.rows.len()) > self.thread.limits.lines
+                {
+                    self.initial_pages = 0;
+                    self.thread.reading = None;
+                    return self.thread.moved(self.thread.committed);
+                }
+            }
+            self.initial_pages = self.initial_pages.saturating_sub(1);
+        }
+        if let Some(read) = self.thread.page(page) {
+            // An empty initial page advances by cursor rather than rereading the tail.
+            if filling && empty && self.thread.loaded == 0 && !self.thread.lines.edges.reaches(End::After) {
+                self.thread.reading = None;
+            } else {
+                return Some(read);
+            }
+        }
+        let mut weight = 0_u64;
+        for row in &self.thread.lines.rows {
+            weight = weight.saturating_add(row.weight());
+        }
+        let more = match &self.thread.lines.edges.after {
+            Edge::More(_) => true,
+            Edge::End | Edge::Dropped => false,
+        };
+        if more
+            && previous != self.thread.lines.edges.after
+            && ((self.initial_pages > 0 && weight < OPENING_WEIGHT) || (!filling && empty))
+            && self.thread.lines.edges.reaches(End::Before)
+            && self.thread.lines.rows.len() < self.thread.limits.lines
+            && weight < self.thread.limits.bytes
+        {
+            return self.thread.older();
+        }
+        // An empty chat keeps its remaining initial budget for its first committed history.
+        if !empty || self.thread.loaded > 0 {
+            self.initial_pages = 0;
+        }
+        None
     }
     fn run_changed(&mut self, client: &Client, handle: Handle, out: &mut Queue<Request>) {
         match latest(client, handle) {
@@ -1140,6 +1212,7 @@ impl Chat {
         }
         false
     }
+    #[expect(clippy::too_many_lines, reason = "the exhaustive conversation act routing stays in one match")]
     pub(crate) fn act(
         &mut self,
         env: &Env<Limits>,
@@ -1156,7 +1229,10 @@ impl Chat {
             Act::MessageWords { words } => {
                 (self.words, self.beyond) = super::composer::held(words, env.limits.client.domain.long_text);
             }
-            Act::Mode { mode } => self.mode = mode,
+            Act::Mode { mode } => {
+                self.opening_mode = None;
+                self.mode = mode;
+            }
             Act::ShowSection { line } => {
                 if self.mode == Mode::Chat {
                     self.mode = Mode::Split;
@@ -1192,7 +1268,9 @@ impl Chat {
             | Act::Switcher(_)
             | Act::Away(_)
             | Act::Terminal(_)
+            | Act::Remembered(_)
             | Act::Models(_)
+            | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::Accounts(_)
@@ -1210,6 +1288,8 @@ impl Chat {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::SignOut
+            | Act::AskLine { .. }
+            | Act::AskWith { .. }
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::WayTab { .. }
@@ -1363,6 +1443,10 @@ impl Chat {
         }
     }
 }
+/// A screen and a half as a chat's opening reads hold it: the held lines'
+/// weight, a screen and a half of an 80 by 24 terminal
+/// (temper/docs/design/client/README.md, 5.15).
+pub(crate) const OPENING_WEIGHT: u64 = 2_880;
 #[must_use]
 pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
     let bytes = match limits.window_bytes {

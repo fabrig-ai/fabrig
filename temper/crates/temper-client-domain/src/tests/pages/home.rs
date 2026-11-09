@@ -254,7 +254,8 @@ fn the_two_steps_count_only_what_is_left() {
     ] {
         assert_eq!(
             Facts {
-                away: None,
+                decided: None,
+                spell: None,
                 configured,
                 repository,
                 needs: Needs::Unknown,
@@ -1145,7 +1146,7 @@ fn a_watch_opens_with_the_page_and_closes_with_it() {
     for watch in [f.status, f.settings] {
         up(&mut f.root, Up::Watched { watch, event: c::WatchEvent::Opened });
     }
-    let out = event(&mut f.root, Event::Went { place: Place::Missing });
+    let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     let mut closes = 0_u32;
     for request in &out {
         if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
@@ -1237,7 +1238,7 @@ fn a_second_entry_looks_again() {
     let mut f = enter_skipped();
     let first = look_key(&f);
     assert!(f.root.client().pending(first).is_some());
-    event(&mut f.root, Event::Went { place: Place::Missing });
+    event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     let out = looked(&mut f, first, family_answer(w::Outcome::Looked));
     assert_eq!(look_sends(&out), 0, "an answer after leaving sends nothing");
     for watch in [f.status, f.live, f.inbox] {
@@ -1371,7 +1372,7 @@ fn a_brief_can_be_new_by_landing_or_by_when_it_was_written() {
 #[test]
 fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let mut f = fixture();
-    event(&mut f.root, Event::Went { place: Place::Missing });
+    event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     for watch in [f.status, f.live, f.inbox] {
         up(&mut f.root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
     }
@@ -1392,7 +1393,7 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
         opened(&settings(&mut f, c::SettingFollows::Default), &subject).is_none(),
         "a later step cannot retry the watch"
     );
-    let out = event(&mut f.root, Event::Went { place: Place::Missing });
+    let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     assert!(opened(&out, &subject).is_none());
     let out = go(&mut f.root, f::PROJECT);
     assert!(opened(&out, &subject).is_some(), "the next page entry opens status");
@@ -1880,8 +1881,8 @@ use skein_lib::Wall;
 fn decisions(f: &mut Fixture, values: &[w::Decision]) -> Queue<Request> {
     up(&mut f.root, Up::FamilyDelivered { watch: f.decided, record: crate::tests::decided::record(values) })
 }
-fn away_form(f: &Fixture, wall: u64) -> Option<home::AwayForm> {
-    home::facts(&f.root, f::PROJECT, Wall::from_nanos(wall)).away
+fn away_form(f: &Fixture, wall: u64) -> Option<pages::decided::Shown> {
+    home::facts(&f.root, f::PROJECT, Wall::from_nanos(wall)).decided
 }
 fn task_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
     let mut reads = List::uncapped();
@@ -1901,8 +1902,7 @@ fn task_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
 fn spell(f: &mut Fixture, off: Option<u64>, until: Option<u64>, landed: u64) {
     let mut rows = List::with_capacity(1);
     rows.push(
-        w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: f::PROJECT, since: 10, until, off, landed, kinds: 7 })
-            .unwrap(),
+        w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: f::PROJECT, since: 10, until, off, landed }).unwrap(),
     )
     .unwrap();
     up(
@@ -1919,25 +1919,93 @@ fn spell(f: &mut Fixture, off: Option<u64>, until: Option<u64>, landed: u64) {
 }
 #[test]
 fn home_watches_decided_while_open() {
-    let mut f = fixture();
-    up(&mut f.root, Up::Watched { watch: f.decided, event: c::WatchEvent::Opened });
-    decisions(&mut f, &[decision(1, 100)]);
-    assert!(away_form(&f, 100).is_some());
-    let out = event(&mut f.root, Event::Went { place: Place::Missing });
-    let mut closed = false;
-    for request in &out {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
-            request
-        {
-            closed |= *watch == f.decided;
+    use crate::address::Filter;
+    use pages::decided::Document;
+    const PROJECTS: [u32; 5] = [f::PROJECT, 91, 92, 93, 94];
+    for (address, shown, expected) in [
+        (Address::Home { project: f::PROJECT }, None, &[f::PROJECT][..]),
+        (Address::Inbox { filter: Filter { project: Some(91), kind: None, goal: None } }, None, &[91][..]),
+        (
+            Address::Inbox { filter: Filter { project: None, kind: None, goal: None } },
+            None,
+            &[f::PROJECT, 91, 92, 93][..],
+        ),
+        (
+            Address::Inbox { filter: Filter { project: None, kind: None, goal: None } },
+            Some(94),
+            &[94, f::PROJECT, 91, 92][..],
+        ),
+        (Address::Settings { project: f::PROJECT }, None, &[][..]),
+    ] {
+        let mut me = f::chats::me();
+        let template = me.projects.get(0).unwrap().clone();
+        me.projects = List::with_capacity(5);
+        for project in PROJECTS {
+            me.projects.push(c::MeProject { project, ..template.clone() }).unwrap();
+        }
+        let mut f = fixture_with_me(me);
+        let out = event(&mut f.root, Event::Went { place: Place::Address(address.clone()) });
+        finish_closes(&mut f, &out);
+        if let Some(project) = shown {
+            let watch =
+                opened(&out, &Watchable::Jig(c::Subject::Inbox { window: f.root.pages().inbox().unwrap().window }))
+                    .unwrap_or(f.inbox);
+            let mut rows = List::with_capacity(1);
+            rows.push(f::inbox_entry(f::acts::QUESTION, c::InboxGroup::Questions, project, 0)).unwrap();
+            let out = f::inbox_entries(&mut f.root, watch, rows);
+            let reads = inbox_reads(&out);
+            up(
+                &mut f.root,
+                Up::ReadDone { read: reads[0].0, result: Readout::Jig(c::ReadResult::Value(f::acts::question())) },
+            );
+        }
+        for project in PROJECTS {
+            let watched = match f.root.pages().decisions(project) {
+                Document::Unwatched => false,
+                Document::Unknown | Document::Delivered(_) => true,
+                Document::Ended => panic!("wanted project {project} was refused"),
+            };
+            assert_eq!(watched, expected.contains(&project), "{address:?}: project {project}");
         }
     }
-    assert!(closed, "leaving closes decided");
-    assert!(away_form(&f, 100).is_none());
-    finish_closes(&mut f, &out);
-    let out = go(&mut f.root, f::PROJECT);
-    let next = opened(&out, &forge::decided::watch(f::PROJECT, &f::limits().forge).unwrap()).unwrap();
-    assert_ne!(next, f.decided);
+    for address in [
+        Address::Inbox { filter: Filter { project: Some(f::PROJECT), kind: None, goal: None } },
+        Address::Inbox { filter: Filter { project: None, kind: None, goal: None } },
+    ] {
+        let mut f = fixture();
+        decisions(&mut f, &[decision(1, 100)]);
+        let reads = task_reads(&decisions(&mut f, &[decision(2, 100)]));
+        let out = event(&mut f.root, Event::Went { place: Place::Address(address) });
+        assert!(opened(&out, &forge::decided::watch(f::PROJECT, &f::limits().forge).unwrap()).is_none());
+        assert!(task_reads(&out).is_empty(), "the shown task read stays");
+        for request in &out {
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Close { watch } } } =
+                request
+            {
+                assert_ne!(*watch, f.decided, "wanted project keeps its watch");
+            }
+        }
+        finish_closes(&mut f, &out);
+        let mut task = f::chat::task();
+        task.chip.task = 2;
+        up(
+            &mut f.root,
+            Up::ReadDone {
+                read: reads[0].1,
+                result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(task)))),
+            },
+        );
+        assert_eq!(
+            f.root.pages().decided(None, Wall::from_nanos(100)).unwrap().rows[0].state,
+            pages::decided::DecisionTask::Live
+        );
+        let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+        assert!(f.root.pages().decided(None, Wall::from_nanos(100)).is_none());
+        finish_closes(&mut f, &out);
+        let out = go(&mut f.root, f::PROJECT);
+        let next = opened(&out, &forge::decided::watch(f::PROJECT, &f::limits().forge).unwrap()).unwrap();
+        assert_ne!(next, f.decided);
+    }
 }
 #[test]
 fn rows_show_for_twenty_four_hours() {
@@ -1951,6 +2019,7 @@ fn rows_show_for_twenty_four_hours() {
     assert!(away_form(&f, u64::MAX).is_some(), "expiry arithmetic cannot wrap");
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one ordering test covers project merges and the rows' decoded reaches")]
 fn the_seven_newest_are_kept_oldest_first() {
     let mut f = fixture();
     let values = [
@@ -1978,6 +2047,100 @@ fn the_seven_newest_are_kept_oldest_first() {
     parts.overturned = true;
     decisions(&mut f, &[w::Decision::new(&w::CEILINGS, parts).unwrap()]);
     assert!(away_form(&f, 100).unwrap().rows[0].overturned);
+    for (reason, expected) in [
+        (w::ReachReason::Kind, true),
+        (w::ReachReason::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number: 0 }).unwrap()), false),
+    ] {
+        let mut parts = decision(1, 100).into_parts();
+        let mut reach = parts.reach.clone().into_parts();
+        reach.reason = reason;
+        parts.reach = w::Reach::new(&w::CEILINGS, reach).unwrap();
+        decisions(&mut f, &[w::Decision::new(&w::CEILINGS, parts.clone()).unwrap()]);
+        assert_eq!(
+            away_form(&f, 100).unwrap().rows[0].reach,
+            if expected {
+                Some(temper_protocol_reaches::Reach {
+                    kind: temper_protocol_reaches::Kind::Wording,
+                    class: temper_protocol_reaches::Class::Decide,
+                    reason: temper_protocol_reaches::Reason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                })
+            } else {
+                None
+            }
+        );
+        assert_eq!(away_form(&f, 100).unwrap().rows[0].reach.is_some(), expected);
+    }
+    let mut me = f::chats::me();
+    let mut other = me.projects.get(0).unwrap().clone();
+    other.project = OTHER_PROJECT;
+    me.projects = List::from_boxed(Box::new([me.projects.get(0).unwrap().clone(), other]));
+    let mut f = fixture_with_me(me);
+    let out = event(
+        &mut f.root,
+        Event::Went { place: Place::Address(Address::Inbox { filter: crate::address::Filter::ALL }) },
+    );
+    finish_closes(&mut f, &out);
+    let watch = opened(&out, &forge::decided::watch(OTHER_PROJECT, &f::limits().forge).unwrap()).unwrap();
+    decisions(&mut f, &values);
+    let mut document = w::Decisions::new(
+        &w::CEILINGS,
+        w::DecisionsParts {
+            project: OTHER_PROJECT,
+            rows: List::from_boxed(Box::new([decision(1, 95), decision(2, 96)])),
+            asked: List::with_capacity(0),
+            cut: true,
+        },
+    )
+    .unwrap();
+    up(
+        &mut f.root,
+        Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::decisions(&document),
+            },
+        },
+    );
+    let form = f.root.pages().decided(None, Wall::from_nanos(100)).unwrap();
+    assert_eq!(form.showing, 11);
+    assert!(form.more);
+    let mut pairs = List::uncapped();
+    for row in &form.rows {
+        pairs.push((row.project, row.number)).unwrap();
+    }
+    assert_eq!(
+        pairs.as_slice(),
+        &[
+            (f::PROJECT, 5),
+            (f::PROJECT, 6),
+            (f::PROJECT, 7),
+            (f::PROJECT, 8),
+            (f::PROJECT, 9),
+            (OTHER_PROJECT, 1),
+            (OTHER_PROJECT, 2)
+        ]
+    );
+    let mut parts = document.into_parts();
+    parts.cut = false;
+    document = w::Decisions::new(&w::CEILINGS, parts).unwrap();
+    up(
+        &mut f.root,
+        Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::decisions(&document),
+            },
+        },
+    );
+    assert!(!f.root.pages().decided(None, Wall::from_nanos(100)).unwrap().more);
 }
 #[test]
 fn showing_counts_past_seven() {
@@ -2008,41 +2171,58 @@ fn no_form_while_to_begin_shows() {
 }
 #[test]
 fn span_is_since_and_its_end() {
-    let mut f = fixture();
-    decisions(&mut f, &[decision(1, 100)]);
-    assert_eq!(away_form(&f, 100).unwrap().span, None);
-    for (off, until, wall, end) in [
-        (None, None, 100, None),
-        (None, Some(200), 199, None),
-        (None, Some(200), 200, Some(200)),
-        (Some(150), Some(200), 201, Some(150)),
+    const HOUR: u64 = 3_600_000_000_000;
+    for (delivered, off, until, wall, expected) in [
+        (false, None, None, 100, None),
+        (true, None, None, 100, Some(None)),
+        (true, None, Some(200), 199, Some(None)),
+        (true, None, Some(200), 200, Some(Some(200))),
+        (true, Some(150), Some(200), 201, Some(Some(150))),
+        (true, Some(150), None, 150 + 23 * HOUR, Some(Some(150))),
+        (true, Some(150), None, 150 + 25 * HOUR, None),
     ] {
-        spell(&mut f, off, until, 0);
+        let mut f = fixture();
+        decisions(&mut f, &[decision(1, wall)]);
+        if delivered {
+            spell(&mut f, off, until, 0);
+        }
+        let facts = home::facts(&f.root, f::PROJECT, Wall::from_nanos(wall));
+        assert!(facts.decided.is_some());
         assert_eq!(
-            away_form(&f, wall).unwrap().span,
-            Some((
-                Wall::from_nanos(10),
-                match end {
-                    Some(at) => Some(Wall::from_nanos(at)),
-                    None => None,
-                }
-            ))
+            match facts.spell {
+                Some(spell) => Some((spell.since, spell.end)),
+                None => None,
+            },
+            match expected {
+                Some(end) => Some((
+                    Wall::from_nanos(10),
+                    match end {
+                        Some(at) => Some(Wall::from_nanos(at)),
+                        None => None,
+                    }
+                )),
+                None => None,
+            },
+            "{delivered} {off:?} {until:?} {wall}"
         );
     }
+}
+fn spell_landed(f: &Fixture) -> Option<u64> {
+    home::facts(&f.root, f::PROJECT, Wall::from_nanos(100)).spell?.landed
 }
 #[test]
 fn landed_is_since_the_rows_count() {
     let mut f = fixture();
     decisions(&mut f, &[decision(1, 100)]);
-    assert_eq!(away_form(&f, 100).unwrap().landed, None);
+    assert_eq!(spell_landed(&f), None);
     status_document(&mut f, &crate::tests::status::document(9, 2, None));
-    assert_eq!(away_form(&f, 100).unwrap().landed, None);
+    assert_eq!(spell_landed(&f), None);
     spell(&mut f, None, None, 3);
-    assert_eq!(away_form(&f, 100).unwrap().landed, Some(6), "uses status even before looked");
+    assert_eq!(spell_landed(&f), Some(6), "uses status even before looked");
     spell(&mut f, None, None, 10);
-    assert_eq!(away_form(&f, 100).unwrap().landed, Some(0));
+    assert_eq!(spell_landed(&f), Some(0));
     up(&mut f.root, Up::WatchEnded { watch: f.status, end: c::WatchEnd::NotAllowed });
-    assert_eq!(away_form(&f, 100).unwrap().landed, None);
+    assert_eq!(spell_landed(&f), None);
 }
 #[test]
 fn each_row_reads_its_task() {
@@ -2070,7 +2250,7 @@ fn each_row_reads_its_task() {
     assert_eq!(read_numbers(&reads).as_ref(), [1, 2]);
     for row in &away_form(&f, 100).unwrap().rows {
         assert_eq!(row.title, None);
-        assert_eq!(row.state, home::DecisionTask::Unknown);
+        assert_eq!(row.state, pages::decided::DecisionTask::Unknown);
     }
     for (task, read) in reads {
         let mut document = f::chat::task();
@@ -2087,7 +2267,7 @@ fn each_row_reads_its_task() {
         for row in &form.rows {
             if row.task == task {
                 assert_eq!(row.title.as_deref(), Some(title.as_ref()));
-                assert_eq!(row.state, home::DecisionTask::Live);
+                assert_eq!(row.state, pages::decided::DecisionTask::Live);
                 found = true;
             }
         }
@@ -2096,7 +2276,7 @@ fn each_row_reads_its_task() {
     assert!(task_reads(&decisions(&mut f, &values)).is_empty(), "same document does not reread");
     assert_eq!(read_numbers(&task_reads(&decisions(&mut f, &[values[0].clone(), decision(3, 30)]))).as_ref(), [3]);
     let stale = task_reads(&decisions(&mut f, &[decision(4, 40)]))[0].1;
-    let out = event(&mut f.root, Event::Went { place: Place::Missing });
+    let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     finish_closes(&mut f, &out);
     let out = go(&mut f.root, f::PROJECT);
     f.decided = opened(&out, &forge::decided::watch(f::PROJECT, &f::limits().forge).unwrap()).unwrap();
@@ -2108,7 +2288,7 @@ fn each_row_reads_its_task() {
         &mut f.root,
         Up::ReadDone { read, result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(wrong)))) },
     );
-    assert_eq!(away_form(&f, 100).unwrap().rows[0].state, home::DecisionTask::Unknown);
+    assert_eq!(away_form(&f, 100).unwrap().rows[0].state, pages::decided::DecisionTask::Unknown);
 }
 #[test]
 fn a_read_ended_or_done_says_so() {
@@ -2149,7 +2329,7 @@ fn a_read_ended_or_done_says_so() {
         let at = Wall::from_nanos(if retained { 30 } else { 20 });
         assert_eq!(
             away_form(&f, 100).unwrap().rows[0].state,
-            if done { home::DecisionTask::Done(at) } else { home::DecisionTask::Ended(at) }
+            if done { pages::decided::DecisionTask::Done(at) } else { pages::decided::DecisionTask::Ended(at) }
         );
     }
 }
@@ -2164,7 +2344,7 @@ fn a_limit_leaves_it_unknown() {
         let read = task_reads(&decisions(&mut f, &[decision(1, 10)]))[0].1;
         up(&mut f.root, Up::ReadDone { read, result: page });
         let form = away_form(&f, 100).unwrap();
-        assert_eq!(form.rows[0].state, home::DecisionTask::Unknown);
+        assert_eq!(form.rows[0].state, pages::decided::DecisionTask::Unknown);
         assert_eq!(form.rows[0].title, None);
         assert!(task_reads(&decisions(&mut f, &[decision(1, 10)])).is_empty());
     }
@@ -2187,7 +2367,7 @@ fn nine_decisions() -> Box<[w::Decision]> {
     }
     values.into_boxed()
 }
-fn decision_numbers(rows: &[home::DecisionLine]) -> Box<[u32]> {
+fn decision_numbers(rows: &[pages::decided::DecisionLine]) -> Box<[u32]> {
     let mut values = List::uncapped();
     for row in rows {
         values.push(row.number).unwrap();
@@ -2259,23 +2439,31 @@ fn overturn_message(f: &mut Fixture, key: jig_client::Key) -> (jig_client::Key, 
 }
 #[test]
 fn overturn_sends_the_request_then_the_message() {
-    let mut f = overturn_fixture();
-    let (key, out) = overturn_act(&mut f, 1);
-    assert_eq!(sent(&out).as_ref(), [forge::decided::overturn(f::PROJECT, 1, &f::limits().forge).unwrap()]);
-    let (message, out) = overturn_message(&mut f, key);
-    assert_eq!(sent(&out).len(), 1);
-    assert_ne!(key, message);
-    assert!(f.root.pages().overturn_busy());
-    assert!(away_form(&f, 0).unwrap().rows[0].overturned);
-    overturn_answer(
-        &mut f,
-        message,
-        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
-            c::DocumentOutcome::Said { task: 1, message: 9 },
-        )))),
-    );
-    assert!(!f.root.pages().overturn_busy());
-    assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::Overturned));
+    for address in [
+        Address::Home { project: f::PROJECT },
+        Address::Inbox { filter: crate::address::Filter { project: Some(f::PROJECT), ..crate::address::Filter::ALL } },
+        Address::Inbox { filter: crate::address::Filter::ALL },
+    ] {
+        let mut f = overturn_fixture();
+        let out = event(&mut f.root, Event::Went { place: Place::Address(address) });
+        finish_closes(&mut f, &out);
+        let (key, out) = overturn_act(&mut f, 1);
+        assert_eq!(sent(&out).as_ref(), [forge::decided::overturn(f::PROJECT, 1, &f::limits().forge).unwrap()]);
+        let (message, out) = overturn_message(&mut f, key);
+        assert_eq!(sent(&out).len(), 1);
+        assert_ne!(key, message);
+        assert!(f.root.pages().overturn_busy());
+        assert!(f.root.pages().decided(None, Wall::EPOCH).unwrap().rows[0].overturned);
+        overturn_answer(
+            &mut f,
+            message,
+            jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::Said { task: 1, message: 9 },
+            )))),
+        );
+        assert!(!f.root.pages().overturn_busy());
+        assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::Overturned));
+    }
 }
 #[test]
 fn the_message_says_question_and_took() {

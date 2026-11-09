@@ -45,7 +45,9 @@ pub(super) fn make(core: &Core, party: u64) -> Result<Settings, Missing> {
     Ok(inventory(core))
 }
 
-pub(crate) fn inventory(core: &Core) -> Settings {
+/// The root's settings context at the newest revision (domain/engine.md, 17.7).
+#[must_use]
+pub fn inventory(core: &Core) -> Settings {
     let mut result = build(core);
     result.pending = List::with_capacity(core.settings_proposals.capacity());
     for (&(proposer, number), _) in &core.settings_proposals {

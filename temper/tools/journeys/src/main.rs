@@ -11,6 +11,10 @@ use temper_client_journeys::again::{self, Paths};
 use temper_client_journeys::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
 use temper_client_shell_web::journey;
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C8: the journey tool's arguments, until it is a binary of temper/bin/"
+)]
 fn main() {
     skein_fail_stop::install();
     let mut args = env::args_os();
@@ -106,6 +110,7 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
     Ok(false)
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C8: SKEIN_TEST_CHROMIUM for the journey tool's browser")]
 fn record_again(name: &str) -> Result<(), String> {
     if !named(name) {
         return Err(refusal(Refusal::Name(name.to_owned())));
@@ -152,6 +157,7 @@ fn scratch() -> io::Result<PathBuf> {
     Err(io::Error::new(io::ErrorKind::AlreadyExists, "no fresh journey directory name"))
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C8: CARGO_TARGET_DIR for the journey tool's built binaries")]
 fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result<Paths, String> {
     let mut cargo = Command::new("cargo");
     cargo.current_dir(root).env("TEMPER_BUNDLE", "none").args(["build", "-p", "temper", "-p", "smith-fake-claude"]);

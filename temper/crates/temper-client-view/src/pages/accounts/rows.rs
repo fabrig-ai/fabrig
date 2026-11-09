@@ -513,6 +513,7 @@ fn usage(b: &mut Builder, w: &Words, address: Option<&[u8]>) {
     }
 }
 #[expect(clippy::too_many_arguments, reason = "the state's acts borrow their deciding source and row")]
+#[expect(clippy::too_many_lines, reason = "each deciding source's notice keeps its words and renewal acts together")]
 fn notice(
     b: &mut Builder,
     root: &Domain,
@@ -526,6 +527,36 @@ fn notice(
     manage: Option<&[u8]>,
     busy: bool,
 ) {
+    if source.expiring && source.state != c::AccountState::SignInAgain {
+        match source.kind {
+            c::AccountKind::SignIn => {
+                text(b, w, Role::Paragraph, W::ExpiringPlan);
+                signin(b, root, w, bindings, row, provider, busy);
+                return;
+            }
+            c::AccountKind::Program => {
+                text(b, w, Role::Paragraph, W::ExpiringPlan);
+                program_hosts(b, root, w, source, true, bindings.counts());
+                crate::cards::text(
+                    b,
+                    Role::Code,
+                    &super::super::connect_model::command_line(root, w, source.name.as_deref().unwrap_or(b"")),
+                );
+                button(
+                    b,
+                    root,
+                    w,
+                    bindings,
+                    W::CheckAgain,
+                    row,
+                    Operation::CheckProgram { source: source.number },
+                    busy,
+                );
+                return;
+            }
+            c::AccountKind::Key | c::AccountKind::None => {}
+        }
+    }
     let mut declined = false;
     if row.holder == c::AskAccountHolder::Own
         && let Some(doc) = accounts::document(root.client())
@@ -698,7 +729,10 @@ fn program_hosts(
             }
             b.close();
             b.close();
-            if notice && login.state == Some(c::ProgramState::NotSignedIn) {
+            if notice
+                && login.state == Some(c::ProgramState::NotSignedIn)
+                && !(source.expiring && source.state != c::AccountState::SignInAgain)
+            {
                 crate::cards::text(b, Role::Code, &super::super::connect_model::command_line(root, w, &login.name));
             }
             break;

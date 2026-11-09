@@ -14,6 +14,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         format: Format::Junit,
         follows: Follows::Branch(Box::from(b"release/next".as_slice())),
         span: None,
+        description: Box::default(),
     };
     let repositories = Box::new([
         RepositoryGates {
@@ -108,6 +109,7 @@ fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
         format: Format::Lines,
         follows: Follows::Landing,
         span: None,
+        description: Box::default(),
     };
     let after = AfterLanding {
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
@@ -235,7 +237,12 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
             heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
         },
     );
-    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    let (branch_call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+    outputs(&mut d, Event::Enqueue { entry: status(92, 8) });
+    outputs(&mut d, Event::Committed { entry: 92 });
+    assert!(ready(&mut d).is_empty(), "the higher entry waits while the landing's lower entry is reserved");
+    fixtures::answer(&mut d, branch_call, Ok(Answer::Commit(fixtures::HEAD)));
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
     fixtures::answer_next(
         &mut d,
@@ -251,6 +258,8 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1 }));
     let requests = fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+    assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
+    outputs(&mut d, Event::Withdraw { entry: 92 });
     let mut evidence = None;
     for request in &requests {
         if let Request::LandingDecision { evidence: Some(facts), entry: Some(91), .. } = request {
@@ -573,6 +582,7 @@ fn project_tiers_require_a_nonempty_explicit_branch_only() {
                         format: Format::Lines,
                         follows,
                         span: None,
+                        description: Box::default(),
                     }]),
                 }]),
                 AfterLanding {

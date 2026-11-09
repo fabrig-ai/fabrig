@@ -7,7 +7,7 @@ use crate::support::{self, patience::Patience};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Signal, Size, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Token};
 use skein_shell::{Config, Kernel, Wait, keeper};
-use std::{collections::BTreeMap, fs, os::unix::ffi::OsStrExt, path::Path};
+use std::{collections::BTreeMap, fmt::Write, fs, os::unix::ffi::OsStrExt, path::Path};
 
 // One read, one write and their cancellation records fit the terminal's ring.
 const OPERATIONS: u32 = 8;
@@ -29,6 +29,10 @@ struct Terminal {
     bytes: Vec<u8>,
 }
 impl Terminal {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "cli C4: TERM and the child process environment, through temper's test table once it exists"
+    )]
     fn start(root: &Path) -> Self {
         let mut command = box_link::command(root, "box");
         command.env("XDG_STATE_HOME", root.join("state")).env_remove("TEMPER_ECHO");
@@ -136,7 +140,18 @@ impl Terminal {
                 return;
             }
             if let Some(figures) = patience.failed() {
-                panic!("waiting for {what}: {figures}; {}\n{}", self.progress(), log(root));
+                let progress = self.progress();
+                #[cfg(feature = "record")]
+                let recording = {
+                    if self.writing.is_none() {
+                        self.write(0x03);
+                        let _exit = self.stopped(root);
+                    }
+                    recording_progress(root)
+                };
+                #[cfg(not(feature = "record"))]
+                let recording = String::new();
+                panic!("waiting for {what}: {figures}; {progress}\n{}{recording}", log(root));
             }
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
@@ -144,9 +159,23 @@ impl Terminal {
     fn progress(&self) -> String {
         let raw =
             skein_shell::terminal_modes(self.master).is_ok_and(|modes| !modes.lines && !modes.echo && !modes.signals);
-        let connecting = skein_lib::bytes::find(&self.bytes, b"Connecting").is_some();
-        let live = skein_lib::bytes::find(&self.bytes, b"Live").is_some();
-        format!("raw={raw}, connecting={connecting}, live={live}, terminal bytes={}", self.bytes.len())
+        let connecting_seen = skein_lib::bytes::find(&self.bytes, b"Connecting").is_some();
+        let live_seen = skein_lib::bytes::find(&self.bytes, b"Live").is_some();
+        let mut progress = String::new();
+        write!(
+            &mut progress,
+            "raw={raw}, connecting_seen={connecting_seen}, live_seen={live_seen}, terminal bytes={}",
+            self.bytes.len()
+        )
+        .expect("progress text");
+        #[cfg(target_os = "linux")]
+        for pid in support::parent::Guard::observing_test().pids() {
+            let status = fs::read_to_string(format!("/proc/{pid}/status")).unwrap_or_default();
+            let state = status.lines().find(|line| line.starts_with("State:")).unwrap_or("state unavailable");
+            let wait = fs::read_to_string(format!("/proc/{pid}/wchan")).unwrap_or_default();
+            write!(&mut progress, "; process {pid}: {state}, wait={wait}").expect("progress text");
+        }
+        progress
     }
     fn stopped(&mut self, root: &Path) -> Exit {
         let mut patience = Patience::arm("box stops with its front", support::WITHIN);
@@ -182,8 +211,39 @@ impl Drop for Terminal {
         keeper::abandon_binary(Some(self.pidfd), &[self.pidfd, self.master]);
     }
 }
+
+#[cfg(feature = "record")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "remaining recording variants print only their payload-free kind")]
+fn recording_progress(root: &Path) -> String {
+    use temper_client_shell_tui::journey::{self, Line};
+    let path = root.join("state/temper/tui/recording");
+    let Ok(bytes) = fs::read(path) else { return "TUI recording unavailable\n".into() };
+    let Ok(lines) = journey::lines(&bytes) else { return "TUI recording unreadable\n".into() };
+    let mut text = String::from("TUI recording events (no payloads):\n");
+    for line in lines {
+        match &line {
+            Line::Turn { now, .. } => writeln!(&mut text, "turn {}", now.as_nanos()),
+            Line::Deadline(at) => writeln!(&mut text, "deadline {at:?}"),
+            Line::Send { exchange, message, .. } => {
+                writeln!(&mut text, "send {exchange} {:?}", std::mem::discriminant(message))
+            }
+            Line::Reply { exchange, bytes } => writeln!(&mut text, "reply {exchange} {} bytes", bytes.len()),
+            Line::Unanswered(exchange) => writeln!(&mut text, "unanswered {exchange}"),
+            Line::Found(link) => writeln!(&mut text, "found {}", link.is_some()),
+            _ => writeln!(&mut text, "{}", line.kind()),
+        }
+        .expect("recording event text");
+    }
+    text
+}
 fn log(root: &Path) -> String {
-    fs::read_to_string(root.join("data/box/logs/box.log")).unwrap_or_default()
+    let mut text = String::new();
+    for name in ["box", "serve", "tui"] {
+        if let Ok(log) = fs::read_to_string(root.join(format!("data/box/logs/{name}.log"))) {
+            write!(&mut text, "{name}:\n{log}").expect("log text");
+        }
+    }
+    text
 }
 
 #[test]

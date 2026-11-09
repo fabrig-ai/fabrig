@@ -1,3 +1,4 @@
+mod all_home;
 mod approve;
 mod ask;
 mod builders;
@@ -7,6 +8,7 @@ mod choice;
 mod confirm;
 mod delegation;
 mod document;
+mod home_cards;
 mod model_forge;
 mod models;
 mod new_chat;
@@ -25,15 +27,19 @@ mod inbox;
 mod limits;
 mod look;
 mod needs;
+mod only_you;
 mod paths;
 mod person_menu;
 mod playground;
 mod playground_start;
 mod public;
 mod rail;
+mod remembered;
 mod settings;
 mod start_goal;
+mod team;
 mod toast;
+mod work;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;
 
@@ -182,3 +188,5 @@ mod repository_link;
 mod welcome_copy;
 
 mod views;
+
+mod deployment;

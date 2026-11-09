@@ -269,6 +269,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
 
 fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
+        workflows: Box::default(),
         project: 5,
         home: forge == 1,
         provider: skein_forge::api::Repository { forge, repository: 1 },
@@ -2257,6 +2258,7 @@ fn result_tier(name: &[u8], branch: Option<&[u8]>) -> crate::translate::TierChec
             None => super::forge::Follows::Landing,
         },
         span_ms: 0,
+        description: Box::default(),
     }
 }
 

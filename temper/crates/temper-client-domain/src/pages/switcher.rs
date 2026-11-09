@@ -80,20 +80,26 @@ impl Switcher {
     }
     pub(super) fn went(&mut self, address: &Address) {
         match address {
-            Address::Accounts
+            Address::Remembered
+            | Address::Members
+            | Address::Limits
+            | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
+            | Address::AllHome
             | Address::Inbox { .. } => self.close(),
             Address::Home { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Role { .. }
             | Address::Rule { .. }
             | Address::Repositories { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Ask { .. }
             | Address::Chats { .. }

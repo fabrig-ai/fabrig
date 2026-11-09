@@ -99,7 +99,7 @@ fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<crate::print::Prin
             Err(why) => return Ok(Err(why)),
         }
     }
-    Ok(Ok(pages(name, scheme, &marks)))
+    Ok(Ok(pages(name, temper_client_tui::theme::ThemeChoice::Auto.scheme(scheme), &marks)))
 }
 
 pub(crate) fn printed_file(path: &Path) -> bool {

@@ -1,19 +1,28 @@
 use crate::{
-    ChatsFilter, GoalsFilter, ModelWay, Step, WayKind,
+    ChatsFilter, GoalsFilter, ModelWay, Step, WayKind, WorkFilter,
     address::{Address, Filter, Kind, Place, parse, print},
 };
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 30] = [
+    let pages: [(Address, &[u8]); 39] = [
+        (Address::Work { project: 3, filter: WorkFilter::All }, b"/projects/3/work"),
+        (Address::Work { project: 3, filter: WorkFilter::Drafts }, b"/projects/3/work?show=drafts"),
+        (Address::Members, b"/deployment/members"),
+        (Address::Remembered, b"/remembered"),
+        (Address::Limits, b"/deployment/limits"),
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
         (Address::Task { task: 7 }, b"/tasks/7"),
+        (Address::Team { project: 0 }, b"/projects/0/team"),
+        (Address::Team { project: 3 }, b"/projects/3/team"),
+        (Address::Team { project: u32::MAX }, b"/projects/4294967295/team"),
         (Address::Changes { project: 0 }, b"/projects/0/changes"),
         (Address::Changes { project: 3 }, b"/projects/3/changes"),
         (Address::Changes { project: u32::MAX }, b"/projects/4294967295/changes"),
         (Address::Home { project: 0 }, b"/projects/0"),
+        (Address::AllHome, b"/home"),
         (Address::Home { project: u32::MAX }, b"/projects/4294967295"),
         (Address::Settings { project: 0 }, b"/projects/0/settings"),
         (Address::Settings { project: u32::MAX }, b"/projects/4294967295/settings"),
@@ -77,6 +86,10 @@ fn the_inbox_prints_its_set_fields_in_one_order() {
 
 #[test]
 fn another_pages_query_is_dropped() {
+    for path in [b"/home".as_slice(), b"/home?x=1"] {
+        assert_eq!(parse(path), Place::Address(Address::AllHome));
+        assert_eq!(print(&Address::AllHome).as_ref(), b"/home");
+    }
     assert_eq!(parse(b"/chats/7?x=1"), Place::Address(Address::Chat { task: 7 }));
     assert_eq!(parse(b"/projects/3/ask?x=1"), Place::Address(Address::Ask { project: 3 }));
 }
@@ -113,8 +126,10 @@ fn a_field_it_cannot_read_is_dropped() {
 fn one_trailing_slash_is_ignored() {
     for (path, expected) in [
         (&b"/chats/7/"[..], Place::Address(Address::Chat { task: 7 })),
+        (b"/home/", Place::Address(Address::AllHome)),
         (b"/chats/", Place::Address(Address::Chats { filter: ChatsFilter::All })),
         (b"/chats/7//", Place::Missing),
+        (b"/projects/3/team/", Place::Address(Address::Team { project: 3 })),
         (b"/projects/3/ask/", Place::Address(Address::Ask { project: 3 })),
         (b"/projects/3/ask//", Place::Missing),
     ] {
@@ -132,6 +147,7 @@ fn a_path_that_is_no_page_is_missing() {
         b"chats",
         b"/chats/x",
         b"/chats/newer",
+        b"/projects/3/team/1",
         b"/tasks",
         b"/projects/01",
         b"/projects/1/other",
@@ -167,6 +183,7 @@ fn a_path_that_is_no_page_is_missing() {
         b"//",
         b"/chats/%37",
         b"/nowhere",
+        b"/home/1",
         b"/chats/abc",
         b"/chats/-1",
         b"/chats/99999999999999999999999999",
@@ -188,7 +205,8 @@ fn a_path_that_is_no_page_is_missing() {
 
 #[test]
 fn a_number_not_in_canonical_decimal_is_missing() {
-    let paths: [&[u8]; 5] = [b"/chats/07", b"/chats/+7", b"/chats/-7", b"/chats/7a", b"/chats/123456789012345678901"];
+    let paths: [&[u8]; 6] =
+        [b"/projects/03/team", b"/chats/07", b"/chats/+7", b"/chats/-7", b"/chats/7a", b"/chats/123456789012345678901"];
     for path in paths {
         assert_eq!(parse(path), Place::Missing, "{path:?}");
     }
@@ -552,5 +570,20 @@ fn the_approval_page_reads_its_code_and_prints_it_shown() {
         let path = crate::address::print_approve(code);
         assert_eq!(path.as_ref(), expected);
         assert_eq!(parse(&path), Place::Approve { code });
+    }
+}
+
+#[test]
+fn work_filter_is_its_query() {
+    for (path, filter, canonical) in [
+        (b"/projects/3/work?show=drafts".as_slice(), WorkFilter::Drafts, b"/projects/3/work?show=drafts".as_slice()),
+        (b"/projects/3/work?show=other", WorkFilter::All, b"/projects/3/work"),
+        (b"/projects/3/work?x=1", WorkFilter::All, b"/projects/3/work"),
+        (b"/projects/3/work/?show=drafts", WorkFilter::Drafts, b"/projects/3/work?show=drafts"),
+        (b"/projects/3/work?show=other&x=1&show=drafts", WorkFilter::Drafts, b"/projects/3/work?show=drafts"),
+    ] {
+        let address = Address::Work { project: 3, filter };
+        assert_eq!(parse(path), Place::Address(address.clone()), "{path:?}");
+        assert_eq!(print(&address).as_ref(), canonical);
     }
 }

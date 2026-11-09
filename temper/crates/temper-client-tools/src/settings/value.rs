@@ -19,6 +19,18 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             }
             out.unsigned(u64::from(value.charter()));
         }
+        11 => {
+            let Ok(value) = w::TemplateGoal::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"design");
+            out.boolean(value.design());
+            out.key(b"close_out");
+            out.boolean(value.close_out());
+            out.object_end();
+        }
         6 => {
             let Ok(value) = w::ProjectQuestions::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
@@ -42,11 +54,12 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.boolean(value.goals());
             out.key(b"changes");
             out.boolean(value.changes());
-            out.key(b"away");
-            out.boolean(value.away());
             out.key(b"way");
             out.unsigned(u64::from(value.way()));
             out.object_end();
+        }
+        8 => {
+            return settings_form::render::application_value(kind, bytes, out);
         }
         _ => return false,
     }

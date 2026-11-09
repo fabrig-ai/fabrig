@@ -1,4 +1,5 @@
 use crate::support;
+use temper::directories::jig_directories;
 
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -446,8 +447,12 @@ fn stock_charters_choose_claude_before_the_demo_model() {
         .expect("object")
         .member(&document, b"engine")
         .expect("engine");
-    let engine = temper_service::startup::engine(&document, at, &support::configuration::directories(&paths[0]).jig())
-        .expect("engine schema");
+    let engine = temper_service::startup::engine(
+        &document,
+        at,
+        &jig_directories(&support::configuration::directories(&paths[0])),
+    )
+    .expect("engine schema");
     let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
         assert_eq!(
@@ -491,8 +496,12 @@ fn live_claude_world() -> (
         .expect("object")
         .member(&document, b"engine")
         .expect("engine");
-    let engine = temper_service::startup::engine(&document, at, &support::configuration::directories(&paths[0]).jig())
-        .expect("engine schema");
+    let engine = temper_service::startup::engine(
+        &document,
+        at,
+        &jig_directories(&support::configuration::directories(&paths[0])),
+    )
+    .expect("engine schema");
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut limits = engine_limits();
     limits.people.initial_owners = 2;
@@ -871,6 +880,43 @@ fn the_launcher_runs_its_builds_through_the_wrapper_it_is_given() {
             "--no-capture",
             "-E",
             "binary(=live) & test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge)",
+        ]
+    );
+    scratch.remove();
+}
+
+/// domain/testing.md, 2.6: the offline driver proofs run in the process tier.
+#[test]
+fn the_offline_rung_runs_its_proofs_in_the_process_profile() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let scratch = support::Scratch::new("offline-rung-wrapper");
+    let root = scratch.path();
+    let stub = root.join("wrap");
+    support::write_private(
+        &stub,
+        b"#!/bin/sh\n[ \"$NEXTEST_DOUBLE_SPAWN\" = 0 ] || exit 98\nprintf '%s\\n' \"$@\" > \"$HOME/seen\"\nexit 0\n",
+    );
+    fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable wrapper stub");
+    let output = launcher(root, "rung-b0-offline", None)
+        .env("PATH", format!("{}:/usr/bin:/bin", root.display()))
+        .env("TEMPER_WRAPPER", "wrap")
+        .output()
+        .expect("wrapped offline launcher");
+    assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+    let seen = fs::read_to_string(root.join("seen")).expect("wrapper arguments");
+    assert_eq!(
+        seen.lines().collect::<Vec<_>>(),
+        [
+            "cargo",
+            "nextest",
+            "run",
+            "-p",
+            "temper",
+            "--test",
+            "proof_live",
+            "--profile",
+            "process-temper",
+            "--no-fail-fast"
         ]
     );
     scratch.remove();

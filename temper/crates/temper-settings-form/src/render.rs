@@ -3,6 +3,7 @@ use crate::Limits;
 use crate::view as c;
 use crate::{Text, values};
 use skein_json::writer::Encoder;
+use temper_protocol_reaches::{Class, Subject, classes_from};
 
 pub fn setting_text(setting: c::Setting, out: &mut Text) {
     let (kind, number) = match setting {
@@ -19,16 +20,27 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             }
             return;
         }
-        c::Setting::Application { kind: 3, number, .. } => {
-            out.put(b"forge-charter ");
+        c::Setting::Application { kind: kind @ (3 | 9), number, .. } => {
+            out.put(match kind {
+                3 => b"forge-charter ",
+                9 => b"charter-words ",
+                _ => unreachable!("numbered deployment setting"),
+            });
             out.number(u64::from(number));
             return;
         }
-        c::Setting::Application { kind: 6 | 7, scope, .. } => {
-            out.put(if let c::Setting::Application { kind: 6, .. } = setting {
-                b"project-questions "
-            } else {
-                b"project-ways "
+        c::Setting::Application { kind: 11, number, .. } => {
+            out.put(b"template-goal ");
+            out.number(u64::from(number));
+            return;
+        }
+        c::Setting::Application { kind: kind @ (6 | 7 | 8 | 10), scope, .. } => {
+            out.put(match kind {
+                6 => b"project-questions ",
+                7 => b"project-ways ",
+                8 => b"project-classes ",
+                10 => b"project-words ",
+                _ => unreachable!("project setting without a number"),
             });
             out.number(u64::from(scope));
             return;
@@ -54,7 +66,7 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
 /// Mark a project's fallback value when its inventory has no explicit change.
 pub fn stock_text(value: &c::ReadValue, out: &mut Text) {
     if let c::ReadValue::Setting(document) = value
-        && let c::Setting::Application { kind: 6 | 7, .. } = document.setting
+        && let c::Setting::Application { kind: 6..=8, .. } = document.setting
     {
         let stock = match &document.application {
             None => true,
@@ -80,18 +92,22 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             match kind {
                 1 | 2 => out.string(b"landing-rule"),
                 3 => out.string(b"forge-charter"),
+                11 => out.string(b"template-goal"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
+                8 => out.string(b"project-classes"),
+                9 => out.string(b"charter-words"),
+                10 => out.string(b"project-words"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2 || kind == 6 || kind == 7 {
+            if kind == 2 || kind == 6 || kind == 7 || kind == 8 || kind == 10 {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
-            } else if kind != 1 && kind != 3 {
+            } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 {
+            if kind != 6 && kind != 7 && kind != 8 && kind != 10 {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }
@@ -291,11 +307,36 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
         c::ReadValue::Settings(document) => inventory_text(document, out),
         c::ReadValue::Setting(document) => {
             setting_text(document.setting, out);
+            if let c::Setting::Application { kind: 11, .. } = document.setting
+                && document.value.is_none()
+            {
+                out.put(b": none kept; its coordinator plans and makes no close-out.\n");
+                return;
+            }
             out.put(b", revision ");
             out.number(u64::from(document.revision));
             out.put(b"\n");
             if let Some(value) = &document.value {
                 named_value_text(document.setting, value, limits, out);
+            }
+            if document.value.is_none() {
+                match document.setting {
+                    c::Setting::Application { kind: 9, number, .. } => {
+                        out.put(b"charter-words ");
+                        out.number(u64::from(number));
+                        out.put(b": none kept; Roles says the charter by its instructions' first sentence.\n");
+                    }
+                    c::Setting::Application { kind: 10, .. } => {
+                        out.put(b"project-words: none kept; How work runs says the way's own words.\n");
+                    }
+                    c::Setting::Charter(_)
+                    | c::Setting::Template(_)
+                    | c::Setting::Policy(_)
+                    | c::Setting::Model(_)
+                    | c::Setting::ProjectPolicy { .. }
+                    | c::Setting::Rules
+                    | c::Setting::Application { .. } => {}
+                }
             }
             stock_text(value, out);
             if let Some(state) = &document.application {
@@ -807,4 +848,65 @@ pub fn setting_detail(detail: &c::SettingDetail, out: &mut Text) {
             out.number(u64::from(detail.bound));
         }
     }
+}
+
+/// Encode a known application value in the settings file's form.
+pub fn application_value(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
+    crate::kinds::render(kind, bytes, out)
+}
+/// Render a project's classes in words; other application kinds use inline JSON.
+pub fn application_value_text(kind: u32, bytes: &[u8], out: &mut Text) -> bool {
+    if kind != 8 {
+        return false;
+    }
+    let mut reader = skein_lib::Reader::new(bytes);
+    let Ok(record) = temper_client_protocol_wire::v1::ProjectClasses::decode(
+        &temper_client_protocol_wire::v1::CEILINGS,
+        &mut reader,
+    ) else {
+        return false;
+    };
+    let value = classes_from(&record);
+    if !reader.is_empty() || value.check().is_err() {
+        return false;
+    }
+    for item in &value.items {
+        match item.subject {
+            Subject::Kind(kind) => out.put(kind.name()),
+            Subject::Set(number) => {
+                let set = value.set(number).expect("checked item's set");
+                out.put(b"path set ");
+                out.number(u64::from(number));
+                out.put(b" (");
+                out.words(&set.name);
+                out.put(b")");
+            }
+        }
+        out.put(b": ");
+        out.put(match item.class {
+            Class::Decide => b"agents decide, then tell you",
+            Class::Ask => b"asks you",
+            Class::AskAway => b"asks you, even when away",
+            Class::Wait => unreachable!("checked classes have no wait item"),
+        });
+        if !item.words.is_empty() {
+            out.put(" — ".as_bytes());
+            out.words(&item.words);
+        }
+        out.put(b"\n");
+    }
+    for set in &value.sets {
+        out.put(b"  path set ");
+        out.number(u64::from(set.number));
+        out.put(b" (");
+        out.words(&set.name);
+        out.put(b"):\n");
+        for pattern in &set.patterns {
+            out.put(b"    ");
+            out.words(pattern);
+            out.put(b"\n");
+        }
+    }
+    out.put(b"Always waits: money, irreversible, rules, other.");
+    true
 }

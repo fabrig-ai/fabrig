@@ -117,7 +117,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 109] = [
+pub static MEMBERS: [Member; 110] = [
     Member {
         shape: "document",
         name: "engine",
@@ -692,6 +692,15 @@ pub static MEMBERS: [Member; 109] = [
         bound: "at most 18,446,744,073,709,551,615; 0 when absent",
         required: false,
         line: "The interval in milliseconds between tier runs.",
+        gone: None,
+    },
+    Member {
+        shape: "tier-check",
+        name: "description",
+        kind: "text",
+        bound: "1 to 120 bytes of UTF-8; no control character",
+        required: false,
+        line: "What the tier checks, shown on its card and by see settings gates.",
         gone: None,
     },
     Member {

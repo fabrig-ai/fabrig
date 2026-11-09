@@ -336,10 +336,18 @@ fn write_deployment(
         }
     }
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment supplies init's executable choices; temper-box's table will pass it"
+)]
 pub(crate) fn core(directories: &Directories) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     write(directories, &skein_shell::environment(), &binary, [8367, 8368, 8369, 8370, 8371])
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment supplies bare init's executable choices; temper-box's table will pass it"
+)]
 pub(crate) fn bare(directories: &Directories) -> Result<Written, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
     write_bare(directories, &skein_shell::environment(), &binary, [8367, 8371])

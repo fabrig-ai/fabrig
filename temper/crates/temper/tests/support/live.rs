@@ -12,8 +12,10 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
+use temper::directories::jig_directories;
 
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
@@ -459,7 +461,8 @@ fn count_completions(config: &Path, directories: &temper::directories::Directori
         .expect("object")
         .member(&document, b"engine")
         .expect("engine member");
-    let engine = temper_service::startup::engine(&document, at, &directories.jig()).expect("engine configuration");
+    let engine =
+        temper_service::startup::engine(&document, at, &jig_directories(directories)).expect("engine configuration");
     let limits = codec::limits(&engine.limits.core).expect("store codec limits");
     let mut paths = Vec::new();
     let deployment = Path::new(std::ffi::OsStr::from_bytes(&engine.deployment.directory));
@@ -527,6 +530,7 @@ pub fn redact(text: &str) -> String {
     output
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_NOTICE, through temper's test table once it exists")]
 fn append_notice(text: &str) {
     use std::{io::Write, os::unix::fs::OpenOptionsExt};
     let Some(path) = std::env::var_os("TEMPER_LIVE_NOTICE") else { return };

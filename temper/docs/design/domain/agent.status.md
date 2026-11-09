@@ -2,7 +2,40 @@
 
 2026-11-09. Where temper's code lags or departs from [agent.md](agent.md).
 
-Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
+Sections 4.3's `decided`, 8.1 and 8.4.1 have no known implementation gap
+but the one below in what reaches a person, the whole story's milestone
+N1, by plan `ui-reaches`: the tool takes the ten kinds, `paths` and
+`under`, its Ask names the reach in 4.3's words, a call from a task
+whose question reaches no person is answered "no person is asked
+through you: ask your requester", and the stock charters tell a goal and
+a chat to call it before asking the person, a goal under `Asks: always`
+too; a run's `settings`, `see settings project-classes` and
+`propose_settings` name kind 8 (`temper-engine-smith`'s
+`tests/decided.rs` and `tests/settings.rs`; the engine world's
+`each_callers_person_and_reach_are_kept`).
+
+- **Not yet:** 4.3: the stock charters (`chat.txt`, `coordinator.md`)
+  say sign-ins, machines and a plan's go-ahead always wait but name no
+  kind for them, where this section has them `money` or `irreversible`;
+  a call naming them `other` waits all the same.
+
+Section 4.3.1 has no known implementation gap in whole-goal child isolation:
+words-only calls and batch members use the nearest held goal branch,
+including callers in its subtree; an explicit destination outside it is
+refused before delegation. The engine-domain world's stock draft-goal
+story decodes a reconstructed words-only call through smith, answers two
+scope questions, releases the change hold and observes the fake forge's
+child merge before the separate whole-goal landing. It establishes no
+real-model or browser outcome.
+
+Section 8.5 has no known gap in the drafter: a design session's first
+run on the stock gets `drafter.txt` byte for byte, no repository, and no
+`goal`, `change` or `delegate` beside `note`, `recall` and the forge's
+reads (`temper-service/src/tests/ask_bound.rs`). Its instructions'
+judgement with a real model and a session taken up again follow landing;
+the terminal's `/draft` is `../draft/surfaces.md`, 11.2's.
+
+Sections 4.2, 4.3 and 8.4 have the asking charter's four host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
 revision, proposal, help and repository-file reads, 6,144-byte parts,
 section-based document writes and the asking proposal form: repository
@@ -10,9 +43,89 @@ identity expansion, parts, project-local approval checks and the card
 location in the answer. Sections 8.4 and 8.4.1 have no known gap in M3a's
 part: `see ways` renders the root's `ways` document, made as the client's
 is, and `ask.txt` carries the Showing part's first step, its words pinned
-by a focused test. The remaining reads and rendering, moved-write retry
-within a call, M3b's views and sketches and preferences remain deferred in
-section 10. Real-model judgement and the walk follow landing.
+by a focused test. Moved-write retry within a call and M3b's views and
+sketches remain deferred in section 10. Real-model
+judgement and the walk follow landing.
+
+Section 8.4.1 has M2's addresses, read as the chat's person, of its
+project alone, but for the gaps below. `me`, `project`, `goals`, `goals
+ended`, `tasks`, `task N` with its tree, activity and turns, and `inbox`
+are read by the call's flight through jig's `PersonRead`, in the order
+each row's *Over* names, and `change N` and `changes` by the forge's
+documents for the person (`temper-engine-domain`'s `route/see/person.rs`);
+`temper-engine-smith`'s `see/person.rs` renders them as a heading line
+with its count, then a line a row, times in UTC and money in dollars
+and cents. The three refusals of a person's address, the declaration's
+description, and one table of addresses (`see/addresses.rs`) that renders
+the reference page, the unknown address's line and each `see:` line are
+present. The root's `addresses_parse_in_the_chats_project`,
+`person_addresses_choose_each_read_in_order_and_keep_later_refusals` and
+`person_flights_route_core_and_forge_answers_with_names_and_refusals`
+(`tests/see.rs`), smith's `person_answers_read_as_named_bounded_lines`
+and `the_address_table_keeps_the_instructions_forms_and_short_lines`, the
+engine world's `an_asking_chat_reads_its_project_as_its_person`
+(`configuring/asking_person.rs`: two projects, every address a row, the
+other project's task, a number with no task and a delegate's run with no
+person refused, a member reading the same tasks) and
+`seeded_addresses_stay_bounded_framed_and_in_their_project`
+(`fuzzy/see.rs`, 64 seeds over the same world, the store unchanged) hold
+it. The walk on the playground follows landing.
+
+Section 8.4.4 is present by plan `ui-ask-m4` but for the gaps below:
+`remember`'s declaration in the asking family, to an asking charter
+alone, its members refused at decode where they do not fit their action
+(`temper-engine-smith`'s `calls.rs` and `remember.rs`); the root's
+`route/remember.rs`, which refuses a requester who is no person, loads
+the party scope's index, checks the trimmed line, and adds with the
+chat's own number as its reference, changes at the index's revision with
+its references kept, or drops by `NoteDelete`, its own refusals writing
+nothing; every answer and refusal in 8.4.4's words; the brief's
+`preferences` section titled "Kept about this person", 2,048 bytes in
+both profiles; `remember` and that title given as the root's private
+names to the core and the clients (`temper-service`'s `system.rs` and
+`clients.rs`), and `see task N turn A.T` and `see task N activity`
+rendering a withheld turn projected; and section 8's Remembering part in
+`ask.txt`, word for word, within 10,240 bytes. The root's
+`a_remember_call_keeps_changes_and_drops_by_place` and
+`a_refused_remember_call_writes_nothing`, smith's
+`remember_answers_say_what_changed_or_why_not`, the service's
+`ask_temper_is_charter_11_and_template_5`,
+`asks_first_request_fits_both_shapes` and
+`startup_names_the_public_kinds_and_private_parts`, and the engine
+world's `configuring/remembering.rs`
+(`a_kept_line_reaches_the_next_chat_and_leaves_with_its_person`,
+`nobody_reads_another_persons_lines`,
+`a_turn_shows_its_persons_list_to_them_alone`) hold it. A real model's
+use of `remember` and the walk follow landing (section 10).
+
+- **Not yet:** 8.4.4, *Seen by the person alone*: a run that starts
+  fresh carries its transcript's tail in its brief, and the tail renders
+  `remember`'s calls and their answers whole, `call remember:` and its
+  input, then the result's summary, which holds the list
+  (`temper-service`'s `store/ranges.rs`, `texts`, by
+  `jig_protocol_transcript::brief_text`, which takes no private names).
+  That tail is a text of the new turn outside "Kept about this person",
+  so the turn's projection keeps it, and the project's other roles read
+  it. Charter 11's runs resume, and start fresh past the resume limit,
+  after a transient failure or when the window is closed. Found by
+  reading; no story reads a fresh start's turn as another role.
+
+- **Not yet:** 8.4.4, *Its answer* and *Its refusals*: an `add`'s answer
+  is the list as the call read it with its line after it
+  (`route/remember/flight.rs`), so a line another chat or the page wrote
+  meanwhile is missing from it and the line's number may be wrong; jig
+  answers a new entry neither moved nor missing, so the refusal "while a
+  line was kept" never comes, and a list another chat filled meanwhile is
+  refused in `note`'s words, `remember: Note refused: full`. A call
+  replayed from its record after a restart answers in `note`'s words with
+  no list (`Deleted note N` for a drop), since the flight takes `remember`'s
+  rendering only at its write (`route/host_route.rs`, where `document`'s
+  flight takes its own at decode). Found by reading.
+
+- **Not yet:** 8.4.4, *Its declaration*: the settings form's `tools`
+  line, and from it the generated reference page `settings-fields`, say
+  an asking charter is declared `see`, `document` and `propose_settings`
+  alone (`temper-settings-form`'s `fields/jig.rs`).
 
 Section 4.3.1 has no known gap in a change's role choice carrying no
 `later`: the change-choice parser constructs each choice with none,
@@ -91,7 +204,84 @@ rendering room remains deferred in section 10.
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 
+Sections 8.1, 8.4.1 and 8.4.2 have no known gap but those below in the
+words saved with a setting: `charter-words` and `project-words` in a
+run's `settings` read, `see` and `propose_settings`, read and proposed as
+a settings file names them, a charter's at the stock's where none is
+stored and either "none kept" with none; `see settings gates` naming a
+tier's description, "checks" and its words; and Ask temper's
+*Configuring* asking for both with what it proposes, in the person's
+terms (`ask.txt`). The engine world's `the_asking_chat_reads_each_kind`,
+`an_asking_chat_reads_each_address` and
+`an_owners_asking_chat_proposes_and_hears_it_accepted`, whose proposal
+carries a charter, its words and the project's, accepted and read back,
+and smith's `tests/see.rs` and `tests/settings.rs` hold it. No walk on
+record has run a real model on the sentence.
+
 ## Gaps and departures
+
+- **Not yet:** 8.4.1: an inbox row's words are read for questions alone;
+  proposals, escalations and person tasks keep their kind and task. In
+  `inbox` and `me` a question whose words read busy or unknown drops
+  them with no line saying so, and `me` lists the needs page's first page
+  whole with no "more wait" line (`see/person.rs`).
+- **Not yet:** 8.4.1, *How an answer reads*: a charter is said by number
+  alone, `an agent, charter N`: jig's charters keep no name and the
+  settings inventory names templates alone (`route/see/person/names.rs`,
+  `charters`), so "charter 4, the reviewer's" is never written. A
+  policy's role is `role N`, unnamed (`see/person/words.rs`, `role`). A
+  later read answered busy or unknown says `not read` either way. A
+  title, name, words' line or headline is cut to its first line, at most
+  160 bytes, ending `…` (`words.rs`, `short`), a bound the section does
+  not give.
+- **Not yet:** 8.4.1, `project`: its repositories print as
+  `HOST/OWNER/NAME`, where the inventory names them `OWNER/NAME`, the
+  form `file` and `settings gates` take.
+- **Not yet:** 8.4.1, `task N` and `task N tree`: a placed hold's reason
+  (jig's `PlacedLine`) is not said: a hold with no words of its own says
+  `a hold was placed`; a requester task outside the task's lineage has no
+  title; the model is said only where the task keeps its own choice, and
+  never in the tree; the delegates counted are the live ones; what was
+  asked, and an ended task's kept words, are their first line alone.
+- **Not yet:** 8.4.1, `task N turn A.T`: a brief's part is its heading
+  and its first line, and a call's input is cut at 512 bytes
+  (`see/person/runs.rs`), where the row has the turn whole.
+- **Not yet:** 8.4.1, `change N` and `changes`: a gate is `gate N` and
+  its verdict, with no name; approvals are counted by `role N`, naming no
+  reviewer; a question names no asker; by turn, the place is `landing by
+  turn` alone; a queue's row is the change's number and title, with no
+  step or wait; a landing by turn names its changes by number alone
+  (`see/person/changes.rs`). The forge's panel holds no task title or
+  gate and role names to give them.
+- **Not yet:** 8.4.1, *Its tests*: the engine world has no ended goal and
+  no queued change, so `goals ended` and `changes` read empty there and
+  their rows are held by smith's hand-made documents alone; the other
+  project's work is checked absent from every answer by its words alone,
+  not its tasks' numbers or the project's name.
+
+- **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
+  `ways_text` prints a way's name, `now`, its line and its path, so the
+  run and How work runs' heading say a way by different words
+  (`../protocol/configuration.md`, 13.10).
+
+- **Departs:** 8.4.1, *Unknown*: an unknown address answers with
+  `ask.txt`'s line of addresses and, in its settings bracket,
+  `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't
+  name (`temper-engine-smith`'s `see/addresses.rs`, `ADDRESSES`): Ask
+  temper's instructions were held to 8,192 bytes then, with no room for
+  them, so the run learns the two kinds from its tools' declarations and
+  `see settings`; decided by the `ui-p3e-words` cut. The bound is 10,240
+  bytes now (8.4), and `ask.txt`'s 8,790 leave room for them.
+
+- **Not yet:** 8.4, *Its instructions*: `ask.txt` is not
+  `../draft/ask-temper.md`, section 8, whole. Its parts but Remembering
+  and Showing's first step say the draft's text shorter, as the stock's
+  former 8,192 bytes had them, *Your voice* among them; and it adds what
+  later plans asked of it: `project-classes` on the `see` line and in its
+  settings paragraph, the design-first proposal guidance
+  (`../protocol/configuration.status.md`, 13.9), and a paragraph on
+  proposing a person's own approving role. Section 8 is 8,750 bytes, within
+  10,240 now; no record names the shortening a departure.
 
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
@@ -124,6 +314,18 @@ File, pull-file and compare size feedback, recovery and settled-call replay
 have no known gap. A `see` answer uses the local agent's bound alone,
 without a call key; worker-specific `see` rendering remains deferred in
 section 10, not an absent task-read implementation.
+Section 4.3 has no known implementation gap in a charter's bound: the
+engine fits a charter to `charter_bound`, the smaller of
+`hub.charter_bytes` and the local agent's `host_limits.charter_bytes`,
+or smith's floor, `WORKER_CHARTER_BYTES`, 65,536, where its process has
+no local agent (`temper-service/src/assignment.rs`; `workers.rs`,
+`Workers::configured`). `temper-service`'s
+`a_resolution_past_its_workers_charter_allowance_starts_cut` encodes a
+resolution whose pull section is 200,000 bytes of text under
+`standard` with no local agent, with the reference's 127,480 as its
+local agent's, and under a hub below that, and the worker's route
+decodes each start, its section cut with its line. That section names
+no file, which the connector's brief table holds (`forge.status.md`, 8.4).
 Sections 4.3, 4.4 and 6 have no known implementation gap in the compare's
 forge-size refusal, the stock report instructions,
 or the SHA-1 and SHA-256 widths in receipts and CI cancel reasons. Step tests
@@ -146,7 +348,20 @@ charter documents.
 Section 8.1: none of Ask temper's tools or proposal items offers
 visibility, and `ask.txt` says it is no setting, done by its owner outside
 the chat.
+Sections 8.1 and 8.4.1 have a goal template's work, `template-goal N`,
+in a run's `settings`, `see` and `propose_settings` and their
+declarations; `see settings template-goal N`, its following line
+`settings template N · ways · help settings-fields`, and the inventory's
+line naming it; and, with none stored, "template-goal N: none kept; its
+coordinator plans and makes no close-out." (the engine world's
+`the_asking_chat_reads_each_kind` and `an_asking_chat_reads_each_address`).
 
+- **Not yet:** 8.1: nothing tells Ask temper's runs that a proposal of a
+  goal template whose charter designs first or makes a close-out carries
+  its `template-goal`: `ask.txt` holds no words for it, as this section
+  has it, and the tools' declarations and `help settings` name the kind
+  and its members alone; no story proposes one. Stage one's golden asks
+  it of the reference's (`testing.status.md`, 6.5.1).
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own
@@ -198,8 +413,8 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   plan's cut: `decided` is declared to every run, where the request has it charter
   1's, because the host part declares its fixed tools whatever a charter says
   (`temper-engine-smith/src/calls.rs`, `tools_for`). So a coding agent's run spends
-  its room on it too; a call from anything but a goal answers ask, or is refused
-  for want of the control family (`forge.status.md`, 5.9).
+  its room on it too; a call from a task whose question reaches no person
+  answers ask, or is refused for want of the control family (`forge.status.md`, 5.9).
 - **Departs:** 8.3: the scripted fake model's goal script names literal
   numbers, project 1 and goal 2 (`temper-fake/src/backends.rs`,
   `model_document`), because its scripts are static, so on `temper box

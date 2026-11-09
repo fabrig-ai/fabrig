@@ -2,15 +2,131 @@
 
 2026-11-09. Where jig's code lags or departs from [engine.md](engine.md).
 
+Section 5.1 has no known gap in *Whole across families, through a kill*:
+the core world over its directory-backed store on the simulated disk,
+killed at each file operation of a decision that makes a task and the
+person task it links, of the one that saves a caller's `Person` row and
+of the one that saves the task it requested, then again at chosen
+operations of the restart and at each of the next decision's, starts to
+Open with the rows of a whole decision
+(`jig/tests/core`'s `faults::a_kill_at_each_file_operation_of_a_decision_starts_from_a_whole_one`;
+every restart operation under
+`fuzzy::faults::every_operation_of_a_restart_after_a_torn_decision_can_be_killed_again`).
+A snapshot racing commits and several commits in flight are proven in
+the store's world alone (`../protocol/store.status.md`, 14).
+
+Section 5.1 has no known gap in *Nothing links ahead of what it names*:
+seventeen routes that take a person's number from outside the core
+(a connector's batch, as executor, pool funder or requester; a party's
+and a procedure's batch, as executor; an agent's person task; a
+party's, a compound, an agent's, a proposed, a party's proposed, a
+procedure's and an application's amendment; a role's holding; a
+proposal's and an escalation's holder; a proposed batch's pool funder)
+write and link a held person and refuse one the people child lacks,
+each with its route's `Unknown`, before any child changes
+(`jig-domain-core/src/admission/batches.rs`, `amendments.rs`'s
+`amendment_person`, `proposals.rs`, `runs/delegation.rs`;
+`jig/tests/core`'s
+`named_people::a_person_named_from_outside_is_held_or_refused_and_the_start_links`,
+and the raw batch and amendment refusals in
+`tests/admission/named_people.rs`).
+
+Section 6 has no known gap in a link the start cannot make: the core's
+link pass, its projections and its census, and the people, tasks and
+accounts children's restore links each refuse as `Failure::Link`, the
+first found, with no commit and no sweep, and temper's shell prints it
+as `RECORD links missing LINKED` (`jig/tests/core`'s
+`start_links::a_store_that_fails_a_link_refuses_the_start_naming_both`;
+temper-engine-shell's
+`start_failures_name_the_set_key_setting_and_measured_limit`). A
+duplicate person's identity refuses as the second `Person` linking the
+first. `start/links.rs`'s `link_resource_projects` stays an assertion:
+it reads connectors' reports held in memory, which no stored row holds.
+A duplicate key, which the store's map cannot hold, also stays an
+assertion. temper's forge link still panics
+(`temper/docs/design/domain/root.status.md`, 9.1).
+
 Section 7.2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
+
+Sections 7.2 and 9 have no known gap in *A turn too large for a page*.
+`TranscriptLoad::Cut` hands the core a turn's fields and length.
+`Core::append_cut_transcript` admits it as `append_transcript` admits a
+turn, counting its length and 4 bytes. It keeps `CUT_TURN_TEXT`,
+`[a turn too large to load]`, in the tail and sets `Transcript.cut`, so
+the claim resumes nothing and counts no failure, try or refusal
+(`jig-domain-core`'s `cut_turns_keep_their_length_and_place_without_resuming`
+and `a_cut_page_finishes_a_fresh_brief_with_its_tail`). jig's reference
+root maps the store's cut page to it (`jig-test-store/src/route.rs`). The
+core world's rows, sized by the frame's charge, hold the room's edge:
+a turn charging exactly the room resumes whole, and one byte past
+starts fresh at once with the marker in its tail. A 4,096-byte turn
+between a 100- and a 50-byte one keeps its marker between their texts
+(`jig/tests/core`'s `runs::a_window_turn_charging_exactly_the_room_resumes_whole`,
+`a_window_turn_just_past_the_room_starts_fresh_with_a_marker` and
+`a_large_tool_turn_keeps_its_place_between_other_texts`). No bound of
+`append_transcript` refuses a long window: past the resume limit it
+starts fresh (`many_one_byte_turns_start_fresh_when_their_lengths_pass_the_limit`,
+`an_oversized_resume_turn_keeps_its_text_independently`). The ops
+example's root gets transcript pages as rows, from its tests alone. No
+store there cuts a turn, and it maps no cut.
 
 Section 7.3's asking-family routing and run proposal read are present.
 `reads/settings.rs` checks settings authority and project scope before
 reading, and checks them and the current attempt after loading a stored
 row. `reads/vocabulary.rs` restricts retained task proposals to the
-reader's project and settings actions. Section 7.3 carries the contract
-for this read; reading as the person remains deferred in section 16.
+reader's project and settings actions.
+
+Section 7.3's run read as its person is present but for the two gaps
+below. `NamedAction::PersonRead` is routed before replay and call
+admission (`routing/run/calls.rs`) to `reads/person.rs`, which checks the
+asking family, the run's current attempt and a person requester, admits
+the reads naming the run's project or a task of it and no other, and
+answers `Now::PersonAnswer`, unrecorded. A stored read's completion
+checks again the attempt, the requester, the person's role and each
+loaded row's project (`reads/rows.rs`, `person_from_store`), and an
+application's read goes to its connector with the person and the
+project's scope. No frame is read for the person (section 16). The
+core's `tests/reads/person.rs` (`admission_names_exactly_one_project_or_a_task_to_check`,
+`stored_person_reads_recheck_the_attempt_requester_and_role`,
+`stored_person_reads_refuse_foreign_owners_and_linked_rows`,
+`retained_pages_prove_their_owner_even_when_empty`) and the core world's
+`suite/person_reads.rs` (`a_run_reads_its_project_as_its_person_and_no_other`,
+`a_run_reads_as_its_person_only_with_the_asking_family`,
+`stored_person_reads_recheck_the_role_and_share_load_limits`,
+`person_application_reads_reach_the_connector_as_the_person`) hold it.
+
+Section 10.1, with 7.3's withheld turns of a run's read as its person and
+9's `preferences` section, is present by plan `ui-ask-m4` but for the
+gaps below. The notes child keeps `Party { party }`, keyed after every
+project's scopes, so no project's notes read or deletion meets it;
+`notes.party_entries` and `notes.party_bytes`, 12 and 120 in both
+profiles, bound its entries and their descriptions, a body refused, and
+its index answers whole up to `party_entries` (`jig-domain-notes`'s
+`read.rs`). A run whose requester is the person and whose authority
+holds the asking family writes it through `Note` and drops an entry
+through `NoteDelete`, any other run refused beyond authority naming the
+scope, and a run's `note` and `recall` name no party's scope
+(`routing/party.rs`); the party alone reads, corrects and deletes it
+through a client, naming project 0, whatever their roles
+(`reads/party.rs`); the brief's required `preferences` section holds its
+lines in name order, `N. DESCRIPTION`, or `None kept.`
+(`routing/run/preferences.rs`); every turn answered to a party other
+than its task's requester, on its own, in an activity page or beside a
+line, and every turn of a run's read as its person, is marked withheld
+(`reads/withheld.rs`), and the clients' component projects it by
+`jig_protocol_transcript::withhold`, a private tool's live input
+reaching the requester alone. The core world's
+`party_runs::a_run_keeps_its_persons_preferences_and_no_one_elses`,
+`party_reads::a_person_alone_reads_and_keeps_their_preferences`,
+`party_brief::an_asking_run_reads_its_persons_preferences_whole`,
+`withheld::a_turn_is_withheld_from_all_but_its_person` and
+`withheld::a_private_live_calls_input_reaches_its_requester_alone`, the
+client protocol world's
+`a_person_reads_corrects_and_deletes_preferences_through_the_client` and
+`a_turns_private_parts_reach_its_person_alone_over_the_wire`, and
+`jig-protocol-transcript`'s
+`private_parts_are_withheld_with_the_same_admission` hold it.
 
 Sections 17.9 and 17.11 have no known gap in the stored-policy size
 refusal or a charter's selected effort. Size facts include parts and
@@ -76,6 +192,25 @@ Section 11.1's account-driven marks preserve time-expiring offers: a
 not-due account timer skips account work and leaves its alarm scheduled;
 a due expiry marks and delivers the changed offer.
 
+Section 17.5 has no known gap in a default its connector no longer
+gives: `jig-domain-core/src/settings/application.rs`, `prepare_start`,
+erases, with a removal in the release's revision, only a default-following
+state its connector names in `SettingsDefaults`' `dropped`, and a reset
+to a default no connector reports or names keeps its state, size and
+slot (`jig-domain-core/src/tests/settings/application_start.rs`). temper's two restore
+stories that met it run (`temper/docs/design/protocol/configuration.status.md`).
+
+Section 8 has no known gap in a draining worker leaving placement:
+`jig-domain-fleet/src/channel.rs`, `draining`, marks its channel for
+the rest of its life, beside the busy mark a freed slot lifts, so that
+no run or job is chosen there, and an attempt chosen for it is placed
+again unrefused (the fleet's tests
+`a_draining_worker_takes_nothing_even_once_it_frees_a_slot`,
+`a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused` and
+`a_draining_workers_next_channel_is_placed_on`). temper's process story
+of a restarted workstation, which would show it on processes, stays
+ignored for its fixture (`temper/docs/design/domain/testing.status.md`).
+
 Section 17.12's held worker reads, filtered catalogue changes decided by
 the provider's list, atomic account and settings commits, and retention
 of running work have no known implementation gap. The mark table covers
@@ -84,8 +219,48 @@ alone mark no Frame. The omitted-count mark below remains unimplemented.
 Later pages, later changes to a known name's figures
 and catalogue-number reuse remain section 16's open questions.
 
+Section 9.1's room as capacity holds at temper's activation: a task
+whose transcript window would find no load slot waits, due, spending no
+try. A window's later pages keep its first page's slot there
+(`temper/docs/design/domain/root.md`, 8).
 
 ## Gaps and departures
+
+- **Not yet:** 7.3, *A run's read as its person*: a task query of the
+  project that names a person requester reads its ended part from the
+  person's index, which spans projects (`reads/ended.rs`,
+  `ended_part`), and a page that loads another project's row answers
+  unknown whole (`reads/rows.rs`, `person_from_store`), where a party's
+  read drops that row. temper's addresses name no requester; no test
+  reads such a query.
+- **Not yet:** 7.3, *Of its project alone*: an inbox page filtered by the
+  run's project takes its `next` cursor from the last entry of the
+  person's whole inbox, before the filter (`reads/rows.rs`, the live
+  page's `last`), so whether there is a next page, and the cursor the
+  root holds, can come from another project's entry; temper says only
+  whether more wait. No test pages a filtered inbox.
+
+- **Not yet:** 10.1, *Its runs' parts are its party's*: a brief's
+  transcript tail renders a private tool's calls whole, `call TOOL:` and
+  its input and then its result's summary
+  (`jig-protocol-transcript`'s `brief.rs`, which takes no private names),
+  and the tail is a text of the fresh start's turn outside the private
+  section, so the turn's projection keeps it and every other party reads
+  it (temper's `temper/docs/design/domain/agent.status.md`, 8.4.4).
+- **Not yet:** 10.1, *Read and kept by its party alone*: a party naming
+  their own scope and another party's entry by its name is refused as
+  moved, with that entry's revision, not as unknown: the core admits the
+  scope as the party's own (`routing/effect/note.rs`,
+  `edit_note_request`), and the notes child answers an entry of another
+  scope `Moved` (`jig-domain-notes`'s `domain.rs`, `Action::Edit`); a
+  run's `NoteDelete` or revision of an entry another scope holds is
+  answered the same way.
+- **Not yet:** 10.1, *Read by those runs*: no check holds
+  `core.brief_core_budgets.preferences` above `notes.party_entries` lines of
+  `notes.party_bytes` numbered, so a deployment whose overrides pass it
+  fails every asking brief of a full scope as not fitting its budget, and
+  one that lowers either bound under kept lines fails them too. No test
+  reads a preferences gather that fails, for room, refusal or fit.
 
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
@@ -101,7 +276,6 @@ and catalogue-number reuse remain section 16's open questions.
   These can differ across a worker restart with Claude and OpenAI accounts;
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
-
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
@@ -152,17 +326,6 @@ and catalogue-number reuse remain section 16's open questions.
   excluding the remaining state writes, closing the project and cancellation
   operations. No reason is recorded.
 
-- **Departs:** 9.1: a transcript's load refused for want of a load slot
-  counts as transient, though the section pauses a task for room that frees
-  by itself and the request `brief-failure` of 2026-11-05 keeps a true capacity
-  refusal's pause: temper's root answers no slot as `TranscriptLoad::Failed`
-  (`temper-engine-domain/src/restart.rs`, `loads::begin`;
-  `archive.rs`, `transcript_failed`), one word for that and a page it cannot
-  take. So two conversations loading together can spend a transient try, and
-  the next run starts fresh from the tail rather than resuming (7.2). Shipped
-  `root.loads.loads` is 2 (`temper-service/src/limits.rs`); the two stories that
-  met it set 3 in their fixtures (`temper/tests/system/src/composed/agreement.rs`,
-  `temper/tests/real-loop/src/green_light.rs`). No reason is recorded.
 - **Design departs:** 10, from the request `note-parts` of 2026-11-05, decided
   by its plan's cut: a range names the revision it read in `recalled`, the tool's
   member that already says it, where the request has `revision`, so that one fact

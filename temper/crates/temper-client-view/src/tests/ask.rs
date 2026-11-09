@@ -196,6 +196,7 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
             w::StockWay::new(
                 &w::CEILINGS,
                 w::StockWayParts {
+                    headline: b"".as_slice().into(),
                     name: name.into(),
                     line: line.into(),
                     path: path(index),
@@ -212,7 +213,14 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
         .collect();
     w::WaysPanel::new(
         &w::CEILINGS,
-        w::WaysPanelParts { project: f::PROJECT, ways: List::from_boxed(ways), current, own: path(0), may_change },
+        w::WaysPanelParts {
+            words: None,
+            project: f::PROJECT,
+            ways: List::from_boxed(ways),
+            current,
+            own: path(0),
+            may_change,
+        },
     )
     .unwrap()
 }
@@ -230,7 +238,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Repair, b"repair"),
             (Code, S::Check, b"check"),
             (Person, S::Approve, b"you approve"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Bar, S::Branch, b"main"),
@@ -242,7 +250,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Review, b"review"),
             (Agent, S::Repair, b"repair"),
             (Code, S::Check, b"check"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Bar, S::Branch, b"main"),
@@ -256,7 +264,7 @@ fn path(index: usize) -> w::BranchPath {
             (Agent, S::Repair, b"repair"),
             (Bar, S::Branch, b"goal branch"),
             (Code, S::Check, b"check"),
-            (Code, S::Update, b"update"),
+            (Code, S::Conflict, b"conflict"),
             (Agent, S::Resolve, b"resolve"),
             (Code, S::Merge, b"merge"),
             (Code, S::Verify, b"verify"),
@@ -296,12 +304,12 @@ fn path(index: usize) -> w::BranchPath {
                 S::Prove => {
                     Some((w::Opens::Turn, "code · runs the test gates at the candidate", "the turn", "Gates", "unit"))
                 }
-                S::Update => Some((
+                S::Conflict => Some((
                     w::Opens::Queue,
-                    "code · brings the change up to date with its branch",
+                    "code · main has moved in a way that clashes with the change",
                     "the queue",
-                    "Does",
-                    "merges the branch's tip into the change, never by an agent",
+                    "When",
+                    "the change reaches the front of the queue: main is merged into it, never by an agent",
                 )),
                 S::Verify => Some((
                     w::Opens::Tier(
@@ -323,12 +331,17 @@ fn path(index: usize) -> w::BranchPath {
                 | S::Resolve
                 | S::Prepare
                 | S::Turn
-                | S::Branch => None,
+                | S::CatchUp
+                | S::Branch
+                | S::Design
+                | S::CloseOut => None,
             };
             let code = if *actor == Code { code } else { None };
             w::Stop::new(
                 &w::CEILINGS,
                 w::StopParts {
+                    needed: false,
+                    over: Box::default(),
                     actor: actor.clone(),
                     step: step.clone(),
                     words: (*words).into(),
@@ -444,6 +457,7 @@ fn requested_opening_keeps_order_roles_and_tokens() {
                 look::WAYS_LEGEND,
                 vec![
                     (Role::Text, vec![look::WAYS_KIND_AGENT]),
+                    (Role::Text, vec![look::WAYS_KIND_MAYBE]),
                     (Role::Text, vec![look::WAYS_KIND_PERSON]),
                     (Role::Text, vec![look::WAYS_KIND_CODE]),
                     (Role::Text, vec![look::WAYS_KIND_LINE]),
@@ -460,7 +474,7 @@ fn requested_opening_keeps_order_roles_and_tokens() {
             (look::WAYS_AXIS, b"From more of you to more of your agents"),
             (look::WAYS_PANEL, b"Agents review"),
             (look::WAYS_PATH, b"The way a change goes"),
-            (look::WAYS_LEGEND, b"An agent, a person, code; no merge tool above the dotted line"),
+            (look::WAYS_LEGEND, b"An agent, an agent when needed, a person, code; no merge tool above the dotted line"),
         ] {
             assert_eq!(styled(tree, style)[0].name.as_deref(), Some(name));
         }
@@ -480,7 +494,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"repair, an agent",
                 b"check, code",
                 b"you approve, a person",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"main, a branch",
@@ -492,7 +506,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"review, an agent",
                 b"repair, an agent",
                 b"check, code",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"main, a branch",
@@ -506,7 +520,7 @@ fn tabs_draw_in_read_order_with_only_the_shown_panel() {
                 b"repair, an agent",
                 b"goal branch, a branch",
                 b"check, code",
-                b"update, code",
+                b"conflict, code",
                 b"resolve, an agent",
                 b"merge, code",
                 b"verify, code",
@@ -809,6 +823,7 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
     let text = String::from_utf8_lossy(out.text.as_slice());
     assert_eq!(text.matches("Ways of working:").count(), 1, "{text}");
     assert_eq!(text.matches("The way a change goes:").count(), 1, "{text}");
+    assert!(text.contains("agent, when needed, person, code; no merge tool above"), "{text}");
     let mut rest = text.as_ref();
     for word in [
         "== Ask temper ==",
@@ -826,7 +841,7 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
         "review, an agent",
         "repair, an agent",
         "check, code",
-        "update, code",
+        "conflict, code",
         "resolve, an agent",
         "merge, code",
         "main, a branch",
@@ -838,6 +853,7 @@ fn terminal_prints_tabs_stops_card_legend_and_act_in_order() {
         "Can",
         "Asked to",
         "agent",
+        "when needed",
         "person",
         "code",
         "no merge tool above",
@@ -876,6 +892,85 @@ fn lede_uses_the_project_name() {
                 [format!("Pick a way for {}, or ask temper to build your own.", String::from_utf8_lossy(name))
                     .as_bytes()]
             );
+        }
+    }
+}
+
+fn draft_first() -> Ways {
+    let mut f = fixture(Some(CURRENT), true, false);
+    input(&mut f.root, pages::Act::WayTab { project: f::PROJECT, tab: 2 });
+    let mut view = f::browser_page_view(&f.root);
+    let use_this = named(view.tree(), Role::Button, b"Use this").id;
+    let action = crate::act(&mut view, use_this, Act::Press).expect("Use this is enabled");
+    assert_eq!(action, d::Action::Pages(pages::Act::UseWay { project: f::PROJECT, way: 2 }));
+    let out = event(&mut f.root, d::Event::Act { action });
+    let attempt = out
+        .iter()
+        .find_map(|request| {
+            let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Send { attempt, .. } },
+            } = request
+            else {
+                return None;
+            };
+            Some(*attempt)
+        })
+        .expect("Use this sends the way's settings");
+    up(
+        &mut f.root,
+        Up::Answer {
+            attempt,
+            envelope: skein_lib::RequestEnvelope::Final,
+            why: None,
+            answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::SettingsChanged(
+                c::OutcomeSettingsChanged { revision: NEWEST },
+            )))),
+        },
+    );
+    settings_document(&mut f, true);
+    show(&mut f, &panel(Some(2), true));
+    f
+}
+
+#[test]
+fn asking_composer_uses_the_message_bound_for_send_and_enter() {
+    let mut f = draft_first();
+    let bound = usize::try_from(f.root.pages().me(f.root.client()).unwrap().words_bytes).unwrap();
+    let mut limits = f::domain_limits();
+    limits.client.domain.long_text = 10_000;
+    for browser in [false, true] {
+        let words = if browser { f::browser_words() } else { f::words() };
+        let envelope = crate::Limits::of(&limits, &words).unwrap();
+        let mut view = crate::View::new(&envelope, &limits, words, f::FORGE);
+        for length in [257, bound, bound + 1, 10_001, 257] {
+            let words = vec![b'a'; length].into_boxed_slice();
+            d::step(
+                &mut f.root,
+                &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+                d::Event::Act { action: d::Action::Pages(pages::Act::ChatWords { words: words.clone() }) },
+                &mut Queue::uncapped(),
+            );
+            f::build(&mut view, &f.root);
+            let entry = named(view.tree(), Role::TextArea, ENTRY);
+            assert_eq!(entry.value.as_ref().unwrap().text.as_ref(), &words[..length.min(10_000)]);
+            assert_eq!(entry.states.as_slice().contains(&State::SubmitsOnEnter), length <= bound);
+            let entry = entry.id;
+            let send = named(view.tree(), Role::Button, b"Send");
+            assert_eq!(disabled(send), length > bound);
+            let send = send.id;
+            let expected = (length <= bound).then_some(d::Action::Pages(pages::Act::StartChat));
+            assert_eq!(crate::act(&mut view, entry, Act::Submit), expected);
+            assert_eq!(crate::act(&mut view, send, Act::Press), expected);
+            let line = format!(
+                "That's {} character{} over what one message holds.",
+                String::from_utf8_lossy(&crate::words::grouped(u64::try_from(length.saturating_sub(bound)).unwrap())),
+                if length == bound + 1 { "" } else { "s" }
+            );
+            if length > bound {
+                named(view.tree(), Role::Status, line.as_bytes());
+            } else {
+                assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("over what one message holds"));
+            }
         }
     }
 }
@@ -983,7 +1078,7 @@ fn settings_is_current_in_the_rail_and_phone_tabs() {
                 assert_eq!(current, [Some(b"Ask temper".as_slice())]);
                 if style == look::TABBAR {
                     let tabs = styled(view.tree(), style);
-                    assert_eq!(tabs.iter().filter(|node| node.role == Role::Link).count(), 5);
+                    assert_eq!(tabs.iter().filter(|node| node.role == Role::Link).count(), 4);
                     let ask = tabs
                         .iter()
                         .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Ask temper"))
@@ -1001,10 +1096,12 @@ fn unlisted_project_says_what_home_says_in_both_shells() {
     let (root, _, _) = f::root_at(Address::Ask { project: UNKNOWN }, &f::domain_limits());
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert!(String::from_utf8_lossy(&f::main_text(view.tree())).contains("Project 99 is not one of yours."));
-        let node = named(view.tree(), Role::Link, b"Chats").id;
+        let node = named(view.tree(), Role::Link, b"Work").id;
         assert_eq!(
             crate::act(&mut view, node, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go { address: Address::Chats { filter: d::ChatsFilter::All } }))
+            Some(d::Action::Pages(pages::Act::Go {
+                address: Address::Work { project: f::PROJECT, filter: d::WorkFilter::All }
+            }))
         );
         assert!(f::find(view.tree(), Role::TextArea, ENTRY).is_none());
         assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::STARTER)));
@@ -1153,7 +1250,7 @@ fn asking_chat_picker_applies_to_its_next_run() {
         let byline = named(view.tree(), Role::Disclosure, b"Model");
         assert_eq!(byline.description.as_deref(), Some(b"chosen".as_slice()));
         assert!(byline.styles.as_slice().contains(&look::MODEL));
-        let settings = named(view.tree(), Role::Link, b"Settings").id;
+        let settings = named(view.tree(), Role::Link, b"How work runs").id;
         assert_eq!(crate::href(&mut view, settings).as_deref(), Some(b"/projects/1/settings".as_slice()));
         let id = named(view.tree(), Role::Button, b"second").id;
         let action = crate::act(&mut view, id, Act::Press).expect("picker action");

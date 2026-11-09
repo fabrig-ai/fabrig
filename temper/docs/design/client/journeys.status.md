@@ -15,6 +15,15 @@ three requests remains section 10's after-landing work; replayed prints
 establish no rendered equality. The unrelated retained `chat-draft`
 inventory and redaction gaps below remain.
 
+Section 8.1 has no known gap in a save's control found outside a menu:
+`temper-client-shell-web`'s `journey.rs`, `control`, skips a node under
+`Role::Menu`, and `a_saves_control_skips_a_menu_item_for_the_pages_link`
+holds it. By plan `ui-p1-rail`, `chat-draft` starts on Chats and presses
+its "+ New chat", and its prints, `project-landing`'s and
+`welcome-playground`'s draw the new rail (`README.md`, 5.3);
+`chat-draft`'s later renewal for opening history stands on that plan's
+code.
+
 Section 7 has no known gap in refreshing either request branch:
 `scripts/look-refresh.sh` takes `look-requests` and `tui-requests`, using
 the checked-out branch's remote-tracking lease, requests over
@@ -73,7 +82,10 @@ Section 9's stock removal is reflected in `welcome-set-up`,
 is current too (`tui/journeys.status.md`). `chat-draft` retains its old
 stock inventory, including template 3 and charter 3: its task numbers
 moved, so temper/ui's answer of 2026-11-08 leaves its new walk and
-recording to section 10's after-landing renewal.
+recording to section 10's after-landing renewal. Its recording also
+predates template 6: its new chat with a draft starts the project's chat
+template, where a box now starts a design session
+(`README.md`, 3.5, *A new chat*), which the same renewal records.
 
 - **Not yet:**
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.

@@ -81,7 +81,7 @@ pub struct Joint {
     /// Worker assignments retained for assertions about requester notifications.
     pub assignments: Vec<engine::Assignment>,
     trial_config: Option<engine::Config>,
-    reply_pieces: Option<&'static [&'static [u8]]>,
+    reply_script: Option<ReplyScript>,
     held_reply: Option<HeldReply>,
     hold_playground_read: bool,
     held_playground_reads: VecDeque<(ClientId, Event)>,
@@ -117,6 +117,11 @@ pub enum HostAnswer {
     See(Box<engine::SeeAnswer>),
     Tool(engine::CallAnswer),
 }
+enum ReplyScript {
+    AtOnce(&'static [u8]),
+    Pieces(&'static [&'static [u8]]),
+}
+
 struct HeldReply {
     task: u64,
     attempt: u64,
@@ -125,6 +130,52 @@ struct HeldReply {
     next: usize,
     words: Vec<u8>,
 }
+fn split_chat_allowance(config: &mut engine::Config, chats: u32) {
+    if chats > 1 {
+        for template in &mut config.core.defaults.templates {
+            if template.number == 5 {
+                template.budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(500 / u64::from(chats)) };
+            }
+        }
+    }
+}
+
+fn asking_limits(projects: u32, chats: u32) -> engine::Limits {
+    let mut engine_limits = engine_limits();
+    engine_limits.people.projects = projects + 1;
+    engine_limits.authority.projects = projects;
+    engine_limits.forge.judge_projects = projects;
+    engine_limits.people.holdings = projects + 1;
+    engine_limits.tasks.charters = 2;
+    engine_limits.tasks.executor_kinds = 2;
+    engine_limits.authority.executors = 2;
+    engine_limits.authority.roles = 2;
+    engine_limits.documents.executors = 2;
+    engine_limits.templates = 3;
+    engine_limits.people.initial_owners = projects + 1;
+    engine_limits.people.requests = 16;
+    engine_limits.people.words = 512;
+    engine_limits.tasks.message_bytes = 512;
+    engine_limits.tasks.inbox_bytes = 1024;
+    engine_limits.journal.result_bytes = 512;
+    // Stock charter 11's instructions and framed run policy need 10,766 bytes.
+    engine_limits.journal.run_bytes = 12_288;
+    // A stored stock charter 11 has 9,470 payload bytes on settings reads.
+    engine_limits.loads.transcript_bytes = 9_470;
+    engine_limits.documents.text_bytes = 4096;
+    limits_for_chats(&mut engine_limits, chats);
+    engine_limits
+}
+
+fn limits_for_chats(limits: &mut engine::Limits, chats: u32) {
+    limits.tasks.tasks = limits.tasks.tasks.max(chats);
+    limits.tasks.project_tasks = limits.tasks.project_tasks.max(chats);
+    limits.people.inbox_tasks = limits.people.inbox_tasks.max(chats * 2);
+    if chats > 1 {
+        limits.documents.rows = 2;
+    }
+}
+
 #[must_use]
 pub fn engine_limits() -> engine::Limits {
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
@@ -403,12 +454,18 @@ impl Joint {
         );
         (front, root)
     }
+    /// Commit the next assigned chat's reply before the client can read its activity.
+    pub fn reply_at_once(&mut self, words: &'static [u8]) {
+        assert!(self.reply_script.is_none() && self.held_reply.is_none());
+        self.reply_script = Some(ReplyScript::AtOnce(words));
+    }
+
     /// The next chat run's reply, written in these pieces: the first is sent at the
     /// run's assignment and each later part at one `release_reply` (testing.md 6.3).
     pub fn reply_in_pieces(&mut self, pieces: &'static [&'static [u8]]) {
-        assert!(self.reply_pieces.is_none() && self.held_reply.is_none(), "one scripted reply at a time");
+        assert!(self.reply_script.is_none() && self.held_reply.is_none(), "one scripted reply at a time");
         assert!(!pieces.is_empty() && pieces.iter().all(|piece| !piece.is_empty()), "a reply has nonempty pieces");
-        self.reply_pieces = Some(pieces);
+        self.reply_script = Some(ReplyScript::Pieces(pieces));
     }
 
     /// Send the held reply's next part: its next piece, or, once every piece is sent,
@@ -583,11 +640,11 @@ impl Joint {
         joint
     }
 
-    /// Ask temper's charter and template with the TUI's pasted-link sign-in
-    /// (temper/docs/design/client/README.md, 10).
+    /// Four retained Ask temper chats sharing the fixture's allowance, with two-row
+    /// activity pages and the TUI's pasted-link sign-in (client/README.md, 10).
     #[must_use]
     pub fn with_asking_printed_link(seed: u64, limits: client::Limits) -> Self {
-        let mut joint = Self::with_asking(seed, limits, false);
+        let mut joint = Self::asking_chats(seed, limits, false, 1, 4);
         joint.offer_printed_link(limits);
         joint
     }
@@ -750,29 +807,13 @@ impl Joint {
     /// Asking proposals read across this many seeded projects.
     #[must_use]
     pub fn with_asking_projects(seed: u64, limits: client::Limits, member: bool, projects: u32) -> Self {
-        let mut engine_limits = engine_limits();
-        engine_limits.people.projects = projects + 1;
-        engine_limits.authority.projects = projects;
-        engine_limits.forge.judge_projects = projects;
-        engine_limits.people.holdings = projects + 1;
-        engine_limits.tasks.charters = 2;
-        engine_limits.tasks.executor_kinds = 2;
-        engine_limits.authority.executors = 2;
-        engine_limits.authority.roles = 2;
-        engine_limits.documents.executors = 2;
-        engine_limits.templates = 3;
-        engine_limits.people.initial_owners = projects + 1;
-        engine_limits.people.requests = 16;
-        engine_limits.people.words = 512;
-        engine_limits.tasks.message_bytes = 512;
-        engine_limits.tasks.inbox_bytes = 1024;
-        engine_limits.journal.result_bytes = 512;
-        // Stock charter 11's instructions and framed run policy need 9,861 bytes.
-        engine_limits.journal.run_bytes = 9_861;
-        // A stored stock charter 11 has 8,565 payload bytes on settings reads.
-        engine_limits.loads.transcript_bytes = 8_565;
-        engine_limits.documents.text_bytes = 4096;
+        Self::asking_chats(seed, limits, member, projects, 1)
+    }
+
+    fn asking_chats(seed: u64, limits: client::Limits, member: bool, projects: u32, chats: u32) -> Self {
+        let engine_limits = asking_limits(projects, chats);
         let mut config = fixtures::asking_configuration(seed, member);
+        split_chat_allowance(&mut config, chats);
         let policy = config.core.seed_projects[0].policy.clone();
         config.core.seed_projects = (1..=projects)
             .map(|number| jig_domain_core::SeedProject {
@@ -1466,7 +1507,7 @@ impl Joint {
             me_deliveries: 0,
             assignments: Vec::new(),
             trial_config: None,
-            reply_pieces: None,
+            reply_script: None,
             held_reply: None,
             hold_playground_read: false,
             held_playground_reads: VecDeque::new(),
@@ -2201,6 +2242,34 @@ impl Joint {
             self.engine.store.pending
         );
     }
+    fn assigned_reply(&mut self, assignment: &engine::Assignment) {
+        self.assignments.push(assignment.clone());
+        let read = assignment.messages.last().map(|word| word.number);
+        match self.reply_script.take() {
+            Some(ReplyScript::AtOnce(words)) => {
+                self.finish_reply(assignment.task, assignment.attempt, read, Some(words));
+            }
+            Some(ReplyScript::Pieces(pieces)) => {
+                self.held_reply = Some(HeldReply {
+                    task: assignment.task,
+                    attempt: assignment.attempt,
+                    read,
+                    pieces,
+                    next: 0,
+                    words: Vec::new(),
+                });
+                assert!(self.release_reply(), "the assignment holds its first piece");
+            }
+            None => {
+                if self.answer_runs {
+                    let words = self.reply_runs.then(|| format!("Answered, run {}", self.runs_answered + 1));
+                    self.finish_reply(assignment.task, assignment.attempt, read, words.as_deref().map(str::as_bytes));
+                } else {
+                    self.hosting.insert(assignment.task, assignment.attempt);
+                }
+            }
+        }
+    }
     fn drain(&mut self) {
         self.settle();
         for models in std::mem::take(&mut self.engine.protocol.catalogues) {
@@ -2255,24 +2324,7 @@ impl Joint {
                 );
             }
             if let engine::Delivery::Assigned { assignment, .. } = &delivery {
-                self.assignments.push(assignment.clone());
-                let read = assignment.messages.last().map(|word| word.number);
-                if let Some(pieces) = self.reply_pieces.take() {
-                    self.held_reply = Some(HeldReply {
-                        task: assignment.task,
-                        attempt: assignment.attempt,
-                        read,
-                        pieces,
-                        next: 0,
-                        words: Vec::new(),
-                    });
-                    assert!(self.release_reply(), "the assignment holds its first piece");
-                } else if self.answer_runs {
-                    let words = self.reply_runs.then(|| format!("Answered, run {}", self.runs_answered + 1));
-                    self.finish_reply(assignment.task, assignment.attempt, read, words.as_deref().map(str::as_bytes));
-                } else {
-                    self.hosting.insert(assignment.task, assignment.attempt);
-                }
+                self.assigned_reply(assignment);
             }
             self.packet(engine::Request::Party(engine::PartyRequest::Deliver(delivery)));
         }
@@ -2456,7 +2508,14 @@ impl Front<Temper> for Joint {
         std::mem::take(&mut self.callbacks)
     }
     fn next_due(&self) -> Option<Time> {
-        self.offline_until.or(self.due).or_else(|| Some(self.now.saturating_add(Duration::from_millis(100))))
+        self.offline_until.or(self.due).or_else(|| {
+            // Engine replies left by the component are ready work for the next poll.
+            if self.engine.delivered.is_empty() && self.engine.immediate.is_empty() {
+                Some(self.now.saturating_add(Duration::from_millis(100)))
+            } else {
+                Some(self.now)
+            }
+        })
     }
     fn observed(&mut self) -> Vec<Observed> {
         std::mem::take(&mut self.observed)

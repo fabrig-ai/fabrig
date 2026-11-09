@@ -216,10 +216,20 @@ impl Core {
 
     /// Check a party role's current note scope, including connector paths.
     #[must_use]
-    pub fn note_authorized(&self, project: u32, role: Option<people::Role>, scope: &people::NoteScope) -> bool {
+    pub fn note_authorized(
+        &self,
+        person: u64,
+        project: u32,
+        role: Option<people::Role>,
+        scope: &people::NoteScope,
+    ) -> bool {
+        if let people::NoteScope::Party { party } = scope {
+            return project == people::DEPLOYMENT && crate::reads::party::scope_visible(self, person, *party);
+        }
         let Some(role) = role else { return false };
         let Some(policy) = self.authority.role(project, role.number()) else { return false };
         match scope {
+            people::NoteScope::Party { .. } => unreachable!("party scope checked without a role"),
             people::NoteScope::Deployment => policy.authority.notes.0 & 4 != 0,
             people::NoteScope::Project => policy.authority.notes.0 & 2 != 0,
             people::NoteScope::Goal { .. } => policy.authority.notes.0 & 1 != 0,

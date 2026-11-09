@@ -1,11 +1,11 @@
 # Status
 
-2026-11-08. Where skein's code lags or departs from its design, and its
+2026-11-09. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. The full-screen
 shell's renderer, keys, drawing and simulated terminal are built, with
 panic restoration and simulated resizes. Rules, border-end titles, bands,
-options menus, marks, unlabelled fields and paging by the visible body
-are present, with end following and Escape released after the background
+options menus, marks, unlabelled fields, a token's focused value's
+paint and paging by the visible body are present, with end following and Escape released after the background
 wait. Log-edge reporting and the other rendering and input extensions
 remain deferred (`ui-screen.md`, section 10; `ui-screen.status.md`). The kernel's records of a tree's metadata,
 the filesystem's status and btrfs's
@@ -30,7 +30,7 @@ suite's logins have no design (`skein-live`), five of its provider
 stories being manual, run by the owner (`llm.md`). Most carriers still
 print the bytes they hold, credentials among them on known paths
 (`lib.md`, `oauth.md`), as does a server's written head (`http.md`). The code departs
-in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
+in `skein-playground`'s manifest and its session log's version (`playground.md`). An owner may ask a call
 to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
 fake LLM peer to keep what it read (`fake-llm.md`).
 Provider-list parsing, the standalone exchange and fake list replies are
@@ -79,8 +79,10 @@ saving (`tls.md`, section 4; `forge-connection.md`, sections 3.5 and 5.2;
 `fake-forge.md`, section 10.1; `testing.md`, sections 6, 7 and 9).
 Remaining allocator, fixture, product and startup cost work, and a
 profiler supporting the process operations, are deferred (`testing.md`,
-sections 5, 7 and 9). The test-only fork kit holds exhaustive crash sweeps'
-prefix once; checked allocation layout and native fork costs remain
+sections 5, 7 and 9). The codec's step tests count a reused pass's
+allocations, but one of skein-lib's and one of skein-ui's still show a
+table kept by its address (`testing.md`, section 5). The test-only fork
+kit holds exhaustive crash sweeps' prefix once; checked allocation layout and native fork costs remain
 deferred there, with their measurements in temper's deployment-world account.
 The state machines of forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm and
@@ -100,7 +102,13 @@ development with no sign-off, and no run of the browser tier on record holds the
 loader, or a log's reading stories, within its budget. A read that failed at a log's head
 is not asked for again on a move back within its reach (`ui-web.md`). The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
-a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
+a decoder (`cargo fuzz`); of `cli.md`, what a tree doesn't follow yet is
+its checks' exceptions and the `expect`s naming a round or milestone
+(section 9), and no binary has a table yet, so none has checks 6 and 7.
+Check 5 counts a declared variable as read or set wherever a tracked
+file outside `docs/` names it, its own table's row among them, so a
+declared variable nothing reads or sets passes it. `shell.status.md` and
+`tools/lints/design.status.md` hold where its mechanism departs. Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, the design departs from
 `redb.md`: the store is `kv.md`'s own machine, and `progress-value.md`'s
 status holds a departure the user has not answered, a progress's text

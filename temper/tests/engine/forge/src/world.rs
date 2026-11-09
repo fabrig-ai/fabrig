@@ -64,6 +64,7 @@ pub const LIMITS: top::Limits = top::Limits {
     trees_in_flight: 2,
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
+    decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,
@@ -109,7 +110,7 @@ struct ReadScript {
 
 /// Scripted root and forge protocol surrounding the connector top.
 pub struct World {
-    top: top::Domain,
+    pub(crate) top: top::Domain,
     env: Env<top::Limits>,
     forge: forge::Domain,
     forge_env: Env<forge::Config>,

@@ -21,7 +21,7 @@ pub(crate) fn proposal_text(proposal: c::ProposalKey, out: &mut Text) {
 }
 pub(crate) fn text(
     value: &c::ReadValue,
-    requested: Option<u64>,
+    call: &crate::jig::call::Call,
     limits: &Limits,
     vocabulary: &dyn Parts,
     out: &mut Text,
@@ -33,6 +33,17 @@ pub(crate) fn text(
     if let c::ReadValue::Setting(document) = value
         && let c::Setting::Application { .. } = document.setting
     {
+        if let c::Setting::Application { kind: 11, .. } = document.setting
+            && document.value.is_none()
+        {
+            settings_form::render::text(
+                &a::form_read_value(value),
+                crate::jig::call::number(call, 0),
+                &a::limits(limits),
+                out,
+            );
+            return;
+        }
         setting_text(document.setting, vocabulary, out);
         out.put(b", revision ");
         out.number(u64::from(document.revision));
@@ -42,13 +53,24 @@ pub(crate) fn text(
             None => out.put(b"none"),
         }
         out.put(b"\n");
-        settings_form::render::stock_text(&a::form_read_value(value), out);
+        if call.tool != crate::jig::rows::SETTING_AT
+            || crate::jig::call::number(call, if call.form == 2 { 3 } else { 2 }).is_none()
+        {
+            settings_form::render::stock_text(&a::form_read_value(value), out);
+        }
+        if let c::Setting::Application { kind: 9, .. } = document.setting
+            && document.value.is_some()
+            && let Some(state) = &document.application
+            && state.follows == c::ApplicationFollows::Default
+        {
+            out.put(b"the stock\n");
+        }
         if let Some(state) = &document.application {
             application_text(state, out);
         }
         return;
     }
-    settings_form::render::text(&a::form_read_value(value), requested, &a::limits(limits), out);
+    settings_form::render::text(&a::form_read_value(value), crate::jig::call::number(call, 0), &a::limits(limits), out);
 }
 
 pub(super) fn edit_word(edit: &c::RevisionItemEdit) -> &'static [u8] {
@@ -160,6 +182,12 @@ pub(super) fn named_value_inline(
     vocabulary: &dyn Parts,
     out: &mut Text,
 ) {
+    if let c::Setting::Application { kind, .. } = setting
+        && let c::SettingValue::Application(bytes) = value
+        && settings_form::render::application_value_text(kind, bytes, out)
+    {
+        return;
+    }
     let bounds =
         skein_json::writer::Limits { depth: 32, length: u32::try_from(limits.result_bytes).expect("result bound") };
     let mut measure = Encoder::measure(&bounds);

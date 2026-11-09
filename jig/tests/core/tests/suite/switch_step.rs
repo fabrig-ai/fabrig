@@ -242,10 +242,18 @@ fn refuses_before_switch(mut world: World) {
     let source = world.store.generation_contents(b"generations/1");
     let last = world.store.applied;
     let assignments = world.assignments.clone();
-    let linked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        world.restart_with_patch_sets(f::SEED, false, f::AFTER);
-    }));
-    assert!(linked.is_err(), "a stored record links its owner before switching");
+    world.restart_with_patch_sets(f::SEED, false, f::AFTER);
+    assert_eq!(
+        world.domain.start_failure(),
+        Some((
+            Some(core::start::Phase::Link),
+            core::start::Failure::Link {
+                record: core::Key::Tasks(jig_domain_tasks::Key::Live(1)),
+                linked: core::Linked::Project(PROJECT),
+            }
+        ))
+    );
+    assert!(!world.domain.ready());
     assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Link));
     assert_eq!(world.store.switch_requests, 0);
     assert_eq!(world.store.file_bytes(b"active"), Some(b"1\n".to_vec()));
@@ -266,7 +274,6 @@ fn refuses_before_switch(mut world: World) {
     // including every map, through the earlier build's actual store open.
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
     assert!(!world.store.generation_pending);
-    std::panic::resume_unwind(linked.expect_err("required project link"));
 }
 
 const ORPHAN_SOURCE: u32 = 97;
@@ -283,13 +290,22 @@ fn orphan_source() -> root::Record {
 }
 
 #[test]
-fn an_account_source_without_its_account_panics_at_link_on_the_active_generation() {
+fn an_account_source_without_its_account_refuses_at_link_on_the_active_generation() {
     let mut world = before();
     world.seed(Box::new([orphan_source()]));
-    let linked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
-    }));
-    assert!(linked.is_err(), "the active generation also links each account source");
+    world.broken();
+    world.restart_with_patch_sets(f::SEED, false, f::BEFORE);
+    assert_eq!(
+        world.domain.start_failure(),
+        Some((
+            Some(core::start::Phase::Link),
+            core::start::Failure::Link {
+                record: core::Key::Accounts(jig_domain_accounts::Key::Source { account: 98, number: ORPHAN_SOURCE }),
+                linked: core::Linked::Record(core::Key::Accounts(jig_domain_accounts::Key::Account { number: 98 })),
+            }
+        ))
+    );
+    assert!(!world.domain.ready());
     assert_eq!(world.domain.start_phase(), Some(core::start::Phase::Link));
     assert_eq!(world.domain.accounts().restore_limit(), None);
     assert!(world.domain.accounts().source(ORPHAN_SOURCE).is_some(), "the source is retained until its link is made");
@@ -300,8 +316,7 @@ fn an_account_source_without_its_account_panics_at_link_on_the_active_generation
 }
 
 #[test]
-#[should_panic(expected = "Tasks(Live(1)) links missing project 1")]
-fn a_task_naming_a_missing_project_panics_before_the_switch() {
+fn a_task_naming_a_missing_project_refuses_before_the_switch() {
     let mut world = before();
     let row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
     assert_eq!(row.number, 1);

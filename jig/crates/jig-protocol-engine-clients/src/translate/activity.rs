@@ -101,6 +101,7 @@ pub fn page_turn(
     task: u64,
     value: &t::ActivityLine,
     supplied: Option<&reads::PageTurn>,
+    private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::DecodedActivityLine, w::Problem> {
     let invalid = w::Problem { path: w::Path::DecodedActivityLineDecoded, reason: skein_codec::Reason::Tag };
@@ -111,11 +112,16 @@ pub fn page_turn(
         t::Line::Turn { attempt, turn, .. } => {
             let supplied = supplied.ok_or(invalid)?;
             match supplied {
-                reads::PageTurn::Carried(record) => {
+                reads::PageTurn::Carried(record) | reads::PageTurn::Withheld(record) => {
                     if (record.task, record.attempt, record.turn) != (task, *attempt, *turn) {
                         return Err(invalid);
                     }
-                    Some(archive(record, limits)?)
+                    let projection = match supplied {
+                        reads::PageTurn::Withheld(_) => Some(private),
+                        reads::PageTurn::Carried(_) => None,
+                        reads::PageTurn::TooLarge { .. } | reads::PageTurn::Unread => unreachable!("carried turn"),
+                    };
+                    Some(archive(record, projection, limits)?)
                 }
                 reads::PageTurn::TooLarge { spent, read, at, bytes } => Some(w::ArchivedTurn::new(
                     limits,
@@ -152,13 +158,38 @@ pub fn page_turn(
 }
 
 /// The same immutable archive serves a page and a single-turn read.
-pub fn archive(record: &jig_domain_core::TurnRecord, limits: &w::Limits) -> Result<w::ArchivedTurn, w::Problem> {
+pub fn archive(
+    record: &jig_domain_core::TurnRecord,
+    private: Option<&crate::Private>,
+    limits: &w::Limits,
+) -> Result<w::ArchivedTurn, w::Problem> {
     let path = w::Path::TurnCarriedBytes;
     if record.transcript.len()
         > skein_lib::length::usize_of(limits.turn_carried_bytes.min(w::CEILINGS.turn_carried_bytes))
     {
         return Err(w::Problem { path, reason: skein_codec::Reason::Bound });
     }
+    let bytes = match private {
+        None => bytes::copy_of(&record.transcript),
+        Some(private) => {
+            let bound = limits.turn_carried_bytes.min(w::CEILINGS.turn_carried_bytes);
+            let projection = jig_protocol_transcript::Limits::new(
+                bound,
+                jig_protocol_transcript::TurnLimits { messages: bound, blocks: bound, text: bound, outcome: bound },
+            );
+            match jig_protocol_transcript::withhold(&projection, &record.transcript, private) {
+                Ok(bytes) => bytes,
+                Err(jig_protocol_transcript::Undecodable::TooLarge) => {
+                    return Err(w::Problem { path, reason: skein_codec::Reason::Bound });
+                }
+                Err(
+                    jig_protocol_transcript::Undecodable::Version { .. }
+                    | jig_protocol_transcript::Undecodable::Malformed
+                    | jig_protocol_transcript::Undecodable::Unknown,
+                ) => return Err(w::Problem { path, reason: skein_codec::Reason::Tag }),
+            }
+        }
+    };
     w::ArchivedTurn::new(
         limits,
         w::ArchivedTurnParts {
@@ -167,10 +198,7 @@ pub fn archive(record: &jig_domain_core::TurnRecord, limits: &w::Limits) -> Resu
             cumulative: record.spent,
             read: record.read,
             at: record.at.as_nanos(),
-            turn: w::TurnBytes::Carried(w::TurnCarried::new(
-                limits,
-                w::TurnCarriedParts { bytes: bytes::copy_of(&record.transcript) },
-            )?),
+            turn: w::TurnBytes::Carried(w::TurnCarried::new(limits, w::TurnCarriedParts { bytes })?),
         },
     )
 }

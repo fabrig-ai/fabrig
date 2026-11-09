@@ -16,7 +16,7 @@ pub struct Facts {
     pub now: Time,
     pub wall: Wall,
     pub size: Size,
-    pub scheme: Scheme,
+    pub scheme: Option<Scheme>,
     pub background: Option<Rgb>,
     pub address: Box<[u8]>,
     pub local: bool,

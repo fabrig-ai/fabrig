@@ -220,7 +220,18 @@ fn the_themes_are_valid_and_name_every_look() {
             ] {
                 let style = Style { owner: look::OWNER, token };
                 let active_name = if style == look::COMMAND { Some(Paint::NONE) } else { None };
-                let want = StyleLook { style, paint, align, band, label, mark, described, active_name, spaced };
+                let want = StyleLook {
+                    style,
+                    paint,
+                    align,
+                    band,
+                    label,
+                    mark,
+                    described,
+                    active_name,
+                    focused_value: if style == look::FIELD { Some(Paint::NONE) } else { None },
+                    spaced,
+                };
                 let mut found = None;
                 for row in &theme.styles {
                     if row.style == style {
@@ -334,5 +345,29 @@ fn the_band_steps_toward_the_ink_and_saturates() {
         (rgb(0x00, 0xff, 0xff), rgb(0x00, 0xeb, 0xeb)),
     ] {
         assert_eq!(theme::band(background), expected, "{background:?}");
+    }
+}
+
+#[test]
+fn a_theme_choice_prints_reads_and_draws_its_scheme() {
+    use theme::{THEME_KEY, ThemeChoice};
+    assert_eq!(THEME_KEY, b"theme");
+    assert_eq!(ThemeChoice::ALL, [ThemeChoice::Auto, ThemeChoice::Light, ThemeChoice::Dark]);
+    for (choice, bytes) in
+        [(ThemeChoice::Auto, b"auto".as_slice()), (ThemeChoice::Light, b"light"), (ThemeChoice::Dark, b"dark")]
+    {
+        assert_eq!(choice.print(), bytes);
+        assert_eq!(ThemeChoice::read(bytes), choice);
+        for terminal in [None, Some(Scheme::Light), Some(Scheme::Dark)] {
+            let expected = match choice {
+                ThemeChoice::Auto => terminal.unwrap_or(Scheme::Dark),
+                ThemeChoice::Light => Scheme::Light,
+                ThemeChoice::Dark => Scheme::Dark,
+            };
+            assert_eq!(choice.scheme(terminal), expected, "{choice:?}, {terminal:?}");
+        }
+    }
+    for bytes in [b"".as_slice(), b"junk", b"Light", b"dark\n"] {
+        assert_eq!(ThemeChoice::read(bytes), ThemeChoice::Auto);
     }
 }

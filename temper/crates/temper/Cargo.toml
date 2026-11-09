@@ -16,7 +16,8 @@ test = false
 record = ["temper-client-shell-tui/record"]
 
 [dependencies]
-temper-fetch-shell.workspace = true
+temper-engine-shell.workspace = true
+temper-launcher.workspace = true
 temper-shell.workspace = true
 settings-form.workspace = true
 temper-docs.workspace = true
@@ -32,7 +33,7 @@ temper-client-shell-cli.workspace = true
 temper-client-tools.workspace = true
 skein-forge.workspace = true
 jig-client-protocol-link.workspace = true
-temper-service.workspace = true
+temper-service = { workspace = true, features = ["worker"] }
 temper-box.workspace = true
 temper-forge-setup.workspace = true
 temper-forge-setup-shell.workspace = true

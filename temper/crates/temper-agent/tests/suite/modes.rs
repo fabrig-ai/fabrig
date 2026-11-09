@@ -1,4 +1,4 @@
-//! Each mode through main (temper/docs/design/protocol/README.md, 4.1).
+//! Each mode through main (temper/docs/design/protocol/README.md, 4.3).
 use smith_protocol_program::{Status, status};
 use std::{
     ffi::OsString,

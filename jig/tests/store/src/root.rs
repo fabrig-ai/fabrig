@@ -5,12 +5,15 @@ use jig_domain_tasks as tasks;
 use jig_protocol_store::{Limits, Write, sizes};
 use skein_lib::{Duration, Wall};
 pub const LIVE: u64 = 21;
+pub const LINKED_PERSON: u64 = 2;
 pub const DEPLOYMENT: [u8; 16] = [18; 16];
 pub const APPLICATION: sizes::Application = sizes::Application { version: 1, key: 16, value: 64 };
 
 pub const NOTES_LIMITS: jig_domain_notes::Limits = jig_domain_notes::Limits {
     scopes: 2,
     entries_per_scope: 2,
+    party_entries: 2,
+    party_bytes: 32,
     pattern_bytes: 16,
     description_bytes: 32,
     body_bytes: 64,
@@ -159,6 +162,7 @@ pub const CORE_LIMITS: core::Limits = core::Limits {
         attempts: 128,
         plan: 128,
         notes: 64,
+        preferences: 64,
     },
     accounts: jig_domain_accounts::Limits {
         accounts: 1,
@@ -457,4 +461,36 @@ pub fn record_turn_commit(number: u64, turn: core::TurnRecord) -> Box<[Write]> {
 #[must_use]
 pub fn plain_commit(number: u64) -> Box<[Write]> {
     Box::new([Write::Save(header(number)), Write::Save(live_task(LIVE + 1))])
+}
+
+/// A linked person/task pair for crash rows (protocol/store.md, 14).
+#[must_use]
+pub fn person(number: u64) -> core::Record {
+    core::Record::People(people::Stored::Person {
+        number,
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: number.to_be_bytes().into() },
+            login: b"caller".as_slice().into(),
+            name: b"Caller".as_slice().into(),
+        },
+    })
+}
+
+/// Alternating commits retain the person before the task that names it.
+#[must_use]
+pub fn linked_commit(number: u64, person_commit: bool) -> Box<[Write]> {
+    let row = if person_commit {
+        let core::Record::People(people::Stored::Person { number: person, mut identity }) = person(LINKED_PERSON)
+        else {
+            unreachable!("person fixture")
+        };
+        identity.name = format!("Caller {number}").into_bytes().into_boxed_slice();
+        core::Record::People(people::Stored::Person { number: person, identity })
+    } else {
+        let core::Record::Tasks(tasks::Stored::Live(mut task)) = live_task(LIVE) else { unreachable!("task fixture") };
+        task.requester = tasks::Party::Person(LINKED_PERSON);
+        task.spec.words = format!("request {number}").into_bytes().into_boxed_slice();
+        core::Record::Tasks(tasks::Stored::Live(task))
+    };
+    Box::new([Write::Save(header(number)), Write::Save(row)])
 }

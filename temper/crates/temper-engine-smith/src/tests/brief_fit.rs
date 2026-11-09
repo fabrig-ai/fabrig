@@ -2,8 +2,9 @@
 #![expect(clippy::disallowed_methods, reason = "fixtures validate the retained UTF-8 prefix")]
 
 use super::{assignment, run};
-use crate::{charter, fit_brief};
+use crate::charter;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
+use temper_protocol_brief::fit_brief;
 
 fn selected() -> run::Charter {
     let mut selected = charter(&assignment());
@@ -222,7 +223,7 @@ fn every_ownership_allowance_keeps_the_fixed_charter_and_fits_the_brief() {
     let full = selected().owned_bytes().unwrap();
     for bytes in fixed.owned_bytes().unwrap()..=full {
         let mut charter = selected();
-        crate::fit_brief_bytes(&mut charter, bytes);
+        temper_protocol_brief::fit_brief_bytes(&mut charter, bytes);
         assert!(charter.owned_bytes().unwrap() <= bytes, "allowance={bytes}");
         assert_eq!(charter.instructions, fixed.instructions);
         assert_eq!(charter.grants, fixed.grants);

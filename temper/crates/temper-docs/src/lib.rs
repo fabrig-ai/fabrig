@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 62] = [
+pub static PAGES: [Page; 63] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -510,6 +510,13 @@ pub static PAGES: [Page; 62] = [
         title: "Engine limits",
         summary: "Every limit engine.limits.overrides and a worker's limits.overrides take: its unit, the small profile's value and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits-engine.md"),
+    },
+    Page {
+        name: "see",
+        kind: Kind::Reference,
+        title: "Ask temper's addresses",
+        summary: "Read temper with see, by address, in your project. Each answer ends with what to read next. When a part shows more: TOKEN, read see more TOKEN for the next part.",
+        text: include_str!("../../../docs/help/reference/see.md"),
     },
     Page {
         name: "settings-fields",

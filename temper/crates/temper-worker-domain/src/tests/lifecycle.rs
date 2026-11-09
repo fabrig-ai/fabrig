@@ -136,7 +136,7 @@ fn acknowledged_answers_free_their_workspace_items() {
     let unprepared = host::Failure::Unprepared(host::Preparation::Transient);
     let ending = host::Ending::Failed {
         failure: unprepared,
-        detail: Box::new([]),
+        detail: b"make: Unreachable".as_slice().into(),
         work: host::Work { left: None, saved: None },
     };
     for run in 1..=4 {
@@ -257,6 +257,7 @@ fn no_notices(rows: &[Request]) {
                 panic!("unexpected notice: {up:?}")
             }
             host::LinkUp::ListRead { .. }
+            | host::LinkUp::Draining
             | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Turn { .. }

@@ -681,8 +681,9 @@ over skein's harness.
   not carried. A page not still within 30 seconds stops `again`, naming
   the step. Then:
   - **an act:** the still save is replayed natively to its end
-    (section 4); the first node of which the view makes the step's event
-    names its control by its role, its accessible name and its order,
+    (section 4); the first node outside a menu (`Role::Menu`, which no
+    journey opens, 3.4) of which the view makes the step's event names
+    its control by its role, its accessible name and its order,
     from 0, among the page's controls with both, and the face finds that
     control on the live page (the fake person's n-th match, skein's
     `ui.md` 17.1) and acts on it as a person: a press, a submit, a

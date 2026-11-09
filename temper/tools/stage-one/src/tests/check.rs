@@ -13,8 +13,8 @@ use crate::golden::{self, Edit, Item, ObligationKind, SettingsFile};
 const FORGE: &str = "forge.box:3000";
 const REPOSITORY: &str = "people/kit";
 const PROJECT: u32 = 7;
-// The reference has 68 settings and 13 box obligations.
-const OBLIGATIONS: usize = 81;
+// The reference has 70 settings and 13 box obligations.
+const OBLIGATIONS: usize = 83;
 
 fn box_placeholders(value: &mut Value) {
     match value {
@@ -72,7 +72,7 @@ pub(crate) fn profile_evidence(dir: &Path, edit: fn(&mut Vec<Item>)) {
         ),
         (
             json!({"kind":"project-ways", "project":PROJECT}),
-            br#"{"drafts":true,"goals":true,"changes":true,"away":true,"way":4}"#.as_slice(),
+            br#"{"drafts":true,"goals":true,"changes":true,"way":4}"#.as_slice(),
         ),
     ] {
         let value: Value = serde_json::from_slice(bytes).expect("authority fixture");
@@ -189,6 +189,28 @@ fn the_profile_as_proposed_passes() {
     assert!(report.text().starts_with("coordinator: charter 5, by its anchor\n"));
     assert!(report.text().ends_with("passed\n"));
 }
+#[test]
+fn the_goal_templates_design_and_close_out_are_required() {
+    for member in ["design", "close_out"] {
+        let mut value = json!({"design":true,"close_out":true});
+        value[member] = json!(false);
+        for edit in [Edit::Set(value), Edit::Removed, Edit::Reset] {
+            let mut evidence = proposed(unedited);
+            for file in [&mut evidence.items, &mut evidence.current] {
+                let item = file.items.iter_mut().find(|item| item.setting.kind == "template-goal").expect("goal work");
+                item.edit = edit.clone();
+            }
+            let result = report(&evidence);
+            assert!(!result.passed(), "{}", result.text());
+            let expected = match edit {
+                Edit::Set(_) => Outcome::Wrong { found: json!(false), expected: json!(true) },
+                Edit::Removed | Edit::Reset => Outcome::Missing,
+            };
+            assert_eq!(outcome(&result, &format!("goal-template.{member}")), &expected);
+        }
+    }
+}
+
 fn renumber(value: &mut Value) {
     match value {
         Value::Object(map) => {
@@ -245,8 +267,11 @@ fn a_value_changed_is_wrong() {
     assert!(!report.passed());
     assert_eq!(outcome(&report, "goal-rule.ci"), &Outcome::Wrong { found: json!(true), expected: json!(false) });
     assert!(report.text().contains("goal-rule.ci  wrong: found true, expected false\n"));
-    assert!(report.text().ends_with("failed: 1 of 81\n"));
-    assert_eq!(report.json()["verdicts"][56]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
+    assert!(report.text().ends_with("failed: 1 of 83\n"));
+    let json = report.json();
+    let verdict =
+        json["verdicts"].as_array().expect("verdicts").iter().find(|v| v["id"] == "goal-rule.ci").expect("CI verdict");
+    assert_eq!(verdict["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
 }
 #[test]
 fn an_added_charter_is_an_extra() {

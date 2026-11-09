@@ -9,7 +9,7 @@ use skein_lib::{List, Queue, Wall};
 use skein_ui::Role;
 use temper_client_domain::{self as d, Address, Domain, Event, Request};
 use temper_client_protocol_wire::{self as wire, v1 as w};
-use temper_client_view::shared::{NeedKind, NeedLine};
+use temper_client_view::shared::NeedMark;
 
 const PROJECT: u32 = 1;
 const OTHER_PROJECT: u32 = 2;
@@ -17,12 +17,12 @@ const PARTY: u64 = 73;
 const CHAT: u64 = 9;
 const ENDED_CHAT: u64 = 10;
 const OLDER_CHAT: u64 = 11;
-// Twenty read rows, four draw rows, and the headline's rebuild check.
+// Read and draw states share one bounded failure list.
 const FAILURES: u32 = 25;
-// The longest read row: heading, banner, two left-off lines, and three need lines.
-const LINES: u32 = 7;
-// Four review frames; six needs are one past the design's five-line bound.
-const FRAMES: u32 = 4;
+// The longest state includes the header, rows, Start and notes.
+const LINES: u32 = 16;
+// Six review frames; six needs are one past the design's five-line bound.
+const FRAMES: u32 = 6;
 const SIX_NEEDS: u32 = 6;
 // Two hours after the landing, at 09:42; a brief is written at 07:42.
 const MINUTE: u64 = 60_000_000_000;
@@ -85,9 +85,12 @@ pub(super) fn line(task: u64, title: &[u8], activity: u64, ended: bool) -> c::Ta
 }
 fn me() -> c::Me {
     let mut me = f::me(&[b"Hello", b"Demo"]);
+    me.party.number = PARTY;
     me.deployment_role = Some(c::HeldRole::Owner);
+    let mut goal = super::foot::template(jig_client::shapes::GOAL);
+    goal.label = 8;
     me.projects.get_mut(0).unwrap().templates =
-        List::from_boxed(Box::new([super::foot::template(jig_client::shapes::CHAT)]));
+        List::from_boxed(Box::new([super::foot::template(jig_client::shapes::CHAT), goal]));
     me
 }
 fn inbox() -> c::Inbox {
@@ -121,13 +124,24 @@ pub(super) fn home_read(
 pub(super) fn question_root() -> Domain {
     home_at(Some(false), &[], true, None, Address::Chat { task: CHAT })
 }
-#[expect(clippy::too_many_lines, reason = "one fixture answers the page's watches and reads through public events")]
 fn home_at(
     brief: Option<bool>,
     chats: &[c::TaskLine],
     needs: bool,
     playground: Option<(Option<u32>, w::PlaygroundState)>,
     address: Address,
+) -> Domain {
+    home_rows(brief, chats, &[], needs, playground, address, LEDE.as_bytes())
+}
+#[expect(clippy::too_many_lines, reason = "the fixture supplies Home's independent public reads and brief")]
+fn home_rows(
+    brief: Option<bool>,
+    chats: &[c::TaskLine],
+    goals: &[c::TaskLine],
+    needs: bool,
+    playground: Option<(Option<u32>, w::PlaygroundState)>,
+    address: Address,
+    lede: &[u8],
 ) -> Domain {
     let chat = address == (Address::Chat { task: CHAT });
     let mut playground = playground;
@@ -156,11 +170,11 @@ fn home_at(
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
                 Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me()))) }
             }
-            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) } => {
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) } => {
                 Up::Watched {
                     watch,
                     event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
-                        rows: List::from_boxed(chats.into()),
+                        rows: List::from_boxed(if query.tracked == Some(true) { goals.into() } else { chats.into() }),
                         more: false,
                     }))),
                 }
@@ -188,7 +202,17 @@ fn home_at(
                 if Some(&subject) == d::forge::status::watch(PROJECT, &f::limits().forge).as_ref() =>
             {
                 let Some(brief) = brief else { continue };
-                Up::FamilyDelivered { watch, record: family(wire::project_status(&status(brief))) }
+                let status = status(brief);
+                let mut parts = status.into_parts();
+                if let Some(brief) = parts.brief {
+                    let mut brief = brief.into_parts();
+                    brief.lede = lede.into();
+                    parts.brief = Some(w::StatusBrief::new(&w::CEILINGS, brief).unwrap());
+                }
+                Up::FamilyDelivered {
+                    watch,
+                    record: family(wire::project_status(&w::ProjectStatus::new(&w::CEILINGS, parts).unwrap())),
+                }
             }
             jig_client::Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::Unknown },
             jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } }
@@ -363,6 +387,28 @@ fn body(tree: &skein_ui::Tree) -> List<Box<[u8]>> {
     }
     result
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "read-state rows ignore padding; the room table and goldens check its exact columns"
+)]
+fn same_words(a: &[u8], b: &[u8]) -> bool {
+    a.split(|byte| *byte == b' ')
+        .filter(|word| !word.is_empty())
+        .eq(b.split(|byte| *byte == b' ').filter(|word| !word.is_empty()))
+}
+fn start_lines(lines: &mut List<&'static [u8]>, project: Option<&[u8]>) {
+    if let Some(project) = project {
+        lines.push(b"Start").unwrap();
+        lines
+            .push(if project == b"Demo" {
+                b"/change   one change, run as Demo's way says"
+            } else {
+                b"/change   one change, run as Hello's way says"
+            })
+            .unwrap();
+        lines.push(b"/ask      Ask temper").unwrap();
+    }
+}
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks launchpad read states, their tick and bindings")]
 fn the_launchpad_says_each_state() {
@@ -390,7 +436,7 @@ fn the_launchpad_says_each_state() {
     let (mut second, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
     f::event(&mut second, Event::Went { place: d::Place::Address(Address::Home { project: OTHER_PROJECT }) });
     let mut noted = Tui::new(f::ADDRESS);
-    noted.step(Told::Unknown { words: Some(b"/unknown".as_slice().into()) });
+    noted.step(Told::Notice { notice: Some(crate::Notice::Unknown { words: b"/unknown".as_slice().into() }) });
     let playground = home_read(
         Some(true),
         &[line(CHAT, b"Away mode", 1, false)],
@@ -409,10 +455,10 @@ fn the_launchpad_says_each_state() {
             &[
                 "This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it.",
                 "Where you left off",
-                "Away mode · waiting on you",
+                "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1",
                 "Needs you",
-                "? csv-export: comma or semicolon?",
-                "• Held task: Held task",
+                "? Hello   csv-export: comma or semicolon?",
+                "• Hello   Held task: Held task  n walks them",
             ][..],
             None,
         ),
@@ -421,10 +467,7 @@ fn the_launchpad_says_each_state() {
             &other_playground,
             &ordinary,
             header,
-            &[
-                "3 changes landed overnight. csv-export is two of three tasks in; one waits on you.",
-                "written by the status agent 07:42",
-            ][..],
+            &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
             None,
         ),
         (
@@ -432,10 +475,7 @@ fn the_launchpad_says_each_state() {
             &starting_playground,
             &ordinary,
             header,
-            &[
-                "3 changes landed overnight. csv-export is two of three tasks in; one waits on you.",
-                "written by the status agent 07:42",
-            ][..],
+            &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
             None,
         ),
         (
@@ -446,8 +486,8 @@ fn the_launchpad_says_each_state() {
             &[
                 "The last change landed 2 hours ago. Two things need you.",
                 "Needs you",
-                "? csv-export: comma or semicolon?",
-                "• Held task: Held task",
+                "? Hello   csv-export: comma or semicolon?",
+                "• Hello   Held task: Held task  n walks them",
             ][..],
             Some(Wall::from_nanos(583 * MINUTE)),
         ),
@@ -457,7 +497,7 @@ fn the_launchpad_says_each_state() {
             &left,
             &noted,
             header,
-            &["Where you left off", "Away mode · waiting on you", "Unknown command /unknown. /help lists them."][..],
+            &["Where you left off", "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1"][..],
             None,
         ),
         (
@@ -465,10 +505,7 @@ fn the_launchpad_says_each_state() {
             &brief,
             &ordinary,
             header,
-            &[
-                "3 changes landed overnight. csv-export is two of three tasks in; one waits on you.",
-                "written by the status agent 07:42",
-            ][..],
+            &["3 changes landed overnight.", "written by the status agent 07:42 · /brief"][..],
             None,
         ),
         (
@@ -485,7 +522,7 @@ fn the_launchpad_says_each_state() {
             &left,
             &ordinary,
             header,
-            &["Where you left off", "Away mode · waiting on you"][..],
+            &["Where you left off", "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1"][..],
             None,
         ),
         (
@@ -493,7 +530,11 @@ fn the_launchpad_says_each_state() {
             &sorted,
             &ordinary,
             header,
-            &["Where you left off", "Away mode · waiting on you", "Older · waiting on you"][..],
+            &[
+                "Where you left off",
+                "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1",
+                "Hello   Older, a chat · 00:00 · waiting on you  /chats 2",
+            ][..],
             None,
         ),
         ("no live chat", &ended, &ordinary, header, &[][..], None),
@@ -534,13 +575,19 @@ fn the_launchpad_says_each_state() {
         let text = body(view.tree());
         let mut expected = List::with_capacity(LINES);
         expected.push(heading.as_bytes()).unwrap();
+        let part = launchpad::read(root, tui, &f::words(), NOW);
         for line in lines {
             expected.push(line.as_bytes()).unwrap();
+        }
+        start_lines(&mut expected, part.project.as_deref());
+        if tui.notice().is_some() {
+            let notice = f::find(view.tree(), Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
+            assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
         }
         let mut good =
             text.len() == expected.len() && view.tick() == tick && skein_ui::outline::check(view.tree()).is_none();
         for (text, expected) in text.iter().zip(&expected) {
-            good &= text.as_ref() == *expected;
+            good &= same_words(text, expected);
         }
         let mut bound = 0_u32;
         for node in view.tree().nodes() {
@@ -575,10 +622,38 @@ fn the_launchpad_says_each_state() {
         let view = build(root, tui);
         assert_eq!(f::find(view.tree(), Role::Text, state.as_bytes()).styles.as_slice(), &[style]);
     }
+    // Empty ledes keep the sentence and byline without offering more prose.
+    for lede in [b"".as_slice(), LEDE.as_bytes()] {
+        let root = home_rows(Some(true), &[], &[], false, None, Address::Home { project: PROJECT }, lede);
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Brief);
+        tui.step(Told::Notice { notice: Some(crate::Notice::Unknown { words: b"/unknown".as_slice().into() }) });
+        let part = launchpad::read(&root, &tui, &f::words(), NOW);
+        assert_eq!(part.lines.get(0).unwrap().words.as_ref(), SENTENCE.as_bytes());
+        assert_eq!(part.lines.get(1).unwrap().words.ends_with(b"/brief"), !lede.is_empty());
+        assert_eq!(part.lines.get(1).unwrap().style, Some(look::BYLINE));
+        assert_eq!(part.brief.len(), 3);
+        for (line, expected) in part.brief.iter().zip([SENTENCE.as_bytes(), lede, b"written by the status agent 07:42"])
+        {
+            assert_eq!(line.words.as_ref(), expected);
+            assert_eq!(line.style, Some(look::NOTE));
+        }
+        let view = build(&root, &tui);
+        let lines = body(view.tree());
+        let mut sentence = false;
+        for line in &lines {
+            assert!(!line.starts_with(b"Unknown command"));
+            sentence |= line.as_ref() == SENTENCE.as_bytes();
+        }
+        let notice = f::find(view.tree(), Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
+        assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
+        assert!(sentence);
+    }
     draw_states(&mut failures);
     assert!(failures.is_empty(), "launchpad rows: {failures:?}");
 }
-fn draw(part: launchpad::Launchpad, columns: u16, needs: u32) -> crate::View {
+fn draw(mut part: launchpad::Launchpad, columns: u16, needs: u32) -> crate::View {
+    part.columns = columns;
     let (root, _) = f::live(Some(f::me(if part.project.is_some() { &[b"Hello"] } else { &[] })));
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Went);
@@ -591,20 +666,30 @@ fn draw(part: launchpad::Launchpad, columns: u16, needs: u32) -> crate::View {
     view
 }
 fn draw_states(failures: &mut List<&'static str>) {
-    // The fixture's two-row inbox cannot deliver six cards; draw that bound from data.
+    // Money, sign-off and proposal cards, and the six-card bound, are drawn from data.
     for (name, count, expected) in [
         ("zero needs", 0_u32, &[][..]),
-        ("question", 1, &["? need 0"][..]),
-        ("held task", 2, &["? need 0", "• need 1"][..]),
-        ("six needs", SIX_NEEDS, &["? need 0", "• need 1", "• need 2", "• need 3", "• need 4"][..]),
+        ("question", 1, &["? Hello need 0 n walks them"][..]),
+        ("money", 2, &["? Hello need 0", "$ Hello need 1 n walks them"][..]),
+        (
+            "six needs",
+            SIX_NEEDS,
+            &["? Hello need 0", "$ Hello need 1", "✓ Hello need 2", "• Hello need 3", "• Hello need 4 n walks them"][..],
+        ),
     ] {
         let root = home(None, &[]);
         let mut part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
         let mut needs = List::with_capacity(count);
         for number in 0..count {
             needs
-                .push(NeedLine {
-                    kind: if number == 0 { NeedKind::Question } else { NeedKind::Other },
+                .push(launchpad::NeedRow {
+                    mark: match number {
+                        0 => NeedMark::Question,
+                        1 => NeedMark::Money,
+                        2 => NeedMark::SignOff,
+                        _ => NeedMark::Other,
+                    },
+                    project: b"Hello".as_slice().into(),
                     words: skein_lib::bytes::concat(&[b"need ", skein_lib::Decimal::of(u64::from(number)).as_bytes()]),
                 })
                 .unwrap();
@@ -615,7 +700,10 @@ fn draw_states(failures: &mut List<&'static str>) {
         let mut heads = 0_usize;
         let mut signals = 0_usize;
         for node in view.tree().nodes() {
-            if node.role == Role::Description {
+            if node.role == Role::Description
+                && !f::text(view.tree(), node).starts_with(b"/change")
+                && !f::text(view.tree(), node).starts_with(b"/ask")
+            {
                 lines.push(f::text(view.tree(), node)).unwrap();
             }
             if node.styles.as_slice() == [look::HEAD] {
@@ -626,10 +714,10 @@ fn draw_states(failures: &mut List<&'static str>) {
             }
         }
         let mut good = usize::try_from(lines.len()).unwrap() == expected.len()
-            && heads == usize::from(count > 0)
+            && heads == usize::from(count > 0).checked_add(1).unwrap()
             && signals == expected.len();
         for (line, expected) in lines.iter().zip(expected) {
-            good &= line.as_ref() == expected.as_bytes();
+            good &= same_words(line, expected.as_bytes());
         }
         if !good {
             failures.push(name).unwrap();
@@ -639,6 +727,7 @@ fn draw_states(failures: &mut List<&'static str>) {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the golden table embeds its hand-written frames")]
+#[expect(clippy::too_many_lines, reason = "one table holds six launchpad review frames and their shared inputs")]
 fn the_launchpads_are_their_goldens() {
     use skein_ui_screen::{Focus, Size};
     const FULL: Size = Size { columns: 80, rows: 24 };
@@ -659,6 +748,20 @@ fn the_launchpads_are_their_goldens() {
             include_bytes!("golden/launchpad-80x24-light.txt").as_slice(),
         ),
         (
+            "launchpad-110x32-dark",
+            Scheme::Dark,
+            Size { columns: 110, rows: 32 },
+            false,
+            include_bytes!("golden/launchpad-110x32-dark.txt").as_slice(),
+        ),
+        (
+            "launchpad-brief-80x24-dark",
+            Scheme::Dark,
+            FULL,
+            false,
+            include_bytes!("golden/launchpad-brief-80x24-dark.txt").as_slice(),
+        ),
+        (
             "launchpad-40x12-dark",
             Scheme::Dark,
             NARROW,
@@ -673,19 +776,60 @@ fn the_launchpads_are_their_goldens() {
             include_bytes!("golden/launchpad-none-80x24-dark.txt").as_slice(),
         ),
     ];
-    let root = home(Some(true), &[line(CHAT, b"Away mode", 1, false)]);
+    let mut goal = goal(7, BRIEF_AT, PARTY, false);
+    goal.waits_on = c::WaitsOn::Nothing;
+    goal.chip.phase = c::Phase::Running;
+    goal.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+    let root = home_rows(
+        Some(true),
+        &[line(CHAT, b"Away mode", 492 * MINUTE, false)],
+        &[goal],
+        false,
+        None,
+        Address::Home { project: PROJECT },
+        LEDE.as_bytes(),
+    );
     let (none, _) = f::live(Some(f::me(&[])));
     let mut views = List::with_capacity(FRAMES);
-    for (_, _, size, empty, _) in rows {
-        let mut part = launchpad::read(if empty { &none } else { &root }, &Tui::new(f::ADDRESS), &f::words(), NOW);
+    for (name, _, size, empty, _) in rows {
+        let mut tui = Tui::new(f::ADDRESS);
+        if name == "launchpad-brief-80x24-dark" {
+            tui.step(Told::Brief);
+        }
+        let mut part = launchpad::read(if empty { &none } else { &root }, &tui, &f::words(), NOW);
         if !empty {
-            part.project = Some(b"Hello project".as_slice().into());
-            part.needs = Box::new([NeedLine {
-                kind: NeedKind::Question,
+            part.needs = Box::new([launchpad::NeedRow {
+                mark: NeedMark::Question,
+                project: b"Hello".as_slice().into(),
                 words: b"csv-export: comma or semicolon?".as_slice().into(),
             }]);
+            if size.columns == 110 {
+                part.needs = Box::new([
+                    launchpad::NeedRow {
+                        mark: NeedMark::Question,
+                        project: b"Hello".as_slice().into(),
+                        words: b"csv-export: comma or semicolon?".as_slice().into(),
+                    },
+                    launchpad::NeedRow {
+                        mark: NeedMark::Money,
+                        project: b"Demo".as_slice().into(),
+                        words: b"Porter: raise its weekly budget?".as_slice().into(),
+                    },
+                    launchpad::NeedRow {
+                        mark: NeedMark::SignOff,
+                        project: b"Hello".as_slice().into(),
+                        words: b"Monthly totals: ready for review".as_slice().into(),
+                    },
+                    launchpad::NeedRow {
+                        mark: NeedMark::Other,
+                        project: b"Demo".as_slice().into(),
+                        words: b"Proposal: review the new way".as_slice().into(),
+                    },
+                ]);
+            }
         }
-        views.push(draw(part, size.columns, u32::from(!empty))).unwrap();
+        let count = u32::try_from(part.needs.len()).unwrap();
+        views.push(draw(part, size.columns, count)).unwrap();
     }
     let mut checks = List::with_capacity(FRAMES);
     for ((name, scheme, size, _, want), view) in rows.iter().zip(&views) {
@@ -702,6 +846,60 @@ fn the_launchpads_are_their_goldens() {
             .unwrap();
     }
     goldens::check(checks.as_slice());
+}
+
+fn goal(task: u64, activity: u64, requester: u64, ended: bool) -> c::TaskLine {
+    let mut row = line(task, b"csv-export", activity, ended);
+    row.requester = c::Requester::Person(requester);
+    row.tracked = Some(1);
+    row.label = 8;
+    row.flags.conversation = false;
+    row
+}
+fn goals_home(chats: &[c::TaskLine], goals: &[c::TaskLine]) -> Domain {
+    home_rows(None, chats, goals, false, None, Address::Home { project: PROJECT }, LEDE.as_bytes())
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "row diagnostics count UTF-8 columns and check the painted frame")]
+fn rows_keep_their_hint_in_the_room() {
+    use skein_ui_screen::{Focus, Frame, Size, render};
+    for (columns, title, hint, cut) in [
+        (80, "Away mode", true, false),
+        (80, "A long title with many words that would cross the end of the row and hide its hint", true, true),
+        (40, "Away mode", false, true),
+        (110, "A longer title", true, false),
+        (80, "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé", true, true),
+    ] {
+        let root = home(None, &[line(CHAT, b"Away mode", BRIEF_AT, false)]);
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Size { columns });
+        let mut part = launchpad::read(&root, &tui, &f::words(), NOW);
+        part.left_off.get_mut(0).unwrap().title = title.as_bytes().into();
+        part.needs = Box::new([launchpad::NeedRow {
+            mark: NeedMark::Question,
+            project: b"Demo".as_slice().into(),
+            words: title.as_bytes().into(),
+        }]);
+        let view = draw(part, columns, 1);
+        let left = left_off_lines(&view).swap_remove(0).unwrap();
+        assert_eq!(left.ends_with(b"/chats 1"), hint, "{columns} {title}");
+        assert_eq!(core::str::from_utf8(&left).unwrap().contains('…'), cut, "{columns} {title}");
+        assert!(core::str::from_utf8(&left).unwrap().chars().count() <= usize::from(columns - 4));
+        if hint {
+            assert_eq!(core::str::from_utf8(&left).unwrap().chars().count(), usize::from(columns - 4));
+        }
+        let need = view.tree().nodes().iter().find(|node| node.role == Role::Description).unwrap();
+        assert_eq!(f::text(view.tree(), need).ends_with(b"n walks them"), hint, "need at {columns}");
+        let size = Size { columns, rows: 32 };
+        let mut frame = Frame::new(size);
+        render(view.tree(), &crate::theme(Scheme::Dark, None), size, &mut Focus::default(), &mut frame);
+        let printed = frame.print();
+        let printed = core::str::from_utf8(&printed).unwrap();
+        if hint {
+            assert!(printed.lines().any(|line| line.trim_end().ends_with("/chats 1")));
+        }
+    }
 }
 
 fn left_off_home() -> Domain {
@@ -725,6 +923,7 @@ fn left_off_lines(view: &crate::View) -> List<Box<[u8]>> {
     lines
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table checks chat ordering and the goal at each boundary")]
 fn the_left_off_chats_are_ordered_and_bounded() {
     for (name, chats, expected) in [
         (
@@ -735,7 +934,7 @@ fn the_left_off_chats_are_ordered_and_bounded() {
                 line(8, b"Second", 3, false),
                 line(CHAT, b"Newest", 4, false),
             ][..],
-            &["Newest", "Second", "Older"][..],
+            &[("Newest", "00:00"), ("Second", "00:00"), ("Older", "00:00")][..],
         ),
         (
             "tie and bound",
@@ -745,27 +944,98 @@ fn the_left_off_chats_are_ordered_and_bounded() {
                 line(9, b"Higher", 2, false),
                 line(8, b"Lower", 2, false),
             ][..],
-            &["Lower", "Higher", "Third"][..],
+            &[("Lower", "00:00"), ("Higher", "00:00"), ("Third", "00:00")][..],
         ),
+        ("clock", &[line(CHAT, b"Morning", BRIEF_AT, false)][..], &[("Morning", "07:42")][..]),
     ] {
         let root = home(None, chats);
         let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
         assert_eq!(usize::try_from(part.left_off.len()).unwrap(), expected.len(), "{name} read bound");
+        for (index, (row, (_, at))) in part.left_off.iter().zip(expected).enumerate() {
+            assert_eq!(row.kind, launchpad::LeftKind::Chat { number: u32::try_from(index + 1).unwrap() }, "{name}");
+            assert_eq!(row.project.as_ref(), b"Hello", "{name}");
+            assert_eq!(row.at.as_ref(), at.as_bytes(), "{name}");
+        }
         let view = build(&root, &Tui::new(f::ADDRESS));
         let lines = left_off_lines(&view);
         assert_eq!(usize::try_from(lines.len()).unwrap(), expected.len(), "{name}");
-        for (line, title) in lines.iter().zip(expected) {
-            assert_eq!(
-                line.as_ref(),
-                skein_lib::bytes::concat(&[title.as_bytes(), " · waiting on you".as_bytes()]).as_ref(),
+        for (line, (title, _)) in lines.iter().zip(expected) {
+            assert!(
+                f::text(view.tree(), f::find(view.tree(), Role::Text, title.as_bytes())).as_ref() == title.as_bytes(),
                 "{name}"
             );
+            assert!(line.starts_with(b"Hello   "), "{name}");
         }
         assert_eq!(f::count(view.tree(), Role::List), 1, "{name}");
         for node in view.tree().nodes() {
             if node.role == Role::List {
                 assert_eq!(node.styles.as_slice(), &[look::LEFT_OFF], "{name}");
             }
+        }
+    }
+    for (name, activity, expected) in [
+        (
+            "goal newest",
+            5,
+            &[
+                (7, launchpad::LeftKind::Goal),
+                (9, launchpad::LeftKind::Chat { number: 1 }),
+                (8, launchpad::LeftKind::Chat { number: 2 }),
+            ][..],
+        ),
+        (
+            "goal between chats",
+            3,
+            &[
+                (9, launchpad::LeftKind::Chat { number: 1 }),
+                (7, launchpad::LeftKind::Goal),
+                (8, launchpad::LeftKind::Chat { number: 2 }),
+            ][..],
+        ),
+        (
+            "goal oldest",
+            1,
+            &[
+                (9, launchpad::LeftKind::Chat { number: 1 }),
+                (8, launchpad::LeftKind::Chat { number: 2 }),
+                (7, launchpad::LeftKind::Goal),
+            ][..],
+        ),
+        (
+            "goal fourth",
+            0,
+            &[
+                (9, launchpad::LeftKind::Chat { number: 1 }),
+                (8, launchpad::LeftKind::Chat { number: 2 }),
+                (11, launchpad::LeftKind::Chat { number: 3 }),
+            ][..],
+        ),
+        (
+            "goal tie",
+            4,
+            &[
+                (7, launchpad::LeftKind::Goal),
+                (9, launchpad::LeftKind::Chat { number: 1 }),
+                (8, launchpad::LeftKind::Chat { number: 2 }),
+            ][..],
+        ),
+    ] {
+        let chats = [line(9, b"Newest", 4, false), line(8, b"Second", 2, false), line(11, b"Third", 1, false)];
+        let root = goals_home(
+            &chats,
+            &[
+                goal(7, activity, PARTY, false),
+                goal(6, 9, PARTY + 1, false),
+                goal(5, 10, PARTY, true),
+                goal(20, 0, PARTY, false),
+            ],
+        );
+        assert!(root.pages().goals().is_some(), "fixture reads goals");
+        let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
+        assert_eq!(usize::try_from(part.left_off.len()).unwrap(), expected.len(), "{name}");
+        for (row, (task, kind)) in part.left_off.iter().zip(expected) {
+            assert_eq!((row.task, row.kind), (*task, *kind), "{name}");
+            assert_eq!(row.project.as_ref(), b"Hello");
         }
     }
 }
@@ -887,7 +1157,7 @@ fn the_picked_left_off_row_has_its_mark_and_paint() {
         let mut picked_row = None;
         for row in 0..size.rows {
             let cells = frame.row(row).unwrap();
-            if cells[3].glyph == 'N' {
+            if cells[11].glyph == 'N' {
                 picked_row = Some(cells);
                 break;
             }
@@ -899,7 +1169,7 @@ fn the_picked_left_off_row_has_its_mark_and_paint() {
         };
         assert_eq!(row[1].glyph, if selected == Some(CHAT) { '❯' } else { ' ' });
         assert_eq!(
-            row[3].paint.fore,
+            row[11].paint.fore,
             if selected == Some(CHAT) { Some(Rgb { red: 0xe0, green: 0x8a, blue: 0x68 }) } else { None }
         );
         for cell in &row[1..79] {
@@ -907,6 +1177,118 @@ fn the_picked_left_off_row_has_its_mark_and_paint() {
         }
         assert_eq!(row[0].paint.back, None);
         assert_eq!(row[79].paint.back, None);
-        assert_eq!(row[12].paint.fore, Some(Rgb { red: 0x9a, green: 0x93, blue: 0x88 }));
+        assert_eq!(row[18].paint.fore, Some(Rgb { red: 0x9a, green: 0x93, blue: 0x88 }));
+    }
+}
+
+#[test]
+fn the_launchpad_surface_follows_the_displayed_facts() {
+    use crate::{Event as E, Own};
+    let mut ordinary = Tui::new(f::ADDRESS);
+    for (name, page, words, list, expected) in [
+        ("need", SurfacePage::Home { brief: true, needs: true }, "", false, Some(E::Own { command: Own::Needs })),
+        ("words", SurfacePage::Home { brief: true, needs: true }, "words", false, None),
+        ("list", SurfacePage::Home { brief: true, needs: true }, "", true, None),
+        ("no need", SurfacePage::Home { brief: false, needs: false }, "", false, None),
+        ("chat", SurfacePage::Chat, "", false, None),
+    ] {
+        let mut root = surface_root(page);
+        f::event(
+            &mut root,
+            Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: words.as_bytes().into() }) },
+        );
+        if list {
+            f::event(
+                &mut root,
+                Event::Act {
+                    action: d::Action::Pages(d::pages::Act::Terminal(d::pages::terminal::Act::Run {
+                        command: d::pages::terminal::Command::Chats,
+                    })),
+                },
+            );
+        }
+        let view = build(&root, &ordinary);
+        assert_eq!(crate::walk_key(&view), expected, "{name}");
+    }
+    let root = home(None, &[line(OLDER_CHAT, b"Older", 1, false), line(CHAT, b"Newest", 2, false)]);
+    let view = build(&root, &ordinary);
+    for (number, expected) in [(0, None), (1, Some(CHAT)), (2, Some(OLDER_CHAT)), (3, None)] {
+        assert_eq!(crate::chat_number(&view, number), expected, "chat {number}");
+    }
+    for (name, page, selected, expected) in [
+        (
+            "chat selected",
+            SurfacePage::Home { brief: false, needs: false },
+            Some(CHAT),
+            Some(b"http://127.0.0.1:8367/chats/9".as_slice()),
+        ),
+        (
+            "home",
+            SurfacePage::Home { brief: false, needs: false },
+            None,
+            Some(b"http://127.0.0.1:8367/projects/1".as_slice()),
+        ),
+        (
+            "stale selection",
+            SurfacePage::Home { brief: false, needs: false },
+            Some(ENDED_CHAT),
+            Some(b"http://127.0.0.1:8367/projects/1".as_slice()),
+        ),
+        ("chat page", SurfacePage::Chat, None, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+        ("signed out", SurfacePage::SignedOut, None, None),
+    ] {
+        let root = surface_root(page);
+        ordinary.step(Told::LeftOff { task: selected });
+        assert_eq!(crate::focus(&build(&root, &ordinary)), expected, "{name}");
+    }
+    // The reader does not read goals yet; a goal is supplied as launchpad data.
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::LeftOff { task: Some(CHAT) });
+    let mut part = launchpad::read(&root, &tui, &f::words(), NOW);
+    part.left_off.get_mut(0).unwrap().kind = launchpad::LeftKind::Goal;
+    let mut view = build(&root, &tui);
+    let foot = foot::read(&root, &tui, &f::words(), NOW);
+    view::signed(&mut view, &view::Signed { body: view::Body::Launchpad(part), foot }, &mut Queue::uncapped());
+    assert_eq!(crate::focus(&view), Some(b"http://127.0.0.1:8367/tasks/9".as_slice()), "goal selected");
+    assert_eq!(crate::chat_number(&view, 1), None, "goals have no chat number");
+    let field = f::find(view.tree(), Role::TextArea, b"Ask temper");
+    assert_eq!(
+        crate::event(&view, field.id, skein_ui::Act::Submit),
+        Some(E::Open { address: Box::from(*b"http://127.0.0.1:8367/tasks/9") })
+    );
+    for (name, page, expected) in [
+        ("brief and need", SurfacePage::Home { brief: true, needs: true }, Own::ALL.as_slice()),
+        (
+            "neither",
+            SurfacePage::Home { brief: false, needs: false },
+            &[Own::Change, Own::Ask, Own::Open, Own::Theme][..],
+        ),
+        ("chat", SurfacePage::Chat, &[Own::Open, Own::Theme][..]),
+        ("no project", SurfacePage::NoProject, &[Own::Theme][..]),
+        ("signed out", SurfacePage::SignedOut, &[Own::Theme][..]),
+    ] {
+        let root = surface_root(page);
+        assert_eq!(crate::offered_own(&root, &tui).as_ref(), expected, "{name}");
+    }
+    // Facts used by the keys and focus are replaced when a view is reused.
+    crate::build(&mut view, &tui, &f::signed_out(), NOW, &mut Queue::uncapped());
+    assert_eq!(crate::focus(&view), None);
+    assert_eq!(crate::walk_key(&view), None);
+    assert_eq!(crate::chat_number(&view, 2), None);
+}
+
+#[derive(Clone, Copy)]
+enum SurfacePage {
+    Home { brief: bool, needs: bool },
+    Chat,
+    NoProject,
+    SignedOut,
+}
+fn surface_root(page: SurfacePage) -> Domain {
+    match page {
+        SurfacePage::Home { brief, needs } => home_cards(Some(brief), &[line(CHAT, b"Chat", BRIEF_AT, false)], needs),
+        SurfacePage::Chat => question_root(),
+        SurfacePage::NoProject => f::live(Some(f::me(&[]))).0,
+        SurfacePage::SignedOut => f::signed_out(),
     }
 }

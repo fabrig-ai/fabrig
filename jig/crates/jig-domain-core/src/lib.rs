@@ -95,13 +95,13 @@ pub use crate::{
             PersonProposalRoute, PersonTaskRoute, RestoringProof, RoutedCall, RunAdmission, RunCharter, RunPolicy,
             Transcript, most_costly, reserve_floor,
         },
-        transcript_text::{TranscriptRow, TranscriptText},
+        transcript_text::{CUT_TURN_TEXT, TranscriptRow, TranscriptText},
     },
     settings::{
         charters::{Charter, CharterPart, Document},
         templates::Template,
     },
-    start::{Census, HeldLimit, ReadResults, Restore, RestoreRange, restore_cursor},
+    start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
     stored::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
         Made, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
@@ -179,6 +179,8 @@ pub struct Settings {
     pub tail_bytes: u32,
     /// Jig's one-bit authority family for each engine tool.
     pub tools: ToolFamilies,
+    /// Tool names whose calls belong to the task's requester alone (domain/engine.md, 10.1).
+    pub private_tools: Box<[Box<[u8]>]>,
     /// Configured LLM providers, for the accounts child (accounts.md, 3.1).
     pub llm_providers: accounts::Providers,
     /// Actual client key ceiling, supplied by startup after protocol limits are checked.
@@ -347,6 +349,7 @@ pub struct Core {
     pub(crate) projections: Map<u64, Box<Projection>>,
     /// Preparations waiting for notes, or deferring their next activation for load room.
     pub(crate) pending_note_briefs: Map<u64, routing::NoteBrief>,
+    pub(crate) preferences: routing::run::preferences::State,
     /// Durable deployment numbers.
     pub counters: Counters,
     /// Live task preparation contexts.
@@ -401,6 +404,15 @@ fn assert_connector_registry(connectors: &[u16]) {
 }
 
 impl Core {
+    /// The kept project name for a root's read context (domain/core.md, 6.1).
+    #[must_use]
+    pub fn project_name(&self, project: u32) -> Option<&str> {
+        match self.names.get(&project) {
+            Some(name) => Some(name),
+            None => None,
+        }
+    }
+
     /// The templates `project` offers: the current ones under its overrides, as `me` delivers them
     /// (jig/docs/design/domain/engine.md, 17.2).
     #[must_use]
@@ -570,6 +582,7 @@ impl Core {
             ),
             projections: Map::with_capacity(limits.tasks.tasks),
             pending_note_briefs: Map::with_capacity(limits.brief.briefs),
+            preferences: routing::run::preferences::State::new(limits.brief.briefs),
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),

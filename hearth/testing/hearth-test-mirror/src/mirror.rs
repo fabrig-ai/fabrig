@@ -19,6 +19,10 @@ pub enum Missing {
     Unfetched { path: PathBuf },
 }
 impl Mirror {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "hearth's round: reads XDG_CACHE_HOME and HOME to locate cached mirrors"
+    )]
     pub fn find(pin: &Pin) -> Result<Self, Missing> {
         let cache = env::var_os("XDG_CACHE_HOME")
             .map(PathBuf::from)

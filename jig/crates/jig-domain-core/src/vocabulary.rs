@@ -415,6 +415,9 @@ pub enum Now {
     TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
     /// A settings document leaves without a durable call record (engine.md, 7.3).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
+    /// A run's read as its person answered: the party read's own answer, `None(Why::Unknown)`
+    /// for what is not admitted, `None(Why::Busy)` where the loads are full (engine.md, 7.3).
+    PersonAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::Answer> },
     /// A run's proposal read answered (engine.md, 7.3).
     ProposalRead { to: ReplyTo, key: CallKey, answer: Box<crate::reads::ProposalRead> },
     /// The root answers this host call with its own busy payload.
@@ -590,6 +593,8 @@ pub struct CoreBriefBudgets {
     pub plan: u32,
     /// Maximum note index text in one brief.
     pub notes: u32,
+    /// Whole preferences of the run's requester (domain/engine.md, 10.1).
+    pub preferences: u32,
 }
 
 /// One event routed to a child of the core.
@@ -918,6 +923,9 @@ pub enum NamedAction {
     },
     /// A settings read decides nothing and keeps no call record (engine.md, 7.3).
     Settings(crate::reads::SettingsRead),
+    /// A run reads as its task's requester, a person, of its task's project alone
+    /// (engine.md, 7.3, *A run's read as its person*). Decides nothing, keeps no call record.
+    PersonRead(crate::reads::Read),
     /// A run's read of one proposal of settings, by the `settings` family (engine.md, 7.3).
     ReadProposal {
         proposer: jig_domain_people::Proposer,
@@ -999,6 +1007,12 @@ pub enum NamedAction {
         entry: notes::New,
         recalled: u32,
         range: notes::LineRange,
+    },
+    /// Drop one scoped note at a revision seen by the run (domain/engine.md, 10.1).
+    NoteDelete {
+        scope: notes::Scope,
+        name: u64,
+        recalled: u32,
     },
     /// Recall one page of notes by name or description search.
     Recall {
@@ -1247,6 +1261,7 @@ fn fleet_new_work(event: &fleet::Event) -> bool {
         | fleet::Event::SignOut { .. }
         | fleet::Event::Relay { .. } => true,
         fleet::Event::ListRead { .. }
+        | fleet::Event::Draining { .. }
         | fleet::Event::Logins { .. }
         | fleet::Event::SignedOut { .. }
         | fleet::Event::StartJob { .. }
@@ -1472,7 +1487,18 @@ pub(crate) enum Work {
 /// The store transport's transcript answer (jig/docs/design/domain/engine.md, 4.1 and 7.2).
 #[derive(Hash, Debug)]
 pub enum TranscriptLoad {
-    Page { rows: Box<[crate::TranscriptRow]>, done: bool },
+    Page {
+        rows: Box<[crate::TranscriptRow]>,
+        done: bool,
+    },
+    /// A window's turn past its store page's room, alone in its page: its
+    /// fields, `turn.transcript` empty and its transcript's length
+    /// (jig/docs/design/domain/engine.md, 7.2).
+    Cut {
+        turn: crate::TurnRecord,
+        bytes: u64,
+        done: bool,
+    },
     Unread,
     Failed,
 }

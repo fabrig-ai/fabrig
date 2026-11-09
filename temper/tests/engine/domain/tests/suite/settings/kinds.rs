@@ -563,7 +563,6 @@ fn a_landing_rule_and_the_forges_charter_changed_then_restored() {
 }
 
 #[test]
-#[ignore = "jig/docs/design/domain/engine.md, 17.5 and 17.10: a reset to an absent application default loses its retained state at restart"]
 fn a_restore_leaves_out_a_deleted_projects_rule() {
     let mut driver = kinds::driver();
     apply(
@@ -627,7 +626,7 @@ fn forgetting_erases_the_forges_replaced_rows() {
 }
 
 fn project_ways() -> settings::Value {
-    settings::Value::Ways(settings::ProjectWays { drafts: true, goals: true, changes: false, away: true, way: 0 })
+    settings::Value::Ways(settings::ProjectWays { drafts: true, goals: true, changes: false, way: 0 })
 }
 
 fn project_member(driver: &mut temper_engine_domain_world::direct::Driver) -> u64 {
@@ -704,13 +703,7 @@ fn a_projects_ways_are_changed_by_its_owner_and_read_by_its_member() {
             7,
             1,
             1,
-            &settings::Value::Ways(settings::ProjectWays {
-                drafts: false,
-                goals: false,
-                changes: false,
-                away: false,
-                way: 0,
-            }),
+            &settings::Value::Ways(settings::ProjectWays { drafts: false, goals: false, changes: false, way: 0 }),
         )]),
     ));
     driver.settle();
@@ -755,13 +748,7 @@ fn a_project_member_reads_its_kinds_at_their_revisions() {
     let later = [
         settings::Value::Rule(settings::LandingRule { ci: true, ..rule() }),
         settings::Value::Questions(Route::Up),
-        settings::Value::Ways(settings::ProjectWays {
-            drafts: false,
-            goals: false,
-            changes: true,
-            away: false,
-            way: 0,
-        }),
+        settings::Value::Ways(settings::ProjectWays { drafts: false, goals: false, changes: true, way: 0 }),
     ];
     for (key, values) in [(67, &earlier), (68, &later)] {
         apply(

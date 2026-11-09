@@ -120,6 +120,21 @@ GitHub forge on the fake's GitHub layer, it checks the forge connector's
 connected state, the picker and GitHub's merge queue as the branch's
 landing queue (`forge.md`).
 
+A change's merge job has its story there (`forge.md`, 8.4; `worker.md`,
+4.4), one table, `suite::merge_job`: a project naming a `merge_job`
+makes the job, the worker that declared the kind takes it, prepares the
+head with the base merged in on the fake disk, runs the command, and
+delivers or not, and the engine goes on from its branch. The command is
+the world's: it reads the job's request and the index on the fake disk,
+settles and stages what its row says, writes its result and exits.
+Rows: a clean merge (a catch-up of main into a goal's branch); a
+conflict it settles; one it leaves, which the change takes to a
+resolution; a base commit only on a branch the job's cached checkout has
+not fetched; and more files in conflict than the checkout's
+`conflicts`, all settled. Each row reads the forge's branch and its
+parents, the job's task ended and the change's next step. Rows of the
+worker alone stay the worker's world's (`tests/worker/domain`).
+
 A run's live text has its story there: a chat's reply reaches the
 party's run watch before its turn commits. The core asks for the chat's
 text, and smith's start carries the ask. smith's agent domain gives its
@@ -1106,6 +1121,33 @@ terminal client, the captures and the faults.
   process exit order are their Musts. The case library's 4.1/4.3
   placement, 4.4 pace and 4.5 account choices run only in the real-loop
   fuzzy stories (5.3).
+- **Two drivers' offline proofs** (the user's request `ignored-tiers`,
+  2026-11-08). Each test sets up what its script sets up, and the
+  script runs the test:
+  - *B0's,* `crates/temper/tests/proof_live.rs`: the rung's setup through
+    its last read before the account's import, on the fake model with no
+    account, and its whole walk on its twin, the driver the live rung
+    runs (2.7). Real Forgejo, as the stories above.
+  - *The managed GitHub sitting's Ready,*
+    `crates/temper/tests/live_github_managed.rs`'s `managed_ready_client`:
+    the sitting's fake half as `scripts/proof-live-github-managed.sh fake`
+    sets it up. That is the fake GitHub with the sitting's accounts and
+    its two repositories, the sitting's relay in its fake mode, and the
+    engine alone on `tests/support/github/engine.json`. Ready, the web
+    client's domain, view and transport run natively, signs in by the
+    printed link. Connect makes the App by its manifest and installs it
+    on the one repository, and Ready adopts that repository. The
+    sitting's driver runs the same test as its client, naming its mode
+    in `TEMPER_MANAGED_CLIENT` and giving the link on stdin. The test
+    ends as the driver's fake mode does: the engine and the fake GitHub
+    stopped, the relay's scan finds no secret bytes in its log or its
+    record. The push, the planted refusals, the cleanup, `fake-wide`'s
+    refusal, and the App key, JWT and installation token the driver
+    reads for its push and adds to that scan, stay the driver's.
+
+  The profile selects these by name beside the `process` binary
+  (`.config/nextest.toml`), so each binary's other tests stay in the
+  suites that hold them.
 
 - **Outside the gate suites:** nextest profile `process-temper`, run
   once the binary and the fake `claude` are built, with
@@ -1496,11 +1538,12 @@ section 8; testing-strategy.md, 2.9).
   test in `crates/temper/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
-  (2.4). B0's three offline proofs are the ignored `proof_live` binary,
-  run by `scripts/proof-live.sh rung-b0-offline` before the live story and never
-  in the process profile. The offline command selects only `proof_live`
-  under profile `live-temper`'s timeout horizon, overriding its default
-  filter; it admits no live account. A driver's own fault is met there, never
+  (2.4). B0's offline proofs need no person: its setup and its walk on
+  the twin are the process tier's (2.6, *Two drivers' offline proofs*),
+  and its live configuration's admission is `suite`'s (`startup.rs`).
+  `scripts/proof-live.sh rung-b0-offline` runs the first two before the
+  live story, under profile `process-temper`, whose default filter
+  selects them; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
     set up through ctl with the playground's copy
@@ -1579,13 +1622,29 @@ section 8; testing-strategy.md, 2.9).
   The rung's one sitting keeps its box up past a panic, which `run_walk`
   catches before its return, and a held Claude Code login is used in
   place, so neither has a guard.
-- **What stays the owner's,** ignored and run by hand: the process tier's chat on a
-  real model, `a_real_model_answers_a_chat_and_pushes_a_small_change` (a person's
-  sitting); `rung_b0_a_person_agrees_a_plan_before_the_change_lands` (the rung's
-  walk); `live_github`'s `a_chat_lands_a_change_on_github_com_through_a_restart`
-  (github.com); `live_github_managed`'s two; and `proof_live`'s three offline driver
-  proofs. The owner also runs the pair, one story at a time, through
-  `scripts/proof-live.sh forge-land` and `forge-land-claude`.
+- **What needs a person,** six tests, each ignored, its reason naming what
+  only a person gives, and each run by its script. None runs on a scripted
+  person alone: each needs a person's account, a person's sign-in or
+  github.com.
+  - `live.rs`'s `a_real_model_answers_a_chat_and_pushes_a_small_change`: a
+    person's fresh ChatGPT sign-in (`scripts/proof-live.sh`). Its story, a real
+    model's chat and pushed change, runs unattended in the landing pair, which
+    carries it on to a landing and a restart; a held login for it as well
+    would spend a real model's run on no check the pair lacks.
+  - `rung_b0_a_person_agrees_a_plan_before_the_change_lands`: a held ChatGPT
+    account, on the rung's own model, sol at high (`scripts/proof-live.sh
+    rung-b0`). Its bounds are that model's passing walk, so the cheapest
+    model would prove another walk.
+  - The landing pair: a held ChatGPT account and a held Claude Code login,
+    the after-landing tier's inputs (above). The owner also runs each alone,
+    through `scripts/proof-live.sh forge-land` and `forge-land-claude`.
+  - `live_github.rs`'s `a_chat_lands_a_change_on_github_com_through_a_restart`:
+    github.com, on the probe App's fixtures the owner holds
+    (`scripts/proof-live-github.sh`).
+  - `live_github_managed.rs`'s `managed_relay`: github.com, where a person
+    makes the App under their own account and installs it
+    (`scripts/proof-live-github-managed.sh live`). The fake sitting starts
+    the same relay in its fake mode, as its relay.
 - **Harness step checks run once,** in `suite` (`tests/suite/support_tests.rs`): no
   live or process test repeats a focused one.
 - **Outside the suites:** nextest profile `live-temper`, whose default filter is the
@@ -2230,11 +2289,7 @@ retained, ignored 4.6 story (../protocol/README.md, 15.6).
   workers, placement, a run moving between workers, a restart, a kill or
   a stop, since a behaviour is tested in the lowest world that owns it
   and the tiers above hold smokes. Only 4.6's case story exists in
-  `crates/temper/tests/`, and it is `#[ignore]`d: a retry can be placed
-  on a stopping worker's still-linked channel and journaled as an extra
-  refused attempt; it waits for jig's fleet to take a draining worker
-  out of placement before its runs end. No case story runs in the
-  process tier today.
+  `crates/temper/tests/`.
 - **What a gap holds is named.** A step whose Must needs what temper
   lacks (the gaps below) runs the part that works; its story's name says
   what it shows, and the table below what it leaves out and what holds
@@ -2257,7 +2312,7 @@ Act 1:
 | 4.3 | `the_opener_and_the_two_hour_check_run_on_three_workers` (`suite::fuzzy::case_4_1_4_3`), its second part, after the opener: the person asks the director, in a second chat, to schedule B's benchmark and to run the two-hour check; the director delegates B, an owner, and B delegates its benchmark, each waiting in its run, so B keeps s1; the benchmark is due with no free slot; the person adds s2, which links, and the benchmark is placed there and waits in its run, holding s2: the stall; the director arms its check, a timer, once every worker holds a run; the timer's wake reaches the director, which cancels the benchmark with its reason; B, told of its delegate's cancelled ending, reports, and the director reports. The oracle: the director told its timer's wake after its subscription, and its activity recording the timer; the benchmark ended, cancelled by the director with the reason, its run's end cancelled; no run of the benchmark left open, and B told the cancelled ending before its report. The story asserts what only the harness sees: ws ran the directors alone, s1 A's tasks and B, s2 the benchmark alone; s2 started after ws and s1 each held a run; every worker drained, and no agent killed. The cancel is cooperative: the benchmark's run stops at its next turn (smith's stop), so the story shows a cancel that is heeded. | a run that ignores the cancel, its worker holding it past a bound, which is the hung worker's, 4.6's; pools resized by amendment and a slot lent to A: there is no pool control on main, in temper's `ctl` or the agent's tools, and one slot per worker (../protocol/README.md, 15.7); a host kind amended for the next run, which jig's amendment doesn't carry; the check's report of load, queue and disk, worker health being undesigned (6.4); the timer's wake stands in for it; B moved to s2 with its notes and branches, which is placement by host kind: here B keeps s1's one slot, so the benchmark stalls on s2 and not on s1, the case's order under one slot per worker; data that is neither git nor notes, a benchmark's quiet machine, disk floors, build lanes, caches and memory caps, outside temper; the two hours: the timer is due at once, `at` 0, the shortest length that keeps the case's order, its turn held until every worker holds a run; B and the benchmark waiting in their runs, on the person's chats' charter (5.1), as the director does: a run that parks frees its slot, and the stall is a slot held |
 | 4.4 | `the_pace_question_reaches_the_person_and_its_answer_is_kept` (`suite::fuzzy::case_4_4`, past the guide by its seven activations): the deployment holds two accounts, the second idle; the director delegates A on the owner's model, without its design; A asks the director the pace question, its recommendation first, and the question waits in the person's inbox, the director being the person's chat; the person ranks the second account first with `temper ctl account rank` and answers the question with `temper ctl task answer`; the director, woken by the answer, writes it into a note of the project and amends A's model to the default one, the amendment's reason relaying the answer to A, which wakes once; A, on its new model, has a survey delegated, which pays from the account now first; the director recalls the note before its report. The oracle: the question in the person's inbox, on the director's task and A's message, until it is answered; the person's answer in what the director was told, after A's question; the note holding the answer, and recalled; A's model the director's choice at its next spec revision, and A's next query on it; the accounts in the person's order, and the survey's run paying from the account now first while A keeps the account it started on. | the director as the asker: a task can't ask its own person, since a question comes from a delegate (jig's `domain/tasks.md`, 8.1), so A's question to the director, which waits for the director's person, stands in for it; a plan's windows, its resets and its sustainable pace as the account's facts; B's model, one owner amended being enough; s2's sources, with one worker until the cluster's stories: the holder's order of its accounts stands in, and a task keeps the account it started on; the question not asked again, which the note's recall stands for; the director amending A's model alone: the story's amendment also changes A's spec, the fake LLM's need, since after a model change smith recaps A's conversation and the fake, which picks a turn by the count of replies said, can't follow a recap, and the oracle passes no judgement on the spec |
 | 4.5 | `a_refused_key_holds_its_work_until_it_is_replaced` (`suite::fuzzy::case_4_5_refused`, past the guide by smith's retries of a refused key, about 1.1 s of backoff, and by its activations, about 1.1 s without them): A's first query is refused (the fake LLM's `Unauthorized`); A waits, its task naming its account and the refusal, its account to be signed in again, until the person replaces the key with `temper ctl account replace-key`; A then resumes and finishes. `a_limited_account_holds_its_work_until_its_reset` (`suite::fuzzy::case_4_5_limited`, past the guide by its reset): A's first query finds its account limited with a reset (the fake LLM's `Exhausted` with its retry); A waits, its task naming the limit and its reset, its account `later` until then, and resumes past the reset with no act. The oracle, for each: the waiting task's run wait naming its account and why, read while it waits; the account's state, and for a limit its reset the run wait's, within a millisecond, since each document projects the engine's one deadline to wall time as it is read; the same task resumed on the account it kept, no task recreated, and its conversation kept: the query after the resume holds what A was told before it; the work finished after the act or the reset. | the sign-in on s2, and credentials never copied between machines: one worker until the cluster's stories, and the real loop hosts no fake issuer for an LLM provider's sign-in (2.4), so a key's replacement stands in for a sign-in; B's tasks, one owner held being enough; the case's five hours: a reset is whole seconds on the provider's wire, so the shortest is one second, which puts the limited story past the guide; a session that never ends: the waiting task's run ends, and a new attempt resumes its committed conversation (jig's `domain/accounts.md`, 3.5 and 4.3) |
-| 4.6 | `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once` (`suite::fuzzy::case_4_6`), a cluster story of its own, so that each of the case's cluster stories keeps its margin under the real loop's patience on a busy machine: the case's third part, on ws, s1 and s2, all started and each free: the person opens a chat with the director, whose run is placed on ws, the first free slot, and waits in it; the director delegates A's next phase, an owner that runs on another worker and sends the director its question; the director reads it, a read committed by a completed turn (a recall of the project's notes), and waits again with its answer not yet sent; the person stops ws, whose ending (../protocol/README.md, 15.4) ends the director's run, failed, into a retry; after the case's backoff the retry is placed on a free worker, resumes from the chat's committed turns with A's question kept, and answers it once; A, told the answer, reports, and the director reports; then the person starts ws again on its own three directories, and it links at its position and runs nothing. The oracle: the director's chat ran two attempts, the first ended failed and the next began after it and finished, never two open, in the journal's order; the director's read of the question committed and its run waiting before ws stopped; the next attempt told the question once, one answer sent across both attempts, and A told it once; A's phase ended with its report. The story asserts what only the harness sees: the first attempt ran on ws and the next on s1 or s2; ws's two lives each linked once and drained, the second running nothing; every worker drained and no agent killed. Time keeps the case's order: an agent's failure backs off 1 ms in this story's fixture (`tasks.retries.agent.base_ms`), the shortest whole length the configuration takes and never zero: the retry's path is the same and only its wait is short, the backoff is not what the story tests, and the order comes from the engine, which journals the ended attempt before it places the next, the order the oracle reads; the profile's own backoff stays the engine's domain world's, and every other case story keeps it. ws's ending waits on events: the director's committed read (polled in its activity, since no `ctl` wait names a committed turn), its run waiting (`ctl task show TASK --until replied`, then its document read until its work is `waiting`, since replied also holds for a run still writing), then ws's ring settling. ws starts again once the chat has ended, so that the retry, placed by the cached workspace first, cannot go back to it. On the process tier's cluster (2.6), `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace` is ignored; its retained code uses the same acts, scripts, fixture and oracle, ws, s1 and s2 being processes: ws stopped by its ending (`Members::stop_one`) and started again on its own directories (`Members::restart`); the story asserts the first attempt on ws, by its live channel and ws's first life's mapping read while the run waits, before the stop; and the next on s1 or s2 by the acts' order, not a mapping: ws is ended from before the first attempt fails until after the chat has ended, so the retry, whose channel no read is sure to see before it ends (2.6), is placed while s1 and s2 are the only workers linked; ws's two lives each linked once, and no forge token in any file or document the harness gives a worker (2.6). Its `#[ignore]` reason waits on jig's fleet: ws's ending closes its admission on the worker alone, so the engine can place the retry on ws's channel while it is still linked, and jig's fleet then rechecks it and journals an extra attempt refused, until the fleet hears a worker drain before its runs end | the hang past the grace, and its four hours (exact): here the link deadlines stay past the story's patience (2.4), so no grace runs out, ws goes away by its ending rather than a hang, and the director's run ends failed as an agent's, not lost; the loss and the grace are the engine's domain world's, in root_routes.rs `a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace`, `a_worker_lost_mid_run_resumes_at_the_last_committed_turn` and `a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed`, and forge_routes.rs `a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_twice`, and the process tier's lost and hung workers (../protocol/README.md, 15.6); a fenced attempt still running when its worker returns, and two resumed copies of a session beside their originals: the process tier's hung worker, and jig's fleet world, where a fenced attempt's turns are acknowledged and dropped: here ws's run has stopped before ws returns; a restarted worker that takes new runs, the process tier's (../protocol/README.md, 15.4): here ws links and runs nothing, the case's work having ended; a stalled run held past its bound and retried (exact): smith's no-progress watchdog, in smith's host world, which temper's worker translates into an agent's failure and jig retries within its allowance; no composed world stalls an agent, since no fake agent hangs (this table's retired first edition); three of A's questions: one waits, since the limits that three questions take raise each worker's ring provision until three workers' together pass what one io_uring ring holds; no single point: one engine, whose ending ends the cluster (../protocol/README.md, 15.4), undesigned; the reboot's other faults, an orphaned completion checker and a Codex run hanging on its stdin, smith's and jig's worlds; the build queue's environment, outside temper; forge credentials never on a worker: the real loop's fake forge writes its token into each worker's staging secrets (`tests/real-loop/src/forge.rs`), so the story can't assert their absence; its process story asserts it of the files and documents a worker is given, not of a git call's credential, which reaches the worker per call. Its process story leaves out the same but that check: the hang past the grace is in its name, and three of A's questions stay out, since the oracle, which is the real loop's, holds one |
+| 4.6 | `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once` (`suite::fuzzy::case_4_6`), a cluster story of its own, so that each of the case's cluster stories keeps its margin under the real loop's patience on a busy machine: the case's third part, on ws, s1 and s2, all started and each free: the person opens a chat with the director, whose run is placed on ws, the first free slot, and waits in it; the director delegates A's next phase, an owner that runs on another worker and sends the director its question; the director reads it, a read committed by a completed turn (a recall of the project's notes), and waits again with its answer not yet sent; the person stops ws, whose ending (../protocol/README.md, 15.4) ends the director's run, failed, into a retry; after the case's backoff the retry is placed on a free worker, resumes from the chat's committed turns with A's question kept, and answers it once; A, told the answer, reports, and the director reports; then the person starts ws again on its own three directories, and it links at its position and runs nothing. The oracle: the director's chat ran two attempts, the first ended failed and the next began after it and finished, never two open, in the journal's order; the director's read of the question committed and its run waiting before ws stopped; the next attempt told the question once, one answer sent across both attempts, and A told it once; A's phase ended with its report. The story asserts what only the harness sees: the first attempt ran on ws and the next on s1 or s2; ws's two lives each linked once and drained, the second running nothing; every worker drained and no agent killed. Time keeps the case's order: an agent's failure backs off 1 ms in this story's fixture (`tasks.retries.agent.base_ms`), the shortest whole length the configuration takes and never zero: the retry's path is the same and only its wait is short, the backoff is not what the story tests, and the order comes from the engine, which journals the ended attempt before it places the next, the order the oracle reads; the profile's own backoff stays the engine's domain world's, and every other case story keeps it. ws's ending waits on events: the director's committed read (polled in its activity, since no `ctl` wait names a committed turn), its run waiting (`ctl task show TASK --until replied`, then its document read until its work is `waiting`, since replied also holds for a run still writing), then ws's ring settling. ws starts again once the chat has ended, so that the retry, placed by the cached workspace first, cannot go back to it. On the process tier's cluster (2.6), `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace` uses the same acts, scripts, fixture and oracle, ws, s1 and s2 being processes: ws stopped by its ending (`Members::stop_one`) and started again on its own directories (`Members::restart`); the story asserts the first attempt on ws, by its live channel and ws's first life's mapping read while the run waits, before the stop; and the next on s1 or s2 by the acts' order, not a mapping: ws is ended from before the first attempt fails until after the chat has ended, so the retry, whose channel no read is sure to see before it ends (2.6), is placed while s1 and s2 are the only workers linked; ws's two lives each linked once, and no forge token in any file or document the harness gives a worker (2.6). ws's ending says it drains before its runs end, so jig's fleet places nothing on ws's channel while it is still linked, and no attempt of the retry is refused there (jig's `domain/engine.md`, section 8) | the hang past the grace, and its four hours (exact): here the link deadlines stay past the story's patience (2.4), so no grace runs out, ws goes away by its ending rather than a hang, and the director's run ends failed as an agent's, not lost; the loss and the grace are the engine's domain world's, in root_routes.rs `a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace`, `a_worker_lost_mid_run_resumes_at_the_last_committed_turn` and `a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed`, and forge_routes.rs `a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_twice`, and the process tier's lost and hung workers (../protocol/README.md, 15.6); a fenced attempt still running when its worker returns, and two resumed copies of a session beside their originals: the process tier's hung worker, and jig's fleet world, where a fenced attempt's turns are acknowledged and dropped: here ws's run has stopped before ws returns; a restarted worker that takes new runs, the process tier's (../protocol/README.md, 15.4): here ws links and runs nothing, the case's work having ended; a stalled run held past its bound and retried (exact): smith's no-progress watchdog, in smith's host world, which temper's worker translates into an agent's failure and jig retries within its allowance; no composed world stalls an agent, since no fake agent hangs (this table's retired first edition); three of A's questions: one waits, since the limits that three questions take raise each worker's ring provision until three workers' together pass what one io_uring ring holds; no single point: one engine, whose ending ends the cluster (../protocol/README.md, 15.4), undesigned; the reboot's other faults, an orphaned completion checker and a Codex run hanging on its stdin, smith's and jig's worlds; the build queue's environment, outside temper; forge credentials never on a worker: the real loop's fake forge writes its token into each worker's staging secrets (`tests/real-loop/src/forge.rs`), so the story can't assert their absence; its process story asserts it of the files and documents a worker is given, not of a git call's credential, which reaches the worker per call. Its process story leaves out the same but that check: the hang past the grace is in its name, and three of A's questions stay out, since the oracle, which is the real loop's, holds one |
 
 Act 2. Act 2's start is act 1's end: the director's chat; A, an owner,
 with its delegate x3 running; B, an owner, with a running implementer;
@@ -2527,7 +2582,7 @@ each behaviour in the lowest world that owns it, and one smoke above:
 | the engine's domain world, a box's approval identities (`agent.md`, 8.1; `forge.md`, 4.6) | on a box whose owned Forgejo's `Reconcile` answered the person's id, and on one whose manifest-made App's account is the person's: the inventory names the person's forge account by the link; their owner-role rule with `people: 1` is accepted, and `people: 2` refused naming the forge; a link cleared when the deployment has a second owner, and the rule then refused. On a deployment of several members, and on a pasted App, the requester without a forge identity is refused as before, and accepted once a human collaborator is adopted as admin. The script checks context and outcomes, not a real model's judgement | within the domain world's focused budget |
 | the engine's domain world, a box's approval waiting (`forge.md`, 8.12) | on a box whose forge links its person and whose rule of theirs is accepted, as in the box's approval identities, on each forge it links: a change made and stepped to its merge waits on the person's approval; the person's `approvals` document holds its row, theirs to give, while a second party of another project reads none; the linked user's review approving it at the head is posted on the fake forge; the row goes as the merge is admitted, and the change lands. The read's rows by state, head and role are the root's and the forge's step tables | within the domain world's focused budget, steps of an existing story |
 | the engine's domain world, a charter's documents (`../protocol/configuration.md`, 13.7) | through the core's plan, the root's binding and the forge's gather: a run of a charter naming a document gets its section at the branch's head; after a change lands that edits the file, the next run's section has the new text; a heading's part alone; a missing file, heading or repository, a section saying so and the run going on. The gather's own cases (a heading's bounds, a cut at a line end, each section saying why) are the forge crate's step tests | about 0.1 s, four stories |
-| fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 120 s, measured with it; no new binary |
+| fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 180 s (6.1), measured with it; no new binary |
 | the client and the engine, joined (6.3) | Ask temper's page, and `chat start --template 5` through ctl, starting Ask temper, whose run of charter 11 proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
 | the one-process world (2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
 | the real loop (2.4) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling, |
@@ -2803,13 +2858,13 @@ one complete accepted revision, with refusal and decided-call replay cases (6.4)
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
 crates/temper/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
-crates/temper/tests/proof_live.rs   ignored offline B0 driver proofs (2.7), scripts/proof-live.sh rung-b0-offline
+crates/temper/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
 crates/temper/tests/support/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 crates/temper/tests/support/cluster.rs  the cluster's reader: `crates/temper/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/README.md, 15.5)
 crates/temper/tests/fixtures/cluster  the retained cluster's description, read by the process tier
 crates/temper/tests/live.rs         the live tier (2.7), nextest profile live-temper
 crates/temper/tests/live_github.rs  the live tier's GitHub story (2.7), run by scripts/proof-live-github.sh
-crates/temper/tests/live_github_managed.rs  the owner-run sitting's private relay, never in a default run
+crates/temper/tests/live_github_managed.rs  the managed GitHub sitting: its Ready on the fake, nextest profile process-temper (2.6); its relay against github.com, owner-run (2.7)
 tests/client-browser                temper-client-browser-world: the browser tier (../client/browser.md, section 4), Chromium against temper serve on the bundle scripts/browser.sh builds; nextest profile browser-temper
 crates/temper-client-shell-terminal/tests  the terminal's machine world (../client/README.md, section 10)
 crates/temper-fake-git              the fake git program's core: temper fake git (4.3)
@@ -3012,6 +3067,12 @@ scripts/proof-live.sh               the live tier
   further evidence. Budgets and enforcement settings remain separate
   user decisions.
 
+- **The budgets raised for now** (1, 2.6, 6.1): the fuzzy suite's 180 s
+  and the process tier's 540 CPU s are the strategy's 120 and the tier's
+  6-minute aim raised by half by the user's word of 11-08, for now.
+  Revisiting them, and to what, is the user's, as it is for the browser
+  tier's 127.5 (`../client/browser.md`, 5).
+
 - **The second printed link's cause** (2.6): a serve restart draws a new
   link; a retry whose earlier sign-in spent its secret can also ask for
   another when no link is live. Neither is established as the reported
@@ -3166,6 +3227,15 @@ scripts/proof-live.sh               the live tier
   worlds (the request `walks-lower` of 2026-11-08), against the same
   540 CPU s. A plan compiles the walks and runs none; a red after landing
   is repaired by name, under 2.6's rule.
+- **The two drivers' offline proofs, after landing** (2.6, *Two drivers'
+  offline proofs*): the next after-landing run on main runs B0's setup
+  and twin walk and the managed sitting's Ready in profile
+  `process-temper` and reads their CPU against the tier's budgets; B0's
+  twin serves its setup and walk for at most 700 s. The owner's next
+  `scripts/proof-live-github-managed.sh fake` dry run proves the test as
+  the sitting's client, its driver setting up the same fake half as the
+  test. A red is repaired by name, under 2.6's rule; none of the three
+  moves to `live-temper`, which needs a real model.
 - **jig's referee tests, repeated.** `tests/engine/domain/tests/suite/referee.rs`
   keeps tests of jig's referees that jig's own suites hold:
   `authority_referee_rejects_a_person_without_a_grant` observes what

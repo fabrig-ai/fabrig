@@ -67,7 +67,7 @@ pub use project_note::{
     Ledger, Member, Note, NoteLocation, Policy, PolicyRole, Project, ProjectResource, Recurring, Requirement,
     ResourceRole, SpendLine, note_from_entry,
 };
-pub(crate) use settings::inventory as settings_inventory;
+pub use settings::inventory as settings_inventory;
 pub use settings::{Follows, HeldRevision, SettingLine, Settings, SettingsProposal};
 pub use settings_review::{ApplicationReview, ReviewItem, SettingsReview, settings_heads};
 pub(crate) use small::text as bounded_text;

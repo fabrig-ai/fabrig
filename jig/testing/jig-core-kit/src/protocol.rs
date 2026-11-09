@@ -158,6 +158,27 @@ impl crate::world::World {
         Token::new(u64::from(completion))
     }
 
+    /// Send a typed person read as the assigned run's call, reusing its name on retry.
+    pub fn person_read(&mut self, read: core::reads::Read) -> Token {
+        self.person_read_at(500, read)
+    }
+
+    /// Keep a distinct destination for concurrent typed person reads.
+    pub fn person_read_at(&mut self, completion: u32, read: core::reads::Read) -> Token {
+        let assignment = self.assigned.as_ref().expect("assigned run");
+        let key = core::CallKey { task: assignment.task, attempt: assignment.attempt, completion, position: 0 };
+        let token = Token::new(u64::from(completion));
+        if let Some(reads) = &mut self.reads {
+            reads.person_requested(token);
+        }
+        self.send(root::Event::Core(core::Event::NamedAction {
+            to: ReplyTo::new(token),
+            key,
+            action: core::NamedAction::PersonRead(read),
+        }));
+        token
+    }
+
     /// Relay an encoded host call through the tool protocol.
     pub fn relay_call(&mut self, name: &[u8], tool: &[u8], input: &[u8], writes: bool) {
         let assignment = self.assigned.as_ref().expect("assigned chat");

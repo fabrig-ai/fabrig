@@ -5,7 +5,7 @@ use temper_engine_domain_forge::settings;
 use temper_engine_domain_world::kinds;
 
 const ASK_CHARTER: u32 = 11;
-const SETTINGS_CHARTER: u32 = 12;
+const SETTINGS_CHARTER: u32 = 13;
 
 fn box_owner() -> people::IdentityKey {
     people::IdentityKey { provider: 3, subject: b"owner-a".as_slice().into() }
@@ -371,7 +371,13 @@ fn drop_approvals(world: &mut World) {
                             rule.approvals = Box::new([]);
                             Some(kinds::item(key.kind, key.scope, key.number, &settings::Value::Rule(rule)))
                         }
-                        settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_) => None,
+                        settings::Value::Charter(_)
+                        | settings::Value::Questions(_)
+                        | settings::Value::Ways(_)
+                        | settings::Value::CharterWords(_)
+                        | settings::Value::Goal(_)
+                        | settings::Value::Classes(_)
+                        | settings::Value::ProjectWords(_) => None,
                     }
                 }
                 _ => None,

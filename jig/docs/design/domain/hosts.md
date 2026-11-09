@@ -708,6 +708,15 @@ happens.
   waits, never dropped: turns, with the refusals they carry, and relays,
   unless their call has closed meanwhile. On reconnecting, the worker
   says what it hosts and the engine keeps or cancels each run.
+- **A loss is told, with why,** on each side, once, in its log: silence,
+  stall, the stream, a refusal and its reason (`../protocol/channel.md`,
+  section 9). A healthy link is never lost for its load: each side reads
+  it and keeps its pings whatever its root has yet to take.
+- **A worker comes back as often as it is lost.** Nothing a lost link
+  leaves holds its return: the engine closes the old connection within
+  its stall deadline (`../protocol/channel.md`, 10.2), the fleet frees the
+  worker's position as it hears the loss (engine.md, section 8), and each
+  hello is taken as the first was.
 - **Past the grace,** the hub cancels them itself, saving their work
   first, and keeps their turns and answers for the next channel.
 - **The stop bound** the worker says at its hello is the longest it may
@@ -722,7 +731,10 @@ happens.
 
 ### 6.7 Shutting down
 
-Shutting down cancels every run and admits no more. The host is done
+Shutting down cancels every run and admits no more. A worker's hub
+first says it drains, on its link, before anything the cancelled runs
+send, and again after each hello while it shuts down, so that the fleet
+places nothing more on it (engine.md, section 8). The host is done
 once the engine has every turn and answer. A worker gives up what it
 keeps, counted, only once no run is left and the engine is still out of
 reach past the grace.

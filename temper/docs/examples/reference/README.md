@@ -29,7 +29,7 @@ mv temper.next.json temper.json
 ```
 
 `root.journal.run_bytes` bounds a run's stored policy, a charter's whole
-policy among it, and the box's bound of 20,480 bytes refuses a charter of 31 KB, so
+policy among it, and the box's bound of 24,576 bytes refuses a charter of 31 KB, so
 the room sets 65,536 bytes. A charter's `turns`, its `time` and the run's
 spend must fit the bounds a worker advertises, or no host takes its tasks
 (`../../../../jig/crates/jig-domain-fleet/src/needs.rs`, `charter_shortfall`
@@ -68,7 +68,7 @@ def grant($bits):
 def widen:
   .tools |= grant($required[0].tools)
   | .notes |= grant($required[0].notes)
-  | .delegation.kinds |= (. + $required[0].kinds | unique);
+  | .delegation.kinds |= (. + $required[0].kinds | unique | map(select(. != {"charter": 12})));
 .items |= map(
   .set.ceiling |= widen
   | if .setting.kind == "rules" then .
@@ -79,9 +79,10 @@ jq -s '{items: map({setting, set: .value})}' reference-rules.json reference-poli
 jq --slurpfile required reference-authority.json --argjson role ROLE -f reference-authority.jq reference-input.json > FILE
 ```
 
-Expect: widened rules and policy 1 in `FILE`, retaining executors. The stock's
+Expect: widened rules and policy 1 in `FILE`. The stock's
 delegation already holds coordinator charter 5, foreman charter 6, change procedure 2,
-merge job 3 and person role 0; the widening adds designer charter 7, keeping each
+merge job 3 and person role 0; the widening adds designer charter 7 and takes out
+the drafter's charter 12, which the reference's work never starts, keeping each
 kind once. Install charters first, offering these families.
 Size tasks, depth and spend (temper help budget).
 

@@ -213,6 +213,8 @@ pub enum MintRefusal {
 }
 #[derive(Debug)]
 pub struct Settings {
+    /// Turn parts shown to their requester alone (domain/engine.md, 10.1).
+    pub private: jig_protocol_transcript::Private,
     pub provider: Option<skein_oauth_issuer::Issuer>,
     pub addresses: Box<[u16]>,
     pub link: Option<people::Identity>,
@@ -300,6 +302,10 @@ pub enum FromTransport {
     },
     StreamGone {
         stream: Token,
+    },
+    /// An exchange's connection ended before its reply (protocol/client.md, 4.2).
+    ExchangeGone {
+        exchange: Token,
     },
     PublicRead {
         exchange: Token,

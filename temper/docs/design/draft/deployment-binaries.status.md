@@ -2,25 +2,30 @@
 
 2026-11-09. Where the design lags or departs from [deployment-binaries.md](deployment-binaries.md).
 
-M4 is landed on main at `fdc26f71c6` (PR #78): the agent's binary and
-modes, the smith document/profile split, the shared fetch and launcher,
-and the agent's dependency-closure row are present. M3's worker naming
+M4 is carried onto main by the `agent-binary-closure` plan: the agent's
+binary and modes, the smith document/profile split, the shared fetch and
+launcher, and the agent's dependency-closure row are present. M3's worker naming
 that program, M5's box integration, remaining closure rows and help, M6's
 release job, and figures are not completed by M4. Section 11's Later
 items are unchanged.
 
 - **Design lags:**
-  - 1 and 4: `../README.md`, section 1, describes one binary, `temper`, with every command. `../protocol/README.md`, section 4, has the box's `temper`, the deployment's client, `temper-client`, and the agent's, `temper-agent`, and not yet the engine's or the worker's binary.
+  - 4 and 10: `../protocol/README.md`, 4.1 and 4.4, hold the binaries'
+    closures in two table tests of two shapes, `binaries.rs` by the
+    crates a row excludes (the engine's) and `closure.rs` by the temper
+    crates and trees a row allows (the agent's), where the draft has one
+    boundary test hold each binary's closure. Which shape the rule's test
+    keeps is M5's (`deployment-binaries.execution.md`, 1).
+  - 1 and 4: `../README.md`, section 1, heads its binary's point "One binary" and names `temper-engine` alone of a deployment's binaries. `../protocol/README.md`, section 4, has the box's `temper`, the deployment's client, `temper-client`, the engine's binary (4.2), and the agent's, `temper-agent` (4.3), and not yet the worker's binary.
   - 4: `../protocol/setup.md`, 8.2: `init` names its own executable, with `internal agent`, as the agent's program. The fetched Claude Code launcher's link points at the binary that places it.
   - 3 and 4: `../client/README.md`, 4.6, prints `temper program-login … NAME` for a deployment whose workers are elsewhere. With the set, that's `temper-worker program-login`.
-  - 2, 6 and 8: `../release.md`, sections 1, 2 and 5, give one file a release, the whole product. Missing: the deployment set, its `v{MAJOR}` path and commit directories, and the release job building both sets. Its section 3's `--version` is the engine's and the worker's too; the client's is `../protocol/README.md`, section 4's, and the agent's its 4.1.
+  - 2, 6 and 8: `../release.md`, sections 1, 2 and 5, give one file a release, the whole product. Missing: the deployment set, its `v{MAJOR}` path and commit directories, and the release job building both sets.
   - 3: `../../help/server.md` builds and copies one binary, runs `temper serve`, and copies the example documents from a checkout.
   - 3: `../protocol/documentation.md`, section 8: the `commands` page is the box's table alone and names no command's binary, and `temper-client help commands` prints that page.
-  - 4: `../protocol/README.md`, section 15, calls the cluster "no deployment's", and 15.1 gives `serve` "no command of its own" per shape, while `temper-engine serve` and `temper-worker serve` are each a binary's.
+  - 4: `../protocol/README.md`, section 15, calls the cluster "no deployment's", and 15.1 names `temper-engine serve`'s shape but not yet `temper-worker serve`'s.
   - 6: `../protocol/README.md`, section 9: `CLIENT_VERSION`'s row has `temper open` "from the same binary" as the engine.
   - 6 and 8: `../release.md`, section 5: the release script publishes nothing, and a tag's files go among its releases. Here the site's job publishes each build's set under `v{MAJOR}`.
 - **Design departs:**
   - 4: the client also links `temper-shell`, which isn't a client crate: what every binary of temper's starts from, its table's rows and their help, the three directories and the engine's link file (`../protocol/README.md`, section 5). Section 4's rule for code two binaries share puts it in a crate each links, and the engine needs the link file and a table too. Decided by the `client-binary` cut, 2026-11-08.
-  - 9, item 3: the agent has two smith crates, `smith-agent-profile` for the document's values and `smith-agent-document` for its reader and program helpers, and two temper crates, `temper-fetch` for the fetch's machine and `temper-fetch-shell` for its host and launcher, where the draft names one crate each. The plan's lead decided these splits on 2026-11-08 and kept them on 2026-11-09; the other two accepted departures, the help row and the agent's own failure prefixes, remain in `agent-binary.status.md`.
-- **Open:**
-  - 5, the name clash, for the user. Options: A, `temper` in both sets; B, the box's binary as `temper-box`; C, the deployment's client as `temper-client` or `temper-tui`; D, the deployment's `temper` as the box's whole-product file. Default meanwhile: the deployment set publishes the engine, worker and agent, and holds the client's file, as the box's `temper` serves as a client. To reverse: the user's choice publishes the client under its name.
+  - 3 and 4: `temper-engine` links the box's machine, `temper-box`, and the fakes' crates, `temper-fake` with skein's fake forge, LLM and OAuth beneath it, though none of their commands, which stay the box's: `temper-engine-shell`'s check of the document reads its `box` limits and `demo` member as the box's does, so that one document is checked the same in every binary (`../protocol/README.md`, section 5), and its row in the closure test excludes neither (`../protocol/README.md`, 4.2). Decided by the `ui-engine-split` cut, 2026-11-08 (its `engine-forge` task).
+  - 9, item 3: the agent has two smith crates, `smith-agent-profile` for the document's values and `smith-agent-document` for its reader and program helpers, and three temper crates, `temper-fetch` for the fetch's machine, `temper-fetch-shell` for its host and `temper-launcher` for Claude Code's launcher, where the draft names one crate each. The plan's lead decided the first splits on 2026-11-08 and kept them on 2026-11-09; the `agent-binary-closure` cut gave the launcher its own crate on 2026-11-09, so that the forge's setup, and the engine through it, link the fetch's host without the smith crates the launcher reads (`../protocol/setup.md`, section 11). The other two accepted departures, the help row and the agent's own failure prefixes, remain in `agent-binary.status.md`.

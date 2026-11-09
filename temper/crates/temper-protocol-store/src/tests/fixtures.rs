@@ -62,6 +62,7 @@ pub const LIMITS: top::Limits = top::Limits {
     trees_in_flight: 2,
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
+    decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,
@@ -254,6 +255,7 @@ pub fn named_branch() -> top::Name {
 }
 pub fn adopted(protection: top::Protection) -> top::Stored {
     top::Stored::Repository(top::Repository {
+        workflows: Box::new([Box::from(b"ci.yml".as_slice()), Box::from(b"lint.yml".as_slice())]),
         project: 3,
         home: true,
         provider: REPO,
@@ -520,7 +522,20 @@ pub fn payloads() -> List<top::CallPayload> {
     use skein_forge_client::{Made, Outcome};
     let mut rows = List::with_capacity(80);
     for took in [None, Some(Box::from(b"chosen".as_slice()))] {
-        rows.push(top::CallPayload::Decided { took }).expect("fixture room");
+        for reach in [
+            None,
+            Some(temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            }),
+        ] {
+            rows.push(top::CallPayload::Decided { took: took.clone(), reach }).expect("fixture room");
+        }
     }
     for made in [
         Made::Created(1),

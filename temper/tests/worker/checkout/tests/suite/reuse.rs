@@ -320,7 +320,7 @@ fn a_damaged_clone_heals() {
         let first = world.submit(world.now(), plan(0));
         world.run(ITERATIONS);
         if reuse {
-            assert_eq!(world.client(first).prepared, Some(Prepared::Failed { failure: Failure::Transient }));
+            assert!(matches!(world.client(first).prepared, Some(Prepared::Failed { failure: Failure::Transient, .. })));
         } else {
             ready(&world, first);
         }

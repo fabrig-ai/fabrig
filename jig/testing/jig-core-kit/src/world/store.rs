@@ -218,7 +218,19 @@ impl World {
     /// A cold start under `config`, which `restart_config` already holds a copy of.
     pub(crate) fn restart_configured(&mut self, config: root::Config) {
         self.observer.observe(self.wall, crate::referee::Observed::Restart);
+        if matches!(self.cut, Some(super::Cut::Disk { .. }))
+            || matches!(self.reached_cut, Some(super::Cut::Disk { .. }))
+        {
+            self.reached_cut = None;
+        }
+        if let Some(super::Cut::Disk { from, operation }) = self.cut {
+            self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
+        }
         self.store.reconfigure(18, &config.core.settings.models);
+        if self.store.reached_kill() {
+            self.reached_cut = self.cut.take();
+            return;
+        }
         // The observer may resume A after a crashed pending copy whose
         // process-local commits were discarded. Its own position is the fence.
         self.observer.fresh_mark(self.wall, &self.store);
@@ -255,7 +267,9 @@ impl World {
         if let Some(peers) = &mut self.peers {
             peers.restart();
         }
-        self.cut = None;
+        if !matches!(self.cut, Some(super::Cut::Disk { .. })) {
+            self.cut = None;
+        }
         self.events.push_back(root::Event::StartBegin { pending: self.store.generation_pending });
         self.drain();
         if self.domain.ready() {

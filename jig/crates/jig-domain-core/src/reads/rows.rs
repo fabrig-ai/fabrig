@@ -15,12 +15,13 @@ use jig_domain_tasks as tasks;
 use skein_lib::List;
 mod positions;
 
-fn note_project(scope: &notes::Scope) -> u32 {
+fn note_project(scope: &notes::Scope) -> Option<u32> {
     match scope {
-        notes::Scope::Deployment => 0,
+        notes::Scope::Party { .. } => None,
+        notes::Scope::Deployment => Some(0),
         notes::Scope::Project { project }
         | notes::Scope::Goal { project, .. }
-        | notes::Scope::Resources { project, .. } => *project,
+        | notes::Scope::Resources { project, .. } => Some(*project),
     }
 }
 
@@ -35,7 +36,16 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
         Scope::SettingsHistory { .. } => core.people.role(party, jig_domain_people::DEPLOYMENT).is_some(),
         Scope::Tasks { query } => documents::task_query::admission(core, party, query).is_ok(),
         Scope::Notes { project } | Scope::Spend { project } => project_allowed(core, party, *project),
-        Scope::ScopedNotes { scope, .. } => project_allowed(core, party, note_project(scope)),
+        Scope::ScopedNotes { scope, .. } => match note_project(scope) {
+            Some(project) => project_allowed(core, party, project),
+            None => match scope {
+                notes::Scope::Party { party: owner } => super::party::scope_visible(core, party, *owner),
+                notes::Scope::Deployment
+                | notes::Scope::Project { .. }
+                | notes::Scope::Goal { .. }
+                | notes::Scope::Resources { .. } => false,
+            },
+        },
         Scope::Inbox { filter, .. } => match filter.project {
             Some(project) => project_allowed(core, party, project),
             None => true,
@@ -432,6 +442,136 @@ pub(super) fn proposal_from_store(
     owner_rows(core, limits, range, raw, next, wall, Some(project))
 }
 
+/// Person reads keep party visibility and require every loaded owner to be of
+/// the run's project (`jig/docs/design/domain/engine.md`, 7.3).
+pub(super) fn person_from_store(
+    core: &Core,
+    limits: &Limits,
+    range: &Range,
+    raw: Box<[Row]>,
+    next: Option<Position>,
+    wall: skein_lib::Wall,
+    project: u32,
+) -> Answer {
+    for row in &raw {
+        if !person_row_project(row, project) {
+            return Answer::None(Why::Unknown);
+        }
+    }
+    from_store(core, limits, range, raw, next, wall)
+}
+
+fn person_row_project(row: &Row, project: u32) -> bool {
+    if let Some(owner) = row_owner(row)
+        && owner.project != project
+    {
+        return false;
+    }
+    for linked in &row.linked {
+        if linked.project != project {
+            return false;
+        }
+    }
+    match &row.value {
+        Record::Notes(notes::Record::Entry(entry)) => note_project(&entry.scope) == Some(project),
+        Record::Tasks(tasks::Stored::Ledger(ledger) | tasks::Stored::ClosedLedger(ledger)) => match ledger.funder {
+            tasks::Funder::Period { project: owner, .. } => owner == project,
+            tasks::Funder::Task(_) | tasks::Funder::Pool { .. } | tasks::Funder::Recurring { .. } => false,
+        },
+        Record::Tasks(tasks::Stored::PersonProposal(proposal) | tasks::Stored::DecidedProposal(proposal)) => {
+            proposal.project == project
+        }
+        Record::Tasks(
+            tasks::Stored::Live(_)
+            | tasks::Stored::Ended(_)
+            | tasks::Stored::Activity(_)
+            | tasks::Stored::History(_)
+            | tasks::Stored::Milestone(_)
+            | tasks::Stored::PlacedHold(_)
+            | tasks::Stored::Stub(_)
+            | tasks::Stored::Writer(_)
+            | tasks::Stored::Result(_)
+            | tasks::Stored::EndedByParty(_)
+            | tasks::Stored::EndedByProject(_)
+            | tasks::Stored::EndedDelegate(_)
+            | tasks::Stored::Delegate(_)
+            | tasks::Stored::Update(_)
+            | tasks::Stored::Pool(_),
+        )
+        | Record::Core(_) => row_owner(row).is_some(),
+        Record::People(_) | Record::Notes(notes::Record::Line(_)) | Record::Accounts(_) => false,
+    }
+}
+
+fn validate_rows(limits: &Limits, range: &Range, raw: &[Row], next: Option<&Position>) -> Result<(), Why> {
+    if raw.len() > skein_lib::length::usize_of(range.rows) {
+        return Err(Why::Busy);
+    }
+    if !positions::grouped(range, raw) {
+        return Err(Why::Unknown);
+    }
+    let mut total = 0_u64;
+    let mut previous = range.after.clone();
+    for row in raw {
+        let Some(bytes) = row_bytes(row) else {
+            return Err(Why::Busy);
+        };
+        let Some(sum) = total.checked_add(bytes) else {
+            return Err(Why::Busy);
+        };
+        total = sum;
+        if row.linked.len() > skein_lib::length::usize_of(linked_limit(limits).expect("linked cap fits")) {
+            return Err(Why::Busy);
+        }
+        if total > range.bytes || row.ancestors.len() > skein_lib::length::usize_of(limits.tasks.depth) {
+            return Err(Why::Busy);
+        }
+        let Some(key) = row_key(row) else {
+            return Err(Why::Unknown);
+        };
+        if !position_allowed(&range.scope, &key) || !positions::later(range, previous.as_ref(), &key) {
+            return Err(Why::Unknown);
+        }
+        previous = Some(key);
+    }
+    let empty_page = raw.is_empty() && is_page(&range.scope);
+    if let Some(next) = next
+        && (!position_allowed(&range.scope, next)
+            || (!empty_page && !positions::examined(range, previous.as_ref(), next) && previous.as_ref() != Some(next))
+            || !(positions::later(range, range.after.as_ref(), next)
+                || empty_page && range.after.as_ref() == Some(next)))
+    {
+        return Err(Why::Unknown);
+    }
+    Ok(())
+}
+
+/// An owner-only point read proves a retained page's project without building
+/// its task document or joining its lineage (`engine.md`, 7.3).
+pub(super) fn person_owner(
+    core: &Core,
+    limits: &Limits,
+    range: &Range,
+    raw: &[Row],
+    next: Option<&Position>,
+    project: u32,
+) -> Result<(), Why> {
+    validate_rows(limits, range, raw, next)?;
+    let Scope::TaskText { task, .. } = range.scope else { unreachable!("owner-only task point read") };
+    let row = raw.first().ok_or(Why::Unknown)?;
+    let owner = row_owner(row).ok_or(Why::Unknown)?;
+    if raw.len() != 1
+        || next.is_some()
+        || owner.number != task
+        || !ended(owner)
+        || !person_row_project(row, project)
+        || !read_row_visible(core, range.party, row, None)
+    {
+        return Err(Why::Unknown);
+    }
+    Ok(())
+}
+
 fn owner_rows(
     core: &Core,
     limits: &Limits,
@@ -441,44 +581,8 @@ fn owner_rows(
     wall: skein_lib::Wall,
     run_project: Option<u32>,
 ) -> Answer {
-    if raw.len() > skein_lib::length::usize_of(range.rows) {
-        return Answer::None(Why::Busy);
-    }
-    if !positions::grouped(range, &raw) {
-        return Answer::None(Why::Unknown);
-    }
-    let mut total = 0_u64;
-    let mut previous = range.after.clone();
-    for row in &raw {
-        let Some(bytes) = row_bytes(row) else {
-            return Answer::None(Why::Busy);
-        };
-        let Some(sum) = total.checked_add(bytes) else {
-            return Answer::None(Why::Busy);
-        };
-        total = sum;
-        if row.linked.len() > skein_lib::length::usize_of(linked_limit(limits).expect("linked cap fits")) {
-            return Answer::None(Why::Busy);
-        }
-        if total > range.bytes || row.ancestors.len() > skein_lib::length::usize_of(limits.tasks.depth) {
-            return Answer::None(Why::Busy);
-        }
-        let Some(key) = row_key(row) else {
-            return Answer::None(Why::Unknown);
-        };
-        if !position_allowed(&range.scope, &key) || !positions::later(range, previous.as_ref(), &key) {
-            return Answer::None(Why::Unknown);
-        }
-        previous = Some(key);
-    }
-    let empty_page = raw.is_empty() && is_page(&range.scope);
-    if let Some(next) = &next
-        && (!position_allowed(&range.scope, next)
-            || (!empty_page && !positions::examined(range, previous.as_ref(), next) && previous.as_ref() != Some(next))
-            || !(positions::later(range, range.after.as_ref(), next)
-                || empty_page && range.after.as_ref() == Some(next)))
-    {
-        return Answer::None(Why::Unknown);
+    if let Err(why) = validate_rows(limits, range, &raw, next.as_ref()) {
+        return Answer::None(why);
     }
     let mut page = Page {
         rows: List::with_capacity(range.rows),
@@ -856,7 +960,11 @@ fn object(
                     if value.task != *task || value.attempt != *attempt || value.turn != *turn {
                         return Err(Missing::Unknown);
                     }
-                    Ok(Some(ended_answer(EndedValue::Turn(value.clone()), Some(value.at), None)))
+                    Ok(Some(ended_answer(
+                        super::withheld::turn(core, range.party, row_owner(&row), value.clone()),
+                        Some(value.at),
+                        None,
+                    )))
                 }
                 tasks::Line::Words { .. }
                 | tasks::Line::Heard(_)
@@ -875,7 +983,11 @@ fn object(
             if value.task != *task || value.attempt != *attempt || value.turn != *turn || !owner_matches(&row, *task) {
                 return Ok(None);
             }
-            Ok(Some(ended_answer(EndedValue::Turn(value.clone()), Some(value.at), None)))
+            Ok(Some(ended_answer(
+                super::withheld::turn(core, range.party, row_owner(&row), value.clone()),
+                Some(value.at),
+                None,
+            )))
         }
         Scope::EndedTasks
         | Scope::TaskRows { .. }
@@ -948,7 +1060,7 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
             {
                 return Ok(None);
             }
-            Ok(Some(super::activity::row(line, &row)?))
+            Ok(Some(super::activity::row(core, range.party, line, &row)?))
         }
         Scope::ScopedNotes { scope, description } => {
             let Some(value) = note(&row.value) else { return Ok(None) };
@@ -968,7 +1080,10 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
             };
             let belongs = match value.scope {
                 notes::Scope::Goal { project: owner, .. } => owner == *project,
-                notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Resources { .. } => false,
+                notes::Scope::Party { .. }
+                | notes::Scope::Deployment
+                | notes::Scope::Project { .. }
+                | notes::Scope::Resources { .. } => false,
             };
             if !belongs {
                 return Ok(None);

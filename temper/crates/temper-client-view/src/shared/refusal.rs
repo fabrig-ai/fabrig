@@ -115,7 +115,7 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
         }
     } else {
         match root.pages().address() {
-            Address::Ask { .. } | Address::Home { .. } => {
+            Address::Ask { .. } | Address::Home { .. } | Address::NewChat { .. } => {
                 if let Some(chats) = root.pages().chats() {
                     if chats.refusal.is_some() {
                         feedback.push(refused(&c::Refusal::NotOffered, w, false)).expect("one local refusal");
@@ -128,17 +128,23 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
                 }
             }
             Address::Chat { .. }
-            | Address::NewChat { .. }
+            | Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
+            // page-view: draw Remembered.
+            | Address::Remembered
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Task { .. }
+            | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Settings { .. }
             | Address::Models { .. }
             | Address::Builders { .. }

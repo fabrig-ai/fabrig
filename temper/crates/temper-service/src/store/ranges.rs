@@ -1,9 +1,37 @@
 //! The root's ranges, expressed in jig's store vocabulary.
+//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 8).
 use super::route::Flight;
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_protocol_store as store;
 use temper_engine_domain::{CoreRange, Key, Range};
+
+/// Only a current window hands oversized turns on cut.
+pub(super) fn window(range: &Range) -> bool {
+    match range {
+        Range::Core(CoreRange::TaskTranscript { .. }) => true,
+        Range::Core(
+            CoreRange::Deployment
+            | CoreRange::Settings
+            | CoreRange::Accounts
+            | CoreRange::People
+            | CoreRange::Sweep
+            | CoreRange::Tasks
+            | CoreRange::RunProofs
+            | CoreRange::Calls
+            | CoreRange::EndedRead { .. }
+            | CoreRange::TaskResult { .. }
+            | CoreRange::RequesterWord { .. }
+            | CoreRange::Turns { .. }
+            | CoreRange::Notes(_)
+            | CoreRange::ProposalDecision { .. }
+            | CoreRange::TaskProposal { .. }
+            | CoreRange::EscalationDecision { .. },
+        )
+        | Range::Census(_)
+        | Range::Forge => false,
+    }
+}
 
 /// Startup selects stored families; writer rules are proved by store oracles
 /// (temper/docs/design/domain/root.md, 9.1).
@@ -175,10 +203,14 @@ fn jig_get(owner: skein_lib::Token, key: core::Key) -> store::Request {
 pub(super) fn texts(
     range: &Range,
     rows: &[temper_engine_domain::Record],
+    cut: Option<u32>,
 ) -> Option<temper_engine_domain::TranscriptTexts> {
     if let Range::Core(CoreRange::TaskTranscript { .. }) = range {
     } else {
         return None;
+    }
+    if let Some(bytes) = cut {
+        return Some(Box::new([temper_engine_domain::TurnText::Cut(bytes)]));
     }
     let mut texts = skein_lib::List::with_capacity(u32::try_from(rows.len()).expect("bounded transcript rows"));
     for row in rows {
@@ -195,11 +227,13 @@ pub(super) fn texts(
                     },
                 );
                 match jig_protocol_transcript::brief_text(&limits, &turn.transcript) {
-                    Ok(text) => Some(text_end(&text)),
-                    Err(_) => None,
+                    Ok(text) => temper_engine_domain::TurnText::Rendered(text_end(&text)),
+                    Err(_) => temper_engine_domain::TurnText::Unrendered,
                 }
             }
-            temper_engine_domain::Record::Core(_) | temper_engine_domain::Record::Forge { .. } => None,
+            temper_engine_domain::Record::Core(_) | temper_engine_domain::Record::Forge { .. } => {
+                temper_engine_domain::TurnText::Unrendered
+            }
         };
         texts.push(text).expect("one rendering per row");
     }

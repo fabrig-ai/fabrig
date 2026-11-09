@@ -146,15 +146,15 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     tui.type_words(&mut world, "/");
     tui.run(&mut world, STEP);
     let text = tui.text();
-    for command in ["/model", "/new", "/chats", "/theme", "/help", "/exit"] {
+    for command in ["/model", "/new", "/chats", "/theme", "/help", "/quit"] {
         assert!(text.contains(command), "missing {command}: {text}");
     }
     assert!(!text.contains("/font"), "{text}");
     tui.press(&mut world, vec![Key::Escape]);
     tui.run(&mut world, STEP);
     let text = tui.text();
-    assert!(text.contains("❯ Ask temper"), "Esc clears the box: {text}");
-    assert!(!text.contains("/exit"), "Esc closes the commands: {text}");
+    assert!(text.contains("❯ Ask for a change, or ask temper.  / for commands"), "Esc clears the box: {text}");
+    assert!(!text.contains("/quit"), "Esc closes the commands: {text}");
     assert!(text.contains(PROJECTS), "{text}");
 
     tui.type_words(&mut world, QUESTION);
@@ -182,16 +182,193 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     assert!(world.front().release_reply(), "commit the whole answer");
     tui.run(&mut world, fixtures::WITHIN);
     let text = tui.text();
-    assert!(text.contains(&format!("✦ {ANSWER}")), "{text}");
+    assert_said_before_answer(&mut tui, QUESTION, ANSWER);
     assert!(!text.contains("✦ Working"), "the run has ended: {text}");
-    assert!(text.contains(PROJECTS), "{text}");
+    assert!(tui.status().starts_with("Project 1 · "), "{text}");
     assert!(text.contains("● Live"), "{text}");
     assert!(!world.front().release_reply(), "no reply remains held after commit");
 
-    tui.type_words(&mut world, "/exit");
+    tui.type_words(&mut world, "/quit");
     tui.press(&mut world, vec![Key::Enter]);
     tui.run(&mut world, STEP);
-    assert!(tui.closed, "/exit asks the shipped host to close");
+    assert!(tui.closed, "/quit asks the shipped host to close");
+}
+
+#[test]
+fn a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered() {
+    const QUESTION: &str = "Comma or semicolon?";
+    const WORDS: &[u8] = b"Comma or semicolon?\nChoice: Semicolon\nChoice: Comma (recommended)";
+    let (mut world, chat) = fixtures::tui_question_world(fixtures::SEED, WORDS);
+    let (question, delegate) = {
+        let task = world.front().engine.task(chat).expect("question's chat");
+        let question = task
+            .inbox
+            .iter()
+            .find(|message| message.kind == jig_domain_tasks::MessageKind::Question && message.words.as_ref() == WORDS)
+            .expect("the engine committed the question");
+        let jig_domain_tasks::Party::Task(delegate) = question.from else { panic!("a delegate asks") };
+        let number = world
+            .front()
+            .engine
+            .task(delegate)
+            .expect("asking delegate")
+            .questions
+            .first()
+            .expect("delegate's question")
+            .number;
+        (number, delegate)
+    };
+    let mut tui = Tui::hello_launchpad(&mut world, TUI);
+    tui.run(&mut world, fixtures::WITHIN);
+    let rows = tui.rows();
+    let needs =
+        rows.iter().position(|row| row == "Needs you").unwrap_or_else(|| panic!("Needs you heading: {}", tui.text()));
+    let need = rows
+        .iter()
+        .position(|row| row.contains("? Hello") && row.contains(QUESTION))
+        .unwrap_or_else(|| panic!("the question's row: {}", tui.text()));
+    assert!(needs < need, "the question stands under Needs you: {}", tui.text());
+    assert!(tui.text().contains("1 needs you · n to walk"), "{}", tui.text());
+
+    tui.walk_needs(&mut world);
+    let rows = tui.rows();
+    let prompt = rows.iter().position(|row| row == QUESTION).expect("the walk's question head");
+    assert_eq!(rows.get(prompt + 1).map(String::as_str), Some("❯ 1. Comma"), "{}", tui.text());
+    assert_eq!(rows.get(prompt + 2).map(String::as_str), Some("2. Semicolon"), "{}", tui.text());
+    tui.press(&mut world, vec![Key::Enter]);
+    // Needs you holds a choice for Undo before sending it to the engine.
+    tui.run(&mut world, client::pages::needs::HOLD.saturating_add(fixtures::WITHIN));
+    let answers: Vec<_> = world
+        .front()
+        .engine
+        .store
+        .rows
+        .values()
+        .filter_map(|record| {
+            if let temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(
+                jig_domain_tasks::Stored::Activity(line),
+            )) = record
+                && line.task == delegate
+                && let jig_domain_tasks::Line::Words {
+                    kind: jig_domain_tasks::MessageKind::Answer { question: number },
+                    words,
+                    ..
+                } = &line.line
+                && *number == question
+            {
+                Some(words.as_ref())
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(answers, [b"Comma".as_slice()], "the engine records the recommended choice's words: {}", tui.text());
+    let rows = tui.rows();
+    assert!(!rows.iter().any(|row| row == "Needs you" || row.contains("? Hello")), "{}", tui.text());
+    assert!(rows.iter().any(|row| row == "Nothing else needs you."), "{}", tui.text());
+}
+
+#[test]
+fn a_change_asked_from_the_launchpad_starts_a_chat() {
+    const REQUEST: &str = "Add a CSV export";
+    let mut world = fixtures::tui_asking_world(fixtures::SEED);
+    let mut tui = Tui::hello_launchpad(&mut world, TUI);
+    let reader = world.client(fixtures::PARTY, fixtures::inbox());
+    tui.run(&mut world, fixtures::WITHIN);
+    let root = world.root(reader).person();
+    let me = root.pages().me(root.client()).expect("the engine's project templates");
+    let template = jig_client::shapes::template(me, 1, jig_client::shapes::CHAT).expect("project's chat template");
+    let jig_client::contract::TemplateExecutor::Charter(charter) = template.executor else {
+        panic!("the chat template supplies its charter")
+    };
+    assert_ne!(charter, 11, "the project's chat and Ask temper have distinct charters");
+    let before = fixtures::chats(&world.front().engine);
+    tui.type_words(&mut world, &format!("/change {REQUEST}"));
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert_eq!(fixtures::chats(&world.front().engine), before + 1, "one new chat");
+    let front = world.front();
+    let assignment = front.assignments.last().expect("the new chat's run");
+    let task = front.engine.task(assignment.task).expect("the engine's new chat");
+    assert_eq!(task.executor, jig_domain_tasks::Executor::Agent { charter });
+    assert_eq!(task.spec.words.as_ref(), REQUEST.as_bytes());
+    let heading =
+        format!("Hello / Add a CSV export T{} on {}", assignment.task, core::str::from_utf8(ADDRESS).expect("address"));
+    assert!(tui.rows().iter().any(|row| row.contains(&heading)), "{}", tui.text());
+    assert!(tui.rows().iter().any(|row| row == &format!("❯ {REQUEST}")), "{}", tui.text());
+}
+
+const FAST_ANSWER: &str = "Hello from the local fake model.";
+
+fn assert_said_before_answer(tui: &mut Tui, question: &str, answer: &str) {
+    let text = tui.text();
+    let said = text.lines().position(|line| line.trim() == format!("❯ {question}"));
+    let reply = text.lines().position(|line| line.trim() == format!("✦ {answer}"));
+    assert!(said.is_some(), "the Said row is separate from the title: {text}");
+    assert!(reply.is_some(), "the completed reply is visible: {text}");
+    assert!(said < reply, "the opening question precedes the reply: {text}");
+}
+
+fn resize_tui(tui: &mut Tui, columns: u16, rows: u16) {
+    let duties =
+        tui.host.report(temper_client_shell_tui::host::Report::Resize(skein_ui_screen::Size { columns, rows }));
+    assert!(duties.asked.is_empty(), "resizing keeps the settled conversation");
+}
+
+fn complete_fast_chat(world: &mut World<Temper, Joint>, tui: &mut Tui, question: &str) {
+    world.front().reply_at_once(FAST_ANSWER.as_bytes());
+    let assigned = world.front().assignments.len();
+    tui.type_words(world, question);
+    assert!(tui.text().contains(&format!("❯ {question}")), "the question is typed before Enter");
+    tui.press(world, vec![Key::Enter]);
+    for _ in 0..100 {
+        tui.run(world, STEP);
+        if world.front().assignments.len() > assigned {
+            break;
+        }
+    }
+    assert_eq!(world.front().assignments.len(), assigned + 1, "{}", tui.text());
+    assert_eq!(
+        world.front().runs_answered,
+        u32::try_from(assigned + 1).expect("four assigned chats"),
+        "the reply commits at assignment"
+    );
+    tui.run(world, fixtures::WITHIN);
+    tui.run(world, Duration::from_secs(1));
+    assert_said_before_answer(tui, question, FAST_ANSWER);
+    assert!(!tui.text().contains("✦ Working"), "the fast reply has completed");
+}
+
+#[test]
+fn a_tuis_fast_completed_chats_keep_the_opening_said_row() {
+    let mut world = fixtures::tui_asking_world(fixtures::SEED);
+    let mut tui = Tui::start(&mut world, TUI, None);
+    tui.press(&mut world, vec![Key::Paste(front::printed_link()), Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    resize_tui(&mut tui, 120, 40);
+    let questions = ["What can you tell me about Hello?", "Which checks?", "What landed?", "What is next?"];
+    for question in questions {
+        complete_fast_chat(&mut world, &mut tui, question);
+        tui.type_words(&mut world, "/new");
+        tui.press(&mut world, vec![Key::Enter]);
+        tui.run(&mut world, STEP);
+        let text = tui.text();
+        assert!(
+            text.contains("❯ Ask for a change, or ask temper.  / for commands"),
+            "new returns to the launchpad: {text}"
+        );
+    }
+    tui.type_words(&mut world, "/chats");
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, STEP);
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert_said_before_answer(&mut tui, "What is next?", FAST_ANSWER);
+    tui.press(&mut world, vec![Key::PageUp]);
+    tui.run(&mut world, STEP);
+    assert_said_before_answer(&mut tui, "What is next?", FAST_ANSWER);
+    resize_tui(&mut tui, 80, 24);
+    assert_said_before_answer(&mut tui, "What is next?", FAST_ANSWER);
 }
 
 fn file_secret_is_in_no_frame(tui: &Tui, link: &[u8]) {
@@ -275,7 +452,7 @@ fn a_playground_the_browser_starts_shows_in_the_tuis_header_and_quiet_line() {
     assert!(header.contains("playground · 127.0.0.1:8367"), "the playground precedes the place");
     let words = text.lines().map(|line| line.trim_matches(['│', ' '])).collect::<Vec<_>>().join(" ");
     assert!(words.contains("This is the playground: a scripted model and in-memory forge. Set temper up in your browser when you're ready to leave it."));
-    assert!(tui.status().contains("/ for commands · playground"));
+    assert!(tui.status().ends_with("playground"));
     assert!(!text.contains("Nothing needs you."), "the playground leaves out Home's headline");
 }
 

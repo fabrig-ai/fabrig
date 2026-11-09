@@ -5,52 +5,49 @@ First:
   New project:
     [3] New project: (empty) (enter sends)
     [4] Create
-  [5] Settings for First
-  [6] Home
-  [7] Needs you
-  [8] Chats
-  [9] + New chat
-  More ways to start work:
-    [10] Chat
-      Ask about the code or ask for a change.
-    [11] Goal
-      Agents plan a larger change and land it.
-    [12] All ways to start work
-  [13] Settings (current)
+  [5] How work runs for First
+  [6] Deployment
+  [7] Home
+  [8] Needs you
+  [9] Work
+  [10] How work runs (current)
+  New draft or change:
+    [11] Draft
+      A design session that ends in a goal, best had in the terminal.
+    [12] Change
+      Ask for one change.
+  [13] Away
+  [14] Deployment
   * Pat
-First · settings
+First · how work runs
 The repositories chats and goals in First read and change.
-Settings:
-  [14] How work runs
-  [15] Repositories (current)
-  [16] Forges
-  [17] Accounts
-  [18] Models
-  [19] Builders
+How work runs:
+  [15] How work runs
+  [16] Repositories (current)
 ## Repositories
-[20] Add repositories
+[17] Add repositories
 Add repositories to First:
   Find by name:
-    [21] Find by name: (empty)
+    [18] Find by name: (empty)
   Repositories:
     - Reading repositories…
   0 so far · more as you scroll
   Not listed:
-    [22] Owner: (empty)
-    [23] Name: (empty)
+    [19] Owner: (empty)
+    [20] Name: (empty)
   More: · Owned, it runs CI
     What temper does with it
     Role:
-      [24] (*) Owned
+      [21] (*) Owned
       temper pushes, opens pull requests and lands
-      [25] ( ) Fork
+      [22] ( ) Fork
       temper contributes through a fork
-      [26] ( ) Context
+      [23] ( ) Context
       temper only reads
-    [27] Branch prefix: temper/
-    [28] Landing branch: (empty)
-    [29] Checks: gate numbers, separated by spaces or commas: (empty)
-    [30] [x] It runs CI
-    [31] [x] Make it the project's home
-  [32] Cancel
+    [24] Branch prefix: temper/
+    [25] Landing branch: (empty)
+    [26] Checks: gate numbers, separated by spaces or commas: (empty)
+    [27] [x] It runs CI
+    [28] [x] Make it the project's home
+  [29] Cancel
   [-] Adopt (disabled)

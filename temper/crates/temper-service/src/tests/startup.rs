@@ -430,7 +430,7 @@ fn the_standalone_example_reads_into_its_members() {
 fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
     let jig = fixtures::engine().jig;
     let labels: Box<[u32]> = jig.templates.iter().map(|template| template.label).collect();
-    assert_eq!(*labels, [1, 2, 2, 1], "chat, goal, draft goal and asking templates, in order");
+    assert_eq!(*labels, [1, 2, 2, 1, 1], "chat, goal, draft goal, asking and design templates, in order");
     assert_eq!(jig.templates[0].number, 1);
     assert_eq!(jig.templates[0].flags.ended_by, jig_domain_tasks::EndedBy::Requester);
     assert_eq!(jig.templates[1].flags.ended_by, jig_domain_tasks::EndedBy::Result);
@@ -1053,7 +1053,7 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     let part = crate::startup::worker_part(&input, &directories).unwrap();
     let operations = crate::system::worker_alone_operations(
         &part.worker.jig.limits.io,
-        crate::worker_settings::operations(&part.limits.git_component).unwrap(),
+        crate::worker_settings::operations(&part.limits.git_component.into()).unwrap(),
     )
     .unwrap();
     let mut files = settings::Files { entries: List::with_capacity(2) };
@@ -1246,6 +1246,7 @@ fn queue_tiers_can_name_a_project_adopted_after_the_seed() {
                 format: Format::Lines,
                 follows: Follows::Landing,
                 span_ms: 0,
+                description: Box::default(),
             }]
         );
         assert_landing_projects_start(projects.as_bytes());
@@ -1295,7 +1296,7 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     );
 }
 
-const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next","span_ms":0}"#;
+const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next","span_ms":0,"description":"the slow suites"}"#;
 
 fn tier_projects(tiers: &str, settings: &str) -> Box<[u8]> {
     format!(
@@ -1334,6 +1335,7 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
                     format: Format::Junit,
                     follows: temper_engine_domain_forge::Follows::Branch(Box::from(b"release/next".as_slice())),
                     span_ms: 0,
+                    description: b"the slow suites".as_slice().into(),
                 },
                 TierCheck {
                     name: longest.as_bytes().into(),
@@ -1343,6 +1345,7 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
                     format: Format::Lines,
                     follows: temper_engine_domain_forge::Follows::Landing,
                     span_ms: 0,
+                    description: Box::default(),
                 },
             ]
         );
@@ -1436,6 +1439,16 @@ fn landing_configuration_tier_refusals_name_the_member() {
         ("artifact", r#""""#, "invalid form"),
         ("artifact", r#""reports/failures""#, "invalid form"),
         ("artifact", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#, "past its bound"),
+        ("description", r#""""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
+        (
+            "description",
+            r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#,
+            "expected 1 to 120 bytes of UTF-8 without control characters",
+        ),
+        ("description", r#""the slow\nsuites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
+        ("description", r#""the slow\tsuites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
+        ("description", r#""the slow\u0085suites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
+        ("description", "null", "expected 1 to 120 bytes of UTF-8 without control characters"),
         ("format", r#""json""#, "invalid form"),
         ("branch", r#""""#, "invalid form"),
         ("branch", "null", "wrong value kind"),
@@ -1579,7 +1592,7 @@ fn demo_refuses_forge_and_project_members() {
 
 #[test]
 fn startup_requires_room_for_the_core_and_two_charter_documents() {
-    for sections in [7_u32, 8] {
+    for sections in [8_u32, 9] {
         let input = fixtures::document();
         let overrides = fixtures::value(&input, b"application.limits.overrides");
         let overrides = core::str::from_utf8(&overrides).unwrap().trim_end().strip_suffix('}').unwrap();
@@ -1595,11 +1608,11 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
             fixtures::worker_runtime(),
             fixtures::forge_runtime(),
         );
-        if sections == 7 {
-            let Err(problems) = started else { panic!("seven sections cannot hold the core and two documents") };
+        if sections == 8 {
+            let Err(problems) = started else { panic!("eight sections cannot hold the core and two documents") };
             assert_eq!(lines(&problems).as_ref(), b"application.limits.overrides.root.brief.sections: must agree with engine.limits.overrides.tasks.charter_documents and the core sections\n");
         } else {
-            started.expect("eight sections hold the core and two documents");
+            started.expect("nine sections hold the core and two documents");
         }
     }
 }
@@ -1679,4 +1692,31 @@ fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
         What::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 },
     );
     assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
+}
+
+#[test]
+fn an_unbuilt_worker_refuses_only_shapes_that_need_it() {
+    use crate::startup::{Shape, unbuilt};
+    let mut failures = List::with_capacity(6);
+    for (shape, worker, refused) in [
+        (Shape::Standalone, false, true),
+        (Shape::WorkerAlone, false, true),
+        (Shape::EngineAlone, false, false),
+        (Shape::Standalone, true, false),
+        (Shape::WorkerAlone, true, false),
+        (Shape::EngineAlone, true, false),
+    ] {
+        let found = unbuilt(shape, worker);
+        if found.is_some() != refused {
+            failures.push((shape, worker)).unwrap();
+        }
+        if let Some(found) = found {
+            assert_eq!(found.path, Path::root().member(b"workers"));
+            assert!(found.file.is_none());
+            let mut problems = Problems::empty();
+            problems.problems.push(found).unwrap();
+            assert_eq!(lines(&problems).as_ref(), b"workers: this build serves an engine alone\n");
+        }
+    }
+    assert!(failures.is_empty(), "wrong build acceptance: {failures:?}");
 }

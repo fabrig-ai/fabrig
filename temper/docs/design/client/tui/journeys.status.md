@@ -1,11 +1,13 @@
 # journeys: status
 
-2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-09. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-- **Not yet:** 9: `launchpad-chat/04` lacks the person's opening question,
-  a fast chat's fault (finding-465, `post-landing-probes`), so its frame
-  doesn't show the dim person's words of `../README.md`, 6.15; it is
-  recorded again with that repair.
+- **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
+  run's fallback when they were recorded, where `again`, in a
+  pseudo-terminal with no `COLORFGBG` and no answer to OSC 11, writes
+  `none` (`../README.md`, 6.15, *The scheme*): Auto draws dark for both
+  and no journey opens `/theme`'s list, so their frames are the same.
+  They say `none` once a journey's change records them again.
 
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
@@ -19,17 +21,26 @@ Beside those, no known implementation gap. Sections 2 to 8.2 have recording,
 shipped-host replay, proof, shared redaction and scan, themed prints and
 generation; 3.2's start facts include `background` and `box`, which the
 recorder writes where the start has them and the replay reads, a
-recording without them reading as neither. Section 8.2's browser-format
+recording without them reading as neither, and `screen`'s `none`, a
+start whose terminal says no scheme, which the codec writes and reads. Section 8.2's browser-format
 setup follows its browser journey before the TUI starts and refuses a
-mark. Section 9's `sign-in-approved` and `launchpad-chat` have their walk,
-README, redacted recording and text and page frames: two for
-`sign-in-approved`, ending on the no-project launchpad, and four for
-`launchpad-chat`, from Hello's
-launchpad through commands and the typed question to the fake model's
-committed answer, with the chat's title, its number and `127.0.0.1:PORT`
-in the rule above the box, and no band, since the pseudo-terminal leaves
-the background unanswered. The latter recording catches no growing
-answer; it establishes no streamed-frame look.
+mark. Section 9's `sign-in-approved`, `launchpad-chat` and
+`launchpad-drawn` have their walk, README, redacted recording and text
+and page frames: two for `sign-in-approved`, ending on the no-project
+launchpad; four for `launchpad-chat`, from Hello's launchpad as drawn
+through commands and the typed question to the fake model's committed
+answer under the person's opening question; and seven for
+`launchpad-drawn`, from `/change` through the goal's question relayed
+in the chat, the launchpad with the chat, its need and the quiet line's
+count, and the walk's prompt, to the launchpad after the answer. The
+latter two draw the chat's title, its number and `127.0.0.1:PORT` in
+the rule above the box, and their first marks come before Home's facts
+answer, so the launchpad's framed header is empty there
+(`../README.md`, 6.14). None has a band, since the pseudo-terminal
+leaves the background unanswered. `launchpad-chat`
+catches no growing answer; it establishes no streamed-frame look. No
+journey draws a brief, a goal's row or a sign-off's or money's need,
+which the goldens alone hold: no recorded walk reaches them.
 
 Section 10's separate request branch and empty overlay have no known
 gap. Section 11 keeps real-terminal and Meta-key checks, real-box journeys,

@@ -2,8 +2,20 @@
 //! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
 use temper_fixtures::client_documents as documents;
 mod chat_work;
+mod team;
+pub(super) fn team_world(name: &str) -> Domain {
+    team::world(name)
+}
+mod rail_work;
+pub(super) fn rail_work_world(name: &str, address: Address) -> Domain {
+    rail_work::world(name, address)
+}
 mod views;
 mod ways;
+pub(crate) mod whole_story;
+pub(super) fn whole_story_world(name: &str, address: Address) -> Domain {
+    whole_story::domain(name, address)
+}
 pub(super) fn ways_world(name: &str) -> Domain {
     ways::world(name)
 }
@@ -34,7 +46,7 @@ const QUESTION: &str =
     "The old parser accepts a trailing comma as an empty last field. RFC 4180 does not. Keep it, or drop it in 0.5?";
 fn person(w: World) -> &'static str {
     match w {
-        Reference | World::Bare => "Pat",
+        Reference | World::Bare | World::WholeStory => "Pat",
         Solo => "Robin",
         FirstRun { .. } => "Sam",
     }
@@ -43,7 +55,7 @@ fn project(w: World) -> &'static str {
     match w {
         Reference => "factory",
         Solo => "tally",
-        World::Bare => "gallery",
+        World::Bare | World::WholeStory => "gallery",
         FirstRun { step: 22 } => "widget",
         FirstRun { .. } => "Hello",
     }
@@ -54,7 +66,7 @@ fn doc(s: &str) -> c::DocumentText {
 fn has_playground(w: World) -> bool {
     match w {
         FirstRun { step: 1..=5 | 10 } => true,
-        FirstRun { .. } | Reference | Solo | World::Bare => false,
+        FirstRun { .. } | Reference | Solo | World::Bare | World::WholeStory => false,
     }
 }
 fn model(w: World) -> c::LlmChoice {
@@ -65,7 +77,7 @@ fn model(w: World) -> c::LlmChoice {
             model: text(if has_playground(w) { "Scripted model" } else { "Opus" }),
             effort: match w {
                 Reference => Some(text("xhigh")),
-                Solo | World::Bare => Some(text("high")),
+                Solo | World::Bare | World::WholeStory => Some(text("high")),
                 FirstRun { .. } => None,
             },
         },
@@ -78,7 +90,7 @@ fn frame(w: World, connecting: bool, asking: bool) -> c::Me {
     let template = member.templates.get_mut(0).expect("chat template");
     template.llm = match w {
         FirstRun { .. } => None,
-        Reference | Solo | World::Bare => Some(model(w)),
+        Reference | Solo | World::Bare | World::WholeStory => Some(model(w)),
     };
     if matches!(w, FirstRun { .. } | Solo | Reference) {
         let chat = member.templates.get(0).expect("chat template").clone();
@@ -211,7 +223,7 @@ fn providers(w: World) -> List<c::ProviderOffer> {
         Solo => &[(17, "anthropic")],
         FirstRun { step: 1..=5 | 10 } => &[(17, "Playground"), (18, "openai"), (19, "anthropic")],
         FirstRun { .. } => &[(18, "openai"), (19, "anthropic")],
-        World::Bare => &[(18, "openai")],
+        World::Bare | World::WholeStory => &[(18, "openai")],
     };
     for (number, name) in names {
         let mut programs = List::with_capacity(1);
@@ -282,7 +294,10 @@ fn ask_frame(me: &mut c::Me) {
 }
 
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
-    world_in_layout(w, address, then, false, None, None, false)
+    match w {
+        World::WholeStory => (whole_story::domain("all-home", address), None),
+        Reference | Solo | FirstRun { .. } | World::Bare => world_in_layout(w, address, then, false, None, None, false),
+    }
 }
 /// Approval cards reached through the root's events (client/browser.md, 7.2).
 pub(super) fn approve_world(name: &str) -> Domain {
@@ -400,6 +415,110 @@ pub(super) fn asking_world(w: World, address: Address, then: Then) -> (Domain, O
 }
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
     world_in_layout(w, address, Then::Shown, false, Some(name), None, false).0
+}
+/// Remembered states use the person's party documents and public acts (client/README.md, 5.17).
+pub(super) fn remembered_world(name: &str) -> Domain {
+    use temper_client_domain::pages::{Act, remembered::Act as R};
+    let mut root = world_in_layout(Reference, Address::Remembered, Then::Shown, false, Some(name), None, false).0;
+    if matches!(name, "remembered-changing" | "remembered-refused") {
+        let mut out = Queue::uncapped();
+        for act in [
+            R::Change { note: 2 },
+            R::Words { words: Box::from(b"Use short Rust examples with their output.".as_slice()) },
+        ] {
+            step(&mut root, Event::Act { action: temper_client_domain::Action::Pages(Act::Remembered(act)) }, &mut out);
+        }
+        if name == "remembered-refused" {
+            step(
+                &mut root,
+                Event::Act { action: temper_client_domain::Action::Pages(Act::Remembered(R::Save)) },
+                &mut out,
+            );
+            step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+            while let Some(request) = out.pop() {
+                match crate::driver::down(request) {
+                    Some(jig_client::Down::Send { attempt, .. }) => step(
+                        &mut root,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::Answer {
+                                    attempt,
+                                    envelope: skein_lib::RequestEnvelope::Final,
+                                    why: None,
+                                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                                        refusal: c::Refusal::Moved {
+                                            now: c::Revision { value: 2 },
+                                            what: c::Moved::Note,
+                                        },
+                                        at: None,
+                                    })),
+                                },
+                            },
+                        },
+                        &mut out,
+                    ),
+                    Some(jig_client::Down::Read {
+                        read,
+                        what: jig_client::Readable::Jig(c::Read::Notes { scope, .. }),
+                    }) => {
+                        answer(
+                            &mut root,
+                            read,
+                            c::ReadValue::Notes(Box::new(remembered_notes(name, &scope))),
+                            &mut out,
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    root
+}
+fn remembered_notes(name: &str, scope: &c::NoteScope) -> c::NotePage {
+    assert_eq!(*scope, c::NoteScope::Party { party: 73 }, "the signed-in person's notes");
+    let mut rows = List::with_capacity(12);
+    let lines = [
+        "Keep answers concise and start with the result.",
+        "Use Rust examples when explaining code.",
+        "Ask before changing a public interface.",
+        "Show the command that checks a change.",
+        "Explain unfamiliar abbreviations the first time.",
+        "Use metric units in examples.",
+        "Keep a summary of decisions at the end of a long chat.",
+        "Prefer plain text examples I can copy into a terminal.",
+        "Say which assumptions a calculation depends on.",
+        "Use UTC when comparing times from different places.",
+        "Give one next step when a check fails.",
+        "When comparing approaches, explain the cost of each and which evidence would make you choose a different one next time.",
+    ];
+    let count = match name {
+        "remembered-none" => 0,
+        "remembered-full" => 12,
+        _ => 3,
+    };
+    for (index, line) in lines.iter().take(count).enumerate() {
+        assert!(line.len() <= 120, "a party line fits its byte bound");
+        let number = u64::try_from(index).expect("twelve notes").checked_add(1).expect("note number");
+        rows.push(c::Note {
+            number,
+            revision: c::Revision { value: 1 },
+            scope: scope.clone(),
+            description: doc(line),
+            body: doc(""),
+            writer: if number == 3 {
+                c::NoteAuthor::Party { party: 73 }
+            } else {
+                c::NoteAuthor::Task { task: 14, attempt: 1 }
+            },
+            tasks: List::from_boxed(Box::new([14])),
+            changed: Some(now(Reference)),
+            acts: List::with_capacity(0),
+            cut: false,
+        })
+        .expect("twelve party lines");
+    }
+    c::NotePage { rows, before: None, after: None, cut: false }
 }
 pub(super) fn copies_world(address: Address, then: Then) -> Domain {
     world_in_layout(FirstRun { step: 7 }, address, then, false, None, None, true).0
@@ -691,14 +810,17 @@ fn world_in_layout(
                             let drafts =
                                 matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
                             if setting.kind() == 7 && (goals.is_some() || drafts) {
-                                project_ways(&mut root, read, drafts, goals.is_some(), false, false, &mut out);
+                                project_ways(&mut root, read, drafts, goals.is_some(), false, &mut out);
                                 continue;
                             }
-                            let bytes = settings.map(|name| {
+                            let bytes = settings.and_then(|name| {
+                                if setting.kind() == 8 && name != "settings-away-you-approve" {
+                                    return None;
+                                }
                                 if how && setting.kind() == 7 {
-                                    ways::setting(name)
+                                    Some(ways::setting(name))
                                 } else {
-                                    settings_bytes(name, setting.kind())
+                                    Some(settings_bytes(name, setting.kind()))
                                 }
                             });
                             let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: bytes })
@@ -747,7 +869,9 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::View(view) => {
-                            if goals.is_some_and(|name| name.starts_with("chat-view-")) {
+                            if settings == Some("how-draft") && view.address() == b"roles" {
+                                ways::roles(&mut root, read, &mut out);
+                            } else if goals.is_some_and(|name| name.starts_with("chat-view-")) {
                                 views::answer(&mut root, read, view.address(), &mut out);
                             }
                         }
@@ -842,7 +966,7 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Away => {
-                            if settings == Some("settings-away") {
+                            if matches!(settings, Some("settings-away" | "settings-away-you-approve")) {
                                 step(
                                     &mut root,
                                     Event::Client {
@@ -1532,7 +1656,7 @@ fn chat_rows(w: World, ended: bool) -> List<c::TaskLine> {
         (Reference, true) => &[3, 2],
         (Solo, false) => &[6, 10],
         (FirstRun { step: 4..=5 }, false) => &[4, 1],
-        (FirstRun { .. } | World::Bare, _) => &[],
+        (FirstRun { .. } | World::Bare | World::WholeStory, _) => &[],
     };
     let mut rows = List::with_capacity(u32::try_from(numbers.len()).expect("small chats"));
     for number in numbers {
@@ -1549,7 +1673,7 @@ fn inbox_document(w: World) -> c::Inbox {
             (c::ObjectKey::Task(10), c::InboxGroup::Replies),
             (c::ObjectKey::Task(6), c::InboxGroup::Replies),
         ],
-        FirstRun { .. } | World::Bare => &[],
+        FirstRun { .. } | World::Bare | World::WholeStory => &[],
     };
     let mut entries = List::with_capacity(u32::try_from(keys.len()).expect("small inbox"));
     for (object, _group) in keys {
@@ -1696,7 +1820,9 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             Some(c::ReadValue::Tasks(Box::new(goal_page(w, goals))))
         }
         c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
-            if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
+            if let Some(name) = goals.filter(|name| name.starts_with("remembered-")) {
+                remembered_notes(name, scope)
+            } else if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
                 let mut rows = List::with_capacity(2);
                 for (task, title) in [(1, "Away mode"), (3, "Report format")] {
                     rows.push(c::Note {
@@ -2017,7 +2143,7 @@ fn goal_facts(w: World) -> &'static [GoalFacts] {
                 at: -3680,
             },
         ],
-        FirstRun { .. } | World::Bare => &[],
+        FirstRun { .. } | World::Bare | World::WholeStory => &[],
     }
 }
 fn goal_ended(f: &GoalFacts) -> bool {
@@ -3692,7 +3818,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
             })
             .expect("account");
         }
-        FirstRun { .. } | World::Bare => {
+        FirstRun { .. } | World::Bare | World::WholeStory => {
             let mut sources = List::with_capacity(2);
             sources
                 .push(c::AccountSource {
@@ -4494,7 +4620,7 @@ pub(super) fn now(w: World) -> Wall {
             7 | 8 => 19,
             _ => unreachable!("mockup first-run step"),
         },
-        Reference | Solo | World::Bare => 0,
+        Reference | Solo | World::Bare | World::WholeStory => 0,
     };
     offset(w, minutes)
 }
@@ -4505,6 +4631,7 @@ fn offset(w: World, minutes: i64) -> Wall {
         Solo => 1_793_093_400_000_000_000,
         FirstRun { .. } => 1_792_702_800_000_000_000,
         World::Bare => 0,
+        World::WholeStory => whole_story::now("all-home").as_nanos(),
     };
     let delta = minutes.unsigned_abs().checked_mul(60_000_000_000).expect("mockup offset fits");
     Wall::from_nanos(
@@ -4573,11 +4700,17 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
+        name if name.starts_with("all-home") || name == "night-all-home" || name.starts_with("home-step-") => {
+            whole_story::now(name)
+        }
+        "rail-new-change" | "rail-all-projects" | "rail-across" | "work" | "work-pair" | "work-drafts"
+        | "work-goals" | "work-changes" | "work-empty" | "members" | "members-refused" | "limits"
+        | "limits-not-owner" | "night-work" | "night-limits" => rail_work::NOW,
         name if name.starts_with("approve-") => Wall::from_nanos(120_000_000_000),
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
         }
-        "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
+        "home-morning" | "home-decided" | "needs-decided" | "home-away" | "home-away-one" | "home-away-overturned" => {
             Wall::from_nanos(1_792_483_440_000_000_000)
         }
         "rail-away-on" | "rail-away-off" => Wall::from_nanos(1_792_479_840_000_000_000),
@@ -4646,8 +4779,13 @@ pub(super) fn changes_world(name: &str) -> Domain {
                 if let v::Read::Setting(setting) =
                     wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
                 {
-                    assert_eq!(setting.kind(), 7);
-                    project_ways(&mut root, read, false, false, name != "changes-landed-only", false, &mut out);
+                    match setting.kind() {
+                        7 => {
+                            project_ways(&mut root, read, false, false, name != "changes-landed-only", &mut out);
+                        }
+                        8 => project_classes(&mut root, read, &mut out),
+                        _ => panic!("gallery setting read"),
+                    }
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
@@ -4683,24 +4821,39 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
-#[expect(clippy::fn_params_excessive_bools, reason = "the gallery supplies each independent project visibility bit")]
 pub(super) fn project_ways(
     root: &mut Domain,
     read: Token,
     drafts: bool,
     goals: bool,
     changes: bool,
-    away: bool,
     out: &mut Queue<Request>,
 ) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let ways =
-        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way: 0 })
-            .expect("gallery project ways");
+    let ways = v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { drafts, goals, changes, way: 0 })
+        .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
     let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: Some(writer.finish()) })
         .expect("gallery setting answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family { family: FORGE, record: Some(wire::setting_answer(&value)) },
+                },
+            },
+        },
+        out,
+    );
+}
+
+pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as v};
+    let value =
+        v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: None }).expect("stock project classes");
     step(
         root,
         Event::Client {
@@ -4847,21 +5000,24 @@ pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1:
     )
 }
 
-/// Settings' delivered kinds 6 and 7 (client/browser.md, 7.2).
+/// Settings' delivered kinds 6, 7 and 8 (temper/docs/design/client/browser.md, 7.2).
 fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::v1 as v;
-    if kind == 7 {
+    if kind == 8 {
+        use temper_protocol_reaches::{Classes, Way, classes_record};
+        let classes = classes_record(&Classes::stock(Way::YouApprove)).expect("You approve's classes");
+        let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
+        classes.encode(&mut writer).expect("measured classes");
+        writer.finish()
+    } else if kind == 7 {
         let shown = name != "settings-all-hidden";
         let all = shown && name != "settings-goals";
         let ways = v::ProjectWays::new(
             &v::CEILINGS,
             v::ProjectWaysParts {
-                skein_bools: [
-                    all && name != "settings-drafts-off",
-                    shown && name != "settings-goals-off",
-                    all && name != "settings-changes-off",
-                    all && name != "settings-away-off",
-                ],
+                drafts: all && name != "settings-drafts-off",
+                goals: shown && name != "settings-goals-off",
+                changes: all && name != "settings-changes-off",
                 way: if shown { 4 } else { 0 },
             },
         )
@@ -5343,7 +5499,6 @@ pub(super) fn away_record(on: bool) -> Box<[u8]> {
             project: PROJECT,
             since: wall.as_nanos(),
             until: Some(until.as_nanos()),
-            kinds: 7,
             landed: 0,
             off: if on { None } else { Some(wall.as_nanos()) },
         },
@@ -5401,12 +5556,16 @@ pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
             project: PROJECT,
             since: now - 534 * minute,
             until: None,
-            kinds: 7,
             landed: 0,
             off: if name == "home-away-one" { Some(now - minute) } else { None },
         },
     )
     .expect("Home away spell");
+    if matches!(name, "home-decided" | "needs-decided") {
+        return wire::aways(
+            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::with_capacity(0) }).expect("no Away spell"),
+        );
+    }
     wire::aways(
         &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
             .expect("Home away rows"),
@@ -5443,7 +5602,7 @@ pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStat
     )
     .expect("Home away status")
 }
-fn home_away_task(name: &str, task: u64) -> c::Task {
+fn home_away_task(name: &str, task: u64, project: u32) -> c::Task {
     let mut document = base_task(
         task,
         match task {
@@ -5452,6 +5611,12 @@ fn home_away_task(name: &str, task: u64) -> c::Task {
             _ => "forge-cards",
         },
     );
+    document.project = project;
+    document.chip.details.details.project = project;
+    if name == "home-decided" && task == 104 {
+        document.priority = Some(1);
+        document.goal = Some(task);
+    }
     if name == "home-away-one" || (name == "home-away-overturned" && task == 101) {
         document.chip.details.phase = c::ChipPhase::Ended;
         document.chip.details.details.ended_at =
@@ -5460,7 +5625,7 @@ fn home_away_task(name: &str, task: u64) -> c::Task {
     }
     document
 }
-pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
+pub(super) fn home_away_decisions(name: &str, project: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
     let mut rows = List::with_capacity(4);
@@ -5498,6 +5663,12 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
             "A wording choice inside the task’s spec.",
         ),
     ] {
+        if name == "home-decided" && number != 1 && number != 4 {
+            continue;
+        }
+        if name == "needs-decided" && ((project == 1 && number != 1) || (project == 2 && number != 4)) {
+            continue;
+        }
         if name == "home-away-one" && number != 1 {
             continue;
         }
@@ -5512,6 +5683,23 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
                     took: took.as_bytes().into(),
                     why: why.as_bytes().into(),
                     overturned: name == "home-away-overturned" && number == 2,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: match number {
+                                3 => w::ReachKind::Retry,
+                                4 => w::ReachKind::Wording,
+                                _ => w::ReachKind::Implementation,
+                            },
+                            class: if number == 4 { w::ReachClass::Decide } else { w::ReachClass::Ask },
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: number != 4,
+                        },
+                    )
+                    .expect("fixture reach fits"),
                 },
             )
             .expect("Home decision"),
@@ -5519,7 +5707,11 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
         .expect("four Home decisions");
     }
     wire::decisions(
-        &w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project: PROJECT, rows }).expect("Home decisions"),
+        &w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
+        )
+        .expect("Home decisions"),
     )
 }
 
@@ -5532,7 +5724,7 @@ fn home_away_step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<R
     );
 }
 /// Decision reads use the sample's wall so the shown rows remain within their day.
-pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) {
+pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str, project: u32) {
     use jig_client::{Down, Readable, Readout, Up};
     let mut out = Queue::uncapped();
     home_away_step(
@@ -5545,7 +5737,7 @@ pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) 
                     record: jig_client::Family {
                         family: FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
-                        bytes: home_away_decisions(name),
+                        bytes: home_away_decisions(name, project),
                     },
                 },
             },
@@ -5563,7 +5755,7 @@ pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) 
                         up: Up::ReadDone {
                             read,
                             result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(home_away_task(
-                                name, task,
+                                name, task, project,
                             ))))),
                         },
                     },

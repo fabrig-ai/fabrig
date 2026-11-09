@@ -11,6 +11,8 @@ use crate::{
 const LIMITS: Limits = Limits {
     scopes: 2,
     entries_per_scope: 1,
+    party_entries: 1,
+    party_bytes: 16,
     pattern_bytes: 16,
     description_bytes: 16,
     body_bytes: 32,
@@ -182,21 +184,21 @@ fn a_party_deletes_only_the_revision_it_saw() {
 
 #[test]
 fn a_full_scope_refuses_a_new_entry() {
-    let mut h = Harness::new();
-    let asked = h.step(Event::Write { owner: Token::new(7), entry: new(21, b"new"), recalled: None });
-    let [Request::Load { owner, .. }] = &*asked else {
-        panic!("entry lookup");
-    };
-    let owner = *owner;
-    let asked = h.step(Event::Loaded { owner, rows: rows(&[]), more: false });
-    let [Request::Load { owner, range: Range::Lines { .. } }] = &*asked else {
-        panic!("scope lookup");
-    };
-    let owner = *owner;
-    let line =
-        Line { scope: Scope::Project { project: 7 }, name: 20, description: Box::from(&b"old"[..]), revision: 1 };
-    let got = h.step(Event::Loaded { owner, rows: rows(&[Record::Line(line)]), more: false });
-    assert_eq!(&*got, &[Request::Refused { owner: Token::new(7), why: Refusal::Full }]);
+    for (scope, entries_per_scope) in [(Scope::Project { project: 7 }, 1), (Scope::Party { party: 2 }, 2)] {
+        let mut limits = LIMITS;
+        limits.entries_per_scope = entries_per_scope;
+        let mut h = Harness::with_limits(limits);
+        let mut entry = new(21, b"new");
+        entry.scope = scope.clone();
+        entry.body = Box::new([]);
+        let asked = h.step(Event::Write { owner: Token::new(7), entry, recalled: None });
+        let [Request::Load { owner, .. }] = &*asked else { panic!("entry lookup") };
+        let asked = h.step(Event::Loaded { owner: *owner, rows: rows(&[]), more: false });
+        let [Request::Load { owner, range: Range::Lines { .. } }] = &*asked else { panic!("scope lookup") };
+        let line = Line { scope, name: 20, description: Box::from(&b"old"[..]), revision: 1 };
+        let got = h.step(Event::Loaded { owner: *owner, rows: rows(&[Record::Line(line)]), more: false });
+        assert_eq!(&*got, &[Request::Refused { owner: Token::new(7), why: Refusal::Full }]);
+    }
 }
 
 #[test]
@@ -872,4 +874,73 @@ fn join_keeps_range_and_body_bounds() {
     assert_eq!(crate::splice(b"a\n", append, b"bcd", 3), Err(Refusal::PastBound { bytes: 4, bound: 3 }));
     let past = crate::LineRange { first: 3, remove: 0, join: true };
     assert_eq!(crate::splice(b"a\n", past, b"b", 3), Err(Refusal::PastEnd { lines: 1 }));
+}
+
+#[test]
+fn a_partys_line_and_body_are_bounded_for_every_writer() {
+    let scope = Scope::Party { party: 2 };
+    let mut limits = LIMITS;
+    limits.party_bytes = 4;
+    for (description, body, refusal) in [
+        (b"line".as_slice(), b"".as_slice(), None),
+        (b"lines".as_slice(), b"".as_slice(), Some(Refusal::PastBound { bytes: 5, bound: 4 })),
+        (b"line".as_slice(), b"x".as_slice(), Some(Refusal::PastBound { bytes: 1, bound: 0 })),
+    ] {
+        let mut entry = new(20, description);
+        entry.scope = scope.clone();
+        entry.body = body.into();
+        let durable = Entry {
+            name: entry.name,
+            scope: scope.clone(),
+            description: entry.description.clone(),
+            body: entry.body.clone(),
+            references: entry.references.clone(),
+            author: entry.author,
+            revision: 1,
+            changed: Wall::EPOCH,
+        };
+        assert_eq!(crate::valid_new(&entry, &limits), refusal.is_none());
+        assert_eq!(crate::valid_entry(&durable, &limits), refusal.is_none());
+        let line = Line { scope: scope.clone(), name: 20, description: description.into(), revision: 1 };
+        assert_eq!(crate::valid_line(&line, &limits), description.len() <= 4);
+        for event in [
+            Event::Write { owner: Token::new(51), entry: entry.clone(), recalled: None },
+            Event::Write { owner: Token::new(51), entry: entry.clone(), recalled: Some(1) },
+            Event::Edit {
+                owner: Token::new(51),
+                party: 2,
+                name: 20,
+                scope: scope.clone(),
+                change: Change::Correct {
+                    description: description.into(),
+                    body: body.into(),
+                    references: List::with_capacity(0),
+                    recalled: 1,
+                },
+            },
+        ] {
+            let mut h = Harness::with_limits(limits);
+            let got = h.step(event);
+            if let Some(why) = &refusal {
+                assert_eq!(&*got, &[Request::Refused { owner: Token::new(51), why: *why }]);
+                assert!(!h.domain.busy());
+            } else {
+                let [Request::Load { .. }] = &*got else { panic!("at the bound: {got:?}") };
+            }
+        }
+        let mut h = Harness::with_limits(limits);
+        let got = h.step(Event::WriteLines {
+            owner: Token::new(51),
+            entry,
+            recalled: 1,
+            range: crate::LineRange { first: 1, remove: 0, join: false },
+        });
+        assert_eq!(
+            &*got,
+            &[Request::Refused {
+                owner: Token::new(51),
+                why: refusal.unwrap_or(Refusal::PastBound { bytes: 0, bound: 0 })
+            }]
+        );
+    }
 }

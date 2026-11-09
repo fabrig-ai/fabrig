@@ -211,25 +211,27 @@ fn subscribed_ci_and_unknown_change_facts_keep_their_wakes() {
 }
 
 #[test]
-#[ignore = "opt-in before/after request profile of two live change procedures"]
 fn two_change_hint_request_profile() {
     use temper_engine_domain_forge_change as change;
+    const LANDING_REQUEST_BOUND: usize = 18;
     let mut world = hint_world();
-    for change in [
-        Change::Branch(b"temper/a".as_slice().into()),
-        Change::Branch(b"release".as_slice().into()),
-        Change::Branch(b"unmatched-or-renamed".as_slice().into()),
+    for (change, expected_wakes) in [
+        (Change::Branch(b"temper/a".as_slice().into()), vec![51]),
+        (Change::Branch(b"release".as_slice().into()), vec![52]),
+        (Change::Branch(b"unmatched-or-renamed".as_slice().into()), vec![51, 52]),
     ] {
         let wakes = hint(&mut world, change.clone());
-        println!("{change:?}: wakes {wakes:?}");
+        assert_eq!(wakes, expected_wakes, "{change:?}: woken changes");
+        let expected_reads: Vec<_> = wakes.iter().flat_map(|task| reads_for(&world, *task)).collect();
         for task in wakes {
             hint_step(&mut world, task, 100 + task);
         }
-        for call in world.take_calls() {
-            println!("{call:?}");
-        }
+        let calls = world.take_calls();
+        assert_eq!(calls.len(), expected_reads.len(), "{change:?}: fresh-read request count");
+        assert_eq!(calls, expected_reads, "{change:?}: only the woken changes' fresh reads");
     }
-    for task in [51, 52] {
+    let mut landing_requests = [0; 2];
+    for (at, task) in [51, 52].into_iter().enumerate() {
         let Some(forge::Stored::Change(row)) = world.stored().get(&forge::Key::Change(task)) else {
             panic!("change {task}")
         };
@@ -268,9 +270,16 @@ fn two_change_hint_request_profile() {
                 .iter()
                 .any(|(_, row)| matches!(row, forge::Stored::Landed { task: landed, .. } if *landed == task))
         );
-        println!("landed {task}");
-        for call in world.take_calls() {
-            println!("{call:?}");
-        }
+        // Keep reads may interleave with the landing's fresh reads and merge.
+        // Bound their total; their order is not the hint-wake contract
+        // (temper/docs/design/domain/forge.md, 5.2 and 5.3).
+        let count = world.take_calls().len();
+        assert!(
+            count <= LANDING_REQUEST_BOUND,
+            "landing {task}: {count} requests exceeds bound {LANDING_REQUEST_BOUND}"
+        );
+        landing_requests[at] = count;
     }
+    let [first, second] = landing_requests;
+    assert!(second <= first, "landing 52 sends {second} requests to landing 51's {first}");
 }

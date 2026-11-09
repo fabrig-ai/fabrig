@@ -1,10 +1,14 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/README.md, 6.14, 6.17 and 7.1).
-use crate::{BoxLine, limits};
+use crate::{BoxLine, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
-use skein_lib::{Queue, Secret, bytes::copy_of};
+use jig_client::contract::ObjectKey;
+use skein_lib::{List, Queue, Secret, bytes::copy_of};
 
 #[derive(Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "the TUI holds independent sign-in, credential and front facts")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the TUI holds independent sign-in, credential, front and note facts"
+)]
 pub struct Tui {
     address: Box<[u8]>,
     field: Box<[u8]>,
@@ -20,8 +24,8 @@ pub struct Tui {
     revision: u64,
     written: u64,
     columns: u16,
-    aside: Option<jig_client::contract::ObjectKey>,
-    unknown: Option<Box<[u8]>>,
+    aside: Option<ObjectKey>,
+    notice: Option<Notice>,
     focus: u64,
     box_written: u64,
     left_off: Option<u64>,
@@ -33,6 +37,12 @@ pub struct Tui {
     gave_up: Option<Box<[u8]>>,
     quitting: bool,
     log_shown: bool,
+    walk: Option<Walk>,
+    brief_shown: bool,
+    not_opened: Option<Box<[u8]>>,
+    theme_choice: ThemeChoice,
+    terminal_scheme: Option<Scheme>,
+    theme_list: bool,
 }
 /// The box's state, given up winning (temper/docs/design/client/README.md, 6.17).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -66,8 +76,26 @@ pub enum Refusal {
     NotALink,
     OtherAddress { address: Box<[u8]> },
 }
+/// A one-line notice on the quiet line (temper/docs/design/client/README.md, 6.14).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Notice {
+    Unknown { words: Box<[u8]> },
+    SigningIn,
+    Theme { choice: ThemeChoice, terminal: Option<Scheme> },
+}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    Walk {
+        by_key: bool,
+    },
+    Walked {
+        object: ObjectKey,
+    },
+    EndWalk,
+    Brief,
+    NotOpened {
+        address: Option<Box<[u8]>>,
+    },
     Size {
         columns: u16,
     },
@@ -78,10 +106,10 @@ pub enum Told {
     Boxed,
     Cleared,
     Aside {
-        object: Option<jig_client::contract::ObjectKey>,
+        object: Option<ObjectKey>,
     },
-    Unknown {
-        words: Option<Box<[u8]>>,
+    Notice {
+        notice: Option<Notice>,
     },
     Local {
         local: Local,
@@ -117,6 +145,13 @@ pub enum Told {
     Quitting,
     Stay,
     Log,
+    Theme {
+        choice: ThemeChoice,
+        terminal: Option<Scheme>,
+    },
+    ThemeList {
+        open: bool,
+    },
 }
 impl Tui {
     #[must_use]
@@ -137,7 +172,7 @@ impl Tui {
             written: 0,
             columns: 0,
             aside: None,
-            unknown: None,
+            notice: None,
             focus: 1,
             box_written: 0,
             front: false,
@@ -147,8 +182,14 @@ impl Tui {
             gave_up: None,
             quitting: false,
             log_shown: false,
+            walk: None,
+            brief_shown: false,
+            not_opened: None,
             left_off: None,
             boxed: false,
+            theme_choice: ThemeChoice::Auto,
+            terminal_scheme: None,
+            theme_list: false,
         }
     }
     #[must_use]
@@ -204,12 +245,12 @@ impl Tui {
         self.columns
     }
     #[must_use]
-    pub const fn aside(&self) -> Option<jig_client::contract::ObjectKey> {
+    pub const fn aside(&self) -> Option<ObjectKey> {
         self.aside
     }
     #[must_use]
-    pub fn unknown(&self) -> Option<&[u8]> {
-        self.unknown.as_deref()
+    pub fn notice(&self) -> Option<&Notice> {
+        self.notice.as_ref()
     }
     #[must_use]
     pub const fn focus(&self) -> u64 {
@@ -248,6 +289,38 @@ impl Tui {
     #[must_use]
     pub const fn log_shown(&self) -> bool {
         self.log_shown
+    }
+    #[must_use]
+    pub fn walk(&self) -> Option<&Walk> {
+        self.walk.as_ref()
+    }
+    #[must_use]
+    pub const fn brief_shown(&self) -> bool {
+        self.brief_shown
+    }
+    #[must_use]
+    pub fn not_opened(&self) -> Option<&[u8]> {
+        self.not_opened.as_deref()
+    }
+    #[must_use]
+    pub const fn theme_choice(&self) -> ThemeChoice {
+        self.theme_choice
+    }
+    #[must_use]
+    pub const fn terminal_scheme(&self) -> Option<Scheme> {
+        self.terminal_scheme
+    }
+    #[must_use]
+    pub const fn theme_list(&self) -> bool {
+        self.theme_list
+    }
+    fn clear_launchpad(&mut self) -> bool {
+        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list;
+        self.walk = None;
+        self.theme_list = false;
+        self.brief_shown = false;
+        self.not_opened = None;
+        changed
     }
     fn box_line(&mut self, line: BoxLine) -> bool {
         match line {
@@ -316,17 +389,10 @@ impl Tui {
         self.local = local;
         changed
     }
-    fn clear_command_words(&mut self) {
-        if !self.command_words.is_empty() {
-            self.command_words = Box::default();
-            self.box_written = self.box_written.saturating_add(1);
-        }
-    }
     fn set_link(&mut self, link: jig_client::Link) -> bool {
         match link {
             jig_client::Link::SignedOut => {
                 if self.linked {
-                    self.clear_command_words();
                     self.signing = Signing::Idle;
                     self.browser = None;
                     self.pasted = false;
@@ -345,7 +411,6 @@ impl Tui {
             | jig_client::Link::Offline
             | jig_client::Link::OutOfDate => {
                 if !self.linked {
-                    self.clear_command_words();
                     self.focus = self.focus.saturating_add(1);
                 }
                 let changed = self.signing != Signing::Idle
@@ -367,6 +432,37 @@ impl Tui {
     #[expect(clippy::too_many_lines, reason = "one dispatch updates the TUI's independent surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Walk { by_key } => {
+                let changed = match &self.walk {
+                    Some(walk) => walk.by_key != by_key || walk.taken,
+                    None => true,
+                };
+                self.walk = Some(Walk { by_key, shown: List::with_capacity(limits::WALK), taken: false });
+                changed
+            }
+            Told::Walked { object } => match &mut self.walk {
+                Some(walk) => {
+                    let mut changed = !walk.taken;
+                    walk.taken = true;
+                    if !walk.shown(&object) && walk.shown.room() > 0 {
+                        walk.shown.push(object).expect("room for a shown object");
+                        changed = true;
+                    }
+                    changed
+                }
+                None => false,
+            },
+            Told::EndWalk => self.walk.take().is_some(),
+            Told::Brief => {
+                let changed = !self.brief_shown;
+                self.brief_shown = true;
+                changed
+            }
+            Told::NotOpened { address } => {
+                let changed = self.not_opened != address;
+                self.not_opened = address;
+                changed
+            }
             Told::Front => {
                 let changed = !self.front;
                 self.front = true;
@@ -398,12 +494,13 @@ impl Tui {
                 let written = self.box_written.saturating_add(1);
                 let changed =
                     self.focus != focus || self.box_written != written || self.log_shown || self.left_off.is_some();
+                let cleared = self.clear_launchpad();
                 self.log_shown = false;
                 self.left_off = None;
                 self.focus = focus;
                 self.command_words = Box::default();
                 self.box_written = written;
-                changed
+                changed || cleared
             }
             Told::LeftOff { task } => {
                 let changed = self.left_off != task;
@@ -421,21 +518,22 @@ impl Tui {
                 changed
             }
             Told::Cleared => {
+                let cleared = self.clear_launchpad();
                 self.command_words = Box::default();
                 let written = self.box_written.saturating_add(1);
-                let changed = self.box_written != written;
+                let changed = self.box_written != written || self.log_shown;
+                self.log_shown = false;
                 self.box_written = written;
-                changed
+                changed || cleared
             }
             Told::Aside { object } => {
                 let changed = self.aside != object;
                 self.aside = object;
                 changed
             }
-            Told::Unknown { words } => {
-                let changed = self.unknown != words || self.log_shown;
-                self.log_shown = false;
-                self.unknown = words;
+            Told::Notice { notice } => {
+                let changed = self.notice != notice;
+                self.notice = notice;
                 changed
             }
             Told::Local { local } => self.set_local(local),
@@ -444,7 +542,8 @@ impl Tui {
                     Signing::Refused(..) | Signing::Answered { .. } | Signing::Idle => Signing::Idle,
                     Signing::Asked => Signing::Asked,
                 };
-                let changed = self.field != value || self.signing != signing;
+                let ended = !value.is_empty() && self.walk.take().is_some();
+                let changed = self.field != value || self.signing != signing || ended;
                 self.field = value;
                 self.signing = signing;
                 changed
@@ -495,9 +594,42 @@ impl Tui {
                 self.unkept = !written;
                 changed
             }
+            Told::Theme { choice, terminal } => {
+                let changed = self.theme_choice != choice || self.terminal_scheme != terminal;
+                self.theme_choice = choice;
+                self.terminal_scheme = terminal;
+                changed
+            }
+            Told::ThemeList { open } => {
+                let changed = self.theme_list != open;
+                self.theme_list = open;
+                changed
+            }
         };
         if changed {
             self.revision = self.revision.saturating_add(1);
         }
+    }
+}
+
+/// The needs already shown during this walk (temper/docs/design/client/README.md, 6.14).
+#[derive(Debug)]
+pub struct Walk {
+    shown: List<ObjectKey>,
+    by_key: bool,
+    taken: bool,
+}
+impl Walk {
+    #[must_use]
+    pub fn shown(&self, object: &ObjectKey) -> bool {
+        self.shown.as_slice().contains(object)
+    }
+    #[must_use]
+    pub const fn by_key(&self) -> bool {
+        self.by_key
+    }
+    #[must_use]
+    pub const fn taken(&self) -> bool {
+        self.taken
     }
 }

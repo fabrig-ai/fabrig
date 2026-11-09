@@ -264,6 +264,15 @@ delegate's phases; the frame's speed changes how long the person waits
   capacities, smith's windows and the fakes' limits, each just big
   enough for its stories, every story at its high water. The trace is
   off (skein's `world.md`, 7) and nothing is captured.
+- **Clear of the bounds that count slots:** a bound that counts what it
+  holds by its slots' size (jig's and temper's byte bounds that add
+  `size_of` of a row, a record or a box to its owned bytes) holds more
+  in the browser's wasm32 world than in a log's native replay. So a
+  story reaches none of them natively: its deployment gives each byte
+  bound it comes near room past its native high water, so its walk and
+  its replays decide nothing at a byte bound on either build (section
+  9; skein's `playground.md`, 6, *Another build's slots*; decided
+  2026-11-09).
 - **Measured first:** what reserves the world's memory at its first step
   and through each story, and which of it the documents control.
 - **Its figures,** the world's memory at its high water and the download
@@ -288,6 +297,13 @@ delegate's phases; the frame's speed changes how long the person waits
   6.1).
 - **The documents' memory bounds** are checked at start as any
   document's are, so a story past them fails its walk.
+- **The native heap at start, in the gate:** `tests/playground`'s `memory`
+  binary holds each process's held and peak bytes at the first step and at
+  start, and the fake disk's and the shared forge's retained bytes, each at
+  most its figure in `../development/playground-memory.md` and a quarter
+  more. This bound catches a regression; it is not section 8's bar, which
+  stays the user's. Story A's high water in the one-process world
+  (`tests/one-process`'s `memory`) is bound the same way.
 - **The wasm32 builds,** in the gate: `temper-playground`, and the web
   shell with `playground`, with clippy's lints as errors for
   `wasm32-unknown-unknown`.
@@ -295,6 +311,15 @@ delegate's phases; the frame's speed changes how long the person waits
   replays natively under the one-process world's referee to the same
   end. A change that makes it differ is a new log, recorded again, or a
   finding.
+- **Clear of its byte bounds, in the gate:** story A's kept log replays
+  natively the same over its deployment with each byte bound it
+  overrides doubled (every `*_bytes` override of its engine, its
+  worker and its application; the `small` profile's own are roomy), so
+  the story decides nothing at those bounds and the browser's wasm32
+  world, whose slots are smaller, says what the native replay says
+  (section 8). A bound the story reaches by its payload alone, the
+  same on both builds, or one whose doubling startup refuses, is left
+  out by name with its reason.
 - **In a browser, outside the gate:** the browser tier walks story A on
   the built playground in headless Chromium (`client/browser.md`,
   section 4), and measures the download from the bundle's files (raw,
@@ -361,3 +386,16 @@ running (decided 2026-11-03).
 - **The client's placeholder on its page,** in place of the frame's line
   (section 7; `client/browser.md`, 2.5): story A's to take, once its wait
   asks for more than a line.
+- **What the start's heap grew by before its bound** (9):
+  `../development/playground-memory.md` keeps two measured tables, and
+  the bound holds the later; the service's peaks and the fake disk at
+  start grew past a quarter between them, and nothing has profiled why.
+  Default: the later figures stand as the bound; whether the growth
+  stands is the user's, with the memory bar (11).
+- **Byte bounds counted alike on every build:** jig's and temper's byte
+  bounds add `size_of` of a slot, so the wasm32 world and a native
+  replay count the same content apart, and section 8 keeps the stories
+  clear of them. Counting each slot at one size on every target would
+  let a story come near a bound and still replay alike, but it touches
+  most of jig's and temper's step crates (decided 2026-11-09, with
+  section 8).

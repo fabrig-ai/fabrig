@@ -39,7 +39,9 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, pages: &mut Bi
             Read::Drawn(w::View::Rule(view)) => card(b, view.card()),
             Read::Reading => message(b, root.pages().address(), words, true),
             Read::Unreadable
-            | Read::Drawn(w::View::NotDrawn(_) | w::View::Way(_) | w::View::Path(_) | w::View::Proposal(_)) => {
+            | Read::Drawn(
+                w::View::Roles(_) | w::View::NotDrawn(_) | w::View::Way(_) | w::View::Path(_) | w::View::Proposal(_),
+            ) => {
                 message(b, root.pages().address(), words, false);
             }
         }
@@ -80,9 +82,15 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
             [Hole::Number(u64::from(*kind)), Hole::Number(u64::from(*number))],
             2,
         ),
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Work { .. }
+        // page-view: draw Remembered.
+        | Address::Remembered
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::Forges
         | Address::ConnectForge { .. }
@@ -93,6 +101,7 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
         | Address::Home { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Repositories { .. }
         | Address::Models { .. }

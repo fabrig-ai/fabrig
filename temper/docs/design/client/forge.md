@@ -890,8 +890,8 @@ and `connect-forge.html`.
   own run (`tools.md`, 5.5). GitHub’s row holds its App and accepted
   installations; it makes no first repository or project. Its reachable
   repositories are the sheet’s picker (`README.md`, 4.4).
-- **Elsewhere:** the banner's navigation's "Forges", `Settings`'
-  "Forges" and the rail's "Settings"
+- **Elsewhere:** the banner's navigation's "Forges", Deployment's tab
+  "Forges" and the rail's "Deployment"
   carry a dot, amber while a forge sets up or connects, red
   while one needs the person: set up failed, stopped, or not connected
   with a reason (`README.md`, 5.3). The dot's words, the entry's state
@@ -1207,7 +1207,7 @@ and its hold (2.5) follow.
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
 | a person's facts: what they dismissed, the goals they started from a chat | the project's request `Dismiss` and the subject `dismissed`, of the party's own scope (`README.md`, 4.6): the forge side's facts, which no page reads (`README.md`, section 11) | `../domain/forge.md`, 5.5 |
 | a project's stock ways and their paths, and a view of a path, a way, a proposal or a charter | the project's subject `ways`, on Ask temper's page, and the project's read `View`, for a `view` block in a chat (`README.md`, 4.6, 5.13 and 5.16), each made by the root from the core and the forge | `../domain/forge.md`, 8.13; `../protocol/configuration.md`, 13.10 |
-| temper's settings: a landing rule's value, the forge's charter, a project's questions and ways, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../protocol/configuration.md`, 13.2, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+| temper's settings: a landing rule's value, the forge's charter, a charter's words, a project's questions, ways and words, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../protocol/configuration.md`, 13.2, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
 
 The revision-qualified setting read serves an explicit set item from a
 retained revision. It uses jig's authenticated revision read to confirm

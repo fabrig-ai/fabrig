@@ -35,6 +35,8 @@ pub struct Setup {
     pub rows: Option<Box<[root::Record]>>,
     pub startup: Option<fn(&mut root::Domain)>,
     pub patch_sets: jig_protocol_store::PatchSets,
+    /// Exercise the directory-backed store on the simulated crashing disk.
+    pub disk_store: bool,
     pub peers: Option<crate::peers::Peers>,
     pub cut: Option<Cut>,
     pub clock: Option<(Time, Wall)>,
@@ -61,6 +63,7 @@ impl Default for Setup {
             rows: None,
             startup: None,
             patch_sets: jig_protocol_store::PatchSets::NONE,
+            disk_store: false,
             peers: None,
             cut: None,
             clock: None,
@@ -78,6 +81,8 @@ pub enum Cut {
     Submitted(u64),
     /// The rows are durable but the root has not received the completion.
     Durable(u64),
+    /// Stop the simulated disk from a submission or restart open.
+    Disk { from: jig_test_store_files::KillFrom, operation: u32 },
 }
 
 /// Committed turns supplied to one assignment, captured at the worker boundary.
@@ -113,6 +118,7 @@ pub struct World {
     pub inbound: Vec<tasks::Word>,
     pub proposal_reads: Vec<(Token, core::CallKey, core::ProposalRead)>,
     pub settings_answers: Vec<(Token, core::CallKey, core::SettingsAnswer)>,
+    pub person_answers: Vec<(Token, core::CallKey, core::reads::Answer)>,
     pub answers: Vec<(Token, core::CallKey, core::CallPart)>,
     pub assigned: Option<root::Assignment>,
     last_read: Option<u64>,
@@ -223,6 +229,13 @@ pub struct World {
 }
 
 impl World {
+    fn configure_disk(&mut self, selected: bool, sets: jig_protocol_store::PatchSets) {
+        if selected {
+            assert!(sets.sets.is_empty(), "disk crash scenarios use the current format");
+            self.store = Store::on_disk(&self.limits, &self.restart_config.0.core.settings.models);
+        }
+    }
+
     /// A scripted worker declares the job kinds it can host (engine.md, 7.5).
     pub fn job_hello(&mut self, channel: Token, worker: u32, kinds: Box<[JobBound]>) {
         let mut bounds = jig_test_profile::fixtures::bounds();
@@ -373,7 +386,14 @@ impl World {
 
     #[expect(clippy::too_many_lines, reason = "one loop routes root, store and peer work in order")]
     fn drive(&mut self, steps: usize, tick: bool, consume: bool) {
+        if let Some(Cut::Disk { from: from @ jig_test_store_files::KillFrom::Commit(_), operation }) = self.cut {
+            self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
+        }
         for _ in 0..steps {
+            if self.store.reached_kill() {
+                self.reached_cut = self.cut.take();
+                return;
+            }
             if self.stopped {
                 return;
             }
@@ -513,6 +533,13 @@ impl World {
                         }
                         self.proposal_reads.push((token, key, *answer));
                     }
+                    root::Request::Now(core::Now::PersonAnswer { to, key, answer }) => {
+                        let token = to.into_token();
+                        if let Some(reads) = &mut self.reads {
+                            reads.replied(ReplyTo::new(token), (*answer).clone(), &self.store);
+                        }
+                        self.person_answers.push((token, key, *answer));
+                    }
                     root::Request::Now(core::Now::SettingsAnswer { to, key, answer }) => {
                         let token = to.into_token();
                         if let Some(event) = self
@@ -578,6 +605,10 @@ impl World {
                 }
                 if let Some(peer) = &mut self.store_peer {
                     peer.capture(Time::from_nanos(self.wall), &self.store);
+                }
+                if self.store.reached_kill() {
+                    self.reached_cut = self.cut.take();
+                    return;
                 }
                 if self.cut == Some(Cut::Durable(self.store.applied)) {
                     self.reached_cut = self.cut.take();

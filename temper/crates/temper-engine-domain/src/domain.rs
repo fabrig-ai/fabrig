@@ -138,13 +138,14 @@ pub struct Domain {
 pub(crate) struct RunDiagnostics {
     /// Accepted failed answers awaiting the operator sink.
     pub(crate) failed: Queue<crate::RunDiagnostic>,
+    pub(crate) jobs: Queue<crate::JobDiagnostic>,
     /// Accepted refused assignments awaiting the operator sink.
     pub(crate) refused: Queue<crate::RunRefusalDiagnostic>,
 }
 
 impl RunDiagnostics {
     fn new() -> Self {
-        Self { failed: Queue::uncapped(), refused: Queue::uncapped() }
+        Self { failed: Queue::uncapped(), refused: Queue::uncapped(), jobs: Queue::uncapped() }
     }
 }
 
@@ -743,6 +744,12 @@ impl Domain {
         self.run_diagnostics.refused.pop()
     }
 
+    /// Take an accepted job's operator evidence once (temper/docs/design/domain/worker.md, 4.4).
+    pub fn pop_job_diagnostic(&mut self) -> Option<crate::JobDiagnostic> {
+        self.changed();
+        self.run_diagnostics.jobs.pop()
+    }
+
     /// The oldest of the root's own facts not drained yet.
     pub fn pop_fact(&mut self) -> Option<Fact> {
         self.changed();
@@ -784,6 +791,7 @@ pub(crate) fn save(decision: &mut Decision, limits: &Limits, write: Write) -> u6
 /// Account operations keep their own secret-free terminal contract.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     domain.changed();
+    domain.forge.begin_step();
     let mut out = core::mem::replace(&mut domain.scratch, Queue::with_capacity(0));
     step_routed(domain, env, event, &mut out);
     stage_now(domain, &mut out);
@@ -962,6 +970,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
 /// and owner progress through `Event::Resume`, each with its own admission.
 pub fn release(domain: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>) {
     domain.changed();
+    domain.forge.begin_step();
     if domain.stop_pending {
         domain.stop_pending = false;
         domain.door_pass = false;
@@ -1118,6 +1127,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
 /// for whole-decision admission. Their store and account outcomes enter later through `step`.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>) {
     domain.changed();
+    domain.forge.begin_step();
     let mut out = core::mem::replace(&mut domain.scratch, Queue::with_capacity(0));
     fire_routed(domain, env, &mut out);
     stage_now(domain, &mut out);
@@ -1329,6 +1339,7 @@ fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<
         | Read::GoalWords(_)
         | Read::InputCheck(_)
         | Read::Document(_)
+        | Read::Remember(_)
         | Read::SettingsNote { .. }
         | Read::Notes { .. }
         | Read::Proposal(_)

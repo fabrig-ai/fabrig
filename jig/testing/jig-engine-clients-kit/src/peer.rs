@@ -792,6 +792,14 @@ impl Peer {
         );
         self.pump();
     }
+    /// End the peer's side while leaving the server to apply its peer-end policy.
+    pub fn end_exchange(&mut self, socket: Token) {
+        let exchange = self.sockets.get_mut(&socket).expect("exchange");
+        exchange.state = ExchangeState::Cut;
+        let owner = exchange.owner.expect("bound exchange");
+        self.server.up(skein_io::Event::Stream { owner, up: Up::End }, &mut self.server_out);
+        self.pump();
+    }
     pub fn hold_gets(&mut self) {
         self.hold_gets = true;
     }

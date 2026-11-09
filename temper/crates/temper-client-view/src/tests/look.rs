@@ -11,6 +11,7 @@ fn the_frame_carries_its_tokens() {
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
     for (token, name) in [
+        (WHY_OFFERS, b"temper-why-offers".as_slice()),
         (TOP, b"temper-top".as_slice()),
         (TOP_END, b"temper-top-end".as_slice()),
         (OUTSIDE, b"temper-outside".as_slice()),
@@ -35,6 +36,8 @@ fn the_looks_names_pass_skeins_check() {
         (CONFIRM_FATES, b"temper-confirm-fates"),
         (CONFIRM_ACTS, b"temper-confirm-acts"),
         (CONFIRM_DO, b"temper-confirm-do"),
+        (RAIL_SEP, b"temper-rail-sep"),
+        (skein_ui::Style { owner: crate::frame::owner(), token: 675 }, b"temper-reserved-675"),
     ] {
         assert_eq!(NAMES.style(token), Some(name));
     }
@@ -191,14 +194,16 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (SHEET_FOOT, b"temper-sheet-foot"),
     (SHEET_ERROR, b"temper-sheet-error"),
 ];
-const RAIL_NAMES: [(skein_ui::Style, &[u8]); 10] = [
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 12] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
     (RAIL_NEW, b"temper-rail-new"),
-    (RAIL_NEW_ALL, b"temper-rail-new-all"),
+    (RAIL_SEP, b"temper-rail-sep"),
     (RAIL_FOOT, b"temper-rail-foot"),
     (RAIL_PERSON, b"temper-rail-person"),
     (TABBAR, b"temper-tabbar"),
+    (TABBAR_BEGINNING, b"temper-tabbar-beginning"),
+    (TABBAR_ASK, b"temper-tabbar-ask"),
     (AWAY, b"temper-away"),
     (AWAY_CHIP, b"temper-away-chip"),
     (AWAY_TRACK, b"temper-away-track"),
@@ -635,8 +640,29 @@ fn asking_opening_and_needs_have_their_css_names() {
         (WAYS_REFUSED, b"temper-ways-refused"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
+        (WHY, b"temper-why"),
+        (NEEDS_BAR, b"temper-needs-bar"),
+        (NEEDS_BAR_AT, b"temper-needs-bar-at"),
     ] {
         assert_eq!(NAMES.style(style), Some(name));
+    }
+}
+
+#[test]
+fn path_styles_keep_their_css_names() {
+    for (token, name) in [
+        (WAYS_MAYBE, b"temper-ways-maybe".as_slice()),
+        (WAYS_WHY, b"temper-ways-why"),
+        (WAYS_RISE_PERSON, b"temper-ways-rise-person"),
+        (WAYS_RISE_AGENT, b"temper-ways-rise-agent"),
+        (WAYS_FADE_PERSON, b"temper-ways-fade-person"),
+        (WAYS_FADE_PERSON_FAINT, b"temper-ways-fade-person-faint"),
+        (WAYS_FADE_AGENT, b"temper-ways-fade-agent"),
+        (WAYS_FADE_AGENT_FAINT, b"temper-ways-fade-agent-faint"),
+        (WAYS_FADE_BASE, b"temper-ways-fade-base"),
+        (WAYS_KIND_MAYBE, b"temper-ways-kind-maybe"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
     }
 }
 
@@ -699,6 +725,7 @@ fn decision_tokens_name_the_away_rows() {
     for (token, name) in [
         (DECIDED, b"temper-decided".as_slice()),
         (DECISION, b"temper-decision"),
+        (DECISION_ALLOWED, b"temper-decision-allowed".as_slice()),
         (DECISION_TOOK, b"temper-decision-took"),
         (DECISION_WHY, b"temper-decision-why"),
         (DECISION_LATE, b"temper-decision-late"),
@@ -730,4 +757,100 @@ fn the_writing_end_and_reading_controls_have_their_css_names() {
     ] {
         assert_eq!(NAMES.style(token), Some(name));
     }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "ordinary tests parse the phone stylesheet's selectors and pixel heights"
+)]
+fn each_phone_target_stands_44_pixels() {
+    let mut source = include_str!("../../../temper-client-shell-web/temper.css");
+    let mut rules = Vec::new();
+    while let Some((_, after)) = source.split_once("@media (max-width: 760px)") {
+        let (_, body) = after.split_once('{').expect("phone media body");
+        let mut depth = 1_u32;
+        let end = body
+            .char_indices()
+            .find_map(|(at, ch)| {
+                match ch {
+                    '{' => depth += 1,
+                    '}' => depth -= 1,
+                    _ => {}
+                }
+                (depth == 0).then_some(at)
+            })
+            .expect("phone media ends");
+        for rule in body[..end].split('}') {
+            if let Some((selectors, declarations)) = rule.split_once('{') {
+                // A section comment is not part of its first selector.
+                let selectors = selectors.rsplit("*/").next().unwrap();
+                rules.push((selectors.trim(), declarations));
+            }
+        }
+        source = &body[end + 1..];
+    }
+    for target in [
+        "#app > .temper-rail .temper-projects > summary",
+        "#app > .temper-rail > .temper-away-chip::after",
+        "#app > .temper-rail > .temper-night-switch::after",
+        "#app > .temper-tabbar > a",
+        "#app > .temper-session .temper-session-composer > button::after",
+        "#app > .temper-session .temper-model > summary::before",
+        "#app > .temper-session .temper-model-menu button::before",
+        "#app > .temper-session .temper-model-menu a::before",
+        "#app > .temper-session .temper-model-find",
+        "#app > .temper-session .temper-ways-tabs > [role=tab]::after",
+        "#app > .temper-session .temper-ways-acts > button::after",
+        "#app > .temper-session .temper-ways-zoom-head > a::after",
+        "#app > .temper-session .temper-crumbs > .temper-back::after",
+        "#app > .temper-session .temper-session-right > button::after",
+        "#app > .temper-home .temper-need-acts .temper-recommended",
+        "#app > .temper-home .temper-need-card > .temper-need-more",
+        "#app > .temper-home .temper-home-acts > :is(a, button)::after",
+        "#app > .temper-home .temper-home-small::after",
+        "#app > .temper-home .temper-home-skip::after",
+        "#app > .temper-home .temper-home-head > :is(a, button)::after",
+        "#app > .temper-home > .temper-home-phone > a",
+        "#app > .temper-home .temper-home-rows > li > a",
+        "#app > .temper-needs .temper-ask-choices button",
+        "#app > .temper-needs .temper-ask-choices a.temper-recommended",
+        "#app > .temper-needs .temper-ask-choices > details > summary",
+        "#app > .temper-needs .temper-need-tell > button::after",
+        "#app > .temper-needs .temper-ask-quiet::after",
+        "#app > .temper-needs .temper-ask-saw > summary::after",
+        "#app > .temper-needs .temper-ask-context > a::after",
+        "#app > .temper-needs .temper-needs-home::after",
+        "#app > .temper-needs .temper-decision > button::after",
+        "#app > :is(.temper-home, .temper-needs) .temper-answered-undo::after",
+        "#app > .temper-needs .temper-needs-bar > a::after",
+        "#app > .temper-work-page .temper-work-chip::after",
+        "#app > .temper-work-page .temper-work-card a::after",
+        "#app > .temper-work-page .temper-work-row > a::after",
+        "#app > .temper-work-page .temper-work-section-head > a::after",
+    ] {
+        assert!(
+            rules.iter().any(|(selectors, declarations)| {
+                selectors.split(",\n").any(|selector| selector.trim() == target)
+                    && declarations.split(';').any(|declaration| {
+                        let Some((property, value)) = declaration.split_once(':') else { return false };
+                        property.trim() == "min-height"
+                            && value
+                                .trim()
+                                .strip_suffix("px")
+                                .and_then(|n| n.parse::<u32>().ok())
+                                .is_some_and(|height| height >= 44)
+                    })
+            }),
+            "phone target needs at least 44 px: {target}"
+        );
+    }
+}
+
+#[test]
+fn team_and_how_resolve_to_distinct_style_names() {
+    assert_eq!(NAMES.style(TEAM), Some(b"temper-team".as_slice()));
+    assert_eq!(NAMES.style(HOW_WIDE), Some(b"temper-how-wide".as_slice()));
 }

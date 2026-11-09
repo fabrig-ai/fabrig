@@ -128,6 +128,8 @@ pub struct Repository {
     pub kinds: Kinds,
     pub protection: Protection,
     pub settings: skein_forge::api::Settings,
+    /// CI workflow file names (temper/docs/design/domain/forge.md, 4.7).
+    pub workflows: Box<[Box<[u8]>]>,
 }
 /// The git identity a forge's repositories are pushed and fetched with: an
 /// application credential numbered by the deployment's configuration
@@ -971,6 +973,9 @@ pub struct RepositoryGates {
     pub gates: Box<[landing::Gate]>,
     pub tiers: Box<[Tier]>,
 }
+/// A tier description's byte bound (temper/docs/design/protocol/configuration.md, 3).
+pub const DESCRIPTION_BYTES: usize = 120;
+
 /// A repository's tier and followed branch (temper/docs/design/domain/after-landing.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Tier {
@@ -981,6 +986,7 @@ pub struct Tier {
     pub format: temper_engine_domain_forge_tiers::Format,
     pub follows: Follows,
     pub span: Option<skein_lib::Duration>,
+    pub description: Box<[u8]>,
 }
 /// What a tier follows (temper/docs/design/domain/after-landing.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1101,7 +1107,7 @@ pub struct NamedCall {
 /// The connector's part of a named answer; core decisions remain outside it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallPayload {
-    Decided { took: Option<Box<[u8]>> },
+    Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> },
     Effect { entry: u64, deadline: skein_lib::Wall, outcome: Option<skein_forge_client::Outcome> },
     Refused(skein_forge::api::Error),
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
@@ -1342,7 +1348,6 @@ pub enum Event {
         project: u32,
         on: bool,
         until: Option<skein_lib::Wall>,
-        kinds: u8,
     },
     Overturn {
         request: Token,
@@ -1357,6 +1362,7 @@ pub enum Event {
         party: u64,
         project: u32,
         task: u64,
+        always: bool,
         call: crate::DecidedCall,
     },
     MakingStarted {
@@ -1917,6 +1923,7 @@ pub enum Request {
         to: skein_lib::ReplyTo,
         key: NamedCall,
         took: Option<Box<[u8]>>,
+        reach: Option<temper_protocol_reaches::Reach>,
     },
     MakingCopied {
         key: crate::MakingKey,

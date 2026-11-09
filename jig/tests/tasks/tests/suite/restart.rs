@@ -375,41 +375,60 @@ fn waiting_restore_keeps_saved_recipient_entry_and_time_without_routing() {
     }
 }
 
-fn load_and_link(rows: Vec<Stored>, env: &skein_lib::Env<jig_domain_tasks::Limits>) -> jig_domain_tasks::Domain {
+fn load(
+    rows: Vec<Stored>,
+    env: &skein_lib::Env<jig_domain_tasks::Limits>,
+) -> (jig_domain_tasks::Domain, skein_lib::Queue<tasks::Request>) {
     let mut domain = jig_tasks_world::domain(&env.limits, 38);
     let mut out = skein_lib::Queue::uncapped();
     for record in rows.into_iter().filter(|row| row.key().live()) {
         jig_domain_tasks::step(&mut domain, env, Event::Restore { record }, &mut out);
     }
+    (domain, out)
+}
+
+fn load_and_link(rows: Vec<Stored>, env: &skein_lib::Env<jig_domain_tasks::Limits>) -> jig_domain_tasks::Domain {
+    let (mut domain, mut out) = load(rows, env);
     jig_domain_tasks::step(&mut domain, env, Event::Check, &mut out);
     assert!(out.is_empty(), "loading and linking must not act: {out:?}");
     assert!(domain.checked());
     domain
 }
 
+fn refuses_link(source: &World, key: Key, target: Key) {
+    refuses_rows(source.records.values().cloned().collect(), &source.env, key, target);
+}
+
+fn refuses_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>, key: Key, target: Key) {
+    let (mut domain, mut out) = load(rows, env);
+    jig_domain_tasks::step(&mut domain, env, Event::Check, &mut out);
+    let expected = tasks::RestoreFailure { key, cause: tasks::RestoreCause::Link { target } };
+    assert_eq!(domain.restore_failure(), Some(expected));
+    assert!(matches!(out.pop(), Some(tasks::Request::RestoreRefused { problem }) if problem.why == Refusal::Restore));
+    assert!(out.is_empty(), "a refused link emits no writes or lifecycle work");
+    assert!(!domain.checked());
+}
+
 #[test]
-#[should_panic(expected = "restore Live(1): missing task 99")]
-fn missing_root_panics_with_record_and_target_after_load() {
+fn missing_root_refuses_with_record_and_target_after_load() {
     let mut source = World::new(38, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[])]);
     if let Some(Stored::Live(row)) = source.records.get_mut(&Key::Live(1)) {
         row.root = 99;
     }
-    load_and_link(source.records.values().cloned().collect(), &source.env);
+    refuses_link(&source, Key::Live(1), Key::Live(99));
 }
 
 #[test]
-#[should_panic(expected = "restore Live(2): missing task 1")]
-fn missing_waiting_dependency_panics_with_record_and_target_after_load() {
+fn missing_waiting_dependency_refuses_with_record_and_target_after_load() {
     let mut source = World::new(39, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[]), task(2, &[1])]);
     source.records.remove(&Key::Live(1));
-    load_and_link(source.records.values().cloned().collect(), &source.env);
+    refuses_link(&source, Key::Live(2), Key::Live(1));
 }
 
 #[test]
-#[should_panic(expected = "restore Live(3): missing task or stub 2")]
-fn missing_ended_stub_panics_with_record_and_target_after_load() {
+fn missing_ended_stub_refuses_with_record_and_target_after_load() {
     let mut source = World::new(40, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[])]);
     source.make(Party::Task(1), vec![task(2, &[]), task(3, &[])]);
@@ -418,16 +437,15 @@ fn missing_ended_stub_panics_with_record_and_target_after_load() {
     source.finish_task(2);
     assert!(source.record(3).references.contains(&2));
     assert!(source.records.remove(&Key::Stub(2)).is_some());
-    load_and_link(source.records.values().cloned().collect(), &source.env);
+    refuses_link(&source, Key::Live(3), Key::Stub(2));
 }
 
 #[test]
-#[should_panic(expected = "restore Live(1): missing funder Period { project: 1, period: 0 }")]
-fn missing_funder_panics_with_record_and_target_after_load() {
+fn missing_funder_refuses_with_record_and_target_after_load() {
     let mut source = World::new(41, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[])]);
     source.records.remove(&Key::Ledger(jig_domain_tasks::Funder::Period { project: 1, period: 0 }));
-    load_and_link(source.records.values().cloned().collect(), &source.env);
+    refuses_link(&source, Key::Live(1), Key::Ledger(tasks::Funder::Period { project: 1, period: 0 }));
 }
 
 #[test]
@@ -629,8 +647,7 @@ fn live_writer_refuses_invalid_open_flags_and_funding_before_committing() {
 }
 
 #[test]
-#[should_panic(expected = "restore Writer(7): missing writer task 99")]
-fn missing_writer_task_panics_with_record_and_target_after_load() {
+fn missing_writer_task_refuses_with_record_and_target_after_load() {
     let mut source = World::new(45, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[])]);
     let mut rows = source.records.values().cloned().collect::<Vec<_>>();
@@ -640,12 +657,11 @@ fn missing_writer_task_panics_with_record_and_target_after_load() {
         writer: jig_domain_tasks::Writer::Run { task: 99, attempt: 1 },
         lost: false,
     }));
-    load_and_link(rows, &source.env);
+    refuses_rows(rows, &source.env, Key::Writer(7), Key::Live(99));
 }
 
 #[test]
-#[should_panic(expected = "restore PlacedHold(7): missing hold owner task 99")]
-fn missing_hold_owner_panics_with_record_and_target_after_load() {
+fn missing_hold_owner_refuses_with_record_and_target_after_load() {
     let mut source = World::new(46, LIMITS);
     source.make(Party::Person(1), vec![task(1, &[])]);
     let mut rows = source.records.values().cloned().collect::<Vec<_>>();
@@ -661,7 +677,7 @@ fn missing_hold_owner_panics_with_record_and_target_after_load() {
         exempt: Box::new([]),
         lifted: false,
     })));
-    load_and_link(rows, &source.env);
+    refuses_rows(rows, &source.env, Key::PlacedHold(7), Key::Live(99));
 }
 
 #[test]

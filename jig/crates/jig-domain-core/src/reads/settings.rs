@@ -225,6 +225,7 @@ pub(super) fn answer(destination: super::Destination, value: Answer) -> Queue<Re
             | super::Destination::Restore
             | super::Destination::Proposal { .. }
             | super::Destination::Settings { .. }
+            | super::Destination::Person { .. }
             | super::Destination::RunTask { .. }
             | super::Destination::Done => unreachable!("settings read destination"),
         };

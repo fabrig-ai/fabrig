@@ -94,6 +94,7 @@ pub struct TierCheck {
     pub format: temper_engine_domain_forge_tiers::Format,
     pub follows: forge::Follows,
     pub span_ms: u64,
+    pub description: Box<[u8]>,
 }
 /// A project's verification settings (protocol/configuration.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -130,6 +131,7 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
                         0 => None,
                         millis => Some(skein_lib::Duration::from_millis(millis)),
                     },
+                    description: tier.description.clone(),
                 })
                 .expect("counted tiers");
         }
@@ -188,6 +190,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             | Tool::ReadTask { .. }
             | Tool::See { .. }
             | Tool::Document { .. }
+            | Tool::Remember { .. }
             | Tool::Settings { .. }
             | Tool::ProposeSettings { .. }
             | Tool::ProposeSettingsNote { .. }
@@ -227,6 +230,7 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
         | Tool::ReadTask { .. }
         | Tool::See { .. }
         | Tool::Document { .. }
+        | Tool::Remember { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -274,6 +278,7 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
         | Tool::ReadTask { .. }
         | Tool::See { .. }
         | Tool::Document { .. }
+        | Tool::Remember { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -335,6 +340,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         | Tool::ReadTask { .. }
         | Tool::See { .. }
         | Tool::Document { .. }
+        | Tool::Remember { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -466,7 +472,7 @@ fn proposal_shape(action: &ProposedAction, reason: &[u8], limits: &tasks::Limits
 
 pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
     Some(match tool {
-        Tool::See { .. } | Tool::Document { .. } => jig_domain_core::ToolKind::Ask,
+        Tool::See { .. } | Tool::Document { .. } | Tool::Remember { .. } => jig_domain_core::ToolKind::Ask,
         Tool::Settings { .. } | Tool::ProposeSettings { .. } | Tool::ProposeSettingsNote { .. } => {
             jig_domain_core::ToolKind::Settings
         }
@@ -514,7 +520,7 @@ pub(crate) fn connector_answer(domain: &Domain, key: crate::CallKey) -> Option<C
 
 pub(crate) fn call_payload_answer(payload: forge::CallPayload) -> CallAnswer {
     match payload {
-        forge::CallPayload::Decided { took } => CallAnswer::Decided { took },
+        forge::CallPayload::Decided { took, reach } => CallAnswer::Decided { took, reach },
         forge::CallPayload::Effect { entry, deadline, outcome } => CallAnswer::ForgeEffect { entry, deadline, outcome },
         forge::CallPayload::Refused(error) => CallAnswer::ForgeEffectRefused(error),
         forge::CallPayload::Read(answer) => CallAnswer::ForgeRead(answer),
@@ -531,7 +537,7 @@ pub(crate) fn keep_connector_answer(
     answer: CallAnswer,
 ) -> Result<Option<CallAnswer>, CallAnswer> {
     let payload = match answer {
-        CallAnswer::Decided { took } => forge::CallPayload::Decided { took },
+        CallAnswer::Decided { took, reach } => forge::CallPayload::Decided { took, reach },
         CallAnswer::ForgeEffect { entry, deadline, outcome } => forge::CallPayload::Effect { entry, deadline, outcome },
         CallAnswer::ForgeEffectRefused(error) => forge::CallPayload::Refused(error),
         CallAnswer::ForgeRead(answer) => forge::CallPayload::Read(answer),
@@ -566,9 +572,11 @@ pub(crate) fn keep_connector_answer(
         | CallAnswer::ChangeRefused { .. }
         | CallAnswer::DelegationRefused(_)
         | CallAnswer::NoteWritten { .. }
+        | CallAnswer::NoteDeleted { .. }
         | CallAnswer::NoteRecalled { .. }
         | CallAnswer::Parts(_)
         | CallAnswer::Document(_)
+        | CallAnswer::Remember(_)
         | CallAnswer::NoteRefused(_)
         | CallAnswer::SettingsRefused(_)
         | CallAnswer::HoldOwner { .. }
@@ -585,6 +593,7 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
     match tool {
         Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => true,
         Tool::Document { .. }
+        | Tool::Remember { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
         | Tool::Decided(_)

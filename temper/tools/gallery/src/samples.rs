@@ -14,6 +14,7 @@ use Then::{
 pub enum World {
     Reference,
     Solo,
+    WholeStory,
     FirstRun { step: u8 },
     Bare,
 }
@@ -100,6 +101,8 @@ impl Sample {
     pub fn open_disclosure(&self) -> Option<&[u8]> {
         match self.name {
             "sheet-few" => Some(b"More"),
+            "rail-all-projects" => Some(b"vsr"),
+            "rail-across" => Some(b"All projects"),
             "chat-model-open"
             | "chat-model-both"
             | "chat-model-all"
@@ -118,13 +121,13 @@ impl Sample {
     #[must_use]
     pub fn open_menu(&self) -> Option<&[u8]> {
         match self.name {
-            "rail-new-menu" => Some(b"More ways to start work"),
+            "rail-new-menu" => Some(b"New draft or change"),
             "rail-person-menu" => Some(b"Robin"),
             _ => None,
         }
     }
 }
-pub const N: usize = 350;
+pub const N: usize = 402;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -137,6 +140,74 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
+        Sample { name: "team-alone", world: Bare, address: Address::Team { project: 1 }, then: Shown },
+        Sample { name: "night-team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
+        Sample {
+            name: "rail-new-change",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "rail-all-projects",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample { name: "rail-across", world: Reference, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "work",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "work-pair",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample {
+            name: "work-drafts",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::Drafts },
+            then: Shown,
+        },
+        Sample {
+            name: "work-goals",
+            world: Reference,
+            address: Address::Goals { project: 1, filter: GoalsFilter::All },
+            then: Shown,
+        },
+        Sample { name: "work-changes", world: Reference, address: Address::Changes { project: 1 }, then: Shown },
+        Sample {
+            name: "work-empty",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample { name: "remembered-none", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "remembered-three", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "remembered-full", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "remembered-changing", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "remembered-refused", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-none", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-three", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-full", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-changing", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "night-remembered-refused", world: Reference, address: Address::Remembered, then: Shown },
+        Sample { name: "members", world: Reference, address: Address::Members, then: Shown },
+        Sample { name: "members-refused", world: Reference, address: Address::Members, then: Shown },
+        Sample { name: "limits", world: Reference, address: Address::Limits, then: Shown },
+        Sample { name: "limits-not-owner", world: Reference, address: Address::Limits, then: Shown },
+        Sample {
+            name: "night-work",
+            world: Reference,
+            address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
+            then: Shown,
+        },
+        Sample { name: "night-limits", world: Reference, address: Address::Limits, then: Shown },
         Sample { name: "how", world: FirstRun { step: 7 }, address: Address::Settings { project: 1 }, then: Shown },
         Sample {
             name: "how-approve",
@@ -302,6 +373,30 @@ pub fn samples() -> [Sample; N] {
             address: Address::Home { project: 1 },
             then: Shown,
         },
+        Sample {
+            name: "home-decided",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-decided",
+            world: FirstRun { step: 7 },
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-only-you",
+            world: Reference,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-only-you-done",
+            world: Reference,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
         Sample { name: "home-away", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
         Sample {
             name: "home-away-overturned",
@@ -315,6 +410,16 @@ pub fn samples() -> [Sample; N] {
             address: Address::Home { project: 1 },
             then: Shown,
         },
+        Sample { name: "all-home", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "all-home-nothing-new", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "all-home-one-project", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "all-home-away", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "all-home-away-on", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "night-all-home", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "home-step-pair", world: Solo, address: Address::Home { project: 1 }, then: Shown },
+        Sample { name: "home-step-team", world: Solo, address: Address::Home { project: 1 }, then: Shown },
+        Sample { name: "home-step-stock", world: Solo, address: Address::Home { project: 1 }, then: Shown },
+        Sample { name: "home-step-scale", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample {
             name: "home-morning",
             world: FirstRun { step: 7 },
@@ -705,7 +810,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "inbox-solo", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
             name: "rail-new-menu",
-            world: Solo,
+            world: Reference,
             address: Address::Home { project: 1 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
         },
@@ -733,6 +838,22 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "forges-removing", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
         Sample { name: "forges-in-settings", world: Solo, address: Address::Forges, then: Shown },
         Sample { name: "accounts-in-settings", world: Solo, address: Address::Accounts, then: Shown },
+        Sample { name: "needs-list", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-list-second", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-tell", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "needs-approval-first",
+            world: Solo,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample { name: "night-needs", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "night-needs-only-you",
+            world: Reference,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
         Sample {
             name: "needs-one",
             world: Solo,
@@ -783,6 +904,24 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "needs-proposal", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "needs-stop-asking",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-stop-asking-set",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-why",
+            world: Solo,
+            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
         Sample { name: "needs-held", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "needs-funds", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
@@ -814,11 +953,16 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "start-goal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "settings-away", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
+        Sample {
+            name: "settings-away-you-approve",
+            world: Solo,
+            address: Address::Settings { project: 1 },
+            then: Shown,
+        },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-changes-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
-        Sample { name: "settings-away-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-all-hidden", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-chat-open", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -1005,6 +1149,7 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "accounts-states", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-expiring", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-key", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-removing", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-signing-in", world: Reference, address: Address::Accounts, then: Shown },
@@ -1181,17 +1326,33 @@ fn model_sample(name: &'static str, kind: temper_client_domain::WayKind, then: T
     Sample { name, world: World::Reference, address: Address::ConnectModel { way: Some(way) }, then }
 }
 fn special_mockup(name: &str) -> Option<String> {
+    if matches!(name, "needs-list" | "needs-list-second" | "needs-tell" | "needs-approval-first" | "night-needs") {
+        return Some("../whole-story/needs.html".to_owned());
+    }
     if name.starts_with("needs-") || name == "inbox-solo" || name == "inbox-reference" || name == "inbox-empty" {
         return Some("../greenfield/needs.html".to_owned());
     }
     match name {
+        "team" | "night-team" => return Some("../whole-story/team/team.html".to_owned()),
+        "all-home"
+        | "all-home-nothing-new"
+        | "all-home-away"
+        | "all-home-away-on"
+        | "all-home-one-project"
+        | "night-all-home"
+        | "home-step-stock"
+        | "home-step-scale" => return Some("../whole-story/home.html".to_owned()),
+        "home-step-pair" => return Some("../whole-story/pair/home.html".to_owned()),
+        "home-step-team" => return Some("../whole-story/team/home.html".to_owned()),
         "how-approve" => return Some("../web/whole-story/pair/how.html".to_owned()),
         "how" | "how-draft" | "how-yours" | "how-card" | "night-how" => {
             return Some("../web/whole-story/how.html".to_owned());
         }
         "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),
-        "settings-away" => return Some("../greenfield/settings.html#away".to_owned()),
-        "home-away" | "home-away-one" | "home-away-overturned" => return Some("../greenfield/home.html".to_owned()),
+        "settings-away" | "settings-away-you-approve" => return Some("../greenfield/settings.html#away".to_owned()),
+        "home-decided" | "home-away" | "home-away-one" | "home-away-overturned" => {
+            return Some("../greenfield/home.html".to_owned());
+        }
         "changes" | "changes-one" | "changes-empty" => return Some("changes.html".to_owned()),
         "changes-landed-only" => return Some("changes.html?project=hello".to_owned()),
         "forges-github-install" => return Some("forges.html?world=first-run-github&step=3&bare".to_owned()),
@@ -1243,6 +1404,14 @@ fn special_mockup(name: &str) -> Option<String> {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one address table maps the gallery pages to their mockups")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    match sample.name {
+        "work" | "work-drafts" | "work-goals" | "work-changes" | "night-work" => {
+            return Some("../web/whole-story/work.html".to_owned());
+        }
+        "work-pair" | "rail-new-change" => return Some("../web/whole-story/pair/work.html".to_owned()),
+        _ => {}
+    }
+
     if sample.name.starts_with("approve-") {
         return None;
     }
@@ -1320,7 +1489,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         World::Reference => "reference".to_owned(),
         World::Solo => "solo".to_owned(),
         World::FirstRun { step } => format!("first-run&step={step}"),
-        World::Bare => return None,
+        World::Bare | World::WholeStory => return None,
     };
     let (page, task) = match sample.address {
         Address::NewChat { draft } => {
@@ -1328,15 +1497,17 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         }
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
-        Address::Inbox { .. } => ("inbox", None),
-        Address::Accounts => ("accounts", None),
+        Address::AllHome | Address::Inbox { .. } => ("inbox", None),
+        Address::Remembered | Address::Members | Address::Limits | Address::Accounts => ("accounts", None),
         Address::ConnectModel { .. } => ("connect-model", None),
         Address::Welcome { .. } => ("welcome", None),
         Address::Task { task, .. } => ("task", Some(task)),
         Address::ConnectForge { .. } => ("connect-forge", None),
         Address::Forges => ("forges", None),
-        Address::Goals { .. }
+        Address::Work { .. }
+        | Address::Goals { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
@@ -1357,9 +1528,13 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(number)) } => {
             format!("&forge={number}")
         }
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Remembered
+        | Address::Members
+        | Address::Limits
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
@@ -1378,12 +1553,14 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
+        | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
         | Address::Adopt { .. } => String::new(),
@@ -1512,16 +1689,54 @@ pub fn domain(sample: &Sample) -> Domain {
         return crate::worlds::view_world(sample.name);
     }
     let base = match sample.name {
+        "night-team" => Some("team"),
+        "night-needs" => Some("needs-list"),
+        "night-needs-only-you" => Some("needs-only-you"),
         "night-home" => Some("home-begin-ask-left"),
+        "night-all-home" => Some("all-home"),
         "night-ask" => Some("ask-first-run"),
         "night-how" => Some("how"),
         "night-chat-split" => Some("chat-draft-split"),
+        "night-work" => Some("work"),
+        "night-limits" => Some("limits"),
+        "night-remembered-none" => Some("remembered-none"),
+        "night-remembered-three" => Some("remembered-three"),
+        "night-remembered-full" => Some("remembered-full"),
+        "night-remembered-changing" => Some("remembered-changing"),
+        "night-remembered-refused" => Some("remembered-refused"),
         _ => None,
     };
     if let Some(name) = base {
         let mut root = domain(&Sample { name, ..sample.clone() });
-        step(&mut root, Event::Act { action: Action::Pages(Act::Terminal(T::Night)) }, &mut Queue::uncapped());
+        let wall = crate::worlds::now(if sample.world == World::WholeStory { World::WholeStory } else { World::Solo });
+        temper_client_domain::step(
+            &mut root,
+            &skein_lib::Env { now: skein_lib::Time::ZERO, wall, limits: crate::driver::limits() },
+            Event::Act { action: Action::Pages(Act::Terminal(T::Night)) },
+            &mut Queue::uncapped(),
+        );
         return root;
+    }
+    if matches!(
+        sample.name,
+        "rail-new-change"
+            | "rail-all-projects"
+            | "rail-across"
+            | "work"
+            | "work-pair"
+            | "work-drafts"
+            | "work-goals"
+            | "work-changes"
+            | "work-empty"
+            | "members"
+            | "members-refused"
+            | "limits"
+            | "limits-not-owner"
+    ) {
+        return crate::worlds::rail_work_world(sample.name, sample.address.clone());
+    }
+    if sample.name.starts_with("remembered-") {
+        return crate::worlds::remembered_world(sample.name);
     }
     if sample.name == "no-project" {
         return crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name);
@@ -1628,14 +1843,23 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name == "chat-goal-linked" {
         return crate::worlds::linked_chat_world(sample.world, sample.address.clone());
     }
+    if sample.name == "needs-decided" {
+        return home_domain(sample.name);
+    }
     if sample.name.starts_with("needs-") {
         return crate::needs::domain(sample.name);
     }
     if sample.name.starts_with("changes") {
         return crate::worlds::changes_world(sample.name);
     }
+    if sample.name == "team" || sample.name == "team-alone" {
+        return crate::worlds::team_world(sample.name);
+    }
     if sample.name.starts_with("ask-") {
         return ask_domain(sample);
+    }
+    if sample.world == World::WholeStory || sample.name.starts_with("home-step-") {
+        return crate::worlds::whole_story_world(sample.name, sample.address.clone());
     }
     if sample.name.starts_with("home-") || matches!(sample.name, "rail-away-on" | "rail-away-off") {
         return home_domain(sample.name);
@@ -1842,7 +2066,7 @@ pub fn domain(sample: &Sample) -> Domain {
         };
         step(&mut root, Event::Act { action: Action::Forge(forge::Act::Forges(act)) }, &mut out);
     }
-    account_states(&mut root, sample, accounts_watch, &mut out);
+    account_states(&mut root, sample.name, accounts_watch, &mut out);
     account_editor(&mut root, sample, &mut out);
     if sample.then == Then::Paste(PasteFrame::Expired) {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
@@ -1867,10 +2091,17 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     root
 }
-fn account_states(root: &mut Domain, sample: &Sample, accounts_watch: Option<Token>, out: &mut Queue<Request>) {
-    if sample.name == "accounts-states" || sample.name == "accounts-program-needs-sign-in" {
+pub(super) fn account_states(root: &mut Domain, name: &str, accounts_watch: Option<Token>, out: &mut Queue<Request>) {
+    if matches!(
+        name,
+        "accounts-states"
+            | "accounts-program-needs-sign-in"
+            | "accounts-expiring"
+            | "needs-only-you"
+            | "needs-only-you-done"
+    ) {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
-        if sample.name == "accounts-states" {
+        if name == "accounts-states" {
             let template = doc.accounts.get(1).expect("plan account").clone();
             let states = [
                 c::AccountState::Granted,
@@ -1903,7 +2134,7 @@ fn account_states(root: &mut Domain, sample: &Sample, accounts_watch: Option<Tok
                 source.usable = index == 0;
                 doc.accounts.push(row).expect("sample state");
             }
-        } else {
+        } else if name == "accounts-program-needs-sign-in" {
             let row = doc.accounts.get_mut(0).expect("program account");
             let source = row.sources.get_mut(0).expect("program source");
             source.state = c::AccountState::SignInAgain;
@@ -1911,6 +2142,27 @@ fn account_states(root: &mut Domain, sample: &Sample, accounts_watch: Option<Tok
             for host in doc.program_hosts.iter_mut() {
                 for program in host.programs.iter_mut() {
                     program.state = Some(c::ProgramState::NotSignedIn);
+                }
+            }
+        } else {
+            for row in doc.accounts.iter_mut() {
+                let source = row.sources.get_mut(0).expect("deciding source");
+                match source.kind {
+                    c::AccountKind::SignIn => {
+                        source.state = if name == "accounts-expiring" {
+                            c::AccountState::Granted
+                        } else {
+                            c::AccountState::SignInAgain
+                        };
+                        source.usable = name == "accounts-expiring";
+                        source.expiring = name == "accounts-expiring";
+                    }
+                    c::AccountKind::Program => {
+                        source.state = c::AccountState::Granted;
+                        source.usable = true;
+                        source.expiring = name == "needs-only-you";
+                    }
+                    c::AccountKind::Key | c::AccountKind::None => {}
                 }
             }
         }
@@ -2306,11 +2558,14 @@ fn home_domain(name: &str) -> Domain {
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let away_sample = matches!(name, "rail-away-on" | "rail-away-off");
-    let home_away = matches!(name, "home-away" | "home-away-one" | "home-away-overturned");
+    let home_away =
+        matches!(name, "home-decided" | "needs-decided" | "home-away" | "home-away-one" | "home-away-overturned");
+    let needs_decided = name == "needs-decided";
     let away_name = name;
     let status_name = if away_sample { "home-morning" } else { name };
     let name = match name {
         "rail-away-on" | "rail-away-off" => "home-morning",
+        "home-decided" | "needs-decided" => "home-one-need",
         "home-away"
         | "home-away-one"
         | "home-away-overturned"
@@ -2339,6 +2594,12 @@ fn home_domain(name: &str) -> Domain {
     me.projects = projects;
     if home_away {
         me.projects.get_mut(0).expect("Away project").name = home_text("fabrig");
+    }
+    if needs_decided {
+        let mut other = me.projects.get(0).expect("first project").clone();
+        other.project = 2;
+        other.name = home_text("Widget");
+        me.projects = List::from_boxed(Box::new([me.projects.get(0).expect("first project").clone(), other]));
     }
     if name.starts_with("home-cop") {
         me.projects.get_mut(0).expect("Home copy project").name = home_text("Widget");
@@ -2374,7 +2635,11 @@ fn home_domain(name: &str) -> Domain {
     let mut out = Queue::uncapped();
     step(
         &mut root,
-        Event::Start { address: Address::Home { project: 1 }, kept: List::with_capacity(0), with: None },
+        Event::Start {
+            address: if needs_decided { Address::Inbox { filter: Filter::ALL } } else { Address::Home { project: 1 } },
+            kept: List::with_capacity(0),
+            with: None,
+        },
         &mut out,
     );
     for event in [
@@ -2385,7 +2650,7 @@ fn home_domain(name: &str) -> Domain {
         step(&mut root, Event::Client { event }, &mut out);
     }
     let mut away_watch = None;
-    let mut decided_watch = None;
+    let mut decided_watches = List::with_capacity(2);
     let everyday = matches!(
         name,
         "home-morning"
@@ -2530,16 +2795,27 @@ fn home_domain(name: &str) -> Domain {
                         writer.finish()
                     }
                     w::Watch::Away if home_away => crate::worlds::home_away_record(away_name),
-                    w::Watch::Decided(_) if home_away => {
-                        decided_watch = Some(watch);
+                    w::Watch::Decided(subject) if home_away => {
+                        decided_watches.push((watch, subject.project())).expect("two decided projects");
                         continue;
                     }
+                    w::Watch::Decided(subject) => wire::decisions(
+                        &w::Decisions::new(
+                            &w::CEILINGS,
+                            w::DecisionsParts {
+                                project: subject.project(),
+                                rows: List::with_capacity(0),
+                                asked: List::with_capacity(0),
+                                cut: false,
+                            },
+                        )
+                        .expect("Home decided document"),
+                    ),
                     w::Watch::Away if away_sample => {
                         away_watch = Some(watch);
                         crate::worlds::away_record(away_name == "rail-away-off")
                     }
                     w::Watch::Away
-                    | w::Watch::Decided(_)
                     | w::Watch::Change(_)
                     | w::Watch::Landing(_)
                     | w::Watch::Landings(_)
@@ -2735,9 +3011,12 @@ fn home_domain(name: &str) -> Domain {
                             false,
                             with_goals || home_away,
                             home_away,
-                            home_away || away_sample,
                             &mut out,
                         );
+                        continue;
+                    }
+                    w::Read::Setting(setting) if setting.kind() == 8 => {
+                        crate::worlds::project_classes(&mut root, read, &mut out);
                         continue;
                     }
                     w::Read::Deployment => Some(wire::deployment_answer(
@@ -2834,7 +3113,10 @@ fn home_domain(name: &str) -> Domain {
         crate::worlds::home_add_sheet(&mut root, name == "home-add-repository-copies");
     }
     if home_away {
-        crate::worlds::home_away_deliveries(&mut root, decided_watch.expect("Decided watch"), away_name);
+        assert!(!decided_watches.is_empty(), "Decided watch");
+        for (watch, project) in decided_watches.into_boxed() {
+            crate::worlds::home_away_deliveries(&mut root, watch, away_name, project);
+        }
     }
     if away_sample {
         crate::worlds::rail_away_toggle(&mut root, away_watch.expect("Away watch"), away_name == "rail-away-on");

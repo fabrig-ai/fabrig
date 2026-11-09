@@ -1,4 +1,5 @@
 //! Store adapters for the core's restart script (jig's domain/root.md, 8).
+//! Window texts keep cut turns and their lengths (temper/docs/design/domain/root.md, 8).
 use crate::archive::{
     Waiting, goal_failed, goal_loaded, input_failed, input_loaded, note_failed, note_loaded, transcript_failed,
     transcript_loaded, transcript_unread, waiting,
@@ -162,6 +163,7 @@ pub(crate) fn load_outputs(
                 }
                 match waiting(domain, waiter) {
                     Some(Waiting::Document) => crate::route::document::loaded(domain, waiter, rows, next, cut, out),
+                    Some(Waiting::Remember) => crate::route::remember::loaded(domain, waiter, rows, next, cut, out),
                     Some(Waiting::Notes) => note_loaded(domain, waiter, rows, next, cut),
                     Some(Waiting::GoalWords) if cut.is_none() && next.is_none() => {
                         goal_loaded(domain, waiter, rows, out);
@@ -197,6 +199,7 @@ pub(crate) fn load_outputs(
                 }
                 match waiting(domain, waiter) {
                     Some(Waiting::Document) => crate::route::document::failed(domain, waiter),
+                    Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),
                     Some(Waiting::Notes) => note_failed(domain, waiter),
                     Some(Waiting::Input) => input_failed(domain, waiter),
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),
@@ -542,10 +545,17 @@ fn give_settings_defaults(domain: &mut Domain) {
             })
             .expect("one state per forge default");
     }
+    let mut dropped = skein_lib::List::uncapped();
+    for (kind, scope, number) in domain.forge.dropped_settings_defaults() {
+        dropped
+            .push(jig_domain_core::effects::connector::DroppedDefault { kind, scope, number })
+            .expect("one name per dropped forge default");
+    }
     domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
         jig_domain_core::effects::connector::Event::SettingsDefaults {
             connector: domain.config.forge_connector,
             defaults: defaults.into_boxed(),
+            dropped: dropped.into_boxed(),
         },
     )));
 }

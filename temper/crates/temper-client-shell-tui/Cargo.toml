@@ -28,6 +28,7 @@ temper-client-tui.workspace = true
 temper-client-shell-terminal.workspace = true
 temper-client-shell-web = { workspace = true, optional = true }
 [dev-dependencies]
+temper-client-protocol-wire.workspace = true
 skein-scratch.workspace = true
 jig-client-test-records.workspace = true
 skein-codec.workspace = true

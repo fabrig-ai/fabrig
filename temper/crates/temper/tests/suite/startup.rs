@@ -30,7 +30,7 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5886 bytes; raise it in engine.limits.overrides\n",
+        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5918 bytes; raise it in engine.limits.overrides\n",
         "stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -1745,6 +1745,10 @@ fn the_store_page_holds_the_templates_largest_turn_frame() {
 }
 
 /// Hold only the limit maps this derivation owns; keep the document's other text.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
+)]
 fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
     use support::configuration::turn_bounds;
     let text = fs::read_to_string(path).expect("turn-bound document");
@@ -2072,6 +2076,10 @@ fn observing_parent_descendants_leaves_cleanup_with_their_world() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: TEMPER_FORGE_PARENT_HELPER, through temper's test table once it exists"
+)]
 fn forge_parent_listener_helper() {
     if std::env::var_os("TEMPER_FORGE_PARENT_HELPER").is_some() {
         support::forge_parent::serve();

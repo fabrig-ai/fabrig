@@ -29,9 +29,9 @@ pub fn configuration(limits: &engine::Limits) -> engine::Config {
 #[must_use]
 pub fn limits() -> engine::Limits {
     let mut limits = walking::limits();
-    // The stock's two charter references and a complete duplicate-gate value
-    // must reach the forge judge rather than an unrelated fixture bound.
-    limits.tasks.charters = 4;
+    // The stock's charter lines, kind 9, run up to charter 12.
+    limits.tasks.charters = 12;
+    // A complete duplicate-gate value must reach the forge judge.
     limits.people.amendment_bytes = 2048;
     limits
 }

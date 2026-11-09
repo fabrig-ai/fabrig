@@ -248,6 +248,17 @@ session log's versioned text (decided 2026-11-03).
   that differs fails the replay at that input. The application's
   referee runs as in any world, so a bug a visitor met is in the lowest
   world from the start.
+- **Another build's slots:** a native replay of a bundle's log runs
+  another build, whose slots are larger: a wasm32 bundle's pointers and
+  lengths take 4 bytes, a native build's 8. A bound that counts what it
+  holds by its slots' size (`size_of`) holds more on wasm32 than
+  natively, so a world whose content reaches such a bound on one build
+  and not the other says otherwise in its replay: a page cut at another
+  row, an answer refused on one build alone. An application whose logs
+  are replayed natively keeps its stories below each such bound on a
+  64-bit build, where the count is the larger, so both builds decide
+  alike; a replay that differs at such a bound is that finding
+  (decided 2026-11-09).
 - **What changes a log:** a change that makes a kept log's replay
   differ is a new log, recorded again, or a finding (temper's
   `docs/design/playground.md`, testing).
@@ -322,6 +333,14 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
 - **A difference** fails the replay at its line: a stamp's step reached
   at another instant, or its instant passed before its step, or a
   digest that differs; the failure names the build the log came from.
+- **What a difference says,** so one met once shows its cause without
+  another run: the line's input, in the log's text (6.1), none on the
+  last line; and for a digest, the log's and the replay's, and the
+  replay's last lines before it, at most 8, oldest first. Those lines
+  are each input it entered, `input step=<u64> instant=<ns> <input>`,
+  each report and printed line it folded, and `stopped` when it folded
+  the stop, each in the log's text without its newline; a line past
+  200 bytes is cut to its first 200 and `...` (decided 2026-11-09).
 
 ## 7. The page, the worker and the bundle
 

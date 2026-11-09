@@ -47,15 +47,68 @@ pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acm
 pub const PARTY: u64 = 1;
 pub const SEED: u64 = 1101;
 pub const WITHIN: Duration = Duration::from_secs(1);
-/// Five delegates fill the chat's watch set beside its session approvals and Home's full room.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 5;
+
+/// Two owned projects, using To begin's second seeded project's shape
+/// (temper/docs/design/domain/testing.md, 6.3; temper/docs/design/client/README.md, 3.5).
+#[must_use]
+pub fn across_configuration() -> (engine::Config, engine::Limits) {
+    let mut config = temper_engine_domain_world::walking::config(SEED);
+    let mut bounds = crate::front::engine_limits();
+    bounds.people.initial_owners = 2;
+    bounds.authority.projects = 2;
+    bounds.people.projects = 3; // The deployment roster and the two projects.
+    bounds.people.sign_in_lifetime = Duration::from_secs(2 * 60 * 60);
+    bounds.people.requests = 16;
+    bounds.tasks.tasks = 4; // Each project's chat and its questioning delegate.
+    bounds.tasks.depth = 2; // The chat's delegate keeps its own delegation depth.
+    bounds.people.inbox_tasks = 8; // The live and ended inbox scan for those four tasks.
+    bounds.fleet.slots = 4; // Both chats and the two delegates can hear their questions.
+    bounds.fleet.workstreams = 4;
+    bounds.fleet.attempts = 4;
+    bounds.call_records = 4; // Each project's delegate call and committed question.
+    // Both questions, their answer credits and the overturn notification can coexist.
+    bounds.tasks.inbox_bytes = bounds.tasks.message_bytes * 4;
+    config.core.defaults.rules.ceiling.delegation.depth = 2;
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.depth = 2;
+    policy.roles[0].authority.delegation.depth = 2;
+    let policy = config.core.seed_projects[0].policy.clone();
+    let mut projects = config.core.seed_projects.into_vec();
+    projects.push(jig_domain_core::SeedProject { number: 2, name: "Project 2".into(), policy });
+    config.core.seed_projects = projects.into_boxed_slice();
+    let owner = config.core.owners[0].clone();
+    config.core.owners = Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 2, ..owner }]);
+    config.core.connectors = Box::new([FORGE]);
+    (config, bounds)
+}
+
+/// Real roots with room for work and questions on both owned projects.
+#[must_use]
+pub fn across_people(limits: Limits) -> Joint {
+    let (config, bounds) = across_configuration();
+    let bootstrap = temper_engine_domain_world::oracle::config::copy(&config);
+    let budget = config.core.seed_projects[1].policy.policy.period_spend;
+    let mut front = Joint::with_engine(
+        SEED,
+        &limits,
+        temper_engine_domain_world::store::Store::with_limits(&bounds),
+        [bootstrap, config],
+        &bounds,
+        4,
+    );
+    front.engine.send(engine::Event::Party(engine::PartyInput::Period { project: 2, period: 1, budget, next: None }));
+    front.engine.settle();
+    front
+}
+/// Eight delegates fill the chat's watch set beside its session approvals and Home's full room.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    limits.client.domain.watches = 17;
-    limits.client.domain.handles = 19;
+    limits.client.domain.watches = 20; // Holds four projects' decided watches.
+    limits.client.domain.handles = 22; // Holds four projects' decided watches.
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
@@ -154,14 +207,15 @@ pub fn domain_limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
-                handles: 16,
+                handles: 19, // Holds four projects' decided watches.
                 // Closing page watches overlap the session watches.
-                watches: 15,
+                watches: 18, // Holds four projects' decided watches.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
                 heartbeat: Duration::from_millis(100),
-                reads: 8,
+                // Project classes add one read beside the story's existing reads.
+                reads: 9,
                 parts: 8,
                 delegates: 2,
                 document_bytes: 65536,
@@ -222,6 +276,14 @@ pub fn tui_first_run_world(seed: u64) -> World<Temper, Joint> {
 #[must_use]
 pub fn tui_asking_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_asking_printed_link(seed, domain_limits()))
+}
+/// A committed engine question with the printed link the shipped TUI signs in by.
+#[must_use]
+pub fn tui_question_world(seed: u64, words: &[u8]) -> (World<Temper, Joint>, u64) {
+    let mut world = tui_world(seed);
+    let chat = question(world.front(), words);
+    world.front().offer_printed_link(domain_limits());
+    (world, chat)
 }
 #[must_use]
 pub fn adoption_world(seed: u64) -> World<Temper, Joint> {
@@ -492,13 +554,32 @@ pub fn read(
 pub fn project() -> temper_client_domain::Address {
     temper_client_domain::Address::Home { project: 1 }
 }
+/// Start a change from the rail's new box (temper/docs/design/client/README.md, 5.3).
+#[must_use]
+pub fn start_change(drafts: bool) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    if drafts {
+        vec![
+            Step::See { find: Find::exactly_named(Role::Menu, b"New draft or change"), within: WITHIN },
+            // The terminal exposes menu items in the printed tree.
+            Step::See { find: Find::exactly_named(Role::MenuItem, b"Change"), within: WITHIN },
+            Step::Press { find: Find::exactly_named(Role::MenuItem, b"Change") },
+        ]
+    } else {
+        vec![
+            Step::See { find: Find::exactly_named(Role::Link, b"New change"), within: WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"New change") },
+        ]
+    }
+}
 #[must_use]
 pub fn adopt(owner: &[u8], name: &[u8]) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
     use skein_fake_person::{Find, Step};
     use skein_ui::Role;
     let mut steps = vec![
-        Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: WITHIN },
-        Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
+        Step::See { find: Find::exactly_named(Role::Link, b"How work runs for Project 1"), within: WITHIN },
+        Step::Press { find: Find::exactly_named(Role::Link, b"How work runs for Project 1") },
         Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
         Step::See { find: Find::named(Role::Link, b"Add repositories"), within: WITHIN },
@@ -538,12 +619,69 @@ pub const QUESTION_WORKER: Token = Token::new(7);
 pub(crate) const QUESTION_PROJECT: u32 = 1;
 const QUESTION_CALL: u64 = 1003;
 const QUESTION_DELEGATE: u64 = 1004;
+// Each project reserves a delegate call and a question call on the scripted worker.
+const QUESTION_CALLS_PER_PROJECT: u64 = 2;
 const QUESTION_COMPLETION: u32 = 1;
 const QUESTION_POSITION: u32 = 1;
 const QUESTION_ASSIGN_AT: Time = Time::from_nanos(2_000_000_000);
 /// A question committed by the running chat for its person.
 pub fn question(front: &mut Joint, words: &[u8]) -> u64 {
     question_with_text_bound(front, words, None)
+}
+/// A running chat's question beside a member whose task reads probe the project's policy.
+pub fn team_question(front: &mut Joint, words: &[u8]) -> u64 {
+    use jig_domain_authority as authority;
+    use temper_engine_domain_world::{store::Store, walking};
+
+    let mut limits = crate::front::engine_limits();
+    // The owner and member each have a policy role.
+    limits.authority.roles = 2;
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(SEED);
+        config.core.connectors = Box::new([FORGE]);
+        // Team's chat uses no goals; keep the two clients' reads within the fixed watch table.
+        config.core.defaults.templates = config
+            .core
+            .defaults
+            .templates
+            .into_vec()
+            .into_iter()
+            .filter(|template| template.number != jig_client::shapes::GOAL)
+            .collect();
+        let mut rules = config.core.defaults.rules.clone();
+        rules.ceiling.delegation.depth = 2;
+        rules.ceiling.delegation.tasks = 2;
+        let policy = &mut config.core.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.depth = 2;
+        policy.ceiling.delegation.tasks = 2;
+        policy.roles[0].authority.delegation.depth = 2;
+        policy.roles[0].authority.delegation.tasks = 2;
+        let mut member = policy.roles[0].clone();
+        member.number = jig_domain_people::Role::Member.number();
+        // Watch alone (Requests' bit 128); reading a live task also probes the refused takeover.
+        member.requests = authority::Requests(128);
+        let owner = policy.roles[0].clone();
+        policy.roles = Box::new([owner, member]);
+        let mut domain = authority::Domain::new(rules, limits.authority).expect("Team authority");
+        let mut out = skein_lib::Queue::uncapped();
+        authority::step(
+            &mut domain,
+            authority::Event::Policy { project: QUESTION_PROJECT, policy: policy.clone() },
+            &mut out,
+        );
+        assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: QUESTION_PROJECT }));
+        config.core.seed_projects[0].policy.policy = domain.policy(QUESTION_PROJECT).expect("Team policy").clone();
+        config.core.defaults.rules = domain.rules().clone();
+        config
+    });
+    limits.tasks.inbox_bytes = limits.tasks.message_bytes.checked_mul(8).expect("question and answer slots fit");
+    limits.fleet.slots = 2;
+    limits.fleet.attempts = 4;
+    limits.journal.writes = 4096;
+    limits.journal.deliveries = 64;
+    limits.journal.held = 192;
+    *front = Joint::with_engine(SEED, &domain_limits(), Store::with_limits(&limits), configs, &limits, 2);
+    commit_question(front, words, false)
 }
 /// Choose the document text bound before the engine starts, without changing message admission.
 pub fn question_with_text_bound(front: &mut Joint, words: &[u8], text: Option<u32>) -> u64 {
@@ -563,15 +701,27 @@ pub fn question_composer(front: &mut Joint, words: &[u8]) -> u64 {
     commit_question(front, words, false)
 }
 fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
+    commit_project_question(front, QUESTION_PROJECT, words, agree)
+}
+/// Commit the sibling question story on an already configured project, retaining the other project.
+pub fn project_question(front: &mut Joint, project: u32, words: &[u8]) -> u64 {
+    commit_project_question(front, project, words, false)
+}
+fn commit_project_question(front: &mut Joint, project: u32, words: &[u8], agree: bool) -> u64 {
     let driver = &mut front.engine;
+    let offset = u64::from(project - QUESTION_PROJECT);
+    let delegate_call = QUESTION_DELEGATE + offset * QUESTION_CALLS_PER_PROJECT;
+    let question_call = QUESTION_CALL + offset * QUESTION_CALLS_PER_PROJECT;
+    let mut key = QUESTION_CHAT_KEY;
+    key[0] += u8::try_from(offset).expect("fixture project key");
     driver.sign_in();
     driver.settle();
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
-        reply_to: skein_lib::ReplyTo::new(QUESTION_CHAT_REPLY),
+        reply_to: skein_lib::ReplyTo::new(Token::new(QUESTION_CHAT_REPLY.raw() + offset)),
         sign_in: driver.session(),
-        key: QUESTION_CHAT_KEY,
-        ask: driver.chat_ask(QUESTION_PROJECT, b"Question chat"),
+        key,
+        ask: driver.chat_ask(project, b"Question chat"),
     }));
     driver.settle();
     let parent = driver.last_assignment();
@@ -579,7 +729,7 @@ fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
         QUESTION_WORKER,
         parent.task,
         parent.attempt,
-        QUESTION_DELEGATE,
+        delegate_call,
         engine::Call {
             completion: QUESTION_COMPLETION,
             position: QUESTION_POSITION,
@@ -598,18 +748,18 @@ fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
     driver.settle();
     driver.answer(QUESTION_WORKER, parent.task, parent.attempt, 0, tasks::End::Parked, engine::Parts::none());
     driver.settle();
-    driver.env.now = QUESTION_ASSIGN_AT;
+    driver.env.now = driver.env.now.saturating_add(Duration::from_nanos(QUESTION_ASSIGN_AT.as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
     driver.settle();
     let run = driver.last_assignment();
-    assert_ne!(run.task, parent.task, "delegate assigned: {:?}", driver.answered(QUESTION_DELEGATE));
+    assert_ne!(run.task, parent.task, "delegate assigned: {:?}", driver.answered(delegate_call));
     driver.call(
         QUESTION_WORKER,
         run.task,
         run.attempt,
-        QUESTION_CALL,
+        question_call,
         engine::Call {
             completion: QUESTION_COMPLETION,
             position: QUESTION_POSITION,
@@ -622,9 +772,9 @@ fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
     );
     driver.settle();
     assert!(
-        matches!(driver.answered(QUESTION_CALL), Some(engine::CallAnswer::Sent { .. })),
+        matches!(driver.answered(question_call), Some(engine::CallAnswer::Sent { .. })),
         "question committed: {:?}",
-        driver.answered(QUESTION_CALL)
+        driver.answered(question_call)
     );
     parent.task
 }
@@ -977,15 +1127,19 @@ fn fail_delegate(driver: &mut Driver, held: u64) {
 pub fn amend_tasks(front: &mut Joint) -> (u64, u64) {
     const DEPENDENCY_KEY: [u8; 16] = [42; 16];
     const ROOT_BUDGET: u64 = 1; // walking's minimum run spend, leaving funding for both roots.
-    let goal = make_goal_named(front, false, Some(0), GOAL_KEY, Some(ROOT_BUDGET));
-    let dependency = make_goal_named(front, false, Some(0), DEPENDENCY_KEY, Some(ROOT_BUDGET));
+    let goal = make_goal_named(front, false, Some(0), GOAL_KEY, Some(ROOT_BUDGET), true);
+    let dependency = make_goal_named(front, false, Some(0), DEPENDENCY_KEY, Some(ROOT_BUDGET), true);
     (goal, dependency)
+}
+/// A listed goal for settings' Work filter, with no spend reserved.
+pub fn settings_goal(front: &mut Joint) -> u64 {
+    make_goal_named(front, false, None, GOAL_KEY, Some(0), false)
 }
 fn make_goal(front: &mut Joint, procedure: bool) -> u64 {
     make_goal_with_delegation(front, procedure, None)
 }
 fn make_goal_with_delegation(front: &mut Joint, procedure: bool, delegates: Option<u32>) -> u64 {
-    make_goal_named(front, procedure, delegates, GOAL_KEY, None)
+    make_goal_named(front, procedure, delegates, GOAL_KEY, None, true)
 }
 fn make_goal_named(
     front: &mut Joint,
@@ -993,10 +1147,13 @@ fn make_goal_named(
     delegates: Option<u32>,
     key: [u8; 16],
     budget: Option<u64>,
+    sign_in: bool,
 ) -> u64 {
     let driver = &mut front.engine;
-    driver.sign_in();
-    driver.settle();
+    if sign_in {
+        driver.sign_in();
+        driver.settle();
+    }
     if procedure {
         adopt_goal_repository(driver);
     }
@@ -1030,10 +1187,31 @@ fn make_goal_named(
         batch[0].contract =
             jig_domain_people::Contract::Change { connector: FORGE_CONNECTOR, kind: FORGE_CHANGE, words: REPORT_BYTES };
     }
+    let session = if sign_in {
+        driver.session()
+    } else {
+        driver
+            .store
+            .rows
+            .values()
+            .find_map(|record| {
+                if let engine::Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::SignIn {
+                    number,
+                    person,
+                    ..
+                })) = record
+                {
+                    (*person == PARTY).then_some(*number)
+                } else {
+                    None
+                }
+            })
+            .expect("goal owner's sign-in")
+    };
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: skein_lib::ReplyTo::new(GOAL_REPLY),
-        sign_in: driver.session(),
+        sign_in: session,
         key,
         ask: jig_domain_people::Ask::Create { project: GOAL_PROJECT, batch },
     }));

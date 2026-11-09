@@ -241,6 +241,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
   and protection the rules GitHub applies to the branch (4.4). A write
   the forge refuses narrows what temper may do there, for every later
   decision (jig's `domain/connectors.md`, 12).
+- **Its CI workflows are read once it is adopted** (4.7): the names of
+  the workflows on its landing branch, kept on its record and current
+  with its landings, which CI's card names (8.13).
 - **The project's ceiling follows** (jig's `domain/authority.md`,
   section 6) from each repository's role and what was read: on an owned
   repository, pushing under temper's prefix, opening pull requests and
@@ -786,6 +789,66 @@ bound and no restore of its own, and it goes with the forge if that's removed.
   for it before the link: a second account of a person who made one on
   purpose, which counts only if a rule asks for two people.
 
+### 4.7 Its CI workflows
+
+Neither forge's API lists the workflows a repository runs, so the forge
+reads the directory each forge runs them from, and keeps on the
+repository's record what it found there, which CI's card names (8.13,
+*CI's card*).
+
+- **The read** is the workflows' directory at a tip of the landing
+  branch, the record's `settings.default_branch`: its immediate entries,
+  one `Read::File` (skein's `forge.md`, 3.2) answered as a directory's,
+  `skein_forge::api::Answer::Directory`, within the client's
+  `answer_bytes`, as a charter document's read is
+  (`../protocol/configuration.md`, 13.7). On GitHub it is
+  `.github/workflows`; on Forgejo `.forgejo/workflows`, and where that
+  is absent `.github/workflows`, as Forgejo itself falls back. Where
+  what asks for it names no tip, a `Read::Branch` of the landing branch
+  gives it first.
+- **A workflow** is each file entry whose name ends `.yml` or `.yaml`,
+  named by its file name whole, as "ci.yml", in the forge's order; a
+  directory, a submodule and any other file are none. The first
+  `WORKFLOWS` (16) are kept, each at most `WORKFLOW_BYTES` (255) bytes,
+  a file name's bound; a longer name, or one not UTF-8, is skipped
+  whole. A listing the forge cut (`truncated`) gives what it listed.
+- **What the record keeps:** `workflows`, the names, saved with the
+  record (`../protocol/store.md`, section 2) only when they differ from
+  what it held. No directory there, on Forgejo neither, or a file where
+  the directory would be, is no workflow: the list empties. A read
+  refused or failed, or answered in another shape, keeps what the record
+  held, and the landing branch's next move reads again whatever its
+  files (below), by a mark held in memory alone: a restart forgets it,
+  and the record keeps its last list.
+- **When it is read,** at the landing branch's tip each time:
+  - once an adoption saves the repository's record (section 4; the act
+    of 4.5 alike), and once a refusal's refresh of what temper may do
+    there saves it (jig's `domain/connectors.md`, 12), whose settings
+    name the landing branch afresh. It is a read of its own, after the
+    adoption's: the adoption's answer waits for none of it, and its
+    failure refuses nothing. A context adoption that leaves another
+    project's record as it is (section 4) reads nothing;
+  - at the first tip the forge observes of the landing branch, which no
+    landing's comparison precedes;
+  - at a later move of the landing branch, at the tip it moved to, only
+    where that landing's files name a path under `.github/workflows/` or
+    `.forgejo/workflows/`, or are not known: the comparison refused, past
+    its bound, or not made. The forge reads those files
+    for every landing it publishes (7.1, the landings on a repository's
+    branch), so a landing that touches no workflow costs no read, and a
+    move by someone else is a landing as temper's own merge is (7.2).
+
+  The landing branch's tip is watched while a live task or a
+  subscription names it (5.1); a move made while none does is seen at
+  the next observation, from the tip the forge last held, and its files
+  read then, as any landing's.
+- **One read per repository at a time:** what asks for one while one is
+  in flight reads once more when it ends, at the tip then. A repository
+  released while its read is in flight keeps nothing of the answer.
+- **Every workflow there is kept,** a dispatch-only one among them: CI's
+  card leaves out those the repository's test gates and tiers dispatch
+  (8.13), since those settings change apart from the record.
+
 ## 5. What it holds, and keeping up
 
 The working set, the keep, fresh reads and the budget are the client's
@@ -964,9 +1027,15 @@ for it, never a read of another kind or another party's.
 - **Containment needs only ancestry.** The landing decision reads
   `Read::Commits { before: head, after: base_tip, page: 1 }`, tied to
   the head and base tip this step observed. A complete empty reverse
-  range proves the head contains that base tip; a complete nonempty
-  range disproves it. A failed or incomplete range leaves containment
-  unknown and never permits a merge. This read collects no changed
+  range proves the head contains that base tip. Any commit the range
+  lists disproves it, whether or not more follow, and so does a range
+  the forge refuses as too large to list (`TooLarge`), which only a
+  range with commits in it can be: the head lacks the base's tip
+  however far behind it is, and the change takes its base (8.2). A
+  failed read otherwise, or an empty page that says more follow, leaves
+  containment unknown and never permits a merge. A catch-up's range,
+  from its landing branch's tip to the commit it takes, is read by the
+  same rule (8.2, step 1). This read collects no changed
   files or file contents, so a goal's diff and forward history do not
   bound its landing. After an update the proof is made again at the
   new head (section 10).
@@ -1013,7 +1082,10 @@ What is true of a person, kept by the engine so that it holds on every
 device and across restarts, each a `PersonFact`: `ToBegin { project }`, "Skip"
 on that project's "To begin" (`../draft/to-begin.md`, section 5); and `GoalFrom
 { project, chat, goal, at }`, that the person started goal `goal` from chat `chat`'s
-document, at the client's clock's `at` (`../client/README.md`, 3.5). It owes nothing to the forge: the
+document, at the client's clock's `at` (`../client/README.md`, 3.5); and `KeepAsking
+{ project, subject, at }`, that the person pressed Keep asking on a need's reason
+for the item of `subject` (5.10) at the client's clock's `at`, so that its Stop
+asking is not offered for 7 days (`../draft/what-reaches-you.md`, section 5). It owes nothing to the forge: the
 connector keeps it because `Stored` holds every family of temper's, as it does
 `Binding` (`../protocol/store.md`, section 2).
 
@@ -1026,6 +1098,9 @@ connector keeps it because `Stored` holds every family of temper's, as it does
   may dismiss too, having no Home, its rows doing no harm. The core's
   ask names the party, and the root hands the connector the request
   with it. In the decision:
+  - a `KeepAsking` where the party holds one of that project and subject
+    with another `at`: that row erased and the new one saved, the subject
+    `dismissed` marked, answered dismissed;
   - a row held already: answered dismissed, nothing written;
   - the bound reached, all rows' or the party's own (`DISMISSED`, the document's):
     answered too large, nothing written;
@@ -1179,12 +1254,13 @@ new to say. Its charter is the stock's 9
   next chance is the next sitting. The procedure then ends.
 ### 5.8 The Away switch
 
-A person's switch on one project: while it is on, the goals that person
-asked for may decide for themselves what its kinds allow, and show it
-afterwards (5.9). It is the person's own, no setting of the project. It
-owes nothing to the forge: the connector keeps it as it keeps a
-dismissal (5.5). No engine answers for an agent: the switch only changes
-what `decided` says.
+A person's switch on one project: while it is on, what the project's
+classes let Away decide (5.10, the class `Ask`) is decided for that
+person, and shown afterwards (5.9). It is the person's own, no setting of
+the project: the classes are the project's, Away each person's. It owes
+nothing to the forge: the connector keeps it as it keeps a dismissal
+(5.5). No engine answers for an agent: the switch only changes what
+`decided` says.
 
 - **Its row,** `Away { party, project }`, at most one a party a project,
   held in memory, restored whole at the restart step, at most `bindings`
@@ -1194,28 +1270,24 @@ what `decided` says.
   - `until`, a wall or none: when it goes off by itself, which the
     client works out (`../client/README.md`, 3.5), none for "I turn it
     off";
-  - `kinds`, bits of what agents may decide: 1 `implementation`, 2
-    `retry`, 4 `wording`, 8 `dependency`. `other` has no bit, so no row
-    lets it;
   - `landed`, `ProjectFacts.landed` (5.6) at `since`, 0 with no facts;
   - `off`, a wall or none: when it went off, none while it has not.
 - **On at a wall** when `off` is none and `until` is none or after that
-  wall. Past `until` nothing is written: `decided` says ask, the client
-  draws it off, and the spell's end reads as `until`.
-- **`SetAway { project, on, until, kinds }`** (`../client/README.md`,
-  4.6) is admitted by the core as `Dismiss` is: the project its scope, a
-  party with a role there, in a project not being deleted. Its bits past
-  the four are refused by the wire. In the decision, at its wall:
-  - `on`, the row on: `until` and `kinds` replaced, the spell kept;
+  wall. Past `until` nothing is written: `decided` judges Away off, the
+  client draws it off, and the spell's end reads as `until`.
+- **`SetAway { project, on, until }`** (`../client/README.md`, 4.6) is
+  admitted by the core as `Dismiss` is: the project its scope, a party
+  with a role there, in a project not being deleted. In the decision, at
+  its wall:
+  - `on`, the row on: `until` replaced, the spell kept;
   - `on`, no row or the row not on: a new spell: `since` the wall,
-    `landed` the project's count, `off` none, `until` and `kinds` as
-    asked;
-  - not `on`, the row on: `off` the wall, `until` and `kinds` as asked;
-  - not `on`, the row not on: `until` and `kinds` as asked, and `off`
-    its `until` where it ran out with none written, so the spell's end
-    stays where it was;
+    `landed` the project's count, `off` none, `until` as asked;
+  - not `on`, the row on: `off` the wall, `until` as asked;
+  - not `on`, the row not on: `until` as asked, and `off` its `until`
+    where it ran out with none written, so the spell's end stays where it
+    was;
   - not `on`, no row: a row with `since` and `off` the wall, `landed` the
-    count: Settings' choices kept while off;
+    count: Settings' choice of `until` kept while off;
   - a row to make with the bound reached: answered too large, nothing
     written;
   - a row that comes out the same: answered, nothing written.
@@ -1231,50 +1303,179 @@ what `decided` says.
 
 ### 5.9 Decided for you
 
-What a goal decided while its person was away, kept so that Home says so
-(`../client/README.md`, 3.5) and the person can overturn it. The agent
-decides: the host tool `decided` (`agent.md`, 4.3) asks the connector
-whether it may, and its answer is live, so a running goal needs no brief
-or wake.
+What an agent decided for a person, and why each question that asked
+reached them, kept so that Needs you and Home say so
+(`../client/README.md`, 3.5) and the person can overturn a decision. The
+agent decides: the host tool `decided` (`agent.md`, 4.3) asks the
+connector whether it may, and its answer is live, so a running task needs
+no brief or wake (`../draft/what-reaches-you.md`, sections 4 and 6).
 
-- **The caller's person,** which the root finds and hands over: a task
-  that is a goal (it is tracked), whose requester is a person, or a
-  conversation whose requester is a person (jig's `served_chat`), and
-  whose words hold no line `Asks: always`. Any other caller is answered
-  ask, by the root, with nothing asked of the connector.
-- **The judgement,** in the call's decision: decided where that party's
-  `Away` row for the task's project is on at the decision's wall (5.8)
-  and `kind` is among its `kinds`, and `other` never; otherwise ask,
-  nothing written.
-- **Its answer is kept as the call's,** `CallPayload::Decided`: its taken
-  option's words, or none for ask. A call answered replays that answer
-  whatever the switch says by then, and writes nothing again: calls are
-  named and decided once (`agent.md`, 4.3), as `change`'s are.
-- **Its row,** `Decided { project, number }`: `party`, the person's;
-  `task`, the caller; `at`, the decision's wall; `question`, at most 400
-  bytes; `options`, 2 to 6, each at most 120 bytes; `took`, an index into
-  them; `why`, at most 400 bytes; `overturned`. `number` is one above the
-  project's highest, 1 with none. At most `DECIDED_PER_PROJECT`, 64, a
-  project: the row that would pass that erases the project's oldest in
-  its decision. So the family is bounded by 64 times `judge_projects`,
-  and a row past that is refused at restart.
+- **The caller's person,** which the root finds and hands over: the
+  person the question would have reached. Of a task whose requester is a
+  person, a goal, a chat or any task a person made, that person; of a
+  task whose requester is a task, the person of the chat serving it
+  (jig's `served_chat`) where that chat's requester is a person. A
+  standing role's person is not yet designed (`../draft/standing-roles.md`,
+  section 2). Any other caller is answered ask by the root, with nothing
+  asked of the connector: its questions go to its requester, a task,
+  which asks in turn. The root hands over too whether the caller's words
+  hold a line `Asks: always`, as `always`.
+- **The judgement,** in the call's decision: 5.10's `judge` of the
+  project's classes (kind 8, or its stock), the call's `kind`, `paths`
+  and `under`, the party's `Away` row for the task's project on at the
+  decision's wall (5.8), and `always`. A `took` past the options is
+  answered ask, whatever the judgement, with no reach and no row.
+- **Its answer is kept as the call's,** `CallPayload::Decided { took,
+  reach }`: the taken option's words, or none for ask, and the reach. A
+  call answered replays that answer whatever the switch or the classes
+  say by then, and writes nothing again: calls are named and decided once
+  (`agent.md`, 4.3), as `change`'s are.
+- **Its row:** every call the connector judges with its `took` among the
+  options writes one, decided or asked, so that a question that follows says why it came (5.10;
+  `../client/README.md`, 3.5). `Decided { project, number }`: `party`, the
+  person's; `task`, the caller; `at`, the decision's wall; `question`, at
+  most 400 bytes; `options`, 2 to 6, each at most 120 bytes, and none for
+  an asked row; `took`, an index into them, none for an asked row; `why`,
+  at most 400 bytes, empty for an asked row; `reach`, the judgement's;
+  `overturned`. `number` is one above the project's highest, 1 with none.
+- **Kept 7 days, bounded by a limit:** a decision that writes a
+  project's row first erases that project's rows older than 7 days
+  (`DECIDED_KEPT_NS`). A project holds at most `forge.decided_per_project`
+  rows (`../protocol/configuration.md`, section 7), 1,024: at the bound,
+  the project's oldest row past its day (24 hours, `DECIDED_DAY_NS`) is
+  erased in the same decision; with none past its day, no row is
+  written and the call is answered ask, its reach as judged, since a row
+  still inside its day is never erased for room. So the family is
+  bounded by `decided_per_project` times `judge_projects`, and a row past
+  that is refused at restart.
 - **Its document:** the subject `decided`, per project,
   `(1 << 62) | (1 << 35) | project`, beside `status_subject` (5.6), of
-  the project's scope. It answers the asking party's rows alone, in
-  number order, each with its taken option's words in place of the
-  options and the index, as 5.6's is the asking party's own: what was
-  decided for one person is not another's to see or overturn.
+  the project's scope. It answers the asking party's rows alone, as 5.6's
+  is the asking party's own: what was decided for one person is not
+  another's to see or overturn. `rows`, the decided ones, each with its
+  taken option's words in place of the options and the index; `asked`,
+  the asked ones, each its number, task, `at` and reach; each list the
+  newest `DECISIONS_SHOWN`, 128, in number order, and `cut` where either
+  left a row out.
 - **`Overturn { project, number }`** (`../client/README.md`, 4.6) is
-  admitted as `SetAway` is. In the decision: no such row, or another
-  party's: refused, unknown; `overturned` already: refused, overturned;
-  otherwise `overturned` set, the row saved, the subject `decided`
-  marked, answered. It sends no word to the task: the client does, once
-  answered, by its existing message, so that a refused message leaves
-  the row as it stands.
+  admitted as `SetAway` is. In the decision: no such row, another
+  party's, or an asked row: refused, unknown; `overturned` already:
+  refused, overturned; otherwise `overturned` set, the row saved, the
+  subject `decided` marked, answered. It sends no word to the task: the
+  client does, once answered, by its existing message, so that a refused
+  message leaves the row as it stands.
 - **Erased with its project,** as 5.5's, marking its subject.
-- **Only goals call it.** A question that skips the tool waits as ever,
-  and held tasks and proposals always wait, away or not: nothing here
-  answers for anyone.
+- **Nothing answers for anyone.** A question that skips the tool waits as
+  ever, and held tasks and proposals always wait, away or not. A
+  change's question passed up (8.11) reaches its maker, which calls
+  `decided` before it would ask its person, as any caller does.
+
+### 5.10 What reaches a person
+
+What an agent may decide for a person, and what reaches them, is one
+setting of a project's, its classes (`../protocol/configuration.md`,
+13.2, kind 8), judged by one pure function that the forge's `decided`
+(5.9) and the client (`../client/README.md`, 3.5) both call: the crate
+`temper-protocol-reaches`, a step crate on `skein-lib` and the client
+wire's records alone (`../draft/what-reaches-you.md`, sections 2 to 5).
+
+- **The kinds,** `Kind`, named in the asker's call as the draft's table
+  names them: `wording`, `retry`, `implementation`, `tests`, `dependency`
+  and `departure`, which a project's classes may move; `money`,
+  `irreversible`, `rules` and `other`, *fixed*, which always wait. The
+  draft's `paths` is no call's kind: a call names its own kind and the
+  paths it would touch, and each path set those touch is an item of its
+  own beside the kind.
+- **The classes,** `Class`, strictest last: `Decide`, agents decide, then
+  tell you; `Ask`, asks you, and Away may decide (5.8); `AskAway`, asks
+  you, even when away; `Wait`, always waits for you, the fixed kinds'
+  alone.
+- **The table,** `Classes { items, sets }`:
+  - `items`, at most 20, each `Item { subject, words, class }`: `subject`
+    a movable kind or a path set's number (`Subject::Kind`,
+    `Subject::Set`); `words` empty for the subject's own item, or at most
+    120 bytes of a rule in words that narrows it ("fixes that keep the
+    wire format"), for agents to follow and no code to check, so that a
+    decision taken under them is listed as any other; `class` one of the
+    first three. An item is numbered by its place, from 1. A subject has
+    at most one item without words; a subject with none is `AskAway`.
+  - `sets`, at most 6, each `PathSet { number, name, patterns }`:
+    `number` 1 to 6, unique in the table; `name`, 1 to 40 bytes, as the
+    person reads it ("vsr's protocol core"); `patterns`, 1 to 6, each 1 to
+    80 bytes, over the paths of any repository of the project.
+  - `Classes::check` refuses, naming the first fault by item or set: more
+    items or sets than the bounds; an item of a fixed kind, of `Wait`, of
+    words past 120 bytes, naming a set the table lacks, or a second item
+    without words of its subject; a set numbered twice or outside 1 to 6,
+    a name or a pattern empty or past its bound, no pattern or more than
+    6, a pattern not well formed (below).
+- **A pattern** is segments joined by `/`, matched against a path's own:
+  a segment `**` matches no segment or any run of them; `*` inside a
+  segment matches any run of bytes but `/`; every other byte matches
+  itself. Well formed: no empty segment, no leading or trailing `/`, and
+  `**` only as a whole segment. So `include/vsr.h`, `src/protocol.*` and
+  `docs/protocol/**`. A call's path is relative to its repository's root,
+  1 to 256 bytes, with no leading `/`; a call names at most 16.
+- **The stock tables,** `Classes::stock(Way)`, the draft's defaults
+  (`../draft/what-reaches-you.md`, section 2): *You approve*, no item, so
+  every movable kind asks even when away; *Agents review* and *Draft
+  first*, `wording`, `retry` and `tests` at `Decide`, then
+  `implementation`, `dependency` and `departure` at `Ask`, in that order;
+  no set in any. A project whose kind 8 holds no value has Agents
+  review's, the stock way of kind 2's stock rule 1
+  (`../protocol/configuration.md`, 13.4).
+- **The judgement,** `judge(classes, ask) -> Reach`, of an
+  `Ask { kind, paths, under, away, always }`: the call's kind, its
+  paths, `under` the number of an item with words it says its choice
+  falls under (0 for none), whether the person's Away is on at the
+  decision's wall (5.8), and whether the asker's words hold `Asks:
+  always`:
+  - *its subjects:* the kind, and each set one of whose patterns matches
+    one of the paths;
+  - *each subject's class:* a fixed kind's `Wait`; otherwise its own
+    item's, or `AskAway` with none, but where `under` names an item with
+    words of that subject, which gives its class instead. An `under`
+    naming anything else is not used;
+  - *`Asks: always`* lifts every class below `AskAway` to `AskAway`, as
+    the goal's own choice (`../client/README.md`, 5.14);
+  - *the strictest class wins;* its reason the kind where the kind's
+    class is the strictest, otherwise the lowest-numbered set at it, or
+    `Always` where only the lift made it;
+  - *decided* where that class is `Decide`, or `Ask` with Away on;
+    otherwise ask.
+
+  Its answer, `Reach { kind, class, reason, under, sets, matched, away
+  }`: `reason` `Reason::Kind`, `Reason::Set(number)` or `Reason::Always`;
+  `under` the item used, 0 for none; `sets` the touched sets, bit
+  `number − 1` each; `matched` the reason set's patterns a path matched,
+  bit `i` for its pattern `i`, 0 for any other reason; `away` whether Away
+  was on. `Reach::decided` says which. On the wire and in the store a
+  reach is the record `Reach`, and a table `ProjectClasses`
+  (`../protocol/configuration.md`, 13.2).
+- **Away may decide** while the table holds an item of `Ask`
+  (`Classes::away_may_decide`): what the client's switch is shown by
+  (`../client/README.md`, 3.5).
+- **Stop asking,** `offers(classes, reach)` and `narrowed(classes, reach,
+  offer, words)`: the narrowest changes that would have decided a reach
+  that asked, each a whole table the person proposes or an owner applies
+  (`../client/README.md`, 3.5; `../draft/what-reaches-you.md`, section
+  5):
+  - `Offer::Decide(subject)`, for a reason `Kind` of a movable kind: the
+    item `under` named moved to `Decide`, or with none the kind's own
+    item, added at the end where it has none;
+  - `Offer::Words(set)`, for a reason `Set`: an item of that set with the
+    person's words, 1 to 120 bytes, at `Decide`, added at the end;
+  - `Offer::Split(set)`, for a reason `Set` whose set holds two patterns
+    or more of which `matched` is some but not all: the matched patterns
+    leave it for a new set at the lowest free number, named the set's
+    name and ", in part", cut at a character to 40 bytes, with an item
+    at `Decide`; the set keeps its number, its other patterns and its
+    items.
+
+  None for a fixed kind, for `Always`, or for a reach decided; an offer
+  the table has no room for is left out. Where a second subject asked as
+  strictly, the narrowed table still asks, and the need it raises next
+  names that one.
 
 ## 6. Effects
 
@@ -1300,6 +1501,11 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 | 9 | create a branch at a commit | a creation, named | unrecoverable: another hand can delete it, and nothing then shows it was made | the branch exists at that commit |
 | 15 | delete a branch | a set: temper's own branches only | idempotent | it is gone |
 
+- **The outbox is bounded** by the connector's `entries` limit: no entry
+  is committed past it, and room frees only as an entry leaves it, by its
+  write's outcome or its withdrawal. What asks for an effect while it is
+  full waits or is refused by its own rule; a goal's projection waits
+  (section 12).
 - **Each row is a kind of its own** (jig's `domain/connectors.md`,
   3.1): a policy that grants writing issues grants each kind it means.
 - **A write in flight is a row of its own,** `Flight { task, entry }`
@@ -1316,7 +1522,8 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   past its bound is rare, and the remedy is one more settled stop. The
   forge's restore links a `Flight` row to its entry, and one whose entry
   it does not hold is a writer's bug, a link that cannot be made, which
-  panics (`root.md`, 9.1; jig's `domain/engine.md`, section 6).
+  refuses the start (`root.md`, 9.1; jig's `domain/engine.md`, section
+  6).
 - **Classes follow what the forges offer** (skein's `forge-client.md`,
   section 7.3; the facts, skein's `forge.md`, section 9, and
   `forge-github.md`, section 13). Neither Forgejo nor GitHub keeps a
@@ -2044,7 +2251,11 @@ delegate's terminal wakes it to offer the landed result.
   means the command left conflicts, and the change makes a resolution
   of the same base, its words carrying the job's result, cut to the
   resolution's words' room and marked. A job that fails for good holds
-  the change as a resolution that fails does. Without a `merge_job`,
+  the change as a resolution that fails does. Each of its failures, a
+  try that will be spent again included, is a line on the worker that met
+  it and on the engine, naming the job, its kind and why (`worker.md`,
+  4.4); the job's own hold, out of tries, names its failures' class,
+  and its way out points at the engine's log, where each is named. Without a `merge_job`,
   without the kind declared (`worker.md`, 4.4) or in its authority, or
   with the job's spec past the kind's bound, a conflict goes to a
   resolution at once. A merge job counts as one of the change's
@@ -2064,6 +2275,15 @@ delegate's terminal wakes it to offer the landed result.
   Required preservation instructions precede optional merge-job results. A
   result is appended only with room for its context and any truncation marker;
   it never displaces the preservation instructions.
+  Its pull section carries each of the pull's files whole, both sides, where
+  they fit the room the section has left. A file that doesn't is named
+  instead, never carried in part, for the resolver to read in its checkout,
+  where the merge in progress holds it marked: `File: PATH`, then
+  `[not carried, past the brief's room: B bytes before, A bytes after; read
+  it in your checkout]`, a side the file lacks reading `absent before` or
+  `absent after`. A named file takes its lines' room alone, so the files
+  after it are carried as they fit. The charter's fit
+  (`agent.md`, 4.3) can still cut the section's end, with its own line.
   If the pull section's pinned comparison exceeds the forge client's answer
   byte or row limit, the section keeps its pull identity and gathered content
   and appends a comparison-omitted notice within its byte budget. This completes
@@ -2170,7 +2390,11 @@ delegate's terminal wakes it to offer the landed result.
   `domain/tasks.md`, 5.5). The stall counts from that delegate's end, as
   it does while a question of that agent's is open (8.11), from the step
   that relays its last answer down. A gate's task is a wait on the forge
-  as this bullet names it, and stays bounded.
+  as this bullet names it, and stays bounded. A head behind its base is
+  no wait: a range that lists a commit, or one too large to list, says
+  the head lacks the base's tip (5.3), so the change takes its base, or
+  in conflict goes to its merge job and then a resolution, however many
+  commits behind it is.
 - **A stall holds as any hold does.** The change and its task are held
   together, never one without the other: its escalation waits for its
   holder, which it wakes (jig's `domain/tasks.md`, 5.5 and section 9): the
@@ -2307,7 +2531,7 @@ merge, kind 4, on a pattern of landing branches (jig's
 | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
 |---|---|---|---|---|---|
 | 1, CI passed | none | CI passed at the head; for a repository without CI, every one of its checks passed at exactly the head; no CI verdict is needed for the explicit adoption choice to land without CI described below | CI pending or unknown; a check with no verdict at the head | CI failed; a check failed; a repository with neither CI nor checks unless explicitly adopted to land without CI as described below | guarded |
-| 2, up to date | none | the head contains the base's tip | the ancestry range unread, failed or incomplete | the head lacks the base's tip | observed, freshness 0 |
+| 2, up to date | none | the head contains the base's tip | the ancestry range unread or failed, or an empty page that says more follow | the head lacks the base's tip: the range lists a commit, or is too large to list (5.3) | observed, freshness 0 |
 | 3, a gate | its number; `exact` or `clean` (8.3) | its verdict, at the head or, where `clean`, at a head the change's clean updates led through, approves | no such verdict yet, or one pending | such a verdict asks for changes | guarded |
 | 4, an approval | a role; how many people; `exact` or `clean` | that many distinct people holding the role in the project approved the pull request at the head, or where `clean` at a head its clean updates led through | fewer have; the reviews too many to read whole | one of them asked for changes at such a head, which a change repairs (8.3) | guarded |
 
@@ -2418,7 +2642,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
   |---|---|---|---|---|---|
   | 5, the landing rules | none | each such rule's CI, gates and approvals are met, as 1, 3 and 4 above; or no rule enforces there | one waits, and none refuses | one refuses | guarded |
-  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread, failed or incomplete | the head lacks the base's tip | observed, freshness 0 |
+  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread or failed, or an empty page that says more follow | the head lacks the base's tip: the range lists a commit, or is too large to list (5.3) | observed, freshness 0 |
 
   The change keeps the rule and the criterion of its last wait or
   refusal, by the rule's scope and number and the criterion's kind
@@ -2893,24 +3117,30 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
     on and `way` names a template whose resources hold *its own goal
     branch*, as template 4's do (`../protocol/configuration.md`, 13.4);
     otherwise as a chat's change;
-  - the project's landing, by queue or by turn, and the repository's
-    CI, its test gates and its tiers, each with the branch it follows
-    (`landing.md`, 13.1; `after-landing.md`, section 2).
+  - that template's work (kind 11; `../protocol/configuration.md`,
+    13.2): whether its coordinator designs first and whether it makes a
+    close-out, neither where it has none;
+  - the project's landing, by queue or by turn, whether it names a
+    merge job (8.4, *The merge job*), and the repository's CI, its test
+    gates and its tiers, each with the branch it follows (`landing.md`,
+    13.1; `after-landing.md`, section 2).
   The ways' paths and a proposal's "after" take the same derivation
   over the settings with items laid over them, each item as its
   decision would leave its setting (`../protocol/configuration.md`,
   13.10).
 - **A path** is a list of stops, each its actor, a person, an agent,
-  code or a branch's bar; its words; and what it opens: a charter, a
-  rule, a gate, a tier, the queue or the turn. The card each stop opens
-  is the path's too (below).
+  code or a branch's bar; its words; whether it is made only when
+  needed; the small words over its own, or none; and what it opens: a
+  charter, a rule, a gate, a tier, the queue or the turn. The card each
+  stop opens is the path's too (below).
 - **A typical run, with one repair,** a segment per branch the change
   lands on, each in this order:
   1. *Who starts,* on the first segment alone: for a chat's change, "you
      ask", the person, then "produce", the producer's charter; for a
-     goal, "draft", the person, then "plan", the template's charter,
-     then "produce ×n", the producer's charter, the goal's changes being
-     one stop as a flow has one path.
+     goal, "draft", the person, then "plan", the template's charter, or
+     "design" in its place where the template's work says its
+     coordinator designs first, then "produce ×n", the producer's
+     charter, the goal's changes being one stop as a flow has one path.
   2. *"check",* code, where a covering rule that enforces asks CI and
      the repository was adopted with CI; under `turn`, none, since no CI
      runs on a pushed head (`landing.md`, section 3).
@@ -2927,33 +3157,88 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
      where the reader holds the role, otherwise the role's name, as
      "an owner approves"; "×N" after it where it asks N people, N past
      one.
-  6. *By queue:* "update", code, and "resolve", the producer's, where a
-     covering rule that enforces asks up to date; then "merge", code,
-     opening the queue (section 9). *By turn* (`landing.md`, section
+  6. *By queue:* "conflict", code, opening the queue, and "resolve",
+     the producer's, where a covering rule that enforces asks up to
+     date: as a change takes its branch at the front of its queue
+     (section 9; section 10), the queue merges the branch's tip into it,
+     never by an agent; a clean merge is the queue's update, no stop of
+     its own, said in the conflict's and the merge's cards; a clash
+     takes the change out of the queue to its resolution (8.4). Then
+     "merge", code, opening the queue. *By turn* (`landing.md`, section
      8): "prepare", code, opening the turn; "resolve", the producer's;
      "prove", code, where the repository has test gates, opening the
      turn, its card naming the gates, since a stop opens a rule's gate
      by number and a repository's test gates have none
      (`../client/README.md`, 4.6), then "repair", the producer's, while
-     none is drawn; "turn", code, opening the turn.
+     none is drawn; "turn", code, opening the turn. On the landing
+     branch's segment after a goal's, where the template's work says its
+     coordinator makes a close-out, "close-out", the template's charter,
+     follows the merge or the turn: made once the goal has landed, so
+     that the landing branch's tiers check it with what landed.
   7. *Each tier* following the branch: on a goal's branch "check",
      code, then "repair", the template's charter's, while none is drawn;
-     on the landing branch "verify", code. A tier opens itself.
+     on the landing branch "verify", code. A tier opens itself. Then, on
+     a goal's segment where the project names a merge job, "catch up",
+     code, opening nothing: the goal's branch taking its landing
+     branch's tip, a change into it whose producer is the merge job
+     (8.2; section 10).
   8. *The branch's bar:* "goal branch" ends a goal's segment, and the
      landing branch's segment follows by its own rules, its start not
      repeated; the landing branch's bar, its name, as "main", ends the
      path.
+- **Drawn apart** (`../draft/stock-ways.md`, section 4): a stop made
+  only when needed is marked so, which a client draws outlined: each
+  "repair", "conflict", "resolve" and "catch up". The small words over a
+  stop's own, at most 16 bytes, are a repair's, what it answers:
+  "tests" where a check (CI, a check gate, a proof or a tier's check)
+  precedes it on its segment, "review" where a review gate does, "tests,
+  review" where both do; and a merge's on a goal's segment, "into goal".
+  No other stop has any.
+- **The conflict's, the resolution's, the catch-up's and the merge's
+  cards:**
+  - "conflict": `who` "code · BRANCH has moved in a way that clashes
+    with the change", "with the goal's branch" on the landing branch's
+    segment after a goal's, BRANCH the segment's branch; `name` "the
+    queue"; its facts "When", "the change reaches the front of the
+    queue: BRANCH is merged into it, never by an agent" ("the goal's
+    branch reaches" after a goal's), "Merged cleanly", "it is checked
+    again and lands" where the segment draws a "check", else "it
+    lands", and "A clash", "it leaves the queue and goes to resolve";
+  - "resolve": `who` "an agent · settles a conflict with its branch,
+    then goes back through the checks"; the producer's card;
+  - "catch up": `who` "code · takes BRANCH into the goal's branch",
+    BRANCH the landing branch; `name` "the merge job"; its facts
+    "Does", "merges BRANCH's tip into a branch made at the goal's tip,
+    landing as a change into it", "When", "the coordinator's call, as
+    BRANCH's landings touch the goal's open work", and "A conflict",
+    "goes to resolve";
+  - "merge": `who` "code · lands the change", "code · lands each change
+    into the goal's branch" on a goal's segment, and "code · lands the
+    goal on BRANCH" on the landing branch's segment after a goal's;
+    `name` "the queue"; its fact "Does", "merges exactly the commit its
+    checks saw".
+- **The coordinator's cards,** the template's charter's agent's card
+  (*A stop's card*, below), `name` "the coordinator":
+  - "plan": `who` "an agent · cuts the draft into changes";
+  - "design": `who` "an agent · designs the goal, then cuts it into
+    changes"; after the agent's facts, "Its order", "the design is
+    delivered first, as a change into the goal's branch; the changes
+    start from it and merge after it";
+  - "close-out": `who` "an agent · after the landing, brings what the
+    goal leaves up to date"; after the agent's facts, "Lands", "as one
+    change into BRANCH, by BRANCH's rules", BRANCH the landing branch.
 - **A stop whose setting is absent isn't drawn:** no "check" without
   CI, no tier's stops without a tier, no approval no rule asks.
-- **No agent's stop below the line:** an update, a merge, a prepare, a
-  proof and a turn are code's whatever the settings, the derivation
-  having no other actor for them.
+- **No agent's stop below the line:** a conflict, a merge, a catch-up,
+  a prepare, a proof and a turn are code's whatever the settings, the
+  derivation having no other actor for them.
 - **A stop's card,** from the same reads: for an agent, its charter's
   number and its name on the path ("the coding agent" for the producer,
   "the reviewer" for the reviews' charter, "the coordinator" for a
   goal template's), whether it holds the change (a blocking gate), the
   model and effort a run of it would take now for the reader, what its
-  tool families let it do, in words, and its instructions' first
+  tool families let it do, in words (*What an agent can*, below), and
+  its instructions' first
   sentence, whole, in quotes, within 184 bytes, and past them cut at the
   last word's end that fits with "…"; for a person, the role, how many it asks and what they
   decide; for code, what it checks or does: CI, the repository's
@@ -2962,13 +3247,36 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   stop opens its gate and names the gate's reviews' charter beside it,
   the role its card describes and opens. Every other fact's value is at
   most 128 bytes, cut the same way.
-- **CI's card** names what CI is: its fact "Checks", where the landing
-  branch's protection names required checks (8.7, the forge's
-  `contexts`), "the CI workflows' checks A, B and C, at the change's
-  head", each context as the forge holds it, joined by ", " and a last
-  " and "; with none, "every check the repository's CI workflows report,
-  at the change's head", since CI then folds every check reported there.
-  The forge reads no list of a repository's workflows (section 20).
+- **What an agent can,** its card's "Can": each tool family its charter
+  holds, in this order, "read the code and the forge", "change and push
+  its branch", "run commands" and "start sub-agents", joined by "; ",
+  then "; never merge", no agent holding a merge tool and the queue's
+  update being code's. A charter with none of the four says what its
+  run holds instead: "read temper's records and the forge; propose
+  settings; never change anything" where its tools hold jig's settings
+  family, as Ask temper's do (`../protocol/configuration.md`, 13.4),
+  and otherwise "read the facts in its task; never merge", as the
+  status agent's (5.7).
+- **CI's card** names what CI is. Its fact "Workflows", where the forge
+  holds the repository's CI workflows (4.7), their names as the record
+  holds them, joined by ", " and a last " and ", but those a test gate
+  or a tier of the repository names: temper dispatches those on its own
+  branches, never at a change's head, so they report no check CI folds,
+  and their own stops name them (`landing.md`, 7.1; `after-landing.md`,
+  section 2); with none left, no such fact. Then its fact "Checks",
+  where the landing branch's protection names required checks (8.7,
+  the forge's `contexts`), "the CI workflows' checks A, B and C, at the
+  change's head", each context as the forge holds it, joined the same
+  way; with none, "every check the repository's CI workflows report, at
+  the change's head", since CI then folds every check reported there. A
+  name or a context not UTF-8 is left out whole. The workflows are the
+  landing branch's on every segment of the path.
+- **A tier's card** names the tier: `who` "code · checks what landed"
+  on the landing branch, "code · checks the goal's branch" on a goal's;
+  `name` the tier's name; its fact "Runs", "the tier NAME after each
+  landing" or "the tier NAME on the goal's branch"; then, where the tier
+  has a description (`../protocol/configuration.md`, section 3), its fact
+  "Checks", the description whole, its 120 bytes within a fact's value.
 - **A rule's card,** the view `rule K/N` (`../client/README.md`, 5.16),
   for the landing rule N of kind K (1, the deployment's; 2, the
   project's), as the forge holds it then: `who` "a landing rule ·
@@ -2983,6 +3291,33 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   joined by "; "; "Approvals", each as its stop's words say it ("an
   owner approves", "×N" past one), joined by "; ". A rule there is none
   of is `not_drawn`, "no rule K/N.".
+- **The project's roles,** the view `roles` (`../client/README.md`,
+  5.16): every agent the project's work runs, whether or not its path
+  draws it (`../draft/surfaces.md`, section 7), a role a charter, each
+  once, at its first place in this order:
+  1. "Chat", "For each chat": the chat template's charter (template 1);
+  2. "Ask temper", "When you ask": Ask temper's template's charter
+     (template 5, the client's `ASKING_TEMPLATE`);
+  3. "Coordinator", "For each goal": the charter the project's path
+     starts a goal with, while it starts one (step 1 above);
+  4. "Coding agent", "For each change": the producer, kind 3's number 1;
+  5. "Reviewer", "For each change": the reviews' charter, kind 3's
+     number 2, while the project's path draws a "review";
+  6. "Foreman", "When a coding agent asks": the foreman's charter (the
+     stock's 6), while kind 6 routes questions to it or the project's
+     path starts a goal, whose coordinator names it
+     (`../protocol/configuration.md`, 13.9);
+  7. "Status agent", "When you look at Home after landings": the status
+     agent's charter (the stock's 9), on its triggers (5.7).
+  Never the deployment's model trial; a charter the settings lack is
+  left out. Each role is a card: `who` its line, `name` its name, and
+  the facts an agent's stop's card has, "Model", the model and effort a
+  run of it would take now for the reader, "Can" (*What an agent can*)
+  and "Asked to", its instructions' first sentence. What a role
+  does, past when it runs, its charter's words
+  (`../protocol/configuration.md`, 13.2, kind 9), is no part of its card
+  (section 20, *A role's words on its card*); a standing role, a drafter
+  and a close-out join as the settings come to hold them.
 - **The project's path** is the path over its home repository's landing
   branch, or its first adopted repository's with no home; with none,
   over a branch named `main` of no repository: no CI, no tier, the
@@ -3282,8 +3617,13 @@ own, never a change's:
   taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
 - **Written by change alone:** each of the goal's changes lands into it
-  as its landing branch, its merge ordered by the branch's queue (section
-  9) and taking the branch's writer slot while in flight; the goal's own
+  as its landing branch. An ordinary `change` call from the goal or its
+  subtree defaults to the nearest applicable held goal branch; an explicit
+  destination outside it refuses the whole call before delegation. This
+  also holds for every member of a batch. The deliberate `"branch": "mine"`
+  change lands that held branch whole into the base instead (8.1).
+  Each child merge is ordered by the branch's queue (section
+  9) and takes the branch's writer slot while in flight; the goal's own
   runs read it and take no writer slot of it (jig's `domain/tasks.md`, 6.3),
   so merges into it go on while they run.
   A change whose landing branch is a goal's own, made by a task that is
@@ -3360,6 +3700,15 @@ history they keep if temper is unplugged. Issues are projections (jig's
   on to its next milestone, the finishing one and the close; the issue's
   open so lost fails the projection, which has nothing to write on, and
   settles failed at the goal's close.
+- **A full outbox defers it.** A projection whose next write meets the
+  outbox at its bound (section 6) waits for room, neither failed nor
+  settled: it is tried again after the policy's interval, as a failed
+  write is, and goes out at the first try that finds room; a restart
+  tries it at once, as it does every projection with nothing in flight.
+  Nothing asks for it sooner: once a step has met the full outbox, a
+  projection due at once in that step, by a write's outcome, a release
+  or its timer, waits the interval too while the outbox stays full, so
+  the step ends.
 - **Issues others open** in an adopted repository are participating
   objects, which may become intake later.
 
@@ -3665,12 +4014,34 @@ whole.
 
 ## 20. Open questions
 
-- **A repository's CI workflows by name** (8.13, *CI's card*): the forge
-  reads no list of the workflows a repository runs, on GitHub or Forgejo,
-  so CI's card names the landing branch's required checks, or none.
-  Reading the workflows at adoption, and keeping them current, is a read
-  of each forge's not yet planned (the look request `ask-temper-ways`,
-  2026-11-08).
+- **A workflow that runs on no pull request** (4.7; 8.13, *CI's card*):
+  CI's card names every workflow file on the landing branch but those
+  the repository's test gates and tiers dispatch, so a release's or a
+  schedule's workflow is named though it reports nothing at a change's
+  head; and it names each by its file, not by the `name` its file gives
+  it. Telling them apart reads each file and its triggers, a read per
+  workflow at each change of the directory. Default: by file, every one
+  but the dispatched.
+
+- **A close-out's own charter** (8.13, *The coordinator's cards*): the
+  "close-out" stop opens the goal template's charter, the coordinator,
+  which makes the close-out, though the reference's is a designer's
+  change (`../protocol/configuration.md`, 13.9) and its card's model and
+  "Asked to" are then the coordinator's. Naming the charter that writes
+  it would be a member of the template's work, kind 11, read where it is
+  set. Default: the coordinator's card, until a draft asks for a
+  close-out's role of its own (8.13, *The project's roles*).
+
+- **A role's words on its card** (8.13, *The project's roles*): the
+  forge keeps a charter's words, kind 9, what its runs do in a line, and
+  the draft has Roles say them after when the role runs, "For each chat:
+  talks with you and asks for the changes", its instructions' first
+  sentence where none is kept (`../draft/surfaces.md`, section 7;
+  `../draft/whole-story.execution.md`, P3e). The view `roles` would read
+  them as the root reads a charter (`charter_words`) and carry them on
+  each role's card, beside its `who`, within the card's bounds; How work
+  runs draws them (`../client/README.md`, section 11, *How work runs'
+  later parts*). Default: a role's card says when it runs alone.
 
 - **Project-scoped rules on a real forge** (8.9): observe the
   every-project default, its override and reset, and branch-relative
@@ -3872,6 +4243,13 @@ whole.
   08:00, and a hand. Quiet hours and notifications are the client's
   later parts (`../client/README.md`, section 11); neither is the
   switch's.
+- **The classes per person** (5.10; `../draft/what-reaches-you.md`,
+  section 11): a team may want one person asked about a path set and
+  another not. Default: the classes are the project's and Away each
+  person's, approvals naming roles as they do.
+- **What code decides, listed** (5.9): a known flake's rerun
+  (`findings.md`, section 5) asks no one and writes no row. Whether
+  Decided for you lists it. Default: not listed.
 - **A refused `message` keeps no record** (8.11): the call's refusal of an
   agent's own words is rendered and kept with no call's record, as the
   `goal` tool's refusal is, where a decided call's answer is kept

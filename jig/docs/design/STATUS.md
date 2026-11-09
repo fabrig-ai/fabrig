@@ -1,6 +1,6 @@
 # Status
 
-2026-11-08. Where jig's code lags or departs from its design, from the
+2026-11-09. Where jig's code lags or departs from its design, from the
 status files below. Browser-approved sign-in is built through the wire,
 clients' component, HTTP mapping, configuration and linked and unlinked
 clients. Only the secret's take makes the approving browser's party's
@@ -32,15 +32,27 @@ keeping their committed work and spending no try; crash recovery still
 settles claims as lost or not started (`domain/engine.md`, sections 6
 and 6.1; `domain/tasks.md`, 5.2). A worker stopped in another process
 still spends an agent try on its Shutdown cancel; changing that remains
-deferred (`protocol/service.md`, section 9). The store's retention,
+deferred (`protocol/service.md`, section 9). A worker's link says why
+it was lost, on each side, its silence counts bytes, and a closing
+connection is aborted at the stall deadline, so a worker lost fifty
+times each way is taken back each time; the fifty-loss row leaves out
+a full cap and the worker's refusal (`protocol/channel.md`, 9, 10.1,
+10.2 and 12; `domain/hosts.md`, 6.6). The store's retention,
 rehearsal and going back are not built (`protocol/store.md`,
-`protocol/client.md`). An
+`protocol/client.md`). A start whose store fails a link refuses,
+naming the record and what it links to, and no route writes a link to
+a person the core does not hold; the core world, killed at any file
+operation of a decision and again during its restart, starts from a
+whole one, but a snapshot racing commits and several commits in flight
+are proven in the store's world alone (`domain/engine.md`, 5.1 and 6;
+`domain/accounts.md`; `protocol/store.md`, 14). An
 application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, so a
 project's owner alone reads no row of it, and the
-core world's restore stories are ignored (`domain/engine.md`,
-`domain/connectors.md`). A run's fresh settings proposal replaces its own
+core world's restore stories are ignored; a setting reset to a default
+its connector neither reports nor names as dropped keeps its state at the
+next start (`domain/engine.md`, `domain/connectors.md`). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
 `domain/engine.md`, 17.6). Derived run-wait refusals carry admitted hosts'
@@ -123,8 +135,10 @@ check, but no walk on record has a real box run on it (`domain/accounts.md`).
 Its template preview can differ from its task's next-run model across a worker
 restart with mixed program and direct accounts (`client/domain/contract.md`,
 `domain/engine.md`).
-A transcript's load refused for want of a slot counts as a failure, where
-room should pause its task (`domain/engine.md`). A note's range names the
+A run's transcript window loads whatever its length: a turn past the
+store's page room is loaded cut, and the run starts fresh from the tail
+with the turn's marker, counting nothing (`domain/engine.md`, 7.2;
+`protocol/store.md`, 8.3). A note's range names the
 revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 `revision` (`domain/engine.md`). Four of the worlds' files name a fixture again,
 where the `debt-24` request of 2026-11-05 has each named once. The core's
@@ -173,12 +187,25 @@ own. Its drafts: `draft/account-facts.md`'s remaining design work is
 section 6's third step:
 plan, workspace, renewal, end and usage-window reports, whose sources the user
 is still deciding; `draft/notes-memory.md` keeps the idea of
-notes as agents' memory, a chat's document alone taken up (`domain/engine.md`,
-section 10), the rest not to be planned until the user says.
+notes as agents' memory, a chat's document and a person's preferences
+alone taken up (`domain/engine.md`, section 10 and 10.1), the rest not to
+be planned until the user says.
 
-The asking tool family and a run's settings-proposal read are implemented
-(`domain/authority.md`, section 3; `domain/engine.md`, 7.3). Reading as a
-person remains later work in `domain/engine.md`, section 16.
+The asking tool family, a run's settings-proposal read and a run's read
+as its person, a party's read made as the run's requester, of its
+project alone, are implemented (`domain/authority.md`, section 3;
+`domain/engine.md`, 7.3). A task query of the project naming a person
+requester answers unknown where the person has ended tasks elsewhere,
+and a filtered inbox page takes its next page from the whole inbox
+(`domain/engine.status.md`). A frame narrowed to one project stays a
+question in `domain/engine.md`, section 16. A party's scope is
+implemented: a person's preferences, written by their asking runs, whole
+in those runs' briefs, read and kept by the person alone, a turn's
+private parts withheld from every other party (`domain/engine.md`,
+10.1). A brief's transcript tail still carries a private tool's calls
+whole, a withheld turn that fails its projection fails its whole read,
+and a party naming their own scope and another's entry is told it moved
+(`domain/engine.status.md`; `client/domain/contract.status.md`).
 
 Client transport admission counts cancelled watch openings and cleanup
 until their HTTP reply or failure. Its focused stream table holds an

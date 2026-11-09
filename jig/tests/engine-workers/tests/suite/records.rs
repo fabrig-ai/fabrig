@@ -25,6 +25,7 @@ mod records {
         AccountRefused,
         Lost,
         Logins,
+        Draining,
         SignedOut,
         ListRead,
     }
@@ -34,6 +35,7 @@ mod records {
             Request::Hello { .. } => Record::Hello,
             Request::Up { up, .. } => match up {
                 LinkUp::ListRead { .. } => Record::ListRead,
+                LinkUp::Draining => Record::Draining,
                 LinkUp::Logins { .. } => Record::Logins,
                 LinkUp::SignedOut { .. } => Record::SignedOut,
                 LinkUp::Turn { .. } => Record::Turn,
@@ -51,6 +53,7 @@ mod records {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Ended { .. }
             | Request::Closed => panic!("an up record"),
         }
     }

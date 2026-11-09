@@ -10,12 +10,58 @@ no room or a run it has no room for, reaches the hub as
 `FromAgent::StartBusy` (`temper-worker-domain`'s `agents.rs`, `ended`,
 and `hand_out.rs`, `Finish::of`), and spends no try.
 
+Section 4.4's failure lines have no known gap but the result's why below.
+When its hub answers a job failed or refused, the worker writes its line
+(`temper-service/src/worker.rs`, `job_answer`, the why kept by
+`temper-worker-domain/src/jobs.rs`), an in-process worker's among serve's
+notes, and the engine writes its own once, when its hub accepts the answer
+(`temper-engine-domain/src/link.rs`, `answer`;
+`temper-engine-shell/src/serve/host.rs`, `job_line`), an assignment it
+cannot encode included. A preparation's failure carries its step and git's
+fault as its detail (`temper-worker-domain-checkout/src/hold.rs`,
+`preparation_detail`), a command's its exit or signal and its error
+output's end (`temper-worker-domain-tooling/src/domain.rs`), and a delivery
+not made names its push's outcome and diagnostic on the worker's line
+alone. `job_stderr_forms_escape_and_bound_their_why`,
+`job_answer_evidence_reaches_operator_once`,
+`failed_jobs_name_the_workers_why_once` and the checkout's prepare tables
+hold them.
+
+Sections 4.4 and 5 have no known gap in a merge past the checkout's
+`conflicts`: its preparation leaves the merge in progress, every file
+marked and unmerged, and names the first `conflicts`
+(`../protocol/git.status.md`), and the composed system world's
+`suite::merge_job` runs a merge job that settles `conflicts + 1` files and
+delivers (`testing.status.md`, 2.1). That story's rows also hold the
+request's other candidates, on fake git and a fake forge: the hello's
+kind, the command's path and request, the spec's and result's bounds,
+and a base fetched by its id into a cached clone that never fetched its
+branch. That the listing past `conflicts` was the fault of the request
+`merge-job-runs-2` of 2026-11-09, every merge job held `out of tries:
+transient failures` with no line in either log, stands on reading: its
+evidence is outside the repository, and its proof is the next
+deployment's lines, which no record shows.
+
 Section 5's later goal start has no known implementation gap. The checkout
 world's three goal stories cover r already contained in g, a clean merge
 committed before the run and a conflict retained for the run to settle;
 each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`forge.md`, section 20).
+
+Section 3.1 has no known gap in reading the link: the worker reads it
+and fires its deadlines on every pass, whatever the entrance holds, and
+the held entrance holds the engine's cap to a worker in frames, from the
+link's sizes, and three records more for the link's own state; a new
+record past it faults the link (`temper-service/src/worker.rs`,
+`Worker::new` and `drain_link`). `temper-service`'s
+`a_worker_whose_engine_records_wait_keeps_its_link`,
+`the_link_is_read_while_its_last_output_waits` and
+`a_new_wire_record_past_the_entrance_faults_the_link` hold it. A link
+left unread under load is the likeliest cause of a deployment's worker
+relinking every two to two and a half minutes on 2026-11-08, but that is
+unproven: its evidence is outside the repository, and no deployment on
+record has run since.
 
 Section 6 has no known gap in every temper worker naming its agent's
 `host_reply_text` as the hello's reply bound, the in-process worker among
@@ -32,9 +78,13 @@ them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
   where such a start spends a permanent try, and a hold for it says
   permanent failures; `temper-docs`'s `tests/rules.rs` finds that page by
   those words.
+  4.4: a result missing and one past its bound fail with the same why,
+  `result missing or past its bound`, where 4.4 has the why say which: the
+  job capability's `Read` answers no bytes for both
+  (`temper-worker-domain-tooling/src/boundary.rs`, `Event::Read`).
   4.4: the prepare and key kinds: neither kind's entry is
   built, so the worker's hello declares the merge kind alone
-  (`temper/crates/temper-service/src/worker.rs`), and with prepare the
+  (`temper/crates/temper-service/src/limits.rs`, `job_kinds`), and with prepare the
   `Rewrite` delivery (`../protocol/git.md`, 4.10). 5: a missing base branch fails the
   preparation; the checkout creates it from the default branch for a
   repository that may be written
@@ -73,6 +123,13 @@ them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
   for 8 and 10, which fit, so this is section 12's question. No test runs 8
   slots past `temper::prepare_in`: that request takes the next deployment at 8
   and 10 as its proof, with no walk, and no record shows one.
+- **Design departs:** 4.4, from the request `merge-job-runs-2` of
+  2026-11-09, item 2, decided by temper/migration's answer of 2026-11-09:
+  a job that fails for good holds with its failures' class alone, each
+  failure's why in the worker's and the engine's lines, where the request
+  has its reason in the hold. Words in the hold need section 12's
+  stored-format change (*A hold naming its run's last failure*), left
+  until the next deployment's lines are read.
 - **Departs:** 5, 9: with `TEMPER_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and
   across a restart; unset, which is the default and the only shipped form,

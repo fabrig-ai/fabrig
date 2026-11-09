@@ -104,7 +104,8 @@ fn limits() -> engine::Limits {
     limits.forge.tasks = 16;
     limits.journal.deliveries = 128;
     limits.journal.held = 512;
-    limits.journal.run_bytes = 16384;
+    // Charter 11's resolved stock run policy needs 16,601 bytes.
+    limits.journal.run_bytes = 20_480;
     limits.journal.result_bytes = 1024;
     limits.journal.transcript_bytes = 32768;
     limits.loads.transcript_bytes = 32768;
@@ -357,7 +358,7 @@ fn no_settings_or_message_tools(run: &engine::Assignment) {
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
     assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
     let charter = temper_engine_smith::charter(run);
-    assert_eq!(charter.grants.host_tools.len(), 38);
+    assert_eq!(charter.grants.host_tools.len(), 35);
     for tool in &charter.grants.host_tools {
         assert!(
             tool.name.as_ref() != b"settings"
@@ -397,7 +398,7 @@ fn asking_declarations() {
         assert_eq!(
             names,
             if allowed {
-                vec![b"see".as_slice(), b"document", b"propose_settings"]
+                vec![b"see".as_slice(), b"document", b"remember", b"propose_settings"]
             } else {
                 vec![b"propose_settings".as_slice()]
             }
@@ -406,7 +407,7 @@ fn asking_declarations() {
         let (answer, error) = host_tool(&mut driver, &run, 1, b"see", br#"{"address":"me"}"#);
         assert!(error);
         if allowed {
-            assert_eq!(answer.as_ref(), b"see me: not there yet.");
+            assert_eq!(answer.as_ref(), b"see me: not read: this chat has no person to read as.");
             assert_eq!(driver.store.rows, original, "see keeps no call record");
             let (answer, error) =
                 host_tool(&mut driver, &run, 2, b"document", br##"{"action":"write","body":"# Title"}"##);

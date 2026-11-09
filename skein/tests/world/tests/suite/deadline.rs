@@ -6,6 +6,10 @@ use skein_world::{Deadline, Expired};
 
 #[test]
 #[cfg(target_os = "linux")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads the child marker for the isolated starvation verdict test"
+)]
 fn a_starved_pass_ends_only_its_test_in_one_process() {
     use skein_world::{StarvedPass, pass_starved};
 

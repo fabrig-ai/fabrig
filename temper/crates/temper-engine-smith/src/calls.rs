@@ -154,7 +154,7 @@ const PERMISSION_SPEC: Spec = Spec {
 
 const SEE: Spec = Spec {
     name: b"see",
-    description: b"Read temper by address, in your project: settings, revisions, proposals, temper's pages, a repository's file. Each answer ends with what to read next.",
+    description: b"Read temper by address, as your person, in your project: its work, changes, settings, proposals, pages and files. Each answer ends with what to read next.",
     schema: br#"{"type":"object","additionalProperties":false,"required":["address"],"properties":{"address":{"type":"string","description":"One line, as your instructions list addresses: settings charter 1, help, more TOKEN."}}}"#,
     effect: run::HostEffect::Read,
 };
@@ -166,17 +166,24 @@ const DOCUMENT: Spec = Spec {
     effect: run::HostEffect::Write,
 };
 
-const ASK_PROPOSE_SETTINGS: Spec = Spec {
-    name: b"propose_settings",
-    description: b"Propose whole settings against the newest revision you read; an owner decides, and nothing changes until then. A large set goes in parts.",
-    schema: br#"{"type":"object","additionalProperties":false,"properties":{"against":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The newest revision you read. A proposal against an older one is stale, and you hear the newest."},"reason":{"type":"string","description":"Why; the owners read it."},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","properties":{"kind":{"enum":["charter","template","policy","rules","model","landing-rule","forge-charter","project-policy","project-ways","project-questions"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"description":"Required for charter, template, policy, model, landing-rule and forge-charter; the other kinds take none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Required for project settings; optional for landing-rule (the deployment's when absent)."}},"required":["kind"],"description":"The setting, named as a settings file names it."},"set":{"description":"Its whole value as a settings file holds it; forge-charter takes a number; a document's repository is OWNER/NAME."},"edit":{"enum":["reset","removed"],"description":"In place of set: reset, to follow its default again, or removed, no longer offered."}},"required":["setting"]},"description":"The changes, at most one per setting, in this call's part."},"more":{"type":"boolean","description":"true: hold these items for the next call; the call without it proposes them all."}},"required":["against","reason","items"]}"#,
+const REMEMBER: Spec = Spec {
+    name: b"remember",
+    description: b"Keep a line about your person across their chats, only when they ask: add one, or change or drop one by its number. Each answer is the whole list.",
+    schema: br#"{"type":"object","additionalProperties":false,"required":["action"],"properties":{"action":{"enum":["add","change","drop"]},"line":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The line's number, for change and drop."},"text":{"type":"string","description":"One line, at most 120 bytes."}}}"#,
     effect: run::HostEffect::Write,
 };
 
-const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/branch name; omit: default."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: land goal branch; run: land run branch; omit: new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#, effect: run::HostEffect::Write };
+const ASK_PROPOSE_SETTINGS: Spec = Spec {
+    name: b"propose_settings",
+    description: b"Propose whole settings against the newest revision you read; an owner decides, and nothing changes until then. A large set goes in parts.",
+    schema: br#"{"type":"object","additionalProperties":false,"properties":{"against":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The newest revision you read. A proposal against an older one is stale, and you hear the newest."},"reason":{"type":"string","description":"Why; the owners read it."},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","properties":{"kind":{"enum":["charter","template","policy","rules","model","landing-rule","forge-charter","template-goal","project-policy","project-ways","project-questions","project-classes","charter-words","project-words"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"description":"Charter/template/policy/model/landing-rule/forge-charter/charter-words number; template-goal: template's; else none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Project settings: required; landing-rule: optional (deployment if absent); charter-words and template-goal: none."}},"required":["kind"],"description":"The setting, named as a settings file names it."},"set":{"description":"Its whole value as a settings file holds it; forge-charter takes a number; a document's repository is OWNER/NAME."},"edit":{"enum":["reset","removed"],"description":"In place of set: reset, to follow its default again, or removed, no longer offered."}},"required":["setting"]},"description":"The changes, at most one per setting, in this call's part."},"more":{"type":"boolean","description":"true: hold these items for the next call; the call without it proposes them all."}},"required":["against","reason","items"]}"#,
+    effect: run::HostEffect::Write,
+};
 
-pub(crate) const SPECS: [Spec; 43] = [
-    Spec { name: b"decided", description: b"Ask whether your goal may decide while its person is away. Carry on only if decided; otherwise ask with message, as a question.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"question":{"type":"string","description":"The question, at most 400 bytes."},"options":{"type":"array","minItems":2,"maxItems":6,"items":{"type":"string"},"description":"Two to six options, each at most 120 bytes."},"took":{"type":"integer","minimum":0,"maximum":5,"description":"The chosen option's index, starting at zero."},"why":{"type":"string","description":"Why you chose it, at most 400 bytes."},"kind":{"type":"string","enum":["implementation","retry","wording","dependency","other"]}},"required":["question","options","took","why","kind"]}"#, effect: run::HostEffect::Write },
+const PLAN_CHANGE: Spec = Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: goal into base; run: land run branch; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: goal into base; run: land run branch; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#, effect: run::HostEffect::Write };
+
+pub(crate) const SPECS: [Spec; 44] = [
+    Spec { name: b"decided", description: b"Ask whether you may decide this for your person. Carry on only if decided; otherwise ask them with message, as a question.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"question":{"type":"string","description":"The question, at most 400 bytes."},"options":{"type":"array","minItems":2,"maxItems":6,"items":{"type":"string"},"description":"Two to six options, each at most 120 bytes."},"took":{"type":"integer","minimum":0,"maximum":5,"description":"The chosen option's index, starting at zero."},"why":{"type":"string","description":"Why you chose it, at most 400 bytes."},"kind":{"type":"string","enum":["wording","retry","implementation","tests","dependency","departure","money","irreversible","rules","other"]},"paths":{"type":"array","maxItems":16,"items":{"type":"string"},"description":"At most 16 repository-relative paths the choice would change, each 1 to 256 bytes with no leading /."},"under":{"type":"integer","minimum":1,"maximum":20,"description":"The item with words of settings project-classes that covers this choice."}},"required":["question","options","took","why","kind"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"goal", description: b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change.", schema: br#"{"type":"object","additionalProperties":false,"properties":{"words":{"type":"string"},"advisor":{"type":"boolean","description":"Set by a goal alone, for a survey that changes nothing."},"agree":{"type":"boolean","description":"Set by the person's chat when they want the work agreed first: the goal asks its plan before any change."}},"required":["words"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"change", description: b"Have one change written on a branch of a repository of this project, opened as a pull request and merged once its checks pass; you hear its result.", schema: br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#, effect: run::HostEffect::Write },
     Spec { name: b"delegate", description: b"Make a batch of direct delegates within your authority. tracked {priority} makes one a goal, the lower first. For a change to a repository, call change.", schema: br#"{"type":"object","properties":{"batch":{"type":"array","description":"The tasks: each with executor, spec, contract, authority; optionally deadline_seconds, tracked, dependencies, wake, llm.","items":{"type":"object","properties":{"executor":{"type":"object","description":"{kind: agent, charter}, {kind: procedure, connector, code}, {kind: person, person} or {kind: role, role}.","properties":{"kind":{"type":"string","enum":["agent","procedure","person","role"]},"charter":{"type":"integer","minimum":0},"connector":{"type":"integer","minimum":0},"code":{"type":"integer","minimum":0},"person":{"type":"integer","minimum":0},"role":{"type":"integer","minimum":0}},"required":["kind"]},"spec":{"type":"object","properties":{"words":{"type":"string"},"parameters":{"type":"array","items":{"type":"object","description":"{name, kind: number, value}, {name, kind: bytes, value} or {name, kind: resource, connector, resource}.","properties":{"name":{"type":"integer","minimum":0},"kind":{"type":"string","enum":["number","bytes","resource"]},"value":{},"connector":{"type":"integer","minimum":0},"resource":{"type":"integer","minimum":0}},"required":["name","kind"]}},"inputs":{"type":"array","items":{"type":"integer","minimum":0}}},"required":["words"]},"contract":{"type":"object","description":"{kind: report, words}, {kind: change, connector, change_kind, words} or {kind: verdict, choices: [{code, words}]}.","properties":{"kind":{"type":"string","enum":["report","change","verdict"]},"words":{"type":"integer","minimum":0},"connector":{"type":"integer","minimum":0},"change_kind":{"type":"integer","minimum":0},"choices":{"type":"array","items":{"type":"object","properties":{"code":{"type":"integer","minimum":0},"words":{"type":"integer","minimum":0}},"required":["code","words"]}}},"required":["kind"]},"authority":{"type":"object","description":"Whole: restate every member you keep.","properties":{"tools":{"type":"integer","description":"The tool families, as a bit set.","minimum":0},"grants":{"type":"array","items":{"type":"object","properties":{"connector":{"type":"integer","minimum":0},"kind":{"type":"integer","minimum":0},"segments":{"type":"array","items":{"type":"string"}},"terminal":{"type":"string","enum":["exact","open"]},"last":{"type":"string"}},"required":["connector","kind","segments","terminal","last"]}},"delegation":{"type":"object","properties":{"kinds":{"type":"array","items":{"type":"object","properties":{"kind":{"type":"string","enum":["agent","procedure","role"]},"number":{"type":"integer","minimum":0}},"required":["kind","number"]}},"tasks":{"type":"integer","minimum":0},"depth":{"type":"integer","minimum":0}},"required":["kinds","tasks","depth"]},"budget":{"type":"object","properties":{"spend":{"type":"integer","minimum":0},"deadline":{"type":"integer","description":"Wall-clock nanoseconds since the Unix epoch.","minimum":0}},"required":["spend"]},"notes":{"type":"integer","minimum":0,"maximum":255},"note_resources":{"type":"array","items":{"type":"object","properties":{"connector":{"type":"integer","minimum":0},"pattern":{"type":"object","properties":{"segments":{"type":"array","items":{"type":"string"}},"terminal":{"type":"string","enum":["exact","open"]},"last":{"type":"string"}},"required":["segments","terminal","last"]}},"required":["connector","pattern"]}}},"required":["tools","grants","delegation","budget","notes"]},"deadline_seconds":{"type":"integer","description":"It must end this many seconds after it is made. Give this or authority.budget.deadline; with neither, it ends with you.","minimum":1},"tracked":{"type":"object","description":"Track it as a goal at this priority, the lower first. Leave it out for an untracked task.","properties":{"priority":{"type":"integer","minimum":0,"maximum":4294967295}},"required":["priority"]},"dependencies":{"type":"array","items":{"type":"object","properties":{"kind":{"type":"string","enum":["batch","existing"]},"number":{"type":"integer","minimum":0}},"required":["kind","number"]}},"wake":{"type":"object","properties":{"words":{"type":"object","properties":{"kind":{"type":"string","enum":["never","immediate","batch"]},"count":{"type":"integer","minimum":0},"age":{"type":"integer","description":"Nanoseconds.","minimum":0}},"required":["kind"]},"notices":{"type":"object","properties":{"kind":{"type":"string","enum":["never","immediate","batch"]},"count":{"type":"integer","minimum":0},"age":{"type":"integer","description":"Nanoseconds.","minimum":0}},"required":["kind"]},"news":{"type":"object","properties":{"kind":{"type":"string","enum":["never","immediate","batch"]},"count":{"type":"integer","minimum":0},"age":{"type":"integer","description":"Nanoseconds.","minimum":0}},"required":["kind"]},"results":{"type":"string","enum":["never","each","last_or_failure"]},"questions":{"type":"boolean"},"answers":{"type":"boolean"},"timers":{"type":"boolean"}},"required":["words","notices","news","results","questions","answers","timers"]},"llm":{"type":"object","description":"main {model, effort} names the model, effort optional; subagents and account are optional.","properties":{"main":{"type":"object","properties":{"model":{"type":"integer","minimum":0,"maximum":255},"effort":{"type":"integer","minimum":0,"maximum":255}},"required":["model"]},"subagents":{"type":"array","items":{"type":"object","properties":{"model":{"type":"integer","minimum":0,"maximum":255},"effort":{"type":"integer","minimum":0,"maximum":255}},"required":["model"]}},"account":{"type":"integer","minimum":0}},"required":["main"]},"symbolic_grants":{"type":"array","items":{"type":"object","properties":{"connector":{"type":"integer","minimum":0},"kind":{"type":"integer","minimum":0},"segments":{"type":"array","items":{"type":"string"}},"terminal":{"type":"string","enum":["exact","open"]},"last":{"type":"string"}},"required":["connector","kind","segments","terminal","last"]}}},"required":["executor","spec","contract","authority"]}}},"required":["batch"]}"#, effect: run::HostEffect::Write },
@@ -203,12 +210,12 @@ pub(crate) const SPECS: [Spec; 43] = [
     },
     Spec {
         name: b"settings", description: b"Read the deployment's settings: the inventory with no member, or a setting, a revision's record or a page of the history; a long answer goes on from an offset.",
-        schema: br#"{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["charter","template","policy","rules","model","landing-rule","forge-charter","project-policy","project-ways","project-questions"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Required for charter, template, policy, model, landing-rule and forge-charter; the other kinds take none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Required for project settings; optional for landing-rule (the deployment's when absent)."}},"required":["kind"],"description":"One setting's whole value, named as a settings file names it."},"revision":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Alone, that revision's record: its items and who decided it. With a charter, the charter as that held revision has it."},"history":{"type":"object","additionalProperties":false,"properties":{"before":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The page before this revision; the newest page when absent."}},"description":"A page of the revisions, the newest first."},"from":{"type":"integer","minimum":0,"maximum":4294967295,"description":"Where to go on in the answer's text: the offset after next: on its last line; 0 when absent."}}}"#,
+        schema: br#"{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["charter","template","policy","rules","model","landing-rule","forge-charter","template-goal","project-policy","project-ways","project-questions","project-classes","charter-words","project-words"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Charter/template/policy/model/landing-rule/forge-charter/charter-words number; template-goal: template's; else none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Project settings: required; landing-rule: optional (deployment if absent); charter-words and template-goal: none."}},"required":["kind"],"description":"One setting's whole value, named as a settings file names it."},"revision":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Alone, that revision's record: its items and who decided it. With a charter, the charter as that held revision has it."},"history":{"type":"object","additionalProperties":false,"properties":{"before":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The page before this revision; the newest page when absent."}},"description":"A page of the revisions, the newest first."},"from":{"type":"integer","minimum":0,"maximum":4294967295,"description":"Where to go on in the answer's text: the offset after next: on its last line; 0 when absent."}}}"#,
         effect: run::HostEffect::Read,
     },
     Spec {
         name: b"propose_settings", description: b"Propose whole settings from items or a note revision to owners. One owner acceptance makes one revision. Keep your document separate.",
-        schema: br#"{"type":"object","additionalProperties":false,"properties":{"against":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The newest revision you read. A proposal against an older one is stale, and you hear the newest."},"reason":{"type":"string","description":"Why; the owners read it."},"note":{"type":"object","additionalProperties":false,"properties":{"name":{"type":"integer","minimum":1},"revision":{"type":"integer","minimum":1,"maximum":4294967295}},"required":["name","revision"],"description":"{name, revision}: goal note work: settings with {items:[...]}; build a few KB per write with first/remove/join."},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","properties":{"kind":{"enum":["charter","template","policy","rules","model","landing-rule","forge-charter","project-policy","project-ways","project-questions"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"description":"Required for charter, template, policy, model, landing-rule and forge-charter; the other kinds take none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Required for project settings; optional for landing-rule (the deployment's when absent)."}},"required":["kind"],"description":"The setting, named as a settings file names it."},"set":{"description":"Its whole new value, as a settings file holds it; forge-charter takes a charter number. Read the setting first."},"edit":{"enum":["reset","removed"],"description":"In place of set: reset, to follow its default again, or removed, no longer offered."}},"required":["setting"]},"description":"The changes, at most one per setting. Supply exactly one of items or note."}},"required":["against","reason"]}"#,
+        schema: br#"{"type":"object","additionalProperties":false,"properties":{"against":{"type":"integer","minimum":1,"maximum":4294967295,"description":"The newest revision you read. A proposal against an older one is stale, and you hear the newest."},"reason":{"type":"string","description":"Why; the owners read it."},"note":{"type":"object","additionalProperties":false,"properties":{"name":{"type":"integer","minimum":1},"revision":{"type":"integer","minimum":1,"maximum":4294967295}},"required":["name","revision"],"description":"{name, revision}: goal note work: settings with {items:[...]}; build a few KB per write with first/remove/join."},"items":{"type":"array","items":{"type":"object","additionalProperties":false,"properties":{"setting":{"type":"object","properties":{"kind":{"enum":["charter","template","policy","rules","model","landing-rule","forge-charter","template-goal","project-policy","project-ways","project-questions","project-classes","charter-words","project-words"],"description":"The setting's kind."},"number":{"type":"integer","minimum":1,"description":"Charter/template/policy/model/landing-rule/forge-charter/charter-words number; template-goal: template's; else none."},"project":{"type":"integer","minimum":1,"maximum":4294967295,"description":"Project settings: required; landing-rule: optional (deployment if absent); charter-words and template-goal: none."}},"required":["kind"],"description":"The setting, named as a settings file names it."},"set":{"description":"Its whole new value, as a settings file holds it; forge-charter takes a charter number. Read the setting first."},"edit":{"enum":["reset","removed"],"description":"In place of set: reset, to follow its default again, or removed, no longer offered."}},"required":["setting"]},"description":"The changes, at most one per setting. Supply exactly one of items or note."}},"required":["against","reason"]}"#,
         effect: run::HostEffect::Write,
     },
     ITEMS_SPEC,
@@ -232,30 +239,32 @@ pub(crate) const SPECS: [Spec; 43] = [
     Spec { name: b"read_docs", description: b"Read temper's pages: {topic, from} gives a page from an offset, then next: OFFSET or end; {search} the sections holding every word, a line each.", schema: br#"{"type":"object","properties":{"topic":{"type":"string","description":"A page's name, such as index."},"from":{"type":"integer","description":"The offset to read from, as next: gave it; 0 when absent.","minimum":0},"search":{"type":"string","description":"The words a section must hold, every one: at most 8."}}}"#, effect: run::HostEffect::Read },
     SEE,
     DOCUMENT,
+    REMEMBER,
 ];
 
 /// The complete host-tool registry, with exact schemas and write effects.
 #[must_use]
 pub fn tools(timeout: Duration) -> Box<[run::HostTool]> {
-    offered_tools(timeout, tasks::Tools(u64::MAX), true)
+    offered_tools(timeout, tasks::Tools(u64::MAX), true, true)
 }
 
 /// An asking charter offers its own tools alone, gated by authority.
 /// Settings declarations require the charter's and the run's settings family.
+/// Delegate declarations require the charter's delegate family.
 /// Message, task-read and plan declarations require their run families.
 /// Root authority still decides each accepted call by its durable name.
 pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tasks::Tools) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
     if engine::asking(charter) {
-        let mut tools = List::with_capacity(3);
-        for spec in [SEE, DOCUMENT, ASK_PROPOSE_SETTINGS] {
+        let mut tools = List::with_capacity(4);
+        for spec in [SEE, DOCUMENT, REMEMBER, ASK_PROPOSE_SETTINGS] {
             let allowed = if spec.name == b"propose_settings" {
                 charter.0 & authority.0 & families.settings != 0
             } else {
                 authority.0 & families.ask.0 != 0
             };
             if allowed {
-                tools.push(declaration(spec, timeout)).expect("three asking declarations");
+                tools.push(declaration(spec, timeout)).expect("four asking declarations");
             }
         }
         return tools.into_boxed();
@@ -264,10 +273,10 @@ pub(crate) fn tools_for(timeout: Duration, charter: tasks::Tools, authority: tas
     if charter.0 & families.settings == 0 {
         offered.0 &= !families.settings;
     }
-    offered_tools(timeout, offered, false)
+    offered_tools(timeout, offered, charter.0 & families.delegate.0 != 0, false)
 }
 
-fn offered_tools(timeout: Duration, authority: tasks::Tools, full: bool) -> Box<[run::HostTool]> {
+fn offered_tools(timeout: Duration, authority: tasks::Tools, delegate: bool, full: bool) -> Box<[run::HostTool]> {
     let families = jig_domain_core::ToolFamilies::JIG;
     let settings = authority.0 & families.settings != 0;
     let message = authority.0 & families.message.0 != 0;
@@ -276,8 +285,9 @@ fn offered_tools(timeout: Duration, authority: tasks::Tools, full: bool) -> Box<
     let mut tools = List::with_capacity(u32::try_from(SPECS.len()).expect("fixed tool list"));
     for spec in SPECS {
         let spec = if plan && spec.name == b"change" { PLAN_CHANGE } else { spec };
-        if (!full && (spec.name == b"see" || spec.name == b"document"))
+        if (!full && (spec.name == b"see" || spec.name == b"document" || spec.name == b"remember"))
             || (!settings && (spec.name == b"settings" || spec.name == b"propose_settings"))
+            || (!delegate && (spec.name == b"goal" || spec.name == b"change" || spec.name == b"delegate"))
             || (!message && spec.name == b"message")
             || (!read && spec.name == b"read_task")
         {
@@ -336,6 +346,7 @@ pub fn call_in(
             Err(answer) => return Ok(Decoded::Answered(answer)),
         },
         b"document" => crate::document::decode(&value)?,
+        b"remember" => crate::remember::decode(&value)?,
         b"read_task" => task_read(&value)?,
         b"settings" => crate::settings::read(&value, input.bytes())?,
         b"read_docs" => {
@@ -556,15 +567,44 @@ fn decided(value: &Value) -> Result<temper_engine_domain_forge::DecidedCall, Pro
     if why.len() > forge::DECIDED_WHY_BYTES {
         return Err(Problem::Range(b"why: at most 400 bytes"));
     }
-    let kind = match value.required(b"kind")?.text(b"kind")?.as_ref() {
-        b"implementation" => forge::DecisionKind::Implementation,
-        b"retry" => forge::DecisionKind::Retry,
-        b"wording" => forge::DecisionKind::Wording,
-        b"dependency" => forge::DecisionKind::Dependency,
-        b"other" => forge::DecisionKind::Other,
-        _ => return Err(Problem::Range(b"kind: implementation, retry, wording, dependency or other")),
+    let kind = temper_protocol_reaches::Kind::named(&value.required(b"kind")?.text(b"kind")?).ok_or(Problem::Range(
+        b"kind: wording, retry, implementation, tests, dependency, departure, money, irreversible, rules or other",
+    ))?;
+    let paths = match value.field(b"paths")? {
+        None => Box::new([]),
+        Some(value) => {
+            let items = value.array(b"paths")?;
+            if items.len() > temper_protocol_reaches::PATHS {
+                return Err(Problem::Range(b"paths: at most 16 paths"));
+            }
+            let mut paths = List::with_capacity(u32::try_from(items.len()).expect("at most 16 paths"));
+            for item in items {
+                let path = item.text(b"paths")?;
+                if path.is_empty() {
+                    return Err(Problem::Range(b"paths: a path is empty"));
+                }
+                if path.len() > temper_protocol_reaches::PATH_BYTES {
+                    return Err(Problem::Range(b"paths: each at most 256 bytes"));
+                }
+                if path.starts_with(b"/") {
+                    return Err(Problem::Range(b"paths: repository-relative paths, no leading /"));
+                }
+                paths.push(path).expect("counted paths");
+            }
+            paths.into_boxed()
+        }
     };
-    Ok(forge::DecidedCall { question, options: options.into_boxed(), took, why, kind })
+    let under = match value.field(b"under")? {
+        None => 0,
+        Some(value) => {
+            let number = value.number(b"under")?;
+            if !(1..=20).contains(&number) {
+                return Err(Problem::Range(b"under: item number 1 to 20"));
+            }
+            u8::try_from(number).expect("1 to 20")
+        }
+    };
+    Ok(forge::DecidedCall { question, options: options.into_boxed(), took, why, kind, paths, under })
 }
 
 fn number(value: &Value, field: &'static [u8]) -> Result<u64, Problem> {

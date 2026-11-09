@@ -9,6 +9,7 @@ use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_ui::Role;
 use skein_world::{Referee, real};
+use std::path::Path;
 use temper_client_domain::{Address, Choice};
 use temper_client_shell_terminal::client::{NativeClient, Settings, Start};
 
@@ -69,7 +70,7 @@ impl Referee<NativeClient> for Person {
                 self.finished = true;
                 client.close();
             }
-            Next::Failed { step, .. } => panic!("Ready failed at semantic step {step}"),
+            Next::Failed { step, why } => panic!("Ready failed at semantic step {step}: {why:?}"),
         }
     }
     fn observe(&mut self, _now: Time, _clients: &[NativeClient]) {
@@ -87,14 +88,39 @@ impl Referee<NativeClient> for Person {
     }
 }
 
-#[expect(clippy::disallowed_methods, reason = "the sitting supplies the fake client's mode through its environment")]
-pub fn run() {
-    let mode = std::env::var("TEMPER_MANAGED_CLIENT").expect("fake sitting client mode");
-    assert!(matches!(mode.as_str(), "sign-in" | "adopt"));
-    let sign_in = mode == "sign-in";
+#[derive(Clone, Copy)]
+pub enum Mode {
+    SignIn,
+    Adopt,
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: TEMPER_MANAGED_CLIENT supplies the fake client's role, through temper's test table once it exists"
+)]
+pub fn role() -> Option<Mode> {
+    match std::env::var("TEMPER_MANAGED_CLIENT") {
+        Ok(mode) => match mode.as_str() {
+            "sign-in" => Some(Mode::SignIn),
+            "adopt" => Some(Mode::Adopt),
+            _ => panic!("unknown fake sitting client mode"),
+        },
+        Err(std::env::VarError::NotPresent) => None,
+        Err(std::env::VarError::NotUnicode(_)) => panic!("invalid fake sitting client mode"),
+    }
+}
+
+pub fn run(mode: Mode) {
     let mut link = String::new();
     std::io::stdin().read_line(&mut link).expect("private printed link on stdin");
-    let link = link.trim_end();
+    ready(Path::new("."), link.trim_end(), mode);
+}
+
+pub fn ready(root: &Path, link: &str, mode: Mode) {
+    let sign_in = match mode {
+        Mode::SignIn => true,
+        Mode::Adopt => false,
+    };
     let address: std::net::SocketAddr = link
         .strip_prefix("http://")
         .and_then(|url| url.split('/').next())
@@ -103,18 +129,8 @@ pub fn run() {
         .expect("numeric client listener");
     assert!(address.ip().is_loopback(), "fake sitting stays on loopback");
     let within = Duration::from_secs(30);
-    let steps = Box::new([
-        Step::Go { address: Address::ConnectForge { forge: Some(Choice::Forge(1)) } },
-        Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within },
-        Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
-        Step::See { find: Find::named(Role::TextField, b"Owner"), within },
-        Step::Type { find: Find::named(Role::TextField, b"Owner"), words: OWNER.as_bytes().into() },
-        Step::Type { find: Find::exactly_named(Role::TextField, b"Name"), words: NAME.as_bytes().into() },
-        Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
-        Step::Press { find: Find::named(Role::Button, b"Adopt") },
-        Step::See { find: Find::text(format!("{OWNER}/{NAME}").as_bytes()), within },
-    ]);
-    let root = skein_shell::open_root(std::path::Path::new(".")).expect("sitting scratch root");
+    let steps = adoption_steps(within);
+    let root = skein_shell::open_root(root).expect("sitting scratch root");
     let clock = Clock::new();
     let mut world = real::World::new(Person {
         actor: skein_fake_person::Person::new(steps),
@@ -142,4 +158,20 @@ pub fn run() {
     let ended = world.run(&clock, Duration::from_secs(40));
     assert!(ended.procs.iter().all(Host::is_empty), "sitting client drained");
     println!("signed-in Ready client completed");
+}
+
+fn adoption_steps(within: Duration) -> Box<[Step<Address>]> {
+    Box::new([
+        Step::Go { address: Address::ConnectForge { forge: Some(Choice::Forge(1)) } },
+        Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within },
+        Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
+        Step::See { find: Find::named(Role::TextField, b"Owner"), within },
+        Step::See { find: Find::exactly_named(Role::Check, format!("{OWNER}/{NAME}").as_bytes()), within },
+        Step::Type { find: Find::named(Role::TextField, b"Owner"), words: OWNER.as_bytes().into() },
+        Step::Type { find: Find::exactly_named(Role::TextField, b"Name"), words: NAME.as_bytes().into() },
+        Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
+        Step::See { find: Find::named(Role::Button, format!("Adopt {OWNER}/{NAME}").as_bytes()), within },
+        Step::Press { find: Find::named(Role::Button, b"Adopt") },
+        Step::See { find: Find::text(format!("{OWNER}/{NAME}").as_bytes()), within },
+    ])
 }

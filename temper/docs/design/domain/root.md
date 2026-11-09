@@ -403,6 +403,13 @@ to the forge; a timer to the child that armed it. What temper adds:
   of its subjects go to the core; and each document leaves held in the
   decision that asked for it, out to the protocol layer to encode once
   that decision's commit is durable.
+- **A run's read as its person,** `see`'s for an address of the person's
+  (`agent.md`, 8.4.1), goes to the core as the run's named action
+  `PersonRead` (jig's `domain/engine.md`, 7.3), its answers back to the
+  call's flight; an application read of the forge's it makes, the core
+  admits as a party's and asks of the forge with the person and the
+  project's scope, and the forge's document for that person, made as its
+  watch's is, goes to the same flight. Nothing of it is committed.
 
 ### 5.2 Host calls
 
@@ -911,9 +918,25 @@ its bounded retry path.
   tail and no added failure or refusal, while an open window keeps its
   transient failure policy. A transcript load is issued only with read
   room: without it the root answers the activation `busy` and the task
-  stays due (jig's `domain/root.md`, 3). Successful-page cuts and the
-  transcript row and text validation guards keep their existing
-  preparation-failure translation.
+  stays due (jig's `domain/root.md`, 3). A window's turn the store hands
+  on cut (jig's `protocol/store.md`, 8.3) reaches the core as
+  `TranscriptLoad::Cut`: its place and its length, never its bytes. So
+  does a turn the store carried whole but past the root's own page bounds
+  (`root.loads.transcript_bytes` for a row, `root.loads.bytes` for a
+  page): the service hands it on cut, alone in its page, rather than end
+  the page, so no turn's size fails a window or ends the engine's
+  journal. Other successful-page cuts and the transcript row and text
+  validation guards keep their existing preparation-failure translation.
+- **A window's pages keep their load slot.** A transcript's window is
+  read a page of `root.loads.rows` turns at a time. A page that names a
+  next one hands its load slot on: the next page is issued in that slot,
+  in the pass that took the page, so a window of any length loads
+  whatever else holds the table, and room never fails it. Only its first
+  page waits for room, at the activation, as above. The slot frees with
+  the window's last page, or with its read when the preparation it
+  served ends between pages. A restart's due tasks, reading their
+  windows together, wait for their first pages and never fail on the
+  later ones.
 
 ## 9. Restart and stopping
 
@@ -933,7 +956,8 @@ each step the core asks for:
 3. **The forge's records,** `Range::Forge`, a page at a time; then the
    forge links them, judging none: a record whose forge, repository or
    task the restart does not hold is a writer's bug, and its link
-   panics, as jig's children's do (jig's `domain/engine.md`, section 6).
+   refuses the start, naming the record and what it links to, as jig's
+   children's do (jig's `domain/engine.md`, section 6).
    Before them, the forge loads its kinds' values from its family
    `Setting`, is given temper's stock defaults, and tells the core which
    differ (5.6). Once both are loaded, the root hands the forge the
@@ -1084,7 +1108,7 @@ Startup also checks the seed policy after enforced landing requirements are join
   twice as many offers behind admitted work.
 - **The watches' rooms follow the streams:** the root's `streams` is
   `clients.streams`, and `core_limits` gives the views `streams` times
-  `WATCHES_PER_STREAM`, 19, one shipped client's bound, in all and to a
+  `WATCHES_PER_STREAM`, 22, one shipped client's bound, in all and to a
   party, above jig's profiles' 4 (`../protocol/configuration.md`, section
   7). The rest of the views'
   limits are jig's small profile's: 4 runs watched, 65,536 bytes of a

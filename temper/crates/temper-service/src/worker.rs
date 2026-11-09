@@ -5,6 +5,7 @@ mod jobs;
 #[cfg(test)]
 #[path = "tests/worker_jobs.rs"]
 mod tests;
+pub mod translate;
 use crate::{
     identities::IdentityTable,
     settings::{Agent, Files},
@@ -32,9 +33,6 @@ pub struct WorkerRuntime {
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
-/// The link's capped edge holds new engine work at the watermark
-/// (`temper/docs/design/domain/worker.md`, 3.1).
-pub(crate) const HELD_ENTRANCE: u32 = 192;
 /// smith-host-protocol's `Process::new` caps `channel_below` at 16 entries.
 const PROCESS_CHANNEL_REQUESTS: u32 = 16;
 #[derive(Debug)]
@@ -68,6 +66,7 @@ pub struct Worker {
     payload: temper_protocol_worker_wire::v1::Limits,
     pub(super) io: Queue<io::Request>,
     connection: Connection,
+    notes: Queue<crate::Note>,
     socket: Option<Token>,
     prefix: u64,
     next: u64,
@@ -83,8 +82,7 @@ pub struct Worker {
     stopping: bool,
     pub(super) aborted: Option<()>,
 }
-// In-process workers keep no operator diagnostics; socket workers own their
-// endpoint, notes and service ending together (protocol/README.md, 15).
+// Socket workers own their endpoint and service ending (protocol/README.md, 15).
 #[derive(Debug)]
 enum Connection {
     InProcess(io::Name),
@@ -94,9 +92,10 @@ enum Connection {
 struct Remote {
     address: core::net::SocketAddr,
     worker: Box<[u8]>,
-    notes: Queue<crate::Note>,
     end: Option<crate::End>,
     hello_pending: bool,
+    linked: bool,
+    loss_pending: bool,
     last_refusal: Option<(core::net::SocketAddr, crate::Refusal)>,
 }
 impl Worker {
@@ -144,7 +143,13 @@ impl Worker {
             out: Queue::uncapped(),
             events: Queue::uncapped(),
             engine: Queue::uncapped(),
-            held: Queue::with_capacity(HELD_ENTRANCE),
+            held: Queue::with_capacity(
+                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes)
+                    .ok_or(problem(b"limits", What::Bound))?
+                    .frames
+                    .checked_add(3)
+                    .ok_or(problem(b"limits", What::Bound))?,
+            ),
             process_events: Queue::uncapped(),
             processes: Map::with_capacity(slots),
             owners: Map::with_capacity(slots),
@@ -163,12 +168,14 @@ impl Worker {
                 io::Addr::Ip(address) => Connection::Socket(Box::new(Remote {
                     address,
                     worker: config.name.clone(),
-                    notes: Queue::uncapped(),
                     end: None,
                     hello_pending: false,
+                    linked: false,
+                    loss_pending: false,
                     last_refusal: None,
                 })),
             },
+            notes: Queue::uncapped(),
             socket: None,
             prefix: prepared.prefix,
             next: 2,
@@ -215,8 +222,13 @@ impl Worker {
         remote.end = Some(end);
     }
     pub(crate) fn notes(&mut self) -> &mut Queue<crate::Note> {
-        let Connection::Socket(remote) = &mut self.connection else { unreachable!("worker alone has a socket") };
-        &mut remote.notes
+        &mut self.notes
+    }
+    pub(crate) fn drain_notes(&mut self, sink: &mut Queue<crate::Note>) {
+        for _ in 0..sink.room() {
+            let Some(note) = self.notes.pop() else { break };
+            sink.push(note);
+        }
     }
     pub fn stop(&mut self) {
         if !self.stopping {
@@ -280,17 +292,6 @@ impl Worker {
             }
             None => false,
         }
-    }
-    /// A link step's whole output is dispatched before the link steps again
-    /// (`temper/docs/design/domain/worker.md`, 3.1, order 8): its engine records
-    /// are taken and its socket notes drained. The engine's records wait in
-    /// the socket while the held entrance is full.
-    pub(crate) fn link_taken(&self) -> bool {
-        self.engine.is_empty()
-            && match &self.connection {
-                Connection::InProcess(_) => true,
-                Connection::Socket(remote) => remote.notes.is_empty(),
-            }
     }
     /// Entries waiting between the worker's components. The engine entrance
     /// and capped held queue are excluded so new work cannot hold itself at the watermark.
@@ -411,9 +412,32 @@ impl Worker {
     }
     fn drain_link(&mut self, now: Time) {
         // One link invocation's finite batch; dispatch does not invoke the link.
+        let mut fault = false;
         for _ in 0..self.link_out.len() {
             let request = self.link_out.pop().expect("link output");
+            let waiting = self.engine.len();
             self.link(now, request);
+            if self.engine.len() > waiting
+                && let Some(event) = self.engine.iter().next_back()
+                && root::is_new_work(event)
+                && self.held.room() <= waiting
+            {
+                // Reject only this new record, preserving the entrance's order.
+                for _ in 0..waiting {
+                    let event = self.engine.pop().expect("earlier engine records");
+                    self.engine.push(event);
+                }
+                let _dropped = self.engine.pop().expect("new record past the entrance cap");
+                fault = true;
+            }
+        }
+        if fault {
+            // The whole invocation is dispatched before the fault invokes the link.
+            self.link.down(now, link::Event::SourceFault, &mut self.link_out);
+            for _ in 0..self.link_out.len() {
+                let request = self.link_out.pop().expect("source fault output");
+                self.link(now, request);
+            }
         }
         self.values.expire(now);
     }
@@ -427,8 +451,13 @@ impl Worker {
                 self.engine.push(root::Event::Ready);
             }
             link::Request::Lost => {
-                if let Connection::Socket(remote) = &mut self.connection {
-                    remote.hello_pending = false;
+                match &mut self.connection {
+                    Connection::InProcess(_) => {}
+                    Connection::Socket(remote) => {
+                        remote.hello_pending = false;
+                        remote.loss_pending |= remote.linked;
+                        remote.linked = false;
+                    }
                 }
                 self.engine.push(root::Event::Lost);
             }
@@ -495,26 +524,48 @@ impl Worker {
             }
             link::Request::Closed => self.closed = true,
             link::Request::Fact { why } => {
+                match &mut self.connection {
+                    Connection::InProcess(_) => {}
+                    Connection::Socket(remote) => {
+                        if remote.loss_pending {
+                            remote.loss_pending = false;
+                            self.notes.push(crate::Note::Lost {
+                                worker: remote.worker.clone(),
+                                address: Box::new(remote.address),
+                                why,
+                            });
+                        }
+                    }
+                }
                 let reason = match why {
-                    skein_channel::Closed::RefusedPeer(code) => Some(crate::Refusal::Peer(code)),
-                    skein_channel::Closed::RefusedHere(jig_protocol_worker_link::REFUSED_LIMITS) => {
-                        Some(crate::Refusal::Terms)
-                    }
-                    skein_channel::Closed::RefusedHere(jig_protocol_worker_link::REFUSED_FRAMING) => {
-                        Some(crate::Refusal::Malformed)
-                    }
-                    skein_channel::Closed::RefusedHere(_)
-                    | skein_channel::Closed::Owner
-                    | skein_channel::Closed::Framing
-                    | skein_channel::Closed::Stream
-                    | skein_channel::Closed::Truncated => None,
+                    link::Loss::Closed(skein_channel::Closed::RefusedPeer(code)) => Some(crate::Refusal::Peer(code)),
+                    link::Loss::Closed(skein_channel::Closed::RefusedHere(
+                        jig_protocol_worker_link::REFUSED_LIMITS,
+                    )) => Some(crate::Refusal::Terms),
+                    link::Loss::Closed(skein_channel::Closed::RefusedHere(
+                        jig_protocol_worker_link::REFUSED_FRAMING,
+                    )) => Some(crate::Refusal::Malformed),
+                    link::Loss::Closed(
+                        skein_channel::Closed::RefusedHere(_)
+                        | skein_channel::Closed::Owner
+                        | skein_channel::Closed::Framing
+                        | skein_channel::Closed::Stream
+                        | skein_channel::Closed::Truncated,
+                    )
+                    | link::Loss::Silence
+                    | link::Loss::Stall
+                    | link::Loss::Handshake
+                    | link::Loss::Full
+                    | link::Loss::Busy
+                    | link::Loss::Fault
+                    | link::Loss::Unreachable => None,
                 };
                 if let Some(reason) = reason
                     && let Connection::Socket(remote) = &mut self.connection
                     && remote.last_refusal != Some((remote.address, reason))
                 {
                     remote.last_refusal = Some((remote.address, reason));
-                    remote.notes.push(crate::Note::Refused {
+                    self.notes.push(crate::Note::Refused {
                         worker: remote.worker.clone(),
                         address: Box::new(remote.address),
                         reason,
@@ -565,6 +616,21 @@ impl Worker {
         work: &root::wire::Work,
         preparation: Option<&root::wire::Preparation>,
     ) {
+        let kind = self.root.job_kind(run, attempt);
+        let why = self.root.job_why(run, attempt);
+        let ending = match &answer {
+            hub::JobEnding::Failed { failure, detail, .. } => {
+                Some(temper_engine_domain::JobDiagnosticEnding::Failed { failure: *failure, detail: detail.clone() })
+            }
+            hub::JobEnding::Refused(reason) => Some(temper_engine_domain::JobDiagnosticEnding::Refused(reason.clone())),
+            hub::JobEnding::Finished { .. } => None,
+        };
+        if let Some((kind, verb)) = kind
+            && let Some(ending) = ending
+        {
+            let why = why.expect("a failed or refused job keeps its operator evidence until taken");
+            self.notes.push(crate::Note::WorkerJob { run: run.raw(), attempt: attempt.raw(), kind, verb, ending, why });
+        }
         let parts = worker_route::job_answer_parts(&answer, work, preparation);
         self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::JobAnswer { run, attempt, answer }, parts });
     }
@@ -637,8 +703,9 @@ impl Worker {
                 {
                     remote.hello_pending = false;
                     remote.last_refusal = None;
-                    remote
-                        .notes
+                    remote.linked = true;
+                    remote.loss_pending = false;
+                    self.notes
                         .push(crate::Note::Linked { worker: remote.worker.clone(), address: Box::new(remote.address) });
                 }
             }
@@ -818,7 +885,7 @@ impl Worker {
             self.git.component.fire(now, &mut self.git.out);
             self.git_drain();
         }
-        if self.git.ready && self.link_taken() {
+        if self.git.ready {
             self.link.fire(now, &mut self.link_out);
             self.drain_link(now);
         }
@@ -1121,14 +1188,18 @@ fn owner_of(event: &mut io::Event, new: Token) {
 }
 
 fn worker_root(limits: &root::Limits) -> root::Domain {
-    root::Domain::new(
-        limits,
-        Box::new([root::tooling::Kind {
-            bound: crate::limits::merge_bound(),
-            verb: b"merge".as_slice().into(),
-            delivers: true,
-        }]),
-    )
+    root::Domain::new(limits, crate::limits::job_kinds())
+}
+
+impl crate::Service {
+    /// The worker domain, for a world to inspect before requesting shutdown.
+    #[must_use]
+    pub fn worker_domain(&self) -> Option<&temper_worker_domain::Domain> {
+        match &self.worker {
+            Some(worker) => Some(&worker.root),
+            None => None,
+        }
+    }
 }
 
 #[cfg(test)]

@@ -19,6 +19,11 @@ A chat is a conversation between a party and an agent in a project: an untracked
   what agents must follow stays in their instructions or in documents
   their charters name. An owner decides the proposal; the agent changes
   nothing itself (temper help settings).
+- **A design session,** template 6 under charter 12 in the stock: the
+  drafter designs one piece of work with you, one question at a time,
+  keeps the draft as the chat's document and starts nothing. You start
+  a goal from the draft. A session opened again goes on from its draft
+  and its open points.
 - **A failed settings proposal** creates no proposal to accept. Its activity
   summary says "failed to propose a change" and counts failed attempts
   separately from successful proposals; expand the activity to read the refusal.
@@ -107,6 +112,10 @@ A chat is a conversation between a party and an agent in a project: an untracked
 
 ## Acting on it
 
+- **In the client:** Work in the project's rail holds its Goals and Changes
+  filters and the way to Chats. To start one, use **+ New draft or change**
+  on the rail and choose Draft or Change; with no drafts offered, use
+  **+ New change**.
 - **Read a run's brief:** `temper ctl DIR chat show TASK` prints the
   gathered brief, including charter document sections and their recorded
   commits. Follow `chat show TASK --before CURSOR` as printed to reach
@@ -130,8 +139,11 @@ A chat is a conversation between a party and an agent in a project: an untracked
   the tab bar to open its newest open chat, or start a new one.
 - **The stock chat's runs** use the host tools `change`, `goal`,
   `delegate`, `decided` and `message`, and read these pages with `read_docs`.
-  Ask temper reads with `see`, keeps its chat's document with `document`
-  and proposes settings with `propose_settings`.
+  Ask temper reads with `see`, keeps its chat's document with `document`,
+  keeps a line about you across your chats with `remember` when you ask
+  it to, and proposes settings with `propose_settings`. On the web, the
+  lines it keeps are on **What temper remembers about you**, in your
+  menu, where you change or delete them.
 
 ## Limits
 

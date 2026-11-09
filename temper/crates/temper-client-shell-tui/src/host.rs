@@ -14,6 +14,7 @@ use temper_client_domain::{
     },
 };
 use temper_client_shell_terminal::route::{self, Down, Duty};
+use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
 use temper_client_tui::{self as tui, Local, Note, Refusal, Told};
 use temper_client_view::shared;
 
@@ -34,9 +35,14 @@ enum Phase {
     Again(Time),
 }
 
+enum Opening {
+    Approval,
+    Page { address: Box<[u8]> },
+}
+
 pub struct Start {
     pub size: Size,
-    pub scheme: tui::Scheme,
+    pub scheme: Option<tui::Scheme>,
     pub background: Option<Rgb>,
     pub address: Box<[u8]>,
     pub local: bool,
@@ -97,6 +103,10 @@ pub struct Host {
     theme: Theme,
     size: Size,
     background: Option<Rgb>,
+    terminal: Option<tui::Scheme>,
+    choice: ThemeChoice,
+    // Each write in asked order: true for the root, false for the host.
+    root_writes: Queue<bool>,
     boxed: bool,
     focus: Focus,
     frame: Frame,
@@ -106,9 +116,11 @@ pub struct Host {
     local: bool,
     note: Option<Note>,
     need: Option<Need>,
+    notice_end: Option<Time>,
     local_signing: bool,
     asked_opening: Option<u64>,
     browse: bool,
+    opens: Queue<Opening>,
     addressed: bool,
     closed: bool,
 }
@@ -132,6 +144,9 @@ impl Host {
             theme: tui::theme(tui::Scheme::Dark, None),
             size: Size { rows: 0, columns: 0 },
             background: None,
+            terminal: None,
+            choice: ThemeChoice::Auto,
+            root_writes: Queue::uncapped(),
             boxed: false,
             focus: Focus::default(),
             frame: Frame::new(limits.most),
@@ -141,9 +156,11 @@ impl Host {
             local: false,
             note: None,
             need: None,
+            notice_end: None,
             local_signing: false,
             asked_opening: None,
             browse: false,
+            opens: Queue::uncapped(),
             addressed: false,
             closed: false,
         }
@@ -169,6 +186,10 @@ impl Host {
             Report::Front(line) => self.tell(Told::BoxLine { line }),
             Report::Start(start) => self.start(start, &mut duties),
             Report::Due => {
+                if self.notice_end.is_some_and(|end| end <= self.env.now) {
+                    self.notice_end = None;
+                    self.tell(Told::Notice { notice: None });
+                }
                 root::fire(&mut self.root, &self.env, &mut self.out);
                 if let Some(need) = &mut self.need
                     && let Phase::Again(at) = need.phase
@@ -180,7 +201,9 @@ impl Host {
                 }
             }
             Report::Key(key) => {
-                if let Some(event) = self.arrow(&key) {
+                if key == Key::Char('n') && tui::walk_key(&self.view).is_some() {
+                    self.tell(Told::Walk { by_key: true });
+                } else if let Some(event) = self.arrow(&key) {
                     self.event(event, &mut duties);
                 } else {
                     match command(&key, self.view.tree(), &mut self.focus, &self.bounds) {
@@ -205,7 +228,10 @@ impl Host {
             }
             Report::Heard(event) => self.heard(event),
             Report::Kept { written } => self.tell(Told::Kept { written }),
-            Report::Opened { opened } => self.tell(Told::Opened { opened }),
+            Report::Opened { opened } => match self.opens.pop() {
+                Some(Opening::Page { address }) => self.tell(Told::NotOpened { address: (!opened).then_some(address) }),
+                Some(Opening::Approval) | None => self.tell(Told::Opened { opened }),
+            },
         }
         self.route(&mut duties);
         root::take(&mut self.root, &self.env, &mut self.out);
@@ -213,17 +239,10 @@ impl Host {
         self.launchpad(project);
         self.route(&mut duties);
         if let Some(aside) = self.state().aside()
-            && shared::question(&self.root, self.view.words().view()).is_none_or(|question| question.object != aside)
+            && !self.aside_stands(aside)
         {
             self.tell(Told::Aside { object: None });
         }
-        self.theme = tui::theme(
-            match self.root.pages().look().theme {
-                terminal::Theme::Dark => tui::Scheme::Dark,
-                terminal::Theme::Light => tui::Scheme::Light,
-            },
-            self.background,
-        );
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
@@ -259,6 +278,11 @@ impl Host {
             duties.note = self.note;
         }
         self.approval(&mut duties);
+        let scheme = match self.root.pages().look().theme {
+            terminal::Theme::Dark => tui::Scheme::Dark,
+            terminal::Theme::Light => tui::Scheme::Light,
+        };
+        self.theme = tui::theme(scheme, self.background);
         tui::build(
             &mut self.view,
             self.state.as_ref().expect("started TUI"),
@@ -278,6 +302,7 @@ impl Host {
         }
         self.size = start.size;
         self.background = start.background;
+        self.terminal = start.scheme;
         self.boxed = start.boxed;
         if self.boxed {
             self.tell(Told::Boxed);
@@ -288,8 +313,13 @@ impl Host {
         self.note = start.note;
         let mut kept = List::with_capacity(u32::try_from(start.kept.len()).expect("bounded store"));
         for record in start.kept {
-            kept.push(record).expect("counted store");
+            if record.key.as_ref() == THEME_KEY {
+                self.choice = ThemeChoice::read(&record.bytes);
+            } else {
+                kept.push(record).expect("counted store");
+            }
         }
+        self.tell(Told::Theme { choice: self.choice, terminal: self.terminal });
         self.step(Event::Start {
             address: Address::Inbox { filter: Filter::ALL },
             kept,
@@ -298,7 +328,7 @@ impl Host {
         self.step(Event::LookKept {
             look: Look {
                 terminal: true,
-                theme: match start.scheme {
+                theme: match self.choice.scheme(self.terminal) {
                     tui::Scheme::Dark => terminal::Theme::Dark,
                     tui::Scheme::Light => terminal::Theme::Light,
                 },
@@ -398,13 +428,34 @@ impl Host {
         root::step(&mut self.root, &self.env, event, &mut self.out);
     }
 
-    fn typed(&mut self, value: Box<[u8]>) {
-        if self.root.client().link().state == Link::SignedOut {
+    fn aside_stands(&self, object: jig_client::contract::ObjectKey) -> bool {
+        if self.state().walk().is_some() {
+            shared::need_prompts(&self.root, self.view.words().view())
+                .iter()
+                .any(|prompt| prompt.object == object && matches!(prompt.act, shared::NeedAct::Answer(_)))
+        } else {
+            shared::question(&self.root, self.view.words().view()).is_some_and(|question| question.object == object)
+        }
+    }
+
+    fn typed(&mut self, mut value: Box<[u8]>) {
+        if self.state().aside().is_none() && self.state().walk().is_some() {
+            if self.state().walk().is_some_and(|walk| walk.by_key() && !walk.taken()) {
+                value = skein_lib::bytes::concat(&[b"n", &value]);
+                self.tell(Told::Cleared);
+            }
+            if !value.is_empty() {
+                self.tell(Told::EndWalk);
+            }
+        }
+        if tui::sign_in_drawn(&self.root, self.state()) {
             self.tell(Told::Typed { value });
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
         } else if self.root.pages().chats().is_some() {
-            self.tell(Told::LeftOff { task: None });
+            if !value.starts_with(b"/") {
+                self.tell(Told::LeftOff { task: None });
+            }
             self.act(Act::ChatWords { words: value });
         } else {
             self.tell(Told::CommandWords { value });
@@ -413,7 +464,29 @@ impl Host {
 
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
         match event {
-            tui::Event::Typed { value } => self.typed(value),
+            tui::Event::Own { command } => self.own(command, duties),
+            tui::Event::Open { address } => self.open(address, duties),
+            tui::Event::Walk { object, step } => {
+                match step {
+                    tui::WalkStep::Choose { words } => self.act(Act::Needs(needs::Act::Choose { object, words })),
+                    tui::WalkStep::Open { address } => self.open(address, duties),
+                    tui::WalkStep::Next => {}
+                }
+                self.tell(Told::Walked { object });
+            }
+            tui::Event::EndWalk => self.tell(Told::EndWalk),
+            tui::Event::Typed { value } => {
+                self.tell(Told::ThemeList { open: false });
+                self.typed(value);
+            }
+            tui::Event::Theme { choice } => {
+                self.tell(Told::ThemeList { open: false });
+                if let Some(choice) = choice {
+                    self.keep_theme(choice, duties);
+                    self.tell(Told::Cleared);
+                    self.notice(tui::Notice::Theme { choice, terminal: self.terminal });
+                }
+            }
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
                 self.ask();
@@ -451,18 +524,60 @@ impl Host {
             tui::Event::Log => {
                 if self.state().front() {
                     self.act(Act::Terminal(terminal::Act::Dismiss));
-                    self.tell(Told::Log);
                     self.tell(Told::Cleared);
+                    self.tell(Told::Log);
                 }
             }
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
             tui::Event::Aside { object } => self.tell(Told::Aside { object: Some(object) }),
-            tui::Event::Dismiss => {
-                self.act(Act::Terminal(terminal::Act::Dismiss));
+            tui::Event::Dismiss => self.dismiss(),
+        }
+    }
+
+    fn dismiss(&mut self) {
+        self.act(Act::Terminal(terminal::Act::Dismiss));
+        self.tell(Told::LeftOff { task: None });
+        self.tell(Told::Cleared);
+    }
+
+    fn own(&mut self, command: tui::Own, duties: &mut Duties) {
+        match command {
+            tui::Own::Change | tui::Own::Ask => {
+                let words = skein_lib::bytes::concat(&[command.name(), b" "]);
+                self.act(Act::ChatWords { words });
                 self.tell(Told::Cleared);
             }
+            tui::Own::Brief => {
+                self.act(Act::Terminal(terminal::Act::Dismiss));
+                self.tell(Told::Cleared);
+                self.tell(Told::Brief);
+            }
+            tui::Own::Needs => {
+                self.act(Act::Terminal(terminal::Act::Dismiss));
+                self.tell(Told::Cleared);
+                self.tell(Told::Walk { by_key: false });
+            }
+            tui::Own::Theme => {
+                self.act(Act::Terminal(terminal::Act::Dismiss));
+                self.tell(Told::Cleared);
+                self.tell(Told::ThemeList { open: true });
+                self.focus.active = None;
+            }
+            tui::Own::Open => {
+                if let Some(address) = tui::focus(&self.view) {
+                    let address = address.into();
+                    self.act(Act::Terminal(terminal::Act::Dismiss));
+                    self.tell(Told::Cleared);
+                    self.open(address, duties);
+                }
+            }
         }
+    }
+
+    fn open(&mut self, address: Box<[u8]>, duties: &mut Duties) {
+        self.opens.push(Opening::Page { address: address.clone() });
+        duties.open = Some(address);
     }
 
     fn act(&mut self, act: Act) {
@@ -480,25 +595,51 @@ impl Host {
     }
 
     fn send(&mut self, duties: &mut Duties) {
-        self.tell(Told::Unknown { words: None });
+        if tui::landing(&self.root) {
+            self.notice(tui::Notice::SigningIn);
+            return;
+        }
+        self.tell(Told::NotOpened { address: None });
         let words = self.words();
         let command_words = words.starts_with(b"/")
             && core::str::from_utf8(words).is_ok_and(|words| !words.chars().any(char::is_whitespace));
+        if self.root.pages().chat().is_none() && self.root.pages().project().is_some() && self.launchpad_words() {
+            return;
+        }
+        let words = self.words();
         if command_words {
-            if let Some(command) = tui::offered(&self.root, self.view.words())
+            let own = tui::offered_own(&self.root, self.state())
                 .iter()
                 .find(|command| command.name().starts_with(words))
-                .copied()
-            {
+                .copied();
+            let root = if words == tui::EXIT {
+                Some(TuiCommand::Exit)
+            } else {
+                tui::offered(&self.root, self.view.words())
+                    .iter()
+                    .find(|command| tui::command_name(**command).starts_with(words))
+                    .copied()
+            };
+            if let Some(command @ (tui::Own::Change | tui::Own::Ask)) = own {
+                self.event(tui::Event::Own { command }, duties);
+            } else if let Some(command) = root {
                 self.event(tui::Event::Command { command }, duties);
+            } else if let Some(command) = own {
+                self.event(tui::Event::Own { command }, duties);
             } else if self.state().front() && tui::LOG_COMMAND.starts_with(words) {
                 self.event(tui::Event::Log, duties);
             } else {
-                let words = Some(words.into());
-                self.act(Act::Terminal(terminal::Act::Dismiss));
-                self.tell(Told::Unknown { words });
-                self.tell(Told::Cleared);
+                self.unknown();
             }
+            return;
+        }
+        if let Some(object) = self.state().aside().filter(|_| self.state().walk().is_some()) {
+            let words = words.into();
+            self.act(Act::Needs(needs::Act::OpenReply { object }));
+            self.act(Act::CardWords { object, words });
+            self.act(Act::Needs(needs::Act::SendReply { object }));
+            self.act(Act::ChatWords { words: Box::default() });
+            self.tell(Told::Walked { object });
             return;
         }
         if self.root.pages().chat().is_some()
@@ -520,8 +661,54 @@ impl Host {
         self.tell(Told::Cleared);
     }
 
+    fn launchpad_words(&mut self) -> bool {
+        let words = self.words();
+        if let Some(words) = words.strip_prefix(b"/change ").filter(|words| !words.is_empty()) {
+            let words = words.into();
+            self.went(Address::NewChat { draft: false });
+            self.act(Act::ChatWords { words });
+            self.act(Act::StartChat);
+            self.tell(Told::Cleared);
+        } else if let Some(words) = words.strip_prefix(b"/ask ").filter(|words| !words.is_empty()) {
+            let words = words.into();
+            if let Some(project) = self.root.pages().project()
+                && self.root.pages().address() != &(Address::Home { project })
+            {
+                self.went(Address::Home { project });
+            }
+            self.act(Act::ChatWords { words });
+            self.act(Act::StartChat);
+            self.tell(Told::Cleared);
+        } else if let Some(number) = words.strip_prefix(b"/chats ") {
+            let task = core::str::from_utf8(number)
+                .ok()
+                .and_then(|number| number.parse::<u32>().ok())
+                .and_then(|number| tui::chat_number(&self.view, number));
+            if let Some(task) = task {
+                self.act(Act::Go { address: Address::Chat { task } });
+                self.tell(Told::Cleared);
+            } else {
+                self.unknown();
+            }
+        } else {
+            return false;
+        }
+        true
+    }
+
+    fn notice(&mut self, notice: tui::Notice) {
+        self.tell(Told::Notice { notice: Some(notice) });
+        self.notice_end = Some(self.env.now.saturating_add(tui::limits::NOTICE));
+    }
+
+    fn unknown(&mut self) {
+        let words = self.words().into();
+        self.act(Act::Terminal(terminal::Act::Dismiss));
+        self.notice(tui::Notice::Unknown { words });
+        self.tell(Told::Cleared);
+    }
+
     fn went(&mut self, address: Address) {
-        self.tell(Told::Unknown { words: None });
         self.step(Event::Went { place: Place::Address(address) });
         self.tell(Told::Went);
     }
@@ -540,13 +727,17 @@ impl Host {
             && let Some(me) = self.root.pages().me(self.root.client())
             && let Some(project) = me.projects.get(0)
         {
+            let words: Box<[u8]> = self.state().command_words().into();
             self.went(Address::Home { project: project.project });
+            if !words.is_empty() {
+                self.act(Act::ChatWords { words });
+            }
         }
     }
 
     fn show(&mut self, address: Address) {
         let project = match &address {
-            Address::Home { .. } | Address::Chat { .. } => {
+            Address::AllHome | Address::Home { .. } | Address::Chat { .. } => {
                 self.went(address);
                 return;
             }
@@ -554,12 +745,14 @@ impl Host {
                 self.went(address);
                 return;
             }
-            Address::Goals { project, .. }
+            Address::Work { project, .. }
+            | Address::Goals { project, .. }
             | Address::Changes { project }
             | Address::Settings { project }
             | Address::Repositories { project }
             | Address::Models { project }
             | Address::Builders { project }
+            | Address::Team { project }
             | Address::Role { project, .. }
             | Address::Rule { project, .. }
             | Address::Ask { project }
@@ -567,6 +760,9 @@ impl Host {
             Address::Inbox { filter } => filter.project,
             Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Remembered
+            | Address::Members
+            | Address::Limits
             | Address::Accounts
             | Address::Forges
             | Address::ConnectForge { .. }
@@ -597,6 +793,7 @@ impl Host {
             match self.root.asked() {
                 Some(root::asked::State::Asked { code, .. }) => {
                     duties.open = Some(tui::approval_address(self.state().address(), code));
+                    self.opens.push(Opening::Approval);
                     self.tell(Told::Browse);
                     self.browse = false;
                 }
@@ -607,6 +804,11 @@ impl Host {
     }
 
     fn heard(&mut self, event: jig_client::Event) {
+        if matches!(&event, jig_client::Event::Stored | jig_client::Event::NotStored)
+            && self.root_writes.pop() != Some(true)
+        {
+            return;
+        }
         let local = match &event {
             jig_client::Event::Reply { exchange, .. } | jig_client::Event::Lost { exchange } => self
                 .need
@@ -644,6 +846,7 @@ impl Host {
         if local && self.root.client().link().state == Link::SignedOut {
             match self.root.client().link().not_signed_in {
                 Some(jig_client::NotSignedIn::LinkUsed | jig_client::NotSignedIn::LinkExpired) => self.again_local(),
+                Some(jig_client::NotSignedIn::NotReady | jig_client::NotSignedIn::Busy) if self.state().front() => {}
                 None
                 | Some(
                     jig_client::NotSignedIn::Approval(_)
@@ -682,6 +885,9 @@ impl Host {
                     if matches!(&request, jig_client::Request::Exchange { message: Message::SignInApproval(_), .. }) {
                         self.local_signing = false;
                     }
+                    if matches!(&request, jig_client::Request::Save { .. } | jig_client::Request::Erase { .. }) {
+                        self.root_writes.push(true);
+                    }
                     duties.asked.push(request);
                 }
                 Down::Duty(Duty::Copy { token }) => {
@@ -690,6 +896,24 @@ impl Host {
                 Down::Duty(Duty::Show { address, .. }) => self.show(address),
             }
         }
+    }
+
+    fn keep_theme(&mut self, choice: ThemeChoice, duties: &mut Duties) {
+        self.choice = choice;
+        self.tell(Told::Theme { choice, terminal: self.terminal });
+        let theme = match choice.scheme(self.terminal) {
+            tui::Scheme::Dark => terminal::Theme::Dark,
+            tui::Scheme::Light => terminal::Theme::Light,
+        };
+        self.step(Event::LookKept { look: Look { theme, ..self.root.pages().look() } });
+        self.theme = tui::theme(choice.scheme(self.terminal), self.background);
+        self.route(duties);
+        let mut records = List::with_capacity(1);
+        records
+            .push(jig_client::Record { key: THEME_KEY.into(), bytes: choice.print().into() })
+            .expect("one theme record");
+        duties.asked.push(jig_client::Request::Save { records });
+        self.root_writes.push(false);
     }
 
     fn quit(&mut self, duties: &mut Duties) {
@@ -725,6 +949,11 @@ impl Host {
 
     #[must_use]
     pub fn event_of(&self, key: &Key) -> Option<tui::Event> {
+        if *key == Key::Char('n')
+            && let Some(event) = tui::walk_key(&self.view)
+        {
+            return Some(event);
+        }
         if let Some(event) = self.arrow(key) {
             return Some(event);
         }
@@ -759,7 +988,10 @@ impl Host {
             Phase::Again(at) => Some(at),
             Phase::Reading | Phase::Signing(_) => None,
         });
-        skein_lib::earliest(skein_lib::earliest(root::next_deadline(&self.root), tick), local)
+        skein_lib::earliest(
+            skein_lib::earliest(skein_lib::earliest(root::next_deadline(&self.root), tick), local),
+            self.notice_end,
+        )
     }
 }
 

@@ -842,6 +842,155 @@ fn refused_answer_reason_reaches_operator_once() {
     }
 }
 
+/// A restored job claim uses the same fencing and channel as the run fixture.
+fn claimed_job() -> (crate::Service, temper_engine_domain::Assignment) {
+    use temper_engine_domain::{Record, Write};
+    let (mut service, mut run) = fixtures::claimed_chat();
+    let engine = service.engine.as_mut().unwrap();
+    let mut task = engine.domain.tasks().task(run.task).unwrap().clone();
+    task.executor = tasks::Executor::Job { kind: 3 };
+    task.flags = tasks::Flags::PLAIN;
+    task.llm = None;
+    task.spec.words = Box::new([]);
+    task.spec.parameters = Box::new([]);
+    task.spec.inputs = Box::new([]);
+    task.spec.asks = false;
+    let mut parent = fixtures::task_record(2);
+    parent.executor = tasks::Executor::Procedure { connector: 1, code: 2 };
+    parent.numbers.budget = 0;
+    parent.authority.budget.spend = 0;
+    parent.funder = task.funder;
+    parent.delegates = Box::new([task.number]);
+    parent.references = Box::new([task.number]);
+    task.requester = tasks::Party::Task(parent.number);
+    task.root = parent.number;
+    task.depth = 1;
+    let mut header = engine.domain.deployment();
+    header.tasks = 2;
+    header.commits = header.commits.checked_add(1).unwrap();
+    task.contract = tasks::Contract::Job { bytes: 32 };
+    task.spec.job =
+        Some(Box::new(tasks::JobSpec { bytes: Box::new([]), deadline: skein_lib::Duration::from_secs(10) }));
+    fixtures::commit(
+        &mut engine.store,
+        1,
+        Box::new([
+            Write::Save(Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(task))))),
+            Write::Save(Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(parent))))),
+            Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))),
+        ]),
+    );
+    let Some(jig_protocol_store::Event::Committed { .. }) = engine.store.host.above.pop() else {
+        panic!("fixture commit");
+    };
+    while engine.store.host.above.pop().is_some() {}
+    let mut restored = fixtures::start_with_store(&[(1, 100)], Some(service.engine.take().unwrap().store));
+    fixtures::restart(&mut restored);
+    let jig_protocol_engine_workers::host::Output::Hello { mut hello, .. } = hello_for_loss_notes(0) else {
+        unreachable!()
+    };
+    hello.jobs = Box::new([crate::limits::merge_bound()]);
+    restored.engine.as_mut().unwrap().step(temper_engine_domain::Event::Worker(
+        temper_engine_domain::WorkerInput::Link {
+            channel: Token::new(7),
+            link: temper_engine_domain::Link::Hello { worker: 0, hello },
+        },
+    ));
+    let engine = restored.engine.as_mut().unwrap();
+    crate::engine::clock(engine, Time::from_nanos(2_000_000_000), skein_lib::Wall::from_nanos(2_000_000_000));
+    temper_engine_domain::fire(&mut engine.domain, &engine.env);
+    let mut delivered = skein_lib::Queue::uncapped();
+    fixtures::settle_root(&mut restored, &mut delivered);
+    let mut assigned = None;
+    while let Some(delivery) = delivered.pop() {
+        if let temper_engine_domain::Delivery::AssignedJob { job, .. } = delivery {
+            assigned = Some(job);
+        }
+    }
+    run.attempt = assigned.expect("the restored job is assigned after its first refusal backs off").attempt.raw();
+    (restored, run)
+}
+
+#[test]
+fn job_answer_evidence_reaches_operator_once() {
+    use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding};
+    for (ending, diagnostic) in [
+        (
+            host::JobEnding::Failed {
+                failure: host::JobFailure::Unprepared(host::Preparation::Transient),
+                detail: b"fetch base: Broken".as_slice().into(),
+                work: host::Work { left: None, saved: None },
+            },
+            JobDiagnosticEnding::Failed {
+                failure: host::JobFailure::Unprepared(host::Preparation::Transient),
+                detail: b"fetch base: Broken".as_slice().into(),
+            },
+        ),
+        (
+            host::JobEnding::Refused(host::JobRefusal::Invalid(host::JobInvalid::Start {
+                why: b"job spec".as_slice().into(),
+            })),
+            JobDiagnosticEnding::Refused(host::JobRefusal::Invalid(host::JobInvalid::Start {
+                why: b"job spec".as_slice().into(),
+            })),
+        ),
+    ] {
+        for full in [false, true] {
+            let (mut service, run) = claimed_job();
+            while service.notes().pop().is_some() {}
+            let expected = crate::Note::JobAnswered(JobDiagnostic {
+                task: run.task,
+                run: run.task,
+                attempt: run.attempt,
+                kind: 3,
+                ending: match &diagnostic {
+                    JobDiagnosticEnding::Failed { failure, detail } => {
+                        JobDiagnosticEnding::Failed { failure: *failure, detail: detail.clone() }
+                    }
+                    JobDiagnosticEnding::Refused(reason) => JobDiagnosticEnding::Refused(reason.clone()),
+                },
+            });
+            for delivery in 0_u32..2 {
+                if full {
+                    while service.notes().room() > 0 {
+                        service.notes().push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
+                    }
+                }
+                service.engine.as_mut().unwrap().step(temper_engine_domain::Event::Worker(
+                    temper_engine_domain::WorkerInput::Link {
+                        channel: Token::new(7),
+                        link: temper_engine_domain::Link::Up {
+                            up: host::LinkUp::JobAnswer {
+                                run: Token::new(run.task),
+                                attempt: Token::new(run.attempt),
+                                answer: ending.clone(),
+                            },
+                            parts: temper_engine_domain::Parts::none(),
+                        },
+                    },
+                ));
+                advance_refusal(&mut service);
+                if full {
+                    while let Some(note) = service.notes().pop() {
+                        assert_eq!(note, crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
+                    }
+                }
+                let engine = service.engine.as_mut().unwrap();
+                crate::engine::clock(engine, engine.env.now, engine.env.wall);
+                fixtures::settle_root(&mut service, &mut skein_lib::Queue::uncapped());
+                let mut found = 0;
+                while let Some(note) = service.notes().pop() {
+                    if let crate::Note::JobAnswered(_) = note {
+                        assert_eq!(note, expected);
+                        found += 1;
+                    }
+                }
+                assert_eq!(found, u32::from(delivery == 0), "once per accepted job answer");
+            }
+        }
+    }
+}
+
 fn expected_run_note(run: &temper_engine_domain::Assignment, ending: &host::Ending) -> crate::Note {
     use temper_engine_domain::{RunDiagnostic, RunRefusalDiagnostic};
     match ending {
@@ -932,7 +1081,7 @@ fn admitted_review(assignment: temper_engine_domain::Assignment, bound: u64) -> 
     settings.files = fixtures::worker_digests(&settings);
     let mut workers = crate::workers::Workers::configured(&mut settings, [7; 16]).unwrap();
     workers.forges = fixtures::forge_table(&fixtures::forges());
-    assert_eq!(workers.encoding.charter_bytes, bound);
+    assert_eq!(workers.encoding.charter_bytes, bound.min(crate::assignment::WORKER_CHARTER_BYTES));
     let event = workers
         .encoded_assignment(Time::ZERO, Token::new(8), assignment, &crate::values::Values::new(0, 0))
         .expect("review assignment encodes");
@@ -1068,13 +1217,9 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
         let original = temper_engine_smith::charter(&assignment);
         let start = admitted_review(assignment, bound);
         let pull = &start.charter.value().brief.sections[1];
-        if bound == 98_304 {
-            assert_eq!(pull, &original.brief.sections[1]);
-        } else {
-            assert!(pull.text.len() < original.brief.sections[1].text.len());
-        }
+        assert!(pull.text.len() < original.brief.sections[1].text.len());
     }
-    let bound = 262_144_u64;
+    let bound = crate::assignment::WORKER_CHARTER_BYTES;
     let mut empty = review_assignment(100);
     empty.sections[1].body = temper_engine_domain::BriefBody::Text(Box::default());
     let charter = temper_engine_smith::charter(&empty);
@@ -1083,7 +1228,7 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
             .unwrap();
     let fixed = charter.owned_bytes().unwrap().max(u64::try_from(encoded.len()).unwrap());
     let room = usize::try_from(bound.checked_sub(fixed).unwrap()).unwrap();
-    for (size, whole) in [(63_740, true), (room + 1, false)] {
+    for (size, whole) in [(room, true), (room + 1, false)] {
         let assignment = review_assignment(size);
         let original = temper_engine_smith::charter(&assignment);
         let start = admitted_review(assignment, bound);
@@ -1202,4 +1347,84 @@ fn assert_pending_question(run: &temper_engine_domain::Assignment) {
         }
     }
     panic!("the person's pending question remains whole");
+}
+
+#[test]
+fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
+    use jig_protocol_engine_workers::{Loss, host::Output};
+    for (worker, position) in
+        [(Some(b"worker-a".as_slice()), Some(0)), (Some(b"worker-b".as_slice()), Some(1)), (None, None)]
+    {
+        let mut service = fixtures::started();
+        let workers = &mut service.engine.as_mut().unwrap().workers;
+        let worker = match worker {
+            Some(name) => Some(Box::from(name)),
+            None => None,
+        };
+        let mut events = skein_lib::Queue::uncapped();
+        let why = Loss::Refused { reason: 256 };
+        for _ in 0_u8..2 {
+            workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);
+        }
+        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: worker.clone(), why }));
+        assert!(workers.notes.is_empty(), "the same opening refusal prints once");
+        let other = u32::from(position == Some(0));
+        workers.route(hello_for_loss_notes(other), &mut events);
+        workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);
+        assert!(workers.notes.is_empty(), "another worker's hello does not reset this name");
+        if let Some(position) = position {
+            workers.route(hello_for_loss_notes(position), &mut events);
+            workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);
+            assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: worker.clone(), why }));
+        }
+        let changed = Loss::Refused { reason: 257 };
+        workers.route(Output::Ended { worker: worker.clone(), channel: None, why: changed }, &mut events);
+        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: worker.clone(), why: changed }));
+        // A channel that said hello prints on every end, including the same cause.
+        for channel in [Token::new(7), Token::new(8)] {
+            workers.route(Output::Ended { worker: worker.clone(), channel: Some(channel), why }, &mut events);
+            assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerLost { worker: worker.clone(), channel, why }));
+        }
+        assert!(workers.notes.is_empty());
+    }
+}
+
+fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Output {
+    jig_protocol_engine_workers::host::Output::Hello {
+        worker,
+        channel: Token::new(7),
+        hello: jig_domain_link::Hello {
+            jobs: Box::new([]),
+            slots: 1,
+            stop_bound: skein_lib::Duration::from_millis(100),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+            bounds: fixtures::worker_agent().bounds,
+        },
+    }
+}
+
+#[test]
+fn worker_loss_notes_wait_for_the_operator_sink_without_blocking_the_link() {
+    use jig_protocol_engine_workers::{Loss, host::Output};
+    let mut service = fixtures::started();
+    let engine = service.engine.as_mut().unwrap();
+    for _ in 0..engine.notes.capacity() {
+        engine.notes.push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
+    }
+    let worker = Some(b"worker-a".as_slice().into());
+    let channel = Token::new(7);
+    engine.workers.route(
+        Output::Ended { worker: worker.clone(), channel: Some(channel), why: Loss::Silence },
+        &mut engine.events,
+    );
+    engine.workers.route(Output::Ended { worker: None, channel: None, why: Loss::NoRoom }, &mut engine.events);
+    engine.drain_worker_notes();
+    assert_eq!(engine.workers.notes.len(), 2, "a full diagnostic sink retains both lines");
+    while engine.notes.pop().is_some() {}
+    crate::engine::clock(engine, Time::ZERO, skein_lib::Wall::EPOCH);
+    assert_eq!(engine.notes.pop(), Some(crate::Note::WorkerLost { worker, channel, why: Loss::Silence }));
+    assert_eq!(engine.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: None, why: Loss::NoRoom }));
+    assert!(engine.workers.notes.is_empty());
+    assert!(engine.notes.is_empty());
 }

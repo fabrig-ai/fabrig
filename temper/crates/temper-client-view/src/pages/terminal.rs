@@ -97,17 +97,24 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
                 Address::NewChat { .. } => Act::Go { address: Address::NewChat { draft: true } },
                 Address::Chat { .. }
                 | Address::Ask { .. }
+                | Address::AllHome
                 | Address::Inbox { .. }
                 | Address::Chats { .. }
+                // page-view: draw Remembered.
+                | Address::Remembered
+                | Address::Members
+                | Address::Limits
                 | Address::Accounts
                 | Address::Forges
                 | Address::ConnectForge { .. }
                 | Address::ConnectModel { .. }
                 | Address::Welcome { .. }
                 | Address::Task { .. }
+                | Address::Work { .. }
                 | Address::Goals { .. }
                 | Address::Home { .. }
                 | Address::Changes { .. }
+                | Address::Team { .. }
                 | Address::Settings { .. }
                 | Address::Models { .. }
                 | Address::Builders { .. }

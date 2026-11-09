@@ -84,6 +84,51 @@ pub const SHEET_ERROR: Style = Style { owner: owner(), token: 416 };
 
 /// The session toast (client/README.md, 3.5).
 pub const TOAST: Style = Style { owner: owner(), token: 300 };
+/// Work, client/README.md, 3.5.
+pub const WORK_PAGE: Style = Style { owner: owner(), token: 650 };
+/// Work, client/README.md, 3.5.
+pub const WORK_INTRO: Style = Style { owner: owner(), token: 651 };
+/// Work, client/README.md, 3.5.
+pub const WORK_KICKER: Style = Style { owner: owner(), token: 652 };
+/// Work, client/README.md, 3.5.
+pub const WORK_HEADLINE: Style = Style { owner: owner(), token: 653 };
+/// Work, client/README.md, 3.5.
+pub const WORK_LEDE: Style = Style { owner: owner(), token: 654 };
+/// Work, client/README.md, 3.5.
+pub const WORK_LANDING: Style = Style { owner: owner(), token: 655 };
+/// Work, client/README.md, 3.5.
+pub const WORK_FILTERS: Style = Style { owner: owner(), token: 656 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CHIP: Style = Style { owner: owner(), token: 657 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CURRENT: Style = Style { owner: owner(), token: 688 };
+/// Work, client/README.md, 3.5.
+pub const WORK_SECTION: Style = Style { owner: owner(), token: 689 };
+/// Work, client/README.md, 3.5.
+pub const WORK_SECTION_HEAD: Style = Style { owner: owner(), token: 690 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CARD: Style = Style { owner: owner(), token: 691 };
+/// Work, client/README.md, 3.5.
+pub const WORK_FROM: Style = Style { owner: owner(), token: 692 };
+/// Work, client/README.md, 3.5.
+pub const WORK_AGENT: Style = Style { owner: owner(), token: 693 };
+/// Work, client/README.md, 3.5.
+pub const WORK_CODE: Style = Style { owner: owner(), token: 664 };
+/// Work, client/README.md, 3.5.
+pub const WORK_PERSON: Style = Style { owner: owner(), token: 665 };
+/// Work, client/README.md, 3.5.
+pub const WORK_QUOTE: Style = Style { owner: owner(), token: 666 };
+/// Work, client/README.md, 3.5.
+pub const WORK_BAR: Style = Style { owner: owner(), token: 667 };
+/// Work, client/README.md, 3.5.
+pub const WORK_ROWS: Style = Style { owner: owner(), token: 668 };
+/// Work, client/README.md, 3.5.
+pub const WORK_ROW: Style = Style { owner: owner(), token: 669 };
+/// Work, client/README.md, 3.5.
+pub const WORK_BYLINE: Style = Style { owner: owner(), token: 670 };
+/// Work, client/README.md, 3.5.
+pub const WORK_MONO: Style = Style { owner: owner(), token: 671 };
+
 /// The Goals column (client/README.md, 3.5).
 pub const GOALS: Style = Style { owner: owner(), token: 270 };
 /// Goals’ intro (client/README.md, 3.5).
@@ -627,18 +672,20 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
 ];
 /// The project's navigation frame (client/README.md, 5.3).
 pub const RAIL: Style = Style { owner: owner(), token: 175 };
-/// The rail's three page entries.
+/// The rail's navigation entries.
 pub const RAIL_NAV: Style = Style { owner: owner(), token: 176 };
-/// The rail's new chat link and menu.
+/// The unnamed hairline before How work runs (client/README.md, 5.3).
+pub const RAIL_SEP: Style = Style { owner: owner(), token: 646 };
+/// The rail's new box.
 pub const RAIL_NEW: Style = Style { owner: owner(), token: 177 };
-/// All ways to start work in the rail menu (client/README.md, 5.3).
-pub const RAIL_NEW_ALL: Style = Style { owner: owner(), token: 437 };
-/// The rail's status, settings and person.
+/// The rail's Away switch, status, Deployment and person.
 pub const RAIL_FOOT: Style = Style { owner: owner(), token: 178 };
 /// The browser’s night switch (temper/docs/design/client/README.md, 5.3).
 pub const NIGHT_SWITCH: Style = Style { owner: owner(), token: 608 };
 /// The browser's phone navigation.
 pub const TABBAR: Style = Style { owner: owner(), token: 179 };
+/// To begin's tab bar stays below a phone's Ask composer (client/README.md, 5.3).
+pub const TABBAR_BEGINNING: Style = Style { owner: owner(), token: 647 };
 /// Forge status in the welcome's column (client/README.md, 3.5).
 pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 373 };
 /// A Model way’s panel (client/README.md, 3.5).
@@ -972,10 +1019,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-299",
         b"temper-toast",
         b"temper-needs",
-        b"temper-flow-head",
-        b"temper-dots",
-        b"temper-dot",
-        b"temper-dot-done",
+        b"temper-reserved-302",
+        b"temper-reserved-303",
+        b"temper-reserved-304",
+        b"temper-reserved-305",
         b"temper-flow-q",
         b"temper-ask-context",
         b"temper-ask-saw",
@@ -987,7 +1034,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-answered",
         b"temper-answered-label",
         b"temper-answered-undo",
-        b"temper-next-up",
+        b"temper-reserved-317",
         b"temper-answered-section",
         b"temper-needs-home",
         b"temper-needs-intro",
@@ -1107,7 +1154,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-facts",
         b"temper-home-byline",
         b"temper-chat-goal",
-        b"temper-rail-new-all",
+        b"temper-reserved-437",
         b"temper-away",
         b"temper-away-chip",
         b"temper-away-track",
@@ -1290,7 +1337,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-view-muted",
         b"temper-view-card",
         b"temper-ways-path",
-        b"temper-ways-rise",
+        b"temper-reserved-620",
         b"temper-ways-stop",
         b"temper-ways-hit",
         b"temper-ways-halo",
@@ -1316,36 +1363,100 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-acts",
         b"temper-ways-use",
         b"temper-ways-refused",
+        // Reserved for the rail, Work and Deployment (client/browser.md, 2.5)
+        b"temper-rail-sep",
+        b"temper-tabbar-beginning",
+        b"temper-reserved-648",
+        b"temper-reserved-649",
+        b"temper-work-page",
+        b"temper-work-intro",
+        b"temper-work-kicker",
+        b"temper-work-headline",
+        b"temper-work-lede",
+        b"temper-work-landing",
+        b"temper-work-filters",
+        b"temper-work-chip",
+        b"temper-work-current",
+        b"temper-work-section",
+        b"temper-work-section-head",
+        b"temper-work-card",
+        b"temper-work-from",
+        b"temper-work-agent",
+        b"temper-work-code",
+        b"temper-work-person",
+        b"temper-work-quote",
+        b"temper-work-bar",
+        b"temper-work-rows",
+        b"temper-work-row",
+        b"temper-work-byline",
+        b"temper-work-mono",
+        b"temper-reserved-672",
+        b"temper-reserved-673",
+        b"temper-reserved-674",
+        b"temper-reserved-675",
         b"temper-how-wide",
         b"temper-how-way",
-        b"temper-how-scroll",
-        b"temper-how-path",
-        b"temper-how-head",
-        b"temper-how-lane",
-        b"temper-how-person",
-        b"temper-how-agent",
-        b"temper-how-code",
-        b"temper-how-bar",
-        b"temper-how-line",
+        b"temper-how-roles",
+        b"temper-how-role",
+        b"temper-how-role-more",
+        b"temper-reserved-681",
+        b"temper-reserved-682",
+        b"temper-reserved-683",
+        b"temper-reserved-684",
+        b"temper-reserved-685",
+        b"temper-reserved-686",
         b"temper-how-row",
+        b"temper-decision-allowed",
+        b"temper-why",
+        b"temper-why-offers",
+        b"temper-need-row",
+        b"temper-need-tell",
+        b"temper-needs-head",
+        b"temper-chip",
+        b"temper-need-card",
+        b"temper-need-from",
+        b"temper-need-acts",
+        b"temper-need-more",
+        b"temper-chip-good",
+        b"temper-chip-signal",
+        b"temper-decided-head",
+        b"temper-home-phone",
+        b"temper-home-wide",
+        b"temper-ask-line",
+        b"temper-ways-maybe",
+        b"temper-ways-why",
+        b"temper-ways-rise-person",
+        b"temper-ways-rise-agent",
+        b"temper-ways-fade-person",
+        b"temper-ways-fade-person-faint",
+        b"temper-ways-fade-agent",
+        b"temper-ways-fade-agent-faint",
+        b"temper-ways-fade-base",
+        b"temper-ways-kind-maybe",
+        b"temper-team",
+        b"temper-team-intro",
+        b"temper-team-people",
+        b"temper-team-person",
+        b"temper-team-role",
+        b"temper-team-line",
+        b"temper-needs-bar",
+        b"temper-needs-bar-at",
+        b"temper-tabbar-ask",
+        b"temper-remembered-rows",
+        b"temper-remembered-acts",
+        b"temper-only",
+        b"temper-only-item",
+        b"temper-only-q",
     ],
     regions: &[b"temper-link"],
 };
 
+pub const WHY: Style = Style { owner: owner(), token: 689 };
+/// Stop asking offers (temper/docs/design/client/README.md, 3.5).
+pub const WHY_OFFERS: Style = Style { owner: owner(), token: 690 };
+
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS: Style = Style { owner: owner(), token: 301 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const FLOW_HEAD: Style = Style { owner: owner(), token: 302 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOTS: Style = Style { owner: owner(), token: 303 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOT: Style = Style { owner: owner(), token: 304 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOT_DONE: Style = Style { owner: owner(), token: 305 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const FLOW_Q: Style = Style { owner: owner(), token: 306 };
@@ -1381,9 +1492,6 @@ pub const ANSWERED_LABEL: Style = Style { owner: owner(), token: 315 };
 pub const ANSWERED_UNDO: Style = Style { owner: owner(), token: 316 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const NEXT_UP: Style = Style { owner: owner(), token: 317 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const ANSWERED_SECTION: Style = Style { owner: owner(), token: 318 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
@@ -1401,6 +1509,10 @@ pub const SETTINGS_PROPOSAL_OK: Style = Style { owner: owner(), token: 330 };
 pub const SETTINGS_PROPOSAL_ITEMS: Style = Style { owner: owner(), token: 331 };
 pub const SETTINGS_PROPOSAL_REASON: Style = Style { owner: owner(), token: 332 };
 pub const SETTINGS_PROPOSAL_ACTS: Style = Style { owner: owner(), token: 333 };
+/// Remembered rows (temper/docs/design/client/README.md, 5.17).
+pub const REMEMBERED_ROWS: Style = Style { owner: owner(), token: 724 };
+/// Remembered row actions (temper/docs/design/client/README.md, 5.17).
+pub const REMEMBERED_ACTS: Style = Style { owner: owner(), token: 725 };
 /// Settings frame and rows (temper/docs/design/client/README.md, 3.5, Settings).
 pub const SETTINGS_COL: Style = Style { owner: owner(), token: 334 };
 pub const SETTINGS_INTRO: Style = Style { owner: owner(), token: 335 };
@@ -1489,6 +1601,9 @@ pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
 pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
+
+/// What allowed a decision (temper/docs/design/client/README.md, 3.5, Decided for you).
+pub const DECISION_ALLOWED: Style = Style { owner: owner(), token: 688 };
 
 /// The last word of a turn being written (client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 469 };
@@ -1713,7 +1828,6 @@ pub const VIEW_CARD: Style = Style { owner: owner(), token: 618 };
 
 /// Path layout and presses (temper/docs/design/client/README.md, 5.16).
 pub const WAYS_PATH: Style = Style { owner: owner(), token: 619 };
-pub const WAYS_RISE: Style = Style { owner: owner(), token: 620 };
 pub const WAYS_STOP: Style = Style { owner: owner(), token: 621 };
 pub const WAYS_HIT: Style = Style { owner: owner(), token: 622 };
 pub const WAYS_HALO: Style = Style { owner: owner(), token: 623 };
@@ -1743,18 +1857,65 @@ pub const WAYS_USE: Style = Style { owner: owner(), token: 644 };
 pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
 
 /// How work runs (temper/docs/design/client/browser.md, 2.5).
-pub const HOW_WIDE: Style = Style { owner: owner(), token: 646 };
-pub const HOW_WAY: Style = Style { owner: owner(), token: 647 };
-pub const HOW_SCROLL: Style = Style { owner: owner(), token: 648 };
-pub const HOW_PATH: Style = Style { owner: owner(), token: 649 };
-pub const HOW_HEAD: Style = Style { owner: owner(), token: 650 };
-pub const HOW_LANE: Style = Style { owner: owner(), token: 651 };
-pub const HOW_PERSON: Style = Style { owner: owner(), token: 652 };
-pub const HOW_AGENT: Style = Style { owner: owner(), token: 653 };
-pub const HOW_CODE: Style = Style { owner: owner(), token: 654 };
-pub const HOW_BAR: Style = Style { owner: owner(), token: 655 };
-pub const HOW_LINE: Style = Style { owner: owner(), token: 656 };
-pub const HOW_ROW: Style = Style { owner: owner(), token: 657 };
+pub const HOW_WIDE: Style = Style { owner: owner(), token: 676 };
+pub const HOW_WAY: Style = Style { owner: owner(), token: 677 };
+pub const HOW_ROLES: Style = Style { owner: owner(), token: 678 };
+pub const HOW_ROLE: Style = Style { owner: owner(), token: 679 };
+pub const HOW_ROLE_MORE: Style = Style { owner: owner(), token: 680 };
+pub const HOW_ROW: Style = Style { owner: owner(), token: 687 };
+/// Needs you's list, reply and project identity (client/README.md, 3.5).
+pub const NEED_ROW: Style = Style { owner: owner(), token: 691 };
+pub const NEED_TELL: Style = Style { owner: owner(), token: 692 };
+pub const NEEDS_HEAD: Style = Style { owner: owner(), token: 693 };
+pub const CHIP: Style = Style { owner: owner(), token: 694 };
+
+/// Home on All projects and its phone form (client/README.md, 3.5).
+pub const NEED_CARD: Style = Style { owner: owner(), token: 695 };
+pub const NEED_FROM: Style = Style { owner: owner(), token: 696 };
+pub const NEED_ACTS: Style = Style { owner: owner(), token: 697 };
+pub const NEED_MORE: Style = Style { owner: owner(), token: 698 };
+pub const CHIP_GOOD: Style = Style { owner: owner(), token: 699 };
+pub const CHIP_SIGNAL: Style = Style { owner: owner(), token: 700 };
+pub const DECIDED_HEAD: Style = Style { owner: owner(), token: 701 };
+pub const HOME_PHONE: Style = Style { owner: owner(), token: 702 };
+pub const HOME_WIDE: Style = Style { owner: owner(), token: 703 };
+
+/// The wide Homes' question field (client/README.md, 3.5).
+pub const ASK_LINE: Style = Style { owner: owner(), token: 704 };
+/// Team’s column and people (temper/docs/design/client/browser.md, 2.5, Team’s look).
+pub const TEAM: Style = Style { owner: owner(), token: 715 };
+pub const TEAM_INTRO: Style = Style { owner: owner(), token: 716 };
+pub const TEAM_PEOPLE: Style = Style { owner: owner(), token: 717 };
+pub const TEAM_PERSON: Style = Style { owner: owner(), token: 718 };
+pub const TEAM_ROLE: Style = Style { owner: owner(), token: 719 };
+pub const TEAM_LINE: Style = Style { owner: owner(), token: 720 };
+
+/// Path marks and fades (temper/docs/design/client/README.md, 5.16).
+pub const WAYS_MAYBE: Style = Style { owner: owner(), token: 705 };
+pub const WAYS_WHY: Style = Style { owner: owner(), token: 706 };
+pub const WAYS_RISE_PERSON: Style = Style { owner: owner(), token: 707 };
+pub const WAYS_RISE_AGENT: Style = Style { owner: owner(), token: 708 };
+pub const WAYS_FADE_PERSON: Style = Style { owner: owner(), token: 709 };
+pub const WAYS_FADE_PERSON_FAINT: Style = Style { owner: owner(), token: 710 };
+pub const WAYS_FADE_AGENT: Style = Style { owner: owner(), token: 711 };
+pub const WAYS_FADE_AGENT_FAINT: Style = Style { owner: owner(), token: 712 };
+pub const WAYS_FADE_BASE: Style = Style { owner: owner(), token: 713 };
+pub const WAYS_KIND_MAYBE: Style = Style { owner: owner(), token: 714 };
+
+/// Needs you's phone bar (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS_BAR: Style = Style { owner: owner(), token: 721 };
+/// Its place in the open cards (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 722 };
+
+/// The phone's Ask tab (temper/docs/design/client/README.md, 5.3).
+pub const TABBAR_ASK: Style = Style { owner: owner(), token: 723 };
+
+/// Only you's region (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY: Style = Style { owner: owner(), token: 726 };
+/// An Only you item (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY_ITEM: Style = Style { owner: owner(), token: 727 };
+/// An Only you question (temper/docs/design/client/README.md, 3.5, Only you).
+pub const ONLY_Q: Style = Style { owner: owner(), token: 728 };
 
 #[cfg(test)]
 mod tests {

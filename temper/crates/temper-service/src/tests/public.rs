@@ -3,9 +3,16 @@ use super::*;
 use jig_domain_core as core;
 use skein_lib::{ReplyTo, Token};
 #[test]
-fn the_forge_declares_its_three_public_kinds() {
+fn startup_names_the_public_kinds_and_private_parts() {
     let config = crate::tests::fixtures::engine();
     let seeds = crate::tests::fixtures::seeds();
+    let core = crate::system::core_config(&config.jig, &seeds);
+    assert_eq!(core.settings.private_tools.as_ref(), [Box::from(b"remember".as_slice())]);
+    let clients = crate::tests::fixtures::clients();
+    let private = &clients.initial.as_ref().expect("startup settings").private;
+    assert_eq!(private, &temper_engine_smith::private());
+    assert_eq!(private.title.as_ref(), b"Kept about this person");
+    assert_eq!(private.tools.as_slice(), [Box::from(b"remember".as_slice())]);
     let settings = config::clients::settings(
         &config.jig,
         &application(&config.jig, None, List::uncapped()),

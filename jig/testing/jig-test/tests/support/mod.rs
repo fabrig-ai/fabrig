@@ -75,6 +75,10 @@ pub(super) fn configuration_value(directory: &Path) -> serde_json::Value {
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "jig's round: reads the environment to pass PATH to the reference service"
+)]
 pub fn start(directory: &Path) -> Binary {
     Binary::start(
         Command {

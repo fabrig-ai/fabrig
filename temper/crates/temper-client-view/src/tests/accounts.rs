@@ -1614,41 +1614,110 @@ fn none_of_your_own_offers_the_connect_model_link() {
     assert!(fixtures::find(view.tree(), Role::Link, b"Connect a model").is_some());
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table covers account states, expiring renewal and their bound controls")]
 fn each_account_state_draws_its_words_and_state_controls() {
-    for (state, word, act) in [
-        (c::AccountState::Granted, "Ready", None),
+    const EXPIRING: &str = "Expiring: sign in again before it ends.";
+    for (kind, expiring, state, word, act) in [
+        (c::AccountKind::SignIn, false, c::AccountState::Granted, "Ready", None),
         (
+            c::AccountKind::SignIn,
+            false,
             c::AccountState::Later { until: None },
             "temper reached its usage limit on your ChatGPT plan. Tasks on it wait.",
             Some(b"Resume".as_slice()),
         ),
         (
+            c::AccountKind::SignIn,
+            false,
             c::AccountState::Later { until: Some(skein_lib::Wall::EPOCH) },
             "Limited by OpenAI until",
             Some(b"Resume".as_slice()),
         ),
-        (c::AccountState::SignInAgain, "Signed out of ChatGPT.", Some(b"Continue with ChatGPT".as_slice())),
         (
+            c::AccountKind::SignIn,
+            false,
+            c::AccountState::SignInAgain,
+            "Signed out of ChatGPT.",
+            Some(b"Continue with ChatGPT".as_slice()),
+        ),
+        (
+            c::AccountKind::SignIn,
+            false,
             c::AccountState::Misconfigured,
             "OpenAI refused temper’s sign-in. Check the configuration’s registration.",
             None,
         ),
         (
+            c::AccountKind::SignIn,
+            false,
             c::AccountState::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable },
             "Cannot load File: Unreadable",
             None,
         ),
+        (c::AccountKind::SignIn, true, c::AccountState::Granted, EXPIRING, Some(b"Continue with ChatGPT".as_slice())),
+        (c::AccountKind::Program, true, c::AccountState::Granted, EXPIRING, Some(b"Check again".as_slice())),
+        (
+            c::AccountKind::SignIn,
+            true,
+            c::AccountState::SignInAgain,
+            "Signed out of ChatGPT.",
+            Some(b"Continue with ChatGPT".as_slice()),
+        ),
     ] {
         let (mut root, watch) = fixtures::account_root();
-        let mut doc = card_document(b"openai", b"alice", c::AccountKind::SignIn);
-        doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().state = state;
+        let mut doc = card_document(b"openai", b"claude-alice", kind);
+        let source = doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap();
+        source.state = state;
+        source.expiring = expiring;
         deliver(&mut root, watch, doc);
         let mut view = fixtures::view();
         let tree = fixtures::build(&mut view, &root);
         let shown = String::from_utf8(fixtures::text(tree).into_vec()).unwrap();
         assert!(shown.contains(word), "{state:?}: {shown}");
+        assert_eq!(
+            tree.nodes()
+                .iter()
+                .filter(|n| n.role == Role::Paragraph && n.name.as_deref() == Some(EXPIRING.as_bytes()))
+                .count(),
+            usize::from(expiring && state != c::AccountState::SignInAgain),
+            "{kind:?}, {expiring}, {state:?}: {shown}"
+        );
+        if kind == c::AccountKind::Program {
+            let command = b"On each host, with its directories: temper program-login --config CONFIG --data DATA --cache CACHE claude-alice";
+            assert_eq!(
+                tree.nodes().iter().filter(|n| n.role == Role::Code && n.name.as_deref() == Some(command)).count(),
+                1
+            );
+        }
         if let Some(act) = act {
-            assert!(fixtures::find(tree, Role::Button, act).is_some(), "{state:?}");
+            assert_eq!(
+                tree.nodes().iter().filter(|n| n.role == Role::Button && n.name.as_deref() == Some(act)).count(),
+                1,
+                "{state:?}"
+            );
+            let node = fixtures::find(tree, Role::Button, act).unwrap();
+            let operation = match kind {
+                c::AccountKind::Program => Some(Operation::CheckProgram { source: 1 }),
+                c::AccountKind::SignIn if act == b"Continue with ChatGPT" => {
+                    Some(Operation::SignIn { provider: PROVIDER })
+                }
+                c::AccountKind::SignIn | c::AccountKind::Key | c::AccountKind::None => None,
+            };
+            if let Some(operation) = operation {
+                let Some(d::Event::Act { action }) = crate::event(&view, node, Act::Press) else { panic!("row act") };
+                assert_eq!(
+                    action,
+                    d::Action::Pages(d::pages::Act::Accounts(A::Submit {
+                        name: root.pages().account_name(),
+                        row: Row { holder: c::AskAccountHolder::Own, account: 1 },
+                        operation,
+                    }))
+                );
+            }
+        } else {
+            for act in [b"Continue with ChatGPT".as_slice(), b"Check again"] {
+                assert!(fixtures::find(tree, Role::Button, act).is_none(), "{state:?}");
+            }
         }
     }
 }
@@ -1677,13 +1746,14 @@ fn a_moving_account_shows_its_state_without_buttons() {
 }
 #[test]
 fn a_programs_missing_login_names_its_host_command_and_check() {
-    for line in [
-        None,
-        Some(b"'/box/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'".as_slice()),
-    ] {
+    let local =
+        b"'/box/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'".as_slice();
+    for (line, expiring) in [(None, false), (Some(local), false), (None, true), (Some(local), true)] {
         let (mut root, watch) = super::connect_model::program_root_with_line(d::Address::Accounts, line);
         let mut doc = card_document(b"anthropic", b"claude-alice", c::AccountKind::Program);
-        doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap().usable = false;
+        let source = doc.accounts.get_mut(0).unwrap().sources.get_mut(0).unwrap();
+        source.usable = false;
+        source.expiring = expiring;
         let mut programs = List::with_capacity(1);
         programs
             .push(c::ProgramLogin {
@@ -1715,7 +1785,9 @@ fn a_programs_missing_login_names_its_host_command_and_check() {
         None => "On each host, with its directories: temper program-login --config CONFIG --data DATA --cache CACHE claude-alice".into(),
     };
         assert!(shown.contains(&expected), "{shown}");
-        assert!(fixtures::find(tree, Role::Button, b"Check again").is_some());
+        for (role, name) in [(Role::Code, expected.as_bytes()), (Role::Button, b"Check again".as_slice())] {
+            assert_eq!(tree.nodes().iter().filter(|n| n.role == role && n.name.as_deref() == Some(name)).count(), 1);
+        }
         assert!(fixtures::find(tree, Role::Button, b"Sign out on every machine").is_some());
     }
 }
@@ -1810,6 +1882,10 @@ fn only_deployment_rows_show_usage_facts_and_their_use_summary() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn english_phrase_declarations_match_the_vocabulary() {
     let path = skein_scratch::paths::package().join("src/words.rs");
     let source = std::fs::read_to_string(&path).unwrap();

@@ -42,6 +42,7 @@ mod standing;
 mod stopping;
 mod tiers;
 mod views;
+mod workflows;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
@@ -110,6 +111,7 @@ const LIMITS: Limits = Limits {
     trees_in_flight: 2,
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
+    decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,
@@ -301,6 +303,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
 }
 fn adopted() -> Repository {
     Repository {
+        workflows: Box::default(),
         project: 5,
         home: true,
         provider: REPO,

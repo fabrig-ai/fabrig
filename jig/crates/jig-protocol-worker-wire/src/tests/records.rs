@@ -26,6 +26,7 @@ fn hello_terms(largest: u32) -> List<Term> {
         (0x0108, 670),
         (0x0109, 58),
         (0x010a, 96013),
+        (0x010b, 0),
         (0x018c, 102),
     ] {
         terms.push(Term { kind, largest }).expect("one term per up kind");
@@ -213,7 +214,7 @@ fn the_schema_lists_the_hello_from_the_initiator() {
     let schema = hello_schema();
     let version = schema.version(9).expect("one version");
     assert_eq!(schema.magic, *b"jigw");
-    assert_eq!(version.kinds.len(), 25);
+    assert_eq!(version.kinds.len(), 26);
     assert_eq!(
         version.kind(0x0100),
         Some(skein_channel::Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: HELLO_MAX })
@@ -461,8 +462,10 @@ fn the_schema_lists_every_up_kind_from_the_initiator() {
     let schema = hello_schema();
     assert_eq!(schema.versions.len(), 1);
     for version in &schema.versions {
-        assert_eq!(version.kinds.len(), 25);
-        for number in [0x0100, 0x0101, 0x0102, 0x0103, 0x0104, 0x0105, 0x0106, 0x0107, 0x0108, 0x0109, 0x018c] {
+        assert_eq!(version.kinds.len(), 26);
+        for number in
+            [0x0100, 0x0101, 0x0102, 0x0103, 0x0104, 0x0105, 0x0106, 0x0107, 0x0108, 0x0109, 0x010a, 0x010b, 0x018c]
+        {
             assert_eq!(version.kind(number).expect("every up kind").direction, Direction::FromInitiator);
         }
     }
@@ -584,7 +587,7 @@ fn an_assignment_past_its_grant_bound_is_refused() {
 fn the_schema_lists_every_down_kind_from_the_responder() {
     let schema = hello_schema();
     let version = schema.version(9).expect("one version");
-    assert_eq!(version.kinds.len(), 25);
+    assert_eq!(version.kinds.len(), 26);
     for term in &down_terms() {
         assert_eq!(
             version.kind(term.kind),

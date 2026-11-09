@@ -4,8 +4,11 @@ mod derivation;
 mod invariants;
 use super::*;
 use alloc::boxed::Box;
-use temper_engine_domain_forge::settings::{Held, LandingRule, ProjectWays, RuleApproval, RuleGate, Value};
+use temper_engine_domain_forge::settings::{
+    Held, LandingRule, ProjectWays, RuleApproval, RuleGate, TemplateGoal, Value,
+};
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness};
+use temper_protocol_reaches::{Classes, Way};
 
 const PROJECT: u32 = 9;
 const OTHER: u32 = 10;
@@ -39,20 +42,25 @@ fn stock_ways() -> [StockWay; 3] {
     [
         StockWay {
             name: b"You approve".as_slice().into(),
+            headline: b"You approve every change".as_slice().into(),
             line: b"An agent makes each change; nothing reaches main until you approve it.".as_slice().into(),
             rules: Box::new([(1, approve)]),
             ways: None,
+            classes: Some(Classes::stock(Way::YouApprove)),
             delegation: false,
         },
         StockWay {
             name: b"Agents review".as_slice().into(),
+            headline: b"Agents review every change, and code lands it".as_slice().into(),
             line: b"An agent makes each change, another reviews it, and code lands it.".as_slice().into(),
             rules: Box::new([(1, review)]),
             ways: None,
+            classes: Some(Classes::stock(Way::AgentsReview)),
             delegation: false,
         },
         StockWay {
             name: b"Draft first".as_slice().into(),
+            headline: b"Draft first, then agents build it on its own branch".as_slice().into(),
             line: b"You and an agent write a design draft; agents build it on its own branch, and it lands whole."
                 .as_slice()
                 .into(),
@@ -61,18 +69,21 @@ fn stock_ways() -> [StockWay; 3] {
                 (2, rule(GateLast::Open(b"temper".as_slice().into()), false, false)),
             ]),
             ways: Some(Laid { drafts: true, goals: true, way: 4 }),
+            classes: Some(Classes::stock(Way::DraftFirst)),
             delegation: true,
         },
     ]
 }
 
 fn project_ways() -> ProjectWays {
-    ProjectWays { drafts: false, goals: false, changes: true, away: true, way: 8 }
+    ProjectWays { drafts: false, goals: false, changes: true, way: 8 }
 }
 
 #[test]
 fn items_set_the_ways_rules_and_preserve_other_visibility() {
     let [approve, review, draft] = stock_ways();
+    let mut no_classes = approve.clone();
+    no_classes.classes = None;
     let own = project_ways();
     let approval = approval_rule();
     let reviewed = review_rule();
@@ -85,6 +96,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Remove),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::YouApprove)))),
             ]),
         ),
         (
@@ -95,6 +107,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Remove),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::YouApprove)))),
             ]),
         ),
         (
@@ -105,6 +118,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Remove),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::AgentsReview)))),
             ]),
         ),
         (
@@ -115,6 +129,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Remove),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::AgentsReview)))),
             ]),
         ),
         (
@@ -125,17 +140,8 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Set(Value::Rule(rule(GateLast::Open(b"temper".as_slice().into()), false, false)))),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
-                (
-                    7,
-                    1,
-                    Edit::Set(Value::Ways(ProjectWays {
-                        drafts: true,
-                        goals: true,
-                        changes: false,
-                        away: false,
-                        way: 4,
-                    })),
-                ),
+                (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: false, way: 4 }))),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
             ]),
         ),
         (
@@ -146,17 +152,18 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Set(Value::Rule(rule(GateLast::Open(b"temper".as_slice().into()), false, false)))),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
-                (
-                    7,
-                    1,
-                    Edit::Set(Value::Ways(ProjectWays {
-                        drafts: true,
-                        goals: true,
-                        changes: true,
-                        away: true,
-                        way: 4,
-                    })),
-                ),
+                (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, way: 4 }))),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
+            ]),
+        ),
+        (
+            &no_classes,
+            None,
+            Box::from([
+                (2, 1, Edit::Set(Value::Rule(approval_rule()))),
+                (2, 2, Edit::Remove),
+                (2, 3, Edit::Remove),
+                (2, 4, Edit::Remove),
             ]),
         ),
     ] {
@@ -223,7 +230,7 @@ fn laid_keeps_deployment_order_and_overlays_project_numbers() {
 #[test]
 fn laid_ways_sets_removes_and_ignores_other_settings() {
     let own = project_ways();
-    let stock = ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 };
+    let stock = ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
     for (ways, edits, expected) in [
         (None, Box::from([]), stock),
         (Some(&own), Box::from([]), own),
@@ -241,6 +248,30 @@ fn laid_ways_sets_removes_and_ignores_other_settings() {
     ] {
         assert_eq!(laid_ways(ways, PROJECT, &edits), expected);
     }
+    let both = TemplateGoal { design: true, close_out: true };
+    let neither = TemplateGoal { design: false, close_out: false };
+    for (name, held, edits, expected) in [
+        ("none", None, Box::from([]), neither),
+        ("held", Some(both), Box::from([]), both),
+        ("set", None, Box::from([Item { kind: 11, scope: 0, number: 4, edit: Edit::Set(Value::Goal(both)) }]), both),
+        ("remove", Some(both), Box::from([Item { kind: 11, scope: 0, number: 4, edit: Edit::Remove }]), neither),
+        ("another template", Some(both), Box::from([Item { kind: 11, scope: 0, number: 2, edit: Edit::Remove }]), both),
+        ("another kind", Some(both), Box::from([Item { kind: 7, scope: 0, number: 4, edit: Edit::Remove }]), both),
+        (
+            "another scope",
+            Some(both),
+            Box::from([Item { kind: 11, scope: PROJECT, number: 4, edit: Edit::Remove }]),
+            both,
+        ),
+        (
+            "another value",
+            Some(both),
+            Box::from([Item { kind: 11, scope: 0, number: 4, edit: Edit::Set(Value::Ways(own)) }]),
+            both,
+        ),
+    ] {
+        assert_eq!(laid_goal(held, 4, &edits), expected, "{name}");
+    }
 }
 
 fn stop() -> Stop {
@@ -249,6 +280,8 @@ fn stop() -> Stop {
         step: Step::Ask,
         words: b"you ask".as_slice().into(),
         opens: Opens::Nothing,
+        needed: false,
+        over: Box::default(),
         card: Card { who: b"person".as_slice().into(), name: b"you".as_slice().into(), facts: Box::default() },
     }
 }
@@ -266,9 +299,20 @@ fn same_compares_drawn_stops_and_ignores_cards() {
     words.words = b"draft".as_slice().into();
     let mut opens = own.clone();
     opens.opens = Opens::Charter(1);
-    for (other, expected) in
-        [(own.clone(), true), (card, true), (actor, false), (step, false), (words, false), (opens, false)]
-    {
+    let mut needed = own.clone();
+    needed.needed = true;
+    let mut over = own.clone();
+    over.over = b"tests".as_slice().into();
+    for (other, expected) in [
+        (own.clone(), true),
+        (card, true),
+        (actor, false),
+        (step, false),
+        (words, false),
+        (opens, false),
+        (needed, false),
+        (over, false),
+    ] {
         assert_eq!(own.same(&other), expected);
     }
 }
@@ -329,14 +373,31 @@ fn sentence_stops_trims_and_cuts_at_a_word_end() {
 
 #[test]
 fn can_names_families_in_order_and_always_forbids_merging() {
-    for (inspect, modify, shell, agents, expected) in [
-        (false, false, false, false, b"finish alone; never merge or update".as_slice()),
-        (true, false, false, false, b"read the code and the forge; never merge or update"),
-        (false, true, false, false, b"change and push its branch; never merge or update"),
-        (false, false, true, false, b"run commands; never merge or update"),
-        (false, false, false, true, b"start sub-agents; never merge or update"),
-        (true, true, true, true, b"read the code and the forge; change and push its branch; run commands; start sub-agents; never merge or update"),
-    ] { assert_eq!(can(inspect, modify, shell, agents), expected); }
+    for (inspect, modify, shell, agents, settings, expected) in [
+        (false, false, false, false, false, b"read the facts in its task; never merge".as_slice()),
+        (
+            false,
+            false,
+            false,
+            false,
+            true,
+            b"read temper's records and the forge; propose settings; never change anything",
+        ),
+        (true, false, false, false, false, b"read the code and the forge; never merge"),
+        (false, true, false, false, false, b"change and push its branch; never merge"),
+        (false, false, true, false, false, b"run commands; never merge"),
+        (false, false, false, true, false, b"start sub-agents; never merge"),
+        (
+            true,
+            true,
+            true,
+            true,
+            false,
+            b"read the code and the forge; change and push its branch; run commands; start sub-agents; never merge",
+        ),
+    ] {
+        assert_eq!(can(inspect, modify, shell, agents, settings), expected);
+    }
 }
 
 #[test]
@@ -360,6 +421,7 @@ fn derive_keeps_the_branch_and_repository() {
                 ci: false,
                 checks: Box::default(),
                 contexts: Box::default(),
+                workflows: Box::default(),
                 gates: Box::default(),
                 tiers: Box::default(),
             }),
@@ -374,6 +436,7 @@ fn derive_keeps_the_branch_and_repository() {
             producer: 1,
             reviewer: 2,
             by: temper_engine_domain_forge_change::Way::Queue,
+            merge_job: false,
             roles: Box::default(),
             agents: Box::default(),
         };
