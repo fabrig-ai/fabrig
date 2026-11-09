@@ -860,10 +860,9 @@ have one, an engine alone none. Each:
     `io.output`, so a run that committed every call `core.call_records`
     admits can still resume. Its failure names both: `engine.limits.io.output:
     4096 bytes, short of the smallest resumed start, 27201 bytes`, the
-    start's frame with its header, as `standard` has it. No document
-    reaches it today, since `io` takes no override and the worker wire's
-    ceilings keep that start at most 218,177 bytes, but the check holds
-    the rule should either change;
+    start's frame with its header, as `standard` has it. A document
+    reaches it only by an `io.output` override below that start, which
+    the worker wire's ceilings keep at most 218,177 bytes;
   - the worker's, against the agent's configuration
     (`temper-worker-domain::valid`, entrance constraints and count
     representability, with no heap sum), among its rules: the

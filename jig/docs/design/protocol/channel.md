@@ -766,9 +766,10 @@ holds, and neither of its components reads them.
   turns, carries as many as the core retains, each answer up to its
   bound, far past any room. Before an assignment is measured against the
   room, the engine's component fits them. It keeps every committed call,
-  by its name and tool, in its order, and each delivery's answer whole,
-  since its evidence must decode and agree on the worker (6.1). From the
-  newest back, it keeps each host answer whole while the frame with it
+  by its name and tool, in its order; each delivery's answer whole,
+  since its evidence must decode and agree on the worker (6.1); and
+  each host answer no longer than the words below, which a cut would not
+  shorten. From the newest back, it keeps each host answer whole while the frame with it
   fits; that first one that does not fit and every older host answer are
   cut: the body becomes the fixed ASCII words `[this call ran; its answer
   of BYTES bytes was left out of this start]`, `BYTES` the cut body's
@@ -1155,10 +1156,12 @@ ones in the fuzzy suite.
 - **Large assignments:** a resumed run's transcript crosses in one frame,
   within the resume limit. If transcripts grow to many megabytes, an
   assignment may stream its turns as records of their own after it. A
-  start past the room fails its run (section 9), and the domains' limits
-  admit one: making it start takes a room sized from what the
-  configuration admits, a start that carries fewer of its committed
-  calls, or frames that move below in pieces, a skein channel change.
+  resumed start's committed calls are fitted to the room (section 9),
+  but a start past it by its other parts, its charter, window, inbox and
+  grants, fails its run, and the domains' limits admit one (temper's
+  `standard` by a full inbox alone): making it start takes a room sized
+  from what the configuration admits, a start that carries less of
+  them, or frames that move below in pieces, a skein channel change.
   The user chooses, from a deployment's refusal line (temper/migration,
   2026-11-09). Default: it fails with its numbers.
 - **Facts dropped, told:** a piece past a gap marks the turn cut; a
