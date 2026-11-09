@@ -102,20 +102,21 @@ fn a_long_reply_is_answered() {
         &mut world,
         client,
         vec![
-            Step::See { find: Find::named(Role::Button, b"Reply"), within: f::WITHIN },
-            Step::Press { find: Find::named(Role::Button, b"Reply") },
-            type_words(b"Your reply", &words),
+            Step::See { find: Find::named(Role::Button, b"Tell it something else"), within: f::WITHIN },
+            Step::Press { find: Find::named(Role::Button, b"Tell it something else") },
+            Step::See { find: Find::named(Role::TextArea, b"Or tell it something else"), within: f::WITHIN },
+            type_words(b"Or tell it something else", &words),
             see(b"That's 1 character over what one message holds."),
         ],
     );
-    assert_over(&world, client, b"Your reply", b"Send reply", &words);
+    assert_over(&world, client, b"Or tell it something else", b"Send", &words);
     let edited = vec![b'a'; 1024];
     follow(
         &mut world,
         client,
         vec![
-            type_words(b"Your reply", &edited),
-            Step::Press { find: Find::named(Role::Button, b"Send reply") },
+            type_words(b"Or tell it something else", &edited),
+            Step::Press { find: Find::named(Role::Button, b"Send") },
             Step::Pause { span: temper_client_domain::pages::needs::HOLD },
             Step::Go { address: f::task_page(asker) },
             see(&edited),

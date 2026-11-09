@@ -11,6 +11,9 @@ accounts-signing-in
 accounts-solo
 accounts-states
 agent-work
+all-home
+all-home-nothing-new
+all-home-one-project
 approve-approved
 approve-asking
 approve-busy
@@ -224,6 +227,10 @@ home-one-need
 home-ready
 home-refused
 home-skip-refused
+home-step-pair
+home-step-scale
+home-step-stock
+home-step-team
 home-try-stopped
 home-with-goals
 how
@@ -248,6 +255,7 @@ models-one-account
 models-read
 models-read-failed
 needs-approval
+needs-approval-first
 needs-approval-no-account
 needs-decided
 needs-done
@@ -255,6 +263,8 @@ needs-funds
 needs-held
 needs-last
 needs-later
+needs-list
+needs-list-second
 needs-one
 needs-plain-words
 needs-proposal
@@ -263,12 +273,15 @@ needs-saw-open
 needs-second-answered
 needs-stop-asking
 needs-stop-asking-set
+needs-tell
 needs-why
+night-all-home
 night-ask
 night-chat-split
 night-home
 night-how
 night-limits
+night-needs
 night-work
 no-project
 out-of-date

@@ -2577,7 +2577,7 @@ fn working_chip(task: u64, title: &[u8]) -> w::Chip {
 }
 
 pub(crate) fn home_host(running: bool) -> Host {
-    home_with_tasks(home_tasks(running))
+    home_with_brief(&home_tasks(running), false)
 }
 
 fn one_chat_host(brief: bool) -> Host {
@@ -2586,23 +2586,30 @@ fn one_chat_host(brief: bool) -> Host {
     skein_codec::piece::split(&mut reader).expect("older chat");
     let newest = skein_codec::piece::split(&mut reader).expect("newest chat").expect("one chat");
     tasks.rows = pieces(&[newest]);
-    home_with_brief(w::Tasks::new(&w::CEILINGS, tasks).expect("one chat"), brief)
+    home_with_brief(&w::Tasks::new(&w::CEILINGS, tasks).expect("one chat"), brief)
 }
 
-fn home_with_tasks(tasks: w::Tasks) -> Host {
-    home_with_brief(tasks, false)
-}
-
-fn home_with_brief(tasks: w::Tasks, brief: bool) -> Host {
+fn home_with_brief(tasks: &w::Tasks, brief: bool) -> Host {
     let (mut host, _, mut duties) = signed_host(true);
     // The first wave can fill the exchange slots; give its watch retry a turn.
     host.clocks(Time::from_nanos(host.env.limits.client.domain.backoff.first.as_nanos()), Wall::EPOCH);
     let again = host.report(Report::Due);
     duties.asked.extend(admit(&mut host, again).asked);
     let subject = home_subject(&duties);
-    let watched = watch(&duties, &subject);
-    let more = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks));
-    duties.asked.extend(stored(&mut host, more).asked);
+    // Navigation replaces the rail's watch; rows go to the current page's watch.
+    for _ in 0..host.env.limits.client.domain.watches {
+        let watched = watch(&duties, &subject);
+        let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
+        duties.asked.extend(admit(&mut host, arrived).asked);
+        let chats = host.root.pages().chats().expect("launchpad chats");
+        if chats.live(host.root.client()).is_some() {
+            break;
+        }
+        let due = root::next_deadline(&host.root).expect("chat watch retry");
+        host.clocks(due, Wall::EPOCH);
+        let again = host.report(Report::Due);
+        duties.asked.extend(admit(&mut host, again).asked);
+    }
     if brief {
         deliver_brief(&mut host, &mut duties);
     }

@@ -120,6 +120,7 @@ fn flow_path(
 }
 
 /// Opens the tab's column; the caller draws its body and closes it (README.md, 3.5, Settings).
+#[expect(clippy::too_many_lines, reason = "one column opening keeps the page and deployment tabs together")]
 pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, tab: Tab) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_COL);
@@ -129,7 +130,8 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     }
     let detail = match root.pages().address() {
         Address::Role { .. } | Address::Rule { .. } => true,
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }

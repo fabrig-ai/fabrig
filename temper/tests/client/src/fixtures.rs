@@ -47,6 +47,59 @@ pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acm
 pub const PARTY: u64 = 1;
 pub const SEED: u64 = 1101;
 pub const WITHIN: Duration = Duration::from_secs(1);
+
+/// Two owned projects, using To begin's second seeded project's shape
+/// (temper/docs/design/domain/testing.md, 6.3; temper/docs/design/client/README.md, 3.5).
+#[must_use]
+pub fn across_configuration() -> (engine::Config, engine::Limits) {
+    let mut config = temper_engine_domain_world::walking::config(SEED);
+    let mut bounds = crate::front::engine_limits();
+    bounds.people.initial_owners = 2;
+    bounds.authority.projects = 2;
+    bounds.people.projects = 3; // The deployment roster and the two projects.
+    bounds.people.sign_in_lifetime = Duration::from_secs(2 * 60 * 60);
+    bounds.people.requests = 16;
+    bounds.tasks.tasks = 4; // Each project's chat and its questioning delegate.
+    bounds.tasks.depth = 2; // The chat's delegate keeps its own delegation depth.
+    bounds.people.inbox_tasks = 8; // The live and ended inbox scan for those four tasks.
+    bounds.fleet.slots = 4; // Both chats and the two delegates can hear their questions.
+    bounds.fleet.workstreams = 4;
+    bounds.fleet.attempts = 4;
+    bounds.call_records = 4; // Each project's delegate call and committed question.
+    // Both questions, their answer credits and the overturn notification can coexist.
+    bounds.tasks.inbox_bytes = bounds.tasks.message_bytes * 4;
+    config.core.defaults.rules.ceiling.delegation.depth = 2;
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.depth = 2;
+    policy.roles[0].authority.delegation.depth = 2;
+    let policy = config.core.seed_projects[0].policy.clone();
+    let mut projects = config.core.seed_projects.into_vec();
+    projects.push(jig_domain_core::SeedProject { number: 2, name: "Project 2".into(), policy });
+    config.core.seed_projects = projects.into_boxed_slice();
+    let owner = config.core.owners[0].clone();
+    config.core.owners = Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 2, ..owner }]);
+    config.core.connectors = Box::new([FORGE]);
+    (config, bounds)
+}
+
+/// Real roots with room for work and questions on both owned projects.
+#[must_use]
+pub fn across_people(limits: Limits) -> Joint {
+    let (config, bounds) = across_configuration();
+    let bootstrap = temper_engine_domain_world::oracle::config::copy(&config);
+    let budget = config.core.seed_projects[1].policy.policy.period_spend;
+    let mut front = Joint::with_engine(
+        SEED,
+        &limits,
+        temper_engine_domain_world::store::Store::with_limits(&bounds),
+        [bootstrap, config],
+        &bounds,
+        4,
+    );
+    front.engine.send(engine::Event::Party(engine::PartyInput::Period { project: 2, period: 1, budget, next: None }));
+    front.engine.settle();
+    front
+}
 /// Eight delegates fill the chat's watch set beside its session approvals and Home's full room.
 pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
 
@@ -566,6 +619,8 @@ pub const QUESTION_WORKER: Token = Token::new(7);
 pub(crate) const QUESTION_PROJECT: u32 = 1;
 const QUESTION_CALL: u64 = 1003;
 const QUESTION_DELEGATE: u64 = 1004;
+// Each project reserves a delegate call and a question call on the scripted worker.
+const QUESTION_CALLS_PER_PROJECT: u64 = 2;
 const QUESTION_COMPLETION: u32 = 1;
 const QUESTION_POSITION: u32 = 1;
 const QUESTION_ASSIGN_AT: Time = Time::from_nanos(2_000_000_000);
@@ -591,15 +646,27 @@ pub fn question_composer(front: &mut Joint, words: &[u8]) -> u64 {
     commit_question(front, words, false)
 }
 fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
+    commit_project_question(front, QUESTION_PROJECT, words, agree)
+}
+/// Commit the sibling question story on an already configured project, retaining the other project.
+pub fn project_question(front: &mut Joint, project: u32, words: &[u8]) -> u64 {
+    commit_project_question(front, project, words, false)
+}
+fn commit_project_question(front: &mut Joint, project: u32, words: &[u8], agree: bool) -> u64 {
     let driver = &mut front.engine;
+    let offset = u64::from(project - QUESTION_PROJECT);
+    let delegate_call = QUESTION_DELEGATE + offset * QUESTION_CALLS_PER_PROJECT;
+    let question_call = QUESTION_CALL + offset * QUESTION_CALLS_PER_PROJECT;
+    let mut key = QUESTION_CHAT_KEY;
+    key[0] += u8::try_from(offset).expect("fixture project key");
     driver.sign_in();
     driver.settle();
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
-        reply_to: skein_lib::ReplyTo::new(QUESTION_CHAT_REPLY),
+        reply_to: skein_lib::ReplyTo::new(Token::new(QUESTION_CHAT_REPLY.raw() + offset)),
         sign_in: driver.session(),
-        key: QUESTION_CHAT_KEY,
-        ask: driver.chat_ask(QUESTION_PROJECT, b"Question chat"),
+        key,
+        ask: driver.chat_ask(project, b"Question chat"),
     }));
     driver.settle();
     let parent = driver.last_assignment();
@@ -607,7 +674,7 @@ fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
         QUESTION_WORKER,
         parent.task,
         parent.attempt,
-        QUESTION_DELEGATE,
+        delegate_call,
         engine::Call {
             completion: QUESTION_COMPLETION,
             position: QUESTION_POSITION,
@@ -626,18 +693,18 @@ fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
     driver.settle();
     driver.answer(QUESTION_WORKER, parent.task, parent.attempt, 0, tasks::End::Parked, engine::Parts::none());
     driver.settle();
-    driver.env.now = QUESTION_ASSIGN_AT;
+    driver.env.now = driver.env.now.saturating_add(Duration::from_nanos(QUESTION_ASSIGN_AT.as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
     driver.settle();
     let run = driver.last_assignment();
-    assert_ne!(run.task, parent.task, "delegate assigned: {:?}", driver.answered(QUESTION_DELEGATE));
+    assert_ne!(run.task, parent.task, "delegate assigned: {:?}", driver.answered(delegate_call));
     driver.call(
         QUESTION_WORKER,
         run.task,
         run.attempt,
-        QUESTION_CALL,
+        question_call,
         engine::Call {
             completion: QUESTION_COMPLETION,
             position: QUESTION_POSITION,
@@ -650,9 +717,9 @@ fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
     );
     driver.settle();
     assert!(
-        matches!(driver.answered(QUESTION_CALL), Some(engine::CallAnswer::Sent { .. })),
+        matches!(driver.answered(question_call), Some(engine::CallAnswer::Sent { .. })),
         "question committed: {:?}",
-        driver.answered(QUESTION_CALL)
+        driver.answered(question_call)
     );
     parent.task
 }

@@ -329,8 +329,9 @@ fn wanted(root: &Domain) -> List<u32> {
         Address::Home { project } => {
             wanted.push(project).expect("one Home project");
         }
-        Address::Inbox { filter } => {
-            if let Some(project) = filter.project {
+        Address::AllHome | Address::Inbox { .. } => {
+            let project = if let Address::Inbox { filter } = pages.address { filter.project } else { None };
+            if let Some(project) = project {
                 wanted.push(project).expect("one filtered project");
             } else {
                 if let Some(inbox) = &pages.inbox {
@@ -389,7 +390,8 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
     };
     let beginning = match root.pages.address {
         Address::Home { project } => super::home::facts(root, project, env.wall).to_begin(),
-        Address::Inbox { .. }
+        Address::AllHome
+        | Address::Inbox { .. }
         | Address::NewChat { .. }
         | Address::Chats { .. }
         | Address::Accounts

@@ -229,6 +229,23 @@ impl Domain {
         states.into_boxed()
     }
 
+    /// The stored defaults the stock last given no longer holds, kind 2's
+    /// every-project entries (scope 0) left out as `give_settings_defaults`
+    /// leaves them out (temper/docs/design/protocol/configuration.md, 13.4).
+    #[must_use]
+    pub fn dropped_settings_defaults(&self) -> Box<[(u32, u32, u32)]> {
+        let mut dropped = List::with_capacity(self.setting_rows.capacity());
+        for (key, _) in &self.setting_rows {
+            if key.slot == SettingSlot::Default
+                && !(key.kind == 2 && key.scope == 0)
+                && self.setting_default(key.kind, key.scope, key.number).is_none()
+            {
+                dropped.push((key.kind, key.scope, key.number)).expect("one name per stored default");
+            }
+        }
+        dropped.into_boxed()
+    }
+
     /// Preserve changed defaults before a release replaces them (temper/docs/design/client/forge.md, 9).
     pub fn remember_settings_defaults(&mut self, revision: u64, out: &mut Queue<Request>) {
         let mut replaced = List::uncapped();

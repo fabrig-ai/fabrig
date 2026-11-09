@@ -483,6 +483,7 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::Members
         | temper_client_domain::Address::Limits
         | temper_client_domain::Address::Accounts
+        | temper_client_domain::Address::AllHome
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }

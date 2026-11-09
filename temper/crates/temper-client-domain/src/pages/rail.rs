@@ -97,5 +97,6 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
 /// Whether the page is one across projects.
 #[must_use]
 pub fn across(root: &Domain) -> bool {
-    if let Address::Inbox { filter } = root.pages().address() { filter.project.is_none() } else { false }
+    root.pages().address() == &Address::AllHome
+        || if let Address::Inbox { filter } = root.pages().address() { filter.project.is_none() } else { false }
 }
