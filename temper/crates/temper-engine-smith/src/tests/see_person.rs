@@ -401,6 +401,30 @@ const OVERSIZE: u64 = 8_388_609; // One byte beyond the client's carried-turn ce
 const HASH: [u8; 32] = [0xab; 32];
 
 fn turn_record(input: &[u8]) -> jig_domain_core::TurnRecord {
+    turn_record_with(
+        input,
+        b"## Task\nRead the charter.\nBrief continuation stays in the archive.\n## Project\nShop\nMore project context",
+        b"propose_settings",
+        b"{ \"more\": false }",
+        b"proposed, waiting for an owner\nProposal details",
+    )
+}
+fn remembering_record() -> jig_domain_core::TurnRecord {
+    turn_record_with(
+        b"{ \"address\": \"settings charter 4\" }",
+        b"## Kept about this person\n\n1. Prefers short answers.\n2. Uses a screen reader.\n\n## Task\nRead the charter.",
+        b"remember",
+        br#"{"action":"add","text":"Uses a screen reader."}"#,
+        b"remember: line 2 kept; 2 of 12 lines.\n1. Prefers short answers.\n2. Uses a screen reader.",
+    )
+}
+fn turn_record_with(
+    input: &[u8],
+    system: &[u8],
+    second_tool: &[u8],
+    second_input: &[u8],
+    second_result: &[u8],
+) -> jig_domain_core::TurnRecord {
     use smith_transcript::v7 as s;
     const BLOCKS: u32 = 5; // Words and two call/result pairs.
     let bounds = &s::CEILINGS;
@@ -419,7 +443,7 @@ fn turn_record(input: &[u8]) -> jig_domain_core::TurnRecord {
         .unwrap();
     for (id, tool, input, result) in [
         (b"first".as_slice(), b"see".as_slice(), input, b"charter 4, the reviewer's\nLong settings text".as_slice()),
-        (b"second", b"propose_settings", b"{ \"more\": false }", b"proposed, waiting for an owner\nProposal details"),
+        (b"second", second_tool, second_input, second_result),
     ] {
         blocks
             .push(s::Block::Call(
@@ -445,14 +469,32 @@ fn turn_record(input: &[u8]) -> jig_domain_core::TurnRecord {
             ))
             .unwrap();
     }
-    let source = s::Turn::new(bounds, s::TurnParts {
-        system: Some(b"## Task\nRead the charter.\nBrief continuation stays in the archive.\n## Project\nShop\nMore project context".as_slice().into()),
-        model: b"gpt-6".as_slice().into(), effort: None, kind: s::TurnKind::Ordinary, opening: None,
-        endpoint: b"unused-endpoint".as_slice().into(), dialect: 1, place: 2,
-        usage: s::Usage::new(bounds, s::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None }).unwrap(),
-        spent: 12, jobs: 0,
-        messages: List::from_boxed(Box::new([s::Message::new(bounds, s::MessageParts { role: s::Role::Assistant, blocks }).unwrap()])),
-    }).unwrap();
+    let source = s::Turn::new(
+        bounds,
+        s::TurnParts {
+            system: Some(system.into()),
+            model: b"gpt-6".as_slice().into(),
+            effort: None,
+            kind: s::TurnKind::Ordinary,
+            opening: None,
+            endpoint: b"unused-endpoint".as_slice().into(),
+            dialect: 1,
+            place: 2,
+            usage: s::Usage::new(
+                bounds,
+                s::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+            )
+            .unwrap(),
+            spent: 12,
+            jobs: 0,
+            messages: List::from_boxed(Box::new([s::Message::new(
+                bounds,
+                s::MessageParts { role: s::Role::Assistant, blocks },
+            )
+            .unwrap()])),
+        },
+    )
+    .unwrap();
     let mut out = skein_lib::Writer::new(usize::try_from(source.measure()).unwrap());
     source.encode(&mut out).unwrap();
     jig_domain_core::TurnRecord {
@@ -467,11 +509,33 @@ fn turn_record(input: &[u8]) -> jig_domain_core::TurnRecord {
     }
 }
 fn whole_turn(input: &[u8]) -> Answer {
+    turn_answer(turn_record(input), false)
+}
+fn turn_answer(record: jig_domain_core::TurnRecord, withheld: bool) -> Answer {
     Answer::Ended(Box::new(jig_domain_core::reads::Ended {
-        value: jig_domain_core::reads::EndedValue::Turn(turn_record(input)),
+        value: if withheld {
+            jig_domain_core::reads::EndedValue::WithheldTurn(record)
+        } else {
+            jig_domain_core::reads::EndedValue::Turn(record)
+        },
         at: Some(AT),
         by: None,
     }))
+}
+fn turn_activity(record: jig_domain_core::TurnRecord, withheld: bool) -> Answer {
+    use jig_domain_core::reads::{PageRow, PageTurn};
+    page(
+        List::from_boxed(Box::new([PageRow::Activity {
+            line: tasks::ActivityLine {
+                task: 41,
+                position: 3,
+                at: AT,
+                line: tasks::Line::Turn { reply: 1, attempt: 3, turn: 2, read: None },
+            },
+            turn: Some(if withheld { PageTurn::Withheld(record) } else { PageTurn::Carried(record) }),
+        }])),
+        false,
+    )
 }
 fn activity() -> Answer {
     use jig_domain_core::reads::{PageRow, PageTurn};
@@ -680,7 +744,57 @@ fn person_answers_read_as_named_bounded_lines() {
     let cut_input_line = format!("see: {input_exact}…");
     let long_question = "é".repeat(TITLE_BYTES / 2 + 1);
     let cut_question_line = format!("question · task 41, Add CSV export · {}…", "é".repeat(78));
+    let mut malformed = remembering_record();
+    malformed.transcript = Box::new([]);
     for (address, read, first, required, following) in [
+        (
+            "task 41 turn 3.2",
+            SeeRead::Turn { number: 41, attempt: 3, turn: 2, read: turn_answer(remembering_record(), true) },
+            "turn 3.2 of task 41 · $0.12",
+            &[
+                "## Kept about this person\nWithheld: shown to its person alone.\n## Task\nRead the charter.",
+                "remember: {}\nWithheld: shown to its person alone.",
+            ][..],
+            "task N activity · task N",
+        ),
+        (
+            "task 41 turn 3.2",
+            SeeRead::Turn { number: 41, attempt: 3, turn: 2, read: turn_answer(remembering_record(), false) },
+            "turn 3.2 of task 41 · $0.12",
+            &[
+                "## Kept about this person\n1. Prefers short answers.\n## Task\nRead the charter.",
+                "remember: {\"action\":\"add\",\"text\":\"Uses a screen reader.\"}\nremember: line 2 kept; 2 of 12 lines.\n1. Prefers short answers.\n2. Uses a screen reader.",
+            ],
+            "task N activity · task N",
+        ),
+        (
+            "task 41 activity",
+            SeeRead::Activity { number: 41, activity: turn_activity(remembering_record(), true) },
+            "activity of task 41: 1 events, oldest first",
+            &["  remember: Withheld: shown to its person alone."],
+            "task N turn A.T · task N · task N tree",
+        ),
+        (
+            "task 41 activity",
+            SeeRead::Activity { number: 41, activity: turn_activity(remembering_record(), false) },
+            "activity of task 41: 1 events, oldest first",
+            &["  remember: remember: line 2 kept; 2 of 12 lines."],
+            "task N turn A.T · task N · task N tree",
+        ),
+        (
+            "task 41 turn 3.2",
+            SeeRead::Turn { number: 41, attempt: 3, turn: 2, read: turn_answer(malformed.clone(), true) },
+            "turn 3.2 of task 41: unreadable turn",
+            &[],
+            "task N activity · task N",
+        ),
+        (
+            "task 41 activity",
+            SeeRead::Activity { number: 41, activity: turn_activity(malformed, true) },
+            "activity of task 41: 1 events, oldest first",
+            &["2026-11-09 07:40 · its run · turn 3.2 · unreadable turn\n  see: task 41 turn 3.2"],
+            "task N turn A.T · task N · task N tree",
+        ),
         (
             "inbox",
             SeeRead::Inbox {

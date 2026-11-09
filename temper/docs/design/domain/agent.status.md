@@ -228,10 +228,6 @@ record has run a real model on the sentence.
   section 8, which win there (the user, 2026-11-07), say nothing of models
   outside the offer.
 
-- **Not yet:** 8.4.4, *Seen by the person alone*: temper names jig no
-  private section or tool, and `see task N turn A.T` and `see task N
-  activity` render a turn whole.
-
 The remaining gaps concern verdict follow-up tasks,
 what a delivery keeps of a run's history, change-refusal model wording, shell authority for runs that cannot deliver,
 the fake's goal script, who is offered `decided`, what Ask temper
