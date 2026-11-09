@@ -41,8 +41,7 @@ items are unchanged.
     the worker's half crates of its own, the service composes both
     halves, and the switch is one of `tests/boundary/tests/cli.rs`'s
     feature exceptions until C5; M5's row names it as the worker's
-    exception (`../protocol/README.md`, 4.5). Decided by the user,
-    2026-11-09.
+    exception (`../protocol/README.md`, 4.5). Decided 2026-11-09.
   - 4 and 9, item 2: two crates stand under the engine's and the worker's
     packages, `temper-service-shell`, serve's run and host, on which the
     engine's shell runs, and `temper-worker-shell`, the worker's half
