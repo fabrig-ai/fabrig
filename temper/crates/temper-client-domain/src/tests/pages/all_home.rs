@@ -206,7 +206,7 @@ use crate::{
     Action, Address, Domain, Event, Place, Request,
     address::Filter,
     forge,
-    pages::{self, Act, home, needs},
+    pages::{self, Act, needs},
     tests::fixtures as f,
 };
 use jig_client::{Down, Key, Readout, Told, Up, Watchable, contract as c};
@@ -354,8 +354,16 @@ impl Across {
         self.family(
             self.decided_watch(project),
             wire::decisions(
-                &w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows: List::from_boxed(rows.into()) })
-                    .unwrap(),
+                &w::Decisions::new(
+                    &w::CEILINGS,
+                    w::DecisionsParts {
+                        project,
+                        rows: List::from_boxed(rows.into()),
+                        asked: List::with_capacity(0),
+                        cut: false,
+                    },
+                )
+                .unwrap(),
             ),
         )
     }
@@ -470,7 +478,7 @@ fn across_watches_follow_me_once_and_leave_together() {
             );
             assert_eq!(
                 fixture.watches(forge::decided::watch(project, &fixture.limits.forge).unwrap()),
-                1,
+                usize::from(project <= u32::try_from(pages::decided::DECIDED_PROJECTS).unwrap()),
                 "{case}: decided {project}"
             );
         }
@@ -484,7 +492,9 @@ fn across_watches_follow_me_once_and_leave_together() {
         let mut owned = List::uncapped();
         for &project in expected {
             owned.push(fixture.status_watch(project)).unwrap();
-            owned.push(fixture.decided_watch(project)).unwrap();
+            if project <= u32::try_from(pages::decided::DECIDED_PROJECTS).unwrap() {
+                owned.push(fixture.decided_watch(project)).unwrap();
+            }
         }
         fixture.ack();
         let out = fixture.go(Address::Accounts);
@@ -589,7 +599,7 @@ fn decisions_keep_the_newest_seven_across_projects_and_read_them() {
         }
         assert_eq!(values.as_slice(), numbers, "{case}");
         for row in &facts.decided {
-            assert_eq!(row.line.state, home::DecisionTask::Live, "{case}: task read");
+            assert_eq!(row.line.state, pages::decided::DecisionTask::Live, "{case}: task read");
             assert!(row.line.title.is_some(), "{case}");
             assert_eq!(row.line.overturned, row.line.number == NINE, "{case}");
         }
@@ -726,10 +736,7 @@ fn away_uses_the_newest_finished_spell_after_the_latest_look() {
         let mut values = List::with_capacity(w::CEILINGS.aways_rows);
         for &(project, since, off, until) in rows {
             values
-                .push(
-                    w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project, since, off, until, kinds: 7, landed: 0 })
-                        .unwrap(),
-                )
+                .push(w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project, since, off, until, landed: 0 }).unwrap())
                 .unwrap();
         }
         let away = fixture.watch(forge::away::watch(&fixture.limits.forge).unwrap());

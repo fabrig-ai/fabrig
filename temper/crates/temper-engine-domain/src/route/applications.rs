@@ -45,7 +45,10 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Try { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
-            what: forge::PersonFact::ToBegin { project } | forge::PersonFact::GoalFrom { project, .. },
+            what:
+                forge::PersonFact::ToBegin { project }
+                | forge::PersonFact::GoalFrom { project, .. }
+                | forge::PersonFact::KeepAsking { project, .. },
         }
         | Application::Looked { project }
         | Application::SetAway { project, .. }
@@ -120,16 +123,8 @@ pub(super) fn admitted(
                 .expect("one marker per retained key");
             finished(domain, request, Ok(token));
         }
-        Application::SetAway { project, on, until, kinds } => {
-            domain.work.push(Work::Forge(forge::Event::SetAway {
-                request,
-                token,
-                party: person,
-                project,
-                on,
-                until,
-                kinds,
-            }));
+        Application::SetAway { project, on, until } => {
+            domain.work.push(Work::Forge(forge::Event::SetAway { request, token, party: person, project, on, until }));
         }
         Application::Overturn { project, number } => {
             domain.work.push(Work::Forge(forge::Event::Overturn { request, token, party: person, project, number }));

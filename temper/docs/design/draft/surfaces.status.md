@@ -58,8 +58,17 @@
     stock holds it and template 6 starts it since P6, which landed
     after the cut of `look-round-25`. What reaches you, Rules by path,
     What follows a landing and a role's budget wait for their milestones (`whole-story.execution.md`,
-    section 3, P3b to P3d), and what a role does, past when it runs, for
-    P3e's words saved with its charter; its section 11
+    section 3, P3b to P3d). What a role does, past when it runs, is kept
+    since P3e, a charter's words (`../protocol/configuration.md`, 13.2,
+    kind 9), but no design says it on Roles: the view `roles` carries no
+    such fact, and `../domain/forge.md`, section 20, *A role's words on
+    its card*, and `../client/README.md`, section 11, defer it, though the
+    help's settings page and a run's "none kept" answer say Roles says a
+    charter by them. The plan `ui-p3e-words` left it out, Roles not having
+    landed at its cut, so a role's "Asked to", its instructions' first
+    sentence, stays the only words of what it does, which the audit of
+    2026-11-08 found reads badly for some charters ("Read only what the
+    change needs…"). Its section 11 also
     defers "History · N changes" and the next step's suggestions, and
     keeps the project's repositories as How work runs' second tab, not
     at its foot.

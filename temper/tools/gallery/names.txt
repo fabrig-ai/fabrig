@@ -214,6 +214,7 @@ home-copy-failed
 home-copy-offer
 home-copy-one
 home-copying
+home-decided
 home-github
 home-landing-none
 home-landing-red
@@ -258,6 +259,7 @@ models-read-failed
 needs-approval
 needs-approval-first
 needs-approval-no-account
+needs-decided
 needs-done
 needs-funds
 needs-held
@@ -271,7 +273,10 @@ needs-proposal
 needs-reply-open
 needs-saw-open
 needs-second-answered
+needs-stop-asking
+needs-stop-asking-set
 needs-tell
+needs-why
 night-all-home
 night-ask
 night-chat-split
@@ -299,7 +304,7 @@ repositories-none
 settings
 settings-all-hidden
 settings-away
-settings-away-off
+settings-away-you-approve
 settings-changes-off
 settings-chat-open
 settings-drafts-off

@@ -17,7 +17,8 @@ use temper_client_domain::{
     self as d,
     pages::{
         all_home::{self as h, Facts, Project},
-        home::{DecisionLine, DecisionTask, Needs, Status},
+        decided::{DecisionLine, DecisionTask},
+        home::{Needs, Status},
     },
 };
 use temper_client_protocol_wire::v1 as w;
@@ -243,6 +244,8 @@ fn decision(number: u32) -> h::Decided {
     h::Decided {
         project: 2,
         line: DecisionLine {
+            project: 2,
+            reach: None,
             number,
             task: u64::from(number),
             title: Some(b"Porter".as_slice().into()),

@@ -690,14 +690,22 @@ fn the_corner_leads_with_set_up_temper_while_the_playground_runs() {
             }
         }
         let corner = corner.expect("banner corner");
-        let link = &nodes[corner.checked_add(1).unwrap()];
+        let mut setup = None;
+        for (at, node) in nodes.iter().enumerate().skip(corner) {
+            if node.styles.as_slice().contains(&crate::look::LEAVE_PLAYGROUND) {
+                setup = Some(at);
+                break;
+            }
+        }
+        let at = setup.expect("playground setup in the corner");
+        let link = &nodes[at];
         assert_eq!(link.role, Role::Link);
         assert_eq!(link.name.as_deref(), Some(b"Set up temper".as_slice()));
         assert_eq!(link.styles.as_slice(), [crate::look::LEAVE_PLAYGROUND]);
-        let text = &nodes[corner.checked_add(2).unwrap()];
+        let text = &nodes[at.checked_add(1).unwrap()];
         assert_eq!(text.role, Role::Text);
         assert_eq!(text.text.get(0).unwrap().text.as_ref(), b"Set up temper");
-        let region = corner.checked_add(1).unwrap().checked_add(usize::try_from(link.size).unwrap()).unwrap();
+        let region = at.checked_add(usize::try_from(link.size).unwrap()).unwrap();
         assert_eq!(nodes[region].region, Some(crate::frame::link_region()));
         let id = link.id;
         assert_eq!(crate::act(&mut view, id, Act::Press), Some(Action::Forge(forge::Act::EndPlayground)));
@@ -1622,8 +1630,8 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
 #[expect(clippy::too_many_lines, reason = "one project switch checks its frame and Work's reads in both shells")]
 fn goals_opens_in_its_projects_frame() {
     use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
-    // Work's changes and notes, the rail's people and the project's ways open without a goal template.
-    const PROJECT_READS: u32 = 4;
+    // Work's changes and notes, the rail's people and the project's ways and classes open without a goal template.
+    const PROJECT_READS: u32 = 5;
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         for words in [fixtures::words(), fixtures::browser_words()] {
             let address = Address::Goals { project: fixtures::SECOND_PROJECT, filter };
@@ -1673,7 +1681,11 @@ fn goals_opens_in_its_projects_frame() {
                 Event::Went { place: Place::Address(address.clone()) },
                 &mut out,
             );
-            assert_eq!(out.len(), PROJECT_READS, "changes, people, notes and the new project's ways: {out:?}");
+            assert_eq!(
+                out.len(),
+                PROJECT_READS,
+                "changes, people, notes and the new project's ways and classes: {out:?}"
+            );
             let Some(Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
             }) = out.pop()
@@ -1718,22 +1730,30 @@ fn goals_opens_in_its_projects_frame() {
             };
             assert_eq!(scope, jig_client::contract::NoteScope::Tasks { project: fixtures::PROJECT });
             assert_eq!((description, after), (None, None));
-            let Some(Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
-                    },
-            }) = out.pop()
-            else {
-                panic!("project ways read")
-            };
-            let reading =
-                temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                    .unwrap();
-            let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
-                panic!("project ways setting")
-            };
-            assert_eq!((setting.kind(), setting.scope()), (7, fixtures::PROJECT));
+            let mut kinds = skein_lib::List::with_capacity(2);
+            while let Some(request) = out.pop() {
+                let Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down: jig_client::Down::Read { what: jig_client::Readable::Family { record, .. }, .. },
+                        },
+                } = request
+                else {
+                    panic!("project settings read")
+                };
+                let reading = temper_client_protocol_wire::decode_reading(
+                    &record.bytes,
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .unwrap();
+                let temper_client_protocol_wire::v1::Read::Setting(setting) = reading.read() else {
+                    panic!("project setting")
+                };
+                assert_eq!((setting.scope(), setting.number()), (fixtures::PROJECT, 1));
+                kinds.push(setting.kind()).unwrap();
+            }
+            assert!(kinds.as_slice().contains(&7));
+            assert!(kinds.as_slice().contains(&8));
             assert_eq!(root.pages().address(), &address);
             assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
             fixtures::build(&mut view, &root);

@@ -24,6 +24,7 @@ worker = [
 ]
 
 [dependencies]
+temper-protocol-reaches.workspace = true
 temper-protocol-brief.workspace = true
 temper-engine-domain-ways.workspace = true
 temper-engine-domain-forge-tiers.workspace = true

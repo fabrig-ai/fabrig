@@ -16,19 +16,20 @@ First:
       A design session that ends in a goal, best had in the terminal.
     [12] Change
       Ask for one change.
-  [13] Deployment
+  [13] Away
+  [14] Deployment
   * Pat
 First · Work
 Everything on First, in the words of the agent doing it. A goal opens to its tasks and changes; a chat that started work sits with what it started; a draft waits for its goal.
 1 queued · last landed just now
 Work's filters:
-  [14] All
-  [15] Changes (current)
+  [15] All
+  [16] Changes (current)
 ## One change is on the way to main.
 Each change is checked on top of main before it lands.
 Queue:
   ## Queue
-  - [16] Store: policy record · checking · checks started just now
+  - [17] Store: policy record · checking · checks started just now
 Landed recently:
   ## Landed recently
-  - [17] A landed change · 00:00
+  - [18] A landed change · 00:00

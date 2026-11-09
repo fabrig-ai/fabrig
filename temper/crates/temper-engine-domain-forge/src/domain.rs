@@ -1443,14 +1443,14 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::MakingAgain { key } => {
             d.making_acts.remove(&key);
         }
-        Event::SetAway { request, token, party, project, on, until, kinds } => {
-            crate::away::set_away(d, env, request, token, party, project, on, until, kinds, out);
+        Event::SetAway { request, token, party, project, on, until } => {
+            crate::away::set_away(d, env, request, token, party, project, on, until, out);
         }
         Event::Overturn { request, token, party, project, number } => {
             crate::away::overturn(d, request, token, party, project, number, out);
         }
-        Event::Decided { to, key, party, project, task, call } => {
-            crate::away::decided(d, env, to, key, party, project, task, call, out);
+        Event::Decided { to, key, party, project, task, always, call } => {
+            crate::away::decided(d, env, to, key, party, project, task, always, call, out);
         }
         Event::Looked { request, token, party, project } => {
             crate::status::looked(d, env, request, token, party, project, out);

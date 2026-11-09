@@ -53,7 +53,7 @@ fn question_card(root: &d::Domain) -> d::pages::inbox::Card {
 }
 #[test]
 fn three_cards_keep_order_project_scope_and_the_remaining_link() {
-    let root = f::inbox_root();
+    let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);
     let base = question_card(&root);
     for (count, more) in [(3, None), (4, Some("One more")), (5, Some("2 more"))] {
         let cards: Vec<_> = (1..=count)
@@ -107,7 +107,7 @@ fn three_cards_keep_order_project_scope_and_the_remaining_link() {
 }
 #[test]
 fn a_question_orders_the_primary_choice_before_other_acts() {
-    let root = f::inbox_root();
+    let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);
     let card = question_card(&root);
     for w in [f::words(), f::browser_words()] {
         let (tree, bindings) = draw(&root, &[Need::Card(&card)], true, &w);
@@ -134,7 +134,7 @@ fn a_question_orders_the_primary_choice_before_other_acts() {
 }
 #[test]
 fn plain_questions_have_a_primary_way_to_tell() {
-    let root = f::inbox_root();
+    let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);
     let mut card = question_card(&root);
     if let Some(c::ReadValue::Question(q)) = &mut card.page {
         q.words = c::DocumentText::complete(c::Text::new(b"No choices here.".as_slice().into(), 64).unwrap());
@@ -201,7 +201,7 @@ fn proposals_held_tasks_and_approvals_keep_their_acts() {
     }
     let mut approval = super::needs::approval_row();
     approval.kind = d::forge::forges::Kind::GitHub;
-    let root = f::inbox_root();
+    let root = super::needs::fixture("A question?", false, 1, false, d::address::Filter::ALL);
     for w in [f::words(), f::browser_words()] {
         let (tree, bindings) = draw(&root, &[Need::Approval(&approval)], true, &w);
         let review = tree.nodes().iter().find(|n| n.name.as_deref() == Some("Review on GitHub ↗".as_bytes())).unwrap();

@@ -16,6 +16,19 @@ pub(super) fn decision(number: u32, at: u64) -> w::Decision {
             took: b"The smaller change".as_slice().into(),
             why: b"It fits the goal.".as_slice().into(),
             overturned: false,
+            reach: w::Reach::new(
+                &w::CEILINGS,
+                w::ReachParts {
+                    kind: w::ReachKind::Wording,
+                    class: w::ReachClass::Decide,
+                    reason: w::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
+            )
+            .unwrap(),
         },
     )
     .unwrap()
@@ -25,7 +38,11 @@ pub(super) fn record(values: &[w::Decision]) -> Family {
     for value in values {
         rows.push(value.clone()).unwrap();
     }
-    let document = w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project: f::PROJECT, rows }).unwrap();
+    let document = w::Decisions::new(
+        &w::CEILINGS,
+        w::DecisionsParts { project: f::PROJECT, rows, asked: List::with_capacity(0), cut: false },
+    )
+    .unwrap();
     Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::decisions(&document) }
 }
 #[test]
@@ -100,7 +117,7 @@ fn a_refused_or_ended_watch_is_no_rows() {
                 },
                 &mut Queue::uncapped(),
             );
-            assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).away.is_some());
+            assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).decided.is_some());
         }
         crate::step(
             &mut root,
@@ -108,13 +125,16 @@ fn a_refused_or_ended_watch_is_no_rows() {
             Event::Client { event: jig_client::Event::Up { up: Up::WatchEnded { watch, end } } },
             &mut Queue::uncapped(),
         );
-        assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).away.is_none());
+        assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).decided.is_none());
         crate::step(
             &mut root,
             &env,
             Event::Client { event: jig_client::Event::Up { up: Up::FamilyDelivered { watch, record } } },
             &mut Queue::uncapped(),
         );
-        assert!(crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).away.is_none(), "late delivery stays ended");
+        assert!(
+            crate::pages::home::facts(&root, f::PROJECT, Wall::EPOCH).decided.is_none(),
+            "late delivery stays ended"
+        );
     }
 }

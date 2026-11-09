@@ -28,6 +28,7 @@ pub fn bounds() -> Bounds {
         message_bytes: 128,
         inbox: 4,
         unacknowledged: 8,
+        reply_bytes: None,
     }
 }
 
@@ -52,6 +53,12 @@ pub fn hello_slots(channel: Token, slots: u32, hosting: Box<[Hosting]>) -> engin
 /// A configured worker's hello at `worker`, with its slots and hosted runs.
 #[must_use]
 pub fn hello_at(channel: Token, worker: u32, slots: u32, hosting: Box<[Hosting]>) -> engine::Event {
+    hello_with(channel, worker, slots, bounds(), hosting)
+}
+
+/// A configured worker's hello at `worker`, saying `bounds`.
+#[must_use]
+pub fn hello_with(channel: Token, worker: u32, slots: u32, bounds: Bounds, hosting: Box<[Hosting]>) -> engine::Event {
     link(
         channel,
         engine::Link::Hello {
@@ -62,7 +69,7 @@ pub fn hello_at(channel: Token, worker: u32, slots: u32, hosting: Box<[Hosting]>
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),
                 hosting,
-                bounds: bounds(),
+                bounds,
             },
         },
     )

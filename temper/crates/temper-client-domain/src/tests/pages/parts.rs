@@ -84,9 +84,8 @@ fn project_parts_keep_to_begin_and_away_counts() {
             false,
             home::Needs::Count { count: 2, cut: false },
             home::Status::Shown(Box::new(crate::tests::status::document(2, 1, Some(2)))),
-            Some(home::AwayForm {
-                span: None,
-                landed: None,
+            Some(crate::pages::decided::Shown {
+                more: false,
                 showing: 3,
                 rows: Box::default(),
                 expires: skein_lib::Wall::EPOCH,
@@ -102,7 +101,8 @@ fn project_parts_keep_to_begin_and_away_counts() {
             skip: home::Skip::NotSkipped,
             skip_refused: false,
             status,
-            away,
+            decided: away,
+            spell: None,
         };
         assert_eq!(facts.parts_facts(), expected, "{case}");
     }
@@ -141,7 +141,7 @@ fn needs_counts_all_decisions_with_its_project_filter() {
         for &project in read {
             let mut values = List::with_capacity(THREE);
             for number in 1..=THREE {
-                values.push(crate::tests::decided::decision(number, u64::from(number))).unwrap();
+                values.push(crate::tests::decided::decision(project * THREE + number, u64::from(number))).unwrap();
             }
             let out = fixture.decisions(project, values.as_slice());
             assert_eq!(task_reads(&out).len(), usize::try_from(THREE).unwrap(), "{case}");

@@ -2,6 +2,12 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *Needs you*, *Why it reached you*, in the TUI (6.14, *The
+  launchpad*): its need lines say no reason, though
+  `temper_client_view::shared::why` gives it; temper/tui draws it with the
+  launchpad of milestone T1 in
+  [whole-story.execution.md](../draft/whole-story.execution.md).
+
 Sections 6.13 and 6.14 keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
 its opener fallback, and selection clearing on ordinary words, Esc and
@@ -167,14 +173,29 @@ Deployment*, 4.6 and 5.13): `pages::how::parts`, of what
 `pages::how::facts` gathers, decides the heading's way, "Ask temper to
 change this", the path section's state, Roles' state and Budgets' row.
 `Settings { project }` watches the project's `ways` as Ask temper's page
-does, `Act::WayTab` and `Act::WayStop` heard on either. The page names
-the way, or "A way of its own", with its line, draws the path, Roles, a
+does, `Act::WayTab` and `Act::WayStop` heard on either. The page heads
+itself with the words saved with the settings (below), draws the path, Roles, a
 goal's amount or cap, What needs you and Away, and the switches at its
 foot; the disabled Status, Funds and Telling you rows are gone. The
 domain's and the view's tables, the joint world's
 `the_three_ways_draw_ci_and_tiers_or_neither` and the text shell's
 `settings.txt` golden hold it. The page's render check and walk remain
 section 11's after-landing work.
+
+Sections 4.6 and 5.13 have no known gap in the words saved with the
+settings, the whole story's P3e, by plan `ui-p3e-words`: the wire's
+`StockWay` `headline` and `WaysPanel` `words`, a `ProjectWords`, each
+stock way's headline and the project's kind 10 carried by the `ways`
+read; How work runs' heading the headline of the way the project runs,
+its lede "PROJECT runs the stock way NAME." and the way's line, and,
+where it runs none, the project's headline and lede, else "A way of its
+own" and "PROJECT runs settings of its own, drawn below."; a proposal's
+card names kinds 9 and 10 `charter-words` and `project-words`. The domain's `forge_stock_ways` and `pages/how` tables, the
+view's `parts_draw_the_current_way_and_the_shown_path`, the joint
+world's `the_three_ways_draw_ci_and_tiers_or_neither` and the gallery's
+`how`, `how-approve`, `how-draft` and `how-yours` hold it; their render
+check follows landing. Roles says no charter's words (section 11, *How
+work runs' later parts*).
 
 Sections 3.5, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and 5.3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
@@ -438,7 +459,11 @@ its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
 
-
+- **Departs:** 5.13: a way the `ways` read gives with an empty
+  `headline`, which no stock way has and a test world's may, heads How
+  work runs by its name, where 5.13 has its headline
+  (`temper-client-view`'s `pages/how.rs`, `head`): the wire admits an
+  empty one, and the page keeps a heading.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
@@ -913,7 +938,7 @@ read's head explicit.
   switch on and off at each and toasts open. They are saved on a builder, outside
   the repository, so what they show is unknown here; the gallery holds their
   states (`browser.md`, 7.2).
-- **Departs:** 3.5, *Away*, its *Overturn*: an `Overturn` whose outcome is no
+- **Departs:** 3.5, *Decided for you*, its *Overturn*: an `Overturn` whose outcome is no
   answer, unknown after a restart or its link lost, toasts "That was overturned
   already." and sends no message (`temper-client-domain`'s `forge/decided.rs`,
   `overturned`), where the section has those words for a refusal: if it
@@ -1083,13 +1108,6 @@ section 11's after-landing work (*Away on All projects after landing*).
     again" first: a refused message leaves the row marked, and its task won't ask.
   - 3.5: Home's away form is not drawn while To begin shows, where the request has
     it with any row showing.
-  - 5.8: "follows the away switch" stands on every goal whose words hold no line
-    `Asks: always`, where the request has it where its requester has a switch: no
-    read says that, and a requester with none has its goal told to ask
-    (`../domain/forge.md`, 5.9) under those words.
-  - 5.13: the tab's "Away switch" row says "Hidden" with kind 7's `away` false, and
-    a project with a goal, or the party's row on, shows the switch all the same,
-    since the request has any of the three show it.
 - **Design departs:** 3.5, *A chat's conversation*, its cards, from the request
   `ui-chats` of 2026-11-05, which names a proposal, a held task and a question's
   answer as cards in the conversation: a chat's page holds proposals alone

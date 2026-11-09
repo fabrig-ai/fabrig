@@ -16,35 +16,45 @@ demo:
       A design session that ends in a goal, best had in the terminal.
     [12] Change
       Ask for one change.
-  [13] Set up temper
-  [14] Deployment
+  [13] Away
+  [14] Set up temper
+  [15] Deployment
   * Pat
 demo · how work runs
 Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.
 How work runs:
-  [15] How work runs (current)
-  [16] Repositories
+  [16] How work runs (current)
+  [17] Repositories
 ## The path of a change
 ## What needs you
 Questions a goal can answer from its plan
 Questions a goal can answer from its plan:
-  [17] ( ) Answered by the goal, kept in its decisions
-  [18] ( ) Asked of me too
-  [19] (*) Not asked: each agent decides alone
+  [18] ( ) Answered by the goal, kept in its decisions
+  [19] ( ) Asked of me too
+  [20] (*) Not asked: each agent decides alone
+## While you’re away, agents may decide
+Agents decide, then tell you: wording choices, retries and splits, test-only changes.
+What asks you
+Ticked, Away decides it and lists it, with Overturn. Unticked, it asks you even when away.
+[21] [x] Implementation choices
+[22] [x] New dependencies
+[23] [x] Departures from a landed design
+[-] [ ] Money past a budget, what can’t be undone, and changes to these rules: always wait (disabled)
+Away until
+When it isn’t turned off by hand.
+Away until:
+  [24] (*) 08:00, the end of quiet hours
+  [25] ( ) I turn it off
 ## What the project shows
 Chats can write drafts
 A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
 On
-[20] [x] Chats can write drafts
+[26] [x] Chats can write drafts
 Goals
 Bigger work from a draft: a plan, tasks, landing.
 Hidden
-[21] [ ] Goals
+[27] [ ] Goals
 Changes
 The landing queue, as Work's filter.
 Hidden
-[22] [ ] Changes
-Away switch
-Lets agents decide within limits while you’re away.
-Hidden
-[23] [ ] Away switch
+[28] [ ] Changes

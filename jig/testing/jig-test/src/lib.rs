@@ -145,6 +145,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
             message_bytes: limits.domain.run.message_bytes,
             inbox: policy.inbox,
             unacknowledged: policy.unacknowledged,
+            reply_bytes: None,
         },
     };
     Ok(AgentStart { agent, sources })

@@ -128,7 +128,12 @@ record AnswerValue { answer: Answer }
 enum ReadResult { answer: boxed AnswerValue, error: ErrorValue }
 record CallRead { result: ReadResult }
 record CallEffect { entry: u64 deadline: u64 outcome: option Outcome }
-record CallDecided { took: option bytes 120 }
+enum ReachKind { wording, retry, implementation, tests, dependency, departure, money, irreversible, rules, other }
+enum ReachClass { decide, ask, ask_away, wait }
+record ReachSet { number: u8 }
+enum ReachReason { kind, set: ReachSet, always }
+record Reach { kind: ReachKind class: ReachClass reason: ReachReason under: u8 sets: u8 matched: u8 away: bool }
+record CallDecided { took: option bytes 120 reach: option Reach }
 enum CallPayload { effect: CallEffect, refused: ErrorValue, read: CallRead, decided: CallDecided }
 record NamedCall { task: u64 attempt: u64 completion: u32 position: u32 }
 record Call { key: NamedCall answer: CallPayload }
@@ -317,10 +322,16 @@ record LandingRule { pattern: RulePattern enforce: bool ci: bool up_to_date: boo
 record CharterValue { number: u32 }
 record TemplateGoal { design: bool close_out: bool }
 record ProjectQuestions { route: Route }
-record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }
+record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
+# What reaches a person (temper/docs/design/domain/forge.md, 5.10).
+record ReachKindOf { kind: ReachKind }
+enum ClassSubject { kind: ReachKindOf, set: ReachSet }
+record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }
+record PathSet { number: u8 name: bytes 40 patterns: list 6 bytes 80 }
+record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }
 record CharterWords { line: text 120 }
 record ProjectWords { headline: text 120 lede: text 480 }
-enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords }
+enum SettingValue { rule: LandingRule, charter: CharterValue, questions: ProjectQuestions, ways: ProjectWays, goal: TemplateGoal, line: CharterWords, words: ProjectWords, classes: ProjectClasses }
 record SizedValue { value: SettingValue size: u32 }
 enum SettingEdit { set: SizedValue, remove, reset }
 enum SettingSlot { default, change, proposal: Number, replaced: Number }
@@ -328,7 +339,8 @@ record SettingRow { kind: u32 scope: u32 number: u32 slot: SettingSlot edit: Set
 # A person's dismissals (protocol/store.md, 2).
 record ToBegin { project: u32 }
 record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
-enum PersonFact { to_begin: ToBegin goal_from: GoalFrom }
+record KeepAsking { project: u32 subject: ClassSubject at: u64 }
+enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking }
 record Dismissed { party: u64 what: PersonFact }
 record LoggedChange { task: u64 pull: option u64 title: bytes 256 }
 record LoggedLanding { commit: fixed 32 branch: bytes 4096 at: u64 changes: list 64 LoggedChange }
@@ -339,8 +351,8 @@ record StatusRunning { task: option u64 landed: u64 since: u64 }
 record ProjectFacts { project: u32 landed: u64 last_landed: u64 brief: option StatusBrief running: option StatusRunning }
 record Looked { party: u64 project: u32 previous: option u64 latest: u64 seen: u64 next_seen: u64 }
 
-record Away { party: u64 project: u32 since: u64 until: option u64 kinds: u8 landed: u64 off: option u64 }
-record Decided { project: u32 number: u32 party: u64 task: u64 at: u64 question: bytes 400 options: list 6 bytes 120 took: u8 why: bytes 400 overturned: bool }
+record Away { party: u64 project: u32 since: u64 until: option u64 landed: u64 off: option u64 }
+record Decided { project: u32 number: u32 party: u64 task: u64 at: u64 question: bytes 400 options: list 6 bytes 120 took: option u8 why: bytes 400 overturned: bool reach: Reach }
 
 enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided }
 versioned record Row { value: Value }

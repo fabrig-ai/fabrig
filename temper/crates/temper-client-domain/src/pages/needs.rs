@@ -35,6 +35,93 @@ impl Need<'_> {
         }
     }
 }
+/// Why a need reached the person (temper/docs/design/client/README.md, 3.5, Needs you, Why it reached you).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Why {
+    Reach { project: u32, reach: temper_protocol_reaches::Reach },
+    Direct,
+    Proposal,
+    Held,
+    Funds,
+}
+fn asking(card: &Card) -> Option<(Option<u64>, Option<Wall>)> {
+    if let Some(ReadValue::Question(question)) = &card.page {
+        let task = match question.from {
+            Some(contract::Requester::Task(task)) => task,
+            Some(contract::Requester::Person(_) | contract::Requester::Deployment { .. }) | None => question.task.task,
+        };
+        return Some((Some(task), Some(question.since)));
+    }
+    if let Some(ReadValue::PersonTask(task)) = &card.page
+        && crate::question::in_words(task)
+    {
+        let requester = match task.requester {
+            contract::Requester::Task(task) => Some(task),
+            contract::Requester::Person(_) | contract::Requester::Deployment { .. } => None,
+        };
+        return Some((requester, task.since));
+    }
+    None
+}
+/// None where the need has no line, or its document does not say.
+#[must_use]
+pub fn why(root: &crate::Domain, need: Need<'_>) -> Option<Why> {
+    let Need::Card(card) = need else { return None };
+    if let Some((task, since)) = asking(card) {
+        let project = card.project?;
+        let super::decided::Document::Delivered(document) = root.pages().decisions(project) else { return None };
+        let mut newest: Option<&temper_client_protocol_wire::v1::Asked> = None;
+        for row in document.asked() {
+            if Some(row.task()) == task
+                && match since {
+                    Some(at) => row.at() <= at.as_nanos(),
+                    None => true,
+                }
+                && match newest {
+                    Some(at) => row.at() > at.at(),
+                    None => true,
+                }
+            {
+                newest = Some(row);
+            }
+        }
+        if let Some(row) = newest
+            && let Some(reach) = temper_protocol_reaches::reach_from(row.reach())
+            && !reach.decided()
+        {
+            return Some(Why::Reach { project, reach });
+        }
+        return if document.cut() { None } else { Some(Why::Direct) };
+    }
+    match card.group {
+        contract::InboxGroup::Proposals => Some(Why::Proposal),
+        contract::InboxGroup::Escalations => {
+            if let Some(ReadValue::Escalation(held)) = &card.page
+                && let Some(hold) = &held.task.hold
+                && hold.reason == contract::HoldCategory::Budget
+            {
+                return Some(Why::Funds);
+            }
+            Some(Why::Held)
+        }
+        contract::InboxGroup::Questions
+        | contract::InboxGroup::PersonTasks
+        | contract::InboxGroup::Results
+        | contract::InboxGroup::Replies => None,
+    }
+}
+/// False while a question's project's `decided` document is watched and not yet delivered.
+#[must_use]
+pub fn ready(root: &crate::Domain, need: Need<'_>) -> bool {
+    let Need::Card(card) = need else { return true };
+    if (asking(card).is_some() || card.group == contract::InboxGroup::Questions)
+        && let Some(project) = card.project
+        && let super::decided::Document::Unknown = root.pages().decisions(project)
+    {
+        return false;
+    }
+    true
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
     Choose { object: ObjectKey, words: Box<[u8]> },
@@ -78,6 +165,10 @@ pub enum Toasted {
         project: u32,
         until: Option<Wall>,
     },
+    StopApplied,
+    StopProposed,
+    KeptAsking,
+    KeepAskingRefused,
     AwayOff,
     AwayRefused,
     AwayAll {
@@ -636,6 +727,26 @@ pub(crate) fn act(
     act: Act,
     out: &mut Queue<Request>,
 ) {
+    let closing = match &act {
+        Act::Choose { object, .. } | Act::SendReply { object } | Act::Later { object } | Act::Undo { object } => {
+            Some(*object)
+        }
+        Act::Open { object } => {
+            if let Some(open) = &pages.stop_asking
+                && open.object() != *object
+            {
+                pages.stop_asking = None;
+            }
+            None
+        }
+        Act::OpenReply { .. } | Act::CancelReply | Act::Dismiss => None,
+    };
+    if let Some(object) = closing
+        && let Some(open) = &pages.stop_asking
+        && open.object() == object
+    {
+        pages.stop_asking = None;
+    }
     match act {
         Act::Choose { object, words } => answer(pages, env, client, object, words, false),
         Act::OpenReply { object } => open_reply(pages, object),
@@ -697,7 +808,11 @@ pub(crate) fn act(
                             pages.needs.toast = None;
                         }
                     }
-                    Toasted::Way { .. }
+                    Toasted::StopApplied
+                    | Toasted::StopProposed
+                    | Toasted::KeptAsking
+                    | Toasted::KeepAskingRefused
+                    | Toasted::Way { .. }
                     | Toasted::AwayOn { .. }
                     | Toasted::AwayOff
                     | Toasted::AwayAll { .. }

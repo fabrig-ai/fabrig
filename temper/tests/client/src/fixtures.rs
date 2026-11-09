@@ -100,15 +100,15 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Five delegates fill the chat's watch set beside its session approvals and Home's full room.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 5;
+/// Eight delegates fill the chat's watch set beside its session approvals and Home's full room.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    limits.client.domain.watches = 17;
-    limits.client.domain.handles = 19;
+    limits.client.domain.watches = 20; // Holds four projects' decided watches.
+    limits.client.domain.handles = 22; // Holds four projects' decided watches.
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
@@ -207,14 +207,15 @@ pub fn domain_limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
-                handles: 16,
+                handles: 19, // Holds four projects' decided watches.
                 // Closing page watches overlap the session watches.
-                watches: 15,
+                watches: 18, // Holds four projects' decided watches.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
                 heartbeat: Duration::from_millis(100),
-                reads: 8,
+                // Project classes add one read beside the story's existing reads.
+                reads: 9,
                 parts: 8,
                 delegates: 2,
                 document_bytes: 65536,

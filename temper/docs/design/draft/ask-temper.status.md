@@ -1,6 +1,6 @@
 # ask-temper: status
 
-2026-11-08. Where the design lags or departs from [ask-temper.md](ask-temper.md).
+2026-11-09. Where the design lags or departs from [ask-temper.md](ask-temper.md).
 
 M1 is built: charter 11 and template 5, its small request on both shapes,
 no workspace, its own tools, the configuring reads through `see`, proposals
@@ -35,6 +35,11 @@ Ask temper's page draws the ways from the same read, by the look request
   the project's (`../protocol/configuration.md`, 13.2, kinds 9 and 10), and
   `ask.txt`'s *Configuring* asks for them as `charter-words` and
   `project-words`, which section 8's text lacks; decided
-  by the `ui-p3e-words` cut on the user's request of 2026-11-08, its
-  sentence the user's to review before landing.
+  by the `ui-p3e-words` cut on the user's request of 2026-11-08. The
+  sentence, "With it, write in their terms what the pages show:
+  charter-words for each charter, what it does; project-words for the
+  project's own way, a headline and a short lede.", is the user's to
+  review, and no record shows that review; its *Finding out* names
+  neither kind, for its 8,192 bytes, though `see`'s answer to an unknown
+  address does (`../domain/agent.status.md`, 8.4.1).
 - **Open:** 12.

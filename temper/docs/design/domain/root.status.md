@@ -27,9 +27,16 @@ Section 9.1's owner handoff is present: after both domains load, the root
 hands the forge `people.sole_owner()` before its restore decision. The
 connector's retained-link scope gap remains in `forge.status.md`, 4.6.
 
-Section 5.2's host-answer room is shared across the box's runs, as
-`fleet.calls` bounds the fleet rather than each run. No concurrency gap is
-known in that room; the settings-answer bound gap remains below.
+Section 5.2 has no known implementation gap in sizing task reads by the
+live attempt's worker reply bound, else the local agent's, else
+`documents.text_bytes`, within the core and journal bounds. The six-row
+`task_reads_take_their_workers_reply_bound` table covers the worker-only
+1,500-byte specification in one call and a smaller worker bound in two,
+both fallbacks, continuation and the journal ceiling
+(`temper/tests/engine/domain/tests/suite/host_calls.rs`). The host-answer
+room is shared across the box's runs, as `fleet.calls` bounds the fleet
+rather than each run. No concurrency gap is known in that room; the
+settings-answer bound gap remains below.
 
 Section 10 has no known gap in deriving both watch rooms from the admitted
 streams. Its settings-answer bound gap remains below.
@@ -48,7 +55,18 @@ or spending a try (`tests/engine/domain`'s
 `tasks_due_together_past_the_load_slots_each_load_their_window`).
 Whether room was why about 23 briefs failed on their windows after a
 deployment's restart on 2026-11-08 is unproven: its evidence is outside
-the repository. A window's later page is below.
+the repository. A window's later pages retain their load slot, as
+`temper-engine-domain/src/archive.rs`'s
+`a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken`
+checks.
+
+Section 12 has no known gap in a duplicate person's identity: a store
+holding one refuses the start as jig's `Failure::Link`, the second
+person's row naming the first's, and the engine stops with that reason,
+`temper serve: restart refused during PHASE: RECORD links missing
+LINKED`, as for every link jig's start cannot make
+(`tests/engine/domain`'s `a_duplicate_person_identity_refuses_naming_both_rows`;
+`temper-engine-shell/src/serve/host.rs`, `start_failure`).
 
 ## Gaps and departures
 
@@ -57,45 +75,32 @@ the repository. A window's later page is below.
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
   7.3; this is a design gap, not an absent implementation.
 
-- **Not yet:** 5.2: what the room saves is unobserved: no goal on record has
-  counted its `read_task` calls since the room landed, where the request
-  `read-task-room` of 2026-11-06 takes a real goal's next count as its proof.
-  The engine world holds the bound on a script alone
+- **Not yet:** 5.2: real-deployment savings are unobserved: no supplied
+  real goal's `read_task` count establishes what the room saves, where the
+  request `read-task-room` of 2026-11-06 takes that count as its proof.
+  The engine world holds the worker-bound reads on a script alone; no
+  real host or LLM is exercised
   (`temper/tests/engine/domain/tests/suite/host_calls.rs`).
-- **Design departs:** 5.2, from the same request, decided by its plan's cut: a
-  process with no local agent's metadata names `documents.text_bytes`, where the
-  request has a run read up to what its reply holds, because an engine alone does
-  not know its remote agents' reply bound, and an answer past it reaches the run
-  as smith's `TooLarge` at every offset, so a long spec could not be read at all
-  (`agent.md`, section 10 keeps it open). The request `goal-call-faults` of
-  2026-11-08, item 3, met its cost and asked a page as large as the reply's
-  room: a goal read a 30.5 KB report 128 bytes a call, its deployment's
-  `documents.text_bytes`, for about 2 minutes 40 seconds of calls. Its plan
-  built nothing for it but this section's account of the page, on
-  temper/migration's word of 2026-11-08: the page stays the documents'
-  window, and how the engine learns its workers' reply bound, by jig's
-  worker link or by its own document, is the design owner's protocol
-  decision, a plan of its own following it (`agent.md`, section 10).
 - **Not yet:** 7.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
   `BriefSource`), and a merge-queue ejection's reason. 9.1: the
   rehearsing root, `temper upgrade --check`.
-
+- **Not yet:** 9.1: the forge's link of its restored records panics at
+  the first it cannot make, `forge link KIND -> NEED for KEY`, where
+  step 3 refuses the start naming the record and what it links to, as
+  jig's children's do
+  (`temper-engine-domain-forge/src/reconcile.rs`, `reconcile`;
+  `missing_link` already finds the link). The request
+  `store-crash-safe` of 2026-11-09 asks that a store failing a link
+  check at start stop with a reason, not a panic; its plan built that
+  in jig alone.
 - **Not yet:** 10: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while
   `decision.rs`, `host_within`, relies on that bound for settings output
   held before its commit. The application settings' contribution is omitted;
   no reason is recorded.
-- **Departs:** 12: a duplicate person's identity panics at its link,
-  naming its row (`jig-domain-people/src/domain/start.rs`, `fits`;
-  `tests/engine/domain/tests/suite/root_routes.rs`,
-  `a_duplicate_person_identity_panics_at_its_link_naming_its_row`),
-  where the user's request of 11-04 counts that panic a bug, because
-  `jig/docs/design/domain/engine.md`, 6 has a start judge no record and
-  panic at a link it cannot make (the user, 10-28). Which holds is the
-  user's, unanswered (that document's section 16).
 
 - **Not yet:** 8: a window's turn handed on cut: `temper-service`'s
   store routing (`src/store/route.rs`, `up`) hands no turn on cut, and the

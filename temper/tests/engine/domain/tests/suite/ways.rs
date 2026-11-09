@@ -94,10 +94,11 @@ fn change(driver: &mut Driver, key: u8, items: Box<[core_settings::Item]>) {
 }
 
 fn own_ways() -> settings::ProjectWays {
-    settings::ProjectWays { drafts: false, goals: false, changes: true, away: true, way: 0 }
+    settings::ProjectWays { drafts: false, goals: false, changes: true, way: 0 }
 }
 
 fn items() -> [Box<[ways::Item]>; STOCK_WAYS] {
+    use temper_protocol_reaches::{Classes, Way};
     let mut approve = rule();
     approve.ci = true;
     approve.up_to_date = true;
@@ -112,8 +113,12 @@ fn items() -> [Box<[ways::Item]>; STOCK_WAYS] {
     main.pattern.last = forge::GateLast::Exact(b"main".as_slice().into());
     let mut goal = rule();
     goal.pattern.last = forge::GateLast::Open(b"temper".as_slice().into());
-    let rules = [vec![(1, approve)], vec![(1, review)], vec![(1, main), (2, goal)]];
-    rules.map(|rules| {
+    let rules = [
+        (vec![(1, approve)], Way::YouApprove),
+        (vec![(1, review)], Way::AgentsReview),
+        (vec![(1, main), (2, goal)], Way::DraftFirst),
+    ];
+    rules.map(|(rules, way)| {
         let mut items: Vec<_> = (1..=4)
             .map(|number| ways::Item {
                 kind: 2,
@@ -137,6 +142,12 @@ fn items() -> [Box<[ways::Item]>; STOCK_WAYS] {
                 edit: ways::Edit::Set(settings::Value::Ways(value)),
             });
         }
+        items.push(ways::Item {
+            kind: 8,
+            scope: PROJECT,
+            number: 1,
+            edit: ways::Edit::Set(settings::Value::Classes(Classes::stock(way))),
+        });
         items.into_boxed_slice()
     })
 }

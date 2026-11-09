@@ -39,7 +39,13 @@ times each way is taken back each time; the fifty-loss row leaves out
 a full cap and the worker's refusal (`protocol/channel.md`, 9, 10.1,
 10.2 and 12; `domain/hosts.md`, 6.6). The store's retention,
 rehearsal and going back are not built (`protocol/store.md`,
-`protocol/client.md`). An
+`protocol/client.md`). A start whose store fails a link refuses,
+naming the record and what it links to, and no route writes a link to
+a person the core does not hold; the core world, killed at any file
+operation of a decision and again during its restart, starts from a
+whole one, but a snapshot racing commits and several commits in flight
+are proven in the store's world alone (`domain/engine.md`, 5.1 and 6;
+`domain/accounts.md`; `protocol/store.md`, 14). An
 application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, so a

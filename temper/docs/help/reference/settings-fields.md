@@ -17,16 +17,16 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `charter-words` or `project-words`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` or `project-words`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
 
 Which setting: its kind and number, or project for project settings.
 
-- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"project-ways"`, `"project-questions"`, `"charter-words"` or `"project-words"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
-- `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions and project-words.
-- `project`: integer, 0 to 4,294,967,295. Required for project-ways, project-questions and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
+- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"` or `"project-words"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
+- `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes and project-words.
+- `project`: integer, 0 to 4,294,967,295. Required for project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
 ## charter
 
@@ -510,7 +510,6 @@ What a project shows and the way its goals start. With none stored, drafts is tr
 - `drafts`: true or false. Whether chats can write drafts.
 - `goals`: true or false. Whether the rail shows Goals.
 - `changes`: true or false. Whether the rail shows Changes.
-- `away`: true or false. Whether the rail shows the Away switch.
 - `way`: integer, 0 to 4,294,967,295. The template a goal starts by: one the project offers with tracked set, or 0 for the first.
 
 ## project-questions
@@ -520,6 +519,30 @@ The route a project's change takes when its maker names none.
 - `"none"`: No question route; the stock's value.
 - `"foreman"`: A change's questions go to its foreman.
 - `"up"`: A change's questions go up to its parent.
+
+## project-classes
+
+What agents decide for a person and what asks them, by kind and by path set. With none stored, Agents review's table applies.
+
+- `items`: list of at most 20, each `class-item`. The table's class items.
+- `sets`: list of at most 6, each `path-set`. The path sets its items may name.
+
+## class-item
+
+Exactly one of kind or set, optional words and a class. Only one item without words per subject. Money, irreversible, rules and other always wait and have no item.
+
+- `kind`: `"wording"`, `"retry"`, `"implementation"`, `"tests"`, `"dependency"` or `"departure"`. Exactly one of kind or set is required.
+- `set`: integer, 0 to 255. A set in this table, from 1 to 6; exactly one of kind or set.
+- `words`: text, at most 120 bytes. Optional wording for this item, empty when absent.
+- `class`: `"decide"`, `"ask"` or `"ask-away"`. Wait is never a table class. `"decide"`: Agents decide and list it. `"ask"`: Ask the person; Away may decide. `"ask-away"`: Ask the person even when away.
+
+## path-set
+
+A named set of repository-relative path patterns, numbered distinctly from 1 to 6.
+
+- `number`: integer, 0 to 255. Distinct within the table, from 1 to 6.
+- `name`: text, at most 40 bytes. A nonempty name.
+- `patterns`: list of at most 6, each text, at most 80 bytes. At least one nonempty repository-relative pattern: * within a segment, ** as a whole segment.
 
 ## charter-words
 

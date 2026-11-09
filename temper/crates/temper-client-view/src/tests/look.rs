@@ -11,6 +11,7 @@ fn the_frame_carries_its_tokens() {
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
     for (token, name) in [
+        (WHY_OFFERS, b"temper-why-offers".as_slice()),
         (TOP, b"temper-top".as_slice()),
         (TOP_END, b"temper-top-end".as_slice()),
         (OUTSIDE, b"temper-outside".as_slice()),
@@ -639,6 +640,7 @@ fn asking_opening_and_needs_have_their_css_names() {
         (WAYS_REFUSED, b"temper-ways-refused"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
+        (WHY, b"temper-why"),
         (NEEDS_BAR, b"temper-needs-bar"),
         (NEEDS_BAR_AT, b"temper-needs-bar-at"),
     ] {
@@ -723,6 +725,7 @@ fn decision_tokens_name_the_away_rows() {
     for (token, name) in [
         (DECIDED, b"temper-decided".as_slice()),
         (DECISION, b"temper-decision"),
+        (DECISION_ALLOWED, b"temper-decision-allowed".as_slice()),
         (DECISION_TOOK, b"temper-decision-took"),
         (DECISION_WHY, b"temper-decision-why"),
         (DECISION_LATE, b"temper-decision-late"),

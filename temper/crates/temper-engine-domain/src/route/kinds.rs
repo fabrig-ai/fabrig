@@ -147,6 +147,7 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         | settings::Value::Goal(_)
         | settings::Value::Questions(_)
         | settings::Value::CharterWords(_)
+        | settings::Value::Classes(_)
         | settings::Value::ProjectWords(_) => return None,
     };
     if ways.way == 0 {
@@ -200,8 +201,9 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
     let rule = match value {
         settings::Value::Rule(rule) => rule,
         settings::Value::Charter(_)
-        | settings::Value::Goal(_)
         | settings::Value::Questions(_)
+        | settings::Value::Classes(_)
+        | settings::Value::Goal(_)
         | settings::Value::CharterWords(_)
         | settings::Value::ProjectWords(_)
         | settings::Value::Ways(_) => return None,
@@ -456,7 +458,7 @@ fn read_refusal(
                         crate::ForgeRead::View { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
-                            (*kind == 2 || *kind == 6 || *kind == 7 || *kind == 10) && *scope == project
+                            (*kind == 2 || *kind == 6 || *kind == 7 || *kind == 8 || *kind == 10) && *scope == project
                         }
                         crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,
                     };

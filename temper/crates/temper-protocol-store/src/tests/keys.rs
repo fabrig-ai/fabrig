@@ -273,13 +273,27 @@ fn dismissed_keys_use_family_thirty_four_and_round_trip() {
         expected.tag(34).u64(party).tag(0).u64(u64::from(project));
         assert_eq!(bytes, expected.finish().expect("fixed key fits"));
         assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+        let mut previous = PersonFact::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX };
+        let subjects = temper_protocol_reaches::Kind::ALL.map(temper_protocol_reaches::Subject::Kind);
+        for subject in subjects
+            .into_iter()
+            .chain([temper_protocol_reaches::Subject::Set(0), temper_protocol_reaches::Subject::Set(u8::MAX)])
+        {
+            let what = PersonFact::KeepAsking { project, subject, at: u64::MAX };
+            let key = Key::Dismissed { party, what };
+            let bytes = keys::encode(&key, u32::MAX).expect("keep asking key");
+            assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
+            assert!(previous < what);
+            assert!(keys::encode(&Key::Dismissed { party, what: previous }, u32::MAX).unwrap() < bytes);
+            previous = what;
+        }
     }
 }
 
 #[test]
 fn dismissed_key_decoder_refuses_unknown_kind_width_and_trailing_bytes() {
     let mut unknown = skein_kv::KeyWriter::new(u32::MAX);
-    unknown.tag(34).u64(7).tag(2).u64(3);
+    unknown.tag(34).u64(7).tag(3).u64(3);
     let mut wide = skein_kv::KeyWriter::new(u32::MAX);
     wide.tag(34).u64(7).tag(0).u64(4_294_967_296);
     let mut trailing = skein_kv::KeyWriter::new(u32::MAX);

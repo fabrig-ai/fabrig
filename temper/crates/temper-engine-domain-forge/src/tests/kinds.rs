@@ -742,21 +742,28 @@ fn words() -> crate::settings::ProjectWords {
     crate::settings::ProjectWords { headline: Box::from(b"headline".as_slice()), lede: Box::from(b"lede".as_slice()) }
 }
 
-fn project_values() -> [(u32, SizedValue); 3] {
+fn project_values() -> [(u32, SizedValue); 4] {
     [
         (10, SizedValue { value: Value::ProjectWords(words()), size: 20 }),
         (6, SizedValue { value: Value::Questions(temper_engine_domain_forge_change::Route::Foreman), size: 1 }),
         (
             7,
             SizedValue {
-                value: Value::Ways(crate::settings::ProjectWays {
-                    drafts: true,
-                    goals: false,
-                    changes: true,
-                    away: false,
-                    way: 0,
-                }),
-                size: 8,
+                value: Value::Ways(crate::settings::ProjectWays { drafts: true, goals: false, changes: true, way: 0 }),
+                size: 7,
+            },
+        ),
+        (
+            8,
+            SizedValue {
+                value: Value::Classes(temper_protocol_reaches::Classes::stock(
+                    temper_protocol_reaches::Way::YouApprove,
+                )),
+                size: temper_protocol_reaches::classes_record(&temper_protocol_reaches::Classes::stock(
+                    temper_protocol_reaches::Way::YouApprove,
+                ))
+                .unwrap()
+                .measure(),
             },
         ),
     ]
@@ -790,8 +797,8 @@ fn a_deleted_project_loses_its_questions_and_ways() {
         assert_eq!(d.setting(kind, 1, 1), None);
         assert_eq!(d.setting(kind, 2, 1), Some(&value));
     }
-    // Four slots of each of the three project kinds, then the release acknowledgement.
-    assert_eq!(sent.len(), 13);
+    // Four slots of each of the four project kinds, then the release acknowledgement.
+    assert_eq!(sent.len(), 17);
     assert_eq!(d.charter_words(1), Some(line));
     assert_eq!(d.template_goal(1), Some(GOAL));
     for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {
@@ -882,12 +889,19 @@ fn project_questions_reads_none_until_set_then_the_route() {
 fn project_values_keep_replace_restore_and_propose_as_rules_do() {
     let mut d = stocked();
     let mut out = Queue::uncapped();
-    for (kind, value) in project_values().into_iter().chain([(11, SizedValue { value: Value::Goal(GOAL), size: 2 })]) {
+    for (kind, value) in [(11, SizedValue { value: Value::Goal(GOAL), size: 2 })].into_iter().chain(project_values()) {
+        let stock = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
+        assert_eq!(d.project_classes(1), stock);
         let scope = u32::from(kind != 11);
         let asked = item(kind, scope, 1, Edit::Set(value.clone()));
         d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
+        if let Value::Classes(classes) = &value.value {
+            assert_eq!(d.project_classes(1), *classes);
+            assert_eq!(d.project_classes(2), stock);
+        }
         assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Same]);
         d.keep_settings(&env(), 3, None, &[item(kind, scope, 1, Edit::Remove)], &mut out);
+        assert_eq!(d.project_classes(1), stock);
         assert_eq!(d.setting_rows.get(&key(&asked, SettingSlot::Replaced(3))), Some(&asked.edit));
         assert_eq!(
             d.restore_settings(

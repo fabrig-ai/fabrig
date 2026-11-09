@@ -32,7 +32,7 @@ fn deployment() -> settings::LandingRule {
     }
 }
 
-fn values() -> [(u32, settings::Value); 13] {
+fn values() -> [(u32, settings::Value); 14] {
     let mut project = deployment();
     project.pattern.last = GateLast::Open(Box::from(b"topic/".as_slice()));
     project.enforce = false;
@@ -54,15 +54,12 @@ fn values() -> [(u32, settings::Value); 13] {
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (
-            7,
-            settings::Value::Ways(settings::ProjectWays {
-                drafts: true,
-                goals: false,
-                changes: true,
-                away: false,
-                way: u32::MAX,
-            }),
+            8,
+            settings::Value::Classes(temper_protocol_reaches::Classes::stock(
+                temper_protocol_reaches::Way::AgentsReview,
+            )),
         ),
+        (7, settings::Value::Ways(settings::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
         (11, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
         (11, settings::Value::Goal(settings::TemplateGoal { design: true, close_out: true })),
         (11, settings::Value::Goal(settings::TemplateGoal { design: true, close_out: false })),
@@ -91,6 +88,7 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Charter(_) => 3,
             settings::Value::Questions(_) => 6,
             settings::Value::Ways(_) => 7,
+            settings::Value::Classes(_) => 8,
             settings::Value::CharterWords(_) => 9,
             settings::Value::ProjectWords(_) => 10,
             settings::Value::Goal(_) => 11,

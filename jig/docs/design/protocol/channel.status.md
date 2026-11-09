@@ -4,6 +4,9 @@
 
 Section 5.1's hello carries endpoint bounds, not a model list; no known
 implementation gap remains in that declaration or its fleet checks.
+The hello's optional reply bound crosses both link translations and the
+worker wire as `reply_bytes: option u32`; wire family 9 carries it in
+place, with no version change. No implementation gap is known in that path.
 Its logins rows also carry usable program statuses' optional email,
 which reaches the accounts child through the fleet's accepted inventory;
 there is no known gap in that path.
