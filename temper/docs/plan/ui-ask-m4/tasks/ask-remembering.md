@@ -3,7 +3,7 @@ id = "ask-remembering"
 part = "remember"
 kind = "feature"
 needs = ["remember-surface"]
-files = ["temper/crates/temper-service/src/stock/ask.txt", "temper/crates/temper-service/src/tests/stock.rs"]
+files = ["temper/crates/temper-service/src/stock/ask.txt", "temper/crates/temper-service/src/tests/stock.rs", "temper/crates/temper-service/src/limits.rs"]
 effort = "medium"
 minutes = 45
 +++
@@ -75,3 +75,25 @@ Acceptance:
 
 As the implementer's text asks; give `ask.txt`'s size and the first
 request's parts on both shapes.
+
+## Answers
+
+2026-11-09. **Charter 11 needs 20,795 assignment bytes against
+`root.journal.run_bytes`' 20,480: raise the bound, or defer Remembering?**
+Raise the bound; the words stay as they are. `run_bytes` sizes the root's
+carrier for a stored run policy so that it holds the stock charters. It is
+not one of the user's budgets or timeouts, and `9311793a79` raised it the
+same way, from 16,384, when the stock goals grew. In
+`temper/crates/temper-service/src/limits.rs`, `ROOT.journal.run_bytes`
+becomes `24_576`, the next 4 KiB step above the need. Its comment names
+what it holds now: the stock's largest run policy, charter 11's 20,795
+bytes. Make the same edit to the value's other statements, each named in
+the report: `temper/docs/help/reference/limits.md` (regenerate it if a
+generator writes it), `temper/docs/design/protocol/configuration.md`,
+13.8's "the box's 20,480", and `temper/docs/examples/reference/README.md`'s
+"the box's bound of 20,480 bytes" (the README is read by tests: run them,
+and the reference room's 65,536 stays). If the stock's check then names
+another run-bytes floor in a world's, the playground's or a test's
+document (`core.run_bytes`), raise it the same way, to the next 4 KiB above
+what the check prints, and name it. Raise no other bound. If the first
+request still passes 16,384 bytes, the spec's `Question:` stands.
