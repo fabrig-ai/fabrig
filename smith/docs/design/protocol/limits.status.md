@@ -45,6 +45,6 @@ runtime outcome is supplied here.
 - **Departs:** 9: a derived limit is named by its layer and its field, but
   `ComponentLimits`' `translation` reports `adapter.tool_bytes` and
   `adapter.history_bytes`
-  (`smith-agent-service/src/profile/effective/llm.rs`), because the names
+  (`smith-agent-profile/src/profile/effective/llm.rs`), because the names
   are output and the user's request of 2026-11-04 changed no behaviour
   (13).
