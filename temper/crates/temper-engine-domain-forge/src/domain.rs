@@ -3293,15 +3293,20 @@ fn status(ci: skein_forge::api::Ci) -> change::Status {
     }
 }
 
+// Any listed commit, or a range too large to list, disproves containment
+// (temper/docs/design/domain/forge.md, 5.3).
 fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> change::Status {
     match result {
-        Ok(skein_forge::api::Answer::Commits { commits, more: false }) => {
-            if commits.is_empty() {
-                change::Status::Passed
-            } else {
+        Ok(skein_forge::api::Answer::Commits { commits, more }) => {
+            if !commits.is_empty() {
                 change::Status::Failed
+            } else if more {
+                change::Status::Unknown
+            } else {
+                change::Status::Passed
             }
         }
+        Err(skein_forge::api::Error::TooLarge) => change::Status::Failed,
         Ok(_) | Err(_) => change::Status::Unknown,
     }
 }

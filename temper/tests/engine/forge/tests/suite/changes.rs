@@ -97,15 +97,26 @@ fn catch_up_world(advance_main: bool) -> (World, skein_forge::api::Commit, skein
 
 #[test]
 fn a_catch_up_starts_when_the_full_comparison_is_too_large() {
-    let (mut world, commit, tip) = catch_up_world(true);
-    assert_eq!(
-        changes::change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
-        change::Decision::Delegate(change::Delegate::Merge { base: commit, from: None })
-    );
-    assert_eq!(world.change(CHANGE).change.resolutions, 0, "production spends no resolution");
-    assert_eq!(world.change(CHANGE).change.state, change::State::Producing { requested: true });
-    assert_eq!(world.change(CHANGE).change.last_head, None, "no producer branch yet");
-    assert_catch_up_range(&mut world, commit, tip);
+    use skein_forge::api::{Answer, CommitMessage, Error};
+    for ancestry in [
+        None,
+        Some(Err(Error::TooLarge)),
+        Some(Ok(Answer::Commits {
+            commits: Box::new([CommitMessage { id: [0; 32], parents: Box::new([]), message: Box::new([]) }]),
+            more: true,
+        })),
+    ] {
+        let (mut world, commit, tip) = catch_up_world(true);
+        world.script_ancestry(ancestry);
+        assert_eq!(
+            changes::change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
+            change::Decision::Delegate(change::Delegate::Merge { base: commit, from: None })
+        );
+        assert_eq!(world.change(CHANGE).change.resolutions, 0, "production spends no resolution");
+        assert_eq!(world.change(CHANGE).change.state, change::State::Producing { requested: true });
+        assert_eq!(world.change(CHANGE).change.last_head, None, "no producer branch yet");
+        assert_catch_up_range(&mut world, commit, tip);
+    }
 }
 
 fn assert_catch_up_range(world: &mut World, commit: skein_forge::api::Commit, tip: skein_forge::api::Commit) {
@@ -128,20 +139,9 @@ fn a_contained_catch_up_ends_without_a_producer() {
 #[test]
 fn a_catch_up_retries_uncertain_ancestry_without_a_restart() {
     use skein_forge::api::{Answer, Error};
-    for result in [
-        Err(Error::TooLarge),
-        Err(Error::Refused),
-        Err(Error::InvalidAnswer),
-        Ok(Answer::Commits { commits: Box::new([]), more: true }),
-        Ok(Answer::Commits {
-            commits: Box::new([skein_forge::api::CommitMessage {
-                id: [0; 32],
-                parents: Box::new([]),
-                message: Box::new([]),
-            }]),
-            more: true,
-        }),
-    ] {
+    for result in
+        [Err(Error::Refused), Err(Error::InvalidAnswer), Ok(Answer::Commits { commits: Box::new([]), more: true })]
+    {
         let (mut world, commit, tip) = catch_up_world(true);
         world.script_ancestry(Some(result.clone()));
         let decision = changes::change_step(&mut world, 1, change::Status::Unknown, Box::new([]));

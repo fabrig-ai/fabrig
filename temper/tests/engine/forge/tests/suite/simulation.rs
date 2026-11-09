@@ -3,7 +3,7 @@ use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_issues as issues;
 use temper_engine_forge_world::changes::{
-    change_row, change_step, change_step_task, change_step_with_release, reviewed_change,
+    change_row, change_step, change_step_merge_job, change_step_task, change_step_with_release, reviewed_change,
 };
 use temper_engine_forge_world::{REPO, World, translate};
 
@@ -107,14 +107,76 @@ fn goal_landing_updates_a_moved_base_with_a_fresh_ancestry_range() {
 }
 
 #[test]
+fn a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job() {
+    use skein_forge::api::{Error, Op, Read};
+    let mut failures = Vec::new();
+    for (name, moves, ancestry, conflict) in [
+        ("one_page", 1, None, false),
+        ("past_a_page", 17, None, false),
+        ("too_large", 1, Some(Err(Error::TooLarge)), false),
+        ("one_page_in_conflict", 1, None, true),
+        ("past_a_page_in_conflict", 17, None, true),
+        ("too_large_in_conflict", 1, Some(Err(Error::TooLarge)), true),
+    ] {
+        let mut world = World::with_goal_room(280, 16, 4096);
+        prepare_goal_history(&mut world, 2, 1, 1);
+        let old_head = world.branch(b"temper/g");
+        let head = translate::commit(old_head);
+        queue_goal_landing(&mut world, head);
+        for moved in 1..=moves {
+            let path = if conflict && moved == moves { b"f000".as_slice() } else { b"base".as_slice() };
+            world.push_file(b"main", path, b"moved");
+        }
+        let tip = world.branch(b"main");
+        let base = translate::commit(tip);
+        if moves > 16 {
+            let skein_fake_forge_domain::api::Answer::Commits { commits } =
+                world.inspect(&skein_fake_forge_domain::api::Read::Commits { before: old_head, after: tip })
+            else {
+                panic!("{name}: ancestry range")
+            };
+            assert!(commits.len() > 16, "{name}: range exceeds the world's page");
+        }
+        world.take_calls();
+        world.script_ancestry(ancestry);
+        let gates = Box::new([change::GateReport { number: 9, head, status: change::Status::Passed }]);
+        let decision = change_step_merge_job(&mut world, 1, change::Status::Passed, gates);
+        world.script_ancestry(None);
+        assert!(world.take_calls().contains(&Op::Read(Read::Commits { before: head, after: base, page: 1 })), "{name}");
+        if decision != change::Decision::Effect(change::Effect::Update { base, head }) {
+            failures.push(format!("{name}: expected Update, got {decision:?}"));
+            continue;
+        }
+        if conflict {
+            assert_eq!(translate::commit(world.branch(b"temper/g")), head, "{name}: conflict leaves head unmoved");
+            assert_eq!(
+                change_step_merge_job(&mut world, 2, change::Status::Passed, Box::new([])),
+                change::Decision::Delegate(change::Delegate::Merge { base, from: Some(head) }),
+                "{name}"
+            );
+            world.event(top::Event::Delegated {
+                task: 51,
+                child: 52,
+                kind: change::Delegate::Merge { base, from: Some(head) },
+            });
+            assert_eq!(
+                change_step_merge_job(&mut world, 3, change::Status::Passed, Box::new([])),
+                change::Decision::Delegate(change::Delegate::Resolve { base }),
+                "{name}: completed merge job leaves the head unmoved"
+            );
+        } else {
+            assert_ne!(translate::commit(world.branch(b"temper/g")), head, "{name}: updated head");
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
 fn goal_landing_refuses_to_merge_without_complete_ancestry() {
     use skein_forge::api::{Answer, Error};
-    for result in [
-        Err(Error::TooLarge),
-        Err(Error::Refused),
-        Err(Error::InvalidAnswer),
-        Ok(Answer::Commits { commits: Box::new([]), more: true }),
-    ] {
+    for result in
+        [Err(Error::Refused), Err(Error::InvalidAnswer), Ok(Answer::Commits { commits: Box::new([]), more: true })]
+    {
         let mut world = World::with_goal_room(279, 16, 4096);
         prepare_goal_history(&mut world, 17, 1, 1);
         let base = world.branch(b"main");
