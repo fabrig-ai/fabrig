@@ -570,7 +570,7 @@ fn a_base_branch_created_meanwhile_is_fetched_again_and_not_moved() {
     h.next(hold, Done::Fetched { commit: commit(9) });
     h.next(hold, Done::Exists);
     let gone = h.one(Event::Done { owner: hold, done: failed(Fault::Missing { missing: Missing::Branch }) });
-    assert_eq!(prepared(gone), Prepared::Failed { failure: Failure::Transient });
+    assert_eq!(prepared(gone), Prepared::Failed { failure: Failure::Transient , detail: Box::new([]) });
 }
 
 #[test]
@@ -591,19 +591,25 @@ fn preparation_failures_are_typed() {
             2,
             failed(Fault::Missing { missing: Missing::Repository }),
             Failure::Missing { repository: 1, missing: Missing::Repository },
+            b"clone: Missing(Repository)".as_slice(),
         ),
-        (2, failed(Fault::Unreachable), Failure::Transient),
-        (2, failed(Fault::Refused), Failure::Refused { repository: 1 }),
+        (2, failed(Fault::Unreachable), Failure::Transient, b"clone: Unreachable".as_slice()),
+        (2, failed(Fault::Refused), Failure::Refused { repository: 1 }, b"clone: Refused".as_slice()),
         (
             3,
             failed(Fault::Missing { missing: Missing::Branch }),
             Failure::Missing { repository: 0, missing: Missing::Branch },
+            b"fetch: Missing(Branch)".as_slice(),
         ),
-        (3, failed(Fault::TimedOut), Failure::Transient),
-        (0, failed(Fault::Broken), Failure::Transient),
-        (4, failed(Fault::Broken), Failure::Transient),
+        (3, failed(Fault::TimedOut), Failure::Transient, b"fetch: TimedOut".as_slice()),
+        (0, failed(Fault::Broken), Failure::Transient, b"make: Broken".as_slice()),
+        (4, failed(Fault::Broken), Failure::Transient, b"check out: Broken".as_slice()),
+        (3, Done::FailedWithOutput {
+            fault: Fault::Unreachable,
+            diagnostic: crate::git::PushDiagnostic::new(b"fatal: unreachable", 0),
+        }, Failure::Transient, b"fetch: Unreachable: fatal: unreachable".as_slice()),
     ];
-    for (after, fault, failure) in cases {
+    for (after, fault, failure, detail) in cases {
         let mut h = Harness::new(LIMITS);
         let (hold, _) = h.prepare(1, two(b"w"));
         // Make, clone a, clone b, fetch a, check out a.
@@ -612,7 +618,7 @@ fn preparation_failures_are_typed() {
             h.next(hold, done);
         }
         let end = h.one(Event::Done { owner: hold, done: fault });
-        assert_eq!(prepared(end), Prepared::Failed { failure }, "after {after} operations");
+        assert_eq!(prepared(end), Prepared::Failed { failure , detail: bytes(detail) }, "after {after} operations");
         // It may only be released.
         assert_eq!(refused(h.one(Event::Push { hold, message: message() })), Refusal::Busy);
         h.none(Event::Abort { hold });
@@ -794,7 +800,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
         };
         assert_eq!(
             prepared(h.one(Event::Done { owner: hold, done: failed(fault) })),
-            Prepared::Failed { failure: expected }
+            Prepared::Failed { failure: expected , detail: Box::new([]) }
         );
     }
 }
@@ -1070,7 +1076,7 @@ fn a_missing_base_branch_of_a_read_only_repository_is_missing() {
     let end = h.one(Event::Done { owner: hold, done: failed(Fault::Missing { missing: Missing::Branch }) });
     assert_eq!(
         prepared(end),
-        Prepared::Failed { failure: Failure::Missing { repository: 0, missing: Missing::Branch } }
+        Prepared::Failed { failure: Failure::Missing { repository: 0, missing: Missing::Branch } , detail: Box::new([]) }
     );
 }
 
@@ -1313,7 +1319,7 @@ fn merge_starts_require_configured_path_room_and_missing_branches_are_never_crea
         h.one(Event::Done { owner: hold, done: failed(Fault::Missing { missing: Missing::Branch }) }),
         Request::Prepared {
             client: Token::new(1),
-            prepared: Prepared::Failed { failure: Failure::Missing { repository: 0, missing: Missing::Branch } }
+            prepared: Prepared::Failed { failure: Failure::Missing { repository: 0, missing: Missing::Branch } , detail: Box::new([]) }
         }
     );
 }
@@ -1679,7 +1685,7 @@ fn a_failed_producer_base_query_is_transient() {
     let (mut h, hold) = comparing_producer_base(false);
     assert_eq!(
         h.one(Event::Done { owner: hold, done: failed(Fault::Refused) }),
-        Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient } }
+        Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient , detail: Box::new([]) } }
     );
 }
 
@@ -1740,7 +1746,7 @@ fn merged_head_conflict_fails_naming_it() {
         h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"code")]) } }),
         Request::Prepared {
             client: Token::new(1),
-            prepared: Prepared::Failed { failure: Failure::Conflicted { repository: 0, head: commit(8) } }
+            prepared: Prepared::Failed { failure: Failure::Conflicted { repository: 0, head: commit(8) } , detail: Box::new([]) }
         }
     );
     assert_eq!(h.domain.holds(), 1);
@@ -1772,7 +1778,7 @@ fn merged_head_checkout_failure_ends_preparation_transient() {
         h.next(hold, Done::Committed { commit: commit(11) });
         assert_eq!(
             h.one(Event::Done { owner: hold, done }),
-            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient } }
+            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient , detail: Box::new([]) } }
         );
     }
 }
@@ -1853,7 +1859,7 @@ fn a_failed_look_spoils_the_workspace_and_fails_transient() {
         let (hold, _) = h.prepare(1, one(b"work"));
         assert_eq!(
             h.one(Event::Done { owner: hold, done: failed(fault) }),
-            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient } }
+            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient , detail: Box::new([]) } }
         );
         h.one(Event::Release { hold });
         h.facts();

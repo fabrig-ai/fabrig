@@ -94,7 +94,7 @@ fn a_spec_naming_what_the_forge_lacks_fails_for_good() {
         let mut world = World::new(Settings::calm(5));
         let client = world.submit(Time::ZERO, Plan { start: Some(pick), ..Plan::simple(0) });
         world.run(ITERATIONS);
-        let Prepared::Failed { failure: Failure::Missing { repository: 0, missing: found } } = prepared(&world, client)
+        let Prepared::Failed { failure: Failure::Missing { repository: 0, missing: found }, .. } = prepared(&world, client)
         else {
             panic!("{pick:?} is missing: {:?}", prepared(&world, client));
         };
@@ -108,12 +108,12 @@ fn an_unreachable_forge_fails_the_prepare_for_now_and_a_refusing_one_for_good() 
     let mut world = World::new(Settings { unreachable: 1000, ..Settings::calm(6) });
     let client = world.submit(Time::ZERO, Plan::simple(0));
     world.run(ITERATIONS);
-    assert_eq!(prepared(&world, client), Prepared::Failed { failure: Failure::Transient });
+    assert!(matches!(prepared(&world, client), Prepared::Failed { failure: Failure::Transient, .. }));
     // A base branch the forge refuses to create.
     let mut world = World::new(Settings { refusing: 1000, ..Settings::calm(6) });
     let client = world.submit(Time::ZERO, Plan::simple(0));
     world.run(ITERATIONS);
-    assert_eq!(prepared(&world, client), Prepared::Failed { failure: Failure::Refused { repository: 0 } });
+    assert!(matches!(prepared(&world, client), Prepared::Failed { failure: Failure::Refused { repository: 0 }, .. }));
     // A push the forge refuses, from a branch it does not create.
     let mut world = World::new(Settings { refusing: 1000, ..Settings::calm(6) });
     let client = world.submit(Time::ZERO, Plan { start: Some(Pick::Branch), ..Plan::simple(0) });

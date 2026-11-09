@@ -532,7 +532,7 @@ pub fn conflicting_head() {
     world.forge.moves();
     let failed = world.finish(Event::Prepare { client: Token::new(9), spec: heads_spec(&[world.ours, second]) }, false);
     assert!(matches!(failed, Request::Prepared { prepared: Prepared::Failed {
-        failure: Failure::Conflicted { repository: 0, head },
+        failure: Failure::Conflicted { repository: 0, head }, ..
     }, .. } if head == translate::commit(second)));
     assert_eq!(world.domain.holds(), 1);
     let hold = world.hold.expect("failed hold stays");

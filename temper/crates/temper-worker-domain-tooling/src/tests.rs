@@ -165,12 +165,18 @@ fn exit_three_finishes_and_never_delivers() {
 /// temper/docs/design/domain/worker.md, 4.4: failures retain bounded error output.
 #[test]
 fn any_other_exit_fails_with_the_end_of_its_error_output() {
-    for exit in [Exit::Code(1), Exit::Code(2), Exit::Code(4), Exit::Code(255), Exit::Signal] {
+    for (exit, detail) in [
+        (Exit::Code(1), b"exit 1: the tail".as_slice()),
+        (Exit::Code(2), b"exit 2: the tail".as_slice()),
+        (Exit::Code(4), b"exit 4: the tail".as_slice()),
+        (Exit::Code(255), b"exit 255: the tail".as_slice()),
+        (Exit::Signal, b"signal: the tail".as_slice()),
+    ] {
         let mut h = Harness::new();
         h.running(OWNER, 1);
         assert_eq!(
             h.one(Event::Exited { owner: OWNER, exit, tail: copy_of(b"discard:the tail") }),
-            Request::Ended { owner: OWNER, end: End::Failed { detail: copy_of(b"the tail") } }
+            Request::Ended { owner: OWNER, end: End::Failed { detail: copy_of(detail) } }
         );
         h.none(Event::Read { owner: OWNER, bytes: None });
         h.gone(OWNER, b"the tail");
@@ -186,7 +192,7 @@ fn a_missing_or_oversized_result_file_fails_the_job() {
         h.exited(Exit::Code(0));
         assert_eq!(
             h.one(Event::Read { owner: OWNER, bytes }),
-            Request::Ended { owner: OWNER, end: End::Failed { detail: copy_of(b"stderr") } }
+            Request::Ended { owner: OWNER, end: End::Failed { detail: copy_of(b"result missing or past its bound: stderr") } }
         );
         h.gone(OWNER, b"stderr");
     }

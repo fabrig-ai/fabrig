@@ -495,7 +495,7 @@ fn preparation(prepared: &Prepared) -> Preparation {
             Preparation::Ready { workspace: *workspace, conflicts: paths }
         }
         Prepared::Refused { refusal } => Preparation::Refused { refusal: *refusal },
-        Prepared::Failed { failure } => Preparation::Failed { failure: *failure },
+        Prepared::Failed { failure, .. } => Preparation::Failed { failure: *failure },
         Prepared::Aborted => Preparation::Aborted,
     }
 }
@@ -1091,7 +1091,7 @@ fn prepare_next(
                 State::Ready
             }
             Next::Failed(failure) => {
-                out.push(Request::Prepared { client, prepared: Prepared::Failed { failure } });
+                out.push(Request::Prepared { client, prepared: Prepared::Failed { failure, detail: Box::new([]) } });
                 State::Unprepared
             }
         },

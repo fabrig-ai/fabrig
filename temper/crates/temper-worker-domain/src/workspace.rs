@@ -427,7 +427,7 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
     let items = record.items;
     let failure = match &prepared {
         checkout::Prepared::Refused { refusal } => Some(translate::checkout_refusal(*refusal)),
-        checkout::Prepared::Failed { failure } => {
+        checkout::Prepared::Failed { failure, .. } => {
             let items = domain.items.get(&items).expect("the assignment lives through prepare");
             Some(translate::failure(*failure, &items.tags))
         }
@@ -615,7 +615,7 @@ fn ended(
             then.host = Some(unprepared(owner, translate::preparation(translate::checkout_refusal(refusal), items)));
             State::Closed
         }
-        checkout::Prepared::Failed { failure } => {
+        checkout::Prepared::Failed { failure, .. } => {
             assert!(!abandoned, "a released hold's prepare ends aborted");
             let hold = hold.expect("a prepare that ran was held");
             then.checkout = Some(checkout::Event::Release { hold });
