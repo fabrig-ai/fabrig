@@ -1,6 +1,6 @@
 # store: status
 
-2026-11-08. Where temper's code lags or departs from [store.md](store.md).
+2026-11-09. Where temper's code lags or departs from [store.md](store.md).
 
 Section 2 has no known implementation gap in provider 0's subject.
 The forge's codec writes the 10-byte forge and user pair, reads it only
@@ -12,6 +12,12 @@ Section 2's family 25 stores the optional `ForgeLink` in store v11 in
 place, without a version bump or migration. Both numbers must be nonzero;
 the record codec and its fuzzy round trip include the field. Links for
 several members remain section 7's deferred work.
+
+Sections 2 and 4 have no known gap in a repository's CI workflows:
+family 2's record, the schema's `Adopted`, holds `workflows` in store
+v11 in place, its ceilings the store's limits `adopted_workflows` and
+`adopted_workflows_item`, taken from the forge's `WORKFLOWS` and
+`WORKFLOW_BYTES`.
 
 - **Not yet:** 2: family 22 `Delivery` (no `Key` or `Stored` variant); family 30 `LandingLog`'s trailers and tier verdicts, until `../domain/after-landing.md`, sections 6, 8 and 9 need them; the families of findings, `Finding`, `Mark` and `QaPass`.
 - **Design departs:** 2, from the request `ui-away` of 2026-11-05, decided by its plan's cut: `Away` keeps `off` where the request has `on`, and `Decided` keeps `party`, a field it doesn't name (`../domain/forge.status.md`, 5.8 and 5.9).
