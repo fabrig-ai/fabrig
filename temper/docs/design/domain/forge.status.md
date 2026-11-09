@@ -166,11 +166,6 @@ and free its place, absence is kept, and running rows or another scope
 are refused. The request carries `into`, so its keyed scope survives the
 row's erasure. The connector's making tables cover these decisions.
 
-- **Not yet:** 12, *A full outbox defers it*: the root answers a
-  projection asked for at once by projecting it again whatever the
-  outbox holds, in the step that has met it full too
-  (`temper-engine-domain/src/route/forge_route.rs`, `ProjectAfter`).
-
 Section 8.1 has no known implementation gap in bounding a pull request's
 body at 65,536 bytes independently of `forge.client.op_bytes`, with a
 marked cut and the change's stored words kept whole. The engine's batch
