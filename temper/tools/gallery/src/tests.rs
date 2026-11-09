@@ -159,10 +159,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Link, name: "New change" },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -171,10 +168,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::FirstButton { disclosure: "vsr", name: "All projects" },
             Part::Named { role: Role::Text, name: "2 projects" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -185,10 +179,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Disclosure, name: "All projects" },
             Part::Destination { name: "Work", href: "/projects/1/work" },
             Part::Destination { name: "How work runs", href: "/projects/1/settings" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -235,10 +226,7 @@ static HOLDS: [Holds; samples::N] = [
                 role: Role::Paragraph,
                 name: "Six of nine tasks landed on the goal's branch. The witness rejoin fix waits on your answer; two tasks wait on it.",
             },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -259,10 +247,7 @@ static HOLDS: [Holds; samples::N] = [
                 style: temper_client_view::look::WORK_FILTERS, names: &["All", "Changes · 6", "Chats · 6"]
             },
             Part::Absent { role: Role::Menu, name: "New draft or change" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -278,10 +263,7 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Absent { role: Role::Region, name: "In flight · 4" },
             Part::Absent { role: Role::Region, name: "Landed this week · 4" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -294,10 +276,7 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Named { role: Role::Navigation, name: "Work's filters" },
             Part::Goals { rows: &["membership-handoff", "fuzz-corpus"] },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -311,10 +290,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Navigation, name: "Work's filters" },
             Part::Named { role: Role::Link, name: "Witness rejoin test" },
             Part::Named { role: Role::Text, name: "checking" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -323,10 +299,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Links { style: temper_client_view::look::WORK_FILTERS, names: &["All"] },
             Part::Absent { role: Role::Region, name: "In flight · 0" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -341,10 +314,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Text, name: "Prover" },
             Part::Named { role: Role::Text, name: "owner" },
             Part::Named { role: Role::Text, name: "maintainer" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -354,10 +324,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Heading { level: 2 }, name: "vsr · 2" },
             Part::Named { role: Role::Heading { level: 2 }, name: "cowsql" },
             Part::Named { role: Role::Paragraph, name: "Read by the project’s members." },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -373,10 +340,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Text, name: "4.1 MB of 64 MB" },
             Part::Named { role: Role::Text, name: "9 of 50 tasks" },
             Part::Named { role: Role::Text, name: "3 of 50 tasks" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -385,10 +349,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Limits are seen by the deployment’s owners." },
             Part::Absent { role: Role::Heading { level: 2 }, name: "Capacities" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -405,10 +366,7 @@ static HOLDS: [Holds; samples::N] = [
                 ],
             },
             Part::Pressed { name: "Night mode" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -425,10 +383,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Text, name: "9 of 50 tasks" },
             Part::Named { role: Role::Text, name: "3 of 50 tasks" },
             Part::Pressed { name: "Night mode" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
         ],
     },
     Holds {
@@ -975,10 +930,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Menu, name: "New draft or change" },
             Part::Named { role: Role::MenuItem, name: "Ask temper" },
-            Part::Links {
-                style: temper_client_view::look::TABBAR,
-                names: &["Home", "Needs you", "Work", "Ask temper"],
-            },
+            Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Needs", "Work", "Ask temper"] },
             Part::Described {
                 role: Role::MenuItem,
                 name: "Draft",
@@ -4658,8 +4610,12 @@ fn print_writes_every_page_and_the_bundle() {
         let page = fs::read_to_string(out.join(format!("{name}.html"))).expect("landed goal print");
         assert_eq!(page.contains("open class=\"temper-goal-landed-fold\""), name == "goal-landed-open");
     }
-    for (name, parts) in [("needs-list", ["class=\"temper-needs-bar\"", "1 of 3"])] {
-        let page = fs::read_to_string(out.join(format!("{name}.html"))).expect("needs print");
+    for (name, parts) in [
+        ("needs-list", ["class=\"temper-needs-bar\"", "1 of 3"]),
+        ("ask-chat", ["class=\"temper-tabbar temper-tabbar-ask\"", ">Ask</span"]),
+        ("rail-new-change", ["aria-label=\"Needs\"", ">Needs</span"]),
+    ] {
+        let page = fs::read_to_string(out.join(format!("{name}.html"))).expect("page print");
         for part in parts {
             assert!(page.contains(part), "{name}: {part}");
         }

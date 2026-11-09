@@ -193,7 +193,7 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (SHEET_FOOT, b"temper-sheet-foot"),
     (SHEET_ERROR, b"temper-sheet-error"),
 ];
-const RAIL_NAMES: [(skein_ui::Style, &[u8]); 11] = [
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 12] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
     (RAIL_NEW, b"temper-rail-new"),
@@ -202,6 +202,7 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 11] = [
     (RAIL_PERSON, b"temper-rail-person"),
     (TABBAR, b"temper-tabbar"),
     (TABBAR_BEGINNING, b"temper-tabbar-beginning"),
+    (TABBAR_ASK, b"temper-tabbar-ask"),
     (AWAY, b"temper-away"),
     (AWAY_CHIP, b"temper-away-chip"),
     (AWAY_TRACK, b"temper-away-track"),
@@ -771,6 +772,20 @@ fn each_phone_target_stands_44_pixels() {
         source = &body[end + 1..];
     }
     for target in [
+        "#app > .temper-rail .temper-projects > summary",
+        "#app > .temper-rail > .temper-away-chip::after",
+        "#app > .temper-rail > .temper-night-switch::after",
+        "#app > .temper-tabbar > a",
+        "#app > .temper-session .temper-session-composer > button::after",
+        "#app > .temper-session .temper-model > summary::before",
+        "#app > .temper-session .temper-model-menu button::before",
+        "#app > .temper-session .temper-model-menu a::before",
+        "#app > .temper-session .temper-model-find",
+        "#app > .temper-session .temper-ways-tabs > [role=tab]::after",
+        "#app > .temper-session .temper-ways-acts > button::after",
+        "#app > .temper-session .temper-ways-zoom-head > a::after",
+        "#app > .temper-session .temper-crumbs > .temper-back::after",
+        "#app > .temper-session .temper-session-right > button::after",
         "#app > .temper-home .temper-need-acts .temper-recommended",
         "#app > .temper-home .temper-need-card > .temper-need-more",
         "#app > .temper-home .temper-home-acts > :is(a, button)::after",
