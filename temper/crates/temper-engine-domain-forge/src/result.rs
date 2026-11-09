@@ -130,6 +130,7 @@ impl ChangeResult {
                     self.repairs.join(&self.failed, bound);
                 }
             }
+            change::Repair::Review { .. } => self.repairs.add(b"a person asked for changes on the forge", bound),
             change::Repair::Gate(_) => self.repairs.add(b"review asked for changes", bound),
             change::Repair::Semantic => self.repairs.add(b"the base broke it", bound),
             change::Repair::Landing { gate } => {

@@ -47,7 +47,18 @@ the stock rule of kind 2 among them, from the forge's rules as they
 stand; and the view `roles` gives the project's roles, a card a charter
 at its first place, from where each charter runs
 (`route/ways/view/roles.rs`; `route/ways/tests.rs`,
-`inputs_gather_the_repository_start_and_readers_roles`).
+`inputs_gather_the_repository_start_and_readers_roles`). A goal's
+coordinator draws "design", its card's "Its order" after the agent's
+facts, where its template's work, kind 11, says it designs first, and
+"plan" otherwise; where it makes a close-out, "close-out", the
+coordinator's, its card's "Lands" naming the landing branch, follows the
+merge or the turn on the landing branch's segment after a goal's, before
+its tiers. The root reads the work of the template a goal starts by,
+with a decision's items laid over it (`ways.rs`, `laid_goal`). Rows of
+the focused paths' and cards' tables and of the root's table hold them,
+and the fuzzy test, over random template work, draws "design" and
+"close-out" only with their settings, the close-out once, an agent's,
+after the landing and before the bar.
 
 - **Not yet:** 8.13, *The project's roles*: the drafter, charter 12,
   which the stock holds and its template 6 starts since P6 landed after
@@ -141,6 +152,20 @@ user numbers on different forges, unknown accounts and each forge's writer.
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
+Sections 6 and 12 have no known implementation gap in a projection that
+meets the full outbox. Its write waits for room, due at the wall plus
+the issue policy's interval, neither failed nor settled, and marks the
+step (`temper-engine-domain-forge/src/domain.rs`, `wait_for_room`); a
+number already in the outbox still asks again at once. The root clears
+the mark as `step`, `fire` and `release` begin, and its `ProjectAfter`
+arm arms the timer rather than projecting again while the mark is set
+and the outbox full (`temper-engine-domain/src/route/forge_route.rs`).
+The forge's `a_projection_meeting_a_full_outbox_waits_for_room` holds
+the wait, the taken number and the projection going out once an entry
+is withdrawn and the interval passes; the root's
+`src/tests/projection_room.rs` holds the step ending and the backstop's
+rows. Both are crate tables: no engine world story fills the outbox.
+
 Sections 8.1, 8.5, 11 and 11.1 have no known implementation gap in a
 goal's delivery through r. The six engine domain stories in
 `tests/engine/domain/tests/suite/forge_routes/goal_delivery.rs` cover
@@ -177,6 +202,14 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 `restored`, by `Request::GoalUntopic`), while a task's own stays.
 
 - **Not yet:**
+  - 8.3, 8.4: the user's N4 request of 2026-11-08 asks for focused and
+    fuzzy tests. The focused story
+    `a_persons_request_for_changes_repairs_with_its_remarks`
+    (`tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`)
+    has all four requested rows and checks the repaired head's new review
+    wait, but no fuzzy story exercising this person's request-to-repair
+    path is identified in main or the supplied reports. The existing
+    fuzzy stories do not establish that coverage.
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
     exhausted counts, release and late-copy holds have world stories;

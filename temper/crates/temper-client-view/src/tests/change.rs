@@ -224,6 +224,7 @@ fn each_step_draws_its_current_done_slots_and_its_sentence() {
             "Queued",
         ),
         (repair(w::Reason::Semantic), Some(4), "Repairing: CI failed at its updated head.", "Queued"),
+        (repair(w::Reason::Review), Some(3), "Repairing: a person asked for changes on the forge.", "Queued"),
         (w::Step::Landing, Some(5), "Merging at its head.", "Queued"),
         (
             w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()),

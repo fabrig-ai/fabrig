@@ -158,6 +158,15 @@
     greenfield mock's sizes, as the request `ui-phone` of 2026-11-05 has
     them (`../client/browser.status.md`). Decided by the cut of
     `ui-p5a-phone`: section 10 draws the four tabs.
+  - 7 and 13: `../domain/forge.md`, 8.13, *The coordinator's cards*,
+    names the close-out's card "the coordinator", opening the goal
+    template's charter, which makes it, where `how.html` names "the
+    close-out agent"; and its "Lands" says "as one change into main, by
+    main's rules", where `how.html` has "through main's CI and queue",
+    since the rules may ask no CI and a landing may be by turn. A
+    close-out's own charter is an open question
+    (`../domain/forge.md`, section 20). Decided by the cut of
+    `ui-p3f-design`.
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
     design takes `/chats N` (above).

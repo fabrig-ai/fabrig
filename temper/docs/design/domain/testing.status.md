@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-08. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-09. Where temper's code lags or departs from [testing.md](testing.md).
 
 Section 6.1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -318,6 +318,18 @@ the fake's own process story.
   `Feed`, and the user's request of 11-04 asked that no crate under
   `temper/crates` do so. No reason is recorded, and no debt item holds
   them.
+- **Departs:** 6.5.1: stage one's golden holds a row that neither the
+  reference's table (`../draft/reference-code-production.md`, section
+  14) nor this section's rows have, "the goal template's work": two
+  `equal` obligations, `design` and `close_out` true, for the
+  reference's template 4's work (`../protocol/configuration.md`, 13.9),
+  its subject `template-goal` number 4, not the `goal-template` role, so
+  a proposal whose goal template takes another number is judged at
+  template 4's work there, the stock's neither, and fails both. The plan
+  `ui-p3f-design` added it to keep the golden the profile's values
+  (6.5); the check binds no kind by a template's role
+  (`temper/tools/stage-one/src/check.rs`, `subject_key`), and nothing
+  tells Ask temper to propose it (`agent.status.md`, 8.1).
   2.7: `scripts/proof-live.sh`'s `TEMPER_LIVE_STORE` and
   `TEMPER_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
   `proof-live-github-managed.sh`'s target and evidence default under
