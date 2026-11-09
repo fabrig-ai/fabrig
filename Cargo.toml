@@ -295,6 +295,7 @@ members = [
     "temper/crates/temper-shell",
     "temper/crates/temper-forge-setup-shell",
     "temper/crates/temper-engine-shell",
+    "temper/crates/temper-service-shell",
     "temper/crates/temper-worker-protocol-git",
     "temper/crates/temper-client-protocol-wire",
     "temper/tools/git-transcripts",
@@ -604,6 +605,7 @@ temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
 temper-engine-domain-trials = { path = "temper/crates/temper-engine-domain-trials" }
 temper-engine-shell = { path = "temper/crates/temper-engine-shell" }
+temper-service-shell = { path = "temper/crates/temper-service-shell" }
 temper-engine-smith = { path = "temper/crates/temper-engine-smith" }
 temper-engine-domain-forge-change = { path = "temper/crates/temper-engine-domain-forge-change" }
 temper-engine-domain-forge-landing = { path = "temper/crates/temper-engine-domain-forge-landing" }

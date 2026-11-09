@@ -4976,6 +4976,7 @@ dependencies = [
  "temper-protocol-store",
  "temper-real-loop-world",
  "temper-service",
+ "temper-service-shell",
  "temper-settings-form",
  "temper-shell",
  "temper-worker-domain",
@@ -5674,6 +5675,7 @@ dependencies = [
  "temper-forge-setup-shell",
  "temper-playground",
  "temper-service",
+ "temper-service-shell",
  "temper-shell",
 ]
 
@@ -6278,6 +6280,28 @@ dependencies = [
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
  "temper-worker-protocol-git-world",
+]
+
+[[package]]
+name = "temper-service-shell"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core",
+ "jig-domain-host",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-protocol-config",
+ "jig-protocol-store",
+ "skein-forge",
+ "skein-forge-connection",
+ "skein-io",
+ "skein-lib",
+ "skein-scratch",
+ "skein-shell",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-service",
+ "temper-shell",
 ]
 
 [[package]]

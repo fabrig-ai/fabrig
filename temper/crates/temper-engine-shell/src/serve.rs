@@ -1,46 +1,18 @@
 //! Serve's host and start (temper/docs/design/protocol/README.md, 4.1, 4.2 and 5).
-use crate::jig_directories;
-use crate::{address, listener_words, setup};
+use crate::{address, path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
-use skein_shell::{Clock, Config, Kernel};
-use std::{
-    fmt::Write,
-    os::unix::{ffi::OsStrExt, fs::FileTypeExt},
-    path::Path,
-};
-use temper_service::{
-    self as service,
-    settings::{Files, Seeds},
-};
-use temper_shell::{
-    directories::{Directories, EnvironmentEntry, errno, unread},
-    link_file,
-};
+use std::os::unix::ffi::OsStrExt;
+use temper_service::{self as service, settings::Seeds};
+use temper_service_shell::{close, jig_directories, read_files_with_asked};
+use temper_shell::directories::{Directories, EnvironmentEntry, unread};
 mod accounts_runtime;
 pub mod bundle;
 pub mod github_logs;
 mod google_runtime;
-pub mod host;
 pub mod printed;
-mod restart_fault;
-pub use host::{Host, ending};
 const CONFIG_BYTES: u32 = 1_048_576;
-fn path(bytes: &[u8]) -> &Path {
-    Path::new(std::ffi::OsStr::from_bytes(bytes))
-}
-fn prefixed(command: &str, why: &str) -> String {
-    let mut lines = String::new();
-    for line in why.lines() {
-        writeln!(lines, "{command}: {line}").expect("writing into a string");
-    }
-    lines
-}
-#[must_use]
-pub fn problems(binary: &str, found: &service::startup::Problems) -> String {
-    prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::lines(found)))
-}
 /// The worker's half of a start, supplied by a binary that holds one.
 pub trait WorkerHalf {
     fn alone(&self, directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String>;
@@ -103,40 +75,6 @@ pub fn program_environment(
 
 fn member(document: &skein_json::Document, at: u32, key: &[u8]) -> u32 {
     read::Object::new(document, at).expect("named checked object").member(document, key).expect("named checked member")
-}
-#[must_use]
-pub fn file_path(at: config::Path) -> String {
-    let mut found = service::startup::Problems::empty();
-    found.push(at, service::startup::What::Jig(config::What::Unreadable));
-    let bytes = service::startup::lines(&found);
-    String::from_utf8_lossy(&bytes).trim_end().strip_suffix(": not read").expect("path and reason").into()
-}
-pub fn read_files(names: Box<[config::File]>, user: u32) -> Result<Files, String> {
-    read_files_with_asked(names, Box::new([]), user)
-}
-fn read_files_with_asked(names: Box<[config::File]>, asked: Box<[config::File]>, user: u32) -> Result<Files, String> {
-    let count = names.len().checked_add(asked.len()).expect("bounded files");
-    let mut entries = List::with_capacity(u32::try_from(count).expect("bounded files"));
-    let mut refused = String::new();
-    for (file, optional) in
-        names.into_iter().map(|file| (file, false)).chain(asked.into_iter().map(|file| (file, true)))
-    {
-        let resolved = path(&file.path);
-        let value = if file.private {
-            skein_shell::read_private_file(resolved, file.max, user)
-        } else {
-            skein_shell::read_file(resolved, file.max).map(Secret::new)
-        };
-        match value {
-            Ok(value) => entries.push((file.path, value)).expect("named capacity"),
-            Err(skein_shell::Unread::Absent) if optional => {}
-            Err(why) => {
-                writeln!(refused, "{}: {}: {}", file_path(file.at), path(&file.path).display(), unread(why))
-                    .expect("writing into a string");
-            }
-        }
-    }
-    if refused.is_empty() { Ok(Files { entries }) } else { Err(refused) }
 }
 fn trust(file: Option<&[u8]>) -> Result<skein_tls::Config, String> {
     let source = file
@@ -346,11 +284,6 @@ fn prepare_with_limits(
     }
     Ok((service, named.deployment, limits.line_bytes))
 }
-pub fn close(owned: Vec<Fd>) {
-    for fd in owned {
-        skein_shell::close_startup_fd(fd);
-    }
-}
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
 pub fn operations_in(
@@ -438,136 +371,26 @@ pub fn operations_in_with(
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
-#[must_use]
-pub fn listeners_refusal(why: skein_shell::ListenersRefusal) -> String {
-    format!("LISTEN_FDS: {}", listener_words(why))
-}
-#[must_use]
-pub fn held_refusal(why: skein_shell::ListenersRefusal) -> String {
-    format!("held listener: {}", listener_words(why))
-}
-fn box_refusal(why: service::system::BoxRefusal) -> String {
-    use service::system::BoxRefusal;
-    let words = match why {
-        BoxRefusal::Sockets { limit } => {
-            format!("the box's pipes need two free socket slots; the service socket limit is {limit}")
-        }
-        BoxRefusal::Adopted => "the box's pipes were already adopted".into(),
-        BoxRefusal::NoEngine => "the box's pipes need an engine".into(),
-        BoxRefusal::ZeroLine => "the box's pipes need a nonzero application.limits.overrides.box.line_bytes".into(),
-    };
-    format!("--box: {words}")
-}
-/// The first links' secrets on a boxed serve's standard input (protocol/setup.md, 7.1).
-fn given_secret(input: &mut impl std::io::Read) -> Result<(Option<Secret>, Option<Secret>), String> {
-    use std::io::Read;
-    let both = service::clients::LINK_SECRET_BYTES.checked_mul(2).expect("two secrets");
-    let limit = both.checked_add(1).expect("small secret bound");
-    let mut bytes = Vec::with_capacity(limit);
-    input
-        .take(u64::try_from(limit).expect("small secret bound"))
-        .read_to_end(&mut bytes)
-        .map_err(|_| "--box: stdin: expected the first link's secret".to_string())?;
-    if bytes.is_empty() {
-        Ok((None, None))
-    } else if bytes.len() == service::clients::LINK_SECRET_BYTES {
-        Ok((Some(Secret::new(bytes.into_boxed_slice())), None))
-    } else if bytes.len() == both {
-        let local = bytes.split_off(service::clients::LINK_SECRET_BYTES);
-        Ok((Some(Secret::new(bytes.into_boxed_slice())), Some(Secret::new(local.into_boxed_slice()))))
-    } else {
-        Err("--box: stdin: expected the first link's secret".into())
-    }
-}
-
 pub fn run(
     binary: &str,
     directories: &Directories,
     boxed: bool,
     worker: Option<&dyn WorkerHalf>,
 ) -> Result<Exit, String> {
-    run_inner(binary, worker, directories, boxed).map_err(|why| prefixed(&format!("{binary} serve"), &why))
-}
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: XDG_RUNTIME_DIR selects the local link path; the binary's table will pass it"
-)]
-fn run_inner(
-    binary: &str,
-    worker: Option<&dyn WorkerHalf>,
-    directories: &Directories,
-    boxed: bool,
-) -> Result<Exit, String> {
-    let environment = skein_shell::environment();
-    let runtime =
-        environment.iter().find(|(name, _)| name.as_ref() == b"XDG_RUNTIME_DIR").map(|(_, value)| value.as_ref());
-    let link_file = link_file::path(&directories.data, runtime, cfg!(target_os = "linux"));
-    let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
-    let requests = 3 + i32::try_from(listeners.len()).expect("bounded inherited listeners");
-    let answers = requests + 1;
-    if boxed && cfg!(target_os = "linux") {
-        for fd in [requests, answers] {
-            if !std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok_and(|m| m.file_type().is_fifo()) {
-                return Err(format!("--box: fd {fd} is not an open pipe"));
-            }
-        }
-    }
-    let (link_secret, local_secret) = if boxed { given_secret(&mut std::io::stdin().lock())? } else { (None, None) };
-    let bytes = directories.read()?;
-    let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
-    let prepared = prepare_with_limits(
-        binary,
-        worker,
-        directories,
-        &bytes,
-        &mut owned,
-        boxed,
-        link_secret,
-        local_secret,
-        &service::stock::Given::Stock,
-    );
-    let (mut service, store, line_bytes) = match prepared {
-        Ok(prepared) => prepared,
-        Err(why) => {
-            close(owned);
-            return Err(why);
-        }
-    };
-    for (fd, addr) in listeners {
-        if let Err(fd) = service.adopt_listener(fd, addr) {
-            close(owned);
-            return Err(format!("listener: fd {} at {addr} refused", fd.raw()));
-        }
-    }
-    if boxed {
-        owned.extend([Fd::new(requests), Fd::new(answers)]);
-        if let Err(why) = service.adopt_box(Fd::new(requests), Fd::new(answers), line_bytes) {
-            close(owned);
-            return Err(box_refusal(why));
-        }
-    }
-    let opened = skein_shell::open_termination_signals()
-        .map_err(|errno| format!("signals: errno {errno}"))
-        .and_then(|signals| {
-            owned.push(signals);
-            service.adopt_signals(signals).map_err(|_| "signals refused".into())
-        })
-        .and_then(|()| Kernel::open(Config { operations: service.operations() }).map_err(|why| why.to_string()));
-    let mut kernel = match opened {
-        Ok(kernel) => kernel,
-        Err(why) => {
-            close(owned);
-            return Err(why);
-        }
-    };
-    let mut host = Host::with_binary(binary, service, directories.clone());
-    host.store = store;
-    host.link_file = link_file;
-    let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
-    if let Some(path) = &host.link_file {
-        link_file::forget(path);
-    }
-    Ok(exit)
+    temper_service_shell::run(binary, directories, boxed, |bytes, owned, secrets| {
+        prepare_with_limits(
+            binary,
+            worker,
+            directories,
+            bytes,
+            owned,
+            boxed,
+            secrets.link,
+            secrets.local,
+            &service::stock::Given::Stock,
+        )
+        .map(|(service, store, line_bytes)| temper_service_shell::Prepared { service, store, line_bytes })
+    })
 }
 
 #[cfg(test)]

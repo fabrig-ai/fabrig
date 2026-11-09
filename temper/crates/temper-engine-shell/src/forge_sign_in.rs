@@ -1,5 +1,4 @@
 //! Host the sign-in file effects; all printable bytes belong to forge-setup.
-use crate::jig_directories;
 use jig_protocol_config as config;
 use std::{
     fs,
@@ -10,6 +9,7 @@ use std::{
 use temper_forge_setup::sign_in;
 use temper_forge_setup_shell::process as host;
 use temper_service::startup::Named;
+use temper_service_shell::jig_directories;
 
 /// A dogfood hack's switch (temper/docs/design/draft/dogfood-hacks.md, 2.8).
 #[expect(
