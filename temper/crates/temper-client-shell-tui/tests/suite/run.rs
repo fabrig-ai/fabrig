@@ -729,7 +729,7 @@ fn recording_keys_save_whole_and_closing_saves_again() {
         let lines = replay(&first);
         assert!(lines.contains(&Line::Seed(SEED)), "{mark:?}");
         assert!(lines.contains(&Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH }), "{mark:?}");
-        assert!(lines.contains(&Line::Screen { size: SIZE, scheme: Scheme::Dark }), "{mark:?}");
+        assert!(lines.contains(&Line::Screen { size: SIZE, scheme: Some(Scheme::Dark) }), "{mark:?}");
         assert!(lines.contains(&Line::Address(b"127.0.0.1:8367".as_slice().into())), "{mark:?}");
         assert!(lines.iter().any(|line| matches!(line, Line::Mark(Some(_)))), "{mark:?}");
         assert!(matches!(lines.last(), Some(Line::End(Some(_)))), "{mark:?}");
@@ -836,12 +836,12 @@ fn background_selects_the_recorded_start_scheme() {
     let light = Rgb { red: 253, green: 246, blue: 227 };
     let dark = Rgb { red: 0, green: 43, blue: 54 };
     for (scheme, answer, expected, background) in [
-        (None, Some(b"\x1b]11;rgb:fdfd/f6f6/e3e3\x1b\\".as_slice()), Scheme::Light, Some(light)),
-        (None, Some(b"\x1b]11;rgb:0/2b/36\x07".as_slice()), Scheme::Dark, Some(dark)),
-        (None, None, Scheme::Dark, None),
-        (Some(Scheme::Light), None, Scheme::Light, None),
-        (Some(Scheme::Light), Some(b"\x1b]11;rgb:0/2b/36\x07".as_slice()), Scheme::Light, Some(dark)),
-        (Some(Scheme::Dark), Some(b"\x1b]11;rgb:fdfd/f6f6/e3e3\x1b\\".as_slice()), Scheme::Dark, Some(light)),
+        (None, Some(b"\x1b]11;rgb:fdfd/f6f6/e3e3\x1b\\".as_slice()), Some(Scheme::Light), Some(light)),
+        (None, Some(b"\x1b]11;rgb:0/2b/36\x07".as_slice()), Some(Scheme::Dark), Some(dark)),
+        (None, None, None, None),
+        (Some(Scheme::Light), None, Some(Scheme::Light), None),
+        (Some(Scheme::Light), Some(b"\x1b]11;rgb:0/2b/36\x07".as_slice()), Some(Scheme::Light), Some(dark)),
+        (Some(Scheme::Dark), Some(b"\x1b]11;rgb:fdfd/f6f6/e3e3\x1b\\".as_slice()), Some(Scheme::Dark), Some(light)),
     ] {
         let mut world =
             World::options(false, false, false, Outcome::Success, Recording::Root, scheme, None, false, None);

@@ -2,9 +2,6 @@
 
 2026-11-09. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-- **Not yet:** 3.2: `screen`'s `none`, a start whose terminal says no
-  scheme; the codec reads and writes `dark` or `light` alone (plan
-  `tui-box-polish`).
 
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
