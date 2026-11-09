@@ -1,0 +1,6 @@
+draft = "transcript-window"
+repo = "fabrig"
+sources = ["jig/docs/plan/transcript-window/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
