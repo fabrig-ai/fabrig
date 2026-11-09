@@ -123,12 +123,6 @@ them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
   for 8 and 10, which fit, so this is section 12's question. No test runs 8
   slots past `temper::prepare_in`: that request takes the next deployment at 8
   and 10 as its proof, with no walk, and no record shows one.
-- **Not yet:** 4.3, *A start the link cannot carry*: the engine's link has
-  no room (jig's `protocol/channel.status.md`), so a start whose frame is
-  past `io.output` waits below unsent, the engine stops pinging, and the
-  worker drops the link at its 15-second silence deadline with every run
-  on it; serve writes no `worker unsent` line
-  (`temper/crates/temper-service/src/workers.rs`, `route`).
 - **Design departs:** 4.4, from the request `merge-job-runs-2` of
   2026-11-09, item 2, decided by temper/migration's answer of 2026-11-09:
   a job that fails for good holds with its failures' class alone, each

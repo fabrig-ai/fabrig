@@ -25,6 +25,7 @@ const SPECIFICATION: &[u8] = b"Keep the worker link live.";
 #[derive(Clone, Copy, Debug)]
 enum Part {
     Charter,
+    FixedCharter,
     Window,
     Tree,
     Inbox,
@@ -118,7 +119,8 @@ fn a_stock_start_crosses_the_link_or_fails_with_its_numbers() {
             (Part::Inbox, 0, inbox),
             (Part::Calls, 0, Outcome::Past),
             (Part::All, 0, Outcome::Past),
-            (Part::Charter, 1, Outcome::CannotEncode),
+            (Part::Charter, 1, Outcome::Crosses),
+            (Part::FixedCharter, 1, Outcome::CannotEncode),
             (Part::Window, 1, Outcome::CannotEncode),
             (Part::Tree, 1, Outcome::CannotEncode),
             (Part::Inbox, 1, Outcome::CannotEncode),
@@ -254,6 +256,26 @@ impl Joint {
         }
         panic!("the socket joint settles");
     }
+    fn keep_live(&mut self, settings: &settings::Engine, profile: config::Profile, part: Part, extra: usize) {
+        let mut pings = (self.peer.engine_pings, self.peer.worker_pings);
+        let ping_seconds = settings.jig.limits.link.ping.as_millis().checked_div(1000).unwrap();
+        for second in 1..=SECONDS {
+            self.peer.now = Time::ZERO.checked_add(Duration::from_secs(second)).unwrap();
+            self.peer.component.fire(self.peer.now, &mut self.peer.out);
+            self.settle();
+            if second.checked_rem(ping_seconds).unwrap() == 0 {
+                assert!(
+                    self.peer.engine_pings > pings.0,
+                    "{profile:?} {part:?}+{extra}: engine pings cross at {second}s"
+                );
+                assert!(
+                    self.peer.worker_pings > pings.1,
+                    "{profile:?} {part:?}+{extra}: worker pings cross at {second}s"
+                );
+                pings = (self.peer.engine_pings, self.peer.worker_pings);
+            }
+        }
+    }
 }
 
 fn workers(settings: &settings::Engine) -> Workers {
@@ -278,12 +300,7 @@ fn workers(settings: &settings::Engine) -> Workers {
     .unwrap()
 }
 
-#[expect(
-    clippy::print_stderr,
-    clippy::use_debug,
-    clippy::disallowed_macros,
-    reason = "the stock table reports measured frames for the implementation report"
-)]
+#[expect(clippy::disallowed_macros, reason = "the past-the-room refusal names the measured frame bytes and room")]
 fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outcome) {
     let settings = settings(profile);
     let mut workers = workers(&settings);
@@ -326,19 +343,7 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
     joint.settle();
     let room = settings.jig.limits.io.output;
     let bytes = joint.peer.sent.checked_sub(sent).unwrap();
-    let mut pings = (joint.peer.engine_pings, joint.peer.worker_pings);
-    let ping_seconds = settings.jig.limits.link.ping.as_millis().checked_div(1000).unwrap();
-    for second in 1..=SECONDS {
-        joint.peer.now = Time::ZERO.checked_add(Duration::from_secs(second)).unwrap();
-        joint.peer.component.fire(joint.peer.now, &mut joint.peer.out);
-        joint.settle();
-        if second.checked_rem(ping_seconds).unwrap() == 0 {
-            assert!(joint.peer.engine_pings > pings.0, "{profile:?} {part:?}+{extra}: engine pings cross at {second}s");
-            assert!(joint.peer.worker_pings > pings.1, "{profile:?} {part:?}+{extra}: worker pings cross at {second}s");
-            pings = (joint.peer.engine_pings, joint.peer.worker_pings);
-        }
-    }
-    std::eprintln!("{profile:?} {part:?}+{extra}: {outcome:?}; sent={bytes}; unsent={:?}; room={room}", joint.unsent);
+    joint.keep_live(&settings, profile, part, extra);
     match outcome {
         Outcome::Crosses => {
             assert_eq!(joint.assignments.len(), 1, "{profile:?} {part:?}+{extra}");
@@ -351,6 +356,9 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
                 workspace.items = joint.assignments.get(0).unwrap().assignment.workspace.as_ref().unwrap().items;
             }
             assert_eq!(*joint.assignments.get(0).unwrap(), expected, "the whole assignment reaches the worker root");
+            if let Part::Charter = part {
+                assert_charter(&joint.assignments.get(0).unwrap().assignment.charter, &assignment, &workers, extra);
+            }
             assert_eq!(joint.items.get(0), expected_items.as_ref(), "the whole workspace reaches the worker root");
             assert!(joint.answers.is_empty());
             assert!(joint.unsent.is_empty());
@@ -387,6 +395,24 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
     assert_eq!(joint.assignments.last().unwrap().assignment.run, Token::new(SMALL_RUN));
 }
 
+fn assert_charter(bytes: &[u8], assignment: &root::Assignment, workers: &Workers, extra: usize) {
+    let charter =
+        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &workers.encoding.endpoints).unwrap();
+    assert!(charter.owned_bytes().unwrap() <= workers.encoding.charter_bytes);
+    assert!(u64::try_from(bytes.len()).unwrap() <= workers.encoding.charter_bytes);
+    assert_eq!(charter.instructions, assignment.run.policy.instructions);
+    if extra == 0 {
+        assert_eq!(charter, temper_engine_smith::charter(assignment), "the whole charter fits");
+    } else {
+        assert_eq!(charter.brief.sections.len(), 1, "the specification section is omitted whole");
+        assert_eq!(
+            charter.brief.sections[0].text.as_ref(),
+            b"Context.\n[1 sections omitted: Task; whole: the task's activity]\n",
+            "the retained context names the omitted specification"
+        );
+    }
+}
+
 fn assert_refusal(answers: &[hub::RunAnswer], words: &[u8]) {
     assert_eq!(answers.len(), 1, "one refused answer, never silence");
     let answer = &answers[0];
@@ -412,6 +438,11 @@ fn assignment(settings: &settings::Engine, workers: &Workers, part: Part, extra:
     run.workspace.repositories = Box::new([]);
     match part {
         Part::Charter => charter(&mut run, workers, extra),
+        Part::FixedCharter => {
+            run.run.policy.instructions = Box::new([]);
+            run.sections = Box::new([]);
+            fill_instructions(&mut run, workers, extra);
+        }
         Part::Window => window(&mut run, settings, extra),
         Part::Tree => tree(&mut run, &workers.encoding.limits, extra),
         Part::Inbox => inbox(&mut run, settings, extra),
@@ -429,15 +460,37 @@ fn assignment(settings: &settings::Engine, workers: &Workers, part: Part, extra:
 
 fn charter(run: &mut root::Assignment, workers: &Workers, extra: usize) {
     run.run.policy.instructions = Box::new([]);
-    run.sections = Box::new([root::BriefSection {
-        kind: root::BriefKind::Core(jig_domain_brief::Core::Task),
-        body: root::BriefBody::Text(SPECIFICATION.into()),
-    }]);
+    run.sections = Box::new([
+        root::BriefSection {
+            kind: root::BriefKind::Core(jig_domain_brief::Core::Lineage),
+            body: root::BriefBody::Text(b"Context.".as_slice().into()),
+        },
+        root::BriefSection {
+            kind: root::BriefKind::Core(jig_domain_brief::Core::Task),
+            body: root::BriefBody::Text(SPECIFICATION.into()),
+        },
+    ]);
+    fill_instructions(run, workers, 0);
+    let mut specification = skein_lib::Writer::new(SPECIFICATION.len().checked_add(extra).unwrap());
+    specification.put(SPECIFICATION).unwrap();
+    specification.put(&filled(extra)).unwrap();
+    run.sections[1].body = root::BriefBody::Text(specification.finish());
+    assert_eq!(
+        charter_bytes(run, workers),
+        workers.encoding.charter_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()
+    );
+}
+
+fn charter_bytes(run: &root::Assignment, workers: &Workers) -> u64 {
     let charter = temper_engine_smith::charter(run);
     let bytes =
         smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &workers.encoding.endpoints)
             .unwrap();
-    let fixed = charter.owned_bytes().unwrap().max(u64::try_from(bytes.len()).unwrap());
+    charter.owned_bytes().unwrap().max(u64::try_from(bytes.len()).unwrap())
+}
+
+fn fill_instructions(run: &mut root::Assignment, workers: &Workers, extra: usize) {
+    let fixed = charter_bytes(run, workers);
     let room = usize::try_from(workers.encoding.charter_bytes.checked_sub(fixed).unwrap()).unwrap();
     run.run.policy.instructions = filled(room.checked_add(extra).unwrap());
 }
