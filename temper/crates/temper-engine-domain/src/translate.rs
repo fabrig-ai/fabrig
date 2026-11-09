@@ -190,6 +190,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             | Tool::ReadTask { .. }
             | Tool::See { .. }
             | Tool::Document { .. }
+            | Tool::Remember { .. }
             | Tool::Settings { .. }
             | Tool::ProposeSettings { .. }
             | Tool::ProposeSettingsNote { .. }
@@ -229,6 +230,7 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
         | Tool::ReadTask { .. }
         | Tool::See { .. }
         | Tool::Document { .. }
+        | Tool::Remember { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -276,6 +278,7 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
         | Tool::ReadTask { .. }
         | Tool::See { .. }
         | Tool::Document { .. }
+        | Tool::Remember { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -337,6 +340,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         | Tool::ReadTask { .. }
         | Tool::See { .. }
         | Tool::Document { .. }
+        | Tool::Remember { .. }
         | Tool::Settings { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
@@ -468,7 +472,7 @@ fn proposal_shape(action: &ProposedAction, reason: &[u8], limits: &tasks::Limits
 
 pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
     Some(match tool {
-        Tool::See { .. } | Tool::Document { .. } => jig_domain_core::ToolKind::Ask,
+        Tool::See { .. } | Tool::Document { .. } | Tool::Remember { .. } => jig_domain_core::ToolKind::Ask,
         Tool::Settings { .. } | Tool::ProposeSettings { .. } | Tool::ProposeSettingsNote { .. } => {
             jig_domain_core::ToolKind::Settings
         }
@@ -571,6 +575,7 @@ pub(crate) fn keep_connector_answer(
         | CallAnswer::NoteRecalled { .. }
         | CallAnswer::Parts(_)
         | CallAnswer::Document(_)
+        | CallAnswer::Remember(_)
         | CallAnswer::NoteRefused(_)
         | CallAnswer::SettingsRefused(_)
         | CallAnswer::HoldOwner { .. }
@@ -587,6 +592,7 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
     match tool {
         Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => true,
         Tool::Document { .. }
+        | Tool::Remember { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
         | Tool::Decided(_)

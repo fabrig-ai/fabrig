@@ -138,6 +138,8 @@ pub enum CallAnswer {
     NoteRefused(jig_domain_notes::Refusal),
     /// The document call joined with its note write (domain/agent.md, 8.4.3).
     Document(Box<Documented>),
+    /// The root's joined memory answer (domain/agent.md, 8.4.4).
+    Remember(Box<Remembered>),
     /// A settings part or refusal, answered without a record (domain/agent.md, 8.4.2).
     Parts(Box<PartsAnswer>),
     /// The named tool is deferred to a later engine route.
@@ -163,6 +165,33 @@ pub struct Documented {
     pub action: crate::DocumentAction,
     pub heading: Box<[u8]>,
     pub outcome: DocumentOutcome,
+}
+
+/// The root's answer to a `remember` call (domain/agent.md, 8.4.4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Remembered {
+    Done { did: RememberDid, line: u32, lines: skein_lib::List<Box<[u8]>>, bound: u32 },
+    Refused(RememberRefusal),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum RememberDid {
+    Kept,
+    Changed,
+    Dropped,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RememberRefusal {
+    NotOneLine,
+    TooLong { bytes: u32, bound: u32 },
+    Full { bound: u32 },
+    NoLine { line: u32, lines: u32 },
+    Moved { action: RememberDid, line: u32 },
+    NoPerson,
+    Busy,
+    Unread,
+    Note(jig_domain_notes::Refusal),
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -306,7 +335,9 @@ impl CallAnswer {
                 jig_domain_core::CallPart::NoteRecalled { entries: entries.clone(), more: *more }
             }
             CallAnswer::NoteRefused(why) => jig_domain_core::CallPart::NoteRefused(*why),
-            CallAnswer::Parts(_) | CallAnswer::Document(_) => unreachable!("render-only feedback has no core record"),
+            CallAnswer::Parts(_) | CallAnswer::Document(_) | CallAnswer::Remember(_) => {
+                unreachable!("render-only feedback has no core record")
+            }
             CallAnswer::Unavailable => jig_domain_core::CallPart::Unavailable,
         }
     }
@@ -1018,6 +1049,7 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
             None => 0,
         }),
         CallAnswer::Document(documented) => documented_bytes(documented),
+        CallAnswer::Remember(remembered) => remembered_bytes(remembered),
         CallAnswer::Parts(parts) => {
             let bytes = u64::try_from(size_of_val(parts.as_ref())).ok()?;
             match parts.as_ref() {
@@ -1196,6 +1228,20 @@ fn adoption_bytes(adoption: &jig_domain_people::Adoption) -> Option<u64> {
     }
     for option in &adoption.options {
         bytes = bytes.checked_add(skein_lib::len_u64(option.len()))?;
+    }
+    Some(bytes)
+}
+
+fn remembered_bytes(remembered: &Remembered) -> Option<u64> {
+    let mut bytes = u64::try_from(size_of_val(remembered)).ok()?;
+    match remembered {
+        Remembered::Done { lines, .. } => {
+            bytes = bytes.checked_add(skein_lib::List::<Box<[u8]>>::price(lines.capacity())?)?;
+            for line in lines {
+                bytes = bytes.checked_add(skein_lib::len_u64(line.len()))?;
+            }
+        }
+        Remembered::Refused(_) => {}
     }
     Some(bytes)
 }
