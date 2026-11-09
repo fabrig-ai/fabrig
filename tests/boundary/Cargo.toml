@@ -10,7 +10,7 @@ publish.workspace = true
 [dev-dependencies]
 serde_json.workspace = true
 skein-scratch.workspace = true
-syn = { version = "2", features = ["full", "visit"] }
+syn.workspace = true
 
 # Ordinary Rust (skein's programming-model.md, 10.2), held to the test
 # crates' lints.
