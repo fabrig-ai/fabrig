@@ -844,11 +844,12 @@ binaries; and decides by
   `std::process` outside skein: a boundary test scans the production
   crates' sources (`crates/*/src`, test files aside) and fails the gate
   when either appears outside that module, but for what it declares by
-  file, each for that use alone: `std::process::ExitCode` in the binary's
-  `main`; `temper program-login`'s exec of smith's command
-  (credentials.md, section 3); Claude Code's fetch's lock, and its
-  launcher's exec and process id (6.6); and the process tier's fault,
-  which aborts its own serve. Test crates (`testing/`,
+  file, each for that use alone: `std::process::ExitCode` in the
+  binaries' `main`s, `temper`'s, `temper-client`'s and `temper-agent`'s; `temper
+  program-login`'s exec of smith's command (credentials.md, section 3);
+  Claude Code's fetch's lock, and its launcher's exec and process id, in
+  `temper-fetch-shell` (6.6); and the process tier's fault, which aborts
+  its own serve. Test crates (`testing/`,
   `tools/`) are not scanned. It moves onto skein when skein's shell
   offers both (section 15).
 - **The runner's spec:** its configuration file (its connection,
@@ -1022,10 +1023,13 @@ its own for any other host.
   start.
 - **Then the preparation checks its version** as every command that
   runs it does (6.1); a digest is no version.
-- **Its code:** the fetch's machine in `temper-forge-setup`, its
+- **Its code:** the fetch's machine in `temper-fetch`, its
   requests, chunks, writes, digests and lines its inputs and outputs, and its
-  host in `temper-forge-setup-shell`, on skein-io, skein-http and
-  skein-tls (section 11). It holds no credential and writes no record
+  host in `temper-fetch-shell`, on skein-io, skein-http and skein-tls,
+  which a bottle's extraction is given to by its caller (section 11).
+  Forgejo's pins and the bottle's extraction stay `temper-forge-setup`'s
+  and `temper-forge-setup-shell`'s, which re-export the machine's items
+  and the host's failure under their own paths, and `setup::Origin`. It holds no credential and writes no record
   (section 9). The platform is the binary's to say, as its shell was
   built for: the machine is given it.
 - **On macOS** neither Forgejo nor its runner publishes a build, so the
@@ -1081,7 +1085,7 @@ its own for any other host.
 
   - **The pin:** `VERSION` `2.1.311`, Anthropic's stable channel on
     2026-11-05, and for each `PLATFORM` a SHA-256 and a size, from that
-    release's `manifest.json`, in `temper-forge-setup`'s `claude_code`
+    release's `manifest.json`, in `temper-fetch`'s `claude_code`
     module; a new pin is temper's release:
 
     | `PLATFORM` | SHA-256 | Bytes |
@@ -1108,17 +1112,24 @@ its own for any other host.
     environment. So every read of `agent.json` hands smith, in place of
     `"fetched"`, the launcher's path, `claude-code/claude` beside the
     programs directory (`<data>/claude-code/claude` as init writes it),
-    a symbolic link to the running `temper`, and smith, jig and the
-    agent never meet the word. A `temper` run by the name `claude`, as
-    the playground's git is (8.4), is the launcher: it takes the cache
-    from `cache` beside it, a symbolic link to the cache directory,
+    a symbolic link to the executable that places it, today the running
+    `temper`, and smith, jig and the agent never meet the word. A
+    `temper` or a `temper-agent` (`README.md`, 4.1) run by the name
+    `claude`, as the playground's git is (8.4), is the launcher: it takes
+    the cache from `cache` beside it, a symbolic link to the cache
+    directory,
     fetches the build if it is missing, and replaces itself with it,
     its arguments unchanged. `temper serve`, a worker alone and `temper
     program-login` each write both links at their start, when the path
     is `"fetched"`, in that directory, private: a link pointing elsewhere
     is replaced by a new one and a rename, and a right one left as it is,
     so that two starts at once are harmless and a person's own command
-    never fetches by a stale name.
+    never fetches by a stale name. The launcher, the placing of its
+    links and the substitution are `temper-fetch-shell`'s (section 11),
+    which a worker's commands and the agent's binary both link and which
+    reads programs' directories through smith's `smith-agent-document`,
+    never smith's agent. The `claude` link names the running executable,
+    the binary that places it.
   - **Found by its size:** every command of the source passes through
     the launcher, so it hashes nothing it finds. A file at the pin's
     size runs; one of any other size is refused, naming its path, and
@@ -3609,18 +3620,28 @@ skein-forge-setup            the setup's plans, their types and checks, the acce
 │                              host component a service runs them on (skein's forge-setup.md, section 6)
 ├── skein-forge
 └── skein-lib, skein-json
+temper-fetch                 step code: a pinned binary's fetch: its machine, its pins' fields and
+│                              their origin, Forgejo's and Claude Code's alike; Claude Code's pin and
+│                              the word "fetched" (6.6). Names no host
+├── skein-forge
+└── skein-lib
 temper-forge-setup           step code: the setup's types and checks; the machine's part, read from the
 │                              configuration, and a forge's setup entry by its kind; the setup mapped
-│                              onto the plans' given values, and the kit's check of them; the fetch's
-│                              machine and the preparation's; app.ini and the runner's files; the
-│                              processes' specs; the kinds' steps and the group's file; Claude Code's
-│                              pin (6.6). Names no host
-├── skein-forge-setup, skein-forge
+│                              onto the plans' given values, and the kit's check of them; Forgejo's
+│                              pins, on temper-fetch's machine, and the preparation's machine;
+│                              app.ini and the runner's files; the processes' specs; the kinds' steps
+│                              and the group's file. Names no host
+├── temper-fetch, skein-forge-setup, skein-forge
 └── jig-protocol-config, skein-lib, skein-json
+temper-fetch-shell           ordinary Rust: the fetch's host, its requests over TLS, on skein-io;
+│                              Claude Code's fetch, under its lock; its launcher, the placing of its
+│                              links and the substitution of "fetched" in an agent's document (6.6)
+├── temper-fetch, smith-agent-document
+└── skein-io, skein-http, skein-tls, skein-lib, skein-json, skein-shell
 temper-forge-setup-shell     ordinary Rust: the hosts of fetch, prepare and run: commands, files, the
-│                              forge's locks, the exec, the fetch's requests over TLS, on skein-io;
-│                              Claude Code's fetch, under its lock (6.6)
-├── temper-forge-setup
+│                              forge's locks, the exec; Forgejo's fetch on temper-fetch-shell's host,
+│                              with its bottle's extraction
+├── temper-forge-setup, temper-fetch-shell
 └── skein-io, skein-http, skein-tls, skein-lib, skein-json, skein-shell
 temper-box                   the box's machine (step code), its kinds' groups, their files and records
 │                              and its pipe to temper serve among it, and its host (ordinary Rust) on
@@ -3631,6 +3652,7 @@ temper-box                   the box's machine (step code), its kinds' groups, t
 └── skein-lib, skein-io, skein-shell
 temper-init                  step code: the default document and the files temper init writes, from
 │                              the facts the binary finds (8.2, 8.3); reads, writes and binds nothing
+├── temper-fetch
 └── skein-lib, skein-json
 temper-fake                  step code: the playground's member, application.demo, its types and
 │                              checks; the fakes' configurations and seeds; the fake kind's group (8.4).
@@ -3642,14 +3664,24 @@ temper-fake-git              ordinary Rust: the fake git program's core, temper 
 │                              its two remotes (../domain/testing.md, 4.3)
 ├── skein-fake-checkout, skein-fake-forge-domain, skein-fake-forge-forgejo, skein-fake-forge-http, skein-fake-peers
 └── skein-lib, skein-io, skein-http, skein-json
+temper-agent                 the deployment's agent: its table, its modes, its help and --version, the
+│                              commit set by its build script (README.md, 4.1); Claude Code's launcher
+│                              by its name
+├── temper-shell, smith-agent-shell, temper-fetch-shell
+└── skein-shell, skein-fail-stop
 temper                       the binary: temper forge fetch|prepare|run|remove, temper box, temper init,
-                               temper fake llm|forge|git; Claude Code's launcher (6.6)
+                               temper fake llm|forge|git; Claude Code's launcher by its name,
+                               temper-fetch-shell's
 ```
 
 - **The engine runs the setup host** in its protocol layer (5.1):
   temper-service maps each forge's setup onto the plans' given values
   through `temper-forge-setup` (section 5), and depends on neither
   `temper-forge-setup-shell` nor `temper-box`.
+- **The agent's binary links no forge setup:** `temper-agent` reaches
+  Claude Code's fetch through `temper-fetch` and `temper-fetch-shell`
+  alone, so neither `temper-forge-setup` nor its shell is in its closure
+  (`README.md`, 4.1).
 - **The binary checks the machine's part and its limits** for every
   command, `temper serve`'s included: `temper-forge-setup` checks
   `application.machine` and the `setup.` limits, and `temper-box` the `box.` limits, beside
@@ -3738,24 +3770,26 @@ relies on.
   in `crates/temper/tests/suite/box_listeners/lifetime.rs`, a box started
   ignoring hangups runs on: one focused path through `main`. The running
   steps' process boundaries are checked in 13.4.
-- **The fetch's machine** (6.6), in temper-forge-setup, given its URLs
+- **The fetch's machine** (6.6), in temper-fetch, and in
+  temper-forge-setup where a forge's setup gives its pins, given its URLs
   and digests: each pin's URL and digest for each architecture, and
   another architecture refused; another status or a redirect refused;
   a body past `setup.fetch_bytes` refused, and one past its size; the
   lines in order for an answer with a size and for one without. With
-  its host, in
-  temper-forge-setup-shell's tests against a local file server over
-  TLS, its root skein's test root named by `SSL_CERT_FILE`: a wrong
+  its host, temper-fetch-shell's, in temper-forge-setup-shell's tests,
+  which hold its local file server over TLS, its root skein's test root named
+  by `SSL_CERT_FILE`: a wrong
   digest, its part file removed and its refusal naming the URL and both
   digests; the right one, made 0o755 and renamed; a file already there
   hashed, nothing asked when it matches, and a mismatch refused, naming
   its path, the file left; a part file left by a fetch cut short
   written again; the lines reaching the host's writer in order, with a
   size and without, none for a file already there.
-- **Claude Code's pin and fetch** (6.6): in temper-forge-setup, each
+- **Claude Code's pin and fetch** (6.6): in temper-fetch, each
   platform's digest and size against 6.6's table, and each pin's URL. At
-  its host, on the same file server: a missing build fetched once, then
-  found with no request; a wrong digest refused and nothing left; a file
+  its host, temper-fetch-shell's, in the same suite on the same file
+  server: a missing build
+  fetched once, then found with no request; a wrong digest refused and nothing left; a file
   of another size refused and left; two commands at once making one
   request. No test reaches `downloads.claude.ai` (section 15).
 - **Claude Code's offer and launcher** (6.6, 8.2, 8.3), on the shipped
@@ -3766,6 +3800,9 @@ relies on.
   `DISABLE_AUTOUPDATER=1` in its environment and stdout the build's
   alone; `temper serve`, a worker alone and `temper program-login` write
   both links for a fetched program, and neither for a found `claude`.
+  `temper-agent`'s own link reaches the build the same way, in its
+  package's suite (`README.md`, 4.1); the substitution's cases are
+  temper-fetch-shell's.
 - **A fetch's lines** (7.2), in temper-box: each relayed as a `fetched`
   line for the group the box is starting, in its log and on no terminal,
   with `--echo steps` and in a failure's tail too; one from a group

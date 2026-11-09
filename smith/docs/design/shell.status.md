@@ -9,6 +9,11 @@ and absent from the portable face. macOS's direct launch and deferred
 crash lifetime are protocol/programs.md, sections 5.1 and 9's.
 
 - **Not yet:**
+  - 2.1, 2.6: `smith-agent-profile` and `smith-agent-document` aren't
+    built. The document's reader, its trace's settings and the program
+    helpers are `smith-agent-shell`'s; the profile, the configuration's
+    values and its checks `smith-agent-service`'s; `host_limits`
+    `smith-local-service`'s.
   - 4, 5.2: the `--account` flag and the `account` setting.
     `smith-local-shell/src/command.rs` parses no `--account`, and
     `settings/schema.rs` has no `account` key, so 4.1's refusal that

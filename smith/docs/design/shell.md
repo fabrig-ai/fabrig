@@ -69,19 +69,23 @@ root package's (section 3). The layers are those of skein's echo
 
 | Crate | Layer | Owns, for the shell |
 |---|---|---|
-| `smith-agent-service` | service | the agent's `iterate`; the `standard` profile's deployment values and their derivation into every layer's limits, as step code with its tests |
-| `smith-local-service` | service | the local host's `iterate`: the local domain, which owns its agent as a child (the inline agent, or `smith-host-domain` for a spawned one), composed with the effects: the LLM and machine components, the chat store, the terminal and the event sink; the host's and the local layers' share of the profile |
+| `smith-agent-profile` | values | the agent's configuration values, `Config`, `Limits` and `ProgramBackend`; the `standard` profile's deployment values and their derivation into every layer's limits, the host's share among them, `host_limits`; the event limits; and a configuration's checks, as step code with its tests (2.6) |
+| `smith-agent-service` | service | the agent's `iterate`, on the profile's values, which it re-exports under its own paths (2.6) |
+| `smith-local-service` | service | the local host's `iterate`: the local domain, which owns its agent as a child (the inline agent, or `smith-host-domain` for a spawned one), composed with the effects: the LLM and machine components, the chat store, the terminal and the event sink; the local layer's share of the profile, and the host's re-exported as `profile::host_limits` |
 | `smith-inline-agent` | domain | an agent capability in its host's process: a run as a composed `smith-domain` that speaks `smith-host-domain`'s vocabulary (domain/host.md) |
 | `smith-events` | codec | the event vocabulary (protocol/events.md), encoded over skein-json, with its goldens |
 | `smith-local-protocol` | protocol | the chat store and delivery records over skein io (protocol/hosts.md, section 5.3); the credentials directory's keys and installation identifier, as private files (section 7) |
-| `smith-agent-shell` | shell | the agent process (2.2) |
+| `smith-agent-document` | shell | the agent's document read without the agent: decoded, resolved and checked, its trace's settings, and a program's directory, source and sign-in (2.6) |
+| `smith-agent-shell` | shell | the agent process (2.2), re-exporting the document's crate as its `config`, `program` and `trace` |
 | `smith-local-shell` | shell | the product (2.3) |
 
-A service owns its entrance limits and admission watermark, so the
-profile is a function of the service crates and is tested there. Edge
-bounds must be representable; memory is measured under scenario ceilings
-(protocol/limits.md, section 5). The shell crates only choose a profile
-and the values a setting overrides.
+A service owns its entrance limits and admission watermark. The agent's
+limits, the profile that derives them and a configuration's checks are
+values and functions with nothing of the run in them, so they are
+`smith-agent-profile`'s, beneath the service, and tested there; the local
+service's share stays with it. Edge bounds must be representable; memory
+is measured under scenario ceilings (protocol/limits.md, section 5). The
+shell crates only choose a profile and the values a setting overrides.
 
 ### 2.2 The agent shell
 
@@ -95,7 +99,8 @@ and the values a setting overrides.
   charter's model entries carry the effective `window` and `output`, at
   most the declared ones, and a charter naming a model the configuration
   does not declare is refused (protocol/charter.md, section 2). It never
-  holds a credential.
+  holds a credential. It is `smith-agent-document`'s, which this crate
+  re-exports (2.6).
 - **Startup,** in the order of skein's `shell.md`, section 6: the
   configuration and the derived edge limits checked, termination
   signals blocked, the endpoints' names resolved, trust roots loaded,
@@ -224,8 +229,61 @@ section 14.
   exports are named only there.
 - **No consumer changes** for a host: `smith-agent` and the worlds take
   the same `Agent`.
-- **Checked** in smith's gate: clippy over `smith-agent-shell` and what
-  it depends on in smith for `wasm32-unknown-unknown`, warnings denied.
+- **Checked** in smith's gate: clippy over `smith-agent-shell`,
+  `smith-agent-document`, `smith-agent-profile` and what they depend on
+  in smith for `wasm32-unknown-unknown`, warnings denied.
+
+### 2.6 The agent's document without the agent
+
+A host reads its agent's document before it starts the agent: an
+application's worker checks it at its own start, derives its host's
+limits from it and checks its programs' directories. So the document's
+reader is a crate of its own, and nothing of the agent's run is in its
+closure:
+
+- **`smith-agent-profile`,** step code, `no_std` with `alloc`, beneath
+  `smith-agent-service`. It holds what a configuration is and what it
+  derives, none of it the run's:
+  - the `profile` module, whole;
+  - the configuration's values, `Config`, `Limits` and
+    `ProgramBackend`, and the route headroom the profile reserves;
+  - `event_limits`;
+  - a configuration's checks, `valid`, `effects_valid`, `io_valid`,
+    `program_valid` and `program_operations`, with the programs'
+    settings, reservations and bounds they compute; the service's run
+    reads those from here, never from a copy;
+  - `host_limits`, the host's share of the profile (protocol/limits.md,
+    3.6 and 3.8).
+
+  It depends on what the service depended on for these, and on
+  `smith-host-domain` for `host_limits`; never on `smith-agent-service`
+  or anything that links it.
+- **`smith-agent-document`,** ordinary Rust as the shell is, on the
+  profile's crate: `config`, the document decoded from its bytes,
+  resolved and checked, and read from its file; `trace`, the trace's
+  settings it names; `program`, a program's directory, source and
+  sign-in (protocol/programs.md), on Unix; `host_limits`, the profile
+  crate's, re-exported; and, under its `fixture` feature, the standard
+  product document. The three items of `config` the shell reads beyond
+  a document's readers, the effective header, the profile's refusal
+  words and a decoded document's list endpoints, are public, each with
+  its line of prose. It names neither `smith-agent-service`,
+  `smith-agent-shell` nor `smith-local-service`.
+- **Their readers don't change:** `smith-agent-service` re-exports the
+  profile crate's items under the paths they had
+  (`smith_agent_service::profile`, `Config`, `Limits`,
+  `ProgramBackend`, `event_limits` and the checks);
+  `smith-local-service`, `host_limits` as `profile::host_limits`;
+  `smith-agent-shell`, the document's `config`, `program` and `trace`
+  modules, and its fixture's product document. Each item is one item,
+  so its type is the same wherever it is named.
+- **The hosted face** (2.5) holds: the decoding and the checks are
+  portable, the file, trust and program parts Unix's, fenced by target
+  as before.
+- **Tests move with what they test,** and neither crate takes a
+  dev-dependency on the service, the shell or a world that links them:
+  a test that needs `Service` or `Agent` stays where it is and reads the
+  moved items through the re-exports.
 
 ## 3. The root package
 

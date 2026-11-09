@@ -773,7 +773,10 @@ record of the user weighing it, Forgejo's link page keeping an empty signup
 form; the others
 record what the
 design carries of them and where it lags or departs.
-`domain/README.md` and `protocol/llm.md` have no gap.
+`domain/README.md` and `protocol/llm.md` have no gap. The deployment's
+agent binary, `temper-agent`, its closure's test and its fetch crates are
+designed and not built (`protocol/README.status.md`,
+`protocol/setup.status.md`).
 
 Project-making's reproduced client stall is repaired: ctl, native and
 web presets take nine memberships in the mandatory `me`; reduced,
@@ -845,6 +848,7 @@ Drafts:
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
+- [`draft/agent-binary.md`](draft/agent-binary.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
