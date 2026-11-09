@@ -1,6 +1,5 @@
-//! How work runs' parts and lanes (temper/docs/design/client/README.md, 5.13).
+//! How work runs' parts (temper/docs/design/client/README.md, 5.13).
 use jig_client::contract as c;
-use skein_lib::List;
 use temper_client_protocol_wire::v1 as w;
 
 /// The project's `ways` read, as the page sees it.
@@ -22,6 +21,8 @@ pub struct Facts {
     pub read: Read,
     /// Kind 7 read, with Goals shown.
     pub goals: bool,
+    /// The page has read at least one project role.
+    pub roles: bool,
     /// The default goal template's budget, none with no template or kind 7 unread.
     pub budget: Option<c::TemplateBudget>,
 }
@@ -56,6 +57,7 @@ pub struct Parts {
     /// "Ask temper to change this".
     pub ask: bool,
     pub path: Path,
+    pub roles: bool,
     /// A goal's amount or cap, while Goals is shown.
     pub budget: Option<Budget>,
 }
@@ -77,10 +79,10 @@ pub fn parts(facts: &Facts) -> Parts {
     } else {
         None
     };
-    Parts { head, ask: facts.asking, path, budget }
+    Parts { head, ask: facts.asking, path, roles: facts.roles, budget }
 }
 
-/// Gather from `me`, the forge's kind 7 and the ways held for the address.
+/// Gather from `me`, the forge's kind 7, ways and roles held for the address.
 #[must_use]
 pub fn facts(root: &crate::Domain, project: u32) -> Facts {
     use crate::{Address, forge::stock_ways::State};
@@ -111,37 +113,25 @@ pub fn facts(root: &crate::Domain, project: u32) -> Facts {
             budget = Some(template.budget);
         }
     }
-    Facts { asking, read, goals, budget }
-}
-
-/// A lane of the path's table.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Lane {
-    You,
-    Agents,
-    Code,
-}
-
-/// A column a stop, in the path's order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Column {
-    Stop { stop: u32, lane: Lane },
-    Bar { stop: u32 },
-}
-
-/// Place every stop once in its actor's lane, and a bar in none.
-#[must_use]
-pub fn lanes(path: &w::BranchPath) -> List<Column> {
-    let mut columns = List::with_capacity(path.stops().len());
-    for (index, stop) in path.stops().iter().enumerate() {
-        let stop_index = u32::try_from(index).expect("wire bounds path stops");
-        let column = match stop.actor() {
-            w::Actor::Person => Column::Stop { stop: stop_index, lane: Lane::You },
-            w::Actor::Agent => Column::Stop { stop: stop_index, lane: Lane::Agents },
-            w::Actor::Code => Column::Stop { stop: stop_index, lane: Lane::Code },
-            w::Actor::Bar => Column::Bar { stop: stop_index },
-        };
-        columns.push(column).expect("one column per bounded stop");
-    }
-    columns
+    let roles = if pages.address() == &(Address::Settings { project }) {
+        match pages.roles() {
+            Some(roles) => match roles.read() {
+                super::roles::Read::Drawn(w::View::Roles(view)) => !view.roles().is_empty(),
+                super::roles::Read::Reading
+                | super::roles::Read::Unreadable
+                | super::roles::Read::Drawn(
+                    w::View::Charter(_)
+                    | w::View::Rule(_)
+                    | w::View::NotDrawn(_)
+                    | w::View::Way(_)
+                    | w::View::Path(_)
+                    | w::View::Proposal(_),
+                ) => false,
+            },
+            None => false,
+        }
+    } else {
+        false
+    };
+    Facts { asking, read, goals, roles, budget }
 }

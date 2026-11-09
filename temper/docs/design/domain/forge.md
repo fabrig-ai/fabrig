@@ -241,6 +241,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
   and protection the rules GitHub applies to the branch (4.4). A write
   the forge refuses narrows what temper may do there, for every later
   decision (jig's `domain/connectors.md`, 12).
+- **Its CI workflows are read once it is adopted** (4.7): the names of
+  the workflows on its landing branch, kept on its record and current
+  with its landings, which CI's card names (8.13).
 - **The project's ceiling follows** (jig's `domain/authority.md`,
   section 6) from each repository's role and what was read: on an owned
   repository, pushing under temper's prefix, opening pull requests and
@@ -785,6 +788,66 @@ bound and no restore of its own, and it goes with the forge if that's removed.
 - **A link replaced** leaves its old user a stranger, or the seed that was made
   for it before the link: a second account of a person who made one on
   purpose, which counts only if a rule asks for two people.
+
+### 4.7 Its CI workflows
+
+Neither forge's API lists the workflows a repository runs, so the forge
+reads the directory each forge runs them from, and keeps on the
+repository's record what it found there, which CI's card names (8.13,
+*CI's card*).
+
+- **The read** is the workflows' directory at a tip of the landing
+  branch, the record's `settings.default_branch`: its immediate entries,
+  one `Read::File` (skein's `forge.md`, 3.2) answered as a directory's,
+  `skein_forge::api::Answer::Directory`, within the client's
+  `answer_bytes`, as a charter document's read is
+  (`../protocol/configuration.md`, 13.7). On GitHub it is
+  `.github/workflows`; on Forgejo `.forgejo/workflows`, and where that
+  is absent `.github/workflows`, as Forgejo itself falls back. Where
+  what asks for it names no tip, a `Read::Branch` of the landing branch
+  gives it first.
+- **A workflow** is each file entry whose name ends `.yml` or `.yaml`,
+  named by its file name whole, as "ci.yml", in the forge's order; a
+  directory, a submodule and any other file are none. The first
+  `WORKFLOWS` (16) are kept, each at most `WORKFLOW_BYTES` (255) bytes,
+  a file name's bound; a longer name, or one not UTF-8, is skipped
+  whole. A listing the forge cut (`truncated`) gives what it listed.
+- **What the record keeps:** `workflows`, the names, saved with the
+  record (`../protocol/store.md`, section 2) only when they differ from
+  what it held. No directory there, on Forgejo neither, or a file where
+  the directory would be, is no workflow: the list empties. A read
+  refused or failed, or answered in another shape, keeps what the record
+  held, and the landing branch's next move reads again whatever its
+  files (below), by a mark held in memory alone: a restart forgets it,
+  and the record keeps its last list.
+- **When it is read,** at the landing branch's tip each time:
+  - once an adoption saves the repository's record (section 4; the act
+    of 4.5 alike), and once a refusal's refresh of what temper may do
+    there saves it (jig's `domain/connectors.md`, 12), whose settings
+    name the landing branch afresh. It is a read of its own, after the
+    adoption's: the adoption's answer waits for none of it, and its
+    failure refuses nothing. A context adoption that leaves another
+    project's record as it is (section 4) reads nothing;
+  - at the first tip the forge observes of the landing branch, which no
+    landing's comparison precedes;
+  - at a later move of the landing branch, at the tip it moved to, only
+    where that landing's files name a path under `.github/workflows/` or
+    `.forgejo/workflows/`, or are not known: the comparison refused, past
+    its bound, or not made. The forge reads those files
+    for every landing it publishes (7.1, the landings on a repository's
+    branch), so a landing that touches no workflow costs no read, and a
+    move by someone else is a landing as temper's own merge is (7.2).
+
+  The landing branch's tip is watched while a live task or a
+  subscription names it (5.1); a move made while none does is seen at
+  the next observation, from the tip the forge last held, and its files
+  read then, as any landing's.
+- **One read per repository at a time:** what asks for one while one is
+  in flight reads once more when it ends, at the tip then. A repository
+  released while its read is in flight keeps nothing of the answer.
+- **Every workflow there is kept,** a dispatch-only one among them: CI's
+  card leaves out those the repository's test gates and tiers dispatch
+  (8.13), since those settings change apart from the record.
 
 ## 5. What it holds, and keeping up
 
@@ -2829,17 +2892,19 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
     on and `way` names a template whose resources hold *its own goal
     branch*, as template 4's do (`../protocol/configuration.md`, 13.4);
     otherwise as a chat's change;
-  - the project's landing, by queue or by turn, and the repository's
-    CI, its test gates and its tiers, each with the branch it follows
-    (`landing.md`, 13.1; `after-landing.md`, section 2).
+  - the project's landing, by queue or by turn, whether it names a
+    merge job (8.4, *The merge job*), and the repository's CI, its test
+    gates and its tiers, each with the branch it follows (`landing.md`,
+    13.1; `after-landing.md`, section 2).
   The ways' paths and a proposal's "after" take the same derivation
   over the settings with items laid over them, each item as its
   decision would leave its setting (`../protocol/configuration.md`,
   13.10).
 - **A path** is a list of stops, each its actor, a person, an agent,
-  code or a branch's bar; its words; and what it opens: a charter, a
-  rule, a gate, a tier, the queue or the turn. The card each stop opens
-  is the path's too (below).
+  code or a branch's bar; its words; whether it is made only when
+  needed; the small words over its own, or none; and what it opens: a
+  charter, a rule, a gate, a tier, the queue or the turn. The card each
+  stop opens is the path's too (below).
 - **A typical run, with one repair,** a segment per branch the change
   lands on, each in this order:
   1. *Who starts,* on the first segment alone: for a chat's change, "you
@@ -2863,9 +2928,14 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
      where the reader holds the role, otherwise the role's name, as
      "an owner approves"; "×N" after it where it asks N people, N past
      one.
-  6. *By queue:* "update", code, and "resolve", the producer's, where a
-     covering rule that enforces asks up to date; then "merge", code,
-     opening the queue (section 9). *By turn* (`landing.md`, section
+  6. *By queue:* "conflict", code, opening the queue, and "resolve",
+     the producer's, where a covering rule that enforces asks up to
+     date: as a change takes its branch at the front of its queue
+     (section 9; section 10), the queue merges the branch's tip into it,
+     never by an agent; a clean merge is the queue's update, no stop of
+     its own, said in the conflict's and the merge's cards; a clash
+     takes the change out of the queue to its resolution (8.4). Then
+     "merge", code, opening the queue. *By turn* (`landing.md`, section
      8): "prepare", code, opening the turn; "resolve", the producer's;
      "prove", code, where the repository has test gates, opening the
      turn, its card naming the gates, since a stop opens a rule's gate
@@ -2874,22 +2944,58 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
      none is drawn; "turn", code, opening the turn.
   7. *Each tier* following the branch: on a goal's branch "check",
      code, then "repair", the template's charter's, while none is drawn;
-     on the landing branch "verify", code. A tier opens itself.
+     on the landing branch "verify", code. A tier opens itself. Then, on
+     a goal's segment where the project names a merge job, "catch up",
+     code, opening nothing: the goal's branch taking its landing
+     branch's tip, a change into it whose producer is the merge job
+     (8.2; section 10).
   8. *The branch's bar:* "goal branch" ends a goal's segment, and the
      landing branch's segment follows by its own rules, its start not
      repeated; the landing branch's bar, its name, as "main", ends the
      path.
+- **Drawn apart** (`../draft/stock-ways.md`, section 4): a stop made
+  only when needed is marked so, which a client draws outlined: each
+  "repair", "conflict", "resolve" and "catch up". The small words over a
+  stop's own, at most 16 bytes, are a repair's, what it answers:
+  "tests" where a check (CI, a check gate, a proof or a tier's check)
+  precedes it on its segment, "review" where a review gate does, "tests,
+  review" where both do; and a merge's on a goal's segment, "into goal".
+  No other stop has any.
+- **The conflict's, the resolution's, the catch-up's and the merge's
+  cards:**
+  - "conflict": `who` "code · BRANCH has moved in a way that clashes
+    with the change", "with the goal's branch" on the landing branch's
+    segment after a goal's, BRANCH the segment's branch; `name` "the
+    queue"; its facts "When", "the change reaches the front of the
+    queue: BRANCH is merged into it, never by an agent" ("the goal's
+    branch reaches" after a goal's), "Merged cleanly", "it is checked
+    again and lands" where the segment draws a "check", else "it
+    lands", and "A clash", "it leaves the queue and goes to resolve";
+  - "resolve": `who` "an agent · settles a conflict with its branch,
+    then goes back through the checks"; the producer's card;
+  - "catch up": `who` "code · takes BRANCH into the goal's branch",
+    BRANCH the landing branch; `name` "the merge job"; its facts
+    "Does", "merges BRANCH's tip into a branch made at the goal's tip,
+    landing as a change into it", "When", "the coordinator's call, as
+    BRANCH's landings touch the goal's open work", and "A conflict",
+    "goes to resolve";
+  - "merge": `who` "code · lands the change", "code · lands each change
+    into the goal's branch" on a goal's segment, and "code · lands the
+    goal on BRANCH" on the landing branch's segment after a goal's;
+    `name` "the queue"; its fact "Does", "merges exactly the commit its
+    checks saw".
 - **A stop whose setting is absent isn't drawn:** no "check" without
   CI, no tier's stops without a tier, no approval no rule asks.
-- **No agent's stop below the line:** an update, a merge, a prepare, a
-  proof and a turn are code's whatever the settings, the derivation
-  having no other actor for them.
+- **No agent's stop below the line:** a conflict, a merge, a catch-up,
+  a prepare, a proof and a turn are code's whatever the settings, the
+  derivation having no other actor for them.
 - **A stop's card,** from the same reads: for an agent, its charter's
   number and its name on the path ("the coding agent" for the producer,
   "the reviewer" for the reviews' charter, "the coordinator" for a
   goal template's), whether it holds the change (a blocking gate), the
   model and effort a run of it would take now for the reader, what its
-  tool families let it do, in words, and its instructions' first
+  tool families let it do, in words (*What an agent can*, below), and
+  its instructions' first
   sentence, whole, in quotes, within 184 bytes, and past them cut at the
   last word's end that fits with "…"; for a person, the role, how many it asks and what they
   decide; for code, what it checks or does: CI, the repository's
@@ -2898,13 +3004,30 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   stop opens its gate and names the gate's reviews' charter beside it,
   the role its card describes and opens. Every other fact's value is at
   most 128 bytes, cut the same way.
-- **CI's card** names what CI is: its fact "Checks", where the landing
-  branch's protection names required checks (8.7, the forge's
-  `contexts`), "the CI workflows' checks A, B and C, at the change's
-  head", each context as the forge holds it, joined by ", " and a last
-  " and "; with none, "every check the repository's CI workflows report,
-  at the change's head", since CI then folds every check reported there.
-  The forge reads no list of a repository's workflows (section 20).
+- **What an agent can,** its card's "Can": each tool family its charter
+  holds, in this order, "read the code and the forge", "change and push
+  its branch", "run commands" and "start sub-agents", joined by "; ",
+  then "; never merge", no agent holding a merge tool and the queue's
+  update being code's. A charter with none of the four says what its
+  run holds instead: "read temper's records and the forge; propose
+  settings; never change anything" where its tools hold jig's settings
+  family, as Ask temper's do (`../protocol/configuration.md`, 13.4),
+  and otherwise "read the facts in its task; never merge", as the
+  status agent's (5.7).
+- **CI's card** names what CI is. Its fact "Workflows", where the forge
+  holds the repository's CI workflows (4.7), their names as the record
+  holds them, joined by ", " and a last " and ", but those a test gate
+  or a tier of the repository names: temper dispatches those on its own
+  branches, never at a change's head, so they report no check CI folds,
+  and their own stops name them (`landing.md`, 7.1; `after-landing.md`,
+  section 2); with none left, no such fact. Then its fact "Checks",
+  where the landing branch's protection names required checks (8.7,
+  the forge's `contexts`), "the CI workflows' checks A, B and C, at the
+  change's head", each context as the forge holds it, joined the same
+  way; with none, "every check the repository's CI workflows report, at
+  the change's head", since CI then folds every check reported there. A
+  name or a context not UTF-8 is left out whole. The workflows are the
+  landing branch's on every segment of the path.
 - **A tier's card** names the tier: `who` "code · checks what landed"
   on the landing branch, "code · checks the goal's branch" on a goal's;
   `name` the tier's name; its fact "Runs", "the tier NAME after each
@@ -2925,6 +3048,33 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   joined by "; "; "Approvals", each as its stop's words say it ("an
   owner approves", "×N" past one), joined by "; ". A rule there is none
   of is `not_drawn`, "no rule K/N.".
+- **The project's roles,** the view `roles` (`../client/README.md`,
+  5.16): every agent the project's work runs, whether or not its path
+  draws it (`../draft/surfaces.md`, section 7), a role a charter, each
+  once, at its first place in this order:
+  1. "Chat", "For each chat": the chat template's charter (template 1);
+  2. "Ask temper", "When you ask": Ask temper's template's charter
+     (template 5, the client's `ASKING_TEMPLATE`);
+  3. "Coordinator", "For each goal": the charter the project's path
+     starts a goal with, while it starts one (step 1 above);
+  4. "Coding agent", "For each change": the producer, kind 3's number 1;
+  5. "Reviewer", "For each change": the reviews' charter, kind 3's
+     number 2, while the project's path draws a "review";
+  6. "Foreman", "When a coding agent asks": the foreman's charter (the
+     stock's 6), while kind 6 routes questions to it or the project's
+     path starts a goal, whose coordinator names it
+     (`../protocol/configuration.md`, 13.9);
+  7. "Status agent", "When you look at Home after landings": the status
+     agent's charter (the stock's 9), on its triggers (5.7).
+  Never the deployment's model trial; a charter the settings lack is
+  left out. Each role is a card: `who` its line, `name` its name, and
+  the facts an agent's stop's card has, "Model", the model and effort a
+  run of it would take now for the reader, "Can" (*What an agent can*)
+  and "Asked to", its instructions' first sentence. What a role
+  does, past when it runs, is words saved with its charter, a later
+  milestone's (`../draft/whole-story.execution.md`, P3e); a standing
+  role, a drafter and a close-out join as the settings come to hold
+  them.
 - **The project's path** is the path over its home repository's landing
   branch, or its first adopted repository's with no home; with none,
   over a branch named `main` of no repository: no CI, no tier, the
@@ -3610,12 +3760,14 @@ whole.
 
 ## 20. Open questions
 
-- **A repository's CI workflows by name** (8.13, *CI's card*): the forge
-  reads no list of the workflows a repository runs, on GitHub or Forgejo,
-  so CI's card names the landing branch's required checks, or none.
-  Reading the workflows at adoption, and keeping them current, is a read
-  of each forge's not yet planned (the look request `ask-temper-ways`,
-  2026-11-08).
+- **A workflow that runs on no pull request** (4.7; 8.13, *CI's card*):
+  CI's card names every workflow file on the landing branch but those
+  the repository's test gates and tiers dispatch, so a release's or a
+  schedule's workflow is named though it reports nothing at a change's
+  head; and it names each by its file, not by the `name` its file gives
+  it. Telling them apart reads each file and its triggers, a read per
+  workflow at each change of the directory. Default: by file, every one
+  but the dispatched.
 
 - **Project-scoped rules on a real forge** (8.9): observe the
   every-project default, its override and reset, and branch-relative

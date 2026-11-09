@@ -180,6 +180,7 @@ pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
         kinds,
         protection,
         settings,
+        workflows,
     } = value;
     w::Adopted::new(
         &w::CEILINGS,
@@ -197,6 +198,7 @@ pub(super) fn encode_adopted(value: &d::Repository) -> w::Adopted {
             kinds: encode_kinds(kinds),
             protection: encode_protection(protection),
             settings: encode_settings(settings),
+            workflows: encode_workflows(workflows),
         },
     )
     .expect(FITS)
@@ -216,6 +218,7 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
         kinds,
         protection,
         settings,
+        workflows,
     } = value.into_parts();
     Ok(d::Repository {
         project,
@@ -231,6 +234,7 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
         kinds: decode_kinds(kinds),
         protection: decode_protection(protection, bounds)?,
         settings: decode_settings(settings),
+        workflows: workflows.into_boxed(),
     })
 }
 
@@ -336,4 +340,12 @@ fn encode_checks(values: &[u32]) -> List<u32> {
         checks.push(*check).expect("same count");
     }
     checks
+}
+
+fn encode_workflows(values: &[Box<[u8]>]) -> List<Box<[u8]>> {
+    let mut names = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
+    for value in values {
+        names.push(value.clone()).expect("same count");
+    }
+    names
 }

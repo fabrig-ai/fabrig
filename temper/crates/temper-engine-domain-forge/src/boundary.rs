@@ -126,6 +126,8 @@ pub struct Repository {
     pub kinds: Kinds,
     pub protection: Protection,
     pub settings: skein_forge::api::Settings,
+    /// CI workflow file names (temper/docs/design/domain/forge.md, 4.7).
+    pub workflows: Box<[Box<[u8]>]>,
 }
 /// The git identity a forge's repositories are pushed and fetched with: an
 /// application credential numbered by the deployment's configuration

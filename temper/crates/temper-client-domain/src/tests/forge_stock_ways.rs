@@ -146,6 +146,8 @@ fn stops() -> List<w::Stop> {
                 w::Stop::new(
                     &w::CEILINGS,
                     w::StopParts {
+                        needed: false,
+                        over: Box::default(),
                         actor,
                         step,
                         words: words.into(),

@@ -107,110 +107,46 @@ fn drawn_path(nodes: &[Node]) -> String {
         .join("\n")
 }
 
-#[derive(Debug, PartialEq, Eq)]
-struct PathColumn {
-    header: String,
-    buttons: Vec<(&'static str, String)>,
-}
-
-fn drawn_lanes(nodes: &[Node]) -> Vec<PathColumn> {
-    let table = under(nodes, Role::Table, b"The path of a change");
-    let rows = table
-        .iter()
-        .enumerate()
-        .filter(|(_, node)| node.role == Role::Row)
-        .map(|(at, _)| subtree(table, at))
-        .collect::<Vec<_>>();
-    assert_eq!(rows.len(), 5, "headers, You, Agents, authority, Code");
-    let headers = rows[0]
-        .iter()
-        .enumerate()
-        .filter(|(_, node)| node.role == Role::ColumnHeader)
-        .map(|(at, node)| {
-            let header = words(subtree(rows[0], at));
-            assert_eq!(node.name.as_deref(), Some(header.as_bytes()), "column header names its step");
-            header
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(headers.first().map(String::as_str), Some(""), "empty lane header");
-    let mut columns =
-        headers.into_iter().skip(1).map(|header| PathColumn { header, buttons: Vec::new() }).collect::<Vec<_>>();
-    let authority = rows[3];
-    assert_eq!(words(authority), "authority: no merge tool above this line");
-    let cells = authority.iter().filter(|node| node.role == Role::Cell).collect::<Vec<_>>();
-    assert_eq!(cells.len(), 1, "one authority cell between Agents and Code");
-    let spans = cells[0].spans.expect("authority spans the table");
-    assert_eq!(usize::from(spans.columns), columns.len() + 1);
-    assert_eq!(spans.rows, 1);
-    for (row, lane) in [(rows[1], "You"), (rows[2], "Agents"), (rows[4], "Code")] {
-        assert_eq!(words(under(row, Role::RowHeader, lane.as_bytes())), lane);
-        let cells = row
-            .iter()
-            .enumerate()
-            .filter(|(_, node)| node.role == Role::Cell)
-            .map(|(at, _)| subtree(row, at))
-            .collect::<Vec<_>>();
-        assert_eq!(cells.len(), columns.len(), "one {lane} cell per stop");
-        for (column, cell) in columns.iter_mut().zip(cells) {
-            for button in cell.iter().filter(|node| node.role == Role::Button) {
-                let name =
-                    std::str::from_utf8(button.name.as_deref().expect("named stop button")).expect("stop button words");
-                column.buttons.push((lane, name.to_owned()));
-            }
-        }
+fn roles_fixture() -> Joint {
+    use temper_engine_domain_world::{direct::Driver, oracle, store::Store};
+    let limits = fixtures::domain_limits();
+    let mut bounds = temper_client_world::front::engine_limits();
+    // The stock's chat, producer, reviewer, status and Ask temper charters.
+    bounds.tasks.charters = 5;
+    let mut config = kinds::configuration(&bounds);
+    let mut charters = config.core.defaults.charters.into_vec();
+    for number in [9, 11] {
+        let mut charter = charters[0].clone();
+        charter.number = number;
+        charters.push(charter);
     }
-    columns
-}
-
-fn expected_lanes(expected: &str, path: &temper_client_protocol_wire::v1::BranchPath) -> Vec<PathColumn> {
-    assert_eq!(usize::try_from(path.stops().len()).expect("path length"), expected.lines().count());
-    expected
-        .lines()
-        .zip(path.stops())
-        .map(|(line, stop)| {
-            let (step, actor) = line.split_once(", ").expect("step and actor");
-            let header = match step {
-                "you ask" => "Ask",
-                "draft" => "Draft",
-                "plan" => "Plan",
-                "produce" | "produce ×n" => "Produce",
-                "check" => "Check",
-                "review" => "Review",
-                "repair" => "Repair",
-                "you approve" => "Approve",
-                "update" => "Update",
-                "resolve" => "Resolve",
-                "merge" => "Merge",
-                "verify" => "Verify",
-                "goal branch" | "main" => step,
-                _ => panic!("unexpected stock step: {step}"),
-            };
-            let buttons = match actor {
-                "a person" => vec![("You", std::str::from_utf8(stop.words()).expect("person's words").to_owned())],
-                "an agent" => {
-                    vec![("Agents", std::str::from_utf8(stop.card().name()).expect("agent's name").to_owned())]
-                }
-                "code" => vec![("Code", std::str::from_utf8(stop.card().name()).expect("code's name").to_owned())],
-                "a branch" => Vec::new(),
-                _ => panic!("unexpected stock actor: {actor}"),
-            };
-            PathColumn { header: header.to_owned(), buttons }
-        })
-        .collect()
+    config.core.defaults.charters = charters.into_boxed_slice();
+    let mut templates = config.core.defaults.templates.into_vec();
+    let mut asking = templates[0].clone();
+    asking.number = 5;
+    asking.executor = jig_domain_people::TemplateExecutor::Charter(11);
+    templates.push(asking);
+    config.core.defaults.templates = templates.into_boxed_slice();
+    let bootstrap = oracle::config::copy(&config);
+    let mut driver = Driver::cold(Store::with_limits(&bounds), bootstrap, &bounds);
+    driver.settle();
+    let store = driver.take_store();
+    let restart = oracle::config::copy(&config);
+    Joint::with_engine(fixtures::SEED, &limits, store, [config, restart], &bounds, 1)
 }
 
 // The request's figures, with main's verify
 // (temper/docs/design/draft/stock-ways.status.md, Design departs).
 const PATHS: [[&str; 3]; 2] = [
     [
-        "you ask, a person\nproduce, an agent\ncheck, code\nrepair, an agent\ncheck, code\nyou approve, a person\nupdate, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
-        "you ask, a person\nproduce, an agent\ncheck, code\nreview, an agent\nrepair, an agent\ncheck, code\nupdate, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
-        "draft, a person\nplan, an agent\nproduce ×n, an agent\nmerge, code\ncheck, code\nrepair, an agent\ngoal branch, a branch\ncheck, code\nupdate, code\nresolve, an agent\nmerge, code\nverify, code\nmain, a branch",
+        "you ask, a person\nproduce, an agent\ncheck, code\nrepair, an agent, when needed (tests)\ncheck, code\nyou approve, a person\nconflict, code, when needed\nresolve, an agent, when needed\nmerge, code\nverify, code\nmain, a branch",
+        "you ask, a person\nproduce, an agent\ncheck, code\nreview, an agent\nrepair, an agent, when needed (tests, review)\ncheck, code\nconflict, code, when needed\nresolve, an agent, when needed\nmerge, code\nverify, code\nmain, a branch",
+        "draft, a person\nplan, an agent\nproduce ×n, an agent\nmerge, code (into goal)\ncheck, code\nrepair, an agent, when needed (tests)\ngoal branch, a branch\ncheck, code\nconflict, code, when needed\nresolve, an agent, when needed\nmerge, code\nverify, code\nmain, a branch",
     ],
     [
-        "you ask, a person\nproduce, an agent\nyou approve, a person\nupdate, code\nresolve, an agent\nmerge, code\nmain, a branch",
-        "you ask, a person\nproduce, an agent\nreview, an agent\nrepair, an agent\nupdate, code\nresolve, an agent\nmerge, code\nmain, a branch",
-        "draft, a person\nplan, an agent\nproduce ×n, an agent\nmerge, code\ngoal branch, a branch\nupdate, code\nresolve, an agent\nmerge, code\nmain, a branch",
+        "you ask, a person\nproduce, an agent\nyou approve, a person\nconflict, code, when needed\nresolve, an agent, when needed\nmerge, code\nmain, a branch",
+        "you ask, a person\nproduce, an agent\nreview, an agent\nrepair, an agent, when needed (review)\nconflict, code, when needed\nresolve, an agent, when needed\nmerge, code\nmain, a branch",
+        "draft, a person\nplan, an agent\nproduce ×n, an agent\nmerge, code (into goal)\ngoal branch, a branch\nconflict, code, when needed\nresolve, an agent, when needed\nmerge, code\nmain, a branch",
     ],
 ];
 const NAMES: [&[u8]; 3] = [b"You approve", b"Agents review", b"Draft first"];
@@ -218,6 +154,25 @@ const TAB_WORDS: [&str; 3] = ["You approve", "Agents review, now", "Draft first"
 
 #[test]
 fn the_three_ways_draw_ci_and_tiers_or_neither() {
+    let mut stock = World::new(
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
+        roles_fixture(),
+    );
+    stock.randomness(0, 0, 0);
+    let caller = stock.front().caller;
+    let person = stock.client(caller, Address::Settings { project: PROJECT });
+    settle(&mut stock);
+    let nodes = stock.tree(person).nodes();
+    assert!(named(nodes, Role::Heading { level: 2 }, b"Roles"));
+    let roles = nodes.iter().filter(|node| node.styles.as_slice().contains(&look::HOW_ROLE)).collect::<Vec<_>>();
+    assert_eq!(
+        roles.iter().map(|node| node.name.as_deref().expect("role name")).collect::<Vec<_>>(),
+        [b"Chat".as_slice(), b"Ask temper", b"Coding agent", b"Reviewer", b"Status agent"]
+    );
+    assert_eq!(
+        roles.last().expect("status agent").description.as_deref(),
+        Some(b"When you look at Home after landings".as_slice())
+    );
     for (repository, paths) in [(Repository::CiAndTiers, PATHS[0]), (Repository::Neither, PATHS[1])] {
         let (mut world, person) = with_repository(Reader::Owner, Some(repository));
         assert_eq!(panel(&world, person).own().repository().as_deref(), Some(b"acme/shop".as_slice()));
@@ -261,13 +216,7 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
             );
             let tab = u32::try_from(index).expect("tab index");
             assert_eq!(page(&world, person).shown(), Some(tab), "pressed tab is shown");
-            let path = panel(&world, person).ways().get(tab).expect("read's way").path();
-            assert_eq!(
-                drawn_lanes(under(nodes, Role::Group, name)),
-                expected_lanes(expected, path),
-                "{}",
-                String::from_utf8_lossy(name)
-            );
+            assert_eq!(drawn_path(under(nodes, Role::Group, name)), expected, "{}", String::from_utf8_lossy(name));
         }
     }
 }

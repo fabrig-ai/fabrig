@@ -3,10 +3,10 @@
     clippy::disallowed_types,
     clippy::disallowed_methods,
     clippy::disallowed_macros,
-    reason = "ordinary tests inspect semantic tables and terminal lines"
+    reason = "ordinary tests inspect semantic drawings and terminal lines"
 )]
 use super::fixtures as f;
-use crate::look;
+use crate::{look, paths};
 use jig_client::{Down, Up, contract as c};
 use skein_lib::{List, Queue, Token};
 use skein_ui::{Act, Node, Role, State, Style, Tree};
@@ -33,7 +33,7 @@ fn event(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
 fn up(root: &mut d::Domain, up: Up) {
     event(root, d::Event::Client { event: jig_client::Event::Up { up } });
 }
-#[expect(clippy::struct_excessive_bools, reason = "the state table varies four independent page facts")]
+#[expect(clippy::struct_excessive_bools, reason = "the state table varies independent page facts")]
 struct Case {
     name: &'static str,
     read: u8,
@@ -48,6 +48,7 @@ struct Case {
     may_change: bool,
     asking: bool,
     open: bool,
+    roles: Option<bool>,
 }
 #[expect(clippy::too_many_lines, reason = "one fixture delivers the project, budget and ways watch for each state")]
 fn fixture(case: &Case) -> (d::Domain, Token) {
@@ -87,6 +88,84 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
         },
     );
     let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
+    if let Some(populated) = case.roles {
+        let read = out
+            .iter()
+            .find_map(|request| {
+                if let d::Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down: Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                        },
+                } = request
+                    && let w::Read::View(view) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                    && view.address() == b"roles"
+                {
+                    Some(*read)
+                } else {
+                    None
+                }
+            })
+            .expect("roles read on Settings");
+        let roles = if populated {
+            [
+                (7, "Chat", "For each chat"),
+                (2, "Coding agent", "For each change"),
+                (9, "Status agent", "When you look at Home after landings"),
+            ]
+            .into_iter()
+            .map(|(charter, name, who)| {
+                let mut facts = vec![("Can", "read; never merge"), ("Asked to", "Help the person.")];
+                if charter != 2 {
+                    facts.insert(0, ("Model", "The model · high"));
+                }
+                w::CharterView::new(
+                    &w::CEILINGS,
+                    w::CharterViewParts {
+                        charter,
+                        card: w::Card::new(
+                            &w::CEILINGS,
+                            w::CardParts {
+                                name: name.as_bytes().into(),
+                                who: who.as_bytes().into(),
+                                facts: List::from_boxed(
+                                    facts
+                                        .into_iter()
+                                        .map(|(label, value)| {
+                                            w::Fact::new(
+                                                &w::CEILINGS,
+                                                w::FactParts {
+                                                    label: label.as_bytes().into(),
+                                                    value: value.as_bytes().into(),
+                                                },
+                                            )
+                                            .unwrap()
+                                        })
+                                        .collect(),
+                                ),
+                            },
+                        )
+                        .unwrap(),
+                    },
+                )
+                .unwrap()
+            })
+            .collect()
+        } else {
+            Box::default()
+        };
+        let view = w::View::Roles(
+            w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: List::from_boxed(roles) }).unwrap(),
+        );
+        let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap();
+        up(
+            &mut root,
+            Up::ReadDone {
+                read,
+                result: jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) },
+            },
+        );
+    }
     let wanted = d::forge::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
     let watch = out
         .iter()
@@ -185,6 +264,8 @@ fn path(draft: bool) -> w::BranchPath {
         (Agent, if draft { S::ProduceMany } else { S::Produce }, "produce", "the coding agent"),
         (Code, S::Check, "check", "CI"),
         (Agent, S::Review, "review", "the reviewer"),
+        (Agent, S::Repair, "repair", "the coding agent"),
+        (Code, S::Conflict, "conflict", "the queue"),
         (Bar, S::Branch, if draft { "goal branch" } else { "main" }, ""),
         (Code, S::Verify, "verify", "slow"),
     ];
@@ -209,8 +290,19 @@ fn path(draft: bool) -> w::BranchPath {
                 },
             )
             .unwrap();
-            w::Stop::new(&w::CEILINGS, w::StopParts { actor, step, words: words.as_bytes().into(), opens, card })
-                .unwrap()
+            w::Stop::new(
+                &w::CEILINGS,
+                w::StopParts {
+                    needed: step == S::Repair || step == S::Conflict,
+                    over: if step == S::Repair { b"tests, review".as_slice().into() } else { Box::default() },
+                    actor,
+                    step,
+                    words: words.as_bytes().into(),
+                    opens,
+                    card,
+                },
+            )
+            .unwrap()
         })
         .collect();
     w::BranchPath::new(
@@ -252,9 +344,9 @@ fn named<'a>(nodes: &'a [Node], role: Role, name: &[u8]) -> &'a Node {
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "one state table checks the page's heading, lanes, budget and shared controls in both shells"
+    reason = "one state table checks the page's heading, drawing, budget and shared controls in both shells"
 )]
-fn parts_draw_the_current_way_and_the_shown_path_in_lanes() {
+fn parts_draw_the_current_way_and_the_shown_path() {
     let base = || Case {
         name: "agents",
         read: 2,
@@ -269,11 +361,14 @@ fn parts_draw_the_current_way_and_the_shown_path_in_lanes() {
         may_change: true,
         asking: true,
         open: false,
+        roles: None,
     };
     for case in [
         Case { name: "reading", read: 0, heading: "How work runs in Shop.", lede: "", ..base() },
         Case { name: "ended", read: 1, heading: "How work runs in Shop.", lede: "", ..base() },
         base(),
+        Case { name: "roles", roles: Some(true), ..base() },
+        Case { name: "empty roles", roles: Some(false), ..base() },
         Case {
             name: "draft amount, empty headline",
             heading: "Draft first",
@@ -331,6 +426,9 @@ fn parts_draw_the_current_way_and_the_shown_path_in_lanes() {
                 .map(|n| n.name.as_deref().unwrap())
                 .collect();
             let mut expected = vec![b"The path of a change".as_slice()];
+            if case.roles == Some(true) {
+                expected.push(b"Roles");
+            }
             if case.figure.is_some() {
                 expected.push(b"Budgets");
             }
@@ -347,6 +445,46 @@ fn parts_draw_the_current_way_and_the_shown_path_in_lanes() {
                 [b"Status".as_slice(), b"Funds", b"Telling you", b"Not built yet: this is what temper does today."]
             {
                 assert!(!main.iter().any(|n| n.name.as_deref() == Some(removed)));
+            }
+            let mut role_links = Vec::new();
+            if case.roles == Some(true) {
+                named(main, Role::Text, b"every agent Shop runs");
+                let rows = children(styled(tree, look::HOW_ROLES));
+                assert_eq!(
+                    rows.iter().map(|row| row.name.as_deref().unwrap()).collect::<Vec<_>>(),
+                    [b"Chat".as_slice(), b"Coding agent", b"Status agent"]
+                );
+                for (row, (charter, who, model)) in rows.into_iter().zip([
+                    (7, "For each chat", true),
+                    (2, "For each change", false),
+                    (9, "When you look at Home after landings", true),
+                ]) {
+                    assert_eq!(row.role, Role::Disclosure);
+                    assert_eq!(row.description.as_deref(), Some(who.as_bytes()));
+                    assert!(!row.states.as_slice().contains(&State::Expanded), "starts closed");
+                    let opened = subtree(tree, row);
+                    assert_eq!(
+                        opened
+                            .iter()
+                            .filter(|node| node.role == Role::Term)
+                            .map(|node| node.name.as_deref().unwrap())
+                            .collect::<Vec<_>>(),
+                        if model {
+                            vec![b"Model".as_slice(), b"Can", b"Asked to"]
+                        } else {
+                            vec![b"Can".as_slice(), b"Asked to"]
+                        }
+                    );
+                    named(opened, Role::Description, b"read; never merge");
+                    named(opened, Role::Description, b"Help the person.");
+                    if model {
+                        named(opened, Role::Description, "The model · high".as_bytes());
+                    }
+                    let link = named(opened, Role::Link, "Read its instructions ›".as_bytes());
+                    role_links.push((link.id, charter));
+                }
+            } else {
+                assert!(!main.iter().any(|node| node.styles.as_slice().contains(&look::HOW_ROLES)));
             }
             if let Some(figure) = case.figure {
                 assert_eq!(
@@ -389,60 +527,81 @@ fn parts_draw_the_current_way_and_the_shown_path_in_lanes() {
                     .concat()
                 );
             }
-            let rows = children(styled(tree, look::HOW_PATH));
-            assert_eq!(rows.len(), 5);
-            let draft = case.shown == 2;
-            let headers = children(subtree(tree, rows[0]));
+            let panel = styled(tree, look::WAYS_PANEL);
+            assert!(!panel.iter().any(|n| n.role == Role::Table));
+            let drawing = panel
+                .iter()
+                .find(|n| n.drawing.as_ref().is_some_and(|d| d.kind == paths::KIND))
+                .expect("shown way has a path drawing");
+            let mut scene = skein_ui::scene::Scene::new(&view.limits().tree);
+            assert!(paths::draw(paths::KIND, &drawing.drawing.as_ref().unwrap().data, 720, 0, &mut scene));
             assert_eq!(
-                headers.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
-                [
-                    b"".as_slice(),
-                    if draft { b"Draft" } else { b"Ask" },
-                    b"Produce",
-                    b"Check",
-                    b"Review",
-                    if draft { b"goal branch" } else { b"main" },
-                    b"Verify"
-                ]
+                scene.height(),
+                Some(if case.open { 154 } else { 140 }),
+                "open card has 14 pixels for its caret"
             );
-            assert_eq!(children(subtree(tree, rows[3])).len(), 1);
-            let authority = children(subtree(tree, rows[3]))[0];
-            assert_eq!(authority.spans, Some(skein_ui::Spans { rows: 1, columns: 7 }));
-            assert!(authority.styles.as_slice().contains(&look::HOW_LINE));
-            assert_eq!(f::nodes_text(subtree(tree, authority)).as_ref(), b"authority: no merge tool above this line");
+            assert_eq!(
+                (0..scene.marks().len())
+                    .any(|index| scene.styles(u32::try_from(index).unwrap()).contains(&look::WAYS_CARET)),
+                case.open
+            );
+            let drawing_id = drawing.id;
+            let fallback = subtree(tree, drawing);
+            let draft = case.shown == 2;
+            let expected = [
+                if draft { "you draft, a person" } else { "you ask, a person" },
+                "produce, an agent",
+                "check, code",
+                "review, an agent",
+                "repair, an agent, when needed (tests, review)",
+                "conflict, code, when needed",
+                if draft { "goal branch, a branch" } else { "main, a branch" },
+                "verify, code",
+            ];
+            assert_eq!(
+                fallback
+                    .iter()
+                    .filter(|n| n.role == Role::Item)
+                    .map(|n| core::str::from_utf8(n.name.as_deref().unwrap()).unwrap())
+                    .collect::<Vec<_>>(),
+                expected
+            );
             let mut buttons = Vec::new();
-            for (row, label, style, stops) in [
-                (
-                    1,
-                    b"You".as_slice(),
-                    look::HOW_PERSON,
-                    vec![(0, if draft { b"you draft".as_slice() } else { b"you ask" })],
-                ),
-                (2, b"Agents", look::HOW_AGENT, vec![(1, b"the coding agent".as_slice()), (3, b"the reviewer")]),
-                (4, b"Code", look::HOW_CODE, vec![(2, b"CI".as_slice()), (5, b"slow")]),
-            ] {
-                let cells = children(subtree(tree, rows[row]));
-                assert_eq!(cells.len(), 7);
-                assert_eq!(cells[0].name.as_deref(), Some(label));
-                assert_eq!(cells[0].styles.as_slice(), &[look::HOW_LANE]);
-                for (column, cell) in cells.iter().skip(1).enumerate() {
-                    assert_eq!(cell.styles.as_slice().contains(&look::HOW_BAR), column == 4);
-                    let content = children(subtree(tree, cell));
-                    if let Some((stop, name)) = stops.iter().find(|(stop, _)| *stop == column) {
-                        assert_eq!(content.len(), 1, "{} {label:?} column {column}", case.name);
-                        let button = content[0];
-                        assert_eq!(button.size, if browser == 0 { 2 } else { 1 }, "one visible label per stop");
-                        assert_eq!(button.name.as_deref(), Some(*name));
-                        assert_eq!(button.styles.as_slice(), &[style]);
-                        assert_eq!(
-                            button.states.as_slice().contains(&State::Current),
-                            case.open && column == usize::try_from(REVIEW).unwrap()
-                        );
-                        buttons.push((button.id, u32::try_from(*stop).unwrap()));
-                    } else {
-                        assert!(content.is_empty());
-                    }
+            for (index, item) in fallback.iter().filter(|n| n.role == Role::Item).enumerate() {
+                let content = children(subtree(tree, item));
+                if index == 6 {
+                    assert_eq!(content[0].role, Role::Text, "a branch bar has no act");
+                } else {
+                    let button = content[0];
+                    assert_eq!(button.role, Role::Button);
+                    assert_eq!(button.name, item.name);
+                    assert_eq!(
+                        button.states.as_slice().contains(&State::Expanded),
+                        case.open && index == usize::try_from(REVIEW).unwrap()
+                    );
+                    buttons.push((button.id, u32::try_from(index).unwrap()));
                 }
+            }
+            let foot = children(styled(tree, look::WAYS_FOOT));
+            assert!(foot[0].styles.as_slice().contains(&look::WAYS_LEGEND), "legend precedes the way's act");
+            assert_eq!(
+                f::nodes_text(styled(tree, look::WAYS_LEGEND)).as_ref(),
+                if browser == 1 {
+                    b"agentwhen neededpersoncodeno merge tool above".as_slice()
+                } else {
+                    b"agent, when needed, person, code; no merge tool above".as_slice()
+                }
+            );
+            let panel_children = children(panel);
+            let drawing_at = panel_children.iter().position(|n| n.id == drawing.id).unwrap();
+            assert!(
+                panel_children[drawing_at + 1 + usize::from(case.open)].styles.as_slice().contains(&look::WAYS_FOOT)
+            );
+            if case.open {
+                assert!(
+                    panel_children[drawing_at + 1].styles.as_slice().contains(&look::WAYS_ZOOM),
+                    "card follows drawing, leaving its caret's room"
+                );
             }
             let act = match case.current {
                 Some(current) if case.may_change => {
@@ -463,19 +622,17 @@ fn parts_draw_the_current_way_and_the_shown_path_in_lanes() {
                 skein_ui_text::render(tree, b"temper", None, &mut print);
                 let text = core::str::from_utf8(print.text.as_slice()).unwrap();
                 let lines: Vec<_> = text.lines().collect();
-                for label in ["You |", "Agents |", "Code |", "authority: no merge tool above this line"] {
-                    assert_eq!(lines.iter().filter(|line| line.contains(label)).count(), 1, "{text}");
-                }
-                assert!(lines.iter().any(|line| line.contains(" | Produce | Check | Review |")), "{text}");
-                for (label, words) in [
-                    ("You |", vec![if draft { "you draft" } else { "you ask" }]),
-                    ("Agents |", vec!["the coding agent", "the reviewer"]),
-                    ("Code |", vec!["CI", "slow"]),
-                ] {
-                    let line = lines.iter().find(|line| line.contains(label)).unwrap();
-                    for word in words {
-                        assert!(line.contains(word), "{line}");
+                let actual: Vec<_> = lines
+                    .iter()
+                    .filter_map(|line| expected.iter().find(|words| line.contains(**words)).copied())
+                    .collect();
+                assert_eq!(actual, expected, "one fallback line per stop, in path order: {text}");
+                if case.roles == Some(true) {
+                    let mut after = 0;
+                    for name in ["Chat", "Coding agent", "Status agent"] {
+                        after += text[after..].find(name).expect("role prints in order") + name.len();
                     }
+                    assert!(text.contains("Read its instructions ›"));
                 }
                 if case.open {
                     assert!(text.contains("Open the reviewer ›"));
@@ -484,6 +641,16 @@ fn parts_draw_the_current_way_and_the_shown_path_in_lanes() {
                     assert!(text.contains(core::str::from_utf8(act).unwrap()));
                 }
             }
+            for (id, charter) in role_links {
+                assert_eq!(
+                    crate::act(&mut view, id, Act::Press),
+                    Some(d::Action::Pages(pages::Act::Go { address: Address::Role { project: f::PROJECT, charter } }))
+                );
+            }
+            assert_eq!(
+                crate::act(&mut view, drawing_id, Act::Drawing { data: Box::new([u8::try_from(REVIEW).unwrap()]) }),
+                Some(d::Action::Pages(pages::Act::WayStop { project: f::PROJECT, stop: REVIEW }))
+            );
             for (id, stop) in buttons {
                 assert_eq!(
                     crate::act(&mut view, id, Act::Press),
@@ -497,6 +664,27 @@ fn parts_draw_the_current_way_and_the_shown_path_in_lanes() {
                     crate::act(&mut view, id, Act::Press),
                     Some(d::Action::Pages(pages::Act::Go { address: Address::Ask { project: f::PROJECT } }))
                 );
+            }
+        }
+    }
+    // The shared page drawing and an unpressed reply read the same wire marks.
+    let (mut root, _) = fixture(&base());
+    event(&mut root, d::Event::Went { place: d::Place::Address(Address::Ask { project: f::PROJECT }) });
+    for browser in [false, true] {
+        let ask = view(&root, browser);
+        let words = if browser { f::browser_words() } else { f::words() };
+        let mut builder = skein_ui::Builder::new(&ask.limits().tree);
+        let shown = pages::chat::Shown::Drawn(Box::new(w::View::Path(path(false))));
+        crate::views::block(&mut builder, b"path main", Some(&shown), &words);
+        let reply = builder.finish();
+        for (nodes, pressed) in [(ask.tree().nodes(), true), (reply.nodes(), false)] {
+            let drawing = nodes
+                .iter()
+                .find(|node| node.drawing.as_ref().is_some_and(|d| d.kind == paths::KIND))
+                .expect("wire path drawn");
+            assert_eq!(drawing.binding.is_some(), pressed);
+            for line in [b"conflict, code, when needed".as_slice(), b"repair, an agent, when needed (tests, review)"] {
+                named(nodes, Role::Item, line);
             }
         }
     }

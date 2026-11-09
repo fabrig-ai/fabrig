@@ -818,6 +818,7 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         let mut config = resume_fixture::config(7);
         config.forges.first_mut().unwrap().mode = mode;
         let repository = forge::Repository {
+            workflows: Box::default(),
             project: PROJECT,
             home: true,
             provider: skein_forge::api::Repository { forge: 1, repository: 1 },

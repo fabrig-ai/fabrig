@@ -3,8 +3,8 @@
 use super::{Decoded, Layout, Position, judgement};
 use crate::{
     look::{
-        WAYS_AGENT, WAYS_CODE, WAYS_END, WAYS_HALO, WAYS_HIT, WAYS_LANDING, WAYS_MAIN, WAYS_OPEN, WAYS_PERSON,
-        WAYS_STOP, WAYS_WORDS,
+        WAYS_AGENT, WAYS_CODE, WAYS_END, WAYS_HALO, WAYS_HIT, WAYS_LANDING, WAYS_MAIN, WAYS_MAYBE, WAYS_OPEN,
+        WAYS_PERSON, WAYS_STOP, WAYS_WHY, WAYS_WORDS,
     },
     paths::{Mark, Stop},
 };
@@ -25,7 +25,11 @@ pub(super) fn draw(
         return None;
     }
     if data.pressed && !bar {
-        if !scene.group(Point { x: 0, y: 0 }, if open { 4 } else { 3 }, &[WAYS_STOP]) {
+        if !scene.group(
+            Point { x: 0, y: 0 },
+            (if open { 4_u32 } else { 3 }).checked_add(u32::from(!stop.over.is_empty()))?,
+            &[WAYS_STOP],
+        ) {
             return None;
         }
         let act = [u8::try_from(index).ok()?];
@@ -40,7 +44,7 @@ pub(super) fn draw(
             return None;
         }
     }
-    mark(stop.mark, at, layout.across, scene)?;
+    mark(stop, at, layout.across, scene)?;
     let (words, anchor) = if layout.across {
         (
             Position {
@@ -76,7 +80,20 @@ pub(super) fn draw(
     } else {
         &[WAYS_WORDS][..]
     };
-    scene.text(words.point()?, anchor, stop.words, styles).then_some(())
+    if !scene.text(words.point()?, anchor, stop.words, styles) {
+        return None;
+    }
+    if !stop.over.is_empty() {
+        let (at, anchor) = if layout.across {
+            (Position { x: at.x, y: 900 }, Anchor::Middle)
+        } else {
+            (Position { x: words.x, y: words.y.checked_add(1200)? }, anchor)
+        };
+        if !scene.text(at.point()?, anchor, stop.over, &[WAYS_WHY]) {
+            return None;
+        }
+    }
+    Some(())
 }
 
 fn hit(at: Position, upper: bool, across: bool, scene: &mut Scene) -> Option<()> {
@@ -99,8 +116,10 @@ fn hit(at: Position, upper: bool, across: bool, scene: &mut Scene) -> Option<()>
     scene.rect(corner.point()?, size, 0, &[WAYS_HIT]).then_some(())
 }
 
-fn mark(mark: Mark, at: Position, across: bool, scene: &mut Scene) -> Option<()> {
-    let drawn = match mark {
+fn mark(stop: Stop<'_>, at: Position, across: bool, scene: &mut Scene) -> Option<()> {
+    let agent = if stop.needed { &[WAYS_AGENT, WAYS_MAYBE][..] } else { &[WAYS_AGENT][..] };
+    let code = if stop.needed { &[WAYS_CODE, WAYS_MAYBE][..] } else { &[WAYS_CODE][..] };
+    let drawn = match stop.mark {
         Mark::Person => scene.circle(at.point()?, 7, &[WAYS_PERSON]),
         Mark::Agent => scene.path(
             &[
@@ -123,13 +142,13 @@ fn mark(mark: Mark, at: Position, across: bool, scene: &mut Scene) -> Option<()>
                 ),
                 Command::Close,
             ],
-            &[WAYS_AGENT],
+            agent,
         ),
         Mark::Code => scene.rect(
             Position { x: at.x.checked_sub(500)?, y: at.y.checked_sub(500)? }.point()?,
             Point { x: 10, y: 10 },
             2,
-            &[WAYS_CODE],
+            code,
         ),
         Mark::Bar => {
             let (dx, dy, size) =

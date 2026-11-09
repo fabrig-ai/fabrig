@@ -1,8 +1,8 @@
-//! How work runs' shared parts and lanes (temper/docs/design/client/README.md, 5.13).
+//! How work runs' shared parts (temper/docs/design/client/README.md, 5.13).
 use super::fixtures as f;
 use crate::{
     Address, Domain, Event, Place, Request,
-    pages::how::{self, Budget, Column, Facts, Head, Lane, Parts, Path, Read},
+    pages::how::{self, Budget, Facts, Head, Parts, Path, Read},
 };
 use jig_client::{Down, Readable, Readout, Up, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
@@ -73,7 +73,8 @@ fn me(asking: bool, tracked: bool) -> c::Me {
     }
     me
 }
-fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read) -> Domain {
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the independent ways and roles answers")]
+fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read, roles: Option<w::View>) -> Domain {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let me_watch = f::start(&mut root, List::with_capacity(0));
     up(
@@ -108,6 +109,31 @@ fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read) -
         );
     }
     let out = event(&mut root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    if let Some(view) = roles {
+        let mut read = None;
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read: token, what: Readable::Family { record, .. } },
+                    },
+            } = request
+                && let w::Read::View(view) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+                && view.address() == b"roles"
+            {
+                read = Some(*token);
+            }
+        }
+        let read = read.expect("roles read");
+        let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap();
+        up(
+            &mut root,
+            Up::ReadDone {
+                read,
+                result: Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) },
+            },
+        );
+    }
     let watch = opened(&out);
     up(&mut root, Up::Watched { watch, event: c::WatchEvent::Opened });
     match read {
@@ -170,6 +196,8 @@ fn path() -> w::BranchPath {
                 w::Stop::new(
                     &w::CEILINGS,
                     w::StopParts {
+                        needed: false,
+                        over: Box::default(),
                         actor,
                         step,
                         words: words.into(),
@@ -194,8 +222,8 @@ fn path() -> w::BranchPath {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table covers the parts, lanes and gathered facts")]
-fn parts_lanes_and_facts_follow_the_project_rules() {
+#[expect(clippy::too_many_lines, reason = "one parts table covers the independent page facts and their reads")]
+fn parts_and_facts_follow_the_project_rules() {
     for (read, head, path) in [
         (Read::Reading, Head::Reading, Path::Reading),
         (Read::Ended, Head::Reading, Path::Ended),
@@ -203,10 +231,10 @@ fn parts_lanes_and_facts_follow_the_project_rules() {
         (Read::Shown { current: Some(2) }, Head::Way(2), Path::Shown),
         (Read::Shown { current: None }, Head::Own, Path::Shown),
     ] {
-        for asking in [false, true] {
+        for (asking, roles) in [(false, false), (true, false), (false, true), (true, true)] {
             assert_eq!(
-                how::parts(&Facts { asking, read, goals: false, budget: None }),
-                Parts { head, ask: asking, path, budget: None },
+                how::parts(&Facts { roles, asking, read, goals: false, budget: None }),
+                Parts { roles, head, ask: asking, path, budget: None },
                 "{read:?}, asking={asking}"
             );
         }
@@ -222,40 +250,27 @@ fn parts_lanes_and_facts_follow_the_project_rules() {
     ] {
         for (goals, expected) in [(false, None), (true, shown)] {
             assert_eq!(
-                how::parts(&Facts { asking: false, read: Read::Reading, goals, budget }),
-                Parts { head: Head::Reading, ask: false, path: Path::Reading, budget: expected },
+                how::parts(&Facts { roles: false, asking: false, read: Read::Reading, goals, budget }),
+                Parts { roles: false, head: Head::Reading, ask: false, path: Path::Reading, budget: expected },
                 "{budget:?}, goals={goals}"
             );
         }
     }
-    assert_eq!(
-        how::lanes(&path()).as_slice(),
-        &[
-            Column::Stop { stop: 0, lane: Lane::You },
-            Column::Stop { stop: 1, lane: Lane::Agents },
-            Column::Stop { stop: 2, lane: Lane::Code },
-            Column::Bar { stop: 3 },
-            Column::Stop { stop: 4, lane: Lane::You },
-            Column::Stop { stop: 5, lane: Lane::Agents },
-            Column::Stop { stop: 6, lane: Lane::Code },
-            Column::Bar { stop: 7 },
-        ]
-    );
-    let empty = w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::with_capacity(0) },
-    )
-    .unwrap();
-    assert!(how::lanes(&empty).is_empty());
-
     for (asking, tracked, ways, read, expected) in [
-        (false, true, None, Read::Reading, Facts { asking: false, read: Read::Reading, goals: false, budget: None }),
+        (
+            false,
+            true,
+            None,
+            Read::Reading,
+            Facts { roles: false, asking: false, read: Read::Reading, goals: false, budget: None },
+        ),
         (
             true,
             true,
             Some((true, SELECTED)),
             Read::Shown { current: Some(0) },
             Facts {
+                roles: false,
                 asking: true,
                 read: Read::Shown { current: Some(0) },
                 goals: true,
@@ -268,6 +283,7 @@ fn parts_lanes_and_facts_follow_the_project_rules() {
             Some((false, SELECTED)),
             Read::Shown { current: None },
             Facts {
+                roles: false,
                 asking: false,
                 read: Read::Shown { current: None },
                 goals: false,
@@ -280,6 +296,7 @@ fn parts_lanes_and_facts_follow_the_project_rules() {
             Some((true, 0)),
             Read::Ended,
             Facts {
+                roles: false,
                 asking: true,
                 read: Read::Ended,
                 goals: true,
@@ -292,6 +309,7 @@ fn parts_lanes_and_facts_follow_the_project_rules() {
             Some((true, OTHER)),
             Read::Reading,
             Facts {
+                roles: false,
                 asking: true,
                 read: Read::Reading,
                 goals: true,
@@ -303,13 +321,52 @@ fn parts_lanes_and_facts_follow_the_project_rules() {
             false,
             Some((true, SELECTED)),
             Read::Reading,
-            Facts { asking: false, read: Read::Reading, goals: true, budget: None },
+            Facts { roles: false, asking: false, read: Read::Reading, goals: true, budget: None },
         ),
     ] {
-        let root = fixture(asking, tracked, ways, read);
+        let root = fixture(asking, tracked, ways, read, None);
         assert_eq!(how::facts(&root, f::PROJECT), expected);
-        assert_eq!(how::facts(&root, OTHER), Facts { asking: false, read: Read::Reading, goals: false, budget: None });
+        assert_eq!(
+            how::facts(&root, OTHER),
+            Facts { roles: false, asking: false, read: Read::Reading, goals: false, budget: None }
+        );
+    }
+    let card = w::Card::new(
+        &w::CEILINGS,
+        w::CardParts {
+            name: b"Chat".as_slice().into(),
+            who: b"For each chat".as_slice().into(),
+            facts: List::with_capacity(0),
+        },
+    )
+    .unwrap();
+    let charter = w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 2, card }).unwrap();
+    let roles = |rows| {
+        w::View::Roles(w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: List::from_boxed(rows) }).unwrap())
+    };
+    for (answer, expected) in [
+        (None, false),
+        (Some(roles(Box::default())), false),
+        (Some(roles(Box::new([charter.clone()]))), true),
+        (Some(w::View::Charter(charter)), false),
+        (
+            Some(w::View::NotDrawn(
+                w::NotDrawn::new(&w::CEILINGS, w::NotDrawnParts { words: b"Not drawn".as_slice().into() }).unwrap(),
+            )),
+            false,
+        ),
+    ] {
+        let mut root = fixture(true, false, None, Read::Reading, answer);
+        assert_eq!(how::facts(&root, f::PROJECT).roles, expected);
+        assert_eq!(how::parts(&how::facts(&root, f::PROJECT)).roles, expected);
+        assert!(!how::facts(&root, OTHER).roles);
+        event(&mut root, Event::Went { place: Place::Address(Address::Repositories { project: f::PROJECT }) });
+        assert!(root.pages().roles().is_none(), "Repositories reads no roles");
+        assert!(!how::facts(&root, f::PROJECT).roles);
     }
     let root = crate::unlinked(&f::limits(), f::SEED);
-    assert_eq!(how::facts(&root, f::PROJECT), Facts { asking: false, read: Read::Reading, goals: false, budget: None });
+    assert_eq!(
+        how::facts(&root, f::PROJECT),
+        Facts { roles: false, asking: false, read: Read::Reading, goals: false, budget: None }
+    );
 }

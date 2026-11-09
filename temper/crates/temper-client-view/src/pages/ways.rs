@@ -1,11 +1,11 @@
 //! A project's stock ways, drawn on Ask temper's page and How work runs
-//! (temper/docs/design/client/README.md, 3.5 and 5.13).
+//! (temper/docs/design/client/README.md, 3.5, 5.13 and 5.16).
 use crate::{
     frame::Bindings,
-    look,
+    look, paths,
     words::{Word, Words},
 };
-use skein_lib::bytes::copy_of;
+use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::forge::stock_ways::{StockWays, WayAct};
 use temper_client_domain::{Address, pages::Act};
@@ -40,6 +40,55 @@ pub(crate) fn tabs(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut 
     b.style(look::WAYS_AXIS);
     for word in [Word::WaysYou, Word::WaysAgents] {
         b.text(Run::Plain, &w.say(word, &[]));
+    }
+    b.close();
+}
+
+/// The path and its stop acts, with the open stop marked.
+pub(crate) fn drawing(
+    b: &mut Builder,
+    path: &wire::BranchPath,
+    open: Option<u32>,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+) {
+    let mut stops = List::with_capacity(paths::STOPS);
+    let mut acts = List::with_capacity(paths::STOPS);
+    for (index, stop) in path.stops().iter().enumerate() {
+        let index = u32::try_from(index).expect("wire bounds stops");
+        let (mark, act) = match stop.actor() {
+            wire::Actor::Person => (paths::Mark::Person, Some(bindings.insert(Act::WayStop { project, stop: index }))),
+            wire::Actor::Agent => (paths::Mark::Agent, Some(bindings.insert(Act::WayStop { project, stop: index }))),
+            wire::Actor::Code => (paths::Mark::Code, Some(bindings.insert(Act::WayStop { project, stop: index }))),
+            wire::Actor::Bar => (paths::Mark::Bar, None),
+        };
+        stops
+            .push(paths::Stop { mark, words: stop.words(), needed: stop.needed(), over: stop.over() })
+            .expect("wire bounds stops");
+        acts.push(act).expect("one act per stop");
+    }
+    let pressed =
+        paths::Pressed { drawing: bindings.insert(Act::WayStop { project, stop: 0 }), stops: acts.as_slice(), open };
+    paths::path(b, &w.say(Word::WaysPath, &[]), stops.as_slice(), Some(&pressed)).expect("wire bounds path");
+}
+
+/// Who acts and the dotted line's authority boundary.
+pub(crate) fn legend(b: &mut Builder, w: &Words) {
+    b.open(Role::Paragraph);
+    b.name(&w.say(Word::WaysLegend, &[]));
+    b.style(look::WAYS_LEGEND);
+    for (word, style) in [
+        (Word::WaysAgent, look::WAYS_KIND_AGENT),
+        (Word::WaysMaybe, look::WAYS_KIND_MAYBE),
+        (Word::WaysPerson, look::WAYS_KIND_PERSON),
+        (Word::WaysCode, look::WAYS_KIND_CODE),
+        (Word::WaysLine, look::WAYS_KIND_LINE),
+    ] {
+        b.open(Role::Text);
+        b.style(style);
+        b.text(Run::Plain, &w.say(word, &[]));
+        b.close();
     }
     b.close();
 }

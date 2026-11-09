@@ -12,6 +12,23 @@ use temper_engine_domain_forge_change::Way;
 const CODER: &[u8] = b"the coding agent";
 const REPAIR: &[u8] = "an agent · repairs what a check or a review found, then goes back through them".as_bytes();
 
+/// `A, B and C`: the parts joined by ", ", the last by " and "; none for no part.
+fn joined(parts: &[&[u8]]) -> Option<Box<[u8]>> {
+    let (last, preceding) = parts.split_last()?;
+    let mut words = List::uncapped();
+    let mut separator = b"".as_slice();
+    for part in preceding {
+        words.push(separator).expect("card words fit memory");
+        words.push(*part).expect("card words fit memory");
+        separator = b", ";
+    }
+    if !preceding.is_empty() {
+        words.push(b" and ").expect("card words fit memory");
+    }
+    words.push(*last).expect("card words fit memory");
+    Some(bytes::concat(words.as_slice()))
+}
+
 struct Drawing {
     stops: List<Stop>,
     repaired: bool,
@@ -26,48 +43,50 @@ impl Drawing {
 
     fn agent(&mut self, inputs: &Inputs, charter: u32, step: Step, words: &[u8], who: &[u8], name: &[u8]) {
         let card = agent_card(inputs, charter, who, name);
-        self.push(stop(Actor::Agent, step, words, Opens::Charter(charter), card));
+        let needed = step == Step::Repair || step == Step::Resolve;
+        let mut drawn = stop(Actor::Agent, step, words, Opens::Charter(charter), card);
+        drawn.needed = needed;
+        self.push(drawn);
     }
 
-    fn repair(&mut self, inputs: &Inputs) -> bool {
+    fn repair(&mut self, inputs: &Inputs, tests: bool, review: bool) -> bool {
         if self.repaired {
             return false;
         }
-        self.agent(inputs, inputs.producer, Step::Repair, b"repair", REPAIR, CODER);
+        let card = agent_card(inputs, inputs.producer, REPAIR, CODER);
+        let mut drawn = stop(Actor::Agent, Step::Repair, b"repair", Opens::Charter(inputs.producer), card);
+        drawn.needed = true;
+        drawn.over = repair_over(tests, review).into();
+        self.push(drawn);
         self.repaired = true;
         true
     }
 
     fn ci(&mut self, inputs: &Inputs, held: &Held) {
+        let mut workflows = List::uncapped();
         let mut contexts = List::uncapped();
         if let Some(repository) = &inputs.repository {
+            for workflow in &repository.workflows {
+                if bytes::is_utf8(workflow) {
+                    workflows.push(workflow.as_ref()).expect("repository workflows fit memory");
+                }
+            }
             for context in &repository.contexts {
                 if bytes::is_utf8(context) {
                     contexts.push(context.as_ref()).expect("required checks fit memory");
                 }
             }
         }
-        let checks = match contexts.as_slice().split_last() {
-            Some((last, preceding)) => {
-                let mut parts = List::uncapped();
-                parts.push(b"the CI workflows' checks ".as_slice()).expect("card words fit memory");
-                let mut separator = b"".as_slice();
-                for context in preceding {
-                    parts.push(separator).expect("card words fit memory");
-                    parts.push(*context).expect("card words fit memory");
-                    separator = b", ";
-                }
-                if !preceding.is_empty() {
-                    parts.push(b" and ").expect("card words fit memory");
-                }
-                parts.push(*last).expect("card words fit memory");
-                parts.push(b", at the change's head").expect("card words fit memory");
-                bytes::concat(parts.as_slice())
-            }
+        let checks = match joined(contexts.as_slice()) {
+            Some(contexts) => bytes::concat(&[b"the CI workflows' checks ", &contexts, b", at the change's head"]),
             None => b"every check the repository's CI workflows report, at the change's head".as_slice().into(),
         };
-        let card =
-            card("code · holds a change until CI passes".as_bytes(), b"CI", Box::new([fact(b"Checks", &checks)]));
+        let mut facts = List::uncapped();
+        if let Some(workflows) = joined(workflows.as_slice()) {
+            facts.push(fact(b"Workflows", &workflows)).expect("two CI facts at most");
+        }
+        facts.push(fact(b"Checks", &checks)).expect("two CI facts at most");
+        let card = card("code · holds a change until CI passes".as_bytes(), b"CI", facts.into_boxed());
         self.push(stop(Actor::Code, Step::Check, b"check", opens_rule(held), card));
     }
 
@@ -81,7 +100,7 @@ impl Drawing {
             inputs.producer,
             Step::Resolve,
             b"resolve",
-            "an agent · settles a conflict with its branch".as_bytes(),
+            "an agent · settles a conflict with its branch, then goes back through the checks".as_bytes(),
             CODER,
         );
     }
@@ -112,7 +131,11 @@ impl Drawing {
             self.ci(inputs, held);
         }
         let gates = rules::gates(inputs, held.as_slice());
+        let mut tests = ci.is_some();
+        let mut review = false;
         for gate in gates.as_slice() {
+            tests |= gate.check;
+            review |= !gate.check;
             let (charter, step, words, who, name) = if gate.check {
                 let who = bytes::concat(&["an agent · runs the repository's check ".as_bytes(), &number(gate.number)]);
                 (inputs.producer, Step::Check, b"check".as_slice(), who, CODER)
@@ -128,7 +151,7 @@ impl Drawing {
             self.push(stop(Actor::Agent, step, words, Opens::Gate { number: gate.number, charter }, card));
         }
         if (ci.is_some() || !gates.is_empty())
-            && self.repair(inputs)
+            && self.repair(inputs, tests, review)
             && let Some(held) = ci
         {
             self.ci(inputs, held);
@@ -138,32 +161,75 @@ impl Drawing {
                 self.approvals(inputs, held);
             }
         }
-        self.land(inputs, by, update);
+        let mut checked = tests;
+        if goal && let Some(repository) = &inputs.repository {
+            for tier in &repository.tiers {
+                checked |= follows(&tier.follows, branch, goal);
+            }
+        }
+        self.land(inputs, branch, by, update, goal, checked, review);
         self.tiers(inputs, branch, goal);
+        if goal && inputs.merge_job {
+            self.catch_up(inputs);
+        }
     }
 
-    fn land(&mut self, inputs: &Inputs, by: Way, update: bool) {
+    #[expect(clippy::too_many_arguments, reason = "a segment carries its branch, landing way and preceding checks")]
+    #[expect(
+        clippy::fn_params_excessive_bools,
+        reason = "the segment names independent update, goal, test and review facts"
+    )]
+    fn land(&mut self, inputs: &Inputs, branch: &[u8], by: Way, update: bool, goal: bool, tests: bool, review: bool) {
         match by {
             Way::Queue => {
                 if update {
-                    self.code(
-                        Step::Update,
-                        b"update",
-                        Opens::Queue,
-                        "code · brings the change up to date with its branch".as_bytes(),
+                    let change = if !goal && inputs.start != Start::Chat {
+                        b"the goal's branch".as_slice()
+                    } else {
+                        b"the change".as_slice()
+                    };
+                    let who = bytes::concat(&[
+                        "code · ".as_bytes(),
+                        branch,
+                        b" has moved in a way that clashes with ",
+                        change,
+                    ]);
+                    let when = bytes::concat(&[
+                        change,
+                        b" reaches the front of the queue: ",
+                        branch,
+                        b" is merged into it, never by an agent",
+                    ]);
+                    let clean =
+                        if tests { b"it is checked again and lands".as_slice() } else { b"it lands".as_slice() };
+                    let card = card(
+                        &who,
                         b"the queue",
-                        b"merges the branch's tip into the change, never by an agent",
+                        Box::new([
+                            fact(b"When", &when),
+                            fact(b"Merged cleanly", clean),
+                            fact(b"A clash", b"it leaves the queue and goes to resolve"),
+                        ]),
                     );
+                    let mut drawn = stop(Actor::Code, Step::Conflict, b"conflict", Opens::Queue, card);
+                    drawn.needed = true;
+                    self.push(drawn);
                     self.resolve(inputs);
                 }
-                self.code(
-                    Step::Merge,
-                    b"merge",
-                    Opens::Queue,
-                    "code · lands the change".as_bytes(),
-                    b"the queue",
-                    b"merges exactly the commit its checks saw",
-                );
+                let who = if goal {
+                    "code · lands each change into the goal's branch".as_bytes().into()
+                } else if inputs.start != Start::Chat {
+                    bytes::concat(&["code · lands the goal on ".as_bytes(), branch])
+                } else {
+                    Box::from("code · lands the change".as_bytes())
+                };
+                let card =
+                    card(&who, b"the queue", Box::new([fact(b"Does", b"merges exactly the commit its checks saw")]));
+                let mut drawn = stop(Actor::Code, Step::Merge, b"merge", Opens::Queue, card);
+                if goal {
+                    drawn.over = b"into goal".as_slice().into();
+                }
+                self.push(drawn);
             }
             Way::Turn => {
                 self.code(
@@ -191,7 +257,7 @@ impl Drawing {
                         Box::new([fact(b"Gates", names.as_slice())]),
                     );
                     self.push(stop(Actor::Code, Step::Prove, b"prove", Opens::Turn, card));
-                    self.repair(inputs);
+                    self.repair(inputs, true, review);
                 }
                 self.code(
                     Step::Turn,
@@ -203,6 +269,25 @@ impl Drawing {
                 );
             }
         }
+    }
+
+    fn catch_up(&mut self, inputs: &Inputs) {
+        let branch = inputs.branch.as_ref();
+        let who = bytes::concat(&["code · takes ".as_bytes(), branch, b" into the goal's branch"]);
+        let does = bytes::concat(&[
+            b"merges ",
+            branch,
+            b"'s tip into a branch made at the goal's tip, landing as a change into it",
+        ]);
+        let when = bytes::concat(&[b"the coordinator's call, as ", branch, b"'s landings touch the goal's open work"]);
+        let card = card(
+            &who,
+            b"the merge job",
+            Box::new([fact(b"Does", &does), fact(b"When", &when), fact(b"A conflict", b"goes to resolve")]),
+        );
+        let mut drawn = stop(Actor::Code, Step::CatchUp, b"catch up", Opens::Nothing, card);
+        drawn.needed = true;
+        self.push(drawn);
     }
 
     fn approvals(&mut self, inputs: &Inputs, held: &Held) {
@@ -241,12 +326,7 @@ impl Drawing {
     fn tiers(&mut self, inputs: &Inputs, branch: &[u8], goal: bool) {
         if let Some(repository) = &inputs.repository {
             for tier in &repository.tiers {
-                let follows = match &tier.follows {
-                    Follows::Landing => !goal,
-                    Follows::Branch(name) => name.as_ref() == branch,
-                    Follows::Goals => goal,
-                };
-                if !follows {
+                if !follows(&tier.follows, branch, goal) {
                     continue;
                 }
                 let (step, words, who, when) = if goal {
@@ -270,14 +350,16 @@ impl Drawing {
                 if goal && !self.repaired {
                     match inputs.start {
                         Start::Goal { charter } => {
-                            self.agent(
+                            let card = agent_card(
                                 inputs,
                                 charter,
-                                Step::Repair,
-                                b"repair",
                                 "an agent · repairs a red on the goal's branch".as_bytes(),
                                 b"the coordinator",
                             );
+                            let mut drawn = stop(Actor::Agent, Step::Repair, b"repair", Opens::Charter(charter), card);
+                            drawn.needed = true;
+                            drawn.over = b"tests".as_slice().into();
+                            self.push(drawn);
                             self.repaired = true;
                         }
                         Start::Chat => {}
@@ -285,6 +367,23 @@ impl Drawing {
                 }
             }
         }
+    }
+}
+
+fn follows(follows: &Follows, branch: &[u8], goal: bool) -> bool {
+    match follows {
+        Follows::Landing => !goal,
+        Follows::Branch(name) => name.as_ref() == branch,
+        Follows::Goals => goal,
+    }
+}
+
+fn repair_over(tests: bool, review: bool) -> &'static [u8] {
+    match (tests, review) {
+        (true, true) => b"tests, review",
+        (true, false) => b"tests",
+        (false, true) => b"review",
+        (false, false) => b"",
     }
 }
 

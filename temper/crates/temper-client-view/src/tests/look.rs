@@ -644,6 +644,24 @@ fn asking_opening_and_needs_have_their_css_names() {
 }
 
 #[test]
+fn path_styles_keep_their_css_names() {
+    for (token, name) in [
+        (WAYS_MAYBE, b"temper-ways-maybe".as_slice()),
+        (WAYS_WHY, b"temper-ways-why"),
+        (WAYS_RISE_PERSON, b"temper-ways-rise-person"),
+        (WAYS_RISE_AGENT, b"temper-ways-rise-agent"),
+        (WAYS_FADE_PERSON, b"temper-ways-fade-person"),
+        (WAYS_FADE_PERSON_FAINT, b"temper-ways-fade-person-faint"),
+        (WAYS_FADE_AGENT, b"temper-ways-fade-agent"),
+        (WAYS_FADE_AGENT_FAINT, b"temper-ways-fade-agent-faint"),
+        (WAYS_FADE_BASE, b"temper-ways-fade-base"),
+        (WAYS_KIND_MAYBE, b"temper-ways-kind-maybe"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
+    }
+}
+
+#[test]
 fn settings_styles_keep_their_css_names_beside_main_pages() {
     for (style, name) in [
         (SETTINGS_COL, b"temper-settings-col".as_slice()),

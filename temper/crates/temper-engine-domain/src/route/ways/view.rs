@@ -9,6 +9,7 @@ use temper_engine_domain_forge::settings;
 
 mod address;
 mod charter;
+mod roles;
 mod rule;
 use address::Address;
 
@@ -40,6 +41,7 @@ pub(crate) fn read(
             Some(view) => view,
             None => charter::draw(domain, project, party, number),
         },
+        Address::Roles => roles::draw(domain, project, party),
         Address::Rule { kind, number } => rule::draw(domain, project, party, kind, number),
         Address::Proposal { proposer, number } => {
             let token = reply.into_token();
