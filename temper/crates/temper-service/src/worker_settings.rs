@@ -251,6 +251,9 @@ const _: () = assert!(
 );
 
 impl Agent {
+    pub(crate) fn charter_bytes(&self) -> u64 {
+        self.host_limits.charter_bytes
+    }
     pub(crate) fn tool_payload(&self) -> u32 {
         self.tool_payload
     }

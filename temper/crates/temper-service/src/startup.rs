@@ -807,7 +807,7 @@ pub(crate) fn checked_start_with(
             None => None,
         },
         agent_charter_bytes: match agent {
-            Some(agent) => Some(agent.host_limits.charter_bytes),
+            Some(agent) => Some(agent.charter_bytes()),
             None => None,
         },
         host_part,
