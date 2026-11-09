@@ -17,7 +17,6 @@ items are unchanged.
     boundary test hold each binary's closure. Which shape the rule's test
     keeps is M5's (`deployment-binaries.execution.md`, 1).
   - 1 and 4: `../README.md`, section 1, heads its binary's point "One binary" and names `temper-engine` alone of a deployment's binaries. `../protocol/README.md`, section 4, has the box's `temper`, the deployment's client, `temper-client`, the engine's binary (4.2), and the agent's, `temper-agent` (4.3), and not yet the worker's binary.
-  - 4: `../protocol/setup.md`, 8.2: `init` names its own executable, with `internal agent`, as the agent's program. The fetched Claude Code launcher's link points at the binary that places it.
   - 3 and 4: `../client/README.md`, 4.6, prints `temper program-login … NAME` for a deployment whose workers are elsewhere. With the set, that's `temper-worker program-login`.
   - 2, 6 and 8: `../release.md`, sections 1, 2 and 5, give one file a release, the whole product. Missing: the deployment set, its `v{MAJOR}` path and commit directories, and the release job building both sets.
   - 3: `../../help/server.md` builds and copies one binary, runs `temper serve`, and copies the example documents from a checkout.

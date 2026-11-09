@@ -933,7 +933,7 @@ temper-service, worker module           iterate
     ├── jig-protocol-worker-link        the link to the engine; temper's parts as bytes (channel.md)
     ├── smith-host-protocol             one channel per agent process, over its pipes; LLM grants filled into its start
     ├── jig-protocol-worker-agents      the program sources and the worker route, between smith's host half and the link
-    ├── agent processes                 temper internal agent, each in a process group of its own
+    ├── agent processes                 the agent's program, temper internal agent or temper-agent, each in a process group of its own
     ├── the identities' table           git identities' values, from grants (credentials.md, section 4)
     └── temper-worker-protocol-git      the git component: the checkout's io (git.md)
 ```
@@ -941,9 +941,18 @@ temper-service, worker module           iterate
 No store; starting, ending and smith's payloads are jig's (jig's
 `protocol/service.md`, section 6). What temper adds:
 
-- **Agents run as `temper internal agent`:** the agent program is
-  temper's own binary, with the arguments configuration gives
-  (configuration.md, section 5), its environment holding no credential.
+- **Agents run as the agent's program:** the worker's `agent` member
+  (configuration.md, section 5), with the arguments it gives, its
+  environment holding no credential: the box's `temper internal agent
+  AGENT.json`, or a deployment's `temper-agent AGENT.json` (4.3).
+- **A model list's launch** (smith's `protocol/agent.md`, 6.1) runs the
+  same program, its arguments by the run's form, and smith's host half
+  puts `--list` before them: `internal agent AGENT.json` lists as
+  `internal agent-list AGENT.json`, so `temper --list internal
+  agent-list AGENT.json`; `AGENT.json` alone, the `agent` member's
+  `configuration`, lists as `AGENT.json`, so `temper-agent --list
+  AGENT.json`. Any other form has no list launch, and a list's read
+  fails with no process, as one with no usable grant does.
 - **temper's parts.** The routing decodes the workspace items into the
   root's `wire::Workspace` before the root sees the assignment, and
   encodes the root's `wire::Work` and `wire::Preparation` beside an
