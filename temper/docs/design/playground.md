@@ -392,3 +392,10 @@ running (decided 2026-11-03).
   start grew past a quarter between them, and nothing has profiled why.
   Default: the later figures stand as the bound; whether the growth
   stands is the user's, with the memory bar (11).
+- **Byte bounds counted alike on every build:** jig's and temper's byte
+  bounds add `size_of` of a slot, so the wasm32 world and a native
+  replay count the same content apart, and section 8 keeps the stories
+  clear of them. Counting each slot at one size on every target would
+  let a story come near a bound and still replay alike, but it touches
+  most of jig's and temper's step crates (decided 2026-11-09, with
+  section 8).

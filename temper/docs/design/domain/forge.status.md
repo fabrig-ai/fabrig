@@ -142,6 +142,20 @@ user numbers on different forges, unknown accounts and each forge's writer.
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
+Sections 6 and 12 have no known implementation gap in a projection that
+meets the full outbox. Its write waits for room, due at the wall plus
+the issue policy's interval, neither failed nor settled, and marks the
+step (`temper-engine-domain-forge/src/domain.rs`, `wait_for_room`); a
+number already in the outbox still asks again at once. The root clears
+the mark as `step`, `fire` and `release` begin, and its `ProjectAfter`
+arm arms the timer rather than projecting again while the mark is set
+and the outbox full (`temper-engine-domain/src/route/forge_route.rs`).
+The forge's `a_projection_meeting_a_full_outbox_waits_for_room` holds
+the wait, the taken number and the projection going out once an entry
+is withdrawn and the interval passes; the root's
+`src/tests/projection_room.rs` holds the step ending and the backstop's
+rows. Both are crate tables: no engine world story fills the outbox.
+
 Sections 8.1, 8.5, 11 and 11.1 have no known implementation gap in a
 goal's delivery through r. The six engine domain stories in
 `tests/engine/domain/tests/suite/forge_routes/goal_delivery.rs` cover
