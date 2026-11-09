@@ -172,6 +172,7 @@ pub struct Domain {
     facts: Queue<Fact>,
     ended: Queue<Ended>,
     lost: u64,
+    pub(crate) restore_link: Option<crate::RestoreLink>,
     pub(crate) restore_failure: Option<crate::RestoreLimit>,
     pub(crate) now: Time,
     phase: Phase,
@@ -262,6 +263,7 @@ impl Domain {
             ended: Queue::with_capacity(limits.facts),
             lost: 0,
             restore_failure: None,
+            restore_link: None,
             now: Time::ZERO,
             phase: Phase::New,
         }
@@ -363,6 +365,13 @@ impl Domain {
     pub const fn restore_limit(&self) -> Option<crate::RestoreLimit> {
         self.restore_failure
     }
+
+    /// A stored reference that prevented the start from linking (engine.md, 6).
+    #[must_use]
+    pub const fn restore_link(&self) -> Option<crate::RestoreLink> {
+        self.restore_link
+    }
+
     fn choose(&self, account: &Account) -> Choice {
         let mut first = None;
         for (_, number) in &account.sources {
@@ -664,7 +673,7 @@ fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         return;
     }
     crate::restore::link(domain, env);
-    if domain.restore_failure.is_some() {
+    if domain.restore_failure.is_some() || domain.restore_link.is_some() {
         return;
     }
     domain.phase = Phase::Wanted;

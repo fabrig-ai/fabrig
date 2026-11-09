@@ -155,8 +155,7 @@ fn ended_conversation_witness_is_retired_at_link() {
 }
 
 #[test]
-#[should_panic(expected = "ReadConversation { party: 1, task: 99 }) links missing Tasks(Live(99))")]
-fn missing_conversation_panics_at_link_with_the_read_key() {
+fn missing_conversation_refuses_at_link_with_the_read_key() {
     let (mut core, env) = loaded();
     let _out = crate::step(
         &mut core,
@@ -170,6 +169,14 @@ fn missing_conversation_panics_at_link_with_the_read_key() {
     while let Action::Step(phase) = action {
         action = core.start_done(&env, phase, &mut Queue::uncapped());
     }
+    let Action::Refused(failure) = action else { panic!("missing conversation refuses at Link") };
+    assert_eq!(
+        failure,
+        Failure::Link {
+            record: crate::Key::People(people::Key::ReadConversation { party: 1, task: 99 }),
+            linked: crate::start::Linked::Record(crate::Key::Tasks(tasks::Key::Live(99))),
+        }
+    );
 }
 
 #[test]

@@ -34,6 +34,7 @@ pub struct RestoreFailure {
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreCause {
+    Link { target: Key },
     Bound { which: RestoreBound, held: u64, limit: u64 },
 }
 

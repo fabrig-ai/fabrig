@@ -931,8 +931,11 @@ fn restore_order_is_independent_and_bad_or_oversized_records_refuse_start() {
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
     test.d.start_restore(test.env.wall);
     test.send(Event::Restore { record: Stored::SignIn { number: 10, person: 99, expires: Wall::from_nanos(1) } });
-    let linked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| test.d.start_link()));
-    drop(linked.expect_err("missing retained link panics"));
+    assert!(!test.d.start_link());
+    assert_eq!(
+        test.d.restore_failure(),
+        Some(RestoreFailure { key: Key::SignIn(10), cause: RestoreCause::Link { target: Key::Person(99) } })
+    );
     assert!(!test.d.ready());
     test.env.limits.people = 0;
     test.d = Domain::new(&test.env.limits, Box::new([]), 2, Box::new([]));
@@ -1028,8 +1031,14 @@ fn restored_role_success_checks_earlier_people_and_project_after_all_rows_arrive
         );
         test.send_bounded(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
         test.send_bounded(Event::Restore { record: Stored::Roles { project: 1, holdings: Box::new([]) } });
-        let linked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| test.d.start_link()));
-        drop(linked.expect_err("missing retained link panics"));
+        assert!(!test.d.start_link());
+        assert_eq!(
+            test.d.restore_failure(),
+            Some(RestoreFailure {
+                key: Key::Answer(key),
+                cause: RestoreCause::Link { target: if person == 99 { Key::Person(99) } else { Key::Roles(2) } },
+            })
+        );
         assert!(!test.d.ready());
     }
 }

@@ -80,3 +80,48 @@ fn a_removed_missing_file_answers_not_found() {
 }
 
 mod routes;
+
+#[test]
+fn a_kill_before_the_first_operation_loses_the_commit_and_past_the_last_keeps_it() {
+    use crate::{Fault, KillFrom, Store};
+    use jig_test_domain as root;
+    let limits = jig_test_profile::limits();
+    let header = jig_domain_core::Deployment {
+        id: [0; 16],
+        tasks: 1,
+        people: 0,
+        sign_ins: 0,
+        messages: 0,
+        runs: 0,
+        calls: 0,
+        connector_rows: 1,
+        projects: 0,
+        applications: 0,
+        commits: 1,
+    };
+    let writes = Box::new([
+        root::Write::Save(root::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
+            header,
+        )))),
+        root::Write::Save(root::Record::Connector {
+            number: 1,
+            record: jig_test_connector::Record::Result { task: 1, code: 7 },
+        }),
+    ]);
+    let mut reference = Store::on_disk(&limits, &[]);
+    reference.submit(1, writes.clone(), 0);
+    assert_eq!(reference.tick(false), Ok(Some(1)));
+    let count = reference.operation_count(1);
+    assert!(count > 0);
+    for (operation, durable) in [(0, false), (count + 1, true)] {
+        let mut store = Store::on_disk(&limits, &[]);
+        store.fault(Fault::Kill { from: KillFrom::Commit(1), operation });
+        store.submit(1, writes.clone(), 0);
+        assert_eq!(store.tick(false), Ok(durable.then_some(1)));
+        assert_eq!(store.reached_kill(), !durable);
+        store.crash(18);
+        assert_eq!(store.applied, u64::from(durable));
+        assert_eq!(store.rows.len(), 2 * usize::from(durable));
+        assert_eq!(store.readback(), store.rows);
+    }
+}

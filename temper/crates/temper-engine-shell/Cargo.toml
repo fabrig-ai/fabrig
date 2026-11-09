@@ -30,6 +30,7 @@ skein-forge.workspace = true
 jig-protocol-config.workspace = true
 
 [dev-dependencies]
+jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
 skein-scratch.workspace = true
 temper-client-protocol-wire.workspace = true

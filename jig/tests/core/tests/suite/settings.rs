@@ -1576,10 +1576,14 @@ fn an_unheld_task_or_run_revision_refuses_the_start_naming_the_task() {
         world.observer = jig_core_world::conformance::Observer::recording(&held_restart_configuration());
         world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
         let before = world.store.applied;
-        let linked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            world.restart_with(held_restart_configuration());
-        }));
-        assert!(linked.is_err(), "a task links its held settings revision");
+        world.restart_with(held_restart_configuration());
+        assert_eq!(
+            world.domain.start_failure().map(|(_, failure)| failure),
+            Some(core::start::Failure::Link {
+                record: core::Key::Tasks(jig_domain_tasks::Key::Live(goal)),
+                linked: core::Linked::Record(core::Key::Core(core::CoreKey::Settings(settings::Key::Held(91)))),
+            })
+        );
         assert_eq!(world.store.applied, before);
         // The fixture deliberately names an absent held settings revision.
         world.broken();
@@ -1643,10 +1647,14 @@ fn a_restored_run_must_have_a_charter_on_its_held_revision() {
         }),
     ]));
     let commits = world.store.applied;
-    let linked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        world.restart_with(held_restart_configuration());
-    }));
-    assert!(linked.is_err(), "a restored run links its charter on its held revision");
+    world.restart_with(held_restart_configuration());
+    assert_eq!(
+        world.domain.start_failure().map(|(_, failure)| failure),
+        Some(core::start::Failure::Link {
+            record: core::Key::Tasks(jig_domain_tasks::Key::Live(goal)),
+            linked: core::Linked::Charter { charter: 1, revision: 1 },
+        })
+    );
     assert_eq!(world.store.applied, commits);
     // The fixture deliberately removes the restored run's charter version.
     world.broken();

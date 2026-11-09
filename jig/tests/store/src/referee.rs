@@ -31,8 +31,9 @@ impl Referee {
     /// # Errors
     /// Returns the first broken store promise.
     pub fn check(model: &Model, restored: &Restored) -> Result<(), Violation> {
-        if restored.last < model.acknowledged || restored.last > model.acknowledged + 1 {
-            return Err(Violation("last acknowledged or one whole uncertain commit"));
+        let submitted = *model.prefixes.keys().next_back().expect("initial prefix");
+        if restored.last < model.acknowledged || restored.last > submitted {
+            return Err(Violation("last acknowledged or a whole submitted prefix"));
         }
         let expected = model.prefixes.get(&restored.last).ok_or(Violation("recovery has a staged prefix"))?;
         if restored.rows != expected.rows || restored.application != expected.application {
