@@ -114,3 +114,15 @@ temper-fits again once this trunk holds it, whichever comes first: a merge of
 trunk, or worker-link-quiet landing and this trunk catching up with main.
 Change nothing before then: do not take `link_room.rs` from temper-room's
 branch or that plan's trunk, nor write the story afresh.
+
+2026-11-09. *Run 3 found the base still lacks `link_room.rs`; what now?*
+The answer above named the wrong commit: `85e9293560` merged
+worker-link-quiet's `worker-room`, not `temper-room`. `temper-room`'s
+`link_room.rs` is on its branch (`2b11d33350`, 17:01Z) and, at 17:44Z,
+in neither `worker-link-quiet/integration` nor main. Otherwise the answer
+stands: run temper-fits again once this trunk holds a commit of
+`worker-link-quiet/integration` that contains `temper-room`'s merge
+(`link_room.rs` present in the trunk's tree), by a merge of that trunk
+into this one or by worker-link-quiet landing and this trunk catching up
+with main. Until then change nothing, and do not take the file from
+`temper-room`'s branch or write the story afresh.
