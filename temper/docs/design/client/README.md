@@ -10970,8 +10970,12 @@ own tests:
   *Home on All projects* and *Needs you*): temper/ui compares main with
   the whole story's `web/whole-story/home.html`, `needs.html`,
   `phone-home.html` and `phone-need.html`, and `pair/`'s and `team/`'s
-  Home and Needs you, at 1440, 1000 and 390 px, by day and by night; walks
-  them on a box across two projects; and records the journey of Home to a
+  Home and Needs you, at 1440, 1000 and 390 px, by day and by night, with
+  Only you's region against `needs.html`'s through `browser.md`, 7.2's
+  `needs-only-you` and `night-needs-only-you`, and Accounts'
+  `accounts-expiring`; walks them on a box across two projects, a
+  sign-in signed out reaching Accounts from Only you and renewed there;
+  and records the journey of Home to a
   need, answered (`../draft/surfaces.md`, 14). Owner: temper/ui. Default:
   each difference a finding filed back to the plan's repair.
 - **Away on All projects after landing** (3.5, *Away*, *On All

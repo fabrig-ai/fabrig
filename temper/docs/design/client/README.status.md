@@ -98,6 +98,34 @@ post-landing walk and M3b's views remain section 11's work.
   (`../domain/findings.status.md`; `../domain/landing.md`, 13.1),
   so it waits for both, with nothing in its place.
 
+Sections 3.5, **Only you** and its row of *A page's parts*, and 5.5,
+*Each state*'s expiring rows, have no known gap in the web client, by
+plan `ui-n3a-only`, the whole story's milestone N3a. `pages::only_you`
+reads each of the person's own accounts, but the playground provider's,
+whose deciding source is a sign-in or a program's login signed out or
+expiring, in the document's order, the head "N+" where the document is
+cut; `NeedsParts::only` draws the region once the inbox has answered,
+and no card's count holds it. Needs you draws it after the cards'
+*Answered* or Done's "Home" and before Decided for you, each item's
+question naming its source as Accounts does and its link "Sign in again"
+to Accounts, full width on a phone, its 44 px the need's choices' rule;
+Accounts offers an expiring deciding source its renewal, "Continue with
+PLAN", or a program's command and "Check again". The domain's
+`only_you_reads_the_persons_deciding_login_sources_in_document_order`
+and `needs_parts_wait_for_known_and_keep_decided_independent`, and the
+view's `only_you_follows_the_answered_inbox_and_links_its_sources_to_accounts`,
+`each_account_state_draws_its_words_and_state_controls` and
+`a_programs_missing_login_names_its_host_command_and_check` hold them.
+The joint world's `a_login_is_listed_only_while_it_needs_its_person`
+drives temper's engine through a signed-in plan made expiring, then
+signed out, then renewed by Accounts' "Continue with ChatGPT", on the
+domain's read; Needs you's link it leaves to the view's table. The
+density fuzz, `random_facts_and_settings_keep_each_part_and_card`,
+holds the part's rule. What waits for a login, Only you's other kinds
+and the terminal's inbox are section 11's later parts; the render check
+and walk follow landing (section 11, *Home and Needs you across projects
+after landing*).
+
 Sections 3.5, *Needs you*'s *Its head* and *On a phone* and *Ask temper's
 page*'s composer, and 5.3, *On a phone*, have no known implementation
 gap, by plan `ui-p5a-phone`. The domain's `rail::tabs` decides the tab

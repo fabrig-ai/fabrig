@@ -6,8 +6,10 @@ Sections 2 to 6 are carried by the design, milestone N1 of
 `whole-story.execution.md`, but for lag 4 and the departures below:
 `../domain/forge.md`, 5.5 and 5.8 to 5.10, `../protocol/configuration.md`,
 section 7 and 13.2, `../domain/agent.md`, 4.3, and
-`../client/README.md`, 3.5, 5.13 and 5.14. Where the code lags them is
-their status files'.
+`../client/README.md`, 3.5, 5.13 and 5.14. Section 8 is carried by
+`../client/README.md`, 3.5, **Only you**, and 5.5, *Each state*,
+milestone N3a, but for lag 8. Where the code lags them is their status
+files'.
 
 - **Design lags:**
   - 4: no design gives a standing role's person
@@ -24,12 +26,14 @@ their status files'.
   - 8: `../client/README.md`, 3.5's **Only you** lists a person's own
     sign-in signed out and a login their account reads as expiring, as
     the mockups' audit words it (`surfaces.md`, section 4); its line
-    saying what waits, "Two agents on vsr wait for this login.", and a
+    saying what waits, "Two agents on vsr wait for this login.", a
     forge's token to replace and a person task asking an act are that
     document's later parts (section 11): jig's `accounts` document names
     no task waiting on a person's own account (jig's
-    `client/domain/contract.md`, 5.1), and no read says a forge's token
-    must be replaced.
+    `client/domain/contract.md`, 5.1), no read says a forge's token
+    must be replaced, and a person task asking an act stays among the
+    cards. The terminal's inbox lists no Only you (`../client/README.md`,
+    6.14), a later part of section 11's too, temper/tui's.
   - 9: `../client/README.md`, 5.13's *Telling you* is disabled; no design
     holds a service worker, a push or a digest (`../client/browser.md`),
     nor mail settings (`../protocol/configuration.md`); no design serves
