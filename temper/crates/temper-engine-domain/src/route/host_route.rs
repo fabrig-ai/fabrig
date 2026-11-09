@@ -229,6 +229,7 @@ impl DocumentFlight {
             | CallAnswer::ReadRepositoryRefused { .. }
             | CallAnswer::SubscriptionRepositoryRefused { .. }
             | CallAnswer::ChangeRefused { .. }
+            | CallAnswer::NoteDeleted { .. }
             | CallAnswer::NoteRecalled { .. }
             | CallAnswer::Document(_)
             | CallAnswer::Remember(_)

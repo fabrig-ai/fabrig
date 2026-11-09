@@ -215,6 +215,7 @@ pub(crate) fn limits() -> Limits {
             attempts: 128,
             plan: 128,
             notes: 64,
+            preferences: 64,
         },
         accounts: accounts::Limits {
             accounts: 1,
@@ -459,6 +460,7 @@ pub(crate) fn config(seed: u64) -> Config {
             models: Box::new([scripted_model()]),
             resume_bytes: 256,
             tail_bytes: 128,
+            private_tools: Box::new([]),
             tools: ToolFamilies::JIG,
             key_bytes: 256,
             redirect_bytes: 4096,

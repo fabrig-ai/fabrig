@@ -132,6 +132,8 @@ pub enum CallAnswer {
     ChangeRefused { problem: Box<jig_domain_tasks::Problem>, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
     /// A note write's durable name and revision.
     NoteWritten { name: u64, revision: u32, lines: u32, added: u32, removed: u32, first: u32 },
+    /// A scoped note deleted by the run (jig domain/engine.md, 10.1).
+    NoteDeleted { name: u64 },
     /// One bounded notes recall page.
     NoteRecalled { entries: Box<[jig_domain_notes::Entry]>, more: bool },
     /// A note request changed nothing.
@@ -321,6 +323,7 @@ impl CallAnswer {
             CallAnswer::ChangeRefused { problem, .. } => {
                 jig_domain_core::CallPart::DelegationRefused(problem.as_ref().clone())
             }
+            CallAnswer::NoteDeleted { name } => jig_domain_core::CallPart::NoteDeleted { name: *name },
             CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
                 jig_domain_core::CallPart::NoteWritten {
                     name: *name,
@@ -394,6 +397,7 @@ impl CallAnswer {
                 CallAnswer::DelegationDenied { answer: *answer, findings: findings.clone() }
             }
             jig_domain_core::CallPart::DelegationRefused(problem) => CallAnswer::DelegationRefused(problem.clone()),
+            jig_domain_core::CallPart::NoteDeleted { name } => CallAnswer::NoteDeleted { name: *name },
             jig_domain_core::CallPart::NoteWritten { name, revision, lines, added, removed, first } => {
                 CallAnswer::NoteWritten {
                     name: *name,
@@ -1113,6 +1117,7 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
         | CallAnswer::SubscriptionRefused(_)
         | CallAnswer::DelegationRefused(_)
         | CallAnswer::NoteWritten { .. }
+        | CallAnswer::NoteDeleted { .. }
         | CallAnswer::NoteRefused(_) => Some(0),
         CallAnswer::ReadRepositoryRefused { named, repositories }
         | CallAnswer::SubscriptionRepositoryRefused { named, repositories, .. }

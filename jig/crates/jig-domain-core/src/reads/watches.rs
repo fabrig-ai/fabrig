@@ -101,6 +101,7 @@ fn from_store(
                 | EndedValue::Question { .. }
                 | EndedValue::PersonTask { .. }
                 | EndedValue::Turn(_)
+                | EndedValue::WithheldTurn(_)
                 | EndedValue::Reply(_) => return Err(views::End::Gone),
             };
             Ok(Document::Task(document))

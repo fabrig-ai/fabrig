@@ -593,6 +593,8 @@ pub struct CoreBriefBudgets {
     pub plan: u32,
     /// Maximum note index text in one brief.
     pub notes: u32,
+    /// Whole preferences of the run's requester (domain/engine.md, 10.1).
+    pub preferences: u32,
 }
 
 /// One event routed to a child of the core.
@@ -1005,6 +1007,12 @@ pub enum NamedAction {
         entry: notes::New,
         recalled: u32,
         range: notes::LineRange,
+    },
+    /// Drop one scoped note at a revision seen by the run (domain/engine.md, 10.1).
+    NoteDelete {
+        scope: notes::Scope,
+        name: u64,
+        recalled: u32,
     },
     /// Recall one page of notes by name or description search.
     Recall {

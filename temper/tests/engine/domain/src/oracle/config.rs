@@ -39,6 +39,7 @@ pub fn copy(config: &engine::Config) -> engine::Config {
                 rules: c.defaults.rules.clone(),
             },
             settings: core::Settings {
+                private_tools: s.private_tools.clone(),
                 endpoints: s.endpoints.clone(),
                 deployment_provider: s.deployment_provider,
                 models: s.models.clone(),

@@ -120,7 +120,11 @@ pub(super) fn valid(core: &Core, key: CallKey, project: u32, party: u64) -> bool
 
 pub(super) fn answer(to: ReplyTo, key: CallKey, answer: Answer) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    out.push(Request::Now(Box::new(Now::PersonAnswer { to, key, answer: Box::new(answer) })));
+    out.push(Request::Now(Box::new(Now::PersonAnswer {
+        to,
+        key,
+        answer: Box::new(super::withheld::person_answer(answer)),
+    })));
     out
 }
 
