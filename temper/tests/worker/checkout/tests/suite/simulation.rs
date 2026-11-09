@@ -94,7 +94,8 @@ fn a_spec_naming_what_the_forge_lacks_fails_for_good() {
         let mut world = World::new(Settings::calm(5));
         let client = world.submit(Time::ZERO, Plan { start: Some(pick), ..Plan::simple(0) });
         world.run(ITERATIONS);
-        let Prepared::Failed { failure: Failure::Missing { repository: 0, missing: found }, .. } = prepared(&world, client)
+        let Prepared::Failed { failure: Failure::Missing { repository: 0, missing: found }, .. } =
+            prepared(&world, client)
         else {
             panic!("{pick:?} is missing: {:?}", prepared(&world, client));
         };

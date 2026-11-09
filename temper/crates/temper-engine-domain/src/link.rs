@@ -140,27 +140,32 @@ pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: T
                     reason: reason.clone(),
                 });
             }
-            hub::Ending::Link(host::Ending::Ended { .. } | host::Ending::Parked { .. })
-            | hub::Ending::Scripted(_) => {}
+            hub::Ending::Link(host::Ending::Ended { .. } | host::Ending::Parked { .. }) | hub::Ending::Scripted(_) => {}
             hub::Ending::Job(ending) => {
                 let ending = match ending {
-                    host::JobEnding::Failed { failure, detail, .. } => Some(crate::JobDiagnosticEnding::Failed {
-                        failure: *failure, detail: detail.clone(),
-                    }),
+                    host::JobEnding::Failed { failure, detail, .. } => {
+                        Some(crate::JobDiagnosticEnding::Failed { failure: *failure, detail: detail.clone() })
+                    }
                     host::JobEnding::Refused(reason) => Some(crate::JobDiagnosticEnding::Refused(reason.clone())),
                     host::JobEnding::Finished { .. } => None,
                 };
                 if let Some(ending) = ending {
                     let executor = domain.core.tasks.executor(*task).expect("an accepted answer has a task");
                     let kind = match executor {
-                        tasks::Executor::Job { kind } => kind,
-                        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
-                            unreachable!("a job answer belongs to a job task")
-                        }
+                        tasks::Executor::Job { kind } => Some(kind),
+                        tasks::Executor::Agent { .. }
+                        | tasks::Executor::Procedure { .. }
+                        | tasks::Executor::Person(_) => None,
                     };
-                    domain.run_diagnostics.jobs.push(crate::JobDiagnostic {
-                        task: *task, run: run.raw(), attempt: attempt.raw(), kind, ending,
-                    });
+                    if let Some(kind) = kind {
+                        domain.run_diagnostics.jobs.push(crate::JobDiagnostic {
+                            task: *task,
+                            run: run.raw(),
+                            attempt: attempt.raw(),
+                            kind,
+                            ending,
+                        });
+                    }
                 }
             }
         }

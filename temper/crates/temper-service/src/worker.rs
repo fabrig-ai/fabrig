@@ -616,6 +616,21 @@ impl Worker {
         work: &root::wire::Work,
         preparation: Option<&root::wire::Preparation>,
     ) {
+        let kind = self.root.job_kind(run, attempt);
+        let why = self.root.job_why(run, attempt);
+        let ending = match &answer {
+            hub::JobEnding::Failed { failure, detail, .. } => {
+                Some(temper_engine_domain::JobDiagnosticEnding::Failed { failure: *failure, detail: detail.clone() })
+            }
+            hub::JobEnding::Refused(reason) => Some(temper_engine_domain::JobDiagnosticEnding::Refused(reason.clone())),
+            hub::JobEnding::Finished { .. } => None,
+        };
+        if let Some((kind, verb)) = kind
+            && let Some(ending) = ending
+        {
+            let why = why.expect("a failed or refused job keeps its operator evidence until taken");
+            self.notes.push(crate::Note::WorkerJob { run: run.raw(), attempt: attempt.raw(), kind, verb, ending, why });
+        }
         let parts = worker_route::job_answer_parts(&answer, work, preparation);
         self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::JobAnswer { run, attempt, answer }, parts });
     }
@@ -690,8 +705,7 @@ impl Worker {
                     remote.last_refusal = None;
                     remote.linked = true;
                     remote.loss_pending = false;
-                    self
-                        .notes
+                    self.notes
                         .push(crate::Note::Linked { worker: remote.worker.clone(), address: Box::new(remote.address) });
                 }
             }

@@ -16,6 +16,13 @@ pub(crate) struct Spec {
     value: Option<Result<wire::JobSpec, wire::Undecodable>>,
 }
 
+/// Bounded by hosted slots and the entering assignment; consumed by the service, never a fact.
+#[derive(Debug)]
+pub(crate) struct Evidence {
+    pub(crate) kind: JobKind,
+    pub(crate) why: Option<Box<[u8]>>,
+}
+
 pub(crate) fn assign(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -28,9 +35,23 @@ pub(crate) fn assign(
     if domain.host.is_hosting(run, attempt) {
         return;
     }
+    // Unhosted refusals from a preceding entry point no longer own a slot.
+    let mut stale = skein_lib::List::with_capacity(domain.job_evidence.capacity());
+    for (identity, _) in &domain.job_evidence {
+        if !domain.host.is_hosting(identity.0, identity.1) {
+            stale.push(*identity).expect("bounded evidence identities");
+        }
+    }
+    for identity in &stale {
+        domain.job_evidence.remove(identity);
+    }
+    domain
+        .job_evidence
+        .insert((run, attempt), Evidence { kind: job.kind, why: None })
+        .expect("hosted slots and the entering assignment bound operator evidence");
     let items = match items {
         Ok(items) => items,
-        Err(wire::Undecodable) => return refuse(run, attempt, b"workspace items", env, out),
+        Err(wire::Undecodable) => return refuse(domain, run, attempt, b"workspace items", env, out),
     };
     let checked = if !items.repositories.is_empty() && job.workspace.is_none() {
         Err(b"workstream".as_slice())
@@ -38,11 +59,11 @@ pub(crate) fn assign(
         crate::assignment::check(&items, &env.limits)
     };
     if let Err(why) = checked {
-        return refuse(run, attempt, why, env, out);
+        return refuse(domain, run, attempt, why, env, out);
     }
     if domain.job_specs.len() == domain.job_specs.capacity() || workspace::stage_job(domain, &mut job, items).is_none()
     {
-        refused(run, attempt, host::JobRefusal::Busy, out);
+        refused(domain, run, attempt, host::JobRefusal::Busy, out);
         return;
     }
     let prior = domain
@@ -53,17 +74,20 @@ pub(crate) fn assign(
     route::host_step(domain, env, host::Event::Down(host::LinkDown::AssignJob { job }));
 }
 
-fn refuse(run: Token, attempt: Token, why: &[u8], env: &Env<Limits>, out: &mut Queue<Request>) {
+fn refuse(domain: &mut Domain, run: Token, attempt: Token, why: &[u8], env: &Env<Limits>, out: &mut Queue<Request>) {
     let most = usize::try_from(env.limits.host.detail_bytes).expect("a u32 fits usize");
     let why = Box::from(why.get(..why.len().min(most)).expect("bounded refusal"));
-    refused(run, attempt, host::JobRefusal::Invalid(host::JobInvalid::Start { why }), out);
+    refused(domain, run, attempt, host::JobRefusal::Invalid(host::JobInvalid::Start { why }), out);
 }
 
-fn refused(run: Token, attempt: Token, refusal: host::JobRefusal, out: &mut Queue<Request>) {
+fn refused(domain: &mut Domain, run: Token, attempt: Token, refusal: host::JobRefusal, out: &mut Queue<Request>) {
+    let answer = host::JobEnding::Refused(refusal);
+    domain.job_evidence.get_mut(&(run, attempt)).expect("the entering assignment keeps its kind").why =
+        Some(job_reason(&answer));
     out.push(Request::JobAnswer {
         run,
         attempt,
-        answer: host::JobEnding::Refused(refusal),
+        answer,
         work: wire::Work { landed: Box::new([]), saved: None },
         preparation: None,
     });
@@ -207,10 +231,115 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
 ) {
     let (work, preparation) = workspace::job_parts(domain, &answer);
-    domain.job_specs.remove(&(run, attempt));
+    if domain.job_specs.remove(&(run, attempt)).is_some() {
+        let evidence = domain.job_evidence.get_mut(&(run, attempt)).expect("an admitted job keeps its kind");
+        evidence.why = match &answer {
+            host::JobEnding::Failed { failure: host::JobFailure::Undelivered(_), .. } => {
+                let outcome = job_reason(&answer);
+                let why = match evidence.why.take() {
+                    Some(why) => {
+                        let size = outcome
+                            .len()
+                            .checked_add(2)
+                            .expect("closed delivery outcome")
+                            .checked_add(why.len())
+                            .expect("bounded push diagnostic");
+                        let mut text = Writer::new(size);
+                        for part in [outcome.as_ref(), b": ", why.as_ref()] {
+                            text.put(part).expect("measured worker delivery why");
+                        }
+                        text.finish()
+                    }
+                    None => outcome,
+                };
+                Some(why)
+            }
+            host::JobEnding::Failed { .. } | host::JobEnding::Refused(_) => Some(job_reason(&answer)),
+            host::JobEnding::Finished { .. } => None,
+        };
+    }
     match &answer {
         host::JobEnding::Refused(_) => workspace::forget(domain, run, attempt),
         host::JobEnding::Finished { .. } | host::JobEnding::Failed { .. } => {}
     }
     out.push(Request::JobAnswer { run, attempt, answer, work, preparation });
+}
+
+/// Keep only the job's delivery evidence; agent deliveries already have their own feedback.
+pub(crate) fn delivered(domain: &mut Domain, owner: Token, outcome: &crate::checkout::Outcome) {
+    let Some(hosting) = domain.host.hosting(owner) else { return };
+    let Some(evidence) = domain.job_evidence.get_mut(&(hosting.run, hosting.attempt)) else { return };
+    evidence.why = delivery_why(outcome);
+}
+
+fn delivery_why(outcome: &crate::checkout::Outcome) -> Option<Box<[u8]>> {
+    use crate::checkout::{Landing, Outcome, Refusal};
+    let landings = match outcome {
+        Outcome::Refused { refusal: Refusal::Full } => return Some(Box::from(b"checkout full".as_slice())),
+        Outcome::Refused { refusal: Refusal::Busy } => return Some(Box::from(b"checkout busy".as_slice())),
+        Outcome::Refused { refusal: Refusal::Invalid } => return Some(Box::from(b"invalid push".as_slice())),
+        Outcome::Pushed { landings } => landings,
+    };
+    for landing in landings {
+        let why = match landing {
+            Landing::Landed { .. } | Landing::Unchanged => continue,
+            Landing::Moved => Box::from(b"branch moved".as_slice()),
+            Landing::Conflicted { .. } => Box::from(b"unresolved conflict markers".as_slice()),
+            Landing::Failed => Box::from(b"push failed".as_slice()),
+            Landing::Refused => Box::from(b"push refused".as_slice()),
+            Landing::Aborted => Box::from(b"push aborted".as_slice()),
+            Landing::Explained { fault, diagnostic } => {
+                let prefix = b"push: ".as_slice();
+                let size = prefix
+                    .len()
+                    .checked_add(fault.name().len())
+                    .expect("fixed fault words")
+                    .checked_add(2)
+                    .expect("separator")
+                    .checked_add(diagnostic.output().len())
+                    .expect("bounded git output");
+                let mut text = Writer::new(size);
+                for part in [prefix, fault.name(), b": ", diagnostic.output()] {
+                    text.put(part).expect("measured delivery diagnostic");
+                }
+                text.finish()
+            }
+        };
+        return Some(why);
+    }
+    None
+}
+
+/// Operator-only fallback for endings whose hub answer carries no detail (worker.md, 4.4).
+fn job_reason(answer: &host::JobEnding) -> Box<[u8]> {
+    use host::{DeliveryOutcome, JobFailure, JobInvalid, JobRefusal, Reason};
+    let why: &[u8] = match answer {
+        host::JobEnding::Failed { detail, .. } if !detail.is_empty() => return detail.clone(),
+        host::JobEnding::Failed { failure, .. } => match failure {
+            JobFailure::Unprepared(_) => b"workspace preparation failed",
+            JobFailure::Failed => b"command failed",
+            JobFailure::Deadline => b"deadline passed",
+            JobFailure::Result => b"result missing or past its bound",
+            JobFailure::Unstarted => b"process could not be started",
+            JobFailure::Undelivered(DeliveryOutcome::Stale) => b"delivery Stale",
+            JobFailure::Undelivered(DeliveryOutcome::Refused) => b"delivery Refused",
+            JobFailure::Undelivered(DeliveryOutcome::Failed) => b"delivery Failed",
+            JobFailure::Undelivered(DeliveryOutcome::Delivered | DeliveryOutcome::Nothing) => {
+                unreachable!("successful delivery does not fail a job")
+            }
+            JobFailure::Cancelled(Reason::Engine) => b"cancelled by engine",
+            JobFailure::Cancelled(Reason::Contact) => b"contact lost",
+            JobFailure::Cancelled(Reason::Shutdown) => b"worker shutting down",
+        },
+        host::JobEnding::Refused(JobRefusal::Busy) => b"host busy",
+        host::JobEnding::Refused(JobRefusal::Invalid(invalid)) => match invalid {
+            JobInvalid::Kind => b"kind not declared",
+            JobInvalid::Spec => b"spec past its bound",
+            JobInvalid::Deadline => b"deadline past its bound",
+            JobInvalid::Grants => b"invalid grants",
+            JobInvalid::Start { why } => return why.clone(),
+        },
+        host::JobEnding::Finished { .. } => unreachable!("finished jobs have no operator failure line"),
+    };
+    Box::from(why)
 }
