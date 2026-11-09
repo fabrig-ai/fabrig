@@ -68,6 +68,11 @@ Section 6 has no known gap in every temper worker naming its agent's
 them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
+- **Not yet:** 4.1, *Transcript*, and 4.3, *A start the link cannot
+  carry*: a resumed start carries every committed call's answer whole,
+  so on both stock profiles a producer whose program made more calls
+  since its last turn than the engine's room holds cannot resume on a
+  worker; `temper-service`'s link story has no such row that crosses.
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question. The `ctl-words` request requires

@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/resume-fits-room/inputs/request.md", "AGENTS.md", "
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "fit"
+title = "The worker wire fits a resumed start's committed calls to a room, the newest answers whole and the rest cut to words naming their bytes, and measures the smallest resumed start"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/channel.md, 9"
+
+[[slice]]
+id = 1
+story = "A resumed start past a room by its committed calls comes back within it, every call told by name and tool, the newest answers whole, the rest cut to words naming their bytes, a delivery whole"
+parts = ["fit"]
+walk = false
