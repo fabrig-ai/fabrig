@@ -39,7 +39,9 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, pages: &mut Bi
             Read::Drawn(w::View::Rule(view)) => card(b, view.card()),
             Read::Reading => message(b, root.pages().address(), words, true),
             Read::Unreadable
-            | Read::Drawn(w::View::NotDrawn(_) | w::View::Way(_) | w::View::Path(_) | w::View::Proposal(_)) => {
+            | Read::Drawn(
+                w::View::Roles(_) | w::View::NotDrawn(_) | w::View::Way(_) | w::View::Path(_) | w::View::Proposal(_),
+            ) => {
                 message(b, root.pages().address(), words, false);
             }
         }

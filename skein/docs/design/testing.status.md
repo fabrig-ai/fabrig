@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-08. Where skein's code lags or departs from [testing.md](testing.md).
+2026-11-09. Where skein's code lags or departs from [testing.md](testing.md).
 
 Unlisted sections have no known gap. Section 6's test-only fork kit and
 its documented process boundary are present, as are the row runner's
@@ -17,10 +17,23 @@ Section 5's one-process starvation path is present: `Starved::pass` and
 and real-loop tests cover the mode and children remove both runner
 variables when checking failure. No implementation gap is known in this
 path. Section 9 leaves caller adoption and suite CPU measurement separate.
+A span counts its thread's allocations (`Span::made`, held by
+`skein/tests/heap`'s `a_span_counts_the_allocations_its_thread_made`),
+and skein-codec's patcher step tests show reuse by rooms and by none
+counted around each reused pass, never by an address.
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
+  5: two step tests show a table kept by its address, not by the span's
+  count, and their binaries declare no counting allocator: skein-lib's
+  `removing_a_list_item_moves_the_last_and_keeps_capacity`, a list
+  refilled within its room (`skein/crates/skein-lib/src/tests/containers.rs`),
+  and skein-ui's `spare_node_storage_is_reused_and_replaced_bytes_are_recounted`,
+  a tree's nodes reused by `Builder::reuse`
+  (`skein/crates/skein-ui/src/tests/tree.rs`). No growth falls between
+  their reads, so what ran before cannot turn them red, but a table
+  replaced at its size, in a freed block handed back, would pass them.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: the focused cost repairs' at-least-6 CPU s saving is unproved.
