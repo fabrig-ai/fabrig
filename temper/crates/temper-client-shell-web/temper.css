@@ -2578,6 +2578,24 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 }
 
 /* ==== ui: settings ==== */
+.temper-remembered-rows { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
+.temper-remembered-rows > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 6px 16px; padding: 14px 4px; border-bottom: 1px solid var(--gf-line); }
+.temper-remembered-rows > div > div:first-child { min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
+.temper-remembered-rows .temper-settings-detail { display: block; margin-top: 2px; font-size: 13.5px; color: var(--gf-muted); }
+.temper-remembered-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.temper-settings .temper-remembered-acts > .temper-settings-btn { border-color: transparent; background: none; color: var(--gf-muted); }
+.temper-settings .temper-remembered-acts > .temper-settings-btn:hover { background: var(--gf-hover); color: var(--gf-ink); }
+.temper-settings-sign-out .temper-settings-end { align-items: center; flex-wrap: wrap; gap: 12px; }
+.temper-remembered-rows form { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 10px; }
+.temper-remembered-rows > div > .temper-settings-refusal { grid-column: 1 / -1; margin: 4px 0 0; }
+@media (max-width: 760px) {
+  .temper-remembered-rows > div { grid-template-columns: minmax(0, 1fr); }
+  .temper-settings .temper-remembered-acts .temper-settings-btn,
+  .temper-settings .temper-remembered-rows .temper-settings-text { min-height: 44px; }
+  .temper-settings-sign-out .temper-settings-end > a { display: inline-flex; align-items: center; min-height: 44px; }
+  .temper-settings-sign-out .temper-settings-end { flex-wrap: wrap; }
+}
+
 #app > .temper-settings .temper-models-add { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 #app > .temper-settings .temper-models-add > input { flex: 1 1 200px; min-width: 0; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }
 #app > .temper-settings .temper-models-add > select { padding: 6px 8px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }

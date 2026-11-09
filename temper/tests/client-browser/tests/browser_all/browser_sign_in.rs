@@ -46,6 +46,7 @@ fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() 
         Step::Address(FIRST_CHAT_ADDRESS.into()),
         press(row()),
         see(item(b"Accounts")),
+        see(item(b"What temper remembers about you")),
         see(item(b"Sign out")),
         Step::Key(Key::Escape),
         gone(item(b"Sign out")),

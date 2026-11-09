@@ -1442,6 +1442,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-needs-bar",
         b"temper-needs-bar-at",
         b"temper-tabbar-ask",
+        b"temper-remembered-rows",
+        b"temper-remembered-acts",
     ],
     regions: &[b"temper-link"],
 };
@@ -1504,6 +1506,10 @@ pub const SETTINGS_PROPOSAL_OK: Style = Style { owner: owner(), token: 330 };
 pub const SETTINGS_PROPOSAL_ITEMS: Style = Style { owner: owner(), token: 331 };
 pub const SETTINGS_PROPOSAL_REASON: Style = Style { owner: owner(), token: 332 };
 pub const SETTINGS_PROPOSAL_ACTS: Style = Style { owner: owner(), token: 333 };
+/// Remembered rows (temper/docs/design/client/README.md, 5.17).
+pub const REMEMBERED_ROWS: Style = Style { owner: owner(), token: 724 };
+/// Remembered row actions (temper/docs/design/client/README.md, 5.17).
+pub const REMEMBERED_ACTS: Style = Style { owner: owner(), token: 725 };
 /// Settings frame and rows (temper/docs/design/client/README.md, 3.5, Settings).
 pub const SETTINGS_COL: Style = Style { owner: owner(), token: 334 };
 pub const SETTINGS_INTRO: Style = Style { owner: owner(), token: 335 };
