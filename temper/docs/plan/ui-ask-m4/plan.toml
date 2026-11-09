@@ -63,3 +63,23 @@ id = 2
 story = "The root keeps, changes and drops a line through jig's named actions, see withholds a marked turn, and the person's page reads and edits their list"
 parts = ["core", "route", "page"]
 walk = false
+
+[[part]]
+id = "party"
+title = "jig's core admits a party's scope: runs write it, its person reads and keeps it, the brief carries it whole, other parties read it withheld"
+mode = "direct"
+needs = ["core"]
+design = "jig/docs/design/domain/engine.md, 10.1"
+
+[[part]]
+id = "stories"
+title = "A line kept in one Ask temper chat is in the next one's brief, removed from the page, read by nobody else, and withheld from another role"
+mode = "direct"
+needs = ["party", "route", "remember", "page"]
+design = "temper/docs/design/domain/agent.md, 8.4.4"
+
+[[slice]]
+id = 3
+story = "A note remembered, read back in a later chat and removed from the page; party scope, so nobody reads another's notes; a turn's preferences hidden from another role"
+parts = ["party", "stories"]
+walk = false
