@@ -169,6 +169,7 @@ fn handover_reads_its_path_and_bounds_the_file_before_reading() {
 }
 
 #[test]
+#[expect(clippy::result_large_err, reason = "the replay wrapper preserves the complete mismatch diagnostic")]
 fn story_a_start_makes_its_project_and_adopts_widget() {
     // The native page's inputs through Try the playground, before its reply.
     let mut log = skein_ui_web::log::read(include_bytes!("../../../../tests/playground/tests/fixtures/story-a.log"))

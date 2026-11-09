@@ -29,6 +29,7 @@ pub enum Replayed {
 /// factory parameters installed; the forge referee judges its end. The log's digests check the
 /// visitor's answers; the terminal person's reply count and kept links are outside this replay.
 #[must_use]
+#[expect(clippy::result_large_err, reason = "the replay wrapper preserves the complete mismatch diagnostic")]
 pub fn replay(story: &stories::Story, log: &[u8]) -> Replayed {
     let read = match skein_ui_web::log::read(log) {
         Ok(read) => read,
