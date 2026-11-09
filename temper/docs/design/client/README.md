@@ -7691,13 +7691,13 @@ it (6.14). `temper open` stays the tests' line client
 
   | Event | Does |
   |---|---|
-  | `Typed { value }` | signing in: the link's field, as before; on the launchpad with a project `Act::ChatWords { words }`, with no project the TUI's command composer, on a chat `Act::MessageWords { words }` |
+  | `Typed { value }` | signing in: the link's field, as before; on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project the TUI's command composer, on a chat `Act::MessageWords { words }` |
   | `SignIn` | signing in's Enter, as before |
   | `Send` | the box's Enter (6.14, *The box*): words that begin a command the TUI offers press it, as `Command`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's note; the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
   | `Command { command }` | `Exit` closes (6.16); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
   | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (6.14) |
   | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (6.14) |
-  | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)` |
+  | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)`, clearing the left-off selection too |
   | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (6.14, *Where you left off*) |
   | `Own { command }` | one of the TUI's own commands pressed or sent alone (6.14, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened; `n` on the launchpad's empty box makes `Own { command: Needs }` |
   | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (6.14) |
@@ -8017,8 +8017,10 @@ words, parts and order bind and whose figures don't), illustrative:
     a chat chosen from `/chats` is (6.13). With the goal selected, Enter
     opens the goal's page on the web, as `/open` does.
   - *Cleared:* Esc, while a chat is selected and no list stands, makes
-    `LeftOff { task: None }`; words typed in the box and leaving the
-    launchpad clear it too.
+    `LeftOff { task: None }`; dismissing a command's list with Esc,
+    ordinary words typed in the box and leaving the launchpad clear it
+    too. While the box's words begin with "/", command composition keeps
+    the selection so `/open` can open that row's page.
 - **Needs you,** the next section, the term "Needs you" and a row a
   need, at most five, in Home's order (`Session::needs`, the inbox's
   cards then the forge's approvals, those marked later last), each as

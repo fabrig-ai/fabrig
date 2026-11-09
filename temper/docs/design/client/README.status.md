@@ -2,6 +2,11 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 6.13 and 6.14 keep the selected launchpad row while composing a
+slash command. Host tests cover typed `/open` for a chat, a goal and Home,
+its opener fallback, and selection clearing on ordinary words, Esc and
+navigation. No known gap remains in these rules.
+
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while

@@ -1265,6 +1265,135 @@ fn left_off_host() -> Host {
     home_host(false)
 }
 
+#[test]
+fn typing_open_opens_the_selected_launchpad_chat() {
+    for size in [Size { columns: 80, rows: 24 }, Size { columns: 120, rows: 40 }] {
+        for selected in [true, false] {
+            let mut host = left_off_host();
+            host.report(Report::Resize(size));
+            host.frame();
+            if selected {
+                host.report(Report::Key(Key::Up));
+                host.frame();
+                assert_eq!(host.state().left_off(), Some(NEWEST));
+            }
+            let address = if selected {
+                b"http://127.0.0.1:8367/chats/9".as_slice()
+            } else {
+                b"http://127.0.0.1:8367/projects/3".as_slice()
+            };
+            check_typed_open(&mut host, size, address);
+        }
+    }
+}
+
+fn goal_me() -> w::Me {
+    let mut me = launchpad_me(true).into_parts();
+    let mut reader = Reader::new(&me.projects);
+    let project = skein_codec::piece::split(&mut reader).expect("project piece").expect("project");
+    let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&project)).expect("project").into_parts();
+    let mut reader = Reader::new(&project.templates);
+    let template = skein_codec::piece::split(&mut reader).expect("template piece").expect("template");
+    let mut template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&template)).expect("template").into_parts();
+    template.number = jig_client::shapes::GOAL;
+    template.label = 10;
+    let template = w::Template::new(&w::CEILINGS, template).expect("goal template");
+    let mut writer = Writer::new(usize::try_from(template.measure()).expect("template size"));
+    template.encode(&mut writer).expect("template fits");
+    project.templates = [project.templates.as_ref(), pieces(&[writer.finish()]).as_ref()].concat().into();
+    me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, project).expect("goal project"))]);
+    w::Me::new(&w::CEILINGS, me).expect("Me")
+}
+
+fn goal_tasks() -> w::Tasks {
+    let mut row = records::task_line_record().into_parts();
+    row.chip = chat_chip(NEWEST, b"Goal");
+    row.project = 3;
+    row.label = 10;
+    row.requester = w::Requester::Person(
+        w::RequesterPerson::new(&w::CEILINGS, w::RequesterPersonParts { value: 7 }).expect("person"),
+    );
+    let row = w::TaskLine::new(&w::CEILINGS, row).expect("goal row");
+    let mut writer = Writer::new(usize::try_from(row.measure()).expect("goal size"));
+    row.encode(&mut writer).expect("goal fits");
+    w::Tasks::new(&w::CEILINGS, w::TasksParts { rows: pieces(&[writer.finish()]), more: false }).expect("goal")
+}
+
+fn goal_host() -> Host {
+    let (mut host, me_watch, _) = signed_host(true);
+    let duties = delivery(&mut host, me_watch, &w::DeliveryValue::Me(goal_me()));
+    let mut duties = admit(&mut host, duties);
+    let tasks = goal_tasks();
+    for _ in 0..host.env.limits.client.domain.watches {
+        let subjects: Vec<_> = duties
+            .asked
+            .iter()
+            .filter_map(|request| {
+                let Request::Exchange { message: Message::Watch(bytes), .. } = request else { return None };
+                let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("watch");
+                if open.subject().owner() != &w::Owner::Jig {
+                    return None;
+                }
+                let subject =
+                    w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+                matches!(&subject, w::Subject::Tasks(tasks) if *tasks.query().label() == Some(10)).then_some(subject)
+            })
+            .collect();
+        for subject in subjects {
+            let watched = watch(&duties, &subject);
+            let arrived = delivery(&mut host, watched, &w::DeliveryValue::Tasks(tasks.clone()));
+            duties.asked.extend(admit(&mut host, arrived).asked);
+        }
+        if host.root.pages().goals().is_some_and(|goals| goals.live(host.root.client()).is_some()) {
+            break;
+        }
+        let due = root::next_deadline(&host.root).expect("goal watch retry");
+        host.clocks(due, Wall::EPOCH);
+        let again = host.report(Report::Due);
+        duties.asked.extend(admit(&mut host, again).asked);
+    }
+    host.frame();
+    host
+}
+
+#[test]
+fn typing_open_opens_the_selected_launchpad_goal() {
+    for size in [Size { columns: 80, rows: 24 }, Size { columns: 120, rows: 40 }] {
+        let mut host = goal_host();
+        host.report(Report::Resize(size));
+        host.frame();
+        host.report(Report::Key(Key::Up));
+        host.frame();
+        assert_eq!(host.state().left_off(), Some(NEWEST));
+        check_typed_open(&mut host, size, b"http://127.0.0.1:8367/tasks/9");
+    }
+}
+
+fn check_typed_open(host: &mut Host, size: Size, address: &[u8]) {
+    key_words(host, "/open");
+    let duties = host.report(Report::Key(Key::Enter));
+    assert_eq!(duties.open.as_deref(), Some(address), "{size:?}: focused page");
+    host.report(Report::Opened { opened: false });
+    assert_eq!(host.state().not_opened(), Some(address));
+    let address = core::str::from_utf8(address).expect("ordinary address");
+    assert!(text(host).contains(&format!("Open {address} in your browser.")));
+}
+
+#[test]
+fn launchpad_selection_clears_after_command_composition() {
+    for (words, key) in [("", Key::Char('a')), ("/", Key::Escape), ("/open", Key::Escape), ("/new", Key::Enter)] {
+        let mut host = left_off_host();
+        host.frame();
+        host.report(Report::Key(Key::Up));
+        host.frame();
+        key_words(&mut host, words);
+        assert_eq!(host.state().left_off(), Some(NEWEST), "{words}: composing");
+        host.report(Report::Key(key));
+        host.frame();
+        assert_eq!(host.state().left_off(), None, "{words}: cleared");
+    }
+}
+
 fn person_chat(host: &mut Host) {
     let duties = give(host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
     let task_watch = watch(
@@ -1935,7 +2064,7 @@ fn each_event_becomes_its_acts() {
                     host.frame();
                     let event = host.event_of(&Key::Down);
                     host.report(Report::Key(Key::Down));
-                    host.state().left_off().is_none()
+                    host.state().left_off() == Some(NEWEST)
                         && event.is_none()
                         && text(&mut host).lines().any(|line| line.starts_with("❯ /ask"))
                 }
