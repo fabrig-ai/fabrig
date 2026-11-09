@@ -118,7 +118,6 @@ pub(super) fn parse(line: &[u8]) -> Address {
             | crate::route::see::Address::Change { .. }
             | crate::route::see::Address::Changes
             | crate::route::see::Address::Inbox
-            | crate::route::see::Address::NotYet
             | crate::route::see::Address::Unknown => Address::Unknown,
         },
         _ => Address::Unknown,

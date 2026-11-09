@@ -1332,10 +1332,7 @@ fn an_asking_chat_reads_each_address() {
             "landing-rule:",
             false,
         ),
-        ("me", "see me: not there yet.", "not there yet.", true),
         ("ways", "You approve", "You may change this project's settings.", false),
-        ("task 4 tree", "see task 4 tree: not there yet.", "not there yet.", true),
-        ("goals ended", "see goals ended: not there yet.", "not there yet.", true),
         ("bogus", "see: no address bogus; addresses:", temper_engine_smith::ADDRESSES, true),
         (
             "settings charter 99",

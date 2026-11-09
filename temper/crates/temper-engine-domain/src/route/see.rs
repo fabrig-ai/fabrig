@@ -1,5 +1,6 @@
 //! `see`: Ask temper's read by address (temper/docs/design/domain/agent.md, 8.4.1).
 pub(super) mod forge;
+pub(crate) mod person;
 pub(super) mod proposal;
 
 use super::host_route::{FlightRender, ForgePerson, OfferedModel, ProjectPerson, RepositoryIdentity};
@@ -162,6 +163,7 @@ pub(crate) enum SeeReading {
     Head,
     File,
     Proposal,
+    Person(Box<person::Gathered>),
 }
 
 /// One address, as its line parses in the chat's project (agent.md, 8.4.1).
@@ -171,55 +173,24 @@ pub(crate) enum Address {
     Inventory,
     Setting(Setting),
     Landing,
-    Gates {
-        repository: Box<[u8]>,
-    },
+    Gates { repository: Box<[u8]> },
     Revisions,
-    Revision {
-        number: u32,
-    },
-    Proposal {
-        proposer: jig_domain_people::Proposer,
-        number: u64,
-    },
-    Page {
-        name: Box<[u8]>,
-    },
-    Search {
-        words: Box<[u8]>,
-    },
-    File {
-        repository: Box<[u8]>,
-        path: Box<[u8]>,
-        branch: Option<Box<[u8]>>,
-    },
+    Revision { number: u32 },
+    Proposal { proposer: jig_domain_people::Proposer, number: u64 },
+    Page { name: Box<[u8]> },
+    Search { words: Box<[u8]> },
+    File { repository: Box<[u8]>, path: Box<[u8]>, branch: Option<Box<[u8]>> },
     Me,
     Project,
-    Goals {
-        ended: bool,
-    },
+    Goals { ended: bool },
     Tasks,
-    Task {
-        number: u64,
-    },
-    Tree {
-        number: u64,
-    },
-    Activity {
-        number: u64,
-    },
-    Turn {
-        number: u64,
-        attempt: u64,
-        turn: u32,
-    },
-    Change {
-        number: u64,
-    },
+    Task { number: u64 },
+    Tree { number: u64 },
+    Activity { number: u64 },
+    Turn { number: u64, attempt: u64, turn: u32 },
+    Change { number: u64 },
     Changes,
     Inbox,
-    #[expect(dead_code, reason = "the surface contract retains NotYet until see-route removes it")]
-    NotYet,
     Unknown,
 }
 
@@ -465,7 +436,7 @@ pub(crate) fn call(
             deliver(env, decision, to, line, from, SeeAnswer::Search { words });
             return;
         }
-        Address::Me
+        address @ (Address::Me
         | Address::Project
         | Address::Goals { .. }
         | Address::Tasks
@@ -475,9 +446,8 @@ pub(crate) fn call(
         | Address::Turn { .. }
         | Address::Change { .. }
         | Address::Changes
-        | Address::Inbox
-        | Address::NotYet => {
-            deliver(env, decision, to, line, from, SeeAnswer::NotYet);
+        | Address::Inbox) => {
+            person::read(domain, env, decision, to, key, line, from, address);
             return;
         }
         Address::Unknown => {

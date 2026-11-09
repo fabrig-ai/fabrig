@@ -473,7 +473,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
     }
     if let FlightRender::Settings { see: Some(see), from, .. } = &flight.render {
         match see.reading {
-            super::see::SeeReading::Settings | super::see::SeeReading::Proposal => {
+            super::see::SeeReading::Settings | super::see::SeeReading::Proposal | super::see::SeeReading::Person(_) => {
                 emit(
                     decision,
                     limits,
