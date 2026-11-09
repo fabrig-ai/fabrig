@@ -76,7 +76,7 @@ fn card() -> w::Card {
     let mut facts = List::with_capacity(3);
     for (label, value) in [
         ("Model", "Opus · high"),
-        ("Can", "read the code and the forge; change and push its branch; run commands; never merge or update"),
+        ("Can", "read the code and the forge; change and push its branch; run commands; never merge"),
         ("Asked to", "“Make the change on its branch and report what changed and what was checked.”"),
     ] {
         facts
@@ -103,7 +103,7 @@ fn card() -> w::Card {
 fn path(review: bool) -> w::BranchPath {
     use w::{
         Actor::{Agent, Bar, Code, Person},
-        PathStep::{Approve, Ask, Branch, Check, Merge, Produce, Repair, Resolve, Review, Update},
+        PathStep::{Approve, Ask, Branch, Check, Conflict, Merge, Produce, Repair, Resolve, Review},
     };
     let mut stops = List::with_capacity(10);
     for (actor, step, words) in [
@@ -117,7 +117,7 @@ fn path(review: bool) -> w::BranchPath {
         ),
         (Agent, Repair, "repair"),
         (Code, Check, "check"),
-        (Code, Update, "update"),
+        (Code, Conflict, "conflict"),
         (Agent, Resolve, "resolve"),
         (Code, Merge, "merge"),
         (Bar, Branch, "main"),
@@ -127,6 +127,8 @@ fn path(review: bool) -> w::BranchPath {
                 w::Stop::new(
                     &w::CEILINGS,
                     w::StopParts {
+                        needed: false,
+                        over: Box::default(),
                         actor,
                         step,
                         words: words.as_bytes().into(),

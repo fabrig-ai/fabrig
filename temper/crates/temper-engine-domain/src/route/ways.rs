@@ -87,15 +87,32 @@ pub(crate) fn inputs(
         producer: charters.change,
         reviewer: charters.review,
         by: domain.forge.landing_way(project),
+        merge_job: domain.forge.merge_job(project).is_some(),
         roles: ordered.into_boxed(),
         agents: agents.into_boxed(),
     }
 }
 
 fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Repository, other: bool) -> ways::Repository {
+    let mut workflows = List::uncapped();
+    let checks = domain.forge.repository_gates(project, repository.provider);
+    for workflow in &repository.workflows {
+        let mut dispatched = false;
+        if let Some(checks) = checks {
+            for gate in &checks.gates {
+                dispatched |= workflow == &gate.workflow;
+            }
+            for tier in &checks.tiers {
+                dispatched |= workflow == &tier.workflow;
+            }
+        }
+        if !dispatched {
+            workflows.push(workflow.clone()).expect("repository workflows");
+        }
+    }
     let mut gates = List::uncapped();
     let mut tiers = List::uncapped();
-    if let Some(checks) = domain.forge.repository_gates(project, repository.provider) {
+    if let Some(checks) = checks {
         for gate in &checks.gates {
             gates.push(gate.name.clone()).expect("configured test gates");
         }
@@ -118,6 +135,7 @@ fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Reposito
             forge::Protection::Rule(rule) => rule.contexts.clone(),
             forge::Protection::Unknown | forge::Protection::Absent => Box::default(),
         },
+        workflows: workflows.into_boxed(),
         gates: gates.into_boxed(),
         tiers: tiers.into_boxed(),
     }

@@ -38,7 +38,7 @@ No earlier story split the binaries. What exists already:
   - **`temper-worker`:** a worker, with `program-login`;
   - **`temper-agent`:** smith's agent, one process per run, with its helper modes, the fetched Claude Code launcher among them.
 - **What the deployer brings:** Forgejo and its runner, the programs runs call, the proxy and the service units. Also the configuration documents, written by hand as the server's help says, since a cluster's `init` isn't designed yet (section 3).
-- **The name clash is the user's to settle:** `temper` would mean the whole product in the box set and the client in the deployment set. There are four options, and the client's file waits for the choice (section 5).
+- **The name clash is settled:** B, the whole product as `temper-box` and the client as `temper` (section 5; `cli.md`, section 5).
 - **`v{MAJOR}`** is the workspace version's major, `v0` now. Before the first release, versions don't move, so binaries of different commits aren't refused. The four of one commit are the deployer's to run together (section 6).
 - **macOS gets the client alone,** for a person on a Mac working with a deployment on Linux (section 7).
 - **The site's release job builds them,** when a release build is asked for, as it builds the box binary. Development and CI stay as they are, and a build that breaks is caught at that build (section 8).
@@ -48,8 +48,8 @@ No earlier story split the binaries. What exists already:
 | | The box | The deployment |
 |---|---|---|
 | For | a person trying temper on their own machine | an engine, its workers and their agents, on hosts a deployer runs |
-| Binaries | one, the whole product | four, one per process (section 4) |
-| Where | `fabrig.ai/temper/<os>-<arch>` | `fabrig.ai/temper/v{MAJOR}/<COMMIT>/<os>-<arch>/<name>`, and `fabrig.ai/temper/v{MAJOR}/<os>-<arch>/<name>` for the latest |
+| Binaries | `temper`, the client, which fetches `temper-box`, the whole product, at its first `temper box` (`cli.md`, section 5) | four, one per process (section 4) |
+| Where | `fabrig.ai/temper/<os>-<arch>` for `temper`, and `temper-box` in each commit's directory of the deployment set | `fabrig.ai/temper/v{MAJOR}/<COMMIT>/<os>-<arch>/<name>`, and `fabrig.ai/temper/v{MAJOR}/<os>-<arch>/<name>` for the latest |
 | Prepared | stripped, then gzipped | gzipped, not stripped, so a crash names its frames |
 | Built from | main's latest, for now | one commit for the four |
 | Beside them | as the site serves it | `SHA256SUMS`, one line per served file, and `examples.tar.gz`, the commit's `temper/docs/examples/`, in each commit's directory |
@@ -115,7 +115,7 @@ The four cover the processes. These commands of today's binary needed a home, an
 
 ## 5. The names
 
-Today the box's file is saved and run as `temper`, and the site's first step is `./temper box`. The user named the deployment's client `temper` too. This is the user's to settle (`deployment-binaries.status.md`, Open). The options:
+Today the box's file is saved and run as `temper`, and the site's first step is `./temper box`. The user named the deployment's client `temper` too. The user settled it on 2026-11-08 with B (`cli.md`, sections 4 and 5). The options were:
 
 - **A. `temper` in both sets,** each meaning its own set's thing. The URLs keep them apart, and there's one name for a person to learn. But:
   - `temper box` fails on a deployment's `temper`, while `temper ctl` works on both, so the help and the refusals must say which set a command is in;
@@ -127,9 +127,9 @@ Today the box's file is saved and run as `temper`, and the site's first step is 
 - **D. The deployment's `temper` is the box's whole-product file.** No clash, as `temper` is one thing everywhere, and the deployment set is then the box's `temper` plus the other three. But it departs from "just the TUI": the client on a person's machine carries the engine, worker and agent's code, at about the box's size.
 
 Whichever is chosen:
-- under A to C, the Cargo targets keep distinct names, `temper` for the box and `temper-client` for the client's target, since a workspace can't build two binaries of one name side by side; under D, the client's binary isn't built, and section 9's first item is dropped;
+- under B, chosen, the Cargo targets are `temper` for the client and `temper-box` for the box, each a package of its own (`cli.md`, 3.1);
 - the release job names the published files as the choice says;
-- until the user chooses, the deployment set publishes the engine, worker and agent, and holds the client. The box's `temper` serves as a deployment's client meanwhile, as it has the TUI and `ctl`.
+- with B chosen, the client's file is published as `temper`, and `temper-box` joins each commit's directory, which `temper box` downloads from (`cli.md`, section 5).
 
 ## 6. Versions
 
@@ -146,7 +146,7 @@ macOS is a person's own machine, and deployments stay Linux's (`macos.md`: "Linu
 
 The site's release job builds the box binary today, when a release build is asked for. It builds Linux on a Linux build machine, and macOS through the repository's dispatch-only workflow. It builds the deployment set in the same run:
 
-- **Linux, one cargo invocation per binary:** `cargo build --release --locked` with that binary's package and `--bin`, at the run's commit, in the root of `../release.md`'s glibc floor, with its symbol check (sections 2 and 5). Only the engine's build embeds the bundle. Separate invocations keep one binary's features from reaching another's, as section 4's rule needs.
+- **Linux, one cargo invocation per binary:** `cargo build --release --locked` with that binary's package and `--bin`, at the run's commit, in the root of `../release.md`'s glibc floor, with its symbol check (sections 2 and 5). Only the engine's build embeds the bundle. Separate invocations kept one binary's features from reaching another's, as section 4's rule needs; once `cli.md`'s section 6 has taken the features out, they're kept for the release job's builds alone.
 - **macOS:** the existing workflow (`.github/workflows/release-macos.yml`) also builds the client's target and uploads it as a second artifact. It's dispatched at a ref pinned to the run's commit, and its commit is checked against the run's before publishing.
 - **Prepared and published:**
   - each file checked: it runs `--version` and prints the run's commit;
@@ -164,7 +164,7 @@ The site's release job builds the box binary today, when a release build is aske
 For the plans, each in its area (`deployment-binaries.execution.md`):
 
 1. **The client:**
-   - a package of its own, `temper-client`, with a `temper-client` binary target holding the TUI's start and `ctl`'s entry, and their help;
+   - a package of its own, `temper-client`, with a `temper-client` binary target holding the TUI's start and `ctl`'s entry, and their help, which `cli.md` renames `temper` and moves to `temper/bin/temper/`;
    - the TUI's address and link-file helpers move out of the `temper` library into a client crate;
    - its records without the `forge` feature, which its own invocation keeps (section 8);
    - `--version`.
@@ -197,7 +197,7 @@ Plans use the focused and fuzzy suites alone.
   - the engine and the worker each refuse the other's document, naming the right binary.
 - **The cluster on separate binaries:**
   - The process tier's cluster story (`../protocol/README.md`, 15.6) gets a sibling that starts `temper-engine`, two `temper-worker`s and `temper-agent`, in place of `temper serve` and `temper internal agent`, and runs a task on each worker.
-  - Another story signs `temper ctl` from `temper-client` in to a `temper-engine` and reads `me`.
+  - Another story signs `temper ctl` from the client, `temper` (`cli.md`, section 4), in to a `temper-engine` and reads `me`.
   - Both are written and compiled in their plans, and run after landing.
 - **The release:** after landing, a one-off release build publishes both sets. A fresh Linux machine then runs an engine, a worker and its agent from one commit's directory, by the help alone. That's a walk, after landing.
 

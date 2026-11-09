@@ -2862,6 +2862,7 @@ dependencies = [
 name = "skein-codec"
 version = "0.0.0"
 dependencies = [
+ "skein-heap",
  "skein-lib",
  "skein-rows",
 ]

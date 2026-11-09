@@ -1,32 +1,29 @@
-# ui-p2-home: Home and Needs you across projects, and the brief
+# look-round-25: How work runs as the final mockup, and the ways page's last misses
 
-Milestone P2 of `temper/docs/design/draft/whole-story.execution.md`: `temper/docs/design/draft/surfaces.md`, sections 3 and 4. The user's go of 2026-11-08, about 16:25Z: move as fast as possible on the code-producing side. Its look is the mockups on main, `temper/docs/design/client/web/whole-story/` (`home.html`, `needs.html`, `phone-home.html`, `phone-need.html`, and their `README.md` for precedence over the greenfield mock). Nothing in the drafts is reopened. The brief is this milestone's, across projects; the standing roles' Nows reach it later, by R3, and change nothing of it.
+A look plan following P3a (`ui-p3a-how`, landed 2026-11-08 19:29Z). P3a was cut before the mockups' last changes landed: `370f1be9ab`, then the audit's `d8f321422b`. So it draws an earlier `how.html`. This plan brings How work runs and the ways page to the mockups on main, `temper/docs/design/client/web/whole-story/how.html` with its `README.md`, and to `temper/docs/design/draft/stock-ways.md` 4 and `surfaces.md` 7 as amended there. The rule of every whole-story milestone holds (`whole-story.execution.md`, section 2): draw what the engine holds, and nothing a later milestone adds. Follow `temper/docs/design/draft/look-requests.md`, sections 3 and 5.
 
-## What it executes
+## Tasks
 
-As the execution's P1 to P6 entry says:
-- **The design first:** `client/README.md`'s Home and Needs you, `client/browser.md` where the browser differs, and the greenfield mock's README for what it now defers to.
-- **Then the build:** Home and Needs you as the mockups draw them, reading every project the person is in, and the brief across projects. What a read lacks is named in the page's lag.
+1. **The path as amended:**
+   - who acts by mark: a person's ring orange, an agent's star ink, code grey, and no blue;
+   - "update" folds into the cards, with no stop of its own;
+   - "conflict" and "resolve" are where a goal's landing meets main in the queue, and "catch up" is where a goal's branch takes main, with a repair and a conflict told apart;
+   - vsr's path drawn as `how.html` has it.
 
-The rail and Work are P1's, which follows `red-78`. Draw Home and Needs you within today's rail, and leave the rail to P1.
+   The one engine-side derivation changes, and every client draws what it gives.
+2. **Roles on How work runs** (`surfaces.md` 7): every agent the project runs, the foreman and the status agent among them. Each one's "can" line: "never merge or update" becomes "never merge". "Finish alone" is reworded for Ask temper and the status agent. The status agent's line reads "When you look at Home after landings", as `status.rs` does.
+3. **The ways page's last misses,** from its render check after `look-round-24`:
+   - two small card positions, at 1000 and on a phone;
+   - the CI card naming the repository's CI workflows;
+   - the line painted as the request's continuous gradient;
+   - with a fourth "Yours" tab, the tabs fitting under 760 px, as "Agents review" doesn't fit a quarter of a phone today.
 
-## Its tests
-
-Focused and fuzzy only, as the execution's entry says:
-- the gallery's states for each page at a laptop's and a phone's width, day and night;
-- the client's joint world for each page across two projects;
-- a fuzz test of each page's parts against `surfaces.md` section 12's rules, across random settings and their moves.
-
-Journeys the change makes stale are regenerated with `temper-client-journeys again`, as generation. New journeys and the walk come after landing.
-
-## Who hears first
-
-`plan.md` names every change to `temper-client-domain` for the TUI's owner, whose T1 reads Home's brief as this milestone gives it. It names every change to `temper-engine-domain` and `forge_route.rs` for the owner of coding runs.
+A browser case is a row of an existing table test, within the cap of 12. The gallery's prints are regenerated as the common notes say. Words saved with a setting (P3e) and a goal's "design" and "close-out" stops (P3f) are milestones of their own, not this plan's.
 
 ## Sources
 
+- `temper/docs/design/draft/stock-ways.md`
 - `temper/docs/design/draft/surfaces.md`
-- `temper/docs/design/draft/whole-story.execution.md`
 - `temper/docs/design/client/web/whole-story/README.md`
 
 

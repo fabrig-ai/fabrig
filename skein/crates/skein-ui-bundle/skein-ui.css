@@ -23,8 +23,12 @@
 }
 
 [data-drawn] > svg :is(g, line, polyline, path, rect, circle, text) {
-  stroke: currentColor;
   fill: none;
+}
+
+/* A faded mark's stroke is its fade's (ui-web, 8); :where keeps the default's weight. */
+[data-drawn] > svg :is(g, line, polyline, path, rect, circle, text):where(:not([data-fade])) {
+  stroke: currentColor;
 }
 
 /* A scene that says its height sits in its figure's flow (ui-web, 8). */
