@@ -138,6 +138,40 @@ pub fn down(
         values: filled,
     })
 }
+/// A job's assignment and its forge workspace as the worker link carries them
+/// (temper/docs/design/domain/worker.md, 4.4).
+#[must_use]
+pub fn job_down(
+    job: host::JobAssignment,
+    workspace: Option<&root::ForgeWorkspace>,
+    forges: &crate::forges::Forges,
+    encoding: &Encoding,
+    values: &crate::values::Values,
+    channel: Token,
+    now: Time,
+) -> Option<kit::Event> {
+    let items = match workspace {
+        Some(workspace) => {
+            crate::translate::workspace_items(workspace, false, forges, &values.tokens, &encoding.limits).ok()?
+        }
+        None => None,
+    };
+    let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
+        Some(items) => Box::new([jig_protocol_worker_wire::Part {
+            token: job.workspace.as_ref()?.items,
+            bytes: temper_protocol_worker_wire::items(&items),
+        }]),
+        None => Box::new([]),
+    };
+    let values = values.grants(&job.grants, now);
+    Some(jig_protocol_engine_workers::Event::Down {
+        channel,
+        down: jig_domain_host::LinkDown::AssignJob { job },
+        parts,
+        values,
+    })
+}
+
 // The wire's section framing is two u32 lengths; a decoded Section owns two
 // boxes, so its array cell covers that framing even when sections are omitted.
 fn fitted_charter(mut charter: smith_domain_run::Charter, encoding: &Encoding) -> Option<Box<[u8]>> {

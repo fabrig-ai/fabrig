@@ -506,31 +506,15 @@ pub(crate) fn job_assignment(
     job: jig_domain_host::JobAssignment,
     workspace: Option<&root::ForgeWorkspace>,
 ) -> Option<jig_protocol_engine_workers::Event> {
-    let items = match workspace {
-        Some(workspace) => crate::translate::workspace_items(
-            workspace,
-            false,
-            &engine.workers.forges,
-            &engine.values.tokens,
-            &engine.workers.encoding.limits,
-        )
-        .ok()?,
-        None => None,
-    };
-    let parts: Box<[jig_protocol_worker_wire::Part]> = match items {
-        Some(items) => Box::new([jig_protocol_worker_wire::Part {
-            token: job.workspace.as_ref()?.items,
-            bytes: temper_protocol_worker_wire::items(&items),
-        }]),
-        None => Box::new([]),
-    };
-    let values = engine.values.grants(&job.grants, engine.env.now);
-    Some(jig_protocol_engine_workers::Event::Down {
+    crate::assignment::job_down(
+        job,
+        workspace,
+        &engine.workers.forges,
+        &engine.workers.encoding,
+        &engine.values,
         channel,
-        down: jig_domain_host::LinkDown::AssignJob { job },
-        parts,
-        values,
-    })
+        engine.env.now,
+    )
 }
 
 /// Build the channel event and note from the same words (protocol/README.md, 15.3).

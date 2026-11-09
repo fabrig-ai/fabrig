@@ -119,7 +119,7 @@ impl Fill {
                             conflicts: conflicts.iter().map(|row| skein_lib::len_u64(row.files.len())).sum(),
                         },
                         Prepared::Refused { refusal } => Preparation::Refused { refusal },
-                        Prepared::Failed { failure } => Preparation::Failed { failure },
+                        Prepared::Failed { failure, .. } => Preparation::Failed { failure },
                         Prepared::Aborted => Preparation::Aborted,
                     },
                 },

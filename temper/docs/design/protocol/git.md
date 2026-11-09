@@ -338,8 +338,16 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
   base its branch contains (section 4.9).
 - **Exit 1, and a list that is not empty:** `Conflicted { files }`, the
   unmerged paths, NUL-separated, relative to the repository's top, in
-  git's order. More than the checkout's `conflicts`, or one longer than
-  its `path_bytes`, is `Broken`.
+  git's order. One longer than its `path_bytes` among those kept is
+  `Broken`.
+- **More than the checkout's `conflicts`** is still `Conflicted`, with
+  the first `conflicts` paths. A listing past `stdout_bytes` is read as
+  far as it was kept, and a last path that was cut is dropped; section
+  8's rule for `stdout_bytes` keeps room for `conflicts` whole paths. The
+  merge's state stays on disk whole, every file marked in the tree and
+  unmerged in the index, whatever their count (2026-11-09). This listing
+  alone reads a kept prefix: every other invocation's stdout past its
+  bound is `Broken`, as section 6 says.
 - **Exit 1 with an empty list,** as for a commit git cannot merge, or any
   other exit: `Broken`.
 - **`diff-files`,** the plumbing command, lists the index's unmerged
@@ -531,7 +539,8 @@ variable of the worker's own process reaches git.
 - **stdout,** up to `stdout_bytes`, which is enough for every output
   section 4 reads. Past it, the bytes are read and dropped, counted, so
   git is never blocked on its pipe, and an operation whose output passed
-  the cap ends `Broken`.
+  the cap ends `Broken`, but for a merge's listing of its unmerged
+  paths, read as far as it was kept (4.6).
 - **stderr,** its last `stderr_bytes`, with the count of bytes dropped
   before them. It is read only to classify a failure, and its last
   `PushDiagnostic::CAPACITY` bytes, with that count, are the diagnostic
@@ -717,6 +726,14 @@ checks this document's contract:
   ignores it. Default: the repository's `.gitignore` is where such a name goes.
   A hidden log in conflict in a merge stays unmerged, so `write-tree` ends
   `Broken`; no story makes one.
+- **A merge's commit past the checkout's `conflicts`** (4.7): its scan
+  must read every unmerged path, so a listing past `conflicts` or
+  `stdout_bytes` ends it `Broken`, which the domain takes as transient. A
+  merge job's command stages each file it settles, so its commit lists
+  only what it left. A resolution's agent stages nothing, so one that
+  settles more files than `conflicts` cannot deliver. Default: as it
+  stands; scanning the listing in pages, staging each page found clean
+  before listing the next, would close it.
 - **HEAD after a commit.** Default: not moved (section 4.7), keeping each
   commit to four invocations; after a delivery an agent that reads git sees
   the work since its start as uncommitted. Preparation follows each clean

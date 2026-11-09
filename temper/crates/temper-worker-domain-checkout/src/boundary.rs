@@ -161,7 +161,7 @@ pub enum Prepared {
     /// Refused at the entrance: nothing is held.
     Refused { refusal: Refusal },
     /// It failed: the hold stays, for the client to release.
-    Failed { failure: Failure },
+    Failed { failure: Failure, detail: Box<[u8]> },
     /// It was aborted: the hold stays, for the client to release.
     Aborted,
 }

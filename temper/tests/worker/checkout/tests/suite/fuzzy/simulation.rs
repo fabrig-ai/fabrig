@@ -46,8 +46,8 @@ fn random_worlds_settle_with_every_client_heard() {
             let kind = match client.prepared.as_ref().expect("every prepare ends") {
                 Prepared::Ready { .. } => "ready".to_string(),
                 Prepared::Refused { refusal } => format!("{refusal:?}"),
-                Prepared::Failed { failure: Failure::Missing { missing, .. } } => format!("missing {missing:?}"),
-                Prepared::Failed { failure } => format!("{failure:?}"),
+                Prepared::Failed { failure: Failure::Missing { missing, .. }, .. } => format!("missing {missing:?}"),
+                Prepared::Failed { failure, .. } => format!("{failure:?}"),
                 Prepared::Aborted => "aborted".to_string(),
             };
             prepares.insert(kind);

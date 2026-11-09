@@ -450,6 +450,44 @@ Before writing the request or starting the command, the job capability
 refuses a command path that is absolute or contains a `..` segment. The path
 resolves relative to the job's workspace root (2026-11-04).
 
+A merge job prepares whatever the count of the files in conflict. Past
+the checkout's `conflicts`, every file stays marked in the tree and
+unmerged in the index, and the checkout names the first `conflicts` of
+them (section 5; `../protocol/git.md`, 4.6). The command reads the
+index, never that list, and stages each file it settles, so its delivery
+lists only the files it left (2026-11-09).
+
+A job's failure is a line on the side that met it, and on the engine's
+too (2026-11-09):
+
+- **On the worker,** when its hub answers a job failed or refused, one
+  line on its stderr: `<binary> worker: run RUN attempt ATTEMPT job KIND
+  VERB failed CLASS: WHY`, or `refused REASON: WHY`. RUN and ATTEMPT are
+  the assignment's, KIND and VERB the kind's entry, CLASS the job's
+  failure as jig types it (`Unprepared(Transient)`, `Failed`,
+  `Undelivered(Failed)` and the rest; jig's `domain/hosts.md`, 6.9).
+- **The why** is what the worker saw. A preparation that failed names its
+  step (clone, fetch, the base's fetch, check out, merge) and git's
+  fault, then the end of git's error output where the operation kept it.
+  A command's failure names its exit or signal and the end of its error
+  output. A passed deadline says so. A result missing or past its bound
+  says which. A delivery not made names the push's outcome and its
+  diagnostic. A refusal names its cause. Where jig's answer carries a
+  detail (a preparation's, a command's, a start's), the why is that
+  detail, within the host's `detail_bytes`; a delivery's and a deadline's
+  answers carry none (jig's `domain/hosts.md`, 6.9), so their why is the
+  worker's line alone.
+- **On the engine,** when the hub accepts that answer, section 4.3's
+  operator line, in its form: `<binary> serve: task TASK run RUN attempt
+  ATTEMPT failed CLASS: job KIND: DETAIL`, or `refused REASON: job KIND:
+  WHY`. A job held for its failures has the way out of a run's (`temper
+  help hold`), so the engine's log names each of its failures as it does
+  a run's. An assignment the engine cannot encode, which it answers
+  itself as refused, is the engine's line alone.
+- **Each line** is written once per answer, escaped to one line, its why
+  cut to its last 4,096 bytes, as 4.3's is. The lines are operator output:
+  no fact, turn, result or hold holds them, and no LLM is shown them.
+
 ## 5. Checkouts
 
 The checkout child domain is the worker's workspace capability (jig's
@@ -512,7 +550,10 @@ runs as contained processes and whose output it parses.
   tree as the merge, with two parents, the branch's head and the base
   commit, even when the tree is unchanged from either; a file the merge
   left in conflict that still holds a conflict marker is refused at
-  push, and the run is told which. A producer's start, the one naming its
+  push, and the run is told which. More files in conflict than the
+  checkout's `conflicts` still make a merge in progress: each stays
+  marked, and the start names the first `conflicts` of them, in git's
+  order (`../protocol/git.md`, 4.6). A producer's start, the one naming its
   landing branch (`forge.md`, 8.11), first asks whether its branch already
   contains the base: if so there is nothing to merge, and it goes on as a
   start from that branch or saved work does, with no merge state and no

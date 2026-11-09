@@ -1181,3 +1181,20 @@ pub struct RunRefusalDiagnostic {
     /// The worker's typed refusal, including bounded start words for operators.
     pub reason: jig_domain_host::Refusal,
 }
+
+/// An accepted job's volatile operator evidence (temper/docs/design/domain/worker.md, 4.4).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct JobDiagnostic {
+    pub task: u64,
+    pub run: u64,
+    pub attempt: u64,
+    pub kind: u32,
+    pub ending: JobDiagnosticEnding,
+}
+
+/// Failed and refused job answers only; no result or work reaches the operator sink.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum JobDiagnosticEnding {
+    Failed { failure: jig_domain_host::JobFailure, detail: Box<[u8]> },
+    Refused(jig_domain_host::JobRefusal),
+}
