@@ -98,17 +98,27 @@ By `notes/contracts.md`, 4; each check's table holds the exact list.
 | Part | Task | Crates (files) | Needs | Minutes |
 |---|---|---|---|---|
 | `shell-table` | `table-types` | `skein-shell` (`table.rs`, `table/`, `settings.rs`, `lib.rs`); temper's five `Settings` | | 100 |
+| `shell-table` | `render-help` | `skein-shell` (`table/help.rs`) | `table-types` | 90 |
+| `shell-table` | `render-docs` | `skein-shell` (`table/reference.rs`) | `table-types` | 100 |
 | `checks` | `checks-layout` | `fabrig-boundary` (`tests/cli.rs`); the root's `syn` | | 120 |
+| `checks` | `checks-names` | `fabrig-boundary` (`tests/cli_names.rs`); `shell.status.md`'s entry 15 | `checks-layout`, `render-help`, `render-docs` | 90 |
 | `env-access` | `env-ban` | `tools/lints/clippy/`, every `clippy.toml` copy; skein's reads | | 90 |
+| `env-access` | `env-jig-hearth` | jig's and hearth's reads | `env-ban` | 70 |
+| `env-access` | `env-temper-src` | temper's crates' sources and build scripts | `env-ban`, `table-types` | 90 |
+| `env-access` | `env-temper-tests` | temper's integration tests, worlds, kits and tools | `env-ban`, `env-temper-src` | 70 |
 
-Released with the first push. Later batches: `render-help` and
-`render-docs` (`shell-table`), `checks-names` (`checks`), and
-`env-jig-hearth`, `env-temper-src`, `env-temper-tests` (`env-access`).
+The first push released `table-types`, `checks-layout` and `env-ban`;
+the second the other six. `render-help` and `render-docs` share
+`skein-shell` in one wave: each owns its own file of `table/`, adds
+methods (no export), and reads `demo.rs` without editing it.
+`env-temper-tests` follows `env-temper-src` so that each package's
+clippy is whole when it runs.
 
 ## Critical path
 
-`table-types` → `render-docs` → `checks-names`, about five hours;
-`env-ban` → `env-temper-src` beside it.
+`table-types` (100) → `render-docs` (100) → `checks-names` (90), about
+five hours; `env-ban` → `env-temper-src` → `env-temper-tests` (250)
+beside it.
 
 ## Overlaps
 
