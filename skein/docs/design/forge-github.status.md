@@ -1,6 +1,10 @@
 # forge-github: status
 
-2026-11-07. Where skein's code lags or departs from [forge-github.md](forge-github.md).
+2026-11-09. Where skein's code lags or departs from [forge-github.md](forge-github.md).
+
+- **Not yet:** 4.1: `Read::Range`; `Item`'s `since`, which the comments'
+  pages do not send; `Branches`' names bounded by `rows`
+  (`skein-forge/src/github/plans/reads.rs`).
 
 - **Not yet:** 13: no live result establishes `app-owner-id-login-type` on
   `GET /app`. The case is present in

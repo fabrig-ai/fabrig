@@ -121,7 +121,11 @@ page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
 decision. Settings-position wording and progress from the repository's
 quiet checks remain later work (`protocol/configuration.md`, 13.9 and 11;
-`domain/forge.md`, 8.4 and 20). Root forge reads have their own owner
+`domain/forge.md`, 8.4 and 20). Containment read as a count of
+commits (skein's `Read::Range`) and a branch list's refusal naming its
+bound are designed and not built (`domain/forge.md`, 5.3;
+`domain/agent.md`, 4.3); the rest of the draft `forge-reads-targeted`
+lags in the design (`draft/forge-reads-targeted.status.md`). Root forge reads have their own owner
 range, and unexpected answer kinds become refused reads with a
 `host-render` note. The owner-collision regression and rendering table
 cover the mechanism below live; the existing ChatGPT and Claude Code
