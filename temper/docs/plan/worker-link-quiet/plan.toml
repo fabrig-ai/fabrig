@@ -20,6 +20,7 @@ design = "jig/docs/design/protocol/channel.md, 9"
 
 [[part]]
 id = "worker-room"
+answer = """Increase the owned example's worker io.output so its largest Turn fits, and keep its turn contract. Size it from the turn the example admits, with no more headroom than the stock profiles keep. temper/docs/examples/owned.json is authorized for that one figure, plus whatever line the example's own check needs to say so. Change no other figure. (temper/migration, 2026-11-09)"""
 title = "The worker's link is made only when every frame it sends fits its stream's room"
 mode = "direct"
 needs = []
