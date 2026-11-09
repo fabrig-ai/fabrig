@@ -19,9 +19,20 @@ test `the_foreground_is_refused_off_a_terminal` a pipe refused with the
 signal mask restored. The macOS build and runtime gaps in section 9
 below remain; the Linux tests do not prove the Darwin arms.
 
+Sections 6.5 and 15 have no known gap but the two departures below: a
+setting's set, declared twin and notes and a group's line
+(`settings.rs`), the table's types (`table.rs`), its help, command page
+and version line (`table/help.rs`) and its reference documents
+(`table/reference.rs`), each held by its unit tests on `table/demo.rs`'s
+tables, and `tests/boundary/tests/cli_names.rs`'s
+`rendered_documents_read_back` reads the environment documents as check 5
+does. No binary has a table yet: temper's are the milestones C2 to C8 of
+`temper/docs/design/draft/cli.execution.md`.
+
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
-  startup. 6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
+  startup.
+  6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`
   (`skein-shell/src/listener_calls.rs`) on both answers, and only the
@@ -49,3 +60,17 @@ below remain; the Linux tests do not prove the Darwin arms.
   section has identical calls live once in `posix`. These three were outside
   the six-function task's scope (section 10), and no debt item holds them.
   Seen by reading.
+  15.2: the page's `environment:` part, and a command page's, also list
+  the host's variables a setting's `Fallback::Base` reads, after the
+  twins and the table's variables, in the settings' order, so `HOME`
+  comes after the first XDG variable (`table/help.rs`,
+  `help_environment`; `table/help/tests.rs`, `HOST_ENVIRONMENT`). That
+  reads 15.1's "a table that holds such a setting reads them" as putting
+  them on the page; 15.1 has the documents say so, and
+  `../foundation/cli.md`, 7's example, the draft's
+  (`temper/docs/design/draft/cli.md`, 3.6), lists the directories' twins
+  alone. No binary prints a page yet: C2's first tables meet it.
+  15.3: a binary's documents gain a `## Test` part after `## Internal`
+  when its table holds a test entry, where 15.3 has the two alone and
+  `../foundation/cli.md`, 4 puts the test set in the test set's document.
+  No table holds one.

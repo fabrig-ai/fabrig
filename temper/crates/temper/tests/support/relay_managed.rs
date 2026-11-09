@@ -498,7 +498,7 @@ fn redact(value: &Value, path: &str) -> Value {
 }
 #[expect(
     clippy::disallowed_methods,
-    reason = "the sitting supplies the bounded socket relay's environment and runs it on owned threads"
+    reason = "cli C4: the sitting supplies the relay's scratch, prefix, mode, person, upstream and evidence through its environment and runs it on owned threads"
 )]
 pub fn run() -> io::Result<()> {
     let directory = PathBuf::from(std::env::var_os("TEMPER_MANAGED_SCRATCH").ok_or_else(invalid)?);

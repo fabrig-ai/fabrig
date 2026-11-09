@@ -105,6 +105,7 @@ fn valid_prefix(value: &str) -> bool {
         .is_some_and(|middle| middle.split('/').all(segment))
 }
 
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the bundler command line")]
 fn run() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let args = arguments(&args).map_err(str::to_owned)?;

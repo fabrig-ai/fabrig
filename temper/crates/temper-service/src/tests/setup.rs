@@ -25,7 +25,7 @@ fn service(states: u32, life: Duration) -> crate::Service {
 #[expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
-    reason = "figure write mode names and writes the measured page sizes"
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects measured page size output; the test table will pass it; figure write mode names and writes the sizes"
 )]
 pub(super) fn measure_page(name: &str, bytes: usize) {
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {

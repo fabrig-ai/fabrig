@@ -62,6 +62,10 @@ fn a_supervisors_tail_keeps_the_panic_line_and_message() {
     assert_report(&output, "", "fixture-worker", "the fixture's thread panics");
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads the fixture binary path supplied by Cargo and nextest"
+)]
 fn panic_report(backtrace: Option<&str>, payload: &str, name: Option<&str>) -> Output {
     // Cargo and nextest name a package's binaries to its tests when they run.
     let fixture = std::env::var_os("CARGO_BIN_EXE_fail_stop_fixture").expect("the fixture's path, set at run time");

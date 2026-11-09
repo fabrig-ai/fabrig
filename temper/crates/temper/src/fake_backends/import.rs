@@ -161,6 +161,10 @@ fn current_executable(name: &[u8], given: &[u8], pointer: &str) -> Result<PathBu
         )),
     }
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: PATH selects an imported executable; temper-box's table will pass it"
+)]
 fn executable(name: &[u8]) -> Option<PathBuf> {
     use std::os::unix::fs::PermissionsExt;
     crate::init::candidates(&skein_shell::environment(), name)

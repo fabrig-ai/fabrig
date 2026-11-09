@@ -8,7 +8,10 @@ use std::{
 
 mod steps;
 
-#[expect(clippy::disallowed_methods, reason = "cargo sets PROFILE for the build script")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "build script: Cargo's CARGO_MANIFEST_DIR, PROFILE, RUSTC and CARGO configure the browser build"
+)]
 fn embed(out: &std::path::Path) -> Result<String, String> {
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -55,6 +58,10 @@ fn embed(out: &std::path::Path) -> Result<String, String> {
     Ok(steps::source(&steps::bundle(&out.join("bundle"))?))
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "build script: TEMPER_BUNDLE selects the bundle and Cargo's OUT_DIR receives its source"
+)]
 fn main() -> ExitCode {
     println!("cargo:rerun-if-env-changed=TEMPER_BUNDLE");
     let out = PathBuf::from(env::var_os("OUT_DIR").expect("cargo sets OUT_DIR"));

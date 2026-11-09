@@ -117,6 +117,10 @@ fn mime(path: &Path) -> &'static str {
     }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C8: the playground fixture's arguments, until it is a binary of temper/bin/"
+)]
 fn main() -> io::Result<()> {
     skein_fail_stop::install();
     let mut args = std::env::args_os().skip(1);

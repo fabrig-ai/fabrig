@@ -204,6 +204,7 @@ fn child_command(root: &Path, binary: &Path, name: &str) -> Command {
     command
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 fn environment(root: &Path, binary: &Path) -> Command {
     let mut command = Command::new(binary);
     command

@@ -48,6 +48,7 @@ pub fn asked(value: Option<&OsStr>) -> bool {
     value == Some(OsStr::new("1"))
 }
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "hearth's round: reads HEARTH_BLESS to refresh render goldens")]
 pub fn bless() -> bool {
     asked(std::env::var_os("HEARTH_BLESS").as_deref())
 }

@@ -718,7 +718,7 @@ box` prints its link first and alone, but no story holds a connection
 waiting on its socket and then signing in, no run on record has its OSC 8
 link on a real terminal, and a first box from a binary
 with no browser does not say so (`protocol/setup.md`), and a
-held task names no run's failure, which
+held task names no run's or job's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
 the owned example names a limit no document raises, and no test runs 8
 past a start (`domain/worker.md`); with
