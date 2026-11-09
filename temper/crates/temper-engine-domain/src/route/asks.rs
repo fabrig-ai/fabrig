@@ -94,7 +94,18 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             super::panels::document(domain, env, decision, connector, watcher, scope, subject, party);
             None
         }
-        core::Ask::Read { reply, .. } => {
+        core::Ask::Read { reply, scope, read, party, .. } => {
+            let right = reply.into_token();
+            let reply = ReplyTo::new(right);
+            if super::see::person::is_reading(domain, right) {
+                let document = if connector == domain.config.forge_connector {
+                    domain.forge.document(read.raw(), scope, party, env.wall, &env.limits.forge)
+                } else {
+                    None
+                };
+                super::see::person::document(domain, reply, document);
+                return;
+            }
             emit(
                 decision,
                 &env.limits,

@@ -401,6 +401,15 @@ fn assert_connector_registry(connectors: &[u16]) {
 }
 
 impl Core {
+    /// The kept project name for a root's read context (domain/core.md, 6.1).
+    #[must_use]
+    pub fn project_name(&self, project: u32) -> Option<&str> {
+        match self.names.get(&project) {
+            Some(name) => Some(name),
+            None => None,
+        }
+    }
+
     /// The templates `project` offers: the current ones under its overrides, as `me` delivers them
     /// (jig/docs/design/domain/engine.md, 17.2).
     #[must_use]
