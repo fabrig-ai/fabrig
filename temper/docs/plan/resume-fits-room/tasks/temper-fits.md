@@ -137,3 +137,12 @@ stands unchanged: run temper-fits again only once this trunk's tree holds
 `worker-link-quiet/integration` commit containing `temper-room`'s merge, or
 by worker-link-quiet landing and this trunk catching up with main. A run
 that finds it absent reports the same `Failed:` line and changes nothing.
+
+2026-11-09. *Run 5 found the base still lacks `link_room.rs`; what now?*
+Run 5 started at 17:51Z on `5f6cf877e7`, the trunk that took the run 4
+answer; at 17:53Z `temper-room` is still running in worker-link-quiet
+(its run 2), and neither `worker-link-quiet/integration` (`85e9293560`)
+nor main holds `link_room.rs`. The run 3 answer stands unchanged. A run
+first checks the trunk's tree for
+`temper/crates/temper-service/src/tests/link_room.rs`; absent, it reports
+the same `Failed:` line at once and changes nothing.
