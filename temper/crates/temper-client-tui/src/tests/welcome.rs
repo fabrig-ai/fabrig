@@ -203,7 +203,7 @@ fn the_welcome_says_each_state() {
     let mut unkept = front(None);
     unkept.step(Told::Kept { written: false });
     let mut noted = front(None);
-    noted.step(Told::Unknown { words: Some(b"/unknown".as_slice().into()) });
+    noted.step(Told::Notice { notice: Some(crate::Notice::Unknown { words: b"/unknown".as_slice().into() }) });
     let long = [b'x'; 4096];
     let rows = [
         ("outside front", &empty, Tui::new(f::ADDRESS), Expect::Elsewhere { words: "No project yet" }),
@@ -389,11 +389,9 @@ fn the_welcome_says_each_state() {
                 continue;
             }
         }
-        if tui.unknown().is_some() {
-            want.push(temper_client_view::shared::note(&d::pages::terminal::Note::Unknown {
-                words: b"/unknown".as_slice().into(),
-            }))
-            .unwrap();
+        if tui.notice().is_some() {
+            let notice = f::find(tree, Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
+            assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
         }
         super::limits::fits(tree, &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
         for (words, style) in [(b"temper".as_slice(), look::TITLE), (b"box".as_slice(), look::ADDRESS)] {

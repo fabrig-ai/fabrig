@@ -275,17 +275,19 @@ fn link_changes_keep_the_command_composers_words() {
     }
 }
 
-type Facts<'a> = (u16, Option<jig_client::contract::ObjectKey>, Option<&'a [u8]>, u64, u64, u64, Option<u64>, bool);
+type Facts<'a> =
+    (u16, Option<jig_client::contract::ObjectKey>, Option<&'a crate::Notice>, u64, u64, u64, Option<u64>, bool);
 
 #[test]
 fn the_surface_state_changes_only_when_its_facts_change() {
     let object = jig_client::contract::ObjectKey::Task(9);
-    let unknown = Told::Unknown { words: Some(Box::from(*b"/font")) };
+    let first_notice = crate::Notice::Unknown { words: Box::from(*b"/font") };
+    let notice = Told::Notice { notice: Some(first_notice.clone()) };
     let aside = Told::Aside { object: Some(object) };
     let size = Told::Size { columns: 80 };
     let live = Told::Link { link: Link::Live };
     let out = Told::Link { link: Link::SignedOut };
-    // columns, aside, unknown, focus, box writes, revision.
+    // columns, aside, notice, focus, box writes, revision.
     let rows: &[(&str, &[Told], Facts<'_>)] = &[
         ("initial", &[], (0, None, None, 1, 0, 0, None, false)),
         ("zero columns", &[Told::Size { columns: 0 }], (0, None, None, 1, 0, 0, None, false)),
@@ -305,15 +307,26 @@ fn the_surface_state_changes_only_when_its_facts_change() {
             (0, Some(jig_client::contract::ObjectKey::Task(10)), None, 1, 0, 2, None, false),
         ),
         ("no aside", &[Told::Aside { object: None }], (0, None, None, 1, 0, 0, None, false)),
-        ("unknown", core::slice::from_ref(&unknown), (0, None, Some(b"/font"), 1, 0, 1, None, false)),
-        ("same unknown", &[unknown.clone(), unknown.clone()], (0, None, Some(b"/font"), 1, 0, 1, None, false)),
-        ("clear unknown", &[unknown.clone(), Told::Unknown { words: None }], (0, None, None, 1, 0, 2, None, false)),
+        ("notice", core::slice::from_ref(&notice), (0, None, Some(&first_notice), 1, 0, 1, None, false)),
+        ("same notice", &[notice.clone(), notice.clone()], (0, None, Some(&first_notice), 1, 0, 1, None, false)),
+        ("clear notice", &[notice.clone(), Told::Notice { notice: None }], (0, None, None, 1, 0, 2, None, false)),
         (
-            "different unknown",
-            &[unknown.clone(), Told::Unknown { words: Some(Box::from(*b"/goal")) }],
-            (0, None, Some(b"/goal"), 1, 0, 2, None, false),
+            "different notice",
+            &[notice.clone(), Told::Notice { notice: Some(crate::Notice::Unknown { words: Box::from(*b"/goal") }) }],
+            (0, None, Some(&crate::Notice::Unknown { words: Box::from(*b"/goal") }), 1, 0, 2, None, false),
         ),
-        ("no unknown", &[Told::Unknown { words: None }], (0, None, None, 1, 0, 0, None, false)),
+        (
+            "cleared keeps notice",
+            &[notice.clone(), Told::Cleared],
+            (0, None, Some(&first_notice), 1, 1, 2, None, false),
+        ),
+        ("went keeps notice", &[notice.clone(), Told::Went], (0, None, Some(&first_notice), 2, 1, 2, None, false)),
+        (
+            "signing in replaces notice",
+            &[notice.clone(), Told::Notice { notice: Some(crate::Notice::SigningIn) }],
+            (0, None, Some(&crate::Notice::SigningIn), 1, 0, 2, None, false),
+        ),
+        ("no notice", &[Told::Notice { notice: None }], (0, None, None, 1, 0, 0, None, false)),
         ("first link", core::slice::from_ref(&live), (0, None, None, 2, 0, 1, None, false)),
         ("same link", &[live.clone(), live.clone()], (0, None, None, 2, 0, 1, None, false)),
         ("sign in shown again", &[live.clone(), out.clone()], (0, None, None, 3, 0, 2, None, false)),
@@ -344,7 +357,7 @@ fn the_surface_state_changes_only_when_its_facts_change() {
         let found = (
             tui.columns(),
             tui.aside(),
-            tui.unknown(),
+            tui.notice(),
             tui.focus(),
             tui.box_written(),
             tui.revision(),
@@ -454,11 +467,7 @@ fn the_front_states_steps_are_its_table() {
         ("already staying", &[Told::Stay], (false, None, &[], BoxState::Running, false, false, 0)),
         ("log", &[Told::Log], (false, None, &[], BoxState::Running, false, true, 1)),
         ("same log", &[Told::Log, Told::Log], (false, None, &[], BoxState::Running, false, true, 1)),
-        (
-            "send lowers log",
-            &[Told::Log, Told::Unknown { words: None }],
-            (false, None, &[], BoxState::Running, false, false, 2),
-        ),
+        ("send lowers log", &[Told::Log, Told::Cleared], (false, None, &[], BoxState::Running, false, false, 2)),
         ("screen lowers log", &[Told::Log, Told::Went], (false, None, &[], BoxState::Running, false, false, 2)),
     ];
     let mut failures = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());

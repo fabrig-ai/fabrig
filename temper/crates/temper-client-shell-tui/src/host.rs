@@ -111,6 +111,7 @@ pub struct Host {
     local: bool,
     note: Option<Note>,
     need: Option<Need>,
+    notice_end: Option<Time>,
     local_signing: bool,
     asked_opening: Option<u64>,
     browse: bool,
@@ -147,6 +148,7 @@ impl Host {
             local: false,
             note: None,
             need: None,
+            notice_end: None,
             local_signing: false,
             asked_opening: None,
             browse: false,
@@ -176,6 +178,10 @@ impl Host {
             Report::Front(line) => self.tell(Told::BoxLine { line }),
             Report::Start(start) => self.start(start, &mut duties),
             Report::Due => {
+                if self.notice_end.is_some_and(|end| end <= self.env.now) {
+                    self.notice_end = None;
+                    self.tell(Told::Notice { notice: None });
+                }
                 root::fire(&mut self.root, &self.env, &mut self.out);
                 if let Some(need) = &mut self.need
                     && let Phase::Again(at) = need.phase
@@ -495,8 +501,8 @@ impl Host {
             tui::Event::Log => {
                 if self.state().front() {
                     self.act(Act::Terminal(terminal::Act::Dismiss));
-                    self.tell(Told::Log);
                     self.tell(Told::Cleared);
+                    self.tell(Told::Log);
                 }
             }
             tui::Event::Send => self.send(duties),
@@ -564,7 +570,6 @@ impl Host {
             self.notice(tui::Notice::SigningIn);
             return;
         }
-        self.tell(Told::Unknown { words: None });
         self.tell(Told::NotOpened { address: None });
         let words = self.words();
         let command_words = words.starts_with(b"/")
@@ -578,10 +583,14 @@ impl Host {
                 .iter()
                 .find(|command| command.name().starts_with(words))
                 .copied();
-            let root = tui::offered(&self.root, self.view.words())
-                .iter()
-                .find(|command| command.name().starts_with(words))
-                .copied();
+            let root = if words == tui::EXIT {
+                Some(TuiCommand::Exit)
+            } else {
+                tui::offered(&self.root, self.view.words())
+                    .iter()
+                    .find(|command| tui::command_name(**command).starts_with(words))
+                    .copied()
+            };
             if let Some(command @ (tui::Own::Change | tui::Own::Ask)) = own {
                 self.event(tui::Event::Own { command }, duties);
             } else if let Some(command) = root {
@@ -658,15 +667,19 @@ impl Host {
         true
     }
 
+    fn notice(&mut self, notice: tui::Notice) {
+        self.tell(Told::Notice { notice: Some(notice) });
+        self.notice_end = Some(self.env.now.saturating_add(tui::limits::NOTICE));
+    }
+
     fn unknown(&mut self) {
-        let words = Some(self.words().into());
+        let words = self.words().into();
         self.act(Act::Terminal(terminal::Act::Dismiss));
-        self.tell(Told::Unknown { words });
+        self.notice(tui::Notice::Unknown { words });
         self.tell(Told::Cleared);
     }
 
     fn went(&mut self, address: Address) {
-        self.tell(Told::Unknown { words: None });
         self.step(Event::Went { place: Place::Address(address) });
         self.tell(Told::Went);
     }
@@ -919,7 +932,10 @@ impl Host {
             Phase::Again(at) => Some(at),
             Phase::Reading | Phase::Signing(_) => None,
         });
-        skein_lib::earliest(skein_lib::earliest(root::next_deadline(&self.root), tick), local)
+        skein_lib::earliest(
+            skein_lib::earliest(skein_lib::earliest(root::next_deadline(&self.root), tick), local),
+            self.notice_end,
+        )
     }
 }
 

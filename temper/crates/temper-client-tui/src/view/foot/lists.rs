@@ -108,7 +108,7 @@ fn commands(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Opt
         })
     }
 }
-// Both the list and /help read this order, including front's /log before /exit.
+// Both the list and /help read this order, including front's /log before /quit.
 pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[OptionItem]> {
     let commands = crate::offered(root, words);
     let own = crate::offered_own(root, tui);
@@ -133,7 +133,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
         }
         items
             .push(OptionItem {
-                name: copy_of(command.name()),
+                name: copy_of(crate::command_name(command)),
                 words: description(command, words, tui.front()),
                 selected: false,
                 event: Event::Command { command },

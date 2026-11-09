@@ -318,9 +318,6 @@ and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
 
-- **Not yet:** 6.14, *The commands* and *`/quit`*, 6.16 and 6.17: the
-  TUI lists, completes and takes `/exit`, and `/quit` is an unknown
-  command (plan `tui-box-polish`).
 
 Sections 2, 6.11 and 6.12 have the clients' start, one for two binaries:
 `temper [ADDRESS]` and `temper-client [ADDRESS]` run
@@ -391,11 +388,6 @@ restarting"), where the request's frame 05 has "forge restarting", and
 Linux and macOS, is section 11's after-landing work, owned by temper/tui.
 
 
-- **Not yet:** 6.13, *The notice's time*, 6.14, *The notice*, and
-  6.17, *The box's state*: no notice stands on the quiet line; an unknown
-  command, or `/chats N` with no Nth chat, is a note after the root's,
-  "Unknown command /WORDS. /help lists them.", in the view's words,
-  until the next send or screen (plan `tui-box-polish`).
 
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known

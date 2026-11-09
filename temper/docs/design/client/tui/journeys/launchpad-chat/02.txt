@@ -21,4 +21,4 @@
   /open     Open this on the web
   /theme    Dark or light
   /help     Commands and keys
-  /exit     Close temper
+  /quit     Close temper

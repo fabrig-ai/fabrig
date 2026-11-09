@@ -287,10 +287,15 @@ fn front_commands(words: &crate::words::Words) {
             "in front",
             true,
             "/",
-            &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/log", "/exit"][..],
+            &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/log", "/quit"][..],
         ),
         ("log prefix", true, "/l", &["/log"][..]),
-        ("out of front", false, "/", &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/exit"][..]),
+        ("q prefix", false, "/q", &["/quit"][..]),
+        ("qu prefix", false, "/qu", &["/quit"][..]),
+        ("exit prefix", false, "/ex", &[][..]),
+        ("exi prefix", false, "/exi", &[][..]),
+        ("exit alias", false, "/exit", &[][..]),
+        ("out of front", false, "/", &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/quit"][..]),
         ("log out of front", false, "/l", &[][..]),
     ] {
         let mut root = root(true, false, false, false, false, false);
@@ -314,7 +319,7 @@ fn front_commands(words: &crate::words::Words) {
                 assert_eq!(item.words.as_ref(), b"The box's recent log");
                 assert_eq!(item.event, crate::Event::Log);
             }
-            if *expected == "/exit" {
+            if *expected == "/quit" {
                 assert_eq!(
                     item.words.as_ref(),
                     if front { b"Close temper and stop the box".as_slice() } else { b"Close temper".as_slice() }
@@ -339,7 +344,7 @@ fn own_commands(words: &crate::words::Words) {
             false,
             &[
                 "/change", "/ask", "/model", "/effort", "/new", "/chats", "/brief", "/needs", "/open", "/theme",
-                "/help", "/exit",
+                "/help", "/quit",
             ][..],
         ),
         (
@@ -350,7 +355,7 @@ fn own_commands(words: &crate::words::Words) {
             false,
             true,
             false,
-            &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/exit"][..],
+            &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/quit"][..],
         ),
         ("c prefix", true, true, "/c", false, true, false, &["/change", "/chats"][..]),
         ("b prefix", true, true, "/b", false, true, false, &["/brief"][..]),
@@ -364,9 +369,9 @@ fn own_commands(words: &crate::words::Words) {
             true,
             true,
             false,
-            &["/pause", "/close", "/new", "/chats", "/open", "/theme", "/help", "/exit"][..],
+            &["/pause", "/close", "/new", "/chats", "/open", "/theme", "/help", "/quit"][..],
         ),
-        ("no project", false, false, "/", false, false, false, &["/theme", "/help", "/exit"][..]),
+        ("no project", false, false, "/", false, false, false, &["/theme", "/help", "/quit"][..]),
         (
             "front",
             true,
@@ -375,7 +380,7 @@ fn own_commands(words: &crate::words::Words) {
             false,
             true,
             true,
-            &["/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/theme", "/help", "/log", "/exit"][..],
+            &["/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/theme", "/help", "/log", "/quit"][..],
         ),
     ] {
         let mut root = if name == "brief and need" {
@@ -469,7 +474,7 @@ fn own_commands(words: &crate::words::Words) {
     );
     let part = crate::view::foot::read(&root, &Tui::new(f::ADDRESS), words, f::NOW);
     let list = part.list.unwrap();
-    let expected = ["/change", "/ask", "/model", "/effort", "/new", "/chats", "/open", "/theme", "/help", "/exit"];
+    let expected = ["/change", "/ask", "/model", "/effort", "/new", "/chats", "/open", "/theme", "/help", "/quit"];
     for (item, expected) in list.items.iter().zip(expected) {
         assert_eq!(item.name.as_ref(), expected.as_bytes());
     }

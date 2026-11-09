@@ -85,6 +85,7 @@ fn style(style: skein_ui::Style, paint: Paint) -> StyleLook {
         mark: None,
         described: None,
         active_name: None,
+        focused_value: None,
         spaced: false,
     }
 }
