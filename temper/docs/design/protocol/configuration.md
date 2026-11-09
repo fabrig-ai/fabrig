@@ -854,7 +854,16 @@ have one, an engine alone none. Each:
     on the machine's places (the longest of `machine`'s remotes' bases
     and github.com's, an owner and a name of the forge's `name_bytes`,
     two `/` and `.git`), and the forge's names and branches, within the
-    checkout's `name_bytes` (channel.md, section 8);
+    checkout's `name_bytes` (channel.md, section 8); and the smallest
+    resumed start the engine's link can cut a start to (jig's
+    `protocol/channel.md`, 9 and 11), within the engine's room, its
+    `io.output`, so a run that committed every call `core.call_records`
+    admits can still resume. Its failure names both: `engine.limits.io.output:
+    4096 bytes, short of the smallest resumed start, 27201 bytes`, the
+    start's frame with its header, as `standard` has it. No document
+    reaches it today, since `io` takes no override and the worker wire's
+    ceilings keep that start at most 218,177 bytes, but the check holds
+    the rule should either change;
   - the worker's, against the agent's configuration
     (`temper-worker-domain::valid`, entrance constraints and count
     representability, with no heap sum), among its rules: the
