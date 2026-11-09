@@ -433,7 +433,7 @@ processes are 15.2's.
 
 A deployment runs smith's agent from a binary of its own, `temper-agent`
 (`crates/temper-agent`; `../draft/deployment-binaries.md`, sections 4
-and 9.3), ordinary Rust, one process per run, which its worker starts
+and 9, item 3), ordinary Rust, one process per run, which its worker starts
 and a person never does. It holds every mode in which `temper` runs
 smith's agent, run by the same code, and nothing else of `temper`'s.
 `temper` keeps those modes, as `temper internal agent` and by the same

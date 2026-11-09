@@ -1,6 +1,16 @@
 # README: status
 
-2026-11-08. Where temper's code lags or departs from [README.md](README.md).
+2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+
+Sections 4.1 and the agent's row of 4.2 have no known implementation gap
+at main's `fdc26f71c6`. The feature-free `temper-agent` has its own build
+identity, shared help, run, list, relay, program-child and argv0 Claude
+launcher dispatch. Its parser table and twenty-row suite cover its
+forms, refusals and modes; the normal-closure boundary table holds the
+agent's five permitted temper crates, no jig and no exceptions. The
+client's, engine's and worker's rows remain M5's. The box's modes and the
+worker's current program are unchanged; naming `temper-agent` is M3's
+(`../draft/deployment-binaries.execution.md`, 1).
 
 Section 8.2's wait and recovery notes, ordered gate reasons, one-second
 threshold and suppression of repeats are present. Service tests step
