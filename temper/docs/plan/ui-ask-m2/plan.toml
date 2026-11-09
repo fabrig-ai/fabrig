@@ -29,3 +29,43 @@ id = 1
 story = "A run's read as its person and see's M2 addresses exist as shapes; every M2 address still answers not there yet"
 parts = ["person", "answers"]
 walk = false
+
+[[part]]
+id = "reads"
+title = "temper's root reads each M2 address as the chat's person, and the forge answers its reads with its documents"
+mode = "direct"
+needs = ["person", "answers"]
+design = "temper/docs/design/domain/root.md, 5.1"
+
+[[part]]
+id = "render"
+title = "temper-engine-smith renders what a read as the person answered, as tables of lines in temper's words"
+mode = "direct"
+needs = ["answers"]
+design = "temper/docs/design/domain/agent.md, 8.4.1"
+
+[[slice]]
+id = 2
+story = "Ask temper reads me, project, goals, tasks, a task with its tree, activity and turns, a change, the changes and the inbox as its person, of its project alone"
+parts = ["reads", "render"]
+walk = false
+
+[[part]]
+id = "page"
+title = "see's addresses become one table, which renders the reference page see and each answer's see: line"
+mode = "direct"
+needs = ["render", "reads"]
+design = "temper/docs/design/protocol/documentation.md, 8"
+
+[[part]]
+id = "stories"
+title = "The engine world's joined stories of the person's addresses and the fuzzy test of addresses"
+mode = "direct"
+needs = ["person", "reads", "render"]
+design = "temper/docs/design/domain/agent.md, 8.4.1"
+
+[[slice]]
+id = 3
+story = "Each M2 address answers within its bound, refuses another project's work, and holds under seeded addresses; see has its reference page"
+parts = ["page", "stories"]
+walk = false

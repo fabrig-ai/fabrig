@@ -58,7 +58,9 @@
 | `person-surface` | jig's `NamedAction::PersonRead`, `Now::PersonAnswer` and the core's `reads/person.rs` until `person-reads`; each forced arm of `Now::PersonAnswer` |
 | `person-reads` | `jig-domain-core`'s `reads/person.rs` and the read pipeline's person destination; `jig/tests/core`'s `person_reads` stories |
 | `see-surface` | `temper-engine-domain`'s `route/see.rs` address grammar and `SeeAnswer`'s new variants and records, until `see-route` |
-| `see-render` | `temper-engine-smith`'s `see.rs` and `see/` rendering of M2's answers, and their tests, until `see-page` |
-| `see-route` | `temper-engine-domain`'s `route/see/person.rs` and `route/see/forge.rs`'s M2 reads, `route/now.rs`'s person arm, `route/asks.rs`'s `Ask::Read` |
-| `see-page` | the reference page `see` and its table in `temper-engine-smith`; the `see` declaration's description |
-| `see-stories` | the engine domain world's `see` stories and its fuzzy test of addresses |
+| `see-route` | `temper-engine-domain`'s `route/see.rs`, `route/see/`, `route/now.rs`'s person arm, `route/asks.rs`'s `Ask::Read`, the flight in `host_route.rs` |
+| `see-render` | `temper-engine-smith`'s rendering of `SeeAnswer::Person` for `me`, `project`, `goals`, `tasks`, `task N`, `task N tree`, `inbox`, and its test table |
+| `see-render-runs` | the same, for `task N activity`, `task N turn A.T`, `change N`, `changes` |
+| `see-page` | `temper-engine-smith`'s table of addresses, the reference page `see`, the declaration's description; `SeeAnswer::NotYet`'s removal |
+| `see-stories` | the engine domain world's `configuring/asking_person.rs` and the helpers it adds |
+| `see-fuzzy` | the engine domain world's `fuzzy/see.rs` |
