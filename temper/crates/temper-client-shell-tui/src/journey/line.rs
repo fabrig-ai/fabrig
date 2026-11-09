@@ -10,7 +10,7 @@ pub enum Line {
     Journey { version: u32 },
     Seed(u64),
     Clocks { now: Time, wall: Wall },
-    Screen { size: Size, scheme: Scheme },
+    Screen { size: Size, scheme: Option<Scheme> },
     Background(Rgb),
     Address(Box<[u8]>),
     Local,
@@ -137,8 +137,9 @@ impl Line {
             Self::Screen { size, scheme } => {
                 w.size(*size);
                 w.word(match scheme {
-                    Scheme::Dark => b"dark",
-                    Scheme::Light => b"light",
+                    Some(Scheme::Dark) => b"dark",
+                    Some(Scheme::Light) => b"light",
+                    None => b"none",
                 });
             }
             Self::Background(rgb) => {
@@ -566,8 +567,9 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"screen" => Line::Screen {
             size: r.size()?,
             scheme: match r.word()? {
-                b"dark" => Scheme::Dark,
-                b"light" => Scheme::Light,
+                b"dark" => Some(Scheme::Dark),
+                b"light" => Some(Scheme::Light),
+                b"none" => None,
                 _ => return Err("unknown scheme"),
             },
         },

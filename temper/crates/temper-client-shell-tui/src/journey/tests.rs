@@ -13,7 +13,7 @@ fn facts() -> Facts {
         now: Time::ZERO,
         wall: Wall::EPOCH,
         size: Size { rows: 12, columns: 48 },
-        scheme: Scheme::Dark,
+        scheme: Some(Scheme::Dark),
         background: None,
         boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
@@ -304,6 +304,16 @@ fn signed_in() -> Box<[u8]> {
 }
 
 #[test]
+fn a_start_with_no_terminal_scheme_records_and_replays() {
+    let mut facts = facts();
+    facts.scheme = None;
+    let mut walk = Walk::with(&facts);
+    walk.mark();
+    assert!(lines(&walk.save()).expect("recording").contains(&Line::Screen { size: facts.size, scheme: None }));
+    same_frames(walk);
+}
+
+#[test]
 fn facts_and_only_kept_turns_have_ordered_lines() {
     for (background, boxed, local) in [
         (None, false, false),
@@ -316,7 +326,7 @@ fn facts_and_only_kept_turns_have_ordered_lines() {
         facts.background = background;
         facts.boxed = boxed;
         facts.local = local;
-        facts.scheme = Scheme::Light;
+        facts.scheme = Some(Scheme::Light);
         facts
             .kept
             .push(jig_client::Record { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() });
@@ -331,7 +341,7 @@ fn facts_and_only_kept_turns_have_ordered_lines() {
             Line::Journey { version: 2 },
             Line::Seed(7),
             Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
-            Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Scheme::Light },
+            Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Some(Scheme::Light) },
             Line::Address(b"127.0.0.1:8367".as_slice().into()),
             Line::Stored { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() },
             Line::Credential(credential().into_exposed()),
@@ -625,7 +635,7 @@ fn local_records_are_refused_outside_their_places() {
         Line::Journey { version: 2 },
         Line::Seed(7),
         Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
-        Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Scheme::Dark },
+        Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Some(Scheme::Dark) },
         Line::Address(b"127.0.0.1:8367".as_slice().into()),
     ];
     let tail = vec![
