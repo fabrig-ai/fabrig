@@ -59,3 +59,5 @@ mod stock;
 mod room;
 
 mod workspace_reuse;
+
+mod link_room;

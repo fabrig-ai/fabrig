@@ -41,6 +41,7 @@ pub fn apply(document: &mut Value, turn: u32) {
     if let Some(workers) = document["workers"].as_array_mut() {
         for worker in workers {
             hub(&mut worker["limits"]["overrides"], turn, window);
+            worker_output(&mut worker["limits"], turn);
         }
     }
     if !document["application"]["limits"].is_null() {
@@ -55,6 +56,26 @@ pub fn apply(document: &mut Value, turn: u32) {
             limits[name] = bytes.into();
         }
     }
+}
+fn worker_output(limits: &mut Value, turn: u64) {
+    use jig_protocol_config::{Profile, profile};
+    use jig_protocol_worker_wire::v9;
+
+    let defaults = profile(match limits["profile"].as_str().expect("worker profile") {
+        "small" => Profile::Small,
+        "standard" => Profile::Standard,
+        other => panic!("unknown worker profile: {other}"),
+    });
+    let overrides = &mut limits["overrides"];
+    let inbox = overrides["tasks.run_inbox"].as_u64().unwrap_or(u64::from(defaults.core.tasks.run_inbox));
+    let bodies = v9::Limits {
+        turn_body: u32::try_from(turn).expect("turn body"),
+        turn_refused: u32::try_from(inbox).expect("run inbox"),
+        ..v9::CEILINGS
+    };
+    let frame = v9::Turn::encoded_bound(&bodies).expect("turn frame") + 8;
+    let output = overrides["io.output"].as_u64().unwrap_or(u64::from(defaults.io.output));
+    overrides["io.output"] = output.max(frame).into();
 }
 fn hub(limits: &mut Value, turn: u64, window: u64) {
     limits["hub.turn_bytes"] = turn.into();

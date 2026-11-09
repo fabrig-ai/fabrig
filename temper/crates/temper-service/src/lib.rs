@@ -261,6 +261,12 @@ pub enum Note {
         channel: skein_lib::Token,
         why: EngineWorkerLoss,
     },
+    /// A record the engine's link did not send (protocol/README.md, 15.3).
+    WorkerUnsent {
+        worker: Box<[u8]>,
+        channel: skein_lib::Token,
+        unsent: jig_protocol_engine_workers::Unsent,
+    },
     /// An opening ended, suppressed by name and reason until hello (protocol/README.md, 15.3).
     WorkerOpeningEnded {
         worker: Option<Box<[u8]>>,
