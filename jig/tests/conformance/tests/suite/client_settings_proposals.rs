@@ -309,6 +309,7 @@ fn settings_proposal_projects_cross_the_row_and_document_wire() {
         &[],
         &read,
         &reads::Page { rows, before: None, next: None, cut: false, inbox_selection: None },
+        &jig_protocol_engine_clients::Private::none(),
         limits.wire(),
     )
     .expect("inbox wire");

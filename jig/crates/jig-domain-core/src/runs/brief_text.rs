@@ -24,6 +24,8 @@ pub enum BriefPart {
     Delegates,
     Attempts,
     TranscriptTail,
+    /// Whole requester preferences (domain/engine.md, 10.1).
+    Preferences,
 }
 
 /// Render the bounded note index by durable name so a run can recall entries.
@@ -101,7 +103,11 @@ enum BriefRead {
 pub fn read_brief_part(core: &Core, limits: BriefTextLimits, task: u64, part: BriefPart) -> Option<Box<[u8]>> {
     let tail = match part {
         BriefPart::TranscriptTail => true,
-        BriefPart::Spec | BriefPart::Dependencies | BriefPart::Delegates | BriefPart::Attempts => false,
+        BriefPart::Spec
+        | BriefPart::Dependencies
+        | BriefPart::Delegates
+        | BriefPart::Attempts
+        | BriefPart::Preferences => false,
     };
     let read = task_section(core, task, part, limits.parts, limits.read_bytes);
     let parts = match read {
@@ -202,6 +208,10 @@ fn task_section(core: &Core, task: u64, part: BriefPart, parts: u32, bytes: u32)
         },
         BriefPart::Attempts => match core.contexts.get(&task) {
             Some(context) => attempt_read(context.tries, context.invalid_result, bytes),
+            None => BriefRead::Failed,
+        },
+        BriefPart::Preferences => match crate::routing::run::preferences::text(core, task) {
+            Some(text) => BriefRead::Got(Box::new([text_part(&text, b"", b"", b"", bytes)])),
             None => BriefRead::Failed,
         },
         BriefPart::TranscriptTail => match core.transcripts.get(&task) {

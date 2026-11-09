@@ -123,6 +123,7 @@ pub fn settings(config: &crate::Engine, application: &Application, seed: Secret,
     }
     kit::Settings {
         public,
+        private: jig_protocol_engine_clients::Private::none(),
         public_bounds: public_bounds(config),
         provider: None,
         addresses: Box::new([]),

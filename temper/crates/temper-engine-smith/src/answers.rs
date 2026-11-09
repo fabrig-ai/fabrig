@@ -790,6 +790,11 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             }
             false
         }
+        CallAnswer::NoteDeleted { name } => {
+            text.add(b"Deleted note ")?;
+            text.number(*name)?;
+            false
+        }
         CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
             note_written(
                 &mut text,

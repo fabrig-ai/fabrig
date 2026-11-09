@@ -87,6 +87,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
             models: engine.llm.models(),
             resume_bytes: limits.resume_bytes,
             tail_bytes: limits.brief_core_budgets.tail,
+            private_tools: Box::new([]),
             tools: domain::ToolFamilies::JIG,
             redirect_bytes: engine.limits.driver.client.uri_bytes,
             key_bytes: engine
