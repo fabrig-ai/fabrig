@@ -150,6 +150,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
     };
     Ok(AgentStart { agent, sources })
 }
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads SSL_CERT_FILE for machine trust roots")]
 fn account_transport(
     configured: &config::Transport,
     trust_roots: &mut u32,

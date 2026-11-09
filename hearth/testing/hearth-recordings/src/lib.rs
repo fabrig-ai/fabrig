@@ -180,6 +180,7 @@ impl Mask {
     }
 }
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "hearth's round: reads HEARTH_RECORD to enable recording")]
 pub fn recording_on() -> bool {
     std::env::var_os("HEARTH_RECORD").is_some_and(|v| v == "1")
 }

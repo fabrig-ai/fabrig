@@ -8,6 +8,7 @@ pub struct Trace {
     lines: Vec<String>,
 }
 impl Default for Trace {
+    #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable boundary diagnostics")]
     fn default() -> Self {
         static ENABLED: OnceLock<bool> = OnceLock::new();
         Self::with_enabled(*ENABLED.get_or_init(|| std::env::var_os("JIG_WORLD_TRACE").is_some()))

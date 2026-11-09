@@ -19,6 +19,7 @@ pub fn jig_test() -> PathBuf {
     binary
 }
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_TEST_CHROMIUM and PATH to locate Chromium")]
 pub fn chromium() -> PathBuf {
     if let Some(path) = std::env::var_os("SKEIN_TEST_CHROMIUM") {
         let path = PathBuf::from(path);
@@ -34,6 +35,7 @@ pub fn chromium() -> PathBuf {
     panic!("Chromium is required: set SKEIN_TEST_CHROMIUM or put chromium on PATH");
 }
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_TEST_BUNDLE to locate the browser bundle")]
 pub fn bundle() -> PathBuf {
     let path = PathBuf::from(
         std::env::var_os("JIG_TEST_BUNDLE")

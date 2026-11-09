@@ -163,6 +163,7 @@ impl World {
     }
 
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
+    #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable world tracing")]
     fn empty(configuration: root::Config, limits: &root::Limits, sets: jig_protocol_store::PatchSets) -> World {
         let observer = crate::conformance::Observer::new(&configuration);
         let heap = crate::conformance::Heap::new();
