@@ -12,6 +12,8 @@ accounts-solo
 accounts-states
 agent-work
 all-home
+all-home-away
+all-home-away-on
 all-home-nothing-new
 all-home-one-project
 approve-approved

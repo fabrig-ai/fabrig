@@ -88,7 +88,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         members: None,
         standing_roles: None,
         asking,
-        away: root.away_shown(project, wall),
+        away: if across(root) { super::away_all::across(root, wall).shown } else { root.away_shown(project, wall) },
         drafts: super::drafts_offered(root, project),
         beginning: super::home::beginning(root, project, wall),
     }

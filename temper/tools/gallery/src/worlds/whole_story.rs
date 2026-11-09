@@ -444,6 +444,7 @@ fn read_value(root: &mut Domain, name: &str, read: Token, value: c::ReadValue, o
 #[expect(clippy::too_many_lines, reason = "the world answers each public watch, read and look through the root")]
 pub(super) fn domain(name: &str, address: Address) -> Domain {
     let me = me(name);
+    let mut away_watch = None;
     let mut root = temper_client_domain::unlinked(&limits(), 11);
     let mut out = Queue::uncapped();
     step(&mut root, name, Event::Start { address, kept: List::with_capacity(0), with: None }, &mut out);
@@ -509,24 +510,10 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                             .expect("dismissals"),
                     ),
                     w::Watch::Away => {
-                        let mut rows = List::with_capacity(1);
-                        if across(name) && name != "all-home-nothing-new" {
-                            rows.push(
-                                w::AwayRow::new(
-                                    &w::CEILINGS,
-                                    w::AwayRowParts {
-                                        project: 1,
-                                        since: since(name, 534).as_nanos(),
-                                        until: None,
-                                        landed: 12,
-                                        off: Some(since(name, 4).as_nanos()),
-                                    },
-                                )
-                                .expect("Sunday's away spell"),
-                            )
-                            .expect("one away spell");
-                        }
-                        wire::aways(&w::Aways::new(&w::CEILINGS, w::AwaysParts { rows }).expect("aways"))
+                        away_watch = Some(watch);
+                        wire::aways(
+                            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: away_rows(name) }).expect("aways"),
+                        )
                     }
                     _ => continue,
                 };
@@ -616,5 +603,98 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
         }
     }
     assert!(out.is_empty(), "whole-story deliveries settle");
+    if name == "all-home-away-on" {
+        toggle_all(&mut root, name, away_watch.expect("Away watch"));
+    }
     root
+}
+
+fn away_rows(name: &str) -> List<w::AwayRow> {
+    let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
+    if across(name) && name != "all-home-nothing-new" {
+        rows.push(
+            w::AwayRow::new(
+                &w::CEILINGS,
+                w::AwayRowParts {
+                    project: 1,
+                    since: since(name, 534).as_nanos(),
+                    until: None,
+                    landed: 12,
+                    off: Some(since(name, 4).as_nanos()),
+                },
+            )
+            .expect("Sunday's away spell"),
+        )
+        .expect("away spell");
+    }
+    if matches!(name, "all-home-away" | "all-home-away-on") {
+        for project in [2, 3] {
+            rows.push(
+                w::AwayRow::new(
+                    &w::CEILINGS,
+                    w::AwayRowParts { project, since: since(name, 30).as_nanos(), until: None, landed: 0, off: None },
+                )
+                .expect("project away"),
+            )
+            .expect("away spell");
+        }
+    }
+    rows
+}
+fn toggle_all(root: &mut Domain, name: &str, watch: Token) {
+    let mut out = Queue::uncapped();
+    step(
+        root,
+        name,
+        Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Away(
+                temper_client_domain::pages::away::Act::ToggleAll,
+            )),
+        },
+        &mut out,
+    );
+    let mut changed = Vec::new();
+    for _ in 0..512 {
+        let Some(request) = out.pop() else { break };
+        let Some(Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. }) = down(request) else {
+            continue;
+        };
+        let w::Request::SetAway(value) =
+            wire::decode_requesting(&record.bytes, &w::CEILINGS).expect("Away request").into_parts().request
+        else {
+            continue;
+        };
+        changed.push(value.into_parts());
+        super::sample_forge_answer(root, attempt, w::Outcome::Away, &mut out);
+    }
+    assert!(out.is_empty(), "Away answers settle");
+    let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
+    for row in away_rows(name).into_boxed() {
+        if !changed.iter().any(|request| request.project == row.project()) {
+            rows.push(row).expect("away spell");
+        }
+    }
+    for request in changed {
+        rows.push(
+            w::AwayRow::new(
+                &w::CEILINGS,
+                w::AwayRowParts {
+                    project: request.project,
+                    since: now(name).as_nanos(),
+                    until: request.until,
+                    landed: 0,
+                    off: None,
+                },
+            )
+            .expect("changed Away"),
+        )
+        .expect("away spell");
+    }
+    family(
+        root,
+        name,
+        watch,
+        wire::aways(&w::Aways::new(&w::CEILINGS, w::AwaysParts { rows }).expect("aways")),
+        &mut out,
+    );
 }

@@ -960,6 +960,27 @@ fn you_approves_classes_do_not_show_the_switch() {
     }
 }
 #[test]
+fn the_switch_shows_across_projects_with_stock_classes() {
+    for (address, expected) in [
+        (Address::Home { project: f::PROJECT }, pages::away::Act::Toggle { project: f::PROJECT }),
+        (Address::AllHome, pages::away::Act::ToggleAll),
+    ] {
+        let mut root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
+        f::root_event(&mut root, Event::Went { place: d::Place::Address(address.clone()) });
+        let mut view = f::page_view(&root);
+        let node = &styled(view.tree(), look::AWAY)[0];
+        assert_eq!(node.role, Role::Button, "{address:?}");
+        assert_eq!(node.name.as_deref(), Some(b"Away".as_slice()), "{address:?}");
+        assert!(!node.states.as_slice().contains(&State::Pressed), "{address:?}");
+        let id = node.id;
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(pages::Act::Away(expected))),
+            "{address:?}"
+        );
+    }
+}
+#[test]
 fn on_it_says_until_and_is_pressed() {
     for zone in [0_i32, 120_i32] {
         let mut root = f::away_root(Some(skein_lib::Wall::from_nanos(28_800_000_000_000)), None);

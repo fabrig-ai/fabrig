@@ -110,7 +110,7 @@ struct ReadScript {
 
 /// Scripted root and forge protocol surrounding the connector top.
 pub struct World {
-    top: top::Domain,
+    pub(crate) top: top::Domain,
     env: Env<top::Limits>,
     forge: forge::Domain,
     forge_env: Env<forge::Config>,
