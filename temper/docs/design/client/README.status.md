@@ -220,9 +220,6 @@ domain's and the view's tables, the joint world's
 `settings.txt` golden hold it. The page's render check and walk remain
 section 11's after-landing work.
 
-- **Not yet:** 5.13, *Its parts*: `pages::how::facts` gathers neither
-  kind 8 read nor `me`'s second project, `pages::how::parts` decides no
-  What reaches you, and no `pages::how::reaches` lays its columns.
 - **Not yet:** 5.13, *What reaches you* and *Its rows*, and 3.5, *Away*'s
   *On How work runs*: the page draws *What needs you* and *While you're
   away, agents may decide*, the classes' checks owners tick, where What
