@@ -215,10 +215,6 @@ The startup table holds the derived carriers, including the forge answer's
 cuts past the receiving room. The larger pair and real-program observation
 remain section 11's deferred work.
 
-- **Not yet:** 13.4, 13.9: template 4's work: the stock gives the forge
-  none, and `docs/examples/reference/settings.json` sets none
-  (`goal-stock`).
-
 - **Not yet:** 13.8: the extra `forge.client.answer_bytes` carrier is
   held by the reference's relation test, but the start has no diagnostic
   naming that relation; the forge limits' validity check supplies only

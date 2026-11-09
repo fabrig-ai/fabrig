@@ -261,6 +261,16 @@
     },
     {
       "setting": {
+        "kind": "template-goal",
+        "number": 4
+      },
+      "set": {
+        "design": true,
+        "close_out": true
+      }
+    },
+    {
+      "setting": {
         "kind": "landing-rule",
         "number": 1
       },
