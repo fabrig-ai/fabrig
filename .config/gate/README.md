@@ -96,8 +96,10 @@ Each list has one entry per line; `#` starts a comment line.
 ## The repository's hooks and fixture readers
 
 - **`.temper/pre-pr`:** the format check and each tree's old-forms counts at
-  delivery (`temper/docs/design/protocol/configuration.md`, 13.9;
-  `smith/docs/design/domain/run.md`, 8.1).
+  delivery, then clippy on changed packages and focused tests on them, their
+  direct dependents and prefixed path readers, against `refs/temper/landing`'s
+  merge base. Inherited failures do not refuse; without a base, the first two
+  checks alone (`tools/pre-pr/design.md`, 1–9).
 - **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
 - **`.config/fixture-readers.toml`:** the readers and generators of every tracked
