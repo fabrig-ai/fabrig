@@ -524,7 +524,7 @@ fn revision_world() -> ClientWorld {
     limits.people.initial_owners = 2;
     limits.people.requests = 16;
     limits.settings.history = 4;
-    limits.tasks.charters = 8;
+    limits.tasks.charters = 12; // The stock's charter lines, kind 9, reach charter 12.
     let mut config = restore_configuration(&limits);
     let mut charter = config.core.defaults.charters[0].clone();
     charter.number = 6;
@@ -689,13 +689,14 @@ fn settings_show_prints_a_projects_ways_and_questions() {
     let historical =
         call(&mut world, agent, &[b"settings", b"show", b"project-questions", b"1", b"--revision", b"2", b"--json"]);
     assert!(historical.contains("\"value\":\"foreman\""), "{historical}");
-    for (kind, selector, value, owners, name) in [
+    for (kind, selector, value, owners, name, stock) in [
         (
             b"charter-words".as_slice(),
             r#"{"kind":"charter-words","number":1}"#,
             r#""reviews every change""#,
             "to the deployment's owners",
             "charter-words 1",
+            Some(r#""talks with you and asks for the changes""#),
         ),
         (
             b"project-words",
@@ -703,6 +704,7 @@ fn settings_show_prints_a_projects_ways_and_questions() {
             r#"{"headline":"Our way","lede":"We review every change."}"#,
             "to project 1's owners",
             "project-words 1",
+            None,
         ),
     ] {
         let mut world = revision_world();
@@ -713,7 +715,17 @@ fn settings_show_prints_a_projects_ways_and_questions() {
                 argv.push(b"--json");
             }
             let shown = call(&mut world, agent, &argv);
-            assert!(shown.contains(if json { "\"value\":null" } else { "\nnone\n" }), "{shown}");
+            let expected = match stock {
+                Some(value) => {
+                    if json {
+                        format!("\"value\":{value}")
+                    } else {
+                        value.to_owned()
+                    }
+                }
+                None => if json { "\"value\":null" } else { "\nnone\n" }.to_owned(),
+            };
+            assert!(shown.contains(&expected), "{shown}");
         }
         let file = format!(r#"{{"items":[{{"setting":{selector},"set":{value}}}]}}"#);
         let proposal = submit_file(&mut world, agent, &file, owners);
