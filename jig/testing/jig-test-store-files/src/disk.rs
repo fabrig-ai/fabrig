@@ -1,11 +1,10 @@
-//! Full directory opens for worlds that exercise patch sets. Ordinary worlds
-//! retain memory maps and direct positioned-file answers.
+//! Directory stores on the simulated crashing disk (protocol/store.md, 14).
 use jig_protocol_store::host::{Drivers, Lane, Submission};
 use jig_protocol_store::{Event, Limits, Request, Root, Seeded, Store};
-use skein_fake_machine::{How, Machine, serve};
+use skein_fake_machine::{How, Machine};
 use skein_io::kernel::Op;
 use skein_lib::{Env, Queue, Token};
-use skein_sim::{Config, Handle, Pid, Sim};
+use skein_sim::{Ask, Config, Handle, Pid, Sim};
 
 // The store world's file-driver queue capacity; each request settles before
 // the next, with room for all completions of the eight driver flights.
@@ -17,13 +16,17 @@ pub(super) struct Disk {
     pid: Pid,
     root: Root,
     host: Drivers,
+    pub operations: u32,
+    pub mutations: Vec<u32>,
+    pub cut: Option<u32>,
+    pub reached: bool,
 }
 impl Disk {
     pub fn new(limits: &Limits) -> Self {
         let mut machine = Machine::for_user(0);
         let handle = machine.lay(&[]);
         let (sim, pid, root, host) = drivers(limits, handle, 0);
-        Self { machine, sim, pid, root, host }
+        Self { machine, sim, pid, root, host, operations: 0, mutations: Vec::new(), cut: None, reached: false }
     }
     pub fn root(&self) -> Root {
         self.root
@@ -35,6 +38,10 @@ impl Disk {
         self.machine.crash(seed);
         let handle = self.machine.reopen_root(0);
         (self.sim, self.pid, self.root, self.host) = drivers(limits, handle, seed);
+        self.operations = 0;
+        self.mutations.clear();
+        self.cut = None;
+        self.reached = false;
     }
     pub fn unread_transcript(&mut self, task: u64) {
         let root = self.machine.reopen_root(0);
@@ -82,7 +89,11 @@ impl Disk {
         self.drive(store, env, above);
     }
     pub fn drive(&mut self, store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>) {
+        let mut idle = false;
         for _ in 0..100_000 {
+            if self.reached {
+                return;
+            }
             self.host.iterate(store, env, above);
             let mut submissions = Queue::with_capacity(QUEUE);
             while let Some(Submission { lane, mut submit }) = self.host.pop_submission() {
@@ -94,7 +105,21 @@ impl Disk {
                 submissions.push(submit);
             }
             self.sim.submit(self.pid, &mut submissions);
-            serve(&mut self.machine, &mut self.sim);
+            let mut calls = Queue::with_capacity(QUEUE);
+            let mut answers = Queue::with_capacity(QUEUE);
+            self.sim.calls(&mut calls);
+            while let Some(call) = calls.pop() {
+                if self.cut == Some(self.operations) {
+                    self.reached = true;
+                    return;
+                }
+                if matches!(&call.ask, Ask::Write { .. } | Ask::Append { .. } | Ask::Sync { .. } | Ask::Rename { .. }) {
+                    self.mutations.push(self.operations);
+                }
+                self.operations = self.operations.checked_add(1).expect("bounded scenario operations");
+                skein_fake_machine::step(&mut self.machine, call, &mut answers);
+            }
+            self.sim.answer(&mut answers);
             let mut completions = Queue::with_capacity(QUEUE);
             self.sim.reap(self.pid, &mut completions);
             while let Some(mut complete) = completions.pop() {
@@ -105,8 +130,15 @@ impl Disk {
                 }
                 self.host.complete(lane, complete);
             }
+            // A terminal can make a recovery snapshot ready without queuing
+            // IO. Give the component its next fire before declaring it settled.
             if self.host.idle() && !self.host.work_pending(env.now) {
-                return;
+                if idle {
+                    return;
+                }
+                idle = true;
+            } else {
+                idle = false;
             }
         }
         panic!("calm directory host settles");
