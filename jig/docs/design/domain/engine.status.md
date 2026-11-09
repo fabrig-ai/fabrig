@@ -175,10 +175,6 @@ try. A window's later pages keep its first page's slot there
 
 ## Gaps and departures
 
-- **Not yet:** 7.3, *A run's read as its person*: no named action
-  `PersonRead` exists, so no run reads as its task's requester, of its
-  project alone; an application's asking tool reads the settings and its
-  own documents alone (plan `ui-ask-m2`).
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
