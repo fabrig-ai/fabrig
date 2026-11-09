@@ -1,0 +1,6 @@
+draft = "resume-fits-room"
+repo = "fabrig"
+sources = ["temper/docs/plan/resume-fits-room/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
