@@ -157,6 +157,10 @@ Section 8.1: none of Ask temper's tools or proposal items offers
 visibility, and `ask.txt` says it is no setting, done by its owner outside
 the chat.
 
+- **Not yet:** 8.1, 8.4.1: a goal template's work, `template-goal`:
+  a run's `settings`, `see settings template-goal N` and
+  `propose_settings` neither read nor propose it, and the tools'
+  declarations don't name it (`goal-kind`).
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own
