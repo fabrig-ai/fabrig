@@ -23,6 +23,8 @@ enum Act {
 }
 #[derive(Debug)]
 pub(crate) struct Bindings {
+    pub(crate) remembered_field: Option<u64>,
+    pub(crate) remembered_return: Option<u64>,
     pub(crate) model_times: crate::words::Times,
     entries: List<(Token, Act)>,
     next: u64,
@@ -31,6 +33,8 @@ pub(crate) struct Bindings {
 impl Bindings {
     pub fn new(capacity: u32) -> Self {
         Self {
+            remembered_field: None,
+            remembered_return: None,
             model_times: crate::words::Times::new(skein_lib::Wall::EPOCH),
             entries: List::with_capacity(capacity),
             next: 0,
@@ -38,6 +42,7 @@ impl Bindings {
         }
     }
     pub fn begin(&mut self) {
+        self.remembered_return = None;
         self.entries.clear();
         self.submissions = true;
     }
@@ -88,6 +93,14 @@ impl Bindings {
                     return None;
                 }
                 let meaning = match (meaning, act) {
+                    (
+                        PageAct::Remembered(temper_client_domain::pages::remembered::Act::Words { .. }),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::Remembered(temper_client_domain::pages::remembered::Act::Words { words: value }),
+                    (
+                        PageAct::Remembered(temper_client_domain::pages::remembered::Act::Words { .. }),
+                        skein_ui::Act::Submit,
+                    ) => PageAct::Remembered(temper_client_domain::pages::remembered::Act::Save),
                     (PageAct::Filter { filter }, skein_ui::Act::Input { value }) => {
                         let mut filter = *filter;
                         filter.goal = if value.is_empty() { None } else { Some(skein_ui::number(&value)?) };
@@ -377,6 +390,7 @@ fn all_projects(
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::ConnectForge { .. }
@@ -665,7 +679,7 @@ fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mu
             b.name(me.party.name.bytes());
             for (word, act) in [
                 (Word::SettingsAccountsTab, PageAct::Go { address: Address::Accounts }),
-                // The place of "What temper remembers about you" (client/README.md, 5.3).
+                (Word::RememberedTitle, PageAct::Go { address: Address::Remembered }),
                 (Word::SignOut, PageAct::SignOut),
             ] {
                 b.open(Role::MenuItem);
@@ -829,6 +843,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::ConnectForge { .. }
@@ -1021,7 +1036,8 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Limits
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. } => true,
-        Address::Home { .. }
+        Address::Remembered
+        | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Work { .. }
         | Address::Goals { .. }

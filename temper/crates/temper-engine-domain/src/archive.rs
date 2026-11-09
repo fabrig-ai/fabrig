@@ -24,6 +24,7 @@ pub(crate) enum Waiting {
     GoalWords,
     Notes,
     Document,
+    Remember,
 }
 
 pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
@@ -37,6 +38,7 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
         Some(Read::Notes { .. } | Read::SettingsNote { .. }) => Some(Waiting::Notes),
         Some(Read::Document(_)) => Some(Waiting::Document),
+        Some(Read::Remember(_)) => Some(Waiting::Remember),
         None => None,
     }
 }
@@ -123,6 +125,7 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
         Some(Read::Notes { owner }) => Some(owner),
         Some(
             Read::Document(_)
+            | Read::Remember(_)
             | Read::SettingsNote { .. }
             | Read::Ended(_)
             | Read::Escalation(_)
@@ -137,6 +140,10 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
 }
 
 pub(crate) fn note_failed(domain: &mut Domain, waiter: Token) {
+    if waiting(domain, waiter) == Some(Waiting::Remember) {
+        crate::route::remember::failed(domain, waiter);
+        return;
+    }
     if let Some(Some(Read::SettingsNote { to, .. })) = domain.archive_reads.get(Id::from_token(waiter)) {
         let to = *to;
         retire_read(domain, waiter);

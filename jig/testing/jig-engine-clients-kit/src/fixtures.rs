@@ -23,6 +23,7 @@ pub fn settings() -> Settings {
     let mut providers = List::with_capacity(1);
     providers.push(APPLICATION_PROVIDER).expect("application provider");
     Settings {
+        private: jig_protocol_engine_clients::Private::none(),
         provider: None,
         addresses: Box::new([]),
         deployment_provider: 2,
@@ -245,6 +246,7 @@ pub fn copy_settings(settings: &Settings) -> Settings {
         redirect_bytes: settings.redirect_bytes,
         moved_bytes: settings.moved_bytes,
         public: settings.public.clone(),
+        private: settings.private.clone(),
         public_bounds: settings.public_bounds,
     }
 }

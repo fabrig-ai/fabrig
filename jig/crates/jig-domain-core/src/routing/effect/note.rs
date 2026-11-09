@@ -30,6 +30,7 @@ pub(crate) fn route_notes(
 
 pub(crate) fn person_note_scope(project: u32, scope: people::NoteScope) -> notes::Scope {
     match scope {
+        people::NoteScope::Party { party } => notes::Scope::Party { party },
         people::NoteScope::Deployment => notes::Scope::Deployment,
         people::NoteScope::Project => notes::Scope::Project { project },
         people::NoteScope::Goal { goal } => notes::Scope::Goal { project, goal },
@@ -106,7 +107,7 @@ pub(crate) fn tag_notes(
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Brief { .. } | NoteRoute::Deletion { .. }) => {
+                Some(NoteRoute::Brief { .. } | NoteRoute::Preferences { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("note reads and project deletion cannot write an entry")
                 }
                 None => {}
@@ -116,8 +117,11 @@ pub(crate) fn tag_notes(
                     request,
                     outcome: people::Outcome::NoteEdited { name },
                 }))),
-                Some(NoteRoute::Call { .. } | NoteRoute::Brief { .. } | NoteRoute::Deletion { .. }) => {
-                    unreachable!("only a party deletes a note")
+                Some(NoteRoute::Call { to, key }) => {
+                    call_decision(core, &mut out, to, key, CallPart::NoteDeleted { name });
+                }
+                Some(NoteRoute::Brief { .. } | NoteRoute::Preferences { .. } | NoteRoute::Deletion { .. }) => {
+                    unreachable!("note indexes and project deletion cannot delete one entry")
                 }
                 None => {}
             },
@@ -126,13 +130,21 @@ pub(crate) fn tag_notes(
                     let part = recalled_part(core, key.task, entries, more);
                     call_decision(core, &mut out, to, key, part);
                 }
-                Some(NoteRoute::Person { .. } | NoteRoute::Brief { .. } | NoteRoute::Deletion { .. }) => {
+                Some(
+                    NoteRoute::Person { .. }
+                    | NoteRoute::Brief { .. }
+                    | NoteRoute::Preferences { .. }
+                    | NoteRoute::Deletion { .. },
+                ) => {
                     unreachable!("a run owns this recall")
                 }
                 None => {}
             },
             notes::Request::Indexed { owner, lines, more } => match core.take_note(owner) {
                 Some(NoteRoute::Brief { task }) => work.push(Work::BriefNotes { task, lines, more }),
+                Some(NoteRoute::Preferences { task }) => {
+                    append(crate::routing::run::preferences::indexed(core, env, work, task, lines, more), &mut out);
+                }
                 Some(NoteRoute::Call { .. } | NoteRoute::Person { .. } | NoteRoute::Deletion { .. }) => {
                     unreachable!("brief preparation owns note index")
                 }
@@ -196,6 +208,9 @@ pub(crate) fn tag_notes(
                         });
                     }
                 },
+                Some(NoteRoute::Preferences { task }) => {
+                    append(crate::routing::run::preferences::refused(core, env, work, task, why), &mut out);
+                }
                 Some(NoteRoute::Deletion { project }) => crate::admission::deletion::notes_refused(core, project),
                 None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
             },
@@ -256,7 +271,18 @@ pub(crate) fn edit_note_request(
         people::NoteChange::Correct { .. } => crate::acts::Act::EditNote,
         people::NoteChange::Delete { .. } => crate::acts::Act::DeleteNote,
     };
-    if let Err(why) = crate::acts::note(core, person, project, &scope, act) {
+    let allowed = match scope.as_ref() {
+        people::NoteScope::Party { party: owner } => {
+            project == people::DEPLOYMENT && crate::reads::party::scope_visible(core, person, *owner)
+        }
+        people::NoteScope::Deployment
+        | people::NoteScope::Project
+        | people::NoteScope::Goal { .. }
+        | people::NoteScope::Resources { .. } => true,
+    };
+    let admission =
+        if allowed { crate::acts::note(core, person, project, &scope, act) } else { Err(people::Refusal::Unknown) };
+    if let Err(why) = admission {
         routed.work.push(Work::Event(Event::People(people::Event::Decided {
             request,
             outcome: people::Outcome::Refused(why),
@@ -266,5 +292,11 @@ pub(crate) fn edit_note_request(
         let scope = person_note_scope(project, *scope);
         let change = person_note_change(change);
         routed.work.push(Work::Event(Event::Notes(notes::Event::Edit { owner, party: person, name, scope, change })));
+    }
+}
+
+fn append(mut from: Queue<Request>, to: &mut Queue<Request>) {
+    for _ in 0..from.len() {
+        to.push(from.pop().expect("preference output count"));
     }
 }

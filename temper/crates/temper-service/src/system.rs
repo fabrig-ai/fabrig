@@ -239,7 +239,7 @@ impl Service {
         forge.log_origin_limit = settings.limits.forges.log_origins;
         let notes = Queue::with_capacity(settings.limits.forge.forges);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
-        let mut core = jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed);
+        let mut core = core_config(&settings.jig, seeds);
         core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
         core.jobs = limits::merge_jobs(&settings.jig.limits);
         let config = temper_engine_domain::Config {
@@ -738,6 +738,17 @@ impl Service {
         }
     }
 }
+/// Core settings with the application's private tools (domain/agent.md, 8.4.4).
+pub(crate) fn core_config(config: &jig_protocol_config::Engine, seeds: &settings::Seeds) -> jig_domain_core::Config {
+    let mut core = jig_protocol_config::core(config, seeds.deployment, seeds.seed);
+    let mut tools = List::with_capacity(1);
+    for tool in temper_engine_smith::PRIVATE_TOOLS {
+        tools.push(Box::from(tool)).expect("private tool names");
+    }
+    core.settings.private_tools = tools.into_boxed();
+    core
+}
+
 fn start_problem(member: &[u8], what: What) -> Problems {
     let mut problems = Problems::empty();
     problems.push(Path::root().member(b"engine").member(member), what);

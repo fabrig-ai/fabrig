@@ -207,6 +207,8 @@ pub enum NoteScope {
     Goal { goal: u64 },
     /// Guidance for one connector resource pattern in the request's project.
     Resources { connector: u16, pattern: crate::Pattern },
+    /// A person's own preferences, in no project (domain/engine.md, 10.1).
+    Party { party: u64 },
 }
 
 /// A person's correction or deletion of a recalled note revision.

@@ -275,7 +275,8 @@ record NoteScopeProject { value: u32 }
 record NoteScopeResource { project: u32 connector: u16 pattern: Pattern }
 record NoteScopeTask { project: u32 task: u64 }
 record NoteScopeTasks { project: u32 }
-enum NoteScope { deployment, project: NoteScopeProject, resource: NoteScopeResource, task: NoteScopeTask, tasks: NoteScopeTasks }
+record NoteScopeParty { party: u64 }
+enum NoteScope { deployment, project: NoteScopeProject, resource: NoteScopeResource, task: NoteScopeTask, tasks: NoteScopeTasks, party: NoteScopeParty }
 record PolicyEditRole { number: u32 authority: Authority period_spend: u64 requests: u16 decides: u8 }
 record PolicyJudge { connector: u16 requirement: u16 parameters: u32 }
 record PolicyGuardObserved { freshness: duration }

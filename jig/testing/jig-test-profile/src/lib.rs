@@ -186,6 +186,7 @@ fn profile() -> root::Limits {
                 attempts: 128,
                 plan: 128,
                 notes: 64,
+                preferences: 64,
             },
             accounts: accounts::Limits {
                 accounts: 1,
@@ -213,6 +214,8 @@ fn profile() -> root::Limits {
             notes: jig_domain_notes::Limits {
                 scopes: 4,
                 entries_per_scope: 1,
+                party_entries: 1,
+                party_bytes: 64,
                 pattern_bytes: 64,
                 description_bytes: 64,
                 body_bytes: 256,
@@ -369,6 +372,7 @@ pub fn config(seed: u64) -> root::Config {
                 models: Box::new([scripted_model()]),
                 resume_bytes: 256,
                 tail_bytes: 128,
+                private_tools: Box::new([]),
                 tools: core::ToolFamilies::JIG,
                 key_bytes: 256,
                 redirect_bytes: 4096,

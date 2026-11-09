@@ -6,6 +6,7 @@ pub(crate) mod delegation;
 pub(crate) mod jobs;
 pub(crate) mod parts;
 pub(crate) mod payloads;
+pub(crate) mod preferences;
 pub(crate) mod preparation;
 pub(crate) mod results;
 pub(crate) mod turns;

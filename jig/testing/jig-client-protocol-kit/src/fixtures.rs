@@ -59,6 +59,7 @@ pub fn identity(party: u64) -> jig_domain_people::Identity {
 #[must_use]
 pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
     jig_protocol_engine_clients::Settings {
+        private: jig_protocol_engine_clients::Private::none(),
         provider: None,
         addresses: Box::new([]),
         link: Some(identity(FIRST_OWNER)),

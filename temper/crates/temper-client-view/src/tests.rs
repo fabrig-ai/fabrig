@@ -33,6 +33,7 @@ mod playground;
 mod playground_start;
 mod public;
 mod rail;
+mod remembered;
 mod settings;
 mod start_goal;
 mod team;

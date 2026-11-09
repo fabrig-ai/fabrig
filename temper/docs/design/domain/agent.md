@@ -1474,16 +1474,18 @@ proposal of settings an owner accepts (8.1).
   (`../protocol/configuration.md`, 13.4);
   its `tools` the asking and settings families,
   3,072; no inspect, modify, shell or agents; so its runs have no workspace
-  (4.2) and are declared `see`, `document` and `propose_settings` alone (4.3),
-  with smith's `wait`. It names no repository and delegates nothing.
+  (4.2) and are declared `see`, `document`, `remember` and `propose_settings`
+  alone (4.3), with smith's `wait`. It names no repository and delegates
+  nothing.
 - **Its instructions,** `ask.txt`, held in the binary in the `stock` module:
-  `../draft/ask-temper.md`, section 8, whole, but its part *Remembering*,
-  which joins with `remember`, and of its part *Showing* all but the first
+  `../draft/ask-temper.md`, section 8, whole, its part *Remembering* among
+  them, but of its part *Showing* all but the first
   step: its first paragraph, its `view` example, its Views line naming
   `path`, `way`, `charter` and `proposal` alone, and its paragraph on ways,
   the views the client draws (`../client/README.md`, 5.16); the other views
   and the sketches join with M3b, since a view or a mark not built yet shows
-  as code. They name every address of `see`'s (8.4.1).
+  as code. They name every address of `see`'s (8.4.1), and are at most 10,240
+  bytes, `../draft/ask-temper.md`, 4.1's 10 KB, which the stock's test holds.
 - **Its authority** is its chat's, policy 1's for its role: the rules and policy
   1 hold the asking family beside the others, and the delegation names charter
   11, so that a project made from the stock may start it
@@ -1504,11 +1506,13 @@ proposal of settings an owner accepts (8.1).
   --template 5 TEXT` (`../client/tools.md`, 5.3).
 - **Its tests:** focused and fuzzy alone; its judgement is the user's, by trying
   it. The first request's bound, on both shapes; its runs' declarations,
-  `see`, `document` and `propose_settings`, and no workspace; Claude Code's
-  arguments for a run with no workspace on the fake program (smith's
-  `protocol/programs.md`, section 8); `see`'s built addresses as rows of one
-  table (8.4.1); `document`'s writes and refusals (8.4.3); `propose_settings`'s
-  asking form (8.4.2).
+  `see`, `document`, `remember` and `propose_settings`, and no workspace;
+  Claude Code's arguments for a run with no workspace on the fake program
+  (smith's `protocol/programs.md`, section 8); `see`'s built addresses as rows
+  of one table (8.4.1); `document`'s writes and refusals (8.4.3);
+  `propose_settings`'s asking form (8.4.2); `remember`'s writes, refusals and
+  the person's list in the brief, withheld from the project's other roles
+  (8.4.4).
 
 #### 8.4.1 `see`
 
@@ -1826,6 +1830,74 @@ its revision and its lines, so that a run names none of them.
   engine's domain world's note tests, each with the stored body and the answer;
   its words as one table of `temper-engine-smith`'s.
 
+#### 8.4.4 `remember`
+
+Ask temper's memory of its person (`../draft/ask-temper.md`, 5.4 and section
+7): a few lines it keeps when the person asks, across their chats, in jig's
+party scope of the chat's requester (jig's `domain/engine.md`, 10.1). The list
+is that scope's entries in name order, oldest first, each numbered by its
+place from 1, as the brief's `preferences` section numbers them; each line an
+entry's description, its body empty.
+
+- **Its declaration:** `remember`, in the asking family, declared to an
+  asking charter alone, beside `see` and `document` (4.3); its description,
+  "Keep a line about your person across their chats, only when they ask: add
+  one, or change or drop one by its number. Each answer is the whole list.";
+  its members `action`, one of `add`, `change` and `drop`, required; `line`,
+  the line's number, for `change` and `drop`; and `text`, the line, for
+  `add` and `change`, described "One line, at most 120 bytes." A call whose
+  members do not fit its action is refused as it is decoded, as `document`'s
+  are.
+- **Its bounds are jig's,** the party scope's: at most `notes.party_entries`
+  lines, 12, each at most `notes.party_bytes`, 120 (jig's
+  `domain/engine.md`, 10.1), so that a correction on the person's page is held
+  as a call is.
+- **The root writes it** (`route/remember.rs`): once the asking family has
+  decided the call (4.3), it takes the chat's requester, a person, else
+  refuses; it loads the party scope's index, as `document` loads its
+  scope's (8.4.3); it checks the text, trimmed of its spaces, one line and
+  not empty, within the bound; and it writes through jig's named actions:
+  `add` a new entry, its references the chat's own number; `change` the
+  entry at that place, at the revision the index gave, its references kept;
+  `drop` that entry, by `NoteDelete` at that revision. jig decides and
+  records the write (jig's `domain/engine.md`, 10.1). Its own refusals,
+  before the write, change nothing and keep no record.
+- **Its answer** is its first line, what changed and how full the list is,
+  then the whole list, a line each, `N. TEXT`, or `None kept.`:
+  - `add`: `remember: line 3 kept; 3 of 12 lines.`
+  - `change`: `remember: line 2 changed; 3 of 12 lines.`
+  - `drop`: `remember: line 2 dropped; 2 of 12 lines.`
+- **Its refusals** are a line each, an error, and change nothing:
+  - a text empty, or of more than one line: `remember: a line is one line of text, not empty; nothing changed.`
+  - past the bound: `remember: the line is 140 bytes, past its bound of 120; nothing changed.`
+  - `add` to a full list: `remember: the list is full, 12 lines; ask which line to change or drop. Nothing changed.`
+  - no such line: `remember: no line 7; the list has 3. Nothing changed.`, or `remember: no line 7; the list is empty. Nothing changed.`
+  - moved during the call: `remember: the list changed while line 2 was changed; nothing changed. Call again.`, `while a line was kept` for an `add`, `while line 2 was dropped` for a `drop`;
+  - a chat whose requester is no person: `remember: this chat keeps nothing for a person; nothing changed.`
+  - jig's notes busy: `remember: busy; nothing changed. Call again.`
+  - the index not loaded: `remember: the list could not be read; nothing changed.`
+  - any other refusal of jig's at the write, in `note`'s words after `remember: `.
+- **In the brief,** the list is jig's `preferences` section (jig's
+  `domain/engine.md`, 9 and 10.1), its title, in `temper-engine-smith`'s
+  `start.rs`, "Kept about this person", so that each run of charter 11
+  reads the whole list and nothing is searched; its budget 2,048 bytes
+  (`../draft/ask-temper.md`, 4.1's 2 KB), which twelve lines of 120 bytes
+  fit numbered.
+- **Seen by the person alone:** `remember` is the root's one private tool,
+  and "Kept about this person" its private section's title (jig's
+  `domain/engine.md`, 10.1), so that a turn's read, an activity page and a
+  run's live call show the list and `remember`'s calls to the chat's
+  person alone, and to every other party withheld. `see task N turn A.T`
+  and `see task N activity` render a turn as jig answers it, withheld for
+  a run's read as its person (jig's `domain/engine.md`, 7.3), since what
+  `see` answers joins a transcript the project's other roles read.
+- **Its tests** (`testing.md`, 6.1): its writes and refusals as rows of the
+  engine's domain world's note tests, each with the stored entries and the
+  answer; its words as one table of `temper-engine-smith`'s; a note
+  remembered in one Ask temper chat and read in the brief of the next; a
+  turn read by another role of the project with the list and the calls
+  withheld, and whole by its person.
+
 ### 8.5 The drafter
 
 A design session is a chat with the drafter (`../draft/surfaces.md`, 11.2):
@@ -1894,8 +1966,9 @@ host:
 ## 10. Open questions
 
 - **Ask temper after M1, M2 and M3a** (8.4, 8.4.1): M3b supplies the other
-  views, the Showing part's paragraph on sketches and the actors' marks; M4
-  supplies preferences (`../draft/ask-temper.execution.md`, section 3). The
+  views, the Showing part's paragraph on sketches and the actors' marks; M4's
+  preferences (8.4.4) are designed, their walk after landing
+  (`../draft/ask-temper.execution.md`, section 3). The
   ChatGPT and Claude Code walk, a real model's use of `see ways`, of the person's
   addresses and of the `view` block, and the user's judgement of `ask.txt`
   follow landing.

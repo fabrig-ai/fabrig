@@ -24,6 +24,8 @@ use smith_transcript::v7 as smith;
 
 mod brief;
 mod summary;
+mod withhold;
+pub use withhold::{Private, WITHHELD, withhold};
 #[cfg(test)]
 mod tests;
 

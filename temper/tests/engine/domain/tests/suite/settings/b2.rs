@@ -104,7 +104,8 @@ fn limits() -> engine::Limits {
     limits.forge.tasks = 16;
     limits.journal.deliveries = 128;
     limits.journal.held = 512;
-    limits.journal.run_bytes = 16384;
+    // Charter 11's resolved stock run policy needs 16,601 bytes.
+    limits.journal.run_bytes = 20_480;
     limits.journal.result_bytes = 1024;
     limits.journal.transcript_bytes = 32768;
     limits.loads.transcript_bytes = 32768;
@@ -397,7 +398,7 @@ fn asking_declarations() {
         assert_eq!(
             names,
             if allowed {
-                vec![b"see".as_slice(), b"document", b"propose_settings"]
+                vec![b"see".as_slice(), b"document", b"remember", b"propose_settings"]
             } else {
                 vec![b"propose_settings".as_slice()]
             }

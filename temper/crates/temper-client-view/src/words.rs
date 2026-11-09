@@ -336,6 +336,21 @@ pub enum Word {
     ModelsName,
     ModelsProvider,
     ModelsAddHeading,
+    RememberedTitle,
+    RememberedLede,
+    RememberedChange,
+    RememberedDelete,
+    RememberedSave,
+    RememberedCancel,
+    RememberedField,
+    RememberedMoved,
+    RememberedEmpty,
+    RememberedEmptyLine,
+    RememberedAsk,
+    RememberedChat,
+    RememberedParty,
+    RememberedTooLong,
+    RememberedFull,
     DeploymentTitle,
     MembersTab,
     MembersHeading,
@@ -1727,7 +1742,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2279;
+const PHRASES: u32 = 2294;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1754,10 +1769,10 @@ const PHRASES: u32 = 2279;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4092;
+const SEGMENTS: u32 = 4119;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 55188;
-const ALL: [Word; 1596] = [
+const ENGLISH_BYTES: u32 = 55673;
+const ALL: [Word; 1611] = [
     Word::StopAsking,
     Word::StopAskingDecide,
     Word::StopAskingWords,
@@ -2074,6 +2089,21 @@ const ALL: [Word; 1596] = [
     Word::ModelsName,
     Word::ModelsProvider,
     Word::ModelsAddHeading,
+    Word::RememberedTitle,
+    Word::RememberedLede,
+    Word::RememberedChange,
+    Word::RememberedDelete,
+    Word::RememberedSave,
+    Word::RememberedCancel,
+    Word::RememberedField,
+    Word::RememberedMoved,
+    Word::RememberedEmpty,
+    Word::RememberedEmptyLine,
+    Word::RememberedAsk,
+    Word::RememberedChat,
+    Word::RememberedParty,
+    Word::RememberedTooLong,
+    Word::RememberedFull,
     Word::DeploymentTitle,
     Word::MembersTab,
     Word::MembersHeading,
@@ -3718,6 +3748,21 @@ impl Word {
             Self::ModelsName => 3971,
             Self::ModelsProvider => 3970,
             Self::ModelsAddHeading => 3969,
+            Self::RememberedTitle => 4800,
+            Self::RememberedLede => 4801,
+            Self::RememberedChange => 4802,
+            Self::RememberedDelete => 4803,
+            Self::RememberedSave => 4804,
+            Self::RememberedCancel => 4805,
+            Self::RememberedField => 4806,
+            Self::RememberedMoved => 4807,
+            Self::RememberedEmpty => 4808,
+            Self::RememberedEmptyLine => 4809,
+            Self::RememberedAsk => 4814,
+            Self::RememberedChat => 4810,
+            Self::RememberedParty => 4811,
+            Self::RememberedTooLong => 4812,
+            Self::RememberedFull => 4813,
             Self::DeploymentTitle => 4750,
             Self::MembersTab => 4751,
             Self::MembersHeading => 4752,
@@ -6693,6 +6738,21 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelsDefault => (&[b" \xc2\xb7 the default"], &[]),
         Word::ModelsAsk => (&[b"To change a default or a role\xe2\x80\x99s models, "], &[]),
         Word::ModelsAskPage => (&[b"ask temper."], &[]),
+        Word::RememberedTitle => (&[b"What temper remembers about you"], &[]),
+        Word::RememberedLede => (&[b"What Ask temper keeps about you across your chats, when you ask it to. Only you see these lines."], &[]),
+        Word::RememberedChange => (&[b"Change"], &[]),
+        Word::RememberedDelete => (&[b"Delete"], &[]),
+        Word::RememberedSave => (&[b"Save"], &[]),
+        Word::RememberedCancel => (&[b"Cancel"], &[]),
+        Word::RememberedField => (&[b"Line"], &[]),
+        Word::RememberedMoved => (&[b"This line changed meanwhile; it shows as it is now."], &[]),
+        Word::RememberedEmpty => (&[b"Nothing kept yet"], &[]),
+        Word::RememberedEmptyLine => (&[b"Ask temper keeps a line here when you ask it to remember something, such as how you like its answers."], &[]),
+        Word::RememberedAsk => (&[b"Ask temper \xc2\xb7 ", b""], &[Name]),
+        Word::RememberedChat => (&[b"Ask temper chat ", b" \xc2\xb7 ", b""], &[Number, Name]),
+        Word::RememberedParty => (&[b"Changed by you \xc2\xb7 ", b""], &[Name]),
+        Word::RememberedTooLong => (&[b"A line is at most ", b" bytes."], &[Number]),
+        Word::RememberedFull => (&[b"", b" lines, the most Ask temper keeps: it asks you which to change before it keeps another."], &[Number]),
         Word::DeploymentTitle => (&[b"Deployment"], &[]),
         Word::MembersTab => (&[b"Members"], &[]),
         Word::MembersHeading => (&[b"Who may do what."], &[]),

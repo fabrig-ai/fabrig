@@ -4,6 +4,7 @@ mod asking_forge;
 pub(crate) mod asking_person;
 mod asking_proposal;
 mod fixture;
+mod remembering;
 use fixture::*;
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as people;
@@ -640,7 +641,7 @@ fn an_owners_asking_chat_proposes_and_hears_it_accepted() {
         include_bytes!("../../../../../crates/temper-service/src/stock/ask.txt")
     );
     let offered = temper_engine_smith::charter(&run);
-    for name in [b"see".as_slice(), b"document", b"propose_settings"] {
+    for name in [b"see".as_slice(), b"document", b"remember", b"propose_settings"] {
         assert!(offered.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name));
     }
     let (inventory, error) = host_tool(&mut world.driver, &run, 1, b"see", br#"{"address":"settings"}"#);

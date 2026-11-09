@@ -3,9 +3,12 @@ use jig_client_test_records as records;
 use jig_domain_core::reads;
 use skein_lib::{Reader, length::len_u64};
 pub fn read_exchange() -> Exchange {
+    read_exchange_with(settings())
+}
+pub fn read_exchange_with(settings: Settings) -> Exchange {
     let mut limits = env();
     limits.limits.wire.owned_record = 4096;
-    Exchange::with_env(limits)
+    Exchange::configured(limits, settings)
 }
 pub fn encoded_read(value: &w::Read) -> Box<[u8]> {
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));

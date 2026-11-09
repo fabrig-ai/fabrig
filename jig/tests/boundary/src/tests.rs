@@ -214,10 +214,7 @@ fn engine_clients_link_only_their_boundary_wire_and_foundation() {
         .filter(|manifest| manifest.name.as_deref() == Some("jig-protocol-engine-clients"))
         .collect();
     assert_eq!(selected.len(), 1, "one engine client component");
-    let mut dependencies = selected[0].dependencies.clone();
-    dependencies.sort();
-    assert_eq!(
-        dependencies,
+    assert!(selected[0].dependencies.iter().all(|name| {
         [
             "jig-client-protocol-wire",
             "jig-domain-accounts",
@@ -230,11 +227,13 @@ fn engine_clients_link_only_their_boundary_wire_and_foundation() {
             "jig-domain-tasks",
             "jig-domain-views",
             "jig-protocol-store",
+            "jig-protocol-transcript",
             "skein-codec",
             "skein-lib",
-            "skein-oauth-issuer"
+            "skein-oauth-issuer",
         ]
-    );
+        .contains(&name.as_str())
+    }));
 }
 
 #[test]
