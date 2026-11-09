@@ -1,5 +1,7 @@
 //! Person reads in temper's words (temper/docs/design/domain/agent.md, 8.4.1).
 
+mod changes;
+mod runs;
 mod words;
 use self::words::{executor, kind, number, state, task_name, time};
 use super::{join, join_parts};
@@ -11,12 +13,12 @@ use jig_domain_core::{
 use skein_lib::List;
 use temper_engine_domain::{SeeNames, SeePerson, SeeRead};
 
-pub(super) fn text(person: &SeePerson, catalogue: &[jig_domain_core::settings::CatalogueModel]) -> Option<Box<[u8]>> {
+pub(super) fn text(person: &SeePerson, catalogue: &[jig_domain_core::settings::CatalogueModel]) -> Box<[u8]> {
     let names = &person.names;
     let mut lines = List::uncapped();
     match &person.read {
         SeeRead::Tasks { tasks } => {
-            let Answer::Tasks(page) = tasks else { return Some(b"tasks: not read\n".as_slice().into()) };
+            let Answer::Tasks(page) = tasks else { return b"tasks: not read\n".as_slice().into() };
             lines
                 .push(join(&[
                     b"live tasks of ",
@@ -53,11 +55,14 @@ pub(super) fn text(person: &SeePerson, catalogue: &[jig_domain_core::settings::C
         }
         SeeRead::Tree { number, live, ended } => tree(*number, live, ended, names, catalogue, &mut lines),
         SeeRead::Inbox { needs } => inbox(needs, names, &mut lines),
-        SeeRead::Activity { .. } | SeeRead::Turn { .. } | SeeRead::Change { .. } | SeeRead::Changes { .. } => {
-            return None;
+        SeeRead::Activity { number, activity } => runs::activity(*number, activity, names, &mut lines),
+        SeeRead::Turn { number, attempt, turn, read } => runs::turn(*number, *attempt, *turn, read, &mut lines),
+        SeeRead::Change { number, panel } => changes::change(*number, panel, &mut lines),
+        SeeRead::Changes { changes, landings } => {
+            changes::queues(changes.as_deref(), landings.as_deref(), names, &mut lines);
         }
     }
-    Some(join_parts(&lines))
+    join_parts(&lines)
 }
 
 fn project_name(names: &SeeNames) -> Box<[u8]> {

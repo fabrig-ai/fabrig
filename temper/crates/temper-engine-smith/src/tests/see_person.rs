@@ -354,6 +354,252 @@ fn catalogue() -> [jig_domain_core::settings::CatalogueModel; 1] {
     }]
 }
 
+// One minute-resolution time, shared with the existing task row.
+const AT: Wall = Wall::from_nanos(1_794_210_000_000_000_000);
+const OVERSIZE: u64 = 8_388_609; // One byte beyond the client's carried-turn ceiling.
+const HASH: [u8; 32] = [0xab; 32];
+
+fn turn_record(input: &[u8]) -> jig_domain_core::TurnRecord {
+    use smith_transcript::v7 as s;
+    const BLOCKS: u32 = 5; // Words and two call/result pairs.
+    let bounds = &s::CEILINGS;
+    let mut blocks = List::with_capacity(BLOCKS);
+    blocks
+        .push(s::Block::Text(
+            s::Text::new(
+                bounds,
+                s::TextParts {
+                    text: b"I will read the charter.\nThen propose the settings.".as_slice().into(),
+                    replay: None,
+                },
+            )
+            .unwrap(),
+        ))
+        .unwrap();
+    for (id, tool, input, result) in [
+        (b"first".as_slice(), b"see".as_slice(), input, b"charter 4, the reviewer's\nLong settings text".as_slice()),
+        (b"second", b"propose_settings", b"{ \"more\": false }", b"proposed, waiting for an owner\nProposal details"),
+    ] {
+        blocks
+            .push(s::Block::Call(
+                s::Call::new(
+                    bounds,
+                    s::CallParts { id: id.into(), name: tool.into(), input: input.into(), replay: None },
+                )
+                .unwrap(),
+            ))
+            .unwrap();
+        blocks
+            .push(s::Block::Result(
+                s::ToolResult::new(
+                    bounds,
+                    s::ToolResultParts {
+                        id: id.into(),
+                        returned: s::Returned::Said(
+                            s::Said::new(bounds, s::SaidParts { text: result.into(), error: false }).unwrap(),
+                        ),
+                    },
+                )
+                .unwrap(),
+            ))
+            .unwrap();
+    }
+    let source = s::Turn::new(bounds, s::TurnParts {
+        system: Some(b"## Task\nRead the charter.\nBrief continuation stays in the archive.\n## Project\nShop\nMore project context".as_slice().into()),
+        model: b"gpt-6".as_slice().into(), effort: None, kind: s::TurnKind::Ordinary, opening: None,
+        endpoint: b"unused-endpoint".as_slice().into(), dialect: 1, place: 2,
+        usage: s::Usage::new(bounds, s::UsageParts { input: None, output: None, cache_read: None, cache_write: None, reasoning: None }).unwrap(),
+        spent: 12, jobs: 0,
+        messages: List::from_boxed(Box::new([s::Message::new(bounds, s::MessageParts { role: s::Role::Assistant, blocks }).unwrap()])),
+    }).unwrap();
+    let mut out = skein_lib::Writer::new(usize::try_from(source.measure()).unwrap());
+    source.encode(&mut out).unwrap();
+    jig_domain_core::TurnRecord {
+        opens_window: false,
+        task: 41,
+        attempt: 3,
+        turn: 2,
+        spent: 224,
+        read: None,
+        at: AT,
+        transcript: out.finish(),
+    }
+}
+fn whole_turn(input: &[u8]) -> Answer {
+    Answer::Ended(Box::new(jig_domain_core::reads::Ended {
+        value: jig_domain_core::reads::EndedValue::Turn(turn_record(input)),
+        at: Some(AT),
+        by: None,
+    }))
+}
+fn activity() -> Answer {
+    use jig_domain_core::reads::{PageRow, PageTurn};
+    let turn = turn_record(b"{ \"address\": \"settings charter 4\" }");
+    let rows = List::from_boxed(Box::new([
+        PageRow::Activity {
+            line: tasks::ActivityLine {
+                task: 41,
+                position: 5,
+                at: AT,
+                line: tasks::Line::RunEnded { attempt: 3, end: tasks::EndKind::Finished, spent: 224 },
+            },
+            turn: None,
+        },
+        PageRow::Activity {
+            line: tasks::ActivityLine {
+                task: 41,
+                position: 4,
+                at: AT,
+                line: tasks::Line::Turn { reply: 1, attempt: 3, turn: 3, read: None },
+            },
+            turn: Some(PageTurn::TooLarge { spent: 224, read: None, at: AT, bytes: OVERSIZE }),
+        },
+        PageRow::Activity {
+            line: tasks::ActivityLine {
+                task: 41,
+                position: 3,
+                at: AT,
+                line: tasks::Line::Turn { reply: 1, attempt: 3, turn: 2, read: None },
+            },
+            turn: Some(PageTurn::Carried(turn)),
+        },
+        PageRow::Activity {
+            line: tasks::ActivityLine {
+                task: 41,
+                position: 2,
+                at: AT,
+                line: tasks::Line::Words {
+                    message: 1,
+                    by: tasks::Party::Person(9),
+                    kind: tasks::MessageKind::Words,
+                    words: b"Please check.\nMore request words".as_slice().into(),
+                },
+            },
+            turn: None,
+        },
+        PageRow::Activity {
+            line: tasks::ActivityLine {
+                task: 41,
+                position: 1,
+                at: AT,
+                line: tasks::Line::RunBegan { attempt: 3, why: tasks::Why::Made, resumed: false },
+            },
+            turn: None,
+        },
+    ]));
+    page(rows, true)
+}
+fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
+    use temper_engine_domain_forge as f;
+    use temper_engine_domain_forge_change as c;
+    Box::new(f::Document::Change(f::Panel {
+        way: c::Way::Queue,
+        in_landing: None,
+        task: 41,
+        forge: 1,
+        owner: b"shop".as_slice().into(),
+        name: b"app".as_slice().into(),
+        branch: b"export".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        head: Some(HASH),
+        pull,
+        step: f::PanelStep::Queued { place: 1, ahead: Box::new([]) },
+        hold: Some(c::Hold::Repairs),
+        runs: None,
+        ci: c::Status::Passed,
+        ci_required: true,
+        gates: Box::new([
+            f::PanelGate { number: 4, kind: c::GateKind::Check, blocking: true, verdict: c::Status::Passed },
+            f::PanelGate { number: 5, kind: c::GateKind::Agent, blocking: true, verdict: c::Status::Failed },
+        ]),
+        approvals: Box::new([f::PanelApproval {
+            scope: 7,
+            rule: 1,
+            role: 2,
+            freshness: f::JudgeFreshness::Exact,
+            required: 2,
+            read: f::ReviewRead::Complete,
+            counted: Box::new([f::Reviewer {
+                person: 9,
+                role: 2,
+                head: HASH,
+                verdict: skein_forge::api::Verdict::Approve,
+            }]),
+            remaining: Some(1),
+            refused: false,
+        }]),
+        unmapped_reviews: Box::new([]),
+        repairs: f::PanelUsed { used: 1, limit: 2 },
+        resolutions: f::PanelUsed { used: 0, limit: 2 },
+        updates: f::PanelUsed { used: 0, limit: 2 },
+        questions: f::PanelQuestions {
+            route: c::Route::Up,
+            taken: f::PanelUsed { used: 0, limit: 2 },
+            open: Box::new([f::PanelQuestion {
+                asker: 41,
+                number: 3,
+                line: b"Use commas?".as_slice().into(),
+                stands: f::PanelStands::Asked,
+            }]),
+        },
+    }))
+}
+fn changes() -> Box<temper_engine_domain_forge::Document> {
+    use temper_engine_domain_forge as f;
+    Box::new(f::Document::Changes(f::ChangesView {
+        project: 7,
+        landing: b"main".as_slice().into(),
+        more: 0,
+        landed_more: 0,
+        queues: Box::new([
+            f::ChangesQueue {
+                repository: b"shop/app".as_slice().into(),
+                branch: b"main".as_slice().into(),
+                red: false,
+                changes: Box::new([
+                    f::ChangesQueued {
+                        task: 42,
+                        title: b"Add export".as_slice().into(),
+                        ready_since: AT,
+                        checks_since: Some(AT),
+                    },
+                    f::ChangesQueued {
+                        task: 41,
+                        title: b"Add import".as_slice().into(),
+                        ready_since: AT,
+                        checks_since: None,
+                    },
+                ]),
+            },
+            f::ChangesQueue {
+                repository: b"shop/app".as_slice().into(),
+                branch: b"stable".as_slice().into(),
+                red: false,
+                changes: Box::new([f::ChangesQueued {
+                    task: 43,
+                    title: b"Fix quoting".as_slice().into(),
+                    ready_since: AT,
+                    checks_since: Some(AT),
+                }]),
+            },
+        ]),
+        landed: Box::new([f::ChangesLanded { task: 40, title: b"Keep delimiters".as_slice().into(), at: AT }]),
+    }))
+}
+fn landings() -> Box<temper_engine_domain_forge::Document> {
+    use temper_engine_domain_forge as f;
+    Box::new(f::Document::Landings(f::LandingsView {
+        project: 7,
+        turn: Some(50),
+        landings: Box::new([f::LandingLine {
+            task: 50,
+            phase: temper_engine_domain_forge_landing::Phase::Waiting,
+            changes: Box::new([44, 45]),
+            repositories: Box::new([]),
+            landed: Box::new([HASH]),
+        }]),
+    }))
+}
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the test inspects rendered UTF-8 text")]
 #[expect(clippy::too_many_lines, reason = "each address and its boundary cases share one answer contract table")]
@@ -386,7 +632,106 @@ fn person_answers_read_as_named_bounded_lines() {
         "task 41, {} · a chat · an agent, charter 2, the producer's · working · 2026-11-09 07:40",
         "é".repeat(80)
     );
+    // The raw JSON framing is 12 bytes; 250 two-byte letters put it at 512.
+    let input_exact = format!("{{\"query\":\"{}\"}}", "é".repeat(250));
+    let input_past = format!("{input_exact} ");
+    let exact_input_line = format!("see: {input_exact}");
+    let cut_input_line = format!("see: {input_exact}…");
     for (address, read, first, required, following) in [
+        (
+            "task 41 turn 3.2",
+            SeeRead::Turn { number: 41, attempt: 3, turn: 2, read: whole_turn(input_exact.as_bytes()) },
+            "turn 3.2 of task 41 · $0.12",
+            &[exact_input_line.as_str()][..],
+            "task N activity · task N",
+        ),
+        (
+            "task 41 turn 3.2",
+            SeeRead::Turn { number: 41, attempt: 3, turn: 2, read: whole_turn(input_past.as_bytes()) },
+            "turn 3.2 of task 41 · $0.12",
+            &[cut_input_line.as_str()],
+            "task N activity · task N",
+        ),
+        (
+            "task 41 activity",
+            SeeRead::Activity { number: 41, activity: activity() },
+            "activity of task 41: 5 or more events, oldest first",
+            &[
+                "2026-11-09 07:40 · its run · run 3 began\n2026-11-09 07:40 · Ada · Please check.…\n2026-11-09 07:40 · its run · turn 3.2 · 2 calls",
+                "  see: read settings charter 4\n  propose_settings: proposed, waiting for an owner",
+                "2026-11-09 07:40 · its run · turn 3.3 · 8388609 bytes, too large for this page\n  see: task 41 turn 3.3\n2026-11-09 07:40 · its run · run 3 ended\nearlier events not read",
+            ][..],
+            "task N turn A.T · task N · task N tree",
+        ),
+        (
+            "task 41 turn 3.2",
+            SeeRead::Turn {
+                number: 41,
+                attempt: 3,
+                turn: 2,
+                read: whole_turn(b"{ \"address\": \"settings charter 4\" }"),
+            },
+            "turn 3.2 of task 41 · $0.12",
+            &[
+                "## Task\nRead the charter.\n## Project\nShop",
+                "I will read the charter.\nThen propose the settings.",
+                "see: { \"address\": \"settings charter 4\" }\ncharter 4, the reviewer's\nLong settings text",
+                "propose_settings: { \"more\": false }\nproposed, waiting for an owner\nProposal details",
+            ],
+            "task N activity · task N",
+        ),
+        (
+            "change 41",
+            SeeRead::Change { number: 41, panel: panel(Some(17)) },
+            "change 41 · shop/app export into main · queued",
+            &[
+                "pull request 17",
+                "CI: passed\ngate 4: passed\ngate 5: failed\n1 of 2 approvals by role 2\nrepairs: 1 of 2\nquestion 3: Use commas? · waiting for a person\nhold: the repair allowance was exhausted\nfirst in the queue into main",
+            ],
+            "task N · task N activity · changes · settings gates OWNER/NAME",
+        ),
+        (
+            "changes",
+            SeeRead::Changes { changes: Some(changes()), landings: Some(landings()) },
+            "changes of project 7, Shop: 3 queued, 1 landing by turn",
+            &[
+                "into shop/app main: 2\nchange 42, Add export\nchange 41, Add import\ninto shop/app stable: 1\nchange 43, Fix quoting\nlanding by turn: 1\nlanding task 50: change 44, change 45\nlanded lately: 1\nchange 40, Keep delimiters · 2026-11-09 07:40",
+            ],
+            "change N · settings landing · ways",
+        ),
+        (
+            "task 41 activity",
+            SeeRead::Activity { number: 41, activity: page(List::uncapped(), false) },
+            "activity of task 41: 0 events, oldest first",
+            &[],
+            "task N turn A.T · task N · task N tree",
+        ),
+        (
+            "change 41",
+            SeeRead::Change { number: 41, panel: panel(None) },
+            "change 41 · shop/app export into main · queued",
+            &["no pull request yet"],
+            "task N · task N activity · changes · settings gates OWNER/NAME",
+        ),
+        (
+            "changes",
+            SeeRead::Changes { changes: Some(changes()), landings: None },
+            "changes of project 7, Shop: 3 queued, not read landing by turn",
+            &["landing by turn: not read", "landed lately: 1"],
+            "change N · settings landing · ways",
+        ),
+        (
+            "task 41 turn 3.3",
+            SeeRead::Turn {
+                number: 41,
+                attempt: 3,
+                turn: 3,
+                read: Answer::None(jig_domain_core::reads::Why::TooLarge { bytes: OVERSIZE }),
+            },
+            "turn 3.3 of task 41: 8388609 bytes, past what one read holds",
+            &[],
+            "task N activity · task N",
+        ),
         (
             "tasks",
             SeeRead::Tasks { tasks: tasks_page(&[row()]) },
@@ -598,13 +943,20 @@ fn person_answers_read_as_named_bounded_lines() {
         assert!(!error, "{address}: {rendered}");
         assert_eq!(rendered.lines().next(), Some(first), "{address}");
         for line in required {
-            let mut found = false;
-            for value in rendered.lines() {
-                found |= value == *line;
-            }
-            assert!(found, "{address}: missing {line}: {rendered}");
+            assert!(rendered.contains(&format!("\n{line}\n")), "{address}: missing {line}: {rendered}");
         }
-        for hidden in ["digest", "cursor", "temper ctl", "unused-login", "unused-name", "secret metadata"] {
+        for hidden in [
+            "digest",
+            "cursor",
+            "temper ctl",
+            "unused-login",
+            "unused-name",
+            "secret metadata",
+            "unused-endpoint",
+            "abababababababab",
+            "Brief continuation",
+            "More project context",
+        ] {
             assert!(!rendered.contains(hidden), "{address}: {rendered}");
         }
         assert!(rendered.ends_with(&format!("see: {following}\n")), "{address}: {rendered}");
