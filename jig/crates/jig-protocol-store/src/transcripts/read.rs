@@ -461,7 +461,7 @@ fn length(
     if start.checked_add(u64::from(length)).ok_or(())? > read.end {
         return Err(());
     }
-    if read.activity.is_some() || party::single(read) || window(read) {
+    if read.activity.is_some() || party::single(read) || (window(read) && u64::from(length) > read.budget) {
         if length < 48 {
             if store.transcripts.machines.body.is_some() {
                 read.step =
