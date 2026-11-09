@@ -1,0 +1,31 @@
+draft = "ui-p3b-reaches"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-p3b-reaches/inputs/request.md", "temper/docs/design/draft/surfaces.md", "temper/docs/design/draft/whole-story.execution.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "model"
+title = "How work runs' model gains What reaches you: kind 8 read and a second project as facts, and the classes laid in three columns, each subject once"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "fuzz"
+title = "The client world's fuzz holds What reaches you's columns to surfaces.md's density rules over random tables and their moves"
+mode = "direct"
+needs = ["model"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[slice]]
+id = 1
+story = "A project's classes, any table, lay in What reaches you's three columns with every subject once and no column empty, held by the domain's table and the fuzz"
+parts = ["model", "fuzz"]
+walk = false

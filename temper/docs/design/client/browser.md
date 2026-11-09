@@ -915,6 +915,16 @@ replay says the same clocks (`README.md`, 5.12).
     `temper-how-role-more`;
   - *Budgets' row,* `temper-how-row`, `.row`'s grid with the first column
     200 px, its small words muted and its figure at its right;
+  - *What reaches you,* `whole-story.css`' `.grid3`, `.box` and `.who`
+    rules taken exactly, on tokens of its own: `temper-how-reaches`, the
+    columns' grid, `repeat(auto-fit, minmax(240px, 1fr))` with a gap of
+    16, so two boxes share the width and a phone stacks them;
+    `temper-how-reach`, a box, its lines `.small` with no bullets' margin
+    of their own; `temper-how-who-agent` and `temper-how-who-person`, the
+    chip and its mark, `.who.a`'s star (`--star`, `--gf-ink`) and
+    `.who.p`'s ring (`--gf-signal`); `temper-how-reach-note`, the box's
+    last line, `.small.muted`; its rows under the grid Settings'
+    `.setting` rows;
   - *on a phone,* at 760 px and under, the column takes the frame's phone
     width and the path runs down the page, as on Ask temper's page.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
@@ -2067,8 +2077,6 @@ from the engine's own answers, is where the look is tuned.
 | `home-decided` | hand-made Home deliveries: two `Decision`s of a chat and a goal, no Away row: the everyday kicker and headline, "Decided for you · 2" with each row's "Allowed:" line, and "Needs you" |
 | `rail-away-off` | a project’s page after turning the switch off, with its toast open |
 | `rail-away-on` | a project's page with the switch on, "Away until 08:00", and its toast open |
-| `settings-away` | *How work runs* with the section `#away` as a view of Agents review's classes: "Agents decide, then tell you: …", three checks ticked, the locked last line and "Away until" |
-| `settings-away-you-approve` | *How work runs* on You approve's classes: the section's checks all unticked, no "Away until", and no Away switch in the rail |
 | `home-begin-both-left` | hand-made Home deliveries: both steps left, the repository first; first repository offered; the rail's Home and Ask temper alone, the phone's three tabs |
 | `home-begin-ask-left` | hand-made Home deliveries: repository adopted, "temper can change its code now."; "Tell temper how you work" left, its act staying in Ask temper (the look request `to-begin-two-steps`'s page) |
 | `home-accounts-claude` | hand-made Home deliveries: Claude subscription alone; link offers ChatGPT or another plan |
@@ -2144,12 +2152,14 @@ from the engine's own answers, is where the look is tuned.
 | `settings-goals-off` | `settings` with Goals hidden: no ways of working, and the rail without "Goals" |
 | `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
-| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; the foot's switches (`README.md`, 5.13, *The page*) |
-| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line |
+| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; What reaches you from Agents review's stock classes, "While you’re away, they are decided with the recommended choice and listed."; the foot's switches (`README.md`, 5.13, *The page*) |
+| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line; What reaches you from You approve's classes: no "Agents decide, then tell you", every movable kind under "Asks you", "They ask even while you’re away.", and no "Away until" |
 | `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer with the coordinator and the foreman, Budgets' row "Goals", "80" |
 | `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", a fourth tab, "Yours", current and shown, no act |
 | `how-card` | `how` with the review's stop pressed: its ring and words, its card under the drawing with its caret, its model, what it can do and what it is asked to, "Open the reviewer ›" |
 | `night-how` | `how` with the night switch pressed: the path's marks by night |
+| `how-reaches` | hand-made deliveries, Draft first current, its classes the whole story's `how.html`'s: wording, retries, implementation choices and test-only changes decided, then a path set, "vsr’s protocol core", asking even when away, and a new dependency and a departure Away may decide: What reaches you's three columns, "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.", and its rows, the question route and "Away until" |
+| `night-how-reaches` | `how-reaches` with the night switch pressed: the columns' chips and marks by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Deployment's frame |
