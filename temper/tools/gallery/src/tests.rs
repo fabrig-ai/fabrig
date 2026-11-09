@@ -131,6 +131,7 @@ enum Part {
     CardChanges { title: &'static str, changes: &'static [&'static str] },
     Cards { section: &'static str, from: &'static [&'static str] },
     StyledText { style: skein_ui::Style, text: &'static [&'static str] },
+    GroupLines { name: &'static str, lines: &'static [&'static str] },
     Tabs { names: &'static [&'static str], selected: usize },
     Path { stops: &'static [&'static str] },
     Drawing { style: skein_ui::Style, count: usize },
@@ -195,6 +196,35 @@ const REMEMBERED_REFUSED: &[&str] = &[
     "Ask before changing a public interface.",
     "Changed by you · Today · Thursday 22 October",
 ];
+const HOW_WAIT: Part = Part::GroupLines {
+    name: "Always waits for you",
+    lines: &[
+        "money past a budget",
+        "what can’t be undone: rewriting history, a force-push, deleting unlanded work",
+        "changes to this page",
+        "anything an agent can’t place",
+    ],
+};
+const HOW_REACHES_DECIDE: Part = Part::GroupLines {
+    name: "Agents decide, then tell you",
+    lines: &[
+        "wording and names inside a spec",
+        "retrying or splitting a task",
+        "implementation choices a spec leaves open",
+        "test-only changes",
+    ],
+};
+const HOW_REACHES_ASK: Part = Part::GroupLines {
+    name: "Asks you",
+    lines: &["a change to vsr’s protocol core", "a new dependency", "a departure from a landed design"],
+};
+const HOW_REACHES_NOTE: Part = Part::Named {
+    role: Role::Paragraph,
+    name: "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.",
+};
+const HOW_DECIDE_NOTE: Part =
+    Part::Named { role: Role::Paragraph, name: "Listed in Decided for you for 24 hours, to overturn." };
+const HOW_WAIT_NOTE: Part = Part::Named { role: Role::Paragraph, name: "Away or not." };
 static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "remembered-none",
@@ -586,6 +616,28 @@ static HOLDS: [Holds; samples::N] = [
         name: "how",
         heading: "Agents review every change, and code lands it",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
+            Part::Named { role: Role::Text, name: "on Hello" },
+            Part::GroupLines {
+                name: "Agents decide, then tell you",
+                lines: &["wording and names inside a spec", "retrying or splitting a task", "test-only changes"],
+            },
+            Part::GroupLines {
+                name: "Asks you",
+                lines: &[
+                    "implementation choices a spec leaves open",
+                    "a new dependency",
+                    "a departure from a landed design",
+                ],
+            },
+            HOW_WAIT,
+            HOW_DECIDE_NOTE,
+            Part::Named {
+                role: Role::Paragraph,
+                name: "While you’re away, they are decided with the recommended choice and listed.",
+            },
+            HOW_WAIT_NOTE,
+            Part::Named { role: Role::Select, name: "Away until" },
             Part::Text { text: "the way: Agents review" },
             Part::Text { text: "An agent makes each change, another reviews it, and code lands it." },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
@@ -610,6 +662,24 @@ static HOLDS: [Holds; samples::N] = [
         name: "how-approve",
         heading: "You approve every change",
         parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
+            Part::Named { role: Role::Text, name: "on Hello" },
+            Part::Absent { role: Role::Group, name: "Agents decide, then tell you" },
+            Part::GroupLines {
+                name: "Asks you",
+                lines: &[
+                    "wording and names inside a spec",
+                    "retrying or splitting a task",
+                    "implementation choices a spec leaves open",
+                    "test-only changes",
+                    "a new dependency",
+                    "a departure from a landed design",
+                ],
+            },
+            HOW_WAIT,
+            Part::Named { role: Role::Paragraph, name: "They ask even while you’re away." },
+            HOW_WAIT_NOTE,
+            Part::Absent { role: Role::Select, name: "Away until" },
             Part::Text { text: "the way: You approve" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Tabs { names: &["You approvenow", "Agents review", "Draft first"], selected: 0 },
@@ -714,6 +784,41 @@ static HOLDS: [Holds; samples::N] = [
                 name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
             },
             Part::NoRole { role: Role::Table },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "how-reaches",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
+            Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
+            Part::Named { role: Role::Text, name: "on factory" },
+            HOW_REACHES_DECIDE,
+            HOW_REACHES_ASK,
+            HOW_WAIT,
+            HOW_DECIDE_NOTE,
+            HOW_REACHES_NOTE,
+            HOW_WAIT_NOTE,
+            Part::Named { role: Role::Select, name: "Questions a goal can answer from its plan" },
+            Part::Named { role: Role::Select, name: "Away until" },
+        ],
+    },
+    Holds {
+        name: "night-how-reaches",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents review", "Draft firstnow"], selected: 2 },
+            Part::Named { role: Role::Heading { level: 2 }, name: "What reaches you" },
+            Part::Named { role: Role::Text, name: "on factory" },
+            HOW_REACHES_DECIDE,
+            HOW_REACHES_ASK,
+            HOW_WAIT,
+            HOW_DECIDE_NOTE,
+            HOW_REACHES_NOTE,
+            HOW_WAIT_NOTE,
+            Part::Named { role: Role::Select, name: "Questions a goal can answer from its plan" },
+            Part::Named { role: Role::Select, name: "Away until" },
             Part::Pressed { name: "Night mode" },
         ],
     },
@@ -4491,6 +4596,15 @@ fn each_state_holds_what_its_name_says() {
                             .collect();
                         assert_eq!(String::from_utf8_lossy(&text), *expected, "{}: {section} from line", sample.name);
                     }
+                }
+                Part::GroupLines { name, lines } => {
+                    let group = descendants(tree, Role::Group, name, sample.name);
+                    let drawn: Vec<_> = group
+                        .iter()
+                        .filter(|node| node.role == Role::Item)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("line name")).expect("English"))
+                        .collect();
+                    assert_eq!(drawn, *lines, "{}: {name} lines in order", sample.name);
                 }
                 Part::StyledText { style, text } => {
                     let nodes = tree.nodes();

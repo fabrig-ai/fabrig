@@ -136,10 +136,6 @@ rules, with no lanes and no colour of its own; and `look.rs` names each
 `how-draft` with Roles, and its table checks each. The rendered
 comparison follows landing (`README.md`, section 11).
 
-- **Not yet:** 7.2: the gallery prints no `how-reaches` or
-  `night-how-reaches`; `how` and `how-approve` hold no What reaches you,
-  and `how-approve` reads Agents review's stock classes.
-
 Sections 2.3, 2.5 and 7.2 have no known implementation gap in the rail,
 Work and Deployment, by plan `ui-p1-rail`: Work's path with `?show=drafts`
 for Drafts, a query of another name or value dropped, and Members' and
