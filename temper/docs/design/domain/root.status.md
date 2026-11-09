@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-08. Where temper's code lags or departs from [root.md](root.md).
+2026-11-09. Where temper's code lags or departs from [root.md](root.md).
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
@@ -39,10 +39,6 @@ tool and JSON. The policy's parts count toward that size; the refusal
 kind remains shape.
 
 ## Gaps and departures
-
-- **Not yet:** 6, the delegates' table, from the request `n4-request-changes`
-  of 2026-11-08: no repair is made of a person's request on the forge
-  (`forge.md`, 8.3, and its status).
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
