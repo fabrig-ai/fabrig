@@ -259,6 +259,9 @@ impl Core {
                 tasks::RestoreCause::Charter { charter, revision } => {
                     Failure::Link { record: key, linked: Linked::Charter { charter, revision } }
                 }
+                tasks::RestoreCause::Holder { resource } => {
+                    Failure::Link { record: key, linked: Linked::Holder(resource) }
+                }
                 tasks::RestoreCause::Accounting => Failure::Accounting { key },
                 tasks::RestoreCause::LlmChoice { .. } => Failure::LlmChoice { key },
             })

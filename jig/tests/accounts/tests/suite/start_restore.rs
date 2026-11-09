@@ -265,42 +265,50 @@ fn retained_capacities_bound_accounts_and_lifetime_names_after_limits_grow() {
     }
 }
 
+fn refused_link(world: &mut World, key: Key, target: Key) {
+    let expected = jig_domain_accounts::RestoreLink { key, target };
+    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.domain.restore_link(), Some(expected));
+    assert_eq!(world.domain.restore_limit(), None);
+    assert!(!world.domain.restore_finished());
+    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.domain.restore_link(), Some(expected));
+}
+
 #[test]
-#[should_panic(expected = "Source { account: 20, number: 21 } requires account Account { number: 20 }")]
-fn missing_source_owners_panic_at_link() {
+fn missing_source_owners_refuse_at_link() {
     let mut world = start(&[source(ACCOUNT, 21, 0, Kind::Key)]);
-    world.step(Event::Want);
+    refused_link(&mut world, Key::Source { account: ACCOUNT, number: 21 }, Key::Account { number: ACCOUNT });
 }
 #[test]
-#[should_panic(expected = "Source { account: 20, number: 21 } requires reservation Issued { number: 21 }")]
 fn missing_reservations_are_not_repaired() {
     let mut world = start(&[held(ACCOUNT, b""), program(ACCOUNT, 21, 0, b"p")]);
-    world.step(Event::Want);
+    refused_link(&mut world, Key::Source { account: ACCOUNT, number: 21 }, Key::Issued { number: 21 });
 }
 #[test]
-#[should_panic(expected = "Issued { number: 21 } conflicts with Issued { number: 22 }")]
-fn duplicate_reservations_panic_with_both_keys() {
+fn duplicate_reservations_refuse_with_both_keys() {
     let mut world = start(&[issued(21, b"p"), issued(22, b"p")]);
-    world.step(Event::Want);
+    refused_link(&mut world, Key::Issued { number: 21 }, Key::Issued { number: 22 });
 }
 #[test]
-#[should_panic(expected = "disagrees with reservation Issued { number: 21 }")]
 fn reservation_names_must_link_to_the_source() {
     let mut world = start(&[held(ACCOUNT, b""), program(ACCOUNT, 21, 0, b"p"), issued(21, b"q")]);
-    world.step(Event::Want);
+    refused_link(&mut world, Key::Source { account: ACCOUNT, number: 21 }, Key::Issued { number: 21 });
 }
 #[test]
-#[should_panic(expected = "disagrees with reservation Issued { number: 21 }")]
 fn reservation_owners_must_link_to_the_source() {
     let mut world =
         start(&[account(ACCOUNT, PROVIDER, Holder::Party(8), b""), program(ACCOUNT, 21, 0, b"p"), issued(21, b"p")]);
-    world.step(Event::Want);
+    refused_link(&mut world, Key::Source { account: ACCOUNT, number: 21 }, Key::Issued { number: 21 });
 }
 #[test]
-#[should_panic(expected = "conflicts at place 0 with source Some(21)")]
-fn conflicting_source_places_panic_with_keys() {
+fn conflicting_source_places_refuse_with_keys() {
     let mut world = start(&[held(ACCOUNT, b""), source(ACCOUNT, 21, 0, Kind::Key), source(ACCOUNT, 22, 0, Kind::Key)]);
-    world.step(Event::Want);
+    refused_link(
+        &mut world,
+        Key::Source { account: ACCOUNT, number: 22 },
+        Key::Source { account: ACCOUNT, number: 21 },
+    );
 }
 
 #[test]

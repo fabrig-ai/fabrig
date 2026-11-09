@@ -189,12 +189,13 @@ fn a_store_that_fails_a_link_refuses_the_start_naming_both() {
             "requester",
             |world| {
                 let mut row = fixtures::live_row(world, 1).clone();
+                row.number = 199;
                 row.requester = tasks::Party::Person(102);
                 world
                     .store
                     .seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]));
             },
-            core::Key::Tasks(tasks::Key::Live(1)),
+            core::Key::Tasks(tasks::Key::Live(199)),
             Linked::Record(core::Key::People(people::Key::Person(102))),
         ),
         (
