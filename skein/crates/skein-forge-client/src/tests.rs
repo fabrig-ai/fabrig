@@ -39,6 +39,7 @@ const LIMITS: Limits = Limits {
     hinted: Duration::from_secs(1),
     slow: Duration::from_secs(60),
     settle: Duration::from_secs(30),
+    fallback: Duration::ZERO,
     facts: 32,
 };
 const REPO: Repository = Repository { forge: 2, repository: 5 };
@@ -824,8 +825,72 @@ fn permitted_forge_limits_pass_validation_including_large_bounds() {
     skein_rows::check(
         [
             ("valid_accepts_test_limits", LIMITS),
+            ("fallback_zero_stretches_nothing", Limits { fallback: Duration::ZERO, ..LIMITS }),
+            ("large_fallback_is_permitted", Limits { fallback: Duration::from_nanos(u64::MAX), ..LIMITS }),
             ("valid_ignores_heap_cached_operations", Limits { resources: 1_000_000_000, op_bytes: u32::MAX, ..LIMITS }),
         ],
         |limits| assert!(crate::valid(&limits)),
     );
+}
+
+#[test]
+fn poll_at_answers_the_fallback_rule() {
+    use fixtures::keep::{Harness, watch};
+    enum HintCase {
+        None,
+        Valid,
+        WideBranch,
+        WideKey,
+        OtherRepository,
+        Restored,
+        Retired,
+    }
+    use HintCase::{None as NoHint, OtherRepository, Restored, Retired, Valid, WideBranch, WideKey};
+    const FALLBACK: Duration = Duration::from_secs(120);
+    for (name, kept, hint, now, fallback, interval, expected) in [
+        ("unkept", false, Valid, 101, FALLBACK, LIMITS.poll, 106),
+        ("kept without hint", true, NoHint, 101, FALLBACK, LIMITS.poll, 106),
+        ("hearing", true, Valid, 101, FALLBACK, LIMITS.poll, 220),
+        ("own interval later", true, Valid, 101, FALLBACK, Duration::from_secs(200), 301),
+        ("past fallback", true, Valid, 221, FALLBACK, LIMITS.poll, 226),
+        ("at fallback", true, Valid, 220, FALLBACK, LIMITS.poll, 225),
+        ("zero fallback", true, Valid, 101, Duration::ZERO, LIMITS.poll, 106),
+        ("fallback saturates", true, Valid, 101, Duration::from_nanos(u64::MAX), LIMITS.poll, u64::MAX),
+        ("own time saturates", true, Valid, u64::MAX, FALLBACK, LIMITS.poll, u64::MAX),
+        ("wide branch hears nothing", true, WideBranch, 101, FALLBACK, LIMITS.poll, 106),
+        ("wide key hears nothing", true, WideKey, 101, FALLBACK, LIMITS.poll, 106),
+        ("hearing is per repository", true, OtherRepository, 101, FALLBACK, LIMITS.poll, 106),
+        ("restored hears nothing", true, Restored, 101, FALLBACK, LIMITS.poll, 106),
+        ("inactive row hears nothing", true, Retired, 101, FALLBACK, LIMITS.poll, 106),
+    ] {
+        let mut h = Harness::with_limits(Limits { fallback, ..LIMITS });
+        if kept {
+            h.keep(Box::new([watch(crate::Resource { repository: REPO, what: crate::What::Repository }, false)]));
+        }
+        let valid = api::Hint { repository: REPO, change: api::Change::Item(9), key: None };
+        match hint {
+            NoHint => {}
+            Valid => h.event(Event::Hint { hint: valid }),
+            WideBranch => h.event(Event::Hint {
+                hint: api::Hint { change: api::Change::Branch(skein_lib::bytes::zeroed(257)), ..valid },
+            }),
+            WideKey => h.event(Event::Hint { hint: api::Hint { key: Some(skein_lib::bytes::zeroed(257)), ..valid } }),
+            OtherRepository => {
+                h.event(Event::Hint { hint: api::Hint { repository: Repository { repository: 6, ..REPO }, ..valid } });
+            }
+            Restored => {
+                h.clock();
+                h.event(Event::Hint { hint: valid });
+                h.restart();
+            }
+            Retired => {
+                let _outstanding = h.one();
+                h.event(Event::Hint { hint: valid });
+                h.keep(Box::new([]));
+            }
+        }
+        let before = skein_lib::state_digest(&h.domain);
+        assert_eq!(h.domain.poll_at(&h.env.limits, at(now), REPO, interval), at(expected), "{name}");
+        assert_eq!(skein_lib::state_digest(&h.domain), before, "a question changes nothing");
+    }
 }
