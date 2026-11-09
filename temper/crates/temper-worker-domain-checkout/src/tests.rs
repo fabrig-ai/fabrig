@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
 use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall, Writer};
 
-use crate::git::{Commit, Done, Fault, Kind, Missing, Op, Place, Want};
+use crate::git::{Commit, Done, Fault, Into, Kind, Missing, Op, Place, Want};
 use crate::{
     Cached, Domain, Event, Fact, Failure, Landing, Limits, Message, Outcome, Prepared, Refusal, Repository, Request,
     Spec, Start, Tally, Target, step, valid,
@@ -294,13 +294,25 @@ fn a_new_workspace_is_made_then_each_repository_cloned_fetched_and_checked_out()
     assert_eq!(h.next(hold, Done::Succeeded), clone_a);
     let clone_b = Op::Clone { at: place(workspace, b"b"), remote: remote(b"b"), identity, account: None };
     assert_eq!(h.next(hold, Done::Succeeded), clone_b);
-    let fetch_a =
-        Op::Fetch { at: place(workspace, b"a"), remote: remote(b"a"), want: want_main(), identity, account: None };
+    let fetch_a = Op::Fetch {
+        into: Into::Fetched,
+        at: place(workspace, b"a"),
+        remote: remote(b"a"),
+        want: want_main(),
+        identity,
+        account: None,
+    };
     assert_eq!(h.next(hold, Done::Succeeded), fetch_a);
     let check_out_a = Op::CheckOut { at: place(workspace, b"a"), commit: commit(1), clean: true };
     assert_eq!(h.next(hold, Done::Fetched { commit: commit(1) }), check_out_a);
-    let fetch_b =
-        Op::Fetch { at: place(workspace, b"b"), remote: remote(b"b"), want: want_main(), identity, account: None };
+    let fetch_b = Op::Fetch {
+        into: Into::Fetched,
+        at: place(workspace, b"b"),
+        remote: remote(b"b"),
+        want: want_main(),
+        identity,
+        account: None,
+    };
     assert_eq!(h.next(hold, Done::Succeeded), fetch_b);
     let check_out_b = Op::CheckOut { at: place(workspace, b"b"), commit: commit(2), clean: true };
     assert_eq!(h.next(hold, Done::Fetched { commit: commit(2) }), check_out_b);
@@ -749,8 +761,106 @@ fn retry_repository() -> Repository {
     Repository { landing: Some(bytes(b"base")), ..repository(b"a", true) }
 }
 
+fn pin_starts() -> [Start; 5] {
+    [
+        Start::Base { branch: bytes(b"main") },
+        Start::Merged { branch: bytes(b"main"), heads: Box::new([commit(2)]) },
+        Start::Saved { branch: bytes(b"saved/1") },
+        Start::Branch { branch: bytes(b"main") },
+        Start::Merge { branch: bytes(b"main"), base: commit(2) },
+    ]
+}
+
+/// Drive preparation only; the observed operations, not facts, count reference writes.
+fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (Token, List<Op>) {
+    let (hold, mut op) = h.prepare(client, spec(b"w", Box::new([repo])));
+    let mut seen = List::uncapped();
+    for _ in 0..32_u32 {
+        let done = match &op {
+            Op::Fetch { into: Into::Landing, .. } => Done::Fetched { commit: tip },
+            Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
+            Op::Fetch { .. } => Done::Fetched { commit: commit(1) },
+            Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
+            Op::Merge { .. } => Done::Merged,
+            Op::Commit { .. } => Done::Committed { commit: commit(3) },
+            Op::Make { .. }
+            | Op::Look { .. }
+            | Op::Clone { .. }
+            | Op::CheckOut { .. }
+            | Op::Create { .. }
+            | Op::Push { .. } => Done::Succeeded,
+        };
+        seen.push(op).expect("uncapped observations");
+        match h.one(Event::Done { owner: hold, done }) {
+            Request::Io { op: next, .. } => op = next,
+            Request::Prepared { prepared: Prepared::Ready { .. }, .. } => return (hold, seen),
+            other @ (Request::Held { .. }
+            | Request::Prepared { .. }
+            | Request::Pushed { .. }
+            | Request::Saved { .. }
+            | Request::Released { .. }
+            | Request::Cancel { .. }) => panic!("preparation progresses: {other:?}"),
+        }
+    }
+    panic!("preparation settles");
+}
+
+fn landing_fetch(op: Op) {
+    let Op::Fetch { into: Into::Landing, want: Want::Branch { branch }, .. } = op else { panic!("landing fetch") };
+    assert_eq!(&*branch, b"base");
+}
+
+fn pin_count(ops: &List<Op>) -> usize {
+    let mut count = 0_usize;
+    let mut fetched = false;
+    for op in ops {
+        if let Op::Fetch { into, .. } = op {
+            if !fetched {
+                assert_eq!(*into, Into::Fetched, "start before pin");
+            }
+            fetched = true;
+            if *into == Into::Landing {
+                count = count.checked_add(1).expect("bounded prepare");
+            }
+        }
+    }
+    assert!(fetched, "start fetched");
+    count
+}
+
 #[test]
 fn landing_comparison_is_frozen_per_hold_and_only_a_push_can_deliver_it() {
+    for kind in 0..5 {
+        for supplied in [false, true] {
+            let mut h = Harness::new(MERGES);
+            for client in [1, 2] {
+                let start = pin_starts().into_iter().nth(kind).expect("start kind");
+                let repo = Repository {
+                    start,
+                    landing: if supplied { Some(bytes(b"base")) } else { None },
+                    ..repository(b"a", true)
+                };
+                let (hold, ops) = pin_ready(&mut h, client, repo, commit(u8::try_from(client + 7).expect("small tip")));
+                assert_eq!(pin_count(&ops), usize::from(supplied), "start kind {kind}");
+                // A real edit takes the ordinary push and ambiguous verification path.
+                h.one(Event::Push { hold, message: message() });
+                assert_eq!(h.next(hold, Done::Committed { commit: commit(11) }).kind(), Kind::Push);
+                let verify = h.next(hold, failed(Fault::TimedOut));
+                let Op::Fetch { into: Into::Fetched, .. } = verify else { panic!("verification cannot move pin") };
+                assert_eq!(
+                    &*landings(h.one(Event::Done { owner: hold, done: Done::Fetched { commit: commit(11) } })),
+                    &[Landing::Landed { commit: commit(11) }]
+                );
+                h.one(Event::Push { hold, message: message() });
+                assert_eq!(
+                    &*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })),
+                    &[Landing::Landed { commit: commit(11) }]
+                );
+                h.one(Event::Release { hold });
+            }
+        }
+    }
+
     for (landing, contains) in [(1, true), (12, true), (7, false)] {
         let mut h = Harness::new(LIMITS);
         let (hold, _) = h.prepare(1, spec(b"w", Box::new([retry_repository()])));
@@ -800,25 +910,77 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
         (Fault::Unreachable, b"fetch landing: Unreachable".as_slice()),
         (Fault::Refused, b"fetch landing: Refused".as_slice()),
     ] {
-        let mut h = Harness::new(LIMITS);
-        let (hold, _) = h.prepare(1, spec(b"w", Box::new([retry_repository()])));
-        h.next(hold, Done::Succeeded);
-        h.next(hold, Done::Succeeded);
-        h.next(hold, Done::Fetched { commit: commit(1) });
-        let expected = match fault {
-            Fault::Missing { missing } => Failure::Missing { repository: 0, missing },
-            Fault::Refused => Failure::Refused { repository: 0 },
-            Fault::Unreachable | Fault::Broken | Fault::TimedOut | Fault::Cancelled => Failure::Transient,
-        };
-        assert_eq!(
-            prepared(h.one(Event::Done { owner: hold, done: failed(fault) })),
-            Prepared::Failed { failure: expected, detail: bytes(detail) }
-        );
+        for start in pin_starts() {
+            let mut h = Harness::new(MERGES);
+            let (hold, _) = h.prepare(1, spec(b"w", Box::new([Repository { start, ..retry_repository() }])));
+            h.next(hold, Done::Succeeded);
+            h.next(hold, Done::Succeeded);
+            let mut op = h.next(hold, Done::Fetched { commit: commit(1) });
+            for _ in 0..8_u32 {
+                if let Op::Fetch { into: Into::Landing, .. } = op {
+                    break;
+                }
+                let done = match op {
+                    Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit },
+                    Op::CheckOut { .. } => Done::Succeeded,
+                    Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
+                    other @ (Op::Make { .. }
+                    | Op::Look { .. }
+                    | Op::Clone { .. }
+                    | Op::Fetch { .. }
+                    | Op::Create { .. }
+                    | Op::Merge { .. }
+                    | Op::Commit { .. }
+                    | Op::Push { .. }) => panic!("pin must precede the run: {other:?}"),
+                };
+                op = h.next(hold, done);
+            }
+            landing_fetch(op);
+            let expected = match fault {
+                Fault::Missing { missing } => Failure::Missing { repository: 0, missing },
+                Fault::Refused => Failure::Refused { repository: 0 },
+                Fault::Unreachable | Fault::Broken | Fault::TimedOut | Fault::Cancelled => Failure::Transient,
+            };
+            assert_eq!(
+                prepared(h.one(Event::Done { owner: hold, done: failed(fault) })),
+                Prepared::Failed { failure: expected, detail: bytes(detail) }
+            );
+        }
     }
 }
 
 #[test]
 fn supplied_landing_cannot_invent_eligibility_or_change_saved_semantics() {
+    for start in pin_starts() {
+        let (branch, saved, merge) = match start {
+            Start::Branch { .. } => (true, false, false),
+            Start::Saved { .. } => (false, true, false),
+            Start::Merge { .. } | Start::Merged { .. } => (false, false, true),
+            Start::Base { .. } | Start::Commit { .. } => (false, false, false),
+        };
+        let mut h = Harness::new(MERGES);
+        let repo = Repository { start, ..retry_repository() };
+        let (hold, seen) = pin_ready(&mut h, 1, repo, commit(7));
+        assert_eq!(pin_count(&seen), 1);
+        h.one(Event::Push { hold, message: message() });
+        let next = h.one(Event::Done { owner: hold, done: Done::Unchanged });
+        if branch {
+            compares(io(next, hold), commit(1), commit(7));
+            retry_push(h.next(hold, Done::IsAncestor { contains: false }), commit(1), commit(1));
+        } else if saved || merge {
+            let Op::Push { commit: pushed, .. } = io(next, hold) else { panic!("deliver saved tree or merge") };
+            assert_eq!(pushed, if merge { commit(3) } else { commit(1) });
+        } else {
+            assert_eq!(&*landings(next), &[Landing::Unchanged], "a pin cannot make a fresh start existing work");
+            continue;
+        }
+        let head = if merge { commit(3) } else { commit(1) };
+        assert_eq!(
+            &*landings(h.one(Event::Done { owner: hold, done: Done::Succeeded })),
+            &[Landing::Landed { commit: head }]
+        );
+    }
+
     for start in [
         Start::Base { branch: bytes(b"main") },
         Start::Branch { branch: bytes(b"elsewhere") },
@@ -838,7 +1000,8 @@ fn supplied_landing_cannot_invent_eligibility_or_change_saved_semantics() {
     }
     let mut h = Harness::new(LIMITS);
     let repo = Repository { push: None, ..retry_repository() };
-    let hold = h.ready(1, spec(b"w", Box::new([repo])));
+    let (hold, seen) = pin_ready(&mut h, 1, repo, commit(7));
+    assert_eq!(pin_count(&seen), 0, "a supplied landing cannot grant write authority");
     assert_eq!(&*landings(h.one(Event::Push { hold, message: message() })), &[Landing::Unchanged]);
 }
 
@@ -1627,7 +1790,10 @@ fn comparing_producer_base(saved: bool) -> (Harness, Token) {
 #[test]
 fn a_producers_contained_saved_start_delivers_its_tree_without_a_second_parent() {
     let (mut h, hold) = comparing_producer_base(true);
-    let Op::Fetch { want: Want::Branch { branch }, .. } = h.next(hold, Done::IsAncestor { contains: true }) else {
+    landing_fetch(h.next(hold, Done::IsAncestor { contains: true }));
+    let Op::Fetch { want: Want::Branch { branch }, into: Into::Fetched, .. } =
+        h.next(hold, Done::Fetched { commit: commit(7) })
+    else {
         panic!("fetch push branch")
     };
     assert_eq!(&*branch, b"main");
@@ -1650,7 +1816,8 @@ fn a_producers_contained_saved_start_delivers_its_tree_without_a_second_parent()
 #[test]
 fn a_producers_clean_merge_is_committed_before_it_is_ready() {
     let (mut h, hold) = comparing_producer_base(false);
-    let Op::Merge { theirs, .. } = h.next(hold, Done::IsAncestor { contains: false }) else { panic!("merge base") };
+    landing_fetch(h.next(hold, Done::IsAncestor { contains: false }));
+    let Op::Merge { theirs, .. } = h.next(hold, Done::Fetched { commit: commit(7) }) else { panic!("merge base") };
     assert_eq!(theirs, commit(7));
     let Op::Commit { parent, merging, title, body, identity, .. } = h.next(hold, Done::Merged) else {
         panic!("commit the clean merge before ready")
@@ -1684,7 +1851,8 @@ fn a_producers_clean_merge_is_committed_before_it_is_ready() {
 #[test]
 fn a_producers_uncontained_base_still_leaves_a_conflicted_two_parent_merge() {
     let (mut h, hold) = comparing_producer_base(false);
-    let Op::Merge { theirs, .. } = h.next(hold, Done::IsAncestor { contains: false }) else { panic!("merge base") };
+    landing_fetch(h.next(hold, Done::IsAncestor { contains: false }));
+    let Op::Merge { theirs, .. } = h.next(hold, Done::Fetched { commit: commit(7) }) else { panic!("merge base") };
     assert_eq!(theirs, commit(7));
     let files = Box::new([bytes(b"code")]);
     let ready = h.one(Event::Done { owner: hold, done: Done::Conflicted { files } });
@@ -1713,7 +1881,9 @@ fn a_failed_producer_base_query_is_transient() {
 #[test]
 fn a_producers_merge_start_with_its_base_contained_makes_no_merge() {
     let (mut h, hold) = comparing_producer_base(false);
-    let Op::Fetch { want: Want::Branch { branch }, .. } = h.next(hold, Done::IsAncestor { contains: true }) else {
+    let Op::Fetch { want: Want::Branch { branch }, into: Into::Landing, .. } =
+        h.next(hold, Done::IsAncestor { contains: true })
+    else {
         panic!("fetch landing")
     };
     assert_eq!(&*branch, b"base");

@@ -113,7 +113,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 Err(fault) => failed(fault),
             }
         }
-        Op::Fetch { at, remote, want, identity: _, account: _ } => {
+        Op::Fetch { at, remote, want, into, identity: _, account: _ } => {
             assert_cloned(disk, &at);
             let want = match &want {
                 Want::Branch { branch } => git::Want::Branch(branch),
@@ -121,7 +121,14 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 Want::Default => git::Want::Default,
             };
             match git::fetch(forge, disk, &remote, &path(&at), want) {
-                Ok(fetched) => Done::Fetched { commit: commit(fetched) },
+                Ok(fetched) => {
+                    let reference = match into {
+                        temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched".as_slice(),
+                        temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing".as_slice(),
+                    };
+                    disk.write(&[path(&at).as_slice(), b"/.git/", reference].concat(), &fetched.to_le_bytes());
+                    Done::Fetched { commit: commit(fetched) }
+                }
                 Err(fault) => failed(fault),
             }
         }

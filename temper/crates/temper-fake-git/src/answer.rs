@@ -5,7 +5,7 @@ use skein_fake_checkout::{
     git::{self, Created, Fault, Pushed, Tree, Want, What},
     in_git,
 };
-use temper_worker_domain_checkout::git::Commit;
+use temper_worker_domain_checkout::git::{Commit, Into};
 use temper_worker_protocol_git::invocation::{Command, Source};
 
 /// Bytes written to the invocation's pipes and its terminal status.
@@ -63,7 +63,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
                 Err(fault) => failed(remote, fault),
             }
         }
-        Command::Fetch { remote, source } => fetch(checkout, at, transport, remote, source),
+        Command::Fetch { remote, source, into } => fetch(checkout, at, transport, remote, source, *into),
         Command::Create { remote, branch, commit } => create(checked, transport, remote, branch, commit),
         Command::CheckOut { commit } => {
             let lock = path(at, b".git/index.lock");
@@ -277,8 +277,20 @@ fn tree_id(tree: &Tree) -> u64 {
         .fold(0xcbf2_9ce4_8422_2325, |hash, byte| (hash ^ u64::from(*byte)).wrapping_mul(0x0000_0100_0000_01b3))
 }
 
-fn fetch(checkout: &mut Checkout, at: &[u8], transport: &mut impl Transport, remote: &[u8], source: &Source) -> Answer {
-    let previous = checkout.content(&path(at, b".git/refs/temper/fetched")).map_or(0, count_bytes);
+fn fetch(
+    checkout: &mut Checkout,
+    at: &[u8],
+    transport: &mut impl Transport,
+    remote: &[u8],
+    source: &Source,
+    into: Into,
+) -> Answer {
+    let reference = match into {
+        Into::Fetched => b"refs/temper/fetched".as_slice(),
+        Into::Landing => b"refs/temper/landing".as_slice(),
+    };
+    let target = path(at, &[b".git/".as_slice(), reference].concat());
+    let previous = checkout.content(&target).map_or(0, count_bytes);
     let want = match source {
         Source::Branch(branch) => Want::Branch(branch),
         Source::Commit(commit) => Want::Commit(count(*commit)),
@@ -286,7 +298,7 @@ fn fetch(checkout: &mut Checkout, at: &[u8], transport: &mut impl Transport, rem
     };
     match git::fetch(transport, checkout, remote, at, want) {
         Ok(commit) => {
-            checkout.write(&path(at, b".git/refs/temper/fetched"), &commit.to_le_bytes());
+            checkout.write(&target, &commit.to_le_bytes());
             let flag = if previous == 0 {
                 b'*'
             } else if previous == commit {
@@ -299,7 +311,7 @@ fn fetch(checkout: &mut Checkout, at: &[u8], transport: &mut impl Transport, rem
             // An absent previous head is git's zero marker, not the fake's count-zero id.
             let previous_id = if previous == 0 { [b'0'; 40] } else { id(previous) };
             Answer::success(
-                format!("{} {} {} refs/temper/fetched\n", char::from(flag), text(&previous_id), text(&id(commit)))
+                format!("{} {} {} {}\n", char::from(flag), text(&previous_id), text(&id(commit)), text(reference))
                     .into_bytes(),
             )
         }

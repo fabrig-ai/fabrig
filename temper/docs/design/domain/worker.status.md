@@ -71,12 +71,6 @@ them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
 - **Not yet:** 5, *A save pushes unchecked*: the checkout's hold
   (`temper-worker-domain-checkout`'s `hold.rs`, `Tips`) records no save,
   and its next commit after one is `Unchanged` on an unchanged tree.
-- **Not yet:** 4.1, 5: the landing pin. The engine names a landing branch only for
-  an inherited producer's start on its push branch and a producer's or a goal's
-  later run's merge in progress, not for a producer's fresh, early (heads merged
-  in) or saved start (`temper-engine-domain-forge`'s `items.rs`); and prepare
-  fetches it only for the existing-work comparison, into `refs/temper/fetched`,
-  keeping its tip in memory: no checkout holds `refs/temper/landing`.
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question. The `ctl-words` request requires

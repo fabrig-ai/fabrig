@@ -17,8 +17,7 @@ too; a run's `settings`, `see settings project-classes` and
 - **Not yet:** 4.3, 4.5, 6: `save`. No producer is granted it, and no
   push is marked unchecked: `temper-worker-domain`'s `agents.rs` has no
   save ask, its `smith_delivery.rs` writes no `saved` receipt.
-- **Not yet:** 4.5: no checkout holds `refs/temper/landing` (worker.status.md, 4.1
-  and 5), and fabrig's `.temper/pre-pr` runs no lint or focused test
+- **Not yet:** 4.5: fabrig's `.temper/pre-pr` runs no lint or focused test
   (`tools/pre-pr/design.status.md`).
 - **Not yet:** 4.3: the stock charters (`chat.txt`, `coordinator.md`)
   say sign-ins, machines and a plan's go-ahead always wait but name no

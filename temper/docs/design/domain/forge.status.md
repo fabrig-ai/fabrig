@@ -26,10 +26,6 @@ narrowed table deciding the next call; the forge's tables hold the bound
 person and the paths an asker's change touches at its head are the
 draft's lags (`../draft/what-reaches-you.status.md`, 4).
 
-- **Not yet:** 8.2, step 1: a producing delegate's writable repository carries
-  the change's landing branch only on its push branch's start and on a merge in
-  progress (`temper-engine-domain-forge`'s `items.rs`, `Domain::workspace_item`),
-  not on a fresh, early or saved start, so those checkouts hold no landing pin.
 - **Design lags:** 8.11, *From what*: a dependency's pushed head may be its
   producer's save, a tree no check ran on (`agent.md`, 4.3 and section 6), and
   an early start merges it as any pushed head. Nothing records which heads a

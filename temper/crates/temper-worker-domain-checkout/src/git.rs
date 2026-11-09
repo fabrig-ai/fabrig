@@ -70,7 +70,7 @@ pub enum Op {
     /// Fetch `want` from the repository at `remote` into the repository. Ends
     /// in `Fetched`, or fails `Missing` if the forge has no such branch or
     /// commit, or no default branch.
-    Fetch { at: Place, remote: Box<[u8]>, want: Want, identity: u32, account: Option<u64> },
+    Fetch { at: Place, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
     /// `Exists`.
@@ -105,6 +105,15 @@ pub enum Op {
         identity: u32,
         account: Option<u64>,
     },
+}
+
+/// The local reference a fetch writes (temper/docs/design/protocol/git.md, 4.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Into {
+    /// The scratch reference, moved freely by fetches.
+    Fetched,
+    /// The landing pin, written once during prepare.
+    Landing,
 }
 
 /// What a fetch asks for.

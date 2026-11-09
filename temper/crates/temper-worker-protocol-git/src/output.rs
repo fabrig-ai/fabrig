@@ -24,7 +24,7 @@ fn split(input: &[u8], delimiter: u8) -> Option<(&[u8], &[u8])> {
 
 /// Exactly one complete porcelain fetch line, with valid old and new ids.
 #[must_use]
-pub fn fetched(stdout: &[u8]) -> Option<git::Commit> {
+pub fn fetched(stdout: &[u8], into: git::Into) -> Option<git::Commit> {
     let line = stdout.strip_suffix(b"\n")?;
     let (flag, rest) = split(line, b' ')?;
     if flag != b" " && flag != b"+" && flag != b"*" && flag != b"=" && !flag.is_empty() {
@@ -35,7 +35,7 @@ pub fn fetched(stdout: &[u8]) -> Option<git::Commit> {
     let (old, rest) = split(rest, b' ')?;
     let (new, target) = split(rest, b' ')?;
     invocation::object(old)?;
-    if old.len() != new.len() || target != b"refs/temper/fetched" {
+    if old.len() != new.len() || target != invocation::reference(into) {
         return None;
     }
     invocation::object(new)

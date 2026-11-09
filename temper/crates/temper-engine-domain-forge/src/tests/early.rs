@@ -100,6 +100,7 @@ fn the_first_early_producer_merges_dependency_heads_in_order() {
     );
     assert_eq!(item.push.as_deref(), Some(b"temper/51".as_slice()));
     assert_eq!(item.holder, Some(fixtures::CHANGE));
+    assert_eq!(item.landing.as_deref(), Some(b"main".as_slice()));
 }
 
 #[test]
