@@ -20,7 +20,9 @@ pub(crate) fn admitted(read: &Read, project: u32) -> Admission {
         Read::Inbox { filter, .. } => filter.project,
         Read::ScopedNotes { scope, .. } => match scope {
             crate::notes::Scope::Project { project } | crate::notes::Scope::Goal { project, .. } => Some(*project),
-            crate::notes::Scope::Deployment | crate::notes::Scope::Resources { .. } => None,
+            crate::notes::Scope::Party { .. }
+            | crate::notes::Scope::Deployment
+            | crate::notes::Scope::Resources { .. } => None,
         },
         Read::Application { scope, .. } => match scope {
             ApplicationScope::Project(project) => Some(*project),

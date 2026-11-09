@@ -37,6 +37,7 @@
         "brief.sections": 6,
         "tasks.charter_documents": 0,
         "notes.entries_per_scope": 1,
+        "notes.party_entries": 1,
         "views.runs": 1,
         "views.watchers": 2,
         "views.watchers_per_party": 2,

@@ -15,12 +15,13 @@ use jig_domain_tasks as tasks;
 use skein_lib::List;
 mod positions;
 
-fn note_project(scope: &notes::Scope) -> u32 {
+fn note_project(scope: &notes::Scope) -> Option<u32> {
     match scope {
-        notes::Scope::Deployment => 0,
+        notes::Scope::Party { .. } => None,
+        notes::Scope::Deployment => Some(0),
         notes::Scope::Project { project }
         | notes::Scope::Goal { project, .. }
-        | notes::Scope::Resources { project, .. } => *project,
+        | notes::Scope::Resources { project, .. } => Some(*project),
     }
 }
 
@@ -35,7 +36,10 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
         Scope::SettingsHistory { .. } => core.people.role(party, jig_domain_people::DEPLOYMENT).is_some(),
         Scope::Tasks { query } => documents::task_query::admission(core, party, query).is_ok(),
         Scope::Notes { project } | Scope::Spend { project } => project_allowed(core, party, *project),
-        Scope::ScopedNotes { scope, .. } => project_allowed(core, party, note_project(scope)),
+        Scope::ScopedNotes { scope, .. } => match note_project(scope) {
+            Some(project) => project_allowed(core, party, project),
+            None => false,
+        },
         Scope::Inbox { filter, .. } => match filter.project {
             Some(project) => project_allowed(core, party, project),
             None => true,
@@ -463,7 +467,7 @@ fn person_row_project(row: &Row, project: u32) -> bool {
         }
     }
     match &row.value {
-        Record::Notes(notes::Record::Entry(entry)) => note_project(&entry.scope) == project,
+        Record::Notes(notes::Record::Entry(entry)) => note_project(&entry.scope) == Some(project),
         Record::Tasks(tasks::Stored::Ledger(ledger) | tasks::Stored::ClosedLedger(ledger)) => match ledger.funder {
             tasks::Funder::Period { project: owner, .. } => owner == project,
             tasks::Funder::Task(_) | tasks::Funder::Pool { .. } | tasks::Funder::Recurring { .. } => false,
@@ -1062,7 +1066,10 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
             };
             let belongs = match value.scope {
                 notes::Scope::Goal { project: owner, .. } => owner == *project,
-                notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Resources { .. } => false,
+                notes::Scope::Party { .. }
+                | notes::Scope::Deployment
+                | notes::Scope::Project { .. }
+                | notes::Scope::Resources { .. } => false,
             };
             if !belongs {
                 return Ok(None);

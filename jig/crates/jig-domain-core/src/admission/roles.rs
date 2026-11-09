@@ -220,6 +220,7 @@ impl Core {
         let Some(role) = role else { return false };
         let Some(policy) = self.authority.role(project, role.number()) else { return false };
         match scope {
+            people::NoteScope::Party { .. } => false,
             people::NoteScope::Deployment => policy.authority.notes.0 & 4 != 0,
             people::NoteScope::Project => policy.authority.notes.0 & 2 != 0,
             people::NoteScope::Goal { .. } => policy.authority.notes.0 & 1 != 0,

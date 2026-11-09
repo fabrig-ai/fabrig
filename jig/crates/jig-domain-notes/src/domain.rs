@@ -444,7 +444,7 @@ fn valid_change(change: &Change, limits: &Limits) -> bool {
 #[must_use]
 pub fn valid_scope(scope: &Scope, limits: &Limits) -> bool {
     match scope {
-        Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } => true,
+        Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } | Scope::Party { .. } => true,
         Scope::Resources { project: _, connector: _, pattern } => {
             let segments_fit = match u32::try_from(pattern.segments.len()) {
                 Ok(segments) => segments <= limits.pattern_bytes,

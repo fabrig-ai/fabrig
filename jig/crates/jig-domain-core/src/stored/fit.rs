@@ -58,6 +58,9 @@ fn note_excess(entry: &notes::Entry, limits: &notes::Limits) -> Option<(u64, u64
             }
             excess(bytes, limits.pattern_bytes)
         }
-        notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Goal { .. } => None,
+        notes::Scope::Party { .. }
+        | notes::Scope::Deployment
+        | notes::Scope::Project { .. }
+        | notes::Scope::Goal { .. } => None,
     }
 }

@@ -112,6 +112,9 @@ pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w:
 }
 pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits) -> Result<w::Note, w::Problem> {
     let scope = match &value.scope {
+        d::NoteLocation::Party { party } => {
+            w::NoteScope::Party(w::NoteScopeParty::new(limits, w::NoteScopePartyParts { party: *party })?)
+        }
         d::NoteLocation::Deployment => w::NoteScope::Deployment,
         d::NoteLocation::Project(value) => {
             w::NoteScope::Project(w::NoteScopeProject::new(limits, w::NoteScopeProjectParts { value: *value })?)

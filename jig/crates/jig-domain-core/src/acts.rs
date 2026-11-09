@@ -229,6 +229,13 @@ pub(crate) fn note(
     scope: &people::NoteScope,
     act: Act,
 ) -> Result<(), people::Refusal> {
+    match scope {
+        people::NoteScope::Party { .. } => return Err(people::Refusal::Unknown),
+        people::NoteScope::Deployment
+        | people::NoteScope::Project
+        | people::NoteScope::Goal { .. }
+        | people::NoteScope::Resources { .. } => {}
+    }
     let held = core.people.role(party, project);
     role(core, project, held, act)?;
     if core.note_authorized(project, held, scope) {

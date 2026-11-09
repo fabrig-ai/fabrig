@@ -24,6 +24,7 @@ fn fixture() -> World {
             },
             vec![4, 5],
         ),
+        (Scope::Party { party: u64::from(PROJECT) }, vec![34]),
         (Scope::Deployment, vec![30]),
         (Scope::Project { project: 8 }, vec![31]),
         (Scope::Goal { project: 8, goal: 11 }, vec![32]),
@@ -59,7 +60,7 @@ fn in_project(key: &Key, record: &Record) -> bool {
         Key::Line { scope, .. } => scope,
     };
     match scope {
-        Scope::Deployment => false,
+        Scope::Deployment | Scope::Party { .. } => false,
         Scope::Project { project } | Scope::Goal { project, .. } | Scope::Resources { project, .. } => {
             *project == PROJECT
         }

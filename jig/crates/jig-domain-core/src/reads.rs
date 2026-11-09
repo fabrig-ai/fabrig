@@ -90,7 +90,10 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
         Scope::Notes { project } => match key {
             Key::Notes(notes::Key::Line { scope, .. }) => match scope {
                 notes::Scope::Goal { project: owner, .. } => owner == project,
-                notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Resources { .. } => false,
+                notes::Scope::Party { .. }
+                | notes::Scope::Deployment
+                | notes::Scope::Project { .. }
+                | notes::Scope::Resources { .. } => false,
             },
             Key::Notes(_) | Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Accounts(_) => false,
         },

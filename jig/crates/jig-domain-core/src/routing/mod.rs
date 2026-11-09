@@ -188,7 +188,10 @@ impl Core {
                             pattern: authority::Pattern { segments: pattern.segments, last },
                         })
                     }
-                    notes::Scope::Project { .. } | notes::Scope::Goal { .. } | notes::Scope::Resources { .. } => {
+                    notes::Scope::Party { .. }
+                    | notes::Scope::Project { .. }
+                    | notes::Scope::Goal { .. }
+                    | notes::Scope::Resources { .. } => {
                         return Some(CallPart::ToolDenied {
                             answer: authority::Answer::Refuse,
                             findings: Box::new([authority::Finding::Scope { source: authority::Source::Task }]),
@@ -271,6 +274,7 @@ impl Core {
     pub fn note_readable(&self, task: u64, scope: &notes::Scope) -> bool {
         let Some(row) = self.tasks.task(task) else { return false };
         match scope {
+            notes::Scope::Party { .. } => false,
             notes::Scope::Deployment => true,
             notes::Scope::Project { project } | notes::Scope::Resources { project, .. } => *project == row.project,
             notes::Scope::Goal { project, goal } => *project == row.project && Some(*goal) == self.note_goal(row),
