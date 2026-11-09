@@ -29,3 +29,36 @@ id = 1
 story = "Only you's items and part are read from the person's own accounts; an expiring sign-in on Accounts offers Continue with ChatGPT"
 parts = ["read", "accounts"]
 walk = false
+
+[[part]]
+id = "story"
+title = "The joint world lists a login through temper's engine while it needs its person, and the density fuzz holds Only you's part"
+mode = "direct"
+needs = ["read"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "region"
+title = "Needs you draws Only you: its head, a card an item, and Sign in again to Accounts"
+mode = "direct"
+needs = ["read", "accounts"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "gallery"
+title = "The gallery prints Only you's three Needs you states and Accounts' expiring sign-in"
+mode = "direct"
+needs = ["region", "accounts"]
+design = "temper/docs/design/client/browser.md, 7.2"
+
+[[slice]]
+id = 2
+story = "A ChatGPT sign-in read as expiring, then signed out, is listed under Only you on Needs you with Sign in again, and gone once signed in again"
+parts = ["story", "region"]
+walk = false
+
+[[slice]]
+id = 3
+story = "The gallery prints Needs you with Only you, by day and night, and Accounts' expiring sign-in"
+parts = ["gallery"]
+walk = false

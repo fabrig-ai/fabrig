@@ -40,19 +40,24 @@ cut, with 5.5's expiring rows and `browser.md`, 7.2's four states.
 
 ## Parts and tasks
 
-| Part | Task | Needs | Crates |
-|---|---|---|---|
-| `read` | `only-read` | | `temper-client-domain` |
-| `accounts` | `accounts-expiring` | | `temper-client-view` (Accounts' rows) |
+| Part | Task | Needs | Crates | Minutes |
+|---|---|---|---|---|
+| `read` | `only-read` | | `temper-client-domain` | 70 |
+| `accounts` | `accounts-expiring` | | `temper-client-view` (Accounts' rows) | 70 |
+| `story` | `only-story` | `only-read` | `temper-client-world` | 100 |
+| `region` | `only-region` | `only-read`, `accounts-expiring` | `temper-client-view`, `temper-client-shell-web`'s CSS | 140 |
+| `gallery` | `only-gallery` | `only-region`, `accounts-expiring` | `temper-client-gallery` | 60 |
 
-Released in the first push: `only-read` and `accounts-expiring`, both
-needing nothing. The rest follows in the next push.
+Slices: 1, `read` and `accounts` (released first); 2, `story` and
+`region`; 3, `gallery`. `only-region` waits for `accounts-expiring`
+only because both write `temper-client-view` (one writer a crate); it
+uses none of its code.
 
 ## Critical path
 
-`only-read` (70 min) → `only-region` → `only-gallery`; beside it
-`only-story` after `only-read`, and `accounts-expiring` before
-`only-region` (one writer of `temper-client-view` at a time).
+`only-read` or `accounts-expiring` (70 min, side by side) →
+`only-region` (140) → `only-gallery` (60): about 270 implementer-minutes.
+`only-story` (100) runs beside `only-region` once `only-read` merges.
 
 ## Who hears first
 
