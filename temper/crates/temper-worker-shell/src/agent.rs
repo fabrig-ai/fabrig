@@ -1,4 +1,4 @@
-//! Checked agent metadata and effect-free programs-directory preflight (configuration.md, 5).
+//! The worker's agent: its document read and preflighted (protocol/README.md, 4.5; configuration.md, 5).
 use jig_domain_link::{Bounds, EndpointBound};
 use std::{
     os::unix::ffi::OsStrExt,
@@ -8,11 +8,11 @@ use temper_service::{self as service, settings::Agent};
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
-pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
+pub fn read(configuration: &Path) -> Result<Agent, String> {
     let configuration = self::configuration(configuration)?;
     let limits = &configuration.service.limits;
-    let host_limits = smith_local_service::profile::host_limits(&configuration.profile, limits)
-        .map_err(|_| "agent host limits refused")?;
+    let host_limits =
+        smith_agent_document::host_limits(&configuration.profile, limits).map_err(|_| "agent host limits refused")?;
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,
@@ -75,33 +75,35 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
 }
 /// Read declarations and check existing programs directories at their names (io.md, 5.3).
 /// Missing directories stay missing; neither this nor smith's check reads any login.
-pub(crate) fn preflight(named: &service::Named) -> Result<Agent, String> {
+pub fn preflight(named: &service::Named) -> Result<Agent, String> {
     let worker = named.worker.as_ref().ok_or("workers: standalone takes one worker")?;
     preflight_worker(worker)
 }
-pub(crate) fn preflight_worker(worker: &service::startup::NamedWorker) -> Result<Agent, String> {
+pub fn preflight_worker(worker: &service::startup::NamedWorker) -> Result<Agent, String> {
     let agent = read(path(&worker.agent)).map_err(|why| format!("workers[0].agent.configuration: {why}"))?;
     for program in &agent.programs {
-        smith_agent_shell::program::private_directory(path(&program.directory))
+        smith_agent_document::program::private_directory(path(&program.directory))
             .map_err(|why| program_directory_refusal(&why))?;
     }
     Ok(agent)
 }
-pub(crate) fn program_directory_refusal(why: &smith_agent_shell::program::Refusal) -> String {
+#[must_use]
+pub fn program_directory_refusal(why: &smith_agent_document::program::Refusal) -> String {
     format!("workers[0].agent.configuration: programs.claude_code.directory: {why}")
 }
 
 /// Claude Code's launcher, beside its programs directory (protocol/setup.md, 6.6).
-pub(crate) fn launcher(directory: &Path) -> Option<PathBuf> {
+#[must_use]
+pub fn launcher(directory: &Path) -> Option<PathBuf> {
     temper_launcher::beside(directory)
 }
 /// agent.json as smith decodes it: a program `"fetched"` names its launcher.
-pub(crate) fn decoded(configuration: &Path) -> Result<smith_agent_shell::config::Decoded, String> {
-    let bytes = smith_agent_shell::config::read_bytes(configuration)?;
+pub fn decoded(configuration: &Path) -> Result<smith_agent_document::config::Decoded, String> {
+    let bytes = smith_agent_document::config::read_bytes(configuration)?;
     let bytes = temper_launcher::substituted(&bytes)?.unwrap_or(bytes);
-    smith_agent_shell::config::decode(&bytes)
+    smith_agent_document::config::decode(&bytes)
 }
 /// `decoded`, resolved with stderr's diagnostics, as `config::read` does.
-pub(crate) fn configuration(path: &Path) -> Result<smith_agent_shell::config::Configuration, String> {
-    decoded(path)?.resolve(&mut std::io::stderr()).map_err(smith_agent_shell::config::ConfigurationRefusal::detail)
+pub fn configuration(path: &Path) -> Result<smith_agent_document::config::Configuration, String> {
+    decoded(path)?.resolve(&mut std::io::stderr()).map_err(smith_agent_document::config::ConfigurationRefusal::detail)
 }

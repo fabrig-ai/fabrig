@@ -77,7 +77,9 @@ After any bundle step, build each listed binary in order with
 servers in the table above are native list entries. `process-temper` also
 lists `smith-fake-claude`'s `fake-claude` and `temper-client`'s `temper-client`:
 temper's fake-backend tests execute that adapter and the deployment's client
-story executes that client as the `temper` binary's siblings.
+story executes that client as the `temper` binary's siblings. It also lists
+`temper-engine`, `temper-worker` and `temper-agent`, which the cluster's story
+on the deployment's binaries runs as the `temper` binary's siblings.
 A failed binary build returns 2 and starts no later step.
 
 All other configured pairs run nextest alone. Tier tests also use binaries

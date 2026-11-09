@@ -11,6 +11,8 @@ use skein_lib::Token;
 #[path = "generated/v9.rs"]
 pub mod v9;
 mod kinds;
+mod loss;
+pub use loss::Loss;
 pub mod sizes;
 
 pub mod fit;

@@ -1113,8 +1113,10 @@ its own for any other host.
     environment. So every read of `agent.json` hands smith, in place of
     `"fetched"`, the launcher's path, `claude-code/claude` beside the
     programs directory (`<data>/claude-code/claude` as init writes it),
-    a symbolic link to the executable that places it, today the running
-    `temper`, and smith, jig and the agent never meet the word. A
+    a symbolic link to the worker's agent's program, its `agent` member's
+    `program` (configuration.md, section 5): the box's `temper`, or a
+    deployment's `temper-agent`, and smith, jig and the agent never meet
+    the word. A
     `temper` or a `temper-agent` (`README.md`, 4.3) run by the name
     `claude`, as the playground's git is (8.4), is the launcher: it takes
     the cache from `cache` beside it, a symbolic link to the cache
@@ -1132,8 +1134,10 @@ its own for any other host.
     `smith-agent-document`, never smith's agent. Claude Code's fetch
     beneath it is `temper-fetch-shell`'s, the fetch's host the forge's
     setup links too, which links no smith crate, so the engine links no
-    launcher (`README.md`, 4.1). The `claude` link names the running
-    executable, the binary that places it.
+    launcher (`README.md`, 4.1). The `claude` link names the agent's
+    program, whichever binary places it, so that the program it runs is
+    the one the worker's agents run (`../draft/deployment-binaries.md`,
+    section 4).
   - **Found by its size:** every command of the source passes through
     the launcher, so it hashes nothing it finds. A file at the pin's
     size runs; one of any other size is refused, naming its path, and

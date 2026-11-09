@@ -637,9 +637,7 @@ fn local_agent(directory: &Path, relative: &str, address: SocketAddr) {
 }
 
 // Reuse the shell's conversion without making a second public configuration API.
-#[expect(dead_code, reason = "The harness uses only read and preflight of the shell's file.")]
-#[path = "../../src/agent.rs"]
-mod agent;
+use temper_worker_shell::agent;
 
 /// The strings the service counts, at checked bounds; these paths are never opened.
 pub struct Bounded {

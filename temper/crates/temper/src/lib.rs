@@ -12,41 +12,12 @@ use std::{
     path::{Path, PathBuf},
 };
 use temper_service as service;
+#[cfg(test)]
+use temper_worker_shell::agent;
 
 pub mod directories;
-use directories::{Directories, private_root};
+use directories::Directories;
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: TEMPER_WORKSPACE_REUSE selects worker reuse; temper-box's table will pass it"
-)]
-pub(crate) fn workspace_reuse() -> bool {
-    std::env::var_os("TEMPER_WORKSPACE_REUSE").is_some()
-}
-/// Where a worker's agents keep each model request (temper/docs/design/draft/dogfood-hacks.md, 2.13).
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: TEMPER_DUMP_LLM selects the agent request dump directory; temper-box's table will pass it"
-)]
-pub(crate) fn dump_llm() -> Option<PathBuf> {
-    dump_directory(std::env::var_os("TEMPER_DUMP_LLM"))
-}
-fn dump_directory(value: Option<OsString>) -> Option<PathBuf> {
-    let value = value?;
-    if value.is_empty() {
-        return None;
-    }
-    match std::path::absolute(&value) {
-        Ok(directory) => Some(directory),
-        Err(why) => {
-            use std::io::Write;
-            drop(writeln!(std::io::stderr(), "temper serve: TEMPER_DUMP_LLM: {why}"));
-            None
-        }
-    }
-}
-const DUMP_BOUND: u64 = 4_294_967_296;
-mod agent;
 pub mod box_command;
 pub mod claude_code;
 pub mod commands;
@@ -65,11 +36,10 @@ mod program_login;
 pub use temper_engine_shell::setup;
 mod tui;
 mod tui_front;
-mod worker_alone;
 mod worker_half;
 use json::CONFIG_BYTES;
 #[cfg(test)]
-pub(crate) use serve::host;
+pub(crate) use temper_service_shell::host;
 use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -237,25 +207,25 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Box { directories, echo, no_tui } => {
             box_command::run(&directories, echo, no_tui).map_err(|why| prefixed("temper box", &why))?
         }
-        Command::Agent { configuration } => agent::decoded(&configuration)
+        Command::Agent { configuration } => temper_worker_shell::agent::decoded(&configuration)
             .inspect_err(|why| {
                 use std::io::Write;
                 drop(writeln!(std::io::stderr(), "smith: {why}"));
             })
-            .and_then(|decoded| match dump_llm() {
+            .and_then(|decoded| match temper_worker_shell::dump_llm() {
                 Some(directory) => smith_agent_shell::run_dumping(
                     decoded,
-                    smith_agent_shell::dump::Dumps::new(directory, DUMP_BOUND),
+                    smith_agent_shell::dump::Dumps::new(directory, temper_worker_shell::DUMP_BOUND),
                     Box::new(std::io::stderr()),
                 ),
                 None => smith_agent_shell::run_decoded(decoded, Box::new(std::io::stderr())),
             })
             .map_err(|why| prefixed("temper internal agent", &why))?,
-        Command::AgentList { configuration } => agent::decoded(&configuration)
+        Command::AgentList { configuration } => temper_worker_shell::agent::decoded(&configuration)
             .and_then(|decoded| smith_agent_shell::list::run_decoded(decoded, Box::new(std::io::stderr())))
             .map_err(|why| prefixed("temper internal agent-list", &why))?,
         Command::ProgramLogin { directories, name } => {
-            return program_login::run(&directories, &name)
+            return temper_worker_shell::program_login::run(&directories, &name, Some(program_login::deployment))
                 .map_err(|why| prefixed("temper program-login", &why.lines().collect::<Vec<_>>().join("; ")));
         }
         Command::Fake { arguments } => return fake::run(&arguments),
@@ -290,10 +260,10 @@ pub fn run(command: Command) -> Result<u8, String> {
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
-pub use serve::host::{Host, ending as service_ending};
-pub(crate) use serve::{close, file_path, held_refusal, listeners_refusal, read_files};
 use temper_engine_shell::serve;
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
+pub use temper_service_shell::host::{Host, ending as service_ending};
+pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
 #[cfg(test)]
 fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
     serve::prepare("temper", Some(&worker_half::Half), directories, bytes, owned)
