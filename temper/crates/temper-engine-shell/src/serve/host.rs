@@ -383,6 +383,12 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
             &diagnostic.detail,
         ),
         temper_service::Note::RunRefused(diagnostic) => run_refusal_line(binary, diagnostic),
+        temper_service::Note::JobAnswered(diagnostic) => job_line(binary, diagnostic),
+        temper_service::Note::WorkerJob { run, attempt, kind, verb, ending, why } => {
+            let verb = String::from_utf8_lossy(&verb);
+            let prefix = format!("{binary} worker: run {run} attempt {attempt} job {kind} {verb} ");
+            job_ending_line(prefix, ending, Some(&why))
+        }
         temper_service::Note::HelloRefused { channel, text } => {
             format!("{binary} serve: hello refused channel={channel}: {}\n", String::from_utf8_lossy(&text))
         }
@@ -514,6 +520,33 @@ fn run_failure_line(
     detail: &[u8],
 ) -> String {
     run_detail_line(format!("{binary} serve: task {task} run {run} attempt {attempt} failed {failure:?}: "), detail)
+}
+
+// temper/docs/design/domain/worker.md, 4.4: the job's kind stays in the run line's detail.
+fn job_line(binary: &str, diagnostic: temper_engine_domain::JobDiagnostic) -> String {
+    let temper_engine_domain::JobDiagnostic { task, run, attempt, kind, ending } = diagnostic;
+    let prefix = format!("{binary} serve: task {task} run {run} attempt {attempt} ");
+    let (class, detail) = job_ending(&ending);
+    run_detail_line(format!("{prefix}{class}: job {kind}: "), detail)
+}
+
+fn job_ending(ending: &temper_engine_domain::JobDiagnosticEnding) -> (String, &[u8]) {
+    use jig_domain_host::{JobInvalid, JobRefusal};
+    use temper_engine_domain::JobDiagnosticEnding;
+    match ending {
+        JobDiagnosticEnding::Failed { failure, detail } => (format!("failed {failure:?}"), detail),
+        JobDiagnosticEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })) => {
+            (String::from("refused Invalid(Start)"), why)
+        }
+        JobDiagnosticEnding::Refused(reason @ (JobRefusal::Busy | JobRefusal::Invalid(
+            JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
+        ))) => (format!("refused {reason:?}"), b""),
+    }
+}
+
+fn job_ending_line(prefix: String, ending: temper_engine_domain::JobDiagnosticEnding, why: Option<&[u8]>) -> String {
+    let (class, detail) = job_ending(&ending);
+    run_detail_line(format!("{prefix}{class}: "), why.unwrap_or(detail))
 }
 
 fn run_detail_line(mut line: String, detail: &[u8]) -> String {
@@ -1637,6 +1670,42 @@ fn refused_run_stderr_names_reason_and_bounds_start_words() {
         ),
         format!("{prefix}Invalid(Start(Other)): {}\n", "x".repeat(4096))
     );
+}
+
+#[test]
+fn job_stderr_forms_escape_and_bound_their_why() {
+    use jig_domain_host::{JobFailure, JobInvalid, JobRefusal, Preparation};
+    use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding};
+    // worker.md, 4.4: all four forms retain the last 4,096 input bytes.
+    const TAIL: usize = 4096;
+    for (worker, refused, prefix) in [
+        (false, false, "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): job 3: "),
+        (false, true, "temper serve: task 3 run 7 attempt 2 refused Invalid(Start): job 3: "),
+        (true, false, "temper worker: run 7 attempt 2 job 3 merge failed Unprepared(Transient): "),
+        (true, true, "temper worker: run 7 attempt 2 job 3 merge refused Invalid(Start): "),
+    ] {
+        for (why, expected) in [
+            (b"fetch base: Broken\n\xff".to_vec(), "fetch base: Broken\\n\\xff".to_owned()),
+            (vec![b'x'; TAIL], "x".repeat(TAIL)),
+            ([b"discard".as_slice(), vec![b'x'; TAIL].as_slice()].concat(), "x".repeat(TAIL)),
+        ] {
+            let ending = if refused {
+                JobDiagnosticEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why: why.clone().into() }))
+            } else {
+                JobDiagnosticEnding::Failed {
+                    failure: JobFailure::Unprepared(Preparation::Transient), detail: why.clone().into(),
+                }
+            };
+            let note = if worker {
+                temper_service::Note::WorkerJob {
+                    run: 7, attempt: 2, kind: 3, verb: b"merge".as_slice().into(), ending, why: why.into(),
+                }
+            } else {
+                temper_service::Note::JobAnswered(JobDiagnostic { task: 3, run: 7, attempt: 2, kind: 3, ending })
+            };
+            assert_eq!(note_line("temper", note), format!("{prefix}{expected}\n"));
+        }
+    }
 }
 
 #[test]
