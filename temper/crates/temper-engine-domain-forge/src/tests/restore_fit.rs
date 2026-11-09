@@ -140,7 +140,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             Stored::Looked(Looked { party: n, project: 0, previous: None, latest: Wall::EPOCH, seen: 0, next_seen: 0 })
         }
         RecordKind::Away => {
-            Stored::Away(Away { party: 1, project: 1, since: Wall::EPOCH, until: None, kinds: 7, landed: 0, off: None })
+            Stored::Away(Away { party: 1, project: 1, since: Wall::EPOCH, until: None, landed: 0, off: None })
         }
         RecordKind::Decided => Stored::Decided(Decided {
             project: 1,
@@ -150,9 +150,18 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             at: Wall::EPOCH,
             question: Box::new([]),
             options: Box::new([Box::from(b"a".as_slice()), Box::from(b"b".as_slice())]),
-            took: 0,
+            took: Some(0),
             why: Box::new([]),
             overturned: false,
+            reach: temper_protocol_reaches::Reach {
+                kind: temper_protocol_reaches::Kind::Wording,
+                class: temper_protocol_reaches::Class::Decide,
+                reason: temper_protocol_reaches::Reason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            },
         }),
         RecordKind::Client => panic!("no own table"),
     }

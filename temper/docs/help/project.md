@@ -22,7 +22,7 @@ A project is where work happens: the repositories adopted into it, one of them i
 - **Its policy** is its own: what its work may do and spend, and what
   each role may start (temper help policy).
 - **Its ways,** in `project-ways`, govern drafts in chats, Work's Goals and
-  Changes filters, the Away switch and the way a goal starts by. The filters'
+  Changes filters and the way a goal starts by. The filters'
   switches hide no rail entry; their work stays under Work's All filter.
   Its `project-questions` setting gives a change's question route when its
   maker names none (temper help settings). Its `project-words` gives How work
@@ -30,6 +30,11 @@ A project is where work happens: the repositories adopted into it, one of them i
   Ask temper writes them with its proposals.
 - **Its period** holds what its work may spend; each member's pool is
   drawn from it (temper help budget).
+
+A project's `project-classes` setting says when agents decide, then tell you;
+ask you; or ask you even when away. Four kinds always wait: money,
+irreversible acts, rules and other. The project's way sets its classes;
+you can change them as any setting (temper help settings).
 
 ## How it changes
 

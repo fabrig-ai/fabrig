@@ -28,7 +28,7 @@ pub(super) fn project_settings_outputs(project: u32, accepted: &[usize], listed:
                 number: None,
                 project: Some(ProjectRef::Number(project)),
             },
-            edit: Edit::Set(json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":4})),
+            edit: Edit::Set(json!({"drafts":true,"goals":true,"changes":true,"way":4})),
         },
     ];
     let mut recorded = outputs();
@@ -235,8 +235,8 @@ fn a_projects_ways_and_questions_are_collected_from_their_own_reads() {
     ]});
     outputs.by_command.insert(words("revision show 5 --json"), revision.to_string());
     let ways = json!({"setting":{"kind":"project-ways","project":1},"revision":5,
-        "value":{"drafts":true,"goals":true,"changes":true,"away":true,"way":4},
-        "application":{"follows":"change","revision":5,"size":8,"charters":[]}});
+        "value":{"drafts":true,"goals":true,"changes":true,"way":4},
+        "application":{"follows":"change","revision":5,"size":7,"charters":[]}});
     outputs.by_command.insert(words("settings show project-ways 1 --json"), ways.to_string());
     let questions = json!({"setting":{"kind":"project-questions","project":1},"revision":5,"value":"foreman",
         "application":{"follows":"change","revision":5,"size":1,"charters":[]}});

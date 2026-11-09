@@ -300,7 +300,7 @@ fn when_it_needs_you_follows_by_default_and_binds_both_choices() {
         for words in [f::words(), f::browser_words()] {
             let (tree, bindings) = sheet.tree(&words);
             node(&tree, Role::ChoiceGroup, b"When it needs you");
-            for (value, name) in [(false, b"Follow the away switch".as_slice()), (true, b"Always ask")] {
+            for (value, name) in [(false, b"As the project says".as_slice()), (true, b"Always ask")] {
                 let choice = node(&tree, Role::Choice, name);
                 assert_eq!(choice.states.as_slice().contains(&State::Selected), value == always);
                 assert_eq!(
@@ -310,8 +310,8 @@ fn when_it_needs_you_follows_by_default_and_binds_both_choices() {
             }
             let text = f::text(&tree);
             for detail in [
-                "Asks while you’re here; while you’re away, decides within the project's limits and tells you.",
-                "Waits for you on every question it can’t answer from the plan.",
+                "Decides what the project’s settings let agents decide, Away included, and tells you; asks you the rest.",
+                "Asks you every question it can’t answer from the plan, even while you’re away.",
             ] {
                 assert!(skein_lib::bytes::find(&text, detail.as_bytes()).is_some());
             }
@@ -319,7 +319,7 @@ fn when_it_needs_you_follows_by_default_and_binds_both_choices() {
     }
     sheet.act(Act::StartGoal);
     let (tree, _) = sheet.tree(&f::browser_words());
-    for name in [b"Follow the away switch".as_slice(), b"Always ask"] {
+    for name in [b"As the project says".as_slice(), b"Always ask"] {
         assert!(node(&tree, Role::Choice, name).states.as_slice().contains(&State::Disabled));
     }
 }

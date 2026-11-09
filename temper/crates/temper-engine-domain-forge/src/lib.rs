@@ -43,9 +43,9 @@ pub use status::{
 };
 mod away;
 pub use away::{
-    AWAY_SUBJECT, Away, AwaysView, DECIDED_OPTION_BYTES, DECIDED_OPTIONS, DECIDED_PER_PROJECT, DECIDED_QUESTION_BYTES,
-    DECIDED_WHY_BYTES, Decided, DecidedCall, DecisionKind, DecisionView, DecisionsView, OverturnAnswer, SetAwayAnswer,
-    decided_subject,
+    AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
+    DECIDED_QUESTION_BYTES, DECIDED_WHY_BYTES, DECISIONS_SHOWN, Decided, DecidedCall, DecisionView, DecisionsView,
+    OverturnAnswer, SetAwayAnswer, decided_subject,
 };
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
@@ -436,6 +436,27 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                             .checked_mul(u64::try_from(size_of::<settings::RuleApproval>()).ok()?)?,
                     )
             }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Classes(classes), .. }) => {
+                let mut held = skein_lib::len_u64(classes.items.len())
+                    .checked_mul(u64::try_from(size_of::<temper_protocol_reaches::Item>()).ok()?)?
+                    .checked_add(
+                        skein_lib::len_u64(classes.sets.len())
+                            .checked_mul(u64::try_from(size_of::<temper_protocol_reaches::PathSet>()).ok()?)?,
+                    )?;
+                for item in &classes.items {
+                    held = held.checked_add(bytes(&item.words))?;
+                }
+                for set in &classes.sets {
+                    held = held.checked_add(bytes(&set.name))?.checked_add(
+                        skein_lib::len_u64(set.patterns.len())
+                            .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+                    )?;
+                    for pattern in &set.patterns {
+                        held = held.checked_add(bytes(pattern))?;
+                    }
+                }
+                Some(held)
+            }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::CharterWords(line), .. }) => {
                 Some(bytes(line))
             }
@@ -472,7 +493,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
-            CallPayload::Decided { took } => Some(match took {
+            CallPayload::Decided { took, .. } => Some(match took {
                 Some(words) => skein_lib::len_u64(words.len()),
                 None => 0,
             }),

@@ -18,7 +18,6 @@ fn proposed() -> (ClientWorld, ClientId, u64, ClientId) {
         drafts: true,
         goals: true,
         changes: false,
-        away: true,
         way: 0,
     });
     let item = temper_engine_domain_world::kinds::item(7, PROJECT, 1, &value);

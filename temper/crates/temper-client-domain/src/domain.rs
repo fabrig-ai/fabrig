@@ -89,13 +89,12 @@ impl Domain {
             None => false,
         }
     }
-    /// A goal, an on row, or Ways shows Away (temper/docs/design/client/README.md, 3.5).
+    /// Classes with an item Away may decide, or an on row, show Away (temper/docs/design/client/README.md, 3.5).
     #[must_use]
     pub fn away_shown(&self, project: u32, wall: skein_lib::Wall) -> bool {
-        self.has_goals(project)
-            || self.away_on(project, wall)
-            || match self.forge.ways(project) {
-                Some(ways) => ways.away,
+        self.away_on(project, wall)
+            || match self.forge.classes(project) {
+                Some(classes) => classes.away_may_decide(),
                 None => false,
             }
     }

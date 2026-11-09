@@ -144,7 +144,7 @@ fn argv_takes_a_group_and_a_verb() {
             &["settings", "show", "project-words", "shop", "--revision", "5"][..],
             4,
             [
-                Some(Values::One(Value::Word(2))),
+                Some(Values::One(Value::Word(3))),
                 Some(Values::One(Value::Project(jig::call::Project::Name(b"shop".as_slice().into())))),
                 Some(Values::One(Value::Number(5))),
             ],

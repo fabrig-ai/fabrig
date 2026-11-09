@@ -6,6 +6,7 @@ use temper_engine_domain_forge::{
     settings::{LandingRule, RuleApproval},
 };
 use temper_engine_domain_ways::{Laid, StockWay};
+use temper_protocol_reaches::{Classes, Way};
 
 /// The project's three stock ways, from more of the person to more of their agents.
 #[must_use]
@@ -19,6 +20,7 @@ pub fn ways() -> Box<[StockWay]> {
             line: bytes::copy_of(b"An agent makes each change; nothing reaches main until you approve it."),
             rules: Box::new([(1, approve)]),
             ways: None,
+            classes: Some(Classes::stock(Way::YouApprove)),
             delegation: false,
         },
         StockWay {
@@ -27,6 +29,7 @@ pub fn ways() -> Box<[StockWay]> {
             line: bytes::copy_of(b"An agent makes each change, another reviews it, and code lands it."),
             rules: Box::new([(1, super::review_rule())]),
             ways: None,
+            classes: Some(Classes::stock(Way::AgentsReview)),
             delegation: false,
         },
         StockWay {
@@ -40,6 +43,7 @@ pub fn ways() -> Box<[StockWay]> {
                 (2, branch(GateLast::Open(bytes::copy_of(b"temper")), false)),
             ]),
             ways: Some(Laid { drafts: true, goals: true, way: 4 }),
+            classes: Some(Classes::stock(Way::DraftFirst)),
             delegation: true,
         },
     ])

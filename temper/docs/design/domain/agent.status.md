@@ -266,8 +266,8 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   plan's cut: `decided` is declared to every run, where the request has it charter
   1's, because the host part declares its fixed tools whatever a charter says
   (`temper-engine-smith/src/calls.rs`, `tools_for`). So a coding agent's run spends
-  its room on it too; a call from anything but a goal answers ask, or is refused
-  for want of the control family (`forge.status.md`, 5.9).
+  its room on it too; a call from a task whose question reaches no person
+  answers ask, or is refused for want of the control family (`forge.status.md`, 5.9).
 - **Departs:** 8.3: the scripted fake model's goal script names literal
   numbers, project 1 and goal 2 (`temper-fake/src/backends.rs`,
   `model_document`), because its scripts are static, so on `temper box

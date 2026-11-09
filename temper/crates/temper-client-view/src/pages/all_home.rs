@@ -216,7 +216,20 @@ fn decided(
     bindings: &mut Bindings,
     times: &mut Times,
 ) {
-    let head = w.say(Word::HomeDecidedCount, &[Hole::Number(u64::from(facts.showing))]);
+    let more = match root {
+        Some(root) => match root.pages().decided(None, times.now) {
+            Some(shown) => {
+                times.next = [times.next, Some(shown.expires)].into_iter().flatten().min();
+                shown.more
+            }
+            None => false,
+        },
+        None => false,
+    };
+    let head = w.say(
+        if more { Word::DecidedCountMore } else { Word::HomeDecidedCount },
+        &[Hole::Number(u64::from(facts.showing))],
+    );
     section(b, w, Word::AllHomeDecidedTitle);
     if w.shell == Shell::Browser {
         b.style(look::HOME_WIDE);
@@ -253,7 +266,7 @@ fn decided(
                 break;
             }
         }
-        home::decision(b, w, bindings, row.project, &row.line, busy, times, name);
+        super::decided::decision(b, root, w, bindings, &row.line, times, name, busy);
         let expires = skein_lib::Wall::from_nanos(row.line.at.as_nanos().saturating_add(86_400_000_000_000));
         if expires > times.now {
             times.next = [times.next, Some(expires)].into_iter().flatten().min();

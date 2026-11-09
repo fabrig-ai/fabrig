@@ -8,7 +8,6 @@ pub mod keys;
 pub mod records;
 #[rustfmt::skip]
 #[path = "generated/v11.rs"]
-#[expect(clippy::similar_names, reason = "the schema names the ways fields away and way")]
 pub mod v11;
 #[cfg(test)]
 mod tests;

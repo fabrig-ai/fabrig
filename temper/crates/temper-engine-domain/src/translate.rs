@@ -516,7 +516,7 @@ pub(crate) fn connector_answer(domain: &Domain, key: crate::CallKey) -> Option<C
 
 pub(crate) fn call_payload_answer(payload: forge::CallPayload) -> CallAnswer {
     match payload {
-        forge::CallPayload::Decided { took } => CallAnswer::Decided { took },
+        forge::CallPayload::Decided { took, reach } => CallAnswer::Decided { took, reach },
         forge::CallPayload::Effect { entry, deadline, outcome } => CallAnswer::ForgeEffect { entry, deadline, outcome },
         forge::CallPayload::Refused(error) => CallAnswer::ForgeEffectRefused(error),
         forge::CallPayload::Read(answer) => CallAnswer::ForgeRead(answer),
@@ -533,7 +533,7 @@ pub(crate) fn keep_connector_answer(
     answer: CallAnswer,
 ) -> Result<Option<CallAnswer>, CallAnswer> {
     let payload = match answer {
-        CallAnswer::Decided { took } => forge::CallPayload::Decided { took },
+        CallAnswer::Decided { took, reach } => forge::CallPayload::Decided { took, reach },
         CallAnswer::ForgeEffect { entry, deadline, outcome } => forge::CallPayload::Effect { entry, deadline, outcome },
         CallAnswer::ForgeEffectRefused(error) => forge::CallPayload::Refused(error),
         CallAnswer::ForgeRead(answer) => forge::CallPayload::Read(answer),

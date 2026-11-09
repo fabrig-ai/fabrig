@@ -306,7 +306,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             for _ in d.decisions.range((row.project, 0)..=(row.project, u32::MAX)) {
                 held = held.saturating_add(1);
             }
-            room(K::Decided, Rows(K::Decided), held, 64, replacing)?;
+            room(K::Decided, Rows(K::Decided), held, l.decided_per_project, replacing)?;
             room(K::Decided, Rows(K::Decided), d.decisions.len(), l.decided(), replacing)
         }
         Stored::Looked(row) => room(

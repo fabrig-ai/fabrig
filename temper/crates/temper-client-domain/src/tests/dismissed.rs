@@ -7,8 +7,9 @@ use crate::{
     },
 };
 use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
-use skein_lib::{List, Queue, Token};
+use skein_lib::{List, Queue, Token, Wall};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_protocol_reaches::{Kind, Subject};
 
 const WHAT: PersonFact = PersonFact::ToBegin { project: f::PROJECT };
 const OTHER: PersonFact = PersonFact::ToBegin { project: 17 };
@@ -54,6 +55,44 @@ fn record(projects: &[u32]) -> Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
         bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+    }
+}
+fn fact_record(facts: &[PersonFact]) -> Family {
+    let mut dismissed = List::with_capacity(wire::DISMISSED);
+    for fact in facts {
+        dismissed.push(wire_fact(*fact)).unwrap();
+    }
+    Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+    }
+}
+fn wire_fact(fact: PersonFact) -> w::PersonFact {
+    match fact {
+        PersonFact::ToBegin { project } => {
+            w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project }).unwrap())
+        }
+        PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
+            w::GoalFrom::new(&w::CEILINGS, w::GoalFromParts { project, chat, goal, at }).unwrap(),
+        ),
+        PersonFact::KeepAsking { project, subject, at } => {
+            let subject = match subject {
+                Subject::Kind(kind) => {
+                    assert_eq!(kind, Kind::Implementation, "fixture's kind");
+                    w::ClassSubject::Kind(
+                        w::ReachKindOf::new(&w::CEILINGS, w::ReachKindOfParts { kind: w::ReachKind::Implementation })
+                            .unwrap(),
+                    )
+                }
+                Subject::Set(number) => {
+                    w::ClassSubject::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number }).unwrap())
+                }
+            };
+            w::PersonFact::KeepAsking(
+                w::KeepAsking::new(&w::CEILINGS, w::KeepAskingParts { project, subject, at: at.as_nanos() }).unwrap(),
+            )
+        }
     }
 }
 fn deliver(root: &mut Domain, watch: Token, projects: &[u32]) -> Queue<Request> {
@@ -105,13 +144,38 @@ fn the_watch_opens_once_the_party_is_known() {
 
 #[test]
 fn the_document_is_the_sides_facts() {
+    let subject = Subject::Kind(Kind::Implementation);
+    for fact in [
+        WHAT,
+        PersonFact::GoalFrom { project: f::PROJECT, chat: 7, goal: 11, at: 90 },
+        PersonFact::KeepAsking { project: f::PROJECT, subject, at: Wall::from_nanos(90) },
+        PersonFact::KeepAsking { project: f::PROJECT, subject: Subject::Set(2), at: Wall::from_nanos(90) },
+    ] {
+        let (mut root, watch, _) = opened();
+        assert_eq!(root.forge().dismissed(fact), None);
+        assert!(!root.forge().dismissals_delivered());
+        let shown = forge::shown(root.forge());
+        up(&mut root, Up::FamilyDelivered { watch, record: fact_record(&[fact]) });
+        assert_eq!(root.forge().dismissed(fact), Some(true), "{fact:?}");
+        assert_eq!(root.forge().dismissed(OTHER), Some(false));
+        assert!(root.forge().dismissals_delivered());
+        assert_ne!(forge::shown(root.forge()), shown);
+    }
     let (mut root, watch, _) = opened();
-    assert_eq!(root.forge().dismissed(WHAT), None);
-    let shown = forge::shown(root.forge());
-    deliver(&mut root, watch, &[f::PROJECT]);
-    assert_eq!(root.forge().dismissed(WHAT), Some(true));
-    assert_eq!(root.forge().dismissed(OTHER), Some(false));
-    assert_ne!(forge::shown(root.forge()), shown);
+    assert_eq!(root.forge().keep_asking(f::PROJECT, subject), None);
+    let facts = [
+        PersonFact::KeepAsking { project: f::PROJECT, subject, at: Wall::from_nanos(90) },
+        PersonFact::KeepAsking { project: f::PROJECT, subject, at: Wall::from_nanos(10) },
+        PersonFact::KeepAsking { project: f::PROJECT, subject: Subject::Set(2), at: Wall::from_nanos(100) },
+        PersonFact::KeepAsking { project: f::PROJECT + 1, subject, at: Wall::from_nanos(100) },
+    ];
+    up(&mut root, Up::FamilyDelivered { watch, record: fact_record(&facts) });
+    assert_eq!(root.forge().keep_asking(f::PROJECT, subject), Some(Wall::from_nanos(90)));
+    assert_eq!(root.forge().keep_asking(f::PROJECT, Subject::Set(2)), Some(Wall::from_nanos(100)));
+    assert_eq!(root.forge().keep_asking(f::PROJECT, Subject::Set(3)), None);
+    up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded });
+    assert_eq!(root.forge().keep_asking(f::PROJECT, subject), None);
+    assert!(!root.forge().dismissals_delivered());
 }
 
 #[test]
@@ -199,20 +263,24 @@ fn signing_out_closes_the_watch_and_clears_the_facts() {
 #[test]
 fn ask_is_of_the_projects_scope() {
     for project in [0, f::PROJECT, u32::MAX] {
-        let Ask::Family { scope, record } =
-            dismissed::ask(PersonFact::ToBegin { project }, &f::limits().forge).unwrap()
-        else {
-            panic!("family request")
-        };
-        assert_eq!(scope, c::Scope::Project(project));
-        assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-        let w::Request::Dismiss(value) =
-            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
-        else {
-            panic!("dismiss request")
-        };
-        let w::PersonFact::ToBegin(value) = value.what() else { panic!("to begin") };
-        assert_eq!(value.project(), project);
+        for fact in [
+            PersonFact::ToBegin { project },
+            PersonFact::GoalFrom { project, chat: 7, goal: 11, at: 90 },
+            PersonFact::KeepAsking { project, subject: Subject::Kind(Kind::Implementation), at: Wall::from_nanos(90) },
+            PersonFact::KeepAsking { project, subject: Subject::Set(2), at: Wall::from_nanos(u64::MAX) },
+        ] {
+            let Ask::Family { scope, record } = dismissed::ask(fact, &f::limits().forge).unwrap() else {
+                panic!("family request")
+            };
+            assert_eq!(scope, c::Scope::Project(project));
+            assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
+            let w::Request::Dismiss(value) =
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            else {
+                panic!("dismiss request")
+            };
+            assert_eq!(value.what(), &wire_fact(fact));
+        }
     }
 }
 

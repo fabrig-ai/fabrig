@@ -15,6 +15,7 @@ pub(crate) mod chat_line;
 pub(crate) mod chat_sheet;
 pub mod chats;
 pub(crate) mod connect_model;
+mod decided;
 pub(crate) mod document;
 pub(crate) mod goal;
 pub mod goals;

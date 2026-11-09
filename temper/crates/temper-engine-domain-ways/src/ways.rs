@@ -10,6 +10,8 @@ pub struct StockWay {
     /// The project's rules it sets, by number, each of 1 to `RULES`; every other number of 1 to `RULES` it removes.
     pub rules: Box<[(u32, temper_engine_domain_forge::settings::LandingRule)]>,
     pub ways: Option<Laid>,
+    /// The classes table the way sets whole; none for a world's way that sets none.
+    pub classes: Option<temper_protocol_reaches::Classes>,
     /// Whether the way needs charter 5, role 0 and job 3 in the project's policy's delegation.
     pub delegation: bool,
 }
@@ -70,7 +72,7 @@ pub enum View {
 use skein_lib::{List, Map};
 use temper_engine_domain_forge::settings::{Held, ProjectWays, TemplateGoal, Value, project_stock};
 
-/// The way's rules in number order, then kind 7 where the way lays it.
+/// The way's rules in number order, then kind 7 and kind 8 where the way lays them.
 #[must_use]
 pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[Item]> {
     let mut items = List::uncapped();
@@ -92,6 +94,11 @@ pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[I
         items
             .push(Item { kind: 7, scope: project, number: 1, edit: Edit::Set(Value::Ways(value)) })
             .expect("one ways item");
+    }
+    if let Some(table) = &way.classes {
+        items
+            .push(Item { kind: 8, scope: project, number: 1, edit: Edit::Set(Value::Classes(table.clone())) })
+            .expect("one classes item");
     }
     items.into_boxed()
 }
@@ -122,6 +129,7 @@ pub fn laid(rules: &[Held], stock: &[Held], project: u32, items: &[Item]) -> Box
                 | Value::Goal(_)
                 | Value::Questions(_)
                 | Value::CharterWords(_)
+                | Value::Classes(_)
                 | Value::ProjectWords(_)
                 | Value::Ways(_) => {}
             },
@@ -158,6 +166,7 @@ pub fn laid_ways(ways: Option<&ProjectWays>, project: u32, items: &[Item]) -> Pr
                 | Value::Goal(_)
                 | Value::Questions(_)
                 | Value::CharterWords(_)
+                | Value::Classes(_)
                 | Value::ProjectWords(_) => {}
             },
             Edit::Remove => result = own_ways(None),
@@ -184,6 +193,7 @@ pub fn laid_goal(goal: Option<TemplateGoal>, template: u32, items: &[Item]) -> T
                 | Value::Questions(_)
                 | Value::Ways(_)
                 | Value::CharterWords(_)
+                | Value::Classes(_)
                 | Value::ProjectWords(_) => {}
             },
             Edit::Remove => result = TemplateGoal::default(),
@@ -202,6 +212,7 @@ fn own_ways(ways: Option<&ProjectWays>) -> ProjectWays {
             | Value::Goal(_)
             | Value::Questions(_)
             | Value::CharterWords(_)
+            | Value::Classes(_)
             | Value::ProjectWords(_) => unreachable!("kind 7 is ways"),
         },
     }

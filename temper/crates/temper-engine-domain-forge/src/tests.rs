@@ -111,6 +111,7 @@ const LIMITS: Limits = Limits {
     trees_in_flight: 2,
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
+    decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,

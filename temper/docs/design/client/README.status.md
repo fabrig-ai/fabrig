@@ -2,6 +2,12 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *Needs you*, *Why it reached you*, in the TUI (6.14, *The
+  launchpad*): its need lines say no reason, though
+  `temper_client_view::shared::why` gives it; temper/tui draws it with the
+  launchpad of milestone T1 in
+  [whole-story.execution.md](../draft/whole-story.execution.md).
+
 Sections 6.13 and 6.14 keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
 its opener fallback, and selection clearing on ordinary words, Esc and
@@ -932,7 +938,7 @@ read's head explicit.
   switch on and off at each and toasts open. They are saved on a builder, outside
   the repository, so what they show is unknown here; the gallery holds their
   states (`browser.md`, 7.2).
-- **Departs:** 3.5, *Away*, its *Overturn*: an `Overturn` whose outcome is no
+- **Departs:** 3.5, *Decided for you*, its *Overturn*: an `Overturn` whose outcome is no
   answer, unknown after a restart or its link lost, toasts "That was overturned
   already." and sends no message (`temper-client-domain`'s `forge/decided.rs`,
   `overturned`), where the section has those words for a refusal: if it
@@ -1102,13 +1108,6 @@ section 11's after-landing work (*Away on All projects after landing*).
     again" first: a refused message leaves the row marked, and its task won't ask.
   - 3.5: Home's away form is not drawn while To begin shows, where the request has
     it with any row showing.
-  - 5.8: "follows the away switch" stands on every goal whose words hold no line
-    `Asks: always`, where the request has it where its requester has a switch: no
-    read says that, and a requester with none has its goal told to ask
-    (`../domain/forge.md`, 5.9) under those words.
-  - 5.13: the tab's "Away switch" row says "Hidden" with kind 7's `away` false, and
-    a project with a goal, or the party's row on, shows the switch all the same,
-    since the request has any of the three show it.
 - **Design departs:** 3.5, *A chat's conversation*, its cards, from the request
   `ui-chats` of 2026-11-05, which names a proposal, a held task and a question's
   answer as cards in the conversation: a chat's page holds proposals alone

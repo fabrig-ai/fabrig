@@ -12,6 +12,7 @@ pub enum Kind {
     Charters,
     ProjectQuestions,
     ProjectWays,
+    ProjectClasses,
     /// A charter's words (temper/docs/design/protocol/configuration.md, 13.2).
     CharterWords,
     /// A project's words (temper/docs/design/protocol/configuration.md, 13.2).
@@ -29,6 +30,7 @@ impl Kind {
             Self::Charters => 3,
             Self::ProjectQuestions => 6,
             Self::ProjectWays => 7,
+            Self::ProjectClasses => 8,
             Self::CharterWords => 9,
             Self::ProjectWords => 10,
             Self::TemplateGoal => 11,
@@ -43,6 +45,7 @@ impl Kind {
             3 => Some(Self::Charters),
             6 => Some(Self::ProjectQuestions),
             7 => Some(Self::ProjectWays),
+            8 => Some(Self::ProjectClasses),
             9 => Some(Self::CharterWords),
             10 => Some(Self::ProjectWords),
             11 => Some(Self::TemplateGoal),
@@ -76,12 +79,10 @@ pub struct RuleApproval {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "each project way is an independent client visibility choice")]
 pub struct ProjectWays {
     pub drafts: bool,
     pub goals: bool,
     pub changes: bool,
-    pub away: bool,
     pub way: u32,
 }
 
@@ -132,6 +133,7 @@ pub enum Value {
     Charter(u32),
     Questions(temper_engine_domain_forge_change::Route),
     Ways(ProjectWays),
+    Classes(temper_protocol_reaches::Classes),
     /// A charter's line (temper/docs/design/protocol/configuration.md, 13.2).
     CharterWords(Box<[u8]>),
     /// A project's headline and lede (temper/docs/design/protocol/configuration.md, 13.2).
@@ -148,7 +150,7 @@ pub struct SizedValue {
     pub size: u32,
 }
 
-/// The value of a project's kind 6 or 7 with none stored
+/// The value of a project's kind 6, 7 or 8 with none stored
 /// (temper/docs/design/protocol/configuration.md, 13.4).
 #[must_use]
 pub fn project_stock(kind: u32) -> Option<SizedValue> {
@@ -164,13 +166,18 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
             })
         }
         7 => {
-            let ways = ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 };
+            let ways = ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
             let record = v1::ProjectWays::new(
                 &v1::CEILINGS,
-                v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+                v1::ProjectWaysParts { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way },
             )
             .expect("fixed ways fields");
             Some(SizedValue { value: Value::Ways(ways), size: record.measure() })
+        }
+        8 => {
+            let classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
+            let record = temper_protocol_reaches::classes_record(&classes).expect("stock table fits the record");
+            Some(SizedValue { value: Value::Classes(classes), size: record.measure() })
         }
         _ => None,
     }
@@ -277,6 +284,7 @@ pub enum Refusal {
     Value,
     Replaced,
     Way,
+    Classes(temper_protocol_reaches::Refusal),
     /// Invalid setting words (temper/docs/design/protocol/configuration.md, 13.2).
     Words,
 }
@@ -296,6 +304,21 @@ impl Refusal {
             Self::Replaced => b"the replaced value is no longer kept",
             Self::Words => b"words that are empty, past their bound, not UTF-8 or holding a control character",
             Self::Way => b"a way that is not a template the project offers",
+            Self::Classes(refusal) => match refusal {
+                temper_protocol_reaches::Refusal::Items => b"more than 20 items in a classes table",
+                temper_protocol_reaches::Refusal::Sets => b"more than 6 path sets in a classes table",
+                temper_protocol_reaches::Refusal::Fixed { .. } => b"an item of a kind that always waits",
+                temper_protocol_reaches::Refusal::Wait { .. } => b"an item whose class always waits",
+                temper_protocol_reaches::Refusal::Words { .. } => b"an item's words past 120 bytes",
+                temper_protocol_reaches::Refusal::NoSet { .. } => b"an item naming a path set the table lacks",
+                temper_protocol_reaches::Refusal::Twice { .. } => b"a second item without words of its subject",
+                temper_protocol_reaches::Refusal::Number { .. } => b"a path set numbered twice or outside 1 to 6",
+                temper_protocol_reaches::Refusal::Name { .. } => b"a path set's name empty or past 40 bytes",
+                temper_protocol_reaches::Refusal::Patterns { .. } => b"a path set with no pattern or more than 6",
+                temper_protocol_reaches::Refusal::Pattern { .. } => {
+                    b"a path set's pattern that is not well formed, empty or past 80 bytes"
+                }
+            },
         }
     }
 }
@@ -314,7 +337,9 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal if item.scope != 0 => {
             return Err(Refusal::Scope);
         }
-        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectWords if item.scope == 0 => {
+        Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords
+            if item.scope == 0 =>
+        {
             return Err(Refusal::Scope);
         }
         Kind::DeploymentRules
@@ -322,6 +347,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::Charters
         | Kind::ProjectQuestions
         | Kind::ProjectWays
+        | Kind::ProjectClasses
         | Kind::CharterWords
         | Kind::ProjectWords
         | Kind::TemplateGoal => {}
@@ -330,7 +356,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
         Kind::CharterWords => bounds.charters,
-        Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectWords => 1,
+        Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectClasses | Kind::ProjectWords => 1,
         Kind::TemplateGoal => bounds.templates,
     };
     if item.number == 0 || item.number > numbers {
@@ -345,6 +371,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 | Value::Questions(_)
                 | Value::Ways(_)
                 | Value::CharterWords(_)
+                | Value::Classes(_)
                 | Value::ProjectWords(_),
             ) => return Err(Refusal::Value),
             None => return Ok(()),
@@ -359,6 +386,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
+                    | Value::Classes(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -371,6 +399,25 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Charter(_)
                     | Value::Goal(_)
                     | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::ProjectClasses => {
+            return match &item.value {
+                Some(Value::Classes(classes)) => match classes.check() {
+                    Ok(()) => Ok(()),
+                    Err(refusal) => Err(Refusal::Classes(refusal)),
+                },
+                None => Ok(()),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Goal(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
@@ -385,6 +432,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Goal(_)
                     | Value::Questions(_)
                     | Value::CharterWords(_)
+                    | Value::Classes(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -405,6 +453,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Goal(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
+                    | Value::Classes(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
@@ -425,7 +474,8 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Goal(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
-                    | Value::CharterWords(_),
+                    | Value::CharterWords(_)
+                    | Value::Classes(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -438,6 +488,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
+                    | Value::Classes(_)
                     | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };

@@ -260,7 +260,6 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
                     drafts: true,
                     goals: goal,
                     changes: true,
-                    away: false,
                     way,
                 })),
             })
@@ -512,7 +511,6 @@ fn an_agent_uses_the_first_held_model_or_its_first_fallback() {
 }
 
 #[expect(
-    clippy::too_many_lines,
     clippy::fn_params_excessive_bools,
     reason = "the view table varies independent role sources in one shared fixture"
 )]
@@ -557,17 +555,7 @@ fn roles_fixture(
     for (kind, number, value) in [
         (3, 1, settings::Value::Charter(3)),
         (3, 2, settings::Value::Charter(if duplicate { 3 } else { 4 })),
-        (
-            7,
-            1,
-            settings::Value::Ways(settings::ProjectWays {
-                drafts: goal,
-                goals: goal,
-                changes: true,
-                away: false,
-                way: 4,
-            }),
-        ),
+        (7, 1, settings::Value::Ways(settings::ProjectWays { drafts: goal, goals: goal, changes: true, way: 4 })),
         (
             6,
             1,

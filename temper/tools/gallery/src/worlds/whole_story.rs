@@ -280,6 +280,19 @@ fn decision_row(task: u64, wall: Wall) -> w::Decision {
             took: took.as_bytes().into(),
             why: why.as_bytes().into(),
             overturned: false,
+            reach: w::Reach::new(
+                &w::CEILINGS,
+                w::ReachParts {
+                    kind: w::ReachKind::Tests,
+                    class: w::ReachClass::Decide,
+                    reason: w::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
+            )
+            .expect("decision reach"),
         },
     )
     .expect("whole-story decision")
@@ -294,7 +307,13 @@ pub(crate) fn needs_decisions(project: u32) -> Box<[u8]> {
     for task in tasks {
         rows.push(decision_row(*task, super::now(World::Solo))).expect("Needs you decisions");
     }
-    wire::decisions(&w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows }).expect("decisions"))
+    wire::decisions(
+        &w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
+        )
+        .expect("decisions"),
+    )
 }
 pub(crate) fn needs_task(task: u64) -> c::Task {
     let mut document = base_task(task, decision(task).1);
@@ -322,6 +341,19 @@ fn decisions(name: &str, project: u32) -> Box<[u8]> {
                     took: b"Split it in two.".as_slice().into(),
                     why: b"Retrying or splitting a task is decided and listed.".as_slice().into(),
                     overturned: false,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: w::ReachKind::Tests,
+                            class: w::ReachClass::Decide,
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: false,
+                        },
+                    )
+                    .expect("decision reach"),
                 },
             )
             .expect("Team decision")
@@ -330,7 +362,13 @@ fn decisions(name: &str, project: u32) -> Box<[u8]> {
         };
         rows.push(row).expect("step decision");
     }
-    wire::decisions(&w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows }).expect("decisions"))
+    wire::decisions(
+        &w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
+        )
+        .expect("decisions"),
+    )
 }
 fn task(name: &str, number: u64) -> c::Task {
     let mut task = base_task(number, if name == "home-step-team" { "coupons goal" } else { decision(number).1 });
@@ -508,10 +546,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                     w::Read::Setting(setting) if setting.kind() == 7 => {
                         let ways = w::ProjectWays::new(
                             &w::CEILINGS,
-                            w::ProjectWaysParts {
-                                skein_bools: [false, false, false, name != "home-step-pair"],
-                                way: 0,
-                            },
+                            w::ProjectWaysParts { drafts: false, goals: false, changes: false, way: 0 },
                         )
                         .expect("project ways");
                         let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways size"));
@@ -584,7 +619,6 @@ fn away_rows(name: &str) -> List<w::AwayRow> {
                     project: 1,
                     since: since(name, 534).as_nanos(),
                     until: None,
-                    kinds: 7,
                     landed: 12,
                     off: Some(since(name, 4).as_nanos()),
                 },
@@ -598,14 +632,7 @@ fn away_rows(name: &str) -> List<w::AwayRow> {
             rows.push(
                 w::AwayRow::new(
                     &w::CEILINGS,
-                    w::AwayRowParts {
-                        project,
-                        since: since(name, 30).as_nanos(),
-                        until: None,
-                        kinds: 7,
-                        landed: 0,
-                        off: None,
-                    },
+                    w::AwayRowParts { project, since: since(name, 30).as_nanos(), until: None, landed: 0, off: None },
                 )
                 .expect("project away"),
             )
@@ -655,7 +682,6 @@ fn toggle_all(root: &mut Domain, name: &str, watch: Token) {
                     project: request.project,
                     since: now(name).as_nanos(),
                     until: request.until,
-                    kinds: request.kinds,
                     landed: 0,
                     off: None,
                 },

@@ -427,8 +427,8 @@ fn sign_out_lost_moves_with_it() {
 
 use d::forge::ways::{Asked, Control, Route, Ways};
 use skein_lib::Token;
-const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, away: true, way: 11 };
-const SWITCHES: [(&str, &str, &str); 4] = [
+const SHOWN: Ways = Ways { drafts: true, goals: true, changes: true, way: 11 };
+const SWITCHES: [(&str, &str, &str); 3] = [
     (
         "Chats can write drafts",
         "A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.",
@@ -436,7 +436,6 @@ const SWITCHES: [(&str, &str, &str); 4] = [
     ),
     ("Goals", "Bigger work from a draft: a plan, tasks, landing.", "Shown"),
     ("Changes", "The landing queue, as Work's filter.", "Shown"),
-    ("Away switch", "Lets agents decide within limits while you’re away.", "Shown"),
 ];
 const QUESTIONS: &str = "Questions a goal can answer from its plan";
 fn settings() -> Address {
@@ -563,27 +562,19 @@ fn changed_ways(change: &c::ChangeSettings) -> Ways {
     let mut reader = skein_lib::Reader::new(sent_value(change, 7));
     let value = w::ProjectWays::decode(&w::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
-    Ways {
-        drafts: value.drafts(),
-        goals: value.goals(),
-        changes: value.changes(),
-        away: value.away(),
-        way: value.way(),
-    }
+    Ways { drafts: value.drafts(), goals: value.goals(), changes: value.changes(), way: value.way() }
 }
 #[test]
 fn the_shows_section_reads_kind_seven() {
-    for (shown, pressed) in [
-        (Ways::STOCK, [true, false, false, false]),
-        (Ways { drafts: false, ..Ways::STOCK }, [false; 4]),
-        (SHOWN, [true; 4]),
-    ] {
+    for (shown, pressed) in
+        [(Ways::STOCK, [true, false, false]), (Ways { drafts: false, ..Ways::STOCK }, [false; 3]), (SHOWN, [true; 3])]
+    {
         let root = how(Some(shown));
         for browser in [false, true] {
             let view = how_view(&root, browser);
             assert_eq!(skein_ui::outline::check(view.tree()), None);
             let section = section_nodes(view.tree(), b"What the project shows");
-            assert_eq!(section.iter().filter(|n| n.role == Role::Check).count(), 4);
+            assert_eq!(section.iter().filter(|n| n.role == Role::Check).count(), 3);
             for (index, (label, small, on)) in SWITCHES.iter().enumerate() {
                 let row = setting_row(view.tree(), label.as_bytes());
                 assert!(row.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)
@@ -621,7 +612,6 @@ fn a_switch_sends_the_whole_record_with_its_part_changed() {
                 0 => expected.drafts = false,
                 1 => expected.goals = false,
                 2 => expected.changes = false,
-                3 => expected.away = false,
                 _ => unreachable!(),
             }
             assert_eq!(changed_ways(&change), expected);
@@ -696,7 +686,7 @@ fn kinds_of_seven_are_disabled_together_while_one_is_out() {
             .iter()
             .filter(|n| n.role == Role::Choice || n.styles.as_slice().contains(&look::SETTINGS_SWITCH))
             .collect();
-        assert_eq!(controls.len(), 6);
+        assert_eq!(controls.len(), 5);
         let ids: Vec<_> = controls
             .iter()
             .map(|n| {
@@ -1011,13 +1001,7 @@ fn no_project_draws_no_path() {
 }
 
 const AWAY_TITLE: &str = "While you’re away, agents may decide";
-const AWAY_KINDS: [(&str, u8); 4] = [
-    ("Implementation choices within a task", 1),
-    ("Retries and splitting a failing task", 2),
-    ("A design document’s wording", 4),
-    ("Adding a dependency", 8),
-];
-const LOCKED: &str = "Budgets, sign-ins, machines, what is hard to reverse: always wait";
+const LOCKED: &str = "Money past a budget, what can’t be undone, and changes to these rules: always wait";
 const EIGHT: &[u8] = b"08:00, the end of quiet hours";
 fn away_settings(row: Option<w::AwayRowParts>) -> (d::Domain, Token) {
     let (mut root, _, _, _, _, _, _, _, watch) = f::root_at_with_values(
@@ -1036,8 +1020,8 @@ fn away_settings(row: Option<w::AwayRowParts>) -> (d::Domain, Token) {
     away_deliver(&mut root, watch, row);
     (root, watch)
 }
-fn away_row(kinds: u8, until: Option<u64>, off: Option<u64>) -> w::AwayRowParts {
-    w::AwayRowParts { project: f::PROJECT, since: 0, until, kinds, landed: 0, off }
+fn away_row(until: Option<u64>, off: Option<u64>) -> w::AwayRowParts {
+    w::AwayRowParts { project: f::PROJECT, since: 0, until, landed: 0, off }
 }
 fn away_deliver(root: &mut d::Domain, watch: Token, row: Option<w::AwayRowParts>) {
     let mut rows = List::with_capacity(1);
@@ -1129,11 +1113,7 @@ fn settings_answer(root: &mut d::Domain, attempt: Token, outcome: w::Outcome) {
 fn away_answer(root: &mut d::Domain, attempt: Token) {
     settings_answer(root, attempt, w::Outcome::Away);
 }
-fn drawn_choices(view: &crate::View, kinds: u8, until: &[u8]) {
-    for (label, bit) in AWAY_KINDS {
-        let id = find(view.tree(), Role::Check, label.as_bytes());
-        assert_eq!(node(view.tree(), id).states.as_slice().contains(&State::Pressed), kinds & bit != 0, "{label}");
-    }
+fn drawn_choices(view: &crate::View, until: &[u8]) {
     assert_eq!(selected(view.tree(), b"Away until"), until);
 }
 #[test]
@@ -1155,82 +1135,158 @@ fn the_section_follows_what_needs_you() {
                 .count(),
             2
         );
-        assert_eq!(
-            f::nodes_text(setting_row(view.tree(), b"Kinds of decision")).as_ref(),
-            b"Kinds of decisionEach shows afterwards as decided for you, with Overturn."
+        let section = section_nodes(view.tree(), AWAY_TITLE.as_bytes());
+        let checks: Vec<_> = section.iter().filter(|n| n.role == Role::Check).collect();
+        assert_eq!(checks.len(), 4);
+        for (check, label) in
+            checks.iter().zip(["Implementation choices", "New dependencies", "Departures from a landed design", LOCKED])
+        {
+            assert_eq!(check.name.as_deref(), Some(label.as_bytes()));
+            assert_eq!(check.states.as_slice().contains(&State::Pressed), label != LOCKED);
+            assert_eq!(check.states.as_slice().contains(&State::Disabled), label == LOCKED);
+        }
+        assert!(
+            skein_lib::bytes::find(
+                &f::nodes_text(section),
+                b"Agents decide, then tell you: wording choices, retries and splits, test-only changes."
+            )
+            .is_some()
+        );
+        assert!(
+            skein_lib::bytes::find(
+                &f::nodes_text(setting_row(view.tree(), b"What asks you")),
+                b"Ticked, Away decides it and lists it, with Overturn. Unticked, it asks you even when away."
+            )
+            .is_some()
         );
         assert_eq!(
             f::nodes_text(setting_row(view.tree(), b"Away until")).as_ref(),
             "Away untilWhen it isn’t turned off by hand.".as_bytes()
         );
     }
+    let mut items = vec![temper_protocol_reaches::Item {
+        subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Wording),
+        words: Box::default(),
+        class: temper_protocol_reaches::Class::Decide,
+    }];
+    for _ in 1..temper_protocol_reaches::ITEMS {
+        items.push(temper_protocol_reaches::Item {
+            subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Wording),
+            words: vec![b'x'; temper_protocol_reaches::WORDS_BYTES].into_boxed_slice(),
+            class: temper_protocol_reaches::Class::Decide,
+        });
+    }
+    let classes = temper_protocol_reaches::Classes { items: items.into_boxed_slice(), sets: Box::default() };
+    assert_eq!(classes.check(), Ok(()));
+    let root = f::root_with_classes(settings(), &classes);
+    for browser in [false, true] {
+        let view = how_view(&root, browser);
+        let text = f::nodes_text(section_nodes(view.tree(), AWAY_TITLE.as_bytes()));
+        assert!(
+            skein_lib::bytes::find(&text, b"Agents decide, then tell you: wording choices, wording choices under")
+                .is_some()
+        );
+        assert!(skein_lib::bytes::find(&text, &[b'x'; temper_protocol_reaches::WORDS_BYTES]).is_some());
+    }
 }
 #[test]
-fn no_section_while_no_switch() {
-    let root = how(Some(Ways::STOCK));
-    for view in [how_view(&root, false), how_view(&root, true)] {
-        assert!(!main(view.tree()).iter().any(|n| n.name.as_deref() == Some(AWAY_TITLE.as_bytes())));
+fn you_approves_section_asks_even_when_away_without_a_duration_select() {
+    use temper_protocol_reaches::{Classes, Way};
+    for (classes, unread) in [(Classes::stock(Way::YouApprove), false), (Classes::stock(Way::AgentsReview), true)] {
+        let root = if unread { how(None) } else { f::root_with_classes(settings(), &classes) };
+        for browser in [false, true] {
+            let view = how_view(&root, browser);
+            let section = section_nodes(view.tree(), AWAY_TITLE.as_bytes());
+            let checks: Vec<_> = section.iter().filter(|n| n.role == Role::Check).collect();
+            assert_eq!(checks.len(), if unread { 4 } else { 7 });
+            for check in checks {
+                let locked = check.name.as_deref() == Some(LOCKED.as_bytes());
+                assert_eq!(check.states.as_slice().contains(&State::Pressed), unread && !locked);
+                assert_eq!(check.states.as_slice().contains(&State::Disabled), unread || locked);
+            }
+            assert!(!section.iter().any(|n| n.role == Role::Select));
+        }
     }
 }
 #[test]
 fn defaults_with_no_row() {
     let (root, _) = away_settings(None);
     for view in [how_view(&root, false), how_view(&root, true)] {
-        drawn_choices(&view, 7, EIGHT);
-    }
-}
-#[test]
-fn a_kind_writes_through_set_away() {
-    for browser in [false, true] {
-        for (label, bit) in AWAY_KINDS {
-            let (mut root, _) = away_settings(Some(away_row(10, None, None)));
-            let mut view = how_view(&root, browser);
-            let (_, sent) = away_send(&mut root, &mut view, Role::Check, label.as_bytes());
-            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: true, until: None, kinds: 0b1010 ^ bit });
-        }
+        drawn_choices(&view, EIGHT);
     }
 }
 #[test]
 fn the_select_writes_until() {
+    use temper_protocol_reaches::{Class, Classes, Kind, Subject, Way};
+    for (classes, label, index, before, after) in [
+        (Classes::stock(Way::AgentsReview), b"Implementation choices".as_slice(), 3, Class::Ask, Class::AskAway),
+        (Classes::stock(Way::YouApprove), b"New dependencies".as_slice(), 0, Class::AskAway, Class::Ask),
+    ] {
+        for browser in [false, true] {
+            let mut root = f::root_with_classes(settings(), &classes);
+            let mut view = how_view(&root, browser);
+            let id = find(view.tree(), Role::Check, label);
+            let (attempt, change) = send(&mut root, &mut view, id, Act::Toggle);
+            let mut reader = skein_lib::Reader::new(sent_value(&change, 8));
+            let record = w::ProjectClasses::decode(&w::CEILINGS, &mut reader).unwrap();
+            assert!(reader.is_empty());
+            let actual = temper_protocol_reaches::classes_from(&record);
+            let mut expected = classes.clone();
+            if expected.items.is_empty() {
+                expected.items = Box::new([temper_protocol_reaches::Item {
+                    subject: Subject::Kind(Kind::Dependency),
+                    words: Box::default(),
+                    class: after,
+                }]);
+            } else {
+                expected.items[index].class = after;
+            }
+            assert_eq!(actual, expected, "one check changes the whole table");
+            f::build(&mut view, &root);
+            let checks: Vec<_> =
+                section_nodes(view.tree(), AWAY_TITLE.as_bytes()).iter().filter(|n| n.role == Role::Check).collect();
+            for check in checks {
+                assert!(check.states.as_slice().contains(&State::Disabled));
+            }
+            assert_eq!(
+                node(view.tree(), find(view.tree(), Role::Check, label)).states.as_slice().contains(&State::Pressed),
+                after == Class::Ask
+            );
+            refused_answer(&mut root, attempt, c::Refusal::Role { held: None });
+            f::build(&mut view, &root);
+            let row = setting_row(view.tree(), b"What asks you");
+            assert!(row.iter().any(|n| n.role == Role::Status));
+            let check = node(view.tree(), find(view.tree(), Role::Check, label));
+            assert_eq!(check.states.as_slice().contains(&State::Pressed), before == Class::Ask);
+            assert!(!check.states.as_slice().contains(&State::Disabled));
+        }
+    }
     for browser in [false, true] {
         for (label, until) in [(EIGHT, Some(28_800_000_000_000)), (b"I turn it off".as_slice(), None)] {
-            let (mut root, _) = away_settings(Some(away_row(8, None, None)));
+            let (mut root, _) = away_settings(Some(away_row(None, None)));
             let mut view = how_view(&root, browser);
             let (_, sent) = away_send(&mut root, &mut view, Role::Option, label);
-            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: true, until, kinds: 8 });
+            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: true, until });
         }
     }
 }
 #[test]
 fn it_works_while_off() {
     for browser in [false, true] {
-        for (role, label, kinds, eight, until) in [
-            (Role::Check, AWAY_KINDS[0].0.as_bytes(), 6, true, Some(28_800_000_000_000)),
-            (Role::Check, AWAY_KINDS[1].0.as_bytes(), 5, true, Some(28_800_000_000_000)),
-            (Role::Check, AWAY_KINDS[2].0.as_bytes(), 3, true, Some(28_800_000_000_000)),
-            (Role::Check, AWAY_KINDS[3].0.as_bytes(), 15, true, Some(28_800_000_000_000)),
-            (Role::Option, EIGHT, 7, true, Some(28_800_000_000_000)),
-            (Role::Option, b"I turn it off".as_slice(), 7, false, None),
+        for (role, label, eight, until) in [
+            (Role::Option, EIGHT, true, Some(28_800_000_000_000)),
+            (Role::Option, b"I turn it off".as_slice(), false, None),
         ] {
-            let (mut root, watch) = away_settings(Some(away_row(7, Some(28_800_000_000_000), Some(0))));
+            let (mut root, watch) = away_settings(Some(away_row(Some(28_800_000_000_000), Some(0))));
             let mut view = how_view(&root, browser);
             let (attempt, sent) = away_send(&mut root, &mut view, role, label);
-            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: false, until, kinds });
+            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: false, until });
             away_answer(&mut root, attempt);
-            away_deliver(&mut root, watch, Some(away_row(sent.kinds, sent.until, Some(0))));
+            away_deliver(&mut root, watch, Some(away_row(sent.until, Some(0))));
             let view = how_view(&root, browser);
-            drawn_choices(&view, kinds, if eight { EIGHT } else { b"I turn it off" });
+            drawn_choices(&view, if eight { EIGHT } else { b"I turn it off" });
             assert!(!root.away_on(f::PROJECT, f::NOW));
         }
-    }
-}
-#[test]
-fn locked_stays_unticked_and_disabled() {
-    let (root, _) = away_settings(Some(away_row(15, None, None)));
-    for mut view in [how_view(&root, false), how_view(&root, true)] {
-        let id = find(view.tree(), Role::Check, LOCKED.as_bytes());
-        assert_eq!(node(view.tree(), id).states.as_slice(), &[State::Disabled]);
-        assert_eq!(crate::act(&mut view, id, Act::Toggle), None);
     }
 }
 #[test]
@@ -1255,9 +1311,9 @@ fn limits_focuses_the_section() {
 }
 #[test]
 fn an_expired_until_still_reads_eight() {
-    let (root, _) = away_settings(Some(away_row(8, Some(0), None)));
+    let (root, _) = away_settings(Some(away_row(Some(0), None)));
     for view in [how_view(&root, false), how_view(&root, true)] {
-        drawn_choices(&view, 8, EIGHT);
+        drawn_choices(&view, EIGHT);
     }
 }
 #[test]
@@ -1267,14 +1323,7 @@ fn away_controls_are_numbered_in_the_terminal() {
     let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
     skein_ui_text::render(view.tree(), b"temper", None, &mut print);
     let controls: Vec<_> = print.numbers.as_slice().to_vec();
-    for (role, label) in [
-        (Role::Check, AWAY_KINDS[0].0.as_bytes()),
-        (Role::Check, AWAY_KINDS[1].0.as_bytes()),
-        (Role::Check, AWAY_KINDS[2].0.as_bytes()),
-        (Role::Check, AWAY_KINDS[3].0.as_bytes()),
-        (Role::Option, EIGHT),
-        (Role::Option, b"I turn it off".as_slice()),
-    ] {
+    for (role, label) in [(Role::Option, EIGHT), (Role::Option, b"I turn it off".as_slice())] {
         assert!(controls.contains(&find(view.tree(), role, label)), "numbered {label:?}");
     }
 }

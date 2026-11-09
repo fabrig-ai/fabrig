@@ -73,7 +73,8 @@ pub fn tree_limits() -> skein_ui::Limits {
         // The largest goal plan and its frame, including Changes' link and text,
         // and five nodes for the rail menu wrapper, menu and three items.
         // The default draft entry adds a goal link and its text.
-        nodes: 201,
+        // Seven decided rows each add their Allowed sentence; Work and Deployment add their frame nodes.
+        nodes: 224,
         depth: 32,
         text_per_node: 512,
         text_bytes: 98304,
@@ -398,7 +399,6 @@ pub fn home_root(
 
 #[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
 #[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
-#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
 pub(super) fn root_at_with_values(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -410,6 +410,46 @@ pub(super) fn root_at_with_values(
     ways: Option<forge::ways::Ways>,
     refuse_ways: bool,
     settings_delivered: bool,
+) -> (
+    temper_client_domain::Domain,
+    Token,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+) {
+    root_at_with_classes(
+        address,
+        limits,
+        project_name,
+        playground,
+        activity,
+        forge_rows,
+        dismissed,
+        ways,
+        refuse_ways,
+        settings_delivered,
+        None,
+    )
+}
+#[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
+#[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
+pub(super) fn root_at_with_classes(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+    project_name: &[u8],
+    playground: Option<(u32, bool, w::PlaygroundState)>,
+    activity: Option<c::ActivityPage>,
+    forge_rows: Option<List<w::ForgeRow>>,
+    dismissed: Option<&[u32]>,
+    ways: Option<forge::ways::Ways>,
+    refuse_ways: bool,
+    settings_delivered: bool,
+    classes: Option<&temper_protocol_reaches::Classes>,
 ) -> (
     temper_client_domain::Domain,
     Token,
@@ -688,7 +728,14 @@ pub(super) fn root_at_with_values(
                             &mut out,
                         );
                     } else if let Some(ways) = ways {
-                        let value = if setting.kind() == 7 { Some(ways_bytes(ways)) } else { None };
+                        let value = match setting.kind() {
+                            7 => Some(ways_bytes(ways)),
+                            8 => match classes {
+                                Some(classes) => Some(classes_bytes(classes)),
+                                None => None,
+                            },
+                            _ => None,
+                        };
                         let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap();
                         temper_client_domain::step(
                             &mut root,
@@ -902,15 +949,27 @@ fn inbox_facts_at(
     // Six card reads beside the frame's own bounded reads.
     limits.client.domain.reads = 8;
     let (mut root, watch) = if let temper_client_domain::Address::Home { .. } = address {
-        let (root, _, _, watch) = root_at_with_needs(address, &limits);
+        let (root, _, _, watch) =
+            root_at_with_needs(temper_client_domain::Address::Settings { project: PROJECT }, &limits);
         (root, Some(watch))
     } else {
-        let (root, _, watch) = root_at(address, &limits);
+        let (root, _, watch) = root_at(address.clone(), &limits);
         (root, watch)
     };
-    let finish = root.pages().home().is_some();
+    let mut finish = false;
+    if let temper_client_domain::Address::Home { .. } = address {
+        finish = true;
+    }
     let env = Env { now: Time::ZERO, wall: NOW, limits };
     let mut out = Queue::uncapped();
+    if finish {
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(address) },
+            &mut out,
+        );
+    }
     let mut entries = List::with_capacity(6);
     for (object, group) in [
         (Object::Question { task: INBOX_TASK, message: INBOX_QUESTION }, Group::Questions),
@@ -970,6 +1029,41 @@ fn inbox_facts_at(
     if let Some((read, page)) = document {
         let mut page = Some(page);
         while let Some(request) = out.pop() {
+            if let temper_client_domain::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject } },
+            } = &request
+                && Some(subject) == forge::decided::watch(PROJECT, &env.limits.forge).as_ref()
+            {
+                let document = w::Decisions::new(
+                    &w::CEILINGS,
+                    w::DecisionsParts {
+                        project: PROJECT,
+                        rows: List::with_capacity(0),
+                        asked: List::with_capacity(0),
+                        cut: false,
+                    },
+                )
+                .unwrap();
+                temper_client_domain::step(
+                    &mut root,
+                    &env,
+                    temper_client_domain::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch: *watch,
+                                record: jig_client::Family {
+                                    family: wire::FORGE,
+                                    version: wire::CLIENT_VERSION,
+                                    bytes: wire::decisions(&document),
+                                },
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+                continue;
+            }
+
             if let temper_client_domain::Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
@@ -2154,10 +2248,35 @@ pub fn asking_me(mut me: c::Me) -> c::Me {
     me
 }
 
+pub fn root_with_classes(
+    address: temper_client_domain::Address,
+    classes: &temper_protocol_reaches::Classes,
+) -> temper_client_domain::Domain {
+    root_at_with_classes(
+        address,
+        &domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        Some(forge::ways::Ways::STOCK),
+        false,
+        true,
+        Some(classes),
+    )
+    .0
+}
+fn classes_bytes(classes: &temper_protocol_reaches::Classes) -> Box<[u8]> {
+    let record = temper_protocol_reaches::classes_record(classes).unwrap();
+    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut writer).unwrap();
+    writer.finish()
+}
 fn ways_bytes(ways: forge::ways::Ways) -> Box<[u8]> {
     let value = w::ProjectWays::new(
         &w::CEILINGS,
-        w::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
+        w::ProjectWaysParts { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way },
     )
     .unwrap();
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
@@ -2191,7 +2310,7 @@ pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_doma
                 Some(wall) => Some(wall.as_nanos()),
                 None => None,
             },
-            kinds: 7,
+
             landed: 0,
             off: match off {
                 Some(wall) => Some(wall.as_nanos()),

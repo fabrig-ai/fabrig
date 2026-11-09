@@ -81,7 +81,7 @@ or the nearest thing, and says so in that draft's status.
 | P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | done |
 | P7 | A change's size on its approval card: its files, additions and deletions at the head reviewed | `surfaces.md`, 4; its entry below | P2 | temper/ui | nice | not started |
 | P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | not started |
-| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | in flight |
+| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | in flight: `ui-reaches` (`../../plan/ui-reaches/plan.md`) |
 | N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | not started |
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | not started |
 | N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
