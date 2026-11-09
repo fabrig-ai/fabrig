@@ -195,8 +195,3 @@ unknown-proposal explanation; the generated help states the same limit.
   and its arguments, as an agent task's `--rev 8 CHANGE... REASON` does:
   `person_call` (`render/document.rs`) gives an answer alone its arguments. 12: an
   authority's entries are 14 (`limits.rs`).
-- **Not yet:** 6.4, 11.1, 12, from plan `long-text-pages`: a cut `task
-  text` or `task turn --part` page prints no position line first;
-  `limits.rs` holds a page of 16 KiB and a result's text of 32 KiB, the
-  client's text with it, and an act's words are checked against a
-  result's text.

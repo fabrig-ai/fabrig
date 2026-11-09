@@ -41,8 +41,29 @@ fn next(page: &c::TaskText, end: usize) -> Option<u64> {
     if offset < page.total { Some(offset) } else { None }
 }
 
+pub(super) fn page(from: u64, holds: u64, left: u64, bound: u64, out: &mut Text) {
+    let bound = bound.max(1);
+    let number = from.div_ceil(bound).saturating_add(1);
+    let total = number.saturating_add(left.div_ceil(bound));
+    out.put(b"page ");
+    out.number(number);
+    out.put(b" of ");
+    out.number(total);
+    out.put(b" holds ");
+    out.number(holds);
+    out.put(b" bytes; ");
+}
+
 pub(super) fn text(page: &c::TaskText, limits: &Limits, out: &mut Text) {
     let end = end(page, limits);
+    if page.from > 0 || next(page, end).is_some() {
+        out.put(field(page.field));
+        out.put(b" ");
+        let holds = u64::try_from(end).expect("source length fits");
+        let left = page.total.saturating_sub(page.from).saturating_sub(holds);
+        self::page(page.from, holds, left, u64::try_from(capacity(limits)).expect("page bound fits"), out);
+        rest(page, end, out);
+    }
     out.put(field(page.field));
     out.put(b" from ");
     out.number(page.from);
@@ -51,6 +72,10 @@ pub(super) fn text(page: &c::TaskText, limits: &Limits, out: &mut Text) {
     out.put(b" bytes:\n");
     out.words(page.text.bytes().get(..end).expect("chunk prefix"));
     out.put(b"\n");
+    rest(page, end, out);
+}
+
+fn rest(page: &c::TaskText, end: usize, out: &mut Text) {
     match next(page, end) {
         Some(offset) => {
             out.number(page.total.checked_sub(offset).expect("source bound"));

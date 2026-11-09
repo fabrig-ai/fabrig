@@ -7,7 +7,7 @@ pub(crate) mod lists;
 mod notes;
 pub(crate) mod outcome;
 pub mod pending;
-pub(super) mod task_source;
+pub(crate) mod task_source;
 mod turn;
 pub(super) mod visibility;
 use crate::jig::{Limits, runner::Printed};

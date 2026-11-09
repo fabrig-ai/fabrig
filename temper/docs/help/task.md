@@ -153,13 +153,15 @@ Restart settings: `temper help configuration`.
 - A task's deadline is checked when a run starts, not while it runs
   (temper help budget).
 - `task activity` and `task list` read 32 lines a page; a turn's part prints
-  16384 bytes at a time.
+  65536 bytes at a time.
 
 An overview may cut `asked:`, `instructions:` and its report. Follow
 `read specification:`, `read instructions:` or `read result:`;
 JSON and `task activity` give them under `text_reads`.
 `task text TASK --field result` reads the full report; follow
 continuations until `no more`, including after it ends.
+A cut page of `task text`, or of `task turn --part`, names its page, of how
+many, and the call that reads on in its first line as well as its last.
 `task text --json` gives `task`, `field`, `from`, `total`, `text` and `next`;
 null `next` ends the read. Printed offsets keep UTF-8 characters whole.
 After an amendment or a settings revision change, restart at zero.

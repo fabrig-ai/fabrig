@@ -230,7 +230,7 @@ pub(crate) fn send_act(argv: &[&str], seed: u64, now: u64) -> (Harness, u32) {
     (root, call)
 }
 pub(crate) fn act_text(bytes: &[u8]) -> c::Text {
-    c::Text::new(Box::from(bytes), crate::limits::TEXT).expect("fixture text")
+    c::Text::new(Box::from(bytes), crate::limits::CLIENT_TEXT).expect("fixture text")
 }
 pub(crate) fn encoded(ask: &client::Ask) -> Box<[u8]> {
     let client::Ask::Jig(ask) = ask else { panic!("jig ask") };
