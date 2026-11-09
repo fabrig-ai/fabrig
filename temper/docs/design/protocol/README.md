@@ -1255,6 +1255,14 @@ Each document keeps its own; these cross them:
   Ending both needs contained trees or a parent-death signal for the
   program (setup.md, section 15). Default: the orderly stop lets agents
   end their programs; a second signal or forced close has no such guarantee.
+- **A whole stop's bound** (section 8; 15.4): an engine's stop ends
+  within what its parts' own deadlines give, the forge's settling
+  (`../domain/root.md`, 9.2), the drain, and its workers' channels
+  within the stall deadline of the close (jig's `protocol/channel.md`,
+  10.2), with no deadline of its own, while a service manager kills it
+  at its own stop timeout. Default: so; a stop deadline over the whole
+  is a figure, the user's to set, and a test of a stop within it
+  follows.
 - **After standalone,** each designed where it is named, and needed only
   beyond one person's machine: webhooks from another host, over TLS
   (forge.md, section 5); hosts apart: TLS on the engine's listeners,

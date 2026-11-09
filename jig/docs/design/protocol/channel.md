@@ -693,8 +693,9 @@ holds, and neither of its components reads them.
   stall, the output cap filled, a deadline of the opening, the stream
   ending or failing, a framing error, a refusal sent or received with its
   reason; on the engine's side also no room for the connection and
-  stopping, on the worker's a dial that failed and a fault its root
-  raised (10.1, 10.2). The application's protocol layer writes it as a
+  stopping, on the worker's a dial that failed, a fault its root
+  raised, and a turn busy past the busy turns it can keep to send again
+  (10.1, 10.2). The application's protocol layer writes it as a
   line of its log naming the worker and the reason, so a link that drops
   is never silent on either side.
 - **A stall deadline.** A link whose output has stayed queued, with no
@@ -756,7 +757,8 @@ holds, and neither of its components reads them.
   up once as the component's `Fact`, with its `Loss`: as skein's channel
   ended it (`Closed`: the stream, a framing error, a refusal sent or
   received), silence, stall, the handshake's deadline, the output cap
-  filled, a fault its root raised, or a dial that failed. The owner logs
+  filled, a turn busy past the busy turns it keeps (5.2, *Busy,
+  sent again*), a fault its root raised, or a dial that failed. The owner logs
   the loss of a link that said hello, beside its line for the link.
 - **The grace's clock is the component's.** The hub arms no timers
   (`../domain/hosts.md`, 6.2). It runs from when the component notices
