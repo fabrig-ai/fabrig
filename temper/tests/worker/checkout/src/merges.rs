@@ -6,7 +6,8 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use temper_fake_checkout::{Checkout, git::Remote};
 use temper_worker_domain_checkout::git::{Commit, Done, Fault, Op};
 use temper_worker_domain_checkout::{
-    Domain, Event, Failure, Landing, Limits, Message, Outcome, Prepared, Repository, Request, Spec, Start, step,
+    Conflicts, Domain, Event, Failure, Landing, Limits, Message, Outcome, Prepared, Repository, Request, Spec, Start,
+    step,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -15,6 +16,7 @@ pub enum Case {
     Resumed,
     Contained,
     Conflict,
+    PastTheBound,
     Unchanged,
     Moved,
     Ambiguous,
@@ -56,7 +58,12 @@ impl World {
             facts,
         };
         let mut forge = Forge::new(seed);
-        let first = forge.repository(b"forge/temper", b"main", [(b"code".to_vec(), b"original\n".to_vec())].into());
+        let initial = if matches!(case, Case::PastTheBound) {
+            (0..=limits.conflicts).map(|n| (format!("code{n}").into_bytes(), b"original\n".to_vec())).collect()
+        } else {
+            [(b"code".to_vec(), b"original\n".to_vec())].into()
+        };
+        let first = forge.repository(b"forge/temper", b"main", initial);
         forge.create_branch(b"forge/temper", b"topic", first).expect("topic created");
         let left = format!("ours {seed}\n");
         let right = format!("base {seed}\n");
@@ -68,6 +75,18 @@ impl World {
             Case::Unchanged | Case::Moved => {
                 let base = forge.advance(b"forge/temper", b"main", b"code", right.as_bytes());
                 (first, base, [(b"code".to_vec(), right.into_bytes())].into())
+            }
+            Case::PastTheBound => {
+                let mut ours = first;
+                let mut base = first;
+                let mut expected = temper_fake_checkout::git::Tree::new();
+                for n in 0..=limits.conflicts {
+                    let path = format!("code{n}").into_bytes();
+                    ours = forge.advance(b"forge/temper", b"topic", &path, left.as_bytes());
+                    base = forge.advance(b"forge/temper", b"main", &path, right.as_bytes());
+                    expected.insert(path, b"resolved\n".to_vec());
+                }
+                (ours, base, expected)
             }
             Case::Conflict => {
                 let ours = forge.advance(b"forge/temper", b"topic", b"code", left.as_bytes());
@@ -147,7 +166,7 @@ impl World {
                 self.commits.push((*parent, *second, *identity, title.to_vec()));
             }
             let pushing = matches!(op, Op::Push { .. });
-            let mut done = translate::perform(&mut self.forge, &mut self.disk, op);
+            let mut done = translate::perform_within(&mut self.forge, &mut self.disk, op, self.env.limits.conflicts);
             if ambiguous && pushing {
                 assert_eq!(done, Done::Succeeded, "the timed-out push actually landed");
                 done = Done::Failed { fault: Fault::TimedOut };
@@ -220,6 +239,8 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         assert_eq!(&*world.push(false, false), &[Landing::Conflicted { files: Box::new([b"code".as_slice().into()]) }]);
         assert!(world.forge.moves().is_empty(), "remaining markers make no remote effect");
         world.disk.write(&[&at[..], b"/code"].concat(), b"resolved\n");
+    } else if matches!(case, Case::PastTheBound) {
+        settle_past_the_bound(&mut world, &at, &conflicts, seed);
     } else {
         assert!(conflicts.is_empty());
     }
@@ -272,6 +293,29 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
     assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
     assert_eq!(world.domain.holds(), 0);
     Report { trace: world.trace, tree: world.expected, parents: (world.ours, world.base) }
+}
+
+/// The named prefix leaves every conflicted file and the merge state on disk.
+fn settle_past_the_bound(world: &mut World, at: &[u8], conflicts: &[Conflicts], seed: u64) {
+    let named: Box<[Box<[u8]>]> =
+        (0..world.env.limits.conflicts).map(|n| format!("code{n}").into_bytes().into()).collect();
+    assert_eq!(conflicts.len(), 1);
+    assert_eq!(conflicts[0].repository, 0);
+    assert_eq!(conflicts[0].files, named);
+    assert_eq!(
+        world.disk.content(&[at, b"/.git/MERGE_HEAD"].concat()),
+        Some(world.base.to_le_bytes().as_slice()),
+        "the merge remains in progress at the base"
+    );
+    let marked = format!("<<<<<<< ours\nours {seed}\n=======\nbase {seed}\n>>>>>>> theirs\n");
+    let unmerged = world.disk.tree(&[at, b"/.git/temper-conflicts"].concat());
+    assert_eq!(unmerged.into_values().collect::<Vec<_>>(), world.expected.keys().cloned().collect::<Vec<_>>());
+    for file in world.expected.keys() {
+        assert_eq!(world.disk.content(&[at, b"/", file].concat()), Some(marked.as_bytes()));
+    }
+    for (file, content) in &world.expected {
+        world.disk.write(&[at, b"/", file].concat(), content);
+    }
 }
 
 /// Read the fake's checkout and merge metadata before the run edits anything.
@@ -532,7 +576,7 @@ pub fn conflicting_head() {
     world.forge.moves();
     let failed = world.finish(Event::Prepare { client: Token::new(9), spec: heads_spec(&[world.ours, second]) }, false);
     assert!(matches!(failed, Request::Prepared { prepared: Prepared::Failed {
-        failure: Failure::Conflicted { repository: 0, head },
+        failure: Failure::Conflicted { repository: 0, head }, ..
     }, .. } if head == translate::commit(second)));
     assert_eq!(world.domain.holds(), 1);
     let hold = world.hold.expect("failed hold stays");
@@ -649,7 +693,9 @@ pub fn goal_later_run(case: Case) {
             world.disk.write(&[at.as_slice(), b"/code"].concat(), b"resolved\n");
             None
         }
-        Case::Clean | Case::Unchanged | Case::Moved | Case::Ambiguous | Case::Saved => unreachable!("goal cases"),
+        Case::Clean | Case::PastTheBound | Case::Unchanged | Case::Moved | Case::Ambiguous | Case::Saved => {
+            unreachable!("goal cases")
+        }
     };
     let mut tree = world.disk.tree(&at);
     tree.retain(|path, _| !path.starts_with(b".git/"));
