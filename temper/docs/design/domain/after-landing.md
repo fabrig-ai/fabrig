@@ -122,6 +122,10 @@ branch text matches (2026-11-04).
   when that run ends, the next starts at the newest tip, if it moved
   since. The forge follows a branch for its tiers as long as one names
   it, whether or not a goal or a change follows it too.
+- **A run in flight is polled** as a landing polls its runs
+  (`landing.md`, 7.1): at the client's `poll_at` for its repository,
+  every `poll` or, while that repository hears, at its last hint plus
+  `fallback`, and at once on a job's delivery (`forge.md`, 5.2).
 - **A tip whose key has a receipt** is judged by the receipt, with no
   run: a documentation landing clears at once where every tier ignores
   it.

@@ -756,6 +756,7 @@ have one, an engine alone none. Each:
 
   | Name | Bounds |
   |---|---|
+  | `forge.client.fallback_ms` | `fallback`: how long a repository hears after its last delivery, its timed reads and temper's own polls of it falling back to it meanwhile (`../domain/forge.md`, 5.2; skein's `forge-client.md`, 4.1); 300,000 (5 minutes) in both profiles, any value accepted, 0 keeping the paces with no fallback |
   | `forge.client.settle_ms` | after a move of a pull request's head or base, how long a not mergeable answer, or a hinted job's pending CI, is read again at `hinted` and not believed, by the change procedure (`../domain/forge.md`, 5.2); above 0, as `hinted` is |
   | `forge_component.hooks` | the webhooks' listener's connections in all |
   | `forge_component.hook_head_bytes` | a delivery's request head |
@@ -801,7 +802,9 @@ have one, an engine alone none. Each:
 - **Limits checked against each other at start,** each failure naming
   both limits:
   - the forge component's: its connections equal the forge client's
-    calls in flight; its deadline is at most the forge client's
+    calls in flight; its `kept_bytes` is the forge client's `calls`
+    times its `answer_bytes`, set by temper, not configured (skein's
+    `forge-connection.md`, 4.6); its deadline is at most the forge client's
     lifetime; its body bound holds the forge client's largest write and
     a key's marker; every listing's page size is at least 1 (forge.md,
     section 7);

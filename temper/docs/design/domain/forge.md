@@ -936,14 +936,32 @@ the landing branches' tips, the slow pass and the forge's clock. temper's
 part:
 
 - **Its values:** `forge.client.poll_ms`, `poll_max_ms`, `hinted_ms`,
-  `slow_ms` and `settle_ms`. The paces are what they are with no
-  webhook, so a delivery lost, refused or never sent costs latency,
-  never liveness (skein's `forge-client.md`, section 4).
+  `slow_ms`, `settle_ms` and `fallback_ms`. The paces are what they are
+  with no webhook, so a delivery lost, refused or never sent costs
+  latency, never liveness (skein's `forge-client.md`, section 4).
+- **Events first, polls as a fallback.** While a repository's
+  deliveries arrive, its timed reads, and temper's own polls of it,
+  fall back to `fallback`, 5 minutes as shipped (skein's
+  `forge-client.md`, 4.1). temper knows deliveries arrive by their
+  arrival: each hint the client takes for a repository, temper's own
+  echoes among them, keeps it hearing for `fallback`; no heartbeat or
+  test delivery is sent. It is safe because nothing waits on a pace: a
+  hint still reads at `hinted`, the read due at the last hint plus
+  `fallback` reads all a lost delivery could have announced, and a
+  repository with no delivery for `fallback` polls at the paces above
+  until its next one. 5 minutes bounds that latency for a lost
+  delivery while a busy repository, hearing every few minutes, makes
+  each timed read about once per `fallback` in place of once per
+  `poll`. `fallback_ms` 0 keeps today's paces. A Forgejo hook that
+  stops, or a GitHub App's log not read, stops a repository's
+  deliveries alike, and it stops hearing within `fallback`.
 - **Hints** come from the forge's webhook deliveries, or a GitHub App's
-  delivery log (`../protocol/forge.md`, section 5 and 5.1). The client
-  reads on every hint it holds a resource for. temper, the owner, drops
-  its own echoes, by key and by pusher: a creation's key for an item,
-  the pusher for a push (skein's `forge-client.md`, section 4).
+  delivery log (`../protocol/forge.md`, section 5 and 5.1). Every hint
+  goes to the client, temper's own echoes among them, which keep their
+  repository hearing. The client reads on every hint it holds a
+  resource for, and drops the news temper's own writes cause by its
+  echo ledger and keys (skein's `forge-client.md`, 4 and 7.6); a hint's
+  pusher is used for drift alone.
 - **Which change a hint wakes:** within its repository, a named branch
   wakes changes with that head branch or landing base; a commit wakes
   changes using it as their last head or observed base tip, including
@@ -961,6 +979,14 @@ part:
   dependencies and queue changes keep their existing wake routes. Each
   decision still uses the rules held then (8.7–8.9); hints do not replace
   polling, settling or stall deadlines (8.3–8.4, 9).
+- **temper's own polls fall back too.** A landing's or a tier's flight
+  polling its runs in flight (`landing.md`, 7.1; `after-landing.md`,
+  section 3) and a queued merge's look (skein's `forge-client.md`, 7.7)
+  are due at `Domain::poll_at` for their repository with `poll`, so
+  while it hears they come at the later of `poll` and its last hint
+  plus `fallback`. A job's delivery still wakes its flight at once.
+  Settling's rereads (below), fresh reads and stall deadlines are not
+  stretched.
 - **What Forgejo settles after it delivers** is read again sooner, by
   the change procedure, which reads its pull request afresh (5.3), not
   by the keep. Forgejo checks a pull request's mergeability after a push

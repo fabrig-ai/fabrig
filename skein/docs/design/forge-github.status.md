@@ -1,7 +1,9 @@
 # forge-github: status
 
-2026-11-07. Where skein's code lags or departs from [forge-github.md](forge-github.md).
+2026-11-09. Where skein's code lags or departs from [forge-github.md](forge-github.md).
 
+- **Not yet:** 8.5, by plan `forge-polls-quiet`: the dialect sends a
+  validator on the delivery log's first page alone.
 - **Not yet:** 13: no live result establishes `app-owner-id-login-type` on
   `GET /app`. The case is present in
   `skein/tests/forge/github/src/cases.rs`; its live observation follows
