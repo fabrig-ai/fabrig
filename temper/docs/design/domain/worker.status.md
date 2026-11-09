@@ -16,7 +16,7 @@ When its hub answers a job failed or refused, the worker writes its line
 `temper-worker-domain/src/jobs.rs`), an in-process worker's among serve's
 notes, and the engine writes its own once, when its hub accepts the answer
 (`temper-engine-domain/src/link.rs`, `answer`;
-`temper-engine-shell/src/serve/host.rs`, `job_line`), an assignment it
+`temper-service-shell/src/host.rs`, `job_line`), an assignment it
 cannot encode included. A preparation's failure carries its step and git's
 fault as its detail (`temper-worker-domain-checkout/src/hold.rs`,
 `preparation_detail`), a command's its exit or signal and its error

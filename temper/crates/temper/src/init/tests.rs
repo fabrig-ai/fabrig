@@ -233,7 +233,7 @@ fn check_agent(dirs: &Directories, mut document: serde_json::Value) {
     fs::write(config.join("root.der"), skein_tls_kit::pki::ROOT).expect("fixture trust");
     let checked = config.join("agent-check.json");
     fs::write(&checked, serde_json::to_vec(&document).expect("agent JSON")).expect("metadata fixture");
-    let agent = crate::agent::read(&checked).expect("written agent configuration parses");
+    let agent = temper_worker_shell::agent::read(&checked).expect("written agent configuration parses");
     assert_eq!(
         u64::from(agent.tool_payload),
         document["profile"]["declared"]["tool_payload"].as_u64().expect("declared tool payload")

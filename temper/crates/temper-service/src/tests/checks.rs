@@ -102,6 +102,13 @@ fn installations_past_the_grant_bound_refuse_the_start_naming_the_limit() {
 }
 
 #[test]
+fn a_worker_part_names_the_agents_program() {
+    let part =
+        crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
+    assert_eq!(part.named.program.as_ref(), fixtures::TEMPER);
+}
+
+#[test]
 fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
     let document = fixtures::with(
         &fixtures::worker_alone_document(),
