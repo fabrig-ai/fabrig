@@ -6,7 +6,7 @@ use skein_lib::List;
 
 // The resumed fixture's fixed fields57 + workspace27 + charter14 + transcript24
 // + messages60 + grants74 + header8, without any committed calls.
-const BASE_FRAME: u32 = 364;
+const BASE_FRAME: u32 = 264;
 // Each named call: length4 + name6 + length4 + tool6 + arm1 + error/outcome1
 // + body length4. A 256-byte host answer cuts to 64 + 3 decimal digits.
 const CALL_FIELDS: u32 = 26;
@@ -43,15 +43,9 @@ fn calls(limits: &v9::Limits, answers: &[Answer]) -> List<wire::AnsweredCall> {
                 .unwrap(),
             ),
         };
-        let call = wire::AnsweredCall::new(
-            limits,
-            wire::AnsweredCallParts {
-                name: repeated(b'a' + position, 6),
-                tool: repeated(b'k' + position, 6),
-                answer,
-            },
-        )
-        .unwrap();
+        let name = repeated(b'a'.checked_add(position).unwrap(), 6);
+        let tool = repeated(b'k'.checked_add(position).unwrap(), 6);
+        let call = wire::AnsweredCall::new(limits, wire::AnsweredCallParts { name, tool, answer }).unwrap();
         calls.push(call).unwrap();
     }
     calls
@@ -64,6 +58,7 @@ fn resumed(limits: &v9::Limits, answered: List<wire::AnsweredCall>) -> wire::Ass
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table holds the fit's rules and compares every returned part")]
 fn a_resumed_start_is_fitted_to_its_room() {
     struct Row<'a> {
         name: &'a str,
@@ -77,55 +72,87 @@ fn a_resumed_start_is_fitted_to_its_room() {
     let limits = sizes::limits(&sizes::Sizes { answer: ANSWER_BYTES, answered: 5, ..SIZES_LARGE }).unwrap();
     let rows = [
         Row {
-            name: "fits", answers: &[HOST; 3], charter: None,
+            name: "fits",
+            answers: &[HOST; 3],
+            charter: None,
             room: BASE_FRAME + 3 * (CALL_FIELDS + ANSWER_BYTES) + 1,
-            fitted: Fitted::Whole, cut: &[false; 3],
+            fitted: Fitted::Whole,
+            cut: &[false; 3],
             bytes: BASE_FRAME + 3 * (CALL_FIELDS + ANSWER_BYTES),
         },
         Row {
-            name: "past by its calls", answers: &[HOST; 5], charter: None,
-            room: TWO_WHOLE + 1, fitted: Fitted::Cut { cut: 3 },
-            cut: &[true, true, true, false, false], bytes: TWO_WHOLE,
+            name: "past by its calls",
+            answers: &[HOST; 5],
+            charter: None,
+            room: TWO_WHOLE + 1,
+            fitted: Fitted::Cut { cut: 3 },
+            cut: &[true, true, true, false, false],
+            bytes: TWO_WHOLE,
         },
         Row {
-            name: "met exactly", answers: &[HOST; 5], charter: None,
-            room: TWO_WHOLE, fitted: Fitted::Cut { cut: 3 },
-            cut: &[true, true, true, false, false], bytes: TWO_WHOLE,
+            name: "met exactly",
+            answers: &[HOST; 5],
+            charter: None,
+            room: TWO_WHOLE,
+            fitted: Fitted::Cut { cut: 3 },
+            cut: &[true, true, true, false, false],
+            bytes: TWO_WHOLE,
         },
         Row {
-            name: "one byte short", answers: &[HOST; 5], charter: None,
-            room: TWO_WHOLE - 1, fitted: Fitted::Cut { cut: 4 },
-            cut: &[true, true, true, true, false], bytes: TWO_WHOLE - (ANSWER_BYTES - WORD_BYTES),
+            name: "one byte short",
+            answers: &[HOST; 5],
+            charter: None,
+            room: TWO_WHOLE - 1,
+            fitted: Fitted::Cut { cut: 4 },
+            cut: &[true, true, true, true, false],
+            bytes: TWO_WHOLE - (ANSWER_BYTES - WORD_BYTES),
         },
         Row {
-            name: "a delivery", answers: &[Answer::Delivery, HOST, HOST, HOST, HOST], charter: None,
-            room: TWO_WHOLE + 1, fitted: Fitted::Cut { cut: 3 },
-            cut: &[false, true, true, true, false], bytes: TWO_WHOLE,
+            name: "a delivery",
+            answers: &[Answer::Delivery, HOST, HOST, HOST, HOST],
+            charter: None,
+            room: TWO_WHOLE + 1,
+            fitted: Fitted::Cut { cut: 3 },
+            cut: &[false, true, true, true, false],
+            bytes: TWO_WHOLE,
         },
         Row {
             name: "short answers",
-            answers: &[Answer::Host { bytes: 66, error: false }, HOST, HOST, HOST, HOST], charter: None,
-            room: TWO_WHOLE + 1, fitted: Fitted::Cut { cut: 2 },
-            cut: &[false, true, true, false, false], bytes: TWO_WHOLE - 1,
+            answers: &[Answer::Host { bytes: 66, error: false }, HOST, HOST, HOST, HOST],
+            charter: None,
+            room: TWO_WHOLE + 1,
+            fitted: Fitted::Cut { cut: 2 },
+            cut: &[false, true, true, false, false],
+            bytes: TWO_WHOLE - 1,
         },
         Row {
             name: "errors",
-            answers: &[Answer::Host { bytes: ANSWER_BYTES, error: true }, HOST, HOST, HOST, HOST], charter: None,
-            room: TWO_WHOLE + 1, fitted: Fitted::Cut { cut: 3 },
-            cut: &[true, true, true, false, false], bytes: TWO_WHOLE,
+            answers: &[Answer::Host { bytes: ANSWER_BYTES, error: true }, HOST, HOST, HOST, HOST],
+            charter: None,
+            room: TWO_WHOLE + 1,
+            fitted: Fitted::Cut { cut: 3 },
+            cut: &[true, true, true, false, false],
+            bytes: TWO_WHOLE,
         },
         Row {
-            name: "still past", answers: &[HOST; 5], charter: Some(2048),
-            room: TWO_WHOLE + 1, fitted: Fitted::Past { bytes: FIVE_CUT + 2048 - 14 },
-            cut: &[true; 5], bytes: FIVE_CUT + 2048 - 14,
+            name: "still past",
+            answers: &[HOST; 5],
+            charter: Some(2048),
+            room: TWO_WHOLE + 1,
+            fitted: Fitted::Past { bytes: FIVE_CUT + 2048 - 14 },
+            cut: &[true; 5],
+            bytes: FIVE_CUT + 2048 - 14,
         },
         Row {
             name: "an older smaller answer stays cut after the first that cannot fit",
-            answers: &[Answer::Host { bytes: 128, error: false }, HOST, HOST, HOST, HOST], charter: None,
+            answers: &[Answer::Host { bytes: 128, error: false }, HOST, HOST, HOST, HOST],
+            charter: None,
             // After the newest two, 93 bytes remain: an older 128-byte answer
             // could fit, but the intervening 256-byte answer cannot.
-            room: TWO_WHOLE + CALL_FIELDS + WORD_BYTES, fitted: Fitted::Cut { cut: 3 },
-            cut: &[true, true, true, false, false], bytes: TWO_WHOLE,
+            room: TWO_WHOLE + CALL_FIELDS + WORD_BYTES,
+            fitted: Fitted::Cut { cut: 3 },
+            cut: &[true, true, true, false, false],
+            bytes: TWO_WHOLE,
         },
     ];
     let mut failures = List::with_capacity(u32::try_from(rows.len()).unwrap());
@@ -174,14 +201,26 @@ fn the_smallest_resumed_start_is_measured() {
     // (jig/docs/design/protocol/channel.md, 11).
     for (count, name, tool, answer, expected) in [(32, 64, 64, 69_632, 6817), (128, 64, 64, 135_168, 27_201)] {
         let limits = sizes::limits(&sizes::Sizes {
-            answered: count, call_name: name, tool_name: tool, answer, ..SIZES_ONE_SLOT
-        }).unwrap();
+            answered: count,
+            call_name: name,
+            tool_name: tool,
+            answer,
+            ..SIZES_ONE_SLOT
+        })
+        .unwrap();
         let mut answered = List::with_capacity(count);
         for _ in 0..count {
-            let host = wire::HostAnswer::new(&limits, wire::HostAnswerParts { error: false, body: cut_words(answer) }).unwrap();
-            let call = wire::AnsweredCall::new(&limits, wire::AnsweredCallParts {
-                name: repeated(b'n', name), tool: repeated(b't', tool), answer: wire::SettledAnswer::Host(host),
-            }).unwrap();
+            let host = wire::HostAnswer::new(&limits, wire::HostAnswerParts { error: false, body: cut_words(answer) })
+                .unwrap();
+            let call = wire::AnsweredCall::new(
+                &limits,
+                wire::AnsweredCallParts {
+                    name: repeated(b'n', name),
+                    tool: repeated(b't', tool),
+                    answer: wire::SettledAnswer::Host(host),
+                },
+            )
+            .unwrap();
             answered.push(call).unwrap();
         }
         let mut parts = fixtures::assignment_resumed().into_parts();

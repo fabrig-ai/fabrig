@@ -131,6 +131,17 @@ pub fn largest_body(sizes: &Sizes, kind: Kind) -> Option<u32> {
     body(&limits(sizes)?, kind)
 }
 
+/// The smallest resumed start's frame, its header included (jig/docs/design/protocol/channel.md, 11).
+#[must_use]
+pub fn smallest_resumed(calls: u32, name: u32, tool: u32, answer: u32) -> Option<u32> {
+    let call = 14_u64
+        .checked_add(u64::from(name))?
+        .checked_add(u64::from(tool))?
+        .checked_add(u64::from(crate::fit::cut_length(answer)))?;
+    let bytes = 8_u64.checked_add(57)?.checked_add(u64::from(calls).checked_mul(call)?)?;
+    u32::try_from(bytes).ok()
+}
+
 fn body(limits: &v9::Limits, kind: Kind) -> Option<u32> {
     let bytes = match kind {
         Kind::Draining => v9::Draining::encoded_bound(limits),
