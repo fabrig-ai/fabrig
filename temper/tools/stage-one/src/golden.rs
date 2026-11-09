@@ -264,7 +264,7 @@ fn setting_key(v: &Value, path: &str, subject: bool) -> Result<SettingKey, Golde
         "project-ways" | "project-questions"
             if setting_number.is_none() && project.is_some() && project != Some(ProjectRef::Number(0)) => {}
         "landing-rule" if subject || setting_number.is_some() => {}
-        "charter" | "template" | "policy" | "forge-charter"
+        "charter" | "template" | "template-goal" | "policy" | "forge-charter"
             if project.is_none() && (subject || setting_number.is_some()) => {}
         _ => return Err(error(path, "invalid setting key")),
     }
