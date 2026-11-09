@@ -344,6 +344,29 @@ impl Story {
         let event = Temper::act(&mut view, id, skein_ui::Act::Press).expect("bound press");
         self.event(CLIENT, event);
     }
+    fn open_need(&mut self, question: &[u8]) {
+        let mut view = self.view();
+        let nodes = Temper::tree(&view).nodes();
+        let (_, row) = nodes
+            .iter()
+            .enumerate()
+            .find(|(index, node)| {
+                node.role == Role::Button
+                    && nodes.iter().skip(*index).take(usize::try_from(node.size).expect("subtree size")).any(|child| {
+                        child.text.iter().any(|run| run.text.windows(question.len()).any(|part| part == question))
+                    })
+            })
+            .expect("closed need row contains the question");
+        let id = row.id;
+        let event = Temper::act(&mut view, id, skein_ui::Act::Press).expect("bound need row");
+        self.event(CLIENT, event);
+        assert!(
+            Temper::tree(&self.view())
+                .nodes()
+                .iter()
+                .any(|node| { node.role == Role::Heading { level: 1 } && node.name.as_deref() == Some(question) })
+        );
+    }
     fn sees(&self, words: &[u8]) {
         let view = self.view();
         assert!(
@@ -764,14 +787,14 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
             .starts_with("Message ")
     );
     story.needs();
-    story.press(Role::Button, b"Later");
+    story.open_need(b"Buy more capacity?");
     story.sees(b"Buy more capacity?");
     story.sees(b"Reached you because it spends money past a budget, which always waits for you.");
     story.does_not_see(b"Stop asking");
 
     story.press(Role::Button, b"Away until 08:00");
     assert!(!story.probes[CLIENT.0].root.person().away_on(PROJECT, story.env.wall));
-    story.press(Role::Button, b"Later");
+    story.open_need(b"Which local implementation?");
     story.sees(b"Which local implementation?");
     story.sees(b"Use Small");
     story.press(Role::Button, b"Stop asking");
