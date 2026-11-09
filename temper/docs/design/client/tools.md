@@ -1716,6 +1716,43 @@ its `from` and `next` offsets count reason bytes alone.
   an amendment or settings move. An agent's
   context is the
   budget the defaults are chosen for.
+- **A cut page says so first.** A paged read is a read whose own call
+  takes `--from`: `task text`, and `task turn` with `--part`. Its page
+  is cut when it starts past byte 0 or leaves bytes after it. A cut
+  page prints its position as its first line, before anything else the
+  read prints, as well as at its end: `FIELD page N of M holds B bytes;
+  L bytes left; read on with: CALL` for `task text`, and `part P page N
+  of M holds B bytes; L bytes left; read on with: CALL` for `task turn
+  TASK TURN --part P`, ahead of its `turn A.T` line. CALL is the call
+  the page's last line prints. On the last page `no more` takes the
+  place of the bytes left and the call. B is the source bytes the page
+  holds and L those after it. N is ⌈from ÷ C⌉ + 1 and M is N + ⌈L ÷ C⌉,
+  where C is the most source bytes the read's page may hold, at least
+  1: for `task text`, section 12's page, within a result's text less
+  512 bytes and within a result's bytes less 512 at six bytes each;
+  for a part, the smaller of the page and the result's text room when
+  the read starts. A page cut short, to keep a character whole or
+  because retrieval stopped, is counted the same way, so a later page
+  may count one more. An uncut text, a whole source from byte 0 or a
+  whole part, prints no such line. An 84,336-byte specification reads
+  in two pages:
+
+      specification page 1 of 2 holds 65536 bytes; 18800 bytes left; read on with: task text 240 --field specification --from 65536
+      specification from 0 of 84336 bytes:
+      ...
+      18800 bytes left; read on with: task text 240 --field specification --from 65536
+
+      specification page 2 of 2 holds 18800 bytes; no more
+      specification from 65536 of 84336 bytes:
+      ...
+      no more
+
+  These are the tools' words, the same for agents and people. JSON is
+  unchanged: `from`, `total` and `next`, and a part's `from`,
+  `bytes_left` and `read_on`, carry the position. A read that prints a
+  cut text inside a larger answer, `task show`'s asked words, `task
+  turn` without `--part`, `task activity` or `chat show`, is no paged
+  read: each cut keeps its end line alone, whose call is a paged read.
 - **The numbers** are section 12's. A path is never cut: the tools
   print it whole, within the client's bound on a path's segments
   (`jig-client-domain`'s `Limits`, `segments`); nor is an authority,
@@ -2121,7 +2158,18 @@ is reset, the store empty again.
 - **The boundary:** `src/jig/` names no temper item (section 4).
 - **The bounds:** each of the tools' ceilings within the client's limit
   it reads from, and a picker's page within a result's text (section
-  12).
+  12): a result's text within one document's bytes, a page within a
+  turn's bytes, the client's text within a result's text and equal to
+  the words an act takes, and a `task text` page holding section 12's
+  page whole, its lines within the 512 bytes beside it and its JSON
+  within a result's bytes.
+- **Paged reads,** as table rows beside the existing `task text` and
+  `task turn` tests: a cut page's first line, with its page, of how
+  many, the bytes it holds and the call its last line prints; a middle
+  page, and the last with `no more`; a stopped retrieval's first line
+  naming the call its last line names; a part found as the renderer
+  counts parts; and an uncut text, or a whole read, with no such line
+  (6.4).
 - **DIRECTORY's records,** in `temper-client-shell-cli`'s tests: a
   record of a store version the tools do not read counted by `pending`,
   and the next call that sends saying it dropped it.
@@ -2386,7 +2434,13 @@ Four bounds decide how much of a document a call prints:
   never works around it.
 - **The tools' window is within the client's limit:** a step test fails
   when one of the tools' ceilings passes the client limit it reads from
-  (11.1).
+  (11.1). A result's text is within one document's bytes and a page
+  within a turn's. The client's text is the tools' preset's own, within
+  a result's text, so any one of its words prints whole, and an act's
+  words are checked against it before they are sent. A page, its
+  position line and its end line fit a result's text with 512 bytes to
+  spare (6.4), and its JSON, six bytes for each source byte, a result's
+  bytes.
 
 The numbers are constants of `temper-client-tools`' `limits` module. The
 client's are the tools' own preset of `jig-client`'s `Limits`, not the
@@ -2395,8 +2449,10 @@ terminal's, whose window shows two rows:
 | What | Bound |
 |---|---|
 | rows: a list's page, the inbox's needs and updates together, the activity lines `task show` adds, a conversation's page; the client's rows per window | 32, the most jig's client wire takes in a limit of rows (its schemas' ceilings; jig's `protocol/client.md`, section 3) |
-| a result's text | 32 KiB |
-| a turn's part | 16 KiB |
+| a result's text | 80 KiB: a page, and the 16 KiB a result keeps beside it |
+| a page: a turn's part, and the source one `task text` page holds | 64 KiB, 65,536 source bytes |
+| a result's bytes, as JSON | one document's bytes six times, and 1 KiB: JSON may spend six bytes on one source byte, so a page's JSON fits |
+| the client's text, `jig-client`'s `text` and `turn_text`; an act's words and a model's or effort's name, checked before sending | 32 KiB. jig's wire takes at most 64 KiB of it (`task_text_words`), short of a page with its lines; `task text` joins the engine's chunks, so a page needs no more |
 | one document, the client's `document_bytes` | 1 MiB |
 | project memberships in `me` | 9, covering the Small and Standard deployment profiles |
 | a path's segments; an authority's entries | 9; 12, as the terminal's (`README.md`, 5.4) |
@@ -2598,6 +2654,15 @@ Each is named here and designed when it comes.
   meets its words only in the completed answer's stderr, after visibility
   has changed. A flag that names them could stand first. Default: none,
   the request `ui-public-3` asking the answer or the help to say so.
+- **A turn's outcome past the client's text** (section 12): the client
+  keeps at most its text, 32 KiB, of a call's outcome in a turn (jig's
+  transcript bound `outcome`), so an outcome's part never fills a 64 KiB
+  page. Keeping more raises the client's text, and jig's wire takes none
+  past 64 KiB. Default: 32 KiB.
+- **Whole reads saying a cut first** (6.4): `task turn` without
+  `--part`, `task activity` and `chat show` could print a cut part's
+  position before its text, and `task show` its asked words'. Default:
+  their end line alone; the paged read each names says so first.
 
 ## 15. Open questions
 
