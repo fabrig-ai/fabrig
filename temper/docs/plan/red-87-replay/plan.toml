@@ -23,3 +23,16 @@ id = 1
 story = "A native replay of a session log whose digest differs fails naming the line's input, the log's and the replay's digests and the replay's last 8 lines"
 parts = ["differs-says"]
 walk = false
+
+[[part]]
+id = "bounds-clear"
+title = "Story A decides nothing at a byte bound natively, so its wasm32 world and the native replay agree"
+mode = "direct"
+needs = ["differs-says"]
+design = "temper/docs/design/playground.md, 8"
+
+[[slice]]
+id = 2
+story = "Story A's kept log replays the same over its deployment with each byte bound it overrides doubled, and the browser story's downloaded log replays natively as the browser ran it"
+parts = ["bounds-clear"]
+walk = false
