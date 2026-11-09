@@ -21,7 +21,7 @@ mod projection;
 mod service;
 mod terminal;
 
-pub mod profile;
+pub use smith_agent_profile::profile;
 
 #[cfg(test)]
 mod tests;

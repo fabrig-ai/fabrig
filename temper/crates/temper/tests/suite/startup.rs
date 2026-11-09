@@ -2297,7 +2297,7 @@ fn a_fresh_box_offers_chatgpt_and_claude_with_no_claude_on_path() {
 #[test]
 fn a_fetched_program_runs_through_its_launcher() {
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
-    use temper_forge_setup::claude_code::{self, Libc};
+    use temper_fetch::claude_code::{self, Libc};
     let scratch = support::Scratch::startup("fetched-program-launcher");
     let directory = scratch.path();
     let temper = skein_scratch::paths::binary("temper");

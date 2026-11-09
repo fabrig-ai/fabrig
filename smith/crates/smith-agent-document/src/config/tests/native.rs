@@ -1,6 +1,6 @@
 use super::shaped_document;
 use crate::config::{ConfigurationRefusal, from_value, profile_from_value};
-use smith_agent_service::profile::{Check, Layer, LimitName, Refusal, Value};
+use smith_agent_profile::profile::{Check, Layer, LimitName, Refusal, Value};
 
 #[cfg(unix)]
 #[test]

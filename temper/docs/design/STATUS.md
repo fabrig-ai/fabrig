@@ -850,6 +850,7 @@ Drafts:
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
+- [`draft/agent-binary.md`](draft/agent-binary.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
