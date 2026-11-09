@@ -416,6 +416,110 @@ pub(super) fn asking_world(w: World, address: Address, then: Then) -> (Domain, O
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
     world_in_layout(w, address, Then::Shown, false, Some(name), None, false).0
 }
+/// Remembered states use the person's party documents and public acts (client/README.md, 5.17).
+pub(super) fn remembered_world(name: &str) -> Domain {
+    use temper_client_domain::pages::{Act, remembered::Act as R};
+    let mut root = world_in_layout(Reference, Address::Remembered, Then::Shown, false, Some(name), None, false).0;
+    if matches!(name, "remembered-changing" | "remembered-refused") {
+        let mut out = Queue::uncapped();
+        for act in [
+            R::Change { note: 2 },
+            R::Words { words: Box::from(b"Use short Rust examples with their output.".as_slice()) },
+        ] {
+            step(&mut root, Event::Act { action: temper_client_domain::Action::Pages(Act::Remembered(act)) }, &mut out);
+        }
+        if name == "remembered-refused" {
+            step(
+                &mut root,
+                Event::Act { action: temper_client_domain::Action::Pages(Act::Remembered(R::Save)) },
+                &mut out,
+            );
+            step(&mut root, Event::Client { event: jig_client::Event::Stored }, &mut out);
+            while let Some(request) = out.pop() {
+                match crate::driver::down(request) {
+                    Some(jig_client::Down::Send { attempt, .. }) => step(
+                        &mut root,
+                        Event::Client {
+                            event: jig_client::Event::Up {
+                                up: jig_client::Up::Answer {
+                                    attempt,
+                                    envelope: skein_lib::RequestEnvelope::Final,
+                                    why: None,
+                                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                                        refusal: c::Refusal::Moved {
+                                            now: c::Revision { value: 2 },
+                                            what: c::Moved::Note,
+                                        },
+                                        at: None,
+                                    })),
+                                },
+                            },
+                        },
+                        &mut out,
+                    ),
+                    Some(jig_client::Down::Read {
+                        read,
+                        what: jig_client::Readable::Jig(c::Read::Notes { scope, .. }),
+                    }) => {
+                        answer(
+                            &mut root,
+                            read,
+                            c::ReadValue::Notes(Box::new(remembered_notes(name, &scope))),
+                            &mut out,
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    root
+}
+fn remembered_notes(name: &str, scope: &c::NoteScope) -> c::NotePage {
+    assert_eq!(*scope, c::NoteScope::Party { party: 73 }, "the signed-in person's notes");
+    let mut rows = List::with_capacity(12);
+    let lines = [
+        "Keep answers concise and start with the result.",
+        "Use Rust examples when explaining code.",
+        "Ask before changing a public interface.",
+        "Show the command that checks a change.",
+        "Explain unfamiliar abbreviations the first time.",
+        "Use metric units in examples.",
+        "Keep a summary of decisions at the end of a long chat.",
+        "Prefer plain text examples I can copy into a terminal.",
+        "Say which assumptions a calculation depends on.",
+        "Use UTC when comparing times from different places.",
+        "Give one next step when a check fails.",
+        "When comparing approaches, explain the cost of each and which evidence would make you choose a different one next time.",
+    ];
+    let count = match name {
+        "remembered-none" => 0,
+        "remembered-full" => 12,
+        _ => 3,
+    };
+    for (index, line) in lines.iter().take(count).enumerate() {
+        assert!(line.len() <= 120, "a party line fits its byte bound");
+        let number = u64::try_from(index).expect("twelve notes").checked_add(1).expect("note number");
+        rows.push(c::Note {
+            number,
+            revision: c::Revision { value: 1 },
+            scope: scope.clone(),
+            description: doc(line),
+            body: doc(""),
+            writer: if number == 3 {
+                c::NoteAuthor::Party { party: 73 }
+            } else {
+                c::NoteAuthor::Task { task: 14, attempt: 1 }
+            },
+            tasks: List::from_boxed(Box::new([14])),
+            changed: Some(now(Reference)),
+            acts: List::with_capacity(0),
+            cut: false,
+        })
+        .expect("twelve party lines");
+    }
+    c::NotePage { rows, before: None, after: None, cut: false }
+}
 pub(super) fn copies_world(address: Address, then: Then) -> Domain {
     world_in_layout(FirstRun { step: 7 }, address, then, false, None, None, true).0
 }
@@ -1716,7 +1820,9 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
             Some(c::ReadValue::Tasks(Box::new(goal_page(w, goals))))
         }
         c::Read::Notes { scope, .. } => Some(c::ReadValue::Notes(Box::new(
-            if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
+            if let Some(name) = goals.filter(|name| name.starts_with("remembered-")) {
+                remembered_notes(name, scope)
+            } else if goals == Some("chats-drafts") && *scope == (c::NoteScope::Tasks { project: PROJECT }) {
                 let mut rows = List::with_capacity(2);
                 for (task, title) in [(1, "Away mode"), (3, "Report format")] {
                     rows.push(c::Note {

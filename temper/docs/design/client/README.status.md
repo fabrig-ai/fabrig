@@ -46,9 +46,6 @@ follow landing (section 11).
   decide changes to NAME that are:", where the sentence stands over it
   (`temper-client-view`'s `pages/needs.rs`).
 
-- **Not yet:** 5.17, *Its tests*: the gallery has no state of
-  `Remembered`.
-
 Sections 6.13 and 6.14 keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
 its opener fallback, and selection clearing on ordinary words, Esc and
