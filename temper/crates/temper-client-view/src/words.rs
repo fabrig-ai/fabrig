@@ -1599,6 +1599,9 @@ pub enum Word {
     NeedsAllowed,
     NeedsDecidedOne,
     NeedsDecidedMany,
+    NeedsTab,
+    NeedsTabCount,
+    NeedsTabCountCut,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -1673,7 +1676,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2225;
+const PHRASES: u32 = 2228;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1700,10 +1703,10 @@ const PHRASES: u32 = 2225;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3992;
+const SEGMENTS: u32 = 3999;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 53628;
-const ALL: [Word; 1543] = [
+const ENGLISH_BYTES: u32 = 53646;
+const ALL: [Word; 1546] = [
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
@@ -3247,6 +3250,9 @@ const ALL: [Word; 1543] = [
     Word::NeedsAllowed,
     Word::NeedsDecidedOne,
     Word::NeedsDecidedMany,
+    Word::NeedsTab,
+    Word::NeedsTabCount,
+    Word::NeedsTabCountCut,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
@@ -4822,6 +4828,9 @@ impl Word {
             Self::NeedsDecidedLifetime => 4343,
             Self::HomeAsk => 4342,
             Self::HomeAskPlaceholder => 4341,
+            Self::NeedsTab => 4353,
+            Self::NeedsTabCount => 4354,
+            Self::NeedsTabCountCut => 4355,
         };
         let owner =
             if number >= 100 { crate::frame::owner() } else { temper_client_domain::forge::words::owner(connector) };
@@ -5647,6 +5656,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeCardsOneMore => (&[b"One more"], &[]),
         Word::AllHomeDecidedTitle => (&[b"Decided for you"], &[]),
         Word::NeedsDecidedMany => (&[b"", b" were decided for you."], &[Name]),
+        Word::NeedsTab => (&[b"Needs"], &[]),
+        Word::NeedsTabCount => (&[b"Needs ", b""], &[Number]),
+        Word::NeedsTabCountCut => (&[b"Needs ", b"+"], &[Number]),
         Word::NeedsDecidedOne => (&[b"One was decided for you."], &[]),
         Word::NeedsAllowed => (&[b"Allowed: "], &[]),
         Word::NeedsDecidedLifetime => (&[b"for 24 hours, then in each task's history"], &[]),

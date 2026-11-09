@@ -6,8 +6,8 @@ use skein_lib::{List, Rng};
 use std::panic::catch_unwind;
 use temper_client_domain::pages::team::{self, Person, Waits};
 
-// ui-p4a-team/tasks/team-fuzz.md: small documents with repeated parties and
-// readers who need not belong to the project, each seed independently replayable.
+// Small documents with repeated parties and readers who need not belong to
+// the project, each seed independently replayable.
 const SEEDS: u64 = 256;
 const MAX_MEMBERS: u32 = 12;
 const MEMBER_PARTIES: u64 = 6;
