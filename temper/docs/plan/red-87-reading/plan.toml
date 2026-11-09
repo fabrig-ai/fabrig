@@ -3,3 +3,22 @@ repo = "fabrig"
 sources = ["temper/docs/plan/red-87-reading/inputs/request.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "reading-place"
+title = "A chat that opens reading back keeps its place while its opening history arrives"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[slice]]
+id = 1
+story = "A long chat opens at its end with a screen and a half or more, its older rows arriving above it without moving the words in view, and reads back with \"Loading earlier messages\""
+parts = ["reading-place"]
+walk = false
