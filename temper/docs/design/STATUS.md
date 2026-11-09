@@ -1015,12 +1015,15 @@ The deployment's agent, `temper-agent`, is built whole (M4): all six
 ranked items, none dropped, carried onto main by the
 `agent-binary-closure` plan. Its modes, help, mode table and first
 closure row are built, on the smith profile/document and temper
-fetch/host splits. That plan makes the engine's and the agent's closure
-rows pass by moving code: Claude Code's launcher into a crate of its
-own, `temper-launcher`; jig's form of the three directories out of
-`temper-shell`; and the agent's commit to `temper-version`. What of it
-is not yet built is in `protocol/README.status.md`, 4.1 to 4.4, and
-`protocol/setup.status.md`, 6.6 and section 11. The `agent-binary`
+fetch/host splits. That plan, landed and retired on 2026-11-09, made
+the engine's and the agent's closure rows pass by moving code, no
+row loosened: Claude Code's launcher is a crate of its own,
+`temper-launcher`; jig's form of the three directories is
+`temper-engine-shell`'s, out of `temper-shell`; and the agent's
+`--version` is `temper-version`'s (`protocol/README.status.md`, 4.1 to
+4.4; `protocol/setup.status.md`, 6.6 and section 11). Which of the
+closures' two test shapes every binary's row takes is M5's
+(`draft/deployment-binaries.status.md`). The `agent-binary`
 plan is retired and its vision folded into the design; removal of
 the read-only draft is proposed, with its four accepted departures
 retained (`draft/agent-binary.status.md`). M3's
