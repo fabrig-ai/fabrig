@@ -21,8 +21,15 @@ their status files'.
     touches from its merge base, and 8.12's line names none; 8.12 and
     section 9 leave a change waiting on a person's approval first in its
     branch's queue, holding every landing behind it.
-  - 8: `../client/README.md`, 3.5's *Needs you* has no "Only you" part;
-    the accounts' states are drawn on Accounts alone (5.5).
+  - 8: `../client/README.md`, 3.5's **Only you** lists a person's own
+    sign-in signed out and a login their account reads as expiring, as
+    the mockups' audit words it (`surfaces.md`, section 4); its line
+    saying what waits, "Two agents on vsr wait for this login.", and a
+    forge's token to replace and a person task asking an act are that
+    document's later parts (section 11): jig's `accounts` document names
+    no task waiting on a person's own account (jig's
+    `client/domain/contract.md`, 5.1), and no read says a forge's token
+    must be replaced.
   - 9: `../client/README.md`, 5.13's *Telling you* is disabled; no design
     holds a service worker, a push or a digest (`../client/browser.md`),
     nor mail settings (`../protocol/configuration.md`); no design serves

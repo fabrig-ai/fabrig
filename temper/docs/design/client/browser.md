@@ -2265,6 +2265,10 @@ from the engine's own answers, is where the look is tuned.
 | `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." and "Stop asking" |
 | `needs-stop-asking` | `needs-why` with Stop asking open for an owner: "Let agents decide implementation choices, then tell you." with "Apply", and "Keep asking" |
 | `needs-stop-asking-set` | a question that changes a path set, Stop asking open for a member: the words offer's field, the split, each with "Propose" |
+| `needs-only-you` | the unfiltered *Needs you* (`README.md`, 3.5, **Only you**): a question, then "Only you · 2", a signed-out ChatGPT sign-in and an expiring Claude Code login, each with "Sign in again" |
+| `needs-only-you-done` | no card open: "Nothing needs you.", "Home", then "Only you · 1", a signed-out ChatGPT sign-in |
+| `night-needs-only-you` | `needs-only-you` with the night look on |
+| `accounts-expiring` | Accounts (`README.md`, 5.5, *Each state*): a ChatGPT sign-in read as expiring, "Expiring: sign in again before it ends." and "Continue with ChatGPT" |
 | `goal-running` | first-run-projects, running: six of nine tasks in, its report, Left and Risk, the bar, three waiting lines, "6 landed" folded |
 | `goal-needs-funds` | first-run-projects held for funds: "needs funds", its band with Release and Leave held |
 | `goal-needs-question` | welcome-stall with an open question: its band and its parsed choices, the recommended one primary |
