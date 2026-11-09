@@ -51,6 +51,7 @@ pub const LIMITS: Limits = Limits {
     workers: 2,
     opening: 1,
     chunk: 64,
+    room: u32::MAX,
     handshake: Duration::from_secs(1),
     hello: Duration::from_secs(1),
     ping: Duration::from_secs(5),

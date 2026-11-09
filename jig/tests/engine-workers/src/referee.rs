@@ -20,7 +20,7 @@ pub fn judge(root: &[Request]) -> Result<(), &'static str> {
                     return Err("Hello once");
                 }
             }
-            Request::Ended { .. } => {}
+            Request::Unsent { .. } | Request::Ended { .. } => {}
             Request::Lost { channel } => {
                 let Some(live) = channels.get_mut(channel) else {
                     return Err("Lost follows Hello");

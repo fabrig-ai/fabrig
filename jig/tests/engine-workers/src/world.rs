@@ -78,7 +78,11 @@ impl World {
                     self.net(connection).gone = true;
                     self.component.down(self.now, Event::Gone { connection }, &mut self.out);
                 }
-                Request::Hello { .. } | Request::Up { .. } | Request::Lost { .. } | Request::Closed => {
+                Request::Unsent { .. }
+                | Request::Hello { .. }
+                | Request::Up { .. }
+                | Request::Lost { .. }
+                | Request::Closed => {
                     self.root.push(request);
                 }
             }

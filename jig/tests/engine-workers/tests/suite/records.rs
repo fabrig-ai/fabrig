@@ -48,7 +48,8 @@ mod records {
                 LinkUp::AccountRefused { .. } => Record::AccountRefused,
             },
             Request::Lost { .. } => Record::Lost,
-            Request::Take { .. }
+            Request::Unsent { .. }
+            | Request::Take { .. }
             | Request::TurnAway { .. }
             | Request::Lower { .. }
             | Request::Close { .. }

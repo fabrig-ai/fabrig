@@ -46,7 +46,8 @@ mod net {
             if let Some(event) = self.events.pop_front() {
                 return Some(event);
             }
-            if self.cap.is_none_or(|cap| self.asked <= cap) && self.grants != Some(0)
+            if self.cap.is_none_or(|cap| self.asked <= cap)
+                && self.grants != Some(0)
                 && let Some(right) = self.right.take()
             {
                 if let Some(grants) = &mut self.grants {
@@ -141,6 +142,7 @@ pub struct Joined {
     worker: Component,
     pipe: Option<net::Pipe>,
     pub engine_root: Vec<engine::Request>,
+    pub engine_ended: Vec<engine::Request>,
     pub worker_root: Vec<Request>,
     pub values: Vec<Request>,
     pub worker_order: Vec<&'static str>,
@@ -179,6 +181,7 @@ impl Joined {
             workers: 1,
             opening: 1,
             chunk: limits.chunk,
+            room: engine_room.unwrap_or(u32::MAX),
             handshake: limits.handshake,
             hello: limits.handshake,
             ping: limits.ping,
@@ -194,6 +197,7 @@ impl Joined {
             worker: Component::new(limits, credential, seed).expect("worker limits"),
             pipe: None,
             engine_root: Vec::new(),
+            engine_ended: Vec::new(),
             worker_root: Vec::new(),
             values: Vec::new(),
             worker_order: Vec::new(),
@@ -356,8 +360,10 @@ impl Joined {
                     self.engine_event(engine::Event::Down { channel, down, parts: Box::new([]), values: Box::new([]) });
                 }
             }
-            engine::Request::Ended { .. } => self.engine_root.push(request),
-            engine::Request::Lost { .. } | engine::Request::Closed => self.engine_root.push(request),
+            engine::Request::Ended { .. } => self.engine_ended.push(request),
+            engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
+                self.engine_root.push(request)
+            }
         }
     }
     fn lower(&mut self, side: usize, connection: Token, lower: Lower) {
@@ -437,6 +443,7 @@ impl Joined {
                 | engine::Request::Close { .. }
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
+                | engine::Request::Unsent { .. }
                 | engine::Request::Ended { .. }
                 | engine::Request::Lost { .. }
                 | engine::Request::Closed => None,
