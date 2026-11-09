@@ -203,6 +203,11 @@ impl Core {
                 tasks::Executor::Job { .. } => return Err(delegate_refused(None, tasks::Refusal::Executor)),
                 tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {}
             }
+            if let tasks::Executor::Person(tasks::PersonAddress::Person(person)) = member.executor
+                && self.people.identity(person).is_none()
+            {
+                return Err(delegate_refused(None, tasks::Refusal::Unknown));
+            }
             if let tasks::Executor::Agent { charter } = member.executor
                 && self.charter(charter).is_none()
             {
