@@ -227,3 +227,16 @@ green with that change alone (and the runs of Steps, 8); say in the
 report that the fix is the referee's wake, citing `referee.rs`. Other
 referees of `temper/tests/one-process` with a fixed deadline only are
 not this task's; name them under `## Left`.
+
+## Rebase (2026-11-09, step merge, foreman worker-relinks/worker-reads/foreman-3)
+
+resolve the Story A fixture conflict by regenerating it from the combined code
+The merge conflicts only in `temper/tests/playground/tests/fixtures/story-a.log`.
+Branch commit `848bb395d0` regenerated it after worker IO stopped waiting on admission.
+Main also regenerated it, most recently in `fecc200147`, after combining client, drafter and forge workflow changes.
+Preserve both sides’ product changes; neither existing log represents the combined code.
+Regenerate the fixture using `SKEIN_CODEGEN_WRITE=1` and the generator test `walk::story_a_walks_from_the_welcome_to_the_csv_change_landed` in `temper-playground-world`’s `suite` binary, through heavy.
+The generator is in `temper/tests/playground/tests/suite/walk.rs`; it writes the fixture and checks byte equality.
+Then run `walk::story_a_kept_log_replays_natively` alone through heavy and confirm one test ran.
+Commit the regenerated log as the conflict resolution and report the generation and replay results.
+This generated-file repair belongs to the task; no product change or scope expansion is needed.
