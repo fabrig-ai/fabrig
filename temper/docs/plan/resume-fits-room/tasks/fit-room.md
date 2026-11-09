@@ -174,3 +174,10 @@ code from its branch or trunk, nor build `Limits.room`, the refusal or
 the pipe's cap here: they are that plan's. Each run checks the premise
 first, as *Premise* says; while any part is missing, it fails with the
 same first line, changing and pushing nothing.
+
+2026-11-09, again. *Run 3 found the base still lacks worker-link-quiet's
+engine-room; what now?* The same answer: nothing changes. main still
+lacks `Limits.room` (worker-link-quiet: `engine-room` on its trunk,
+`worker-room` parked, `temper-room` waiting), so this trunk cannot hold
+it. The rerun waits for that plan to land and this trunk to catch up;
+until then each run fails at the premise, changing and pushing nothing.
