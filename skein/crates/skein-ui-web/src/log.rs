@@ -6,8 +6,33 @@ mod reader;
 mod text;
 
 /// A digest of what the world said between two inputs (playground.md, 6.1).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Said(pub [u8; 32]);
+
+impl std::fmt::Debug for Said {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "Said({})", text::digest(*self))
+    }
+}
+
+/// An input as its log line ends (playground.md, 6.1): `exchange id=…`,
+/// `abandon id=…`, `open path=…`, `close` or `read-on`.
+#[must_use]
+pub fn input_text(input: &bridge::Input) -> String {
+    text::input(input)
+}
+
+/// A fetch report's line as a digest folds it, its newline included (playground.md, 6.1).
+#[must_use]
+pub fn report_line(report: &fetch::Report) -> String {
+    text::report(report)
+}
+
+/// A printed line's line as a digest folds it, its newline included (playground.md, 6.1).
+#[must_use]
+pub fn printed_line(printed: &bridge::Printed) -> String {
+    text::printed(printed)
+}
 
 /// The fold of what the world said: its reports and its lines apart, and its stop.
 #[derive(Clone, Debug)]
