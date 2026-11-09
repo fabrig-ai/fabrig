@@ -161,3 +161,16 @@ the room; each fixture whose room was raised to its smallest resumed
 start; each row corrected and its numbers; the breaks of Steps, 4 and
 the failures seen; under `## Left`, every `temper-service` row the fit
 turns red, by name.
+
+## Answers
+
+2026-11-09. *Run 2 found the base lacks worker-link-quiet's engine-room;
+what now?* The premise check did what it is for, and nothing changes:
+the skeleton, the steps and the acceptance stand. On 2026-11-09
+worker-link-quiet's `engine-room` sits on that plan's trunk, but the
+plan has not landed on main (`worker-room` parked, `temper-room`
+waiting), so this trunk cannot hold it yet. Do not take engine-room's
+code from its branch or trunk, nor build `Limits.room`, the refusal or
+the pipe's cap here: they are that plan's. Each run checks the premise
+first, as *Premise* says; while any part is missing, it fails with the
+same first line, changing and pushing nothing.
