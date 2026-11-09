@@ -1206,6 +1206,33 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "needs-only-you",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Named {
+                role: Role::Heading { level: 1 },
+                name: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+            },
+            Part::Named { role: Role::Region, name: "Only you · 2" },
+            Part::Text { text: "Your ChatGPT sign-in is signed out. Sign in again?" },
+            Part::Text { text: "Your Claude Code login claude-pat is expiring. Sign in again?" },
+            Part::Destination { name: "Sign in again", href: "/accounts" },
+        ],
+    },
+    Holds {
+        name: "needs-only-you-done",
+        heading: "Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Only you · 1" },
+            Part::Named { role: Role::Link, name: "Home" },
+        ],
+    },
+    Holds {
+        name: "night-needs-only-you",
+        heading: "One thing needs you.",
+        parts: &[Part::Named { role: Role::Region, name: "Only you · 2" }],
+    },
+    Holds {
         name: "home-away",
         heading: "57 changes landed. Four things were decided for you.",
         parts: &[
@@ -3949,6 +3976,14 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "Cancelled" },
             Part::Text { text: "Closing" },
             Part::Text { text: "Moving to another deployment" },
+        ],
+    },
+    Holds {
+        name: "accounts-expiring",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Text { text: "Expiring: sign in again before it ends." },
+            Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
         ],
     },
     Holds {
