@@ -160,6 +160,8 @@ pub(super) const VIEWS: views::Limits = views::Limits {
 pub(super) const NOTES: notes::Limits = notes::Limits {
     scopes: 8,
     entries_per_scope: 16,
+    party_entries: 12,
+    party_bytes: 120,
     pattern_bytes: 256,
     description_bytes: 256,
     body_bytes: 32_768,

@@ -109,6 +109,10 @@ pub enum Path {
     ResourcesPattern,
     /// Bytes after `Resources`.
     ResourcesTail,
+    /// The `party` field of `NoteScopeParty`.
+    NoteScopePartyParty,
+    /// Bytes after `NoteScopeParty`.
+    NoteScopePartyTail,
     /// The tag of `NoteScope`.
     NoteScopeTag,
     /// The `scope` field of `ScopedNotes`.
@@ -849,6 +853,37 @@ impl Resources {
     }
 }
 
+/// Movable fields of `NoteScopeParty`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NoteScopePartyParts {
+    /// The `party` field.
+    pub party: u64,
+}
+
+/// `NoteScopeParty` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct NoteScopeParty {
+    party: u64,
+}
+
+impl NoteScopeParty {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: NoteScopePartyParts) -> Result<Self, Problem> {
+        let NoteScopePartyParts { party } = parts;
+        let value = Self { party };
+        Ok(value)
+    }
+
+    /// Reads the `party` field.
+    #[must_use]
+    pub fn party(&self) -> u64 { self.party }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> NoteScopePartyParts { NoteScopePartyParts { party: self.party } }
+
+}
+
 /// `NoteScope` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NoteScope {
@@ -860,6 +895,8 @@ pub enum NoteScope {
     Goal(Goal),
     /// `resources` carrying `Resources`.
     Resources(Resources),
+    /// `party` carrying `NoteScopeParty`.
+    Party(NoteScopeParty),
 }
 
 impl NoteScope {
@@ -872,7 +909,7 @@ impl NoteScope {
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         match self {
             Self::Resources(record) => Resources::check(record, limits),
-            Self::Deployment | Self::Project(_) | Self::Goal(_) => Ok(()),
+            Self::Deployment | Self::Project(_) | Self::Goal(_) | Self::Party(_) => Ok(()),
         }?;
         Ok(())
     }
@@ -2204,6 +2241,35 @@ impl Resources {
     }
 }
 
+impl NoteScopeParty {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(8).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_party = &self.party;
+        writer.put(&field_party.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::NoteScopePartyTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_party = reader.u64().ok_or(Problem { path: Path::NoteScopePartyParty, reason: skein_codec::Reason::Short })?;
+        Ok(Self { party: decoded_party })
+    }
+}
+
 impl NoteScope {
     /// Measures this variant's wire encoding.
     #[must_use]
@@ -2212,6 +2278,7 @@ impl NoteScope {
             Self::Project(record) => 1_u32.checked_add(Project::measure(record)).expect("schema ceilings fit u32"),
             Self::Goal(record) => 1_u32.checked_add(Goal::measure(record)).expect("schema ceilings fit u32"),
             Self::Resources(record) => 1_u32.checked_add(Resources::measure(record)).expect("schema ceilings fit u32"),
+            Self::Party(record) => 1_u32.checked_add(NoteScopeParty::measure(record)).expect("schema ceilings fit u32"),
             Self::Deployment => 1,
         }
     }
@@ -2223,6 +2290,7 @@ impl NoteScope {
             Self::Project(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
             Self::Goal(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
             Self::Resources(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
+            Self::Party(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -2241,6 +2309,7 @@ impl NoteScope {
             1 => Self::Project(Project::decode_from(limits, reader)?),
             2 => Self::Goal(Goal::decode_from(limits, reader)?),
             3 => Self::Resources(Resources::decode_from(limits, reader)?),
+            4 => Self::Party(NoteScopeParty::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::NoteScopeTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -3454,6 +3523,34 @@ impl Resources {
     }
 }
 
+impl NoteScopeParty {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(8_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl NoteScope {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -3465,7 +3562,7 @@ impl NoteScope {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(Project::encoded_bound_within(limits)?).max(Goal::encoded_bound_within(limits)?);
-        biggest = biggest.max(Resources::encoded_bound_within(limits)?);
+        biggest = biggest.max(Resources::encoded_bound_within(limits)?).max(NoteScopeParty::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -3479,7 +3576,7 @@ impl NoteScope {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(Project::decoded_bound_within(limits)?).max(Goal::decoded_bound_within(limits)?);
-        biggest = biggest.max(Resources::decoded_bound_within(limits)?);
+        biggest = biggest.max(Resources::decoded_bound_within(limits)?).max(NoteScopeParty::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -3955,6 +4052,7 @@ pub fn encoded_bound(limits: &Limits) -> Option<u64> {
     biggest = biggest.max(Pattern::encoded_bound_within(limits)?);
     biggest = biggest.max(Goal::encoded_bound_within(limits)?);
     biggest = biggest.max(Resources::encoded_bound_within(limits)?);
+    biggest = biggest.max(NoteScopeParty::encoded_bound_within(limits)?);
     biggest = biggest.max(NoteScope::encoded_bound_within(limits)?);
     biggest = biggest.max(ScopedNotes::encoded_bound_within(limits)?);
     biggest = biggest.max(Question::encoded_bound_within(limits)?);
@@ -3997,6 +4095,7 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
     biggest = biggest.max(Pattern::decoded_bound_within(limits)?);
     biggest = biggest.max(Goal::decoded_bound_within(limits)?);
     biggest = biggest.max(Resources::decoded_bound_within(limits)?);
+    biggest = biggest.max(NoteScopeParty::decoded_bound_within(limits)?);
     biggest = biggest.max(NoteScope::decoded_bound_within(limits)?);
     biggest = biggest.max(ScopedNotes::decoded_bound_within(limits)?);
     biggest = biggest.max(Question::decoded_bound_within(limits)?);
@@ -4018,7 +4117,7 @@ pub fn decoded_bound(limits: &Limits) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Number, NumberParts, Project, ProjectParts, Blob, BlobParts, Proposer, Proposal, ProposalParts, InboxObject, InboxCursor, InboxCursorParts, DocumentCursor, OwnerKey, OwnerKeyParts, InboxPosition, InboxPositionParts, Position, Group, Filter, FilterParts, Inbox, InboxParts, Last, Pattern, PatternParts, Goal, GoalParts, Resources, ResourcesParts, NoteScope, ScopedNotes, ScopedNotesParts, Question, QuestionParts, Reply, ReplyParts, Turn, TurnParts, History, HistoryParts, Requester, Query, QueryParts, Scope, LiveCursor, LiveCursorParts, StoreCursor, StoreCursorParts, Cursor, Tree, TreeParts, Owner, OwnerParts, Form, Held, HeldParts, Path};
+    use super::{CEILINGS, Number, NumberParts, Project, ProjectParts, Blob, BlobParts, Proposer, Proposal, ProposalParts, InboxObject, InboxCursor, InboxCursorParts, DocumentCursor, OwnerKey, OwnerKeyParts, InboxPosition, InboxPositionParts, Position, Group, Filter, FilterParts, Inbox, InboxParts, Last, Pattern, PatternParts, Goal, GoalParts, Resources, ResourcesParts, NoteScopeParty, NoteScopePartyParts, NoteScope, ScopedNotes, ScopedNotesParts, Question, QuestionParts, Reply, ReplyParts, Turn, TurnParts, History, HistoryParts, Requester, Query, QueryParts, Scope, LiveCursor, LiveCursorParts, StoreCursor, StoreCursorParts, Cursor, Tree, TreeParts, Owner, OwnerParts, Form, Held, HeldParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -4071,7 +4170,7 @@ mod golden_tests {
         };
         at && past
     }
-    static GOLDEN_0: [Case; 144] = [
+    static GOLDEN_0: [Case; 148] = [
         ("record_number_smallest", || { let value = Number::new(&CEILINGS, NumberParts { value: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Number::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_number_full", || { let value = Number::new(&CEILINGS, NumberParts { value: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Number::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_project_smallest", || { let value = Project::new(&CEILINGS, ProjectParts { value: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Project::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -4140,6 +4239,8 @@ mod golden_tests {
         ("record_goal_full", || { let value = Goal::new(&CEILINGS, GoalParts { project: u32::MAX, goal: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Goal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_resources_smallest", || { let value = Resources::new(&CEILINGS, ResourcesParts { project: 0_u32, connector: 0_u16, pattern: Pattern::new(&CEILINGS, PatternParts { segments: skein_lib::List::with_capacity(0), last: Last::Exact(Blob::new(&CEILINGS, BlobParts { value: Box::from([].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings") }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Resources::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_resources_full", || { let value = Resources::new(&CEILINGS, ResourcesParts { project: u32::MAX, connector: u16::MAX, pattern: Pattern::new(&CEILINGS, PatternParts { segments: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items }, last: Last::Exact(Blob::new(&CEILINGS, BlobParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings") }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Resources::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_note_scope_party_smallest", || { let value = NoteScopeParty::new(&CEILINGS, NoteScopePartyParts { party: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScopeParty::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_note_scope_party_full", || { let value = NoteScopeParty::new(&CEILINGS, NoteScopePartyParts { party: u64::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScopeParty::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_scope_deployment_smallest", || { let value = NoteScope::Deployment; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScope::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_scope_deployment_full", || { let value = NoteScope::Deployment; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScope::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_scope_project_smallest", || { let value = NoteScope::Project(Project::new(&CEILINGS, ProjectParts { value: 0_u32 }).expect("golden within ceilings")); let bytes: &[u8] = &[1, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScope::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -4148,6 +4249,8 @@ mod golden_tests {
         ("enum_note_scope_goal_full", || { let value = NoteScope::Goal(Goal::new(&CEILINGS, GoalParts { project: u32::MAX, goal: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[2, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScope::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_scope_resources_smallest", || { let value = NoteScope::Resources(Resources::new(&CEILINGS, ResourcesParts { project: 0_u32, connector: 0_u16, pattern: Pattern::new(&CEILINGS, PatternParts { segments: skein_lib::List::with_capacity(0), last: Last::Exact(Blob::new(&CEILINGS, BlobParts { value: Box::from([].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScope::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_note_scope_resources_full", || { let value = NoteScope::Resources(Resources::new(&CEILINGS, ResourcesParts { project: u32::MAX, connector: u16::MAX, pattern: Pattern::new(&CEILINGS, PatternParts { segments: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items }, last: Last::Exact(Blob::new(&CEILINGS, BlobParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings") }).expect("golden within ceilings")); let bytes: &[u8] = &[3, 255, 255, 255, 255, 255, 255, 0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScope::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_note_scope_party_smallest", || { let value = NoteScope::Party(NoteScopeParty::new(&CEILINGS, NoteScopePartyParts { party: 0_u64 }).expect("golden within ceilings")); let bytes: &[u8] = &[4, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScope::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_note_scope_party_full", || { let value = NoteScope::Party(NoteScopeParty::new(&CEILINGS, NoteScopePartyParts { party: u64::MAX }).expect("golden within ceilings")); let bytes: &[u8] = &[4, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, NoteScope::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_scoped_notes_smallest", || { let value = ScopedNotes::new(&CEILINGS, ScopedNotesParts { scope: NoteScope::Deployment, description: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ScopedNotes::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_scoped_notes_full", || { let value = ScopedNotes::new(&CEILINGS, ScopedNotesParts { scope: NoteScope::Deployment, description: Some(Box::from([0_u8, 127_u8, 255_u8].as_slice())) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 1, 0, 0, 0, 3, 0, 127, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ScopedNotes::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_question_smallest", || { let value = Question::new(&CEILINGS, QuestionParts { task: 0_u64, message: 0_u64 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Question::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

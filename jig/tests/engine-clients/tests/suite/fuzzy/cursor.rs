@@ -21,6 +21,8 @@ fn goldens() -> Vec<Vec<u8>> {
             &[]
         } else if name.starts_with("enum_form_") {
             &[0, 1]
+        } else if name.starts_with("enum_note_scope_") {
+            &[0, 1, 0, 1, 13]
         } else if name.starts_with("enum_scope_") {
             &[0, 1, 0, 1]
         } else {
@@ -28,7 +30,10 @@ fn goldens() -> Vec<Vec<u8>> {
         };
         let mut bytes = prefix.to_vec();
         bytes.extend(fs::read(&path).expect("golden bytes"));
-        if name.starts_with("enum_scope_") {
+        if name.starts_with("enum_note_scope_") {
+            bytes.push(0);
+        }
+        if name.starts_with("enum_scope_") || name.starts_with("enum_note_scope_") {
             bytes.push(0);
         }
         Held::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("held golden");

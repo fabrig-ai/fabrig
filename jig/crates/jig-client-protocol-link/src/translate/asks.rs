@@ -380,7 +380,8 @@ fn writable_note_scope(value: &c::NoteScope, limits: &w::Limits, path: w::Path) 
         c::NoteScope::Deployment
         | c::NoteScope::Project(_)
         | c::NoteScope::Resource { .. }
-        | c::NoteScope::Task { .. } => wire_note_scope(value, limits),
+        | c::NoteScope::Task { .. }
+        | c::NoteScope::Party { .. } => wire_note_scope(value, limits),
     }
 }
 
@@ -388,6 +389,9 @@ pub(crate) fn wire_note_scope(value: &c::NoteScope, limits: &w::Limits) -> Resul
     Ok(match value {
         c::NoteScope::Tasks { project } => {
             w::NoteScope::Tasks(w::NoteScopeTasks::new(limits, w::NoteScopeTasksParts { project: *project })?)
+        }
+        c::NoteScope::Party { party } => {
+            w::NoteScope::Party(w::NoteScopeParty::new(limits, w::NoteScopePartyParts { party: *party })?)
         }
         c::NoteScope::Deployment => w::NoteScope::Deployment,
         c::NoteScope::Project(value) => {

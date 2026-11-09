@@ -14,6 +14,8 @@ use crate::referee::{Intent, Referee, Write};
 pub const LIMITS: Limits = Limits {
     scopes: 2,
     entries_per_scope: 3,
+    party_entries: 3,
+    party_bytes: 32,
     pattern_bytes: 16,
     description_bytes: 32,
     body_bytes: 64,
@@ -231,7 +233,7 @@ impl World {
                     let in_project = match key {
                         Key::Entry { .. } => false,
                         Key::Line { scope, .. } => match scope {
-                            Scope::Deployment => false,
+                            Scope::Deployment | Scope::Party { .. } => false,
                             Scope::Project { project: found }
                             | Scope::Goal { project: found, .. }
                             | Scope::Resources { project: found, .. } => project == found,

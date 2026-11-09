@@ -208,10 +208,6 @@ try. A window's later pages keep its first page's slot there
   root holds, can come from another project's entry; temper says only
   whether more wait. No test pages a filtered inbox.
 
-- **Not yet:** 10.1, *The scope*: notes keep no party's scope; the
-  deployment, project, goal and resource scopes alone, in the notes child,
-  the store, the people child, the clients' wire and their cursors.
-
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,

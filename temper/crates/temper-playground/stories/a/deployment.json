@@ -121,6 +121,7 @@
         "hub.turn_bytes": 998044,
         "hub.turn_queue_bytes": 7984352,
         "notes.entries_per_scope": 2,
+        "notes.party_entries": 2,
         "notes.recalled": 2,
         "notes.scopes": 32,
         "people.amendment_bytes": 1101,

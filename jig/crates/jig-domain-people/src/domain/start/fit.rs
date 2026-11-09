@@ -114,7 +114,10 @@ fn adoption(key: &Key, limits: &Limits, value: &crate::Adoption) -> Result<(), R
 
 fn note(key: &Key, limits: &Limits, scope: &crate::NoteScope, change: &crate::NoteChange) -> Result<(), RestoreCause> {
     let scope = match scope {
-        crate::NoteScope::Deployment | crate::NoteScope::Project | crate::NoteScope::Goal { .. } => 0,
+        crate::NoteScope::Deployment
+        | crate::NoteScope::Project
+        | crate::NoteScope::Goal { .. }
+        | crate::NoteScope::Party { .. } => 0,
         crate::NoteScope::Resources { pattern, .. } => {
             owned_size(key, super::super::note_pattern_bytes(pattern), "owned note pattern bytes fit usize")
         }
