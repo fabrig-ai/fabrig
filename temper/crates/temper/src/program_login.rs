@@ -50,6 +50,10 @@ fn command(
     Ok(smith_agent_shell::program::sign_in(super::path(&program.path), &source, environment))
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment configures program sign-in; temper-box's table will pass it"
+)]
 pub(crate) fn run(directories: &super::Directories, name: &OsStr) -> Result<u8, String> {
     let error = command(directories, name, std::env::vars_os())?.exec();
     Err(format!("exec: {error}"))

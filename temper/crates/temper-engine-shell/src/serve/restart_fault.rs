@@ -4,6 +4,10 @@
 /// Cut one start before the shell submits the iteration announcing its listener.
 /// Both test switches are required; an exclusive fixture marker makes the
 /// box's next start continue without another cut.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: TEMPER_R8_WAIT_CHECK and TEMPER_R8_CUT_AT_LISTEN select the restart cut; the binary's table will pass them"
+)]
 pub(crate) fn cut_at_listen() {
     if std::env::var_os("TEMPER_R8_WAIT_CHECK").is_none() {
         return;

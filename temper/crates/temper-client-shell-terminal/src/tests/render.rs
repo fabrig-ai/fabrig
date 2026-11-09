@@ -1,6 +1,10 @@
 use super::fixtures;
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn each_adoption_outcome_prints_as_its_golden_file() {
     use temper_client_domain::forge;
     let words = fixtures::page_words();
@@ -25,6 +29,10 @@ fn each_adoption_outcome_prints_as_its_golden_file() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn each_fixture_page_prints_as_its_golden_file() {
     for (name, tree) in [
         ("settings", fixtures::chat::settings()),

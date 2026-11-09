@@ -216,6 +216,10 @@ pub fn prepare_with_store(
     clippy::too_many_lines,
     reason = "startup supplies the binary and worker half beside the resolved process facts"
 )]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment supplies agent program settings and the running word; the binary's table will pass it"
+)]
 fn prepare_with_limits(
     binary: &str,
     worker: Option<&dyn WorkerHalf>,
@@ -484,6 +488,10 @@ pub fn run(
 ) -> Result<Exit, String> {
     run_inner(binary, worker, directories, boxed).map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: XDG_RUNTIME_DIR selects the local link path; the binary's table will pass it"
+)]
 fn run_inner(
     binary: &str,
     worker: Option<&dyn WorkerHalf>,

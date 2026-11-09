@@ -26,6 +26,10 @@ impl Host {
         Self::with_binary("temper", service, directories)
     }
     #[must_use]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "cli C2: TEMPER_R8_WAIT_CHECK enables the service wait check; the binary's table will pass it"
+    )]
     pub fn with_binary(binary: &str, service: Service, directories: Directories) -> Self {
         let store = directories.data.clone();
         Self {
