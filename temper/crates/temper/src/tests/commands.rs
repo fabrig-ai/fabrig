@@ -275,6 +275,21 @@ fn the_page_host_tools_is_what_the_declarations_render() {
 }
 
 #[test]
+fn the_page_see_is_what_the_addresses_render() {
+    let mut measured = skein_lib::Writer::new(temper_docs::PAGE_BYTES);
+    temper_engine_smith::see_reference(&mut measured).expect("see fits PAGE_BYTES");
+    let mut out = skein_lib::Writer::new(measured.written());
+    temper_engine_smith::see_reference(&mut out).expect("see fits measured length");
+    let rendered = String::from_utf8(out.finish().into_vec()).expect("reference UTF-8");
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        let path = skein_scratch::paths::tree().join("docs/help/reference/see.md");
+        std::fs::write(path, &rendered).expect("write see reference");
+        return;
+    }
+    assert_eq!(include_str!("../../../../docs/help/reference/see.md"), rendered, "the page should be:\n{rendered}");
+}
+
+#[test]
 fn every_ctl_group_page_is_what_the_table_renders() {
     use temper_client_tools::{help, table::GROUPS};
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference");

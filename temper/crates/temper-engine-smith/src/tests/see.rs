@@ -131,7 +131,6 @@ fn settings(answer: jig_domain_core::SettingsAnswer) -> SeeAnswer {
 )]
 fn errors_and_pages_use_the_address_form() {
     for (line, answer, expected, error) in [
-        ("me", SeeAnswer::NotYet, "see me: not there yet.".to_string(), true),
         (
             "task 41 activity",
             person(temper_engine_domain::SeeRead::Activity {
@@ -205,7 +204,7 @@ fn errors_and_pages_use_the_address_form() {
                 held: skein_lib::List::with_capacity(0),
                 pending: skein_lib::List::with_capacity(0),
             }),
-            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings template-goal N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · settings charter-words N · settings project-words · revisions · help settings",
+            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
         ),
         (
             jig_domain_core::SettingsAnswer::Revisions(jig_domain_core::reads::RevisionsPage {
@@ -400,7 +399,7 @@ fn branch_path() -> temper_engine_domain::ways::Path {
 fn ways_text_names_the_current_path_and_the_readers_permission() {
     use temper_engine_domain::ways::{WayEntry, WaysDocument};
     const PATH: &str = "ask (a person) → make (an agent) → repair (an agent, when needed; tests, review) → merge (code; into goal) → main (a branch)";
-    const FOLLOWING: &str = "see: settings rules · settings landing · settings project-ways · settings project-classes · settings project-words · settings charter-words N · help settings\n";
+    const FOLLOWING: &str = "see: settings rules · settings landing · settings project-ways · settings project-words · settings charter-words N · help settings\n";
     for (current, may_change, first, second, own, permission) in [
         (Some(0), true, "One · now", "Two", "", "You may change this project's settings."),
         (Some(1), false, "One", "Two · now", "", "You may not change this project's settings; an owner may."),
@@ -427,5 +426,27 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
         let own = if own.is_empty() { String::new() } else { format!("\n{own}{PATH}\n") };
         let expected = format!("{first}\nA way.\n{PATH}\n\n{second}\nA way.\n{PATH}\n{own}\n{permission}\n{FOLLOWING}");
         assert_eq!(rendered("ways", 0, SeeAnswer::Ways(Box::new(document)), 20_000), (expected, false));
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the step test holds the table to the stock instructions")]
+fn the_address_table_keeps_the_instructions_forms_and_short_lines() {
+    use crate::see::addresses::{GROUPS, forms};
+    let mut out = skein_lib::Writer::new(ADDRESSES.len());
+    forms(&mut out).expect("forms fit ADDRESSES");
+    let text = out.finish();
+    assert_eq!(text.as_ref(), ADDRESSES.as_bytes());
+    let instructions = include_str!("../../../temper-service/src/stock/ask.txt");
+    let line = instructions.split_once("see reads by address, in your project:\n").unwrap().1.lines().next().unwrap();
+    assert_eq!(ADDRESSES, line);
+    let mut seen = alloc::collections::BTreeSet::new();
+    for group in GROUPS {
+        assert!(!group.rows.is_empty(), "{}: no addresses", group.form);
+        for row in group.rows {
+            assert!(seen.insert(row.form), "{}: repeated address", row.form);
+            assert!(!row.line.is_empty() && row.line.len() <= 160, "{}: line bound", row.form);
+            assert!(!row.next.is_empty(), "{}: no next addresses", row.form);
+        }
     }
 }

@@ -34,9 +34,6 @@ pub enum SeeAnswer {
     Gates(Box<SeeRepository>),
     /// `proposal tN/K`, `proposal pN/K` (filled by `see-proposal`).
     Proposal(Box<SeeProposal>),
-    /// An address of `ask-temper.md`, 5.1 this milestone does not read, or does not read
-    /// yet in this plan (the stubs).
-    NotYet,
     /// No address.
     Unknown,
 }

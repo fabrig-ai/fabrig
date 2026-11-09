@@ -842,7 +842,6 @@ fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
             | crate::SeeAnswer::Landing(_)
             | crate::SeeAnswer::Gates(_)
             | crate::SeeAnswer::Proposal(_)
-            | crate::SeeAnswer::NotYet
             | crate::SeeAnswer::Unknown => true,
         },
         crate::HostDelivery::Render { name, tool, answer, .. } => {
