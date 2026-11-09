@@ -220,7 +220,7 @@ pub(crate) fn route_tasks(
         }
     }
     let event = if let tasks::Event::Make { reply_to, creator, mut batch } = event {
-        if let Err(problem) = core.resolve_llm(&mut batch) {
+        if let Err(problem) = core.admit_batch(creator, &mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
         }
@@ -238,7 +238,7 @@ pub(crate) fn route_tasks(
             }
         }
     } else if let tasks::Event::MakeResultFollowups { reply_to, proposer, proposal, mut batch } = event {
-        if let Err(problem) = core.resolve_llm(&mut batch) {
+        if let Err(problem) = core.admit_batch(tasks::Party::Task(proposer), &mut batch) {
             out.push(tasks::Request::Refused { reply_to, problem });
             return tag_task_outputs(core, env, out);
         }
