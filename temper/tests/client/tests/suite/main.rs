@@ -39,6 +39,7 @@ mod status;
 mod stories;
 mod task;
 mod task_tree;
+mod team;
 mod terminal_approval;
 mod to_begin;
 mod tui;
@@ -51,6 +52,7 @@ mod fuzzy {
     mod how;
     mod public_address;
     mod rail_and_work;
+    mod team;
 }
 
 mod accounts_edges;

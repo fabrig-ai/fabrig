@@ -627,6 +627,61 @@ const QUESTION_ASSIGN_AT: Time = Time::from_nanos(2_000_000_000);
 pub fn question(front: &mut Joint, words: &[u8]) -> u64 {
     question_with_text_bound(front, words, None)
 }
+/// A running chat's question beside a member whose task reads probe the project's policy.
+pub fn team_question(front: &mut Joint, words: &[u8]) -> u64 {
+    use jig_domain_authority as authority;
+    use temper_engine_domain_world::{store::Store, walking};
+
+    let mut limits = crate::front::engine_limits();
+    // The owner and member each have a policy role.
+    limits.authority.roles = 2;
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(SEED);
+        config.core.connectors = Box::new([FORGE]);
+        // Team's chat uses no goals; keep the two clients' reads within the fixed watch table.
+        config.core.defaults.templates = config
+            .core
+            .defaults
+            .templates
+            .into_vec()
+            .into_iter()
+            .filter(|template| template.number != jig_client::shapes::GOAL)
+            .collect();
+        let mut rules = config.core.defaults.rules.clone();
+        rules.ceiling.delegation.depth = 2;
+        rules.ceiling.delegation.tasks = 2;
+        let policy = &mut config.core.seed_projects[0].policy.policy;
+        policy.ceiling.delegation.depth = 2;
+        policy.ceiling.delegation.tasks = 2;
+        policy.roles[0].authority.delegation.depth = 2;
+        policy.roles[0].authority.delegation.tasks = 2;
+        let mut member = policy.roles[0].clone();
+        member.number = jig_domain_people::Role::Member.number();
+        // Watch alone (Requests' bit 128); reading a live task also probes the refused takeover.
+        member.requests = authority::Requests(128);
+        let owner = policy.roles[0].clone();
+        policy.roles = Box::new([owner, member]);
+        let mut domain = authority::Domain::new(rules, limits.authority).expect("Team authority");
+        let mut out = skein_lib::Queue::uncapped();
+        authority::step(
+            &mut domain,
+            authority::Event::Policy { project: QUESTION_PROJECT, policy: policy.clone() },
+            &mut out,
+        );
+        assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: QUESTION_PROJECT }));
+        config.core.seed_projects[0].policy.policy = domain.policy(QUESTION_PROJECT).expect("Team policy").clone();
+        config.core.defaults.rules = domain.rules().clone();
+        config
+    });
+    limits.tasks.inbox_bytes = limits.tasks.message_bytes.checked_mul(8).expect("question and answer slots fit");
+    limits.fleet.slots = 2;
+    limits.fleet.attempts = 4;
+    limits.journal.writes = 4096;
+    limits.journal.deliveries = 64;
+    limits.journal.held = 192;
+    *front = Joint::with_engine(SEED, &domain_limits(), Store::with_limits(&limits), configs, &limits, 2);
+    commit_question(front, words, false)
+}
 /// Choose the document text bound before the engine starts, without changing message admission.
 pub fn question_with_text_bound(front: &mut Joint, words: &[u8], text: Option<u32>) -> u64 {
     question_with_agreement(front, words, text, false)

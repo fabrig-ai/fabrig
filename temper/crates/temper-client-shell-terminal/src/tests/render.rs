@@ -32,6 +32,7 @@ fn each_fixture_page_prints_as_its_golden_file() {
         ("sheet_adopt", fixtures::page(&temper_client_domain::Address::Adopt { project: 1 }, false)),
         ("builders", fixtures::page(&temper_client_domain::Address::Builders { project: 1 }, false)),
         ("changes", fixtures::changes_page()),
+        ("team", fixtures::team_page()),
         ("inbox", fixtures::inbox_page()),
         ("chats", fixtures::chats_page()),
         ("chat", fixtures::chat::page()),
