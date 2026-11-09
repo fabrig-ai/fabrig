@@ -140,22 +140,19 @@ record has run a real model on the sentence.
 
 ## Gaps and departures
 
-- **Not yet:** 8.4.1: `me`, `project`, `goals`, `goals ended`, `tasks`,
-  `task N` with its tree, activity and turns, `change N`, `changes` and
-  `inbox` answer `see ADDRESS: not there yet.`, an error: no read as the
-  person is made, and no text renders them as *How an answer reads* has
-  it (plan `ui-ask-m2`).
-- **Not yet:** 8.4.1: the declaration's description names settings,
-  revisions, proposals, pages and a file alone; no reference page `see`
-  exists, and an unknown address's line and each answer's `see:` line are
-  constants of `temper-engine-smith`'s `see.rs`.
-- **Not yet:** 8.4.1, *Its tests*: no row reads an address as the person,
-  and no fuzzy test of addresses exists.
+- **Not yet:** 8.4.1, *Read as the person*: `me`, `project`, `goals`,
+  `goals ended`, `tasks`, `task N` with its tree, activity and turns,
+  `change N`, `changes` and `inbox` answer `see ADDRESS: not there yet.`,
+  an error: the root makes no read as the person, and the forge answers
+  no read (plan `ui-ask-m2`, `see-route`).
 - **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the
   run and How work runs' heading say a way by different words
   (`../protocol/configuration.md`, 13.10).
 
+- **Not yet:** 8.4.1, *How an answer reads*: no text renders what a read
+  as the person answered (plan `ui-ask-m2`, `see-render` and
+  `see-render-runs`).
 - **Departs:** 8.4.1, *Unknown*: an unknown address answers with
   `ask.txt`'s line of addresses and, in its settings bracket,
   `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't
@@ -164,6 +161,11 @@ record has run a real model on the sentence.
   kinds from its tools' declarations and `see settings`; decided by the
   `ui-p3e-words` cut.
 
+- **Not yet:** 8.4.1, *Its declaration* and *On its page*: the
+  declaration's description names settings, revisions, proposals, pages and
+  a file alone; no reference page `see` exists, and an unknown address's
+  line and each answer's `see:` line are constants of
+  `temper-engine-smith`'s `see.rs` (plan `ui-ask-m2`, `see-page`).
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole
@@ -244,6 +246,8 @@ coordinator plans and makes no close-out." (the engine world's
   and its members alone; no story proposes one. Stage one's golden asks
   it of the reference's (`testing.status.md`, 6.5.1).
 - **Not yet:** 4.4: a verdict's follow-up tasks.
+- **Not yet:** 8.4.1, *Its tests*: no row of the engine's domain world
+  reads an address as the person (plan `ui-ask-m2`, `see-stories`).
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own
   `change` on `gpt-6-luna`. The model's response to the declaration and
@@ -277,6 +281,8 @@ maintainer-role acceptance. These worlds use Forgejo; a scripted run does
 not prove a real model's approval-role judgement or GitHub's composed flow.
 - **Not yet:** 8.3: a document built in parts is proved on a script alone: no real model has built one, so whether it counts lines right, appends rather than rewrites, joins a line past one call, finds its note in a fresh brief and recovers from a refusal is unobserved. The real loop's `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run` (`temper/tests/real-loop/tests/suite/notes.rs`) reads what the pane reads and draws nothing: the view's own test fits a full body in its limits (`a_full_document_fits_the_views_limits`, `temper-client-view/src/tests/document.rs`), and no walk or browser story draws a long one. Its fresh run is a chat's, under a charter the story sets to `resume: false` where the stock one resumes, so a goal's later run has no such story. It recalls nothing: a body past one call is recalled whole in jig's core world alone (`jig/tests/core/tests/stories/note_room.rs`).
 - **Design departs:** 8.3, from the request `note-parts` of 2026-11-05, decided by its plan's cut: a later write's words close with the note's lines, where the request keeps the answer as it stood, because an append's `first` is the body's lines + 1 and a later write printed no total, so a slip would insert in the wrong place with no refusal. The answer's values and how they are computed stay.
+- **Not yet:** 8.4.1, *Its tests*: no fuzzy test of addresses exists
+  (plan `ui-ask-m2`, `see-fuzzy`).
 - **Design departs:** 8.3, from the request `ui-chat-draft` of 2026-11-05, decided by the answer that day to its task `note-scope`: a goal keeps its own note scope, where the request has a goal keep no notes, because a goal's report is a note.
 - **Not yet:** 4.3.1: a change's refusal omits which model its charter
   refused, because `temper-engine-smith/src/answers.rs` renders

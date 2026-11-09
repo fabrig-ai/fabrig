@@ -57,34 +57,74 @@ The cut wrote the design first:
 
 - **person** (jig): `person-surface`, high, 90 minutes, no needs: the named
   action, its answer, its routing and first checks, every admitted read
-  unknown.
+  unknown. `person-reads`, high, 240, needs `person-surface`: the admitted
+  reads answered as the person's own, stored loads checked again, the
+  forge's application read asked of the connector; jig's core world's table
+  of reads in and out of the run's project.
 - **answers** (temper's root): `see-surface`, medium, 60, no needs: the
   address grammar and `SeeAnswer`'s records (`notes/contracts.md`,
   section 2), every M2 address still not yet.
+- **reads** (temper's root): `see-route`, high, 240, needs `see-surface`
+  and `person-surface`: each address's reads as the person in order, the
+  flight, the names, the forge's `Ask::Read` answered with its documents
+  for a `see` flight, `Address::NotYet` gone; its reads unit tested as a
+  pure step function, since jig answers unknown until `person-reads`.
+- **render** (`temper-engine-smith`): `see-render`, high, 200, needs
+  `see-surface`: `me`, `project`, `goals`, `tasks`, `task N`, `task N tree`
+  and `inbox` as tables of lines in temper's words. `see-render-runs`,
+  high, 180, needs `see-render` (one writer of the crate): `task N
+  activity`, `task N turn A.T`, `change N` and `changes`.
+- **page**: `see-page`, medium, 100, needs `see-render-runs` and
+  `see-route`: one table of addresses, the reference page `see`, the
+  declaration's description, `SeeAnswer::NotYet` gone.
+- **stories** (the engine's domain world): `see-stories`, high, 210, needs
+  `person-reads`, `see-route` and `see-render-runs`: the two-project world
+  and the table of the person's addresses and refusals, the meeting point
+  of jig's reads, the root's flights, the forge and the renderer.
+  `see-fuzzy`, high, 120, needs `see-stories` (one writer of the world):
+  seeded addresses, bounded, framed and in their project.
 
-Slice 1 holds both. The rest follows in the next batch: jig's admitted
-reads, the root's reads and the forge's answer, the renderer, the reference
-page, and the stories with the fuzzy test of addresses.
+Slice 1 holds person and answers; slice 2 reads and render; slice 3 page
+and stories. No walk: M2's walk (the execution's, on the playground)
+follows landing.
 
 ## Critical path
 
-So far: `person-surface` (90) and `see-surface` (60) in parallel.
+`see-surface` (60), `see-render` (200), `see-render-runs` (180),
+`see-stories` (210), `see-fuzzy` (120): about 770 implementer-minutes.
+jig's chain, `person-surface` (90) and `person-reads` (240), and the
+root's, `see-route` (240, after `person-surface`), meet it at
+`see-stories` with time to spare; `see-page` (100) runs beside the
+stories.
 
 ## Who hears first
 
 For jig's owner, shared work:
 
 - **`NamedAction::PersonRead(Read)` and `Now::PersonAnswer { to, key,
-  answer }`** in `jig-domain-core` (`notes/contracts.md`, section 1): every
-  root that matches `Now` exhaustively gains an arm, jig's test kits, its
-  ops example and temper's root among them.
+  answer }`** in `jig-domain-core` (`notes/contracts.md`, section 1;
+  `jig/docs/design/domain/engine.md`, 7.3): every root that matches `Now`
+  exhaustively gains an arm, jig's test kits, its ops example and temper's
+  root among them. The core's party read pipeline gains a destination for
+  a run reading as its person, in place of a sign-in (`person-reads`).
 
-For the owner of coding runs: no change to `temper-engine-domain-forge`'s
-or `forge_route.rs`'s behaviour so far; `route/asks.rs`'s `Ask::Read` is
-the next batch's, named there.
+For the owner of coding runs:
+
+- **`temper-engine-domain`**: `route/asks.rs`'s `Ask::Read` answers a `see`
+  flight's application read with the forge's document
+  (`domain.forge.document`, as a watch's is made), any other still unknown;
+  `route/now.rs` gains `Now::PersonAnswer`'s arm; `route/see.rs` and
+  `route/see/` gain the person's flights; `decision.rs`'s `host_within`
+  admits the new answers. `forge_route.rs` and
+  `temper-engine-domain-forge` are not changed.
+- **No stored format or wire changes:** the run's read decides nothing and
+  keeps no record; the client's wire is untouched.
 
 ## Overlaps
 
-The drafts beside this one, `merge-job-runs-2` (a remote worker's merge
-job) and `ui-cli-c1` (`skein-shell`'s conventions), touch none of this
-batch's files.
+`merge-job-runs-2` (a remote worker's merge job) may touch
+`temper-engine-domain`'s connector asks beside `route/asks.rs`'s `Ask::Read`
+arm, which `see-route` changes; the arms differ, so a merge meets at most
+one hunk. `ui-cli-c1` (`skein-shell`'s conventions) touches none of this
+plan's files. The status files this plan edits get its entries far from
+one another, each deleted by its own task.
