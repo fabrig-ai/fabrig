@@ -568,6 +568,23 @@ fn the_rail_holds_projects_navigation_and_foot_in_order() {
     let view = fixtures::signed_in_with_project();
     assert_rail(&view, b"Shop");
     assert_switcher(view.tree(), b"Shop", &[(b"Shop", true), (b"Second", false)]);
+    let mut root = fixtures::root_at(
+        temper_client_domain::Address::Team { project: fixtures::PROJECT },
+        &fixtures::domain_limits(),
+    )
+    .0;
+    super::rail::with_people(&mut root, 2);
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        assert_switcher(view.tree(), b"Shop", &[(b"Shop", true), (b"Second", false)]);
+        let id = fixtures::find(view.tree(), Role::Link, b"Team for Shop").expect("Team in the switcher");
+        assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/1/team".as_slice()));
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(Action::Pages(pages::Act::Go {
+                address: temper_client_domain::Address::Team { project: fixtures::PROJECT },
+            }))
+        );
+    }
 }
 
 #[test]
@@ -637,6 +654,14 @@ fn assert_switcher(tree: &skein_ui::Tree, name: &[u8], projects: &[(&[u8], bool)
     assert_eq!(nodes[at].name.as_deref(), Some(b"New project".as_slice()));
     at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
     if panel {
+        if let Some(name) = nodes[at].name.as_deref()
+            && name.starts_with(b"Team for ")
+        {
+            assert_eq!(nodes[at].role, Role::Link);
+            assert_eq!(nodes[at].name.as_deref(), Some(b"Team for Shop".as_slice()));
+            assert!(nodes[at].states.as_slice().contains(&skein_ui::State::Current));
+            at = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
+        }
         assert_eq!(nodes[at].role, Role::Link);
         assert_eq!(
             nodes[at].name.as_deref().unwrap().strip_prefix(b"How work runs for "),
@@ -1597,6 +1622,8 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
 #[expect(clippy::too_many_lines, reason = "one project switch checks its frame and Work's reads in both shells")]
 fn goals_opens_in_its_projects_frame() {
     use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
+    // Work's changes and notes, the rail's people and the project's ways open without a goal template.
+    const PROJECT_READS: u32 = 4;
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         for words in [fixtures::words(), fixtures::browser_words()] {
             let address = Address::Goals { project: fixtures::SECOND_PROJECT, filter };
@@ -1646,8 +1673,7 @@ fn goals_opens_in_its_projects_frame() {
                 Event::Went { place: Place::Address(address.clone()) },
                 &mut out,
             );
-            // Work's changes and chat notes open even without a goal template.
-            assert_eq!(out.len(), 3, "changes, notes and the new project's ways: {out:?}");
+            assert_eq!(out.len(), PROJECT_READS, "changes, people, notes and the new project's ways: {out:?}");
             let Some(Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
             }) = out.pop()
@@ -1658,6 +1684,20 @@ fn goals_opens_in_its_projects_frame() {
                 Some(subject),
                 temper_client_domain::forge::changes::watch(fixtures::PROJECT, &env.limits.forge)
             );
+            let Some(Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Read {
+                                what: jig_client::Readable::Jig(jig_client::contract::Read::Project { project }),
+                                ..
+                            },
+                    },
+            }) = out.pop()
+            else {
+                panic!("rail's project people")
+            };
+            assert_eq!(project, fixtures::PROJECT);
             let Some(Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {

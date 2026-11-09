@@ -841,10 +841,8 @@ read's head explicit.
   `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
   `rename-row` has opening the form on such a page not panic; no reason is recorded
   for this site. Seen by reading; no test holds it.
-- **Not yet:** 5.3, *The rail's parts*: Team is never shown. No read gives the
-  rail a project's members (jig's `Read::Project` is the Members tab's) or a
-  standing role (`../draft/standing-roles.md`), and Team has no page
-  (`../draft/surfaces.md`, section 6), so `rail::facts` gathers neither.
+- **Not yet:** 5.3, *The rail's parts*: no read gives the rail a standing
+  role (`../draft/standing-roles.md`).
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -870,6 +868,25 @@ read's head explicit.
   at a character boundary to fit 512 bytes (`forge/decided.rs`, `overturn_words`),
   where the section has it whole, because the smallest deployed composer admits
   that (5.4).
+
+Section 3.5, *Away*, *On All projects*, and 5.3's Away row have no known
+gap, by plan `ui-away-all`: `pages::away_all::across` counts `me`'s
+projects, those on at the wall and the earliest `until` of those on, and
+whether Away shows for any, which `rail::facts` reads on a page across
+projects; `frame.rs`'s `away` draws the switch and the chip from it,
+"Away on N of M" between, and binds `away::Act::ToggleAll`, whose
+`away_all::act` builds each changing project's request by
+`pages::away::request`, which a project's own act calls, and sends them
+one after another, toasting `Toasted::AwayAll`, or `AwayRefused` with
+none changed. The domain's `tests/away.rs`, its
+`across_counts_the_projects_on`, `toggle_all_sets_each_project_that_differs`
+and `a_second_toggle_waits`, `tests/pages/rail.rs`'s "across" row, the
+view's `the_switch_shows_with_ways_away` and the gallery's
+`all-home-away` and `all-home-away-on` (`browser.status.md`, 7.2) hold
+it. No render of the words is on record and no client-world story
+presses the switch across projects: the render check and the walk remain
+section 11's after-landing work (*Away on All projects after landing*).
+
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and
@@ -1054,6 +1071,9 @@ read's head explicit.
   word change: `the_button_reads_each_label_once_in_the_browser` holds the three names in
   the view's tree, and that a name's patch rewrites the button's text
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
+- **Not yet:** 3.5, *Team*, *The project's triager*: no setting names a
+  triager (`../domain/landing.status.md`, 13.1; `../domain/findings.status.md`),
+  so no read gives `team::Facts`' `triager`, and its line is never drawn.
 - **Design departs:** 3.5, *Needs you*, `.rec`, from the request `ui-copy-once` of
   2026-11-06, decided by its plan's cut. The request has no button, tab or option with
   both a name and a text child in a browser, and a recommended choice's button has its

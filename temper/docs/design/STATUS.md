@@ -190,11 +190,16 @@ new; with a fuzz test of the draft's density rules, the joint world's Work
 across two projects and fifteen gallery states; their render check and
 walk follow landing. Team is never shown, as no read gives the rail a
 project's members or roles; the draft, redrawn after the plan's cut,
-adds a hairline and How work runs to To begin's rail, drops the words
-that still name Settings and takes Away across projects, which the
-design doesn't yet say (`client/README.status.md`, 3.5 and 5.3;
+adds a hairline and How work runs to To begin's rail and drops the words
+that still name Settings, which the design doesn't yet say
+(`client/README.status.md`, 3.5 and 5.3;
 `client/browser.status.md`, 2.3, 2.5 and 7.2;
-`draft/surfaces.status.md`, 2, 5, 8 and 10). Home and Needs you across
+`draft/surfaces.status.md`, 2, 5, 8 and 10). Away on All projects, by
+plan `ui-away-all`, sets every project the person is in, each by its own
+`SetAway`, one after another, reads "Away on N of M" while they differ
+and toasts how many changed, with two gallery states; its render check
+and walk follow landing (`client/README.md`, 3.5 and 11;
+`client/README.status.md`, 3.5; `client/browser.status.md`, 7.2). Home and Needs you across
 projects, and the brief, are the whole story's milestone P2, by plan
 `ui-p2-home`: Home on All projects at `/home`, reading every project's
 status and decisions, the briefs' first sentences joined, Projects, the
@@ -363,7 +368,10 @@ findings, whole (`domain/findings.md`, with their families in
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but
-no story runs that (`domain/forge.md`). Lost updates and prepares recover
+no story runs that (`domain/forge.md`). A head behind its base takes it
+however far behind, any listed commit or a range too large to list
+proving it lacks the base's tip, and Forgejo answers a long range's
+oldest page (`domain/forge.md`; skein's `forge.md`). Lost updates and prepares recover
 in the worlds, with a reason at their retry bound; the three-thread
 real-process restart proof awaits its after-landing trial
 (`domain/forge.md`, `domain/landing.md`). The prepare and key kinds
@@ -501,7 +509,10 @@ reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words i
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
 (`domain/root.md`); how the engine is to learn its workers' reply bound is the
-design owner's decision (`domain/agent.md`, section 10). A live delegate counts no stall and a stall's hold reaches its
+design owner's decision (`domain/agent.md`, section 10). A charter is fitted to
+its worker's allowance, smith's 65,536 where the process has no local agent, as
+that section leaves it, and a resolution names a file too large for its brief
+(`domain/agent.md`; `domain/forge.md`). A live delegate counts no stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
