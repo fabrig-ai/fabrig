@@ -6843,7 +6843,8 @@ On both:
   (3.5); a chat's turns and its end, clocks under the day's rules
   (3.5); a card's wait, a span, in the inbox and on a chat's page; an
   update's arrival in the inbox, an ago (3.5); the approval page's ask,
-  an ago (3.5, *The approval page*). The task pages and the
+  an ago (3.5, *The approval page*); a remembered line's change, the
+  day's rule's words (5.17). The task pages and the
   accounts page say their moments as their sections do (5.5, 5.8,
   5.9), in universal time, and so does a full deployment's earliest end
   (5.1, the pages not about the work).
@@ -7548,9 +7549,10 @@ there. It draws what the engine holds, with no placeholder.
   it last knew (3.5).
 - **A line a row,** in the order of the scope's names, oldest first, as Ask
   temper numbers them: the line, in the body's type; under it, in small type,
-  who kept it and when, "Ask temper chat 14 · 9 Nov" for a line a chat kept,
-  its first reference the chat's number, or "Changed by you · 9 Nov" for one
-  the person wrote, its writer the party, the date by 5.12; and at its right
+  who kept it and when, "Ask temper chat 14 · Today · Thursday 22 October"
+  for a line a chat kept, its first reference the chat's number, or "Changed
+  by you · Yesterday · Wednesday 21 October" for one the person wrote, its
+  writer the party, the day by 5.12's day's rule; and at its right
   "Change" and "Delete", quiet buttons, as Deployment's rows' acts are.
 - **Change** opens the row's field in place, its line in it, with "Save" and
   "Cancel"; "Save" sends jig's `EditNote { project: 0, note, scope: Party {
@@ -10540,8 +10542,10 @@ own tests:
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
   instructions. The other views and sketches join at M3b of
-  `../draft/ask-temper.execution.md`, and the page of preferences (5.17) is
-  M4's, its walk after landing; M2 supplies the remaining reads first.
+  `../draft/ask-temper.execution.md`. The page of preferences (5.17) is
+  walked after landing, a line kept in one chat, read in the next and
+  deleted there, and its gallery's prints read at a laptop's width and a
+  phone's.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
   way, a proposal's two paths and a charter's or a rule's card in a reply and in the
   chat's document at 1440, 1000 and 420 px, across and down the page,

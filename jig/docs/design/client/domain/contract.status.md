@@ -1,6 +1,6 @@
 # contract: status
 
-2026-11-08. Where jig's code lags or departs from [contract.md](contract.md).
+2026-11-09. Where jig's code lags or departs from [contract.md](contract.md).
 
 Section 4 has no known gap in a program declaration's name-taken
 refusal: the accounts child and core carry it through the existing
@@ -34,6 +34,39 @@ times reach the accounts watch without marking an unchanged offer.
   leaving its omitted count stale until another Frame mark
   (`../../domain/engine.status.md`, 17.12). The field is computed correctly
   on a fresh read; no reason for the missing mark is recorded.
+
+Sections 6 and 7.3 have a party's scope and withheld turns by plan
+`ui-ask-m4` but for the gaps below: `NoteScope::Party { party }` on the
+contract, the client wire's v19 and the clients' cursor; a party's scope
+read, corrected and deleted, naming project 0, by that party alone, any
+other party's read unknown and their edit or deletion refused as
+unknown, an owner's included, but for one naming their own scope and
+another's entry (`../../domain/engine.status.md`, 10.1); a turn read, and activity's pages, to a
+party other than the task's requester carrying the turn's bytes as
+`jig_protocol_transcript::withhold` projects them by the component's
+`Settings.private`; and a private tool's live call sent with its input to
+the requester alone and with its tool alone to every other follower. The
+client protocol world's
+`party_notes::a_person_reads_corrects_and_deletes_preferences_through_the_client`
+and `turn_read::a_turns_private_parts_reach_its_person_alone_over_the_wire`,
+and the core world's `withheld.rs`, hold it.
+
+- **Not yet:** 5.3, 6: a withheld turn whose projection does not decode,
+  or passes `turn_carried_bytes` once projected, fails the whole read as
+  malformed, an activity page's other turns with it, where a page's turn
+  that does not decode is that one turn, too large or malformed: the
+  clients' `translate/activity.rs`, `archive`, answers a problem and
+  `reads.rs`, `read_response`, answers the read `Malformed`. No test
+  reads such a turn.
+
+- **Not yet:** 6: a party's correction of their own scope past
+  `notes.party_bytes` is refused as `Limit { Admission { Words } }`,
+  naming neither its bytes nor the bound, as one past jig's other word
+  bounds is (`jig-domain-core`'s `routing/refusals.rs`,
+  `note_person_refusal`), where the notes child's refusal names both
+  (`../../domain/engine.md`, 10.1), so a client says the bound from a
+  figure of its own (temper's `temper/docs/design/client/README.status.md`,
+  5.17).
 
 Section 5.1 has no known gap in either account row's bounded facts,
 registered-kind filtering or application of each kind's audience. The
