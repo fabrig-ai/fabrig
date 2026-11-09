@@ -156,7 +156,9 @@ impl Workers {
             kit::host::Output::Lost { channel } => {
                 events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
             }
-            kit::host::Output::Unsent { .. } => {}
+            kit::host::Output::Unsent { worker, channel, unsent } => {
+                self.notes.push(crate::Note::WorkerUnsent { worker, channel, unsent });
+            }
             kit::host::Output::Ended { worker, channel: Some(channel), why } => {
                 self.notes.push(crate::Note::WorkerLost { worker, channel, why });
             }
