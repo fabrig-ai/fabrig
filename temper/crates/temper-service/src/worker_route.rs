@@ -63,7 +63,7 @@ pub fn items(
     Ok(crate::worker::translate::workspace(Some(&items)))
 }
 /// A job's workspace uses the run's items family (temper/docs/design/domain/worker.md, 4.4).
-pub(crate) fn job_items(
+pub fn job_items(
     job: &hub::JobAssignment,
     parts: &[jig_protocol_worker_wire::Part],
     limits: &temper_protocol_worker_wire::v1::Limits,
@@ -77,7 +77,7 @@ pub(crate) fn job_items(
     Ok(crate::worker::translate::workspace(Some(&items)))
 }
 /// Decode the job's spec at the protocol boundary (temper/docs/design/protocol/tooling.md, 2).
-pub(crate) fn job_spec(
+pub fn job_spec(
     bytes: &[u8],
     limits: &temper_protocol_worker_wire::v1::Limits,
 ) -> Result<temper_worker_domain::wire::JobSpec, temper_worker_domain::wire::Undecodable> {

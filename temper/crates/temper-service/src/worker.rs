@@ -1170,14 +1170,7 @@ fn owner_of(event: &mut io::Event, new: Token) {
 }
 
 fn worker_root(limits: &root::Limits) -> root::Domain {
-    root::Domain::new(
-        limits,
-        Box::new([root::tooling::Kind {
-            bound: crate::limits::merge_bound(),
-            verb: b"merge".as_slice().into(),
-            delivers: true,
-        }]),
-    )
+    root::Domain::new(limits, crate::limits::job_kinds())
 }
 
 impl crate::Service {
