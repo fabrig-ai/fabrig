@@ -298,10 +298,20 @@ the instructions' first step of Showing, and its reading milestone, M2:
 its project alone, through jig's run read as its person, as tables of
 lines, with the reference page `see` (`domain/agent.md`, 8.4.1); its
 text names a charter, a role and a gate by number alone, and reads an
-inbox's words for questions alone (`domain/agent.status.md`). Charter
+inbox's words for questions alone (`domain/agent.status.md`). Its
+remembering milestone, M4, stands too: `remember` keeps the person's
+lines in jig's party scope, each Ask temper brief carries them whole,
+a turn's read shows them and `remember`'s calls to the person alone, and
+the page "What temper remembers about you" reads, changes and deletes
+them (`domain/agent.md`, 8.4.4; `client/README.md`, 5.17). A fresh
+start's transcript tail shows `remember`'s calls to every reader, every
+task a person starts reads the list in its brief, not Ask temper's
+alone, and the page empties while it reads again
+(`domain/agent.status.md`; `draft/ask-temper.status.md`;
+`client/README.status.md`). Charter
 3, template 3, `Configure` and Settings' offer are gone by plan
-`ui-ask-drop`. Its walks follow landing. The views, sketches and
-preferences belong to M3b and M4 (`draft/ask-temper.status.md`).
+`ui-ask-drop`. Its walks follow landing. The views and sketches belong
+to M3b (`draft/ask-temper.status.md`).
 Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;

@@ -35,7 +35,7 @@ reads (`temper-service/src/tests/ask_bound.rs`). Its instructions'
 judgement with a real model and a session taken up again follow landing;
 the terminal's `/draft` is `../draft/surfaces.md`, 11.2's.
 
-Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
+Sections 4.2, 4.3 and 8.4 have the asking charter's four host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
 revision, proposal, help and repository-file reads, 6,144-byte parts,
 section-based document writes and the asking proposal form: repository
@@ -43,8 +43,8 @@ identity expansion, parts, project-local approval checks and the card
 location in the answer. Sections 8.4 and 8.4.1 have no known gap in M3a's
 part: `see ways` renders the root's `ways` document, made as the client's
 is, and `ask.txt` carries the Showing part's first step, its words pinned
-by a focused test. Moved-write retry within a call, M3b's views and
-sketches and preferences remain deferred in section 10. Real-model
+by a focused test. Moved-write retry within a call and M3b's views and
+sketches remain deferred in section 10. Real-model
 judgement and the walk follow landing.
 
 Section 8.4.1 has M2's addresses, read as the chat's person, of its
@@ -70,6 +70,62 @@ person refused, a member reading the same tasks) and
 `seeded_addresses_stay_bounded_framed_and_in_their_project`
 (`fuzzy/see.rs`, 64 seeds over the same world, the store unchanged) hold
 it. The walk on the playground follows landing.
+
+Section 8.4.4 is present by plan `ui-ask-m4` but for the gaps below:
+`remember`'s declaration in the asking family, to an asking charter
+alone, its members refused at decode where they do not fit their action
+(`temper-engine-smith`'s `calls.rs` and `remember.rs`); the root's
+`route/remember.rs`, which refuses a requester who is no person, loads
+the party scope's index, checks the trimmed line, and adds with the
+chat's own number as its reference, changes at the index's revision with
+its references kept, or drops by `NoteDelete`, its own refusals writing
+nothing; every answer and refusal in 8.4.4's words; the brief's
+`preferences` section titled "Kept about this person", 2,048 bytes in
+both profiles; `remember` and that title given as the root's private
+names to the core and the clients (`temper-service`'s `system.rs` and
+`clients.rs`), and `see task N turn A.T` and `see task N activity`
+rendering a withheld turn projected; and section 8's Remembering part in
+`ask.txt`, word for word, within 10,240 bytes. The root's
+`a_remember_call_keeps_changes_and_drops_by_place` and
+`a_refused_remember_call_writes_nothing`, smith's
+`remember_answers_say_what_changed_or_why_not`, the service's
+`ask_temper_is_charter_11_and_template_5`,
+`asks_first_request_fits_both_shapes` and
+`startup_names_the_public_kinds_and_private_parts`, and the engine
+world's `configuring/remembering.rs`
+(`a_kept_line_reaches_the_next_chat_and_leaves_with_its_person`,
+`nobody_reads_another_persons_lines`,
+`a_turn_shows_its_persons_list_to_them_alone`) hold it. A real model's
+use of `remember` and the walk follow landing (section 10).
+
+- **Not yet:** 8.4.4, *Seen by the person alone*: a run that starts
+  fresh carries its transcript's tail in its brief, and the tail renders
+  `remember`'s calls and their answers whole, `call remember:` and its
+  input, then the result's summary, which holds the list
+  (`temper-service`'s `store/ranges.rs`, `texts`, by
+  `jig_protocol_transcript::brief_text`, which takes no private names).
+  That tail is a text of the new turn outside "Kept about this person",
+  so the turn's projection keeps it, and the project's other roles read
+  it. Charter 11's runs resume, and start fresh past the resume limit,
+  after a transient failure or when the window is closed. Found by
+  reading; no story reads a fresh start's turn as another role.
+
+- **Not yet:** 8.4.4, *Its answer* and *Its refusals*: an `add`'s answer
+  is the list as the call read it with its line after it
+  (`route/remember/flight.rs`), so a line another chat or the page wrote
+  meanwhile is missing from it and the line's number may be wrong; jig
+  answers a new entry neither moved nor missing, so the refusal "while a
+  line was kept" never comes, and a list another chat filled meanwhile is
+  refused in `note`'s words, `remember: Note refused: full`. A call
+  replayed from its record after a restart answers in `note`'s words with
+  no list (`Deleted note N` for a drop), since the flight takes `remember`'s
+  rendering only at its write (`route/host_route.rs`, where `document`'s
+  flight takes its own at decode). Found by reading.
+
+- **Not yet:** 8.4.4, *Its declaration*: the settings form's `tools`
+  line, and from it the generated reference page `settings-fields`, say
+  an asking charter is declared `see`, `document` and `propose_settings`
+  alone (`temper-settings-form`'s `fields/jig.rs`).
 
 Section 4.3.1 has no known gap in a change's role choice carrying no
 `later`: the change-choice parser constructs each choice with none,
@@ -212,10 +268,20 @@ record has run a real model on the sentence.
   `ask.txt`'s line of addresses and, in its settings bracket,
   `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't
   name (`temper-engine-smith`'s `see/addresses.rs`, `ADDRESSES`): Ask
-  temper's instructions are held to 8,192 bytes and had no room for them,
-  so the run learns the two
-  kinds from its tools' declarations and `see settings`; decided by the
-  `ui-p3e-words` cut.
+  temper's instructions were held to 8,192 bytes then, with no room for
+  them, so the run learns the two kinds from its tools' declarations and
+  `see settings`; decided by the `ui-p3e-words` cut. The bound is 10,240
+  bytes now (8.4), and `ask.txt`'s 8,790 leave room for them.
+
+- **Not yet:** 8.4, *Its instructions*: `ask.txt` is not
+  `../draft/ask-temper.md`, section 8, whole. Its parts but Remembering
+  and Showing's first step say the draft's text shorter, as the stock's
+  former 8,192 bytes had them, *Your voice* among them; and it adds what
+  later plans asked of it: `project-classes` on the `see` line and in its
+  settings paragraph, the design-first proposal guidance
+  (`../protocol/configuration.status.md`, 13.9), and a paragraph on
+  proposing a person's own approving role. Section 8 is 8,750 bytes, within
+  10,240 now; no record names the shortening a departure.
 
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,

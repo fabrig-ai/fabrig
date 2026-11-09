@@ -2258,6 +2258,16 @@ from the engine's own answers, is where the look is tuned.
 | `limits-not-owner` | Limits for a person with no role in the deployment: its one line |
 | `night-work` | `work` with the night look on |
 | `night-limits` | `limits` with the night look on |
+| `remembered-none` | "What temper remembers about you" with none kept: its quiet band (`README.md`, 5.17) |
+| `remembered-three` | three lines, two kept by an Ask temper chat and one changed by the person, each with "Change" and "Delete" |
+| `remembered-full` | twelve lines, and the full list's line under the last |
+| `remembered-changing` | `remembered-three` with a line's field open, "Save" and "Cancel" |
+| `remembered-refused` | `remembered-three` after a change refused as moved: its line under the row |
+| `night-remembered-none` | `remembered-none` with the night look on |
+| `night-remembered-three` | `remembered-three` with the night look on |
+| `night-remembered-full` | `remembered-full` with the night look on |
+| `night-remembered-changing` | `remembered-changing` with the night look on |
+| `night-remembered-refused` | `remembered-refused` with the night look on |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |
