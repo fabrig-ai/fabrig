@@ -33,6 +33,7 @@ design = "temper/docs/design/protocol/configuration.md, 7"
 
 [[part]]
 id = "fit-room"
+answer = """Right: this trunk was cut from worker-link-quiet's trunk before engine-room merged into it. Run fit-room again once this trunk holds engine-room, whichever comes first: a merge of origin/worker-link-quiet/integration into this trunk, or worker-link-quiet landing and this trunk catching up with main. Change nothing before then. (temper/migration, 2026-11-09)"""
 title = "The engine's link fits a resumed start's committed calls to its room before measuring it, and is not made under limits whose smallest resumed start passes the room"
 mode = "direct"
 needs = ["fit"]
