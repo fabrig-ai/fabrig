@@ -187,6 +187,8 @@ fn words(task: u64, turn: c::TurnName, part: &mut u64, bytes: &[u8], call: &Call
             out,
         );
         out.put(b"\n");
+    } else if call.tool == 6 && from > 0 {
+        out.put(b"no more\n");
     }
 }
 
