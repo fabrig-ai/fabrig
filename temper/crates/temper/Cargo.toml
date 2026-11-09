@@ -16,6 +16,7 @@ test = false
 record = ["temper-client-shell-tui/record"]
 
 [dependencies]
+temper-service-shell.workspace = true
 temper-engine-shell.workspace = true
 temper-launcher.workspace = true
 temper-shell.workspace = true

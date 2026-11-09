@@ -210,7 +210,6 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "temper/crates/temper-service/Cargo.toml: [features]", until: "cli C5" },
     Exception { what: "temper/crates/temper-service/Cargo.toml: jig-protocol-worker-agents", until: "cli C5" },
     Exception { what: "temper/crates/temper-service/Cargo.toml: jig-protocol-worker-link", until: "cli C5" },
-    Exception { what: "temper/crates/temper-service/Cargo.toml: skein-channel", until: "cli C5" },
     Exception { what: "temper/crates/temper-service/Cargo.toml: smith-channel", until: "cli C5" },
     Exception { what: "temper/crates/temper-service/Cargo.toml: smith-host-domain", until: "cli C5" },
     Exception { what: "temper/crates/temper-service/Cargo.toml: smith-host-protocol", until: "cli C5" },

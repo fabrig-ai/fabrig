@@ -15,7 +15,7 @@ crates hold them: `binaries.rs`'s `temper-engine` row, unchanged, since
 no launcher; and `closure.rs`'s `temper-agent` row, 4.4's seven temper
 crates, no jig crate and no exception, since `temper-shell` links
 skein's crates and `temper-docs` alone and jig's form of the three
-directories is `temper-engine-shell`'s `jig_directories`, which the
+directories is `temper-service-shell`'s `jig_directories`, which the
 box's `temper::directories` re-exports. The client's and the worker's
 rows remain M5's. The box's modes and the worker's current program are
 unchanged; naming `temper-agent` is M3's
@@ -40,10 +40,6 @@ incident's unexplained 503 (`../domain/root.md`, section 13).
 Section 4.5's worker binary and its two crates are M3's, under way
 (`../draft/deployment-binaries.execution.md`, 1).
 
-- **Not yet:** 4.1 and 5: serve's run, host and lines are
-  `temper-engine-shell`'s, so every binary that serves links the
-  engine's shell, its bundle and its fakes; there is no
-  `temper-service-shell`.
 - **Not yet:** 4.1 and 5: the worker's half of a start and
   `program-login` are the box's (`crates/temper/src/worker_half.rs`,
   `worker_alone.rs`, `agent.rs`, `program_login.rs`), reading the agent's

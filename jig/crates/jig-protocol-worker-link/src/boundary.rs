@@ -1,30 +1,10 @@
 //! Streams belong to the layer; the dial policy belongs here (channel.md, 10.1).
 use alloc::boxed::Box;
 use jig_domain_host as host;
+pub use jig_protocol_worker_wire::Loss;
 use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
 use skein_lib::{Secret, Time, Token};
-/// Why a channel, or a dial, ended (protocol/channel.md, 9 and 10.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Loss {
-    /// As skein's channel ended it: the stream, a framing error, a refusal
-    /// sent or received, or the owner.
-    Closed(skein_channel::Closed),
-    /// Nothing heard for the silence deadline.
-    Silence,
-    /// Output queued with no frame drained for the stall deadline.
-    Stall,
-    /// The opening did not finish within the handshake's deadline.
-    Handshake,
-    /// The output cap filled: the channel refused a record as full.
-    Full,
-    /// The engine's busy answers outran the table that keeps them.
-    Busy,
-    /// The root faulted the link (`Event::SourceFault`).
-    Fault,
-    /// The dial failed (`Event::Unreachable`).
-    Unreachable,
-}
 #[derive(Debug)]
 pub enum Event {
     SourceFault,
