@@ -8,7 +8,6 @@ use temper_worker_domain::tooling;
 const STEPS: u32 = 10000;
 const REMOTE: &[u8] = b"org/repo";
 const COMMAND: &[u8] = b"world merge command\n";
-const SETTLED: &[u8] = br#"{"settled":["FILE"]}"#;
 const LEFT: &[u8] = br#"{"settled":[],"left":["FILE"]}"#;
 
 /// One row of the merge job's story (temper/docs/design/domain/testing.md, 2.1).
@@ -16,6 +15,9 @@ const LEFT: &[u8] = br#"{"settled":[],"left":["FILE"]}"#;
 pub enum Row {
     Settled,
     Left,
+    Clean,
+    OtherBranch,
+    PastTheBound,
 }
 
 /// What a row's run showed, read from the store, the fake forge and the fake disk.
@@ -39,18 +41,33 @@ pub struct MergeJobReport {
     pub continued: Option<[u8; 32]>,
     pub resolution_base: Option<[u8; 32]>,
     pub marked: bool,
+    pub conflicts: Vec<Vec<u8>>,
+    pub staged: Vec<u8>,
+    pub conflict_bound: u32,
+    pub catch_up: Option<[u8; 32]>,
+    pub head_tree: temper_fake_checkout::git::Tree,
+    pub base_tree: temper_fake_checkout::git::Tree,
     pub merge_head: Option<Vec<u8>>,
+    pub cached_repository: Option<Vec<u8>>,
+    pub base_present_before: Option<bool>,
+    pub base_fetch_repository: Option<Vec<u8>>,
+    pub base_present_at_fetch: Option<bool>,
 }
 
 pub(super) struct Story {
-    row: Row,
+    pub(super) row: Row,
     pub(super) held: Option<engine::Link>,
     pub(super) pending: Option<(Token, engine::Assignment)>,
     pub(super) base: Option<u64>,
     pub(super) hello: Vec<JobBound>,
+    pub(super) clean_answered: bool,
     declared: Vec<JobBound>,
     job: Option<u64>,
     spawn: Option<Spawn>,
+    cached_repository: Option<Vec<u8>>,
+    base_present_before: Option<bool>,
+    base_fetch_repository: Option<Vec<u8>>,
+    base_present_at_fetch: Option<bool>,
 }
 
 struct Spawn {
@@ -60,6 +77,8 @@ struct Spawn {
     directory: Vec<u8>,
     command_found: bool,
     marked: bool,
+    conflicts: Vec<Vec<u8>>,
+    staged: Vec<u8>,
     merge_head: Option<Vec<u8>>,
 }
 
@@ -132,57 +151,36 @@ impl World {
                 call(b"wait", b"{}"),
             ]),
         };
-        let producer = |content: &str| Script {
-            cue: b"Read only what the change needs".as_slice().into(),
-            turns: Box::new([
-                call(
-                    b"write",
-                    &serde_json::to_vec(&serde_json::json!({"path":"FILE","content":content})).expect("write JSON"),
-                ),
-                call(b"finish", br#"{"title":"Edit FILE","body":"Keep the edit."}"#),
-            ]),
-        };
         let declared = config(seed).core.jobs.to_vec();
         let mut world = Self::configured_with(seed, goal.clone(), true, config);
         world.goal_branch = true;
         world.forge.advance(REMOTE, b"main", b".temper/merge", COMMAND);
-        world.scripts = VecDeque::from([goal, producer("head\n"), producer("base\n")]);
+        let count = if row == Row::PastTheBound { world.worker_env.limits.checkout.conflicts + 1 } else { 1 };
+        let files: Vec<_> = (0..count)
+            .map(|index| if index == 0 { b"FILE".to_vec() } else { format!("FILE{index}").into_bytes() })
+            .collect();
+        world.scripts = VecDeque::from([goal, producer(&files, "head\n"), producer(&files, "base\n")]);
         world.merge_job = Some(Story {
             row,
             held: None,
             pending: None,
             base: None,
             hello: Vec::new(),
+            clean_answered: false,
             declared,
             job: None,
             spawn: None,
+            cached_repository: None,
+            base_present_before: None,
+            base_fetch_repository: None,
+            base_present_at_fetch: None,
         });
         world
     }
 
     /// Run until the job has ended durably and the change takes its next step.
     pub fn run_merge_job(&mut self) -> MergeJobReport {
-        // The channel holds the first producer's answer, while the released
-        // worker serves the independent change that moves its landing branch.
-        for _ in 0..STEPS {
-            self.tick();
-            if self.merge_story().held.is_some() {
-                break;
-            }
-        }
-        assert!(self.merge_story().held.is_some(), "first producer finished");
-        if let Some((channel, assignment)) = self.merge_job.as_mut().expect("merge story").pending.take() {
-            self.assigned(channel, assignment);
-        }
-        let change = self.merge_change();
-        let branch = change.branch.clone();
-        let landing = change.base.clone();
-        let head = self.forge.branch(REMOTE, &branch).expect("producer delivered");
-        let base = self.advance_goal_for_producer(&landing);
-        let story = self.merge_job.as_mut().expect("merge story");
-        story.base = Some(base);
-        let answer = story.held.take().expect("held answer");
-        self.up(answer);
+        let (branch, head, base) = self.reach_merge_job();
         for _ in 0..STEPS {
             if self.process.answered.is_some()
                 && self.root_events.is_empty()
@@ -193,8 +191,9 @@ impl World {
             }
             self.tick();
             let Some(job) = self.merge_story().job else { continue };
-            if self.job_outcome(job).is_some()
-                && (self.next_merge_step().is_some()
+            if let Some((ending, _)) = self.job_outcome(job)
+                && (matches!(ending, tasks::End::Failed(_))
+                    || self.next_merge_step().is_some()
                     || self.merge_story().spawn.as_ref().is_some_and(|spawn| !spawn.command_found))
             {
                 break;
@@ -208,7 +207,8 @@ impl World {
         } else {
             NextStep::default()
         };
-        let spawn = story.spawn.as_ref().expect("worker spawned the command");
+        let spawn =
+            story.spawn.as_ref().unwrap_or_else(|| panic!("worker spawned the command: {job:?}, failures {failures}"));
         let hello = story.hello.clone();
         let declared = story.declared.clone();
         let mut report = MergeJobReport {
@@ -230,13 +230,104 @@ impl World {
             continued: next.continued,
             resolution_base: next.resolution.map(|resolution| resolution.base),
             marked: spawn.marked,
+            conflicts: spawn.conflicts.clone(),
+            staged: spawn.staged.clone(),
+            conflict_bound: self.worker_env.limits.checkout.conflicts,
+            catch_up: self.merge_change().catch_up,
+            head_tree: self.forge.tree(head),
+            base_tree: self.forge.tree(base),
             merge_head: spawn.merge_head.clone(),
+            cached_repository: story.cached_repository.clone(),
+            base_present_before: story.base_present_before,
+            base_fetch_repository: story.base_fetch_repository.clone(),
+            base_present_at_fetch: story.base_present_at_fetch,
         };
-        report.branch = self.forge.branch(REMOTE, &branch).expect("change branch remains");
+        report.branch = self
+            .forge
+            .branch(REMOTE, &branch)
+            .unwrap_or_else(|| panic!("change branch remains: {:?}, failures {}", report.job, report.failures));
         report.parents =
             [self.forge.parent(report.branch), self.forge.merge_parent(report.branch)].into_iter().flatten().collect();
         report.tree = self.forge.tree(report.branch);
         report
+    }
+
+    fn reach_merge_job(&mut self) -> (Box<[u8]>, u64, u64) {
+        if self.merge_story().row == Row::Clean {
+            for _ in 0..STEPS {
+                self.tick();
+                if self.merge_story().job.is_some() {
+                    break;
+                }
+            }
+            let change = self.merge_change();
+            (
+                change.branch.clone(),
+                self.forge.branch(REMOTE, &change.base).expect("goal tip"),
+                self.merge_story().base.expect("main advanced"),
+            )
+        } else {
+            // Hold the first producer's answer while the independent change
+            // moves its landing branch on the released worker.
+            for _ in 0..STEPS {
+                self.tick();
+                if self.merge_story().held.is_some() {
+                    break;
+                }
+            }
+            assert!(self.merge_story().held.is_some(), "first producer finished");
+            if let Some((channel, assignment)) = self.merge_job.as_mut().expect("merge story").pending.take() {
+                self.assigned(channel, assignment);
+            }
+            let change = self.merge_change();
+            let branch = change.branch.clone();
+            let landing = change.base.clone();
+            let head = self.forge.branch(REMOTE, &branch).expect("producer delivered");
+            if self.merge_story().row == Row::OtherBranch {
+                let suffix = format!("/.git/objects/{head}");
+                let repository = self
+                    .disk
+                    .tree(b"ws")
+                    .keys()
+                    .find_map(|path| {
+                        path.strip_suffix(suffix.as_bytes()).map(|prefix| [b"ws/".as_slice(), prefix].concat())
+                    })
+                    .expect("producer's cached clone holds its delivery");
+                self.merge_job.as_mut().expect("merge story").cached_repository = Some(repository);
+            }
+            let base = self.advance_goal_for_producer(&landing);
+            let story = self.merge_job.as_mut().expect("merge story");
+            story.base = Some(base);
+            let answer = story.held.take().expect("held answer");
+            self.up(answer);
+            (branch, head, base)
+        }
+    }
+
+    pub(super) fn prepare_clean_goal(&mut self, task: u64) {
+        if task != 1 || self.merge_story().row != Row::Clean || self.merge_story().base.is_some() {
+            return;
+        }
+        // The goal branch exists before main moves, so its catch-up names
+        // a commit outside that branch's history.
+        let base = self.forge.advance(REMOTE, b"main", b"MAIN", b"main work\n");
+        self.merge_job.as_mut().expect("merge story").base = Some(base);
+        let text =
+            temper_engine_domain_forge::commit_text(&temper_worker_checkout_world::translate::commit(base).raw());
+        let text = core::str::from_utf8(&text).expect("commit text");
+        let input = format!(r#"{{"words":"Take main's changes","landing":"goal","merge":"{text}"}}"#);
+        self.scripts = VecDeque::from([
+            Script {
+                cue: b"Help the person with their work.".as_slice().into(),
+                turns: Box::new([
+                    call(b"change", br#"{"words":"Write the goal's FILE","landing":"goal"}"#),
+                    call(b"wait", b"{}"),
+                    call(b"change", input.as_bytes()),
+                    call(b"wait", b"{}"),
+                ]),
+            },
+            producer(&[b"FILE".to_vec()], "goal\n"),
+        ]);
     }
 
     fn merge_story(&self) -> &Story {
@@ -249,12 +340,16 @@ impl World {
             .values()
             .find_map(|row| match row {
                 engine::Record::Forge { row } => match row.as_ref() {
-                    temper_engine_domain_forge::Stored::Change(row) if row.task == 2 => Some(row),
+                    temper_engine_domain_forge::Stored::Change(row) => {
+                        let target =
+                            if self.merge_story().row == Row::Clean { row.catch_up.is_some() } else { row.task == 2 };
+                        target.then_some(row)
+                    }
                     _ => None,
                 },
                 engine::Record::Core(_) => None,
             })
-            .expect("first change")
+            .expect("merge change")
     }
 
     fn job_outcome(&self, task: u64) -> Option<(tasks::End, u32)> {
@@ -319,8 +414,32 @@ impl World {
         own.checkout.conflicts = checkout.conflicts;
         own.checkout.path_bytes = checkout.path_bytes;
         let limits = temper_service::worker_settings::payload_limits(&own).expect("worker payload limits");
-        self.merge_job.as_mut().expect("merge story").job = Some(job.run.raw());
+        let story = self.merge_job.as_mut().expect("merge story");
+        story.job = Some(job.run.raw());
+        if let Some(repository) = &story.cached_repository {
+            let base = story.base.expect("base made after producer's clone");
+            story.base_present_before =
+                Some(self.disk.exists(&[repository.as_slice(), format!("/.git/objects/{base}").as_bytes()].concat()));
+        }
         self.worker_events.push_back(link::job(job, workspace, &limits));
+    }
+
+    pub(super) fn observe_merge_fetch(&mut self, op: &worker::checkout::git::Op) {
+        use worker::checkout::git::{Op, Want};
+        let Some(story) = &mut self.merge_job else { return };
+        if story.job.is_none() {
+            return;
+        }
+        if let Op::Fetch { at, want: Want::Commit { commit }, .. } = op {
+            let base = story.base.expect("job's base");
+            if temper_worker_checkout_world::translate::fake(*commit) == base {
+                let repository = temper_worker_checkout_world::translate::path(at);
+                story.base_present_at_fetch = Some(
+                    self.disk.exists(&[repository.as_slice(), format!("/.git/objects/{base}").as_bytes()].concat()),
+                );
+                story.base_fetch_repository = Some(repository);
+            }
+        }
     }
 
     pub(super) fn job_operation(&mut self, owner: Token, op: tooling::Request) {
@@ -361,17 +480,33 @@ impl World {
         let found = self.disk.content(&disk_path(program)) == Some(COMMAND);
         let dir = disk_path(directory);
         let repository = [dir.as_slice(), b"/repo"].concat();
-        let file = [repository.as_slice(), b"/FILE"].concat();
-        let unmerged = self.disk.tree(&[repository.as_slice(), b"/.git/temper-conflicts"].concat());
-        let marked = unmerged.values().any(|path| path.as_slice() == b"FILE")
-            && self.disk.content(&file).is_some_and(|bytes| {
-                bytes.starts_with(b"<<<<<<<")
-                    && bytes.windows(b"head\n".len()).any(|part| part == b"head\n")
-                    && bytes.windows(b"base\n".len()).any(|part| part == b"base\n")
+        // The fake's temper-conflicts entries stand for the unmerged index,
+        // independent of the bounded list returned to the checkout domain.
+        let conflicts = self.disk.tree(&[repository.as_slice(), b"/.git/temper-conflicts"].concat());
+        let unmerged: Vec<_> = conflicts.values().cloned().collect();
+        let marked = !unmerged.is_empty()
+            && unmerged.iter().all(|path| {
+                self.disk.content(&[repository.as_slice(), b"/", path].concat()).is_some_and(|bytes| {
+                    bytes.starts_with(b"<<<<<<<")
+                        && bytes.windows(b"head\n".len()).any(|part| part == b"head\n")
+                        && bytes.windows(b"base\n".len()).any(|part| part == b"base\n")
+                })
             });
         let merge_head = self.disk.content(&[repository.as_slice(), b"/.git/MERGE_HEAD"].concat()).map(<[u8]>::to_vec);
         let request = args.get(2).and_then(|path| self.disk.content(&disk_path(path))).unwrap_or_default().to_vec();
         let story = self.merge_job.as_mut().expect("merge story");
+        let mut staged = Vec::new();
+        if found && story.row != Row::Left {
+            for (entry, path) in &conflicts {
+                self.disk.write(&[repository.as_slice(), b"/", path].concat(), b"settled\n");
+                staged.extend_from_slice(path);
+                staged.extend_from_slice(b"\0settled\n");
+                self.disk.remove(&[repository.as_slice(), b"/.git/temper-conflicts/", entry].concat());
+            }
+            if !staged.is_empty() {
+                self.disk.write(&[repository.as_slice(), b"/.git/index"].concat(), &staged);
+            }
+        }
         story.spawn = Some(Spawn {
             program: program.to_vec(),
             args: args.iter().map(|arg| arg.to_vec()).collect(),
@@ -379,17 +514,19 @@ impl World {
             directory: directory.to_vec(),
             command_found: found,
             marked,
+            conflicts: unmerged.clone(),
+            staged: self.disk.content(&[repository.as_slice(), b"/.git/index"].concat()).unwrap_or_default().to_vec(),
             merge_head,
         });
         if found {
-            if story.row == Row::Settled {
-                self.disk.write(&file, b"settled\n");
-                self.disk.write(&[repository.as_slice(), b"/.git/index"].concat(), b"FILE\0settled\n");
-            }
-            self.disk.write(
-                &[dir.as_slice(), b"/result.json"].concat(),
-                if story.row == Row::Left { LEFT } else { SETTLED },
-            );
+            let paths: Vec<_> =
+                unmerged.iter().map(|path| core::str::from_utf8(path).expect("conflict path")).collect();
+            let result = if story.row == Row::Left {
+                LEFT.to_vec()
+            } else {
+                format!("{{\"settled\":{}}}", serde_json::to_string(&paths).expect("settled paths JSON")).into_bytes()
+            };
+            self.disk.write(&[dir.as_slice(), b"/result.json"].concat(), &result);
             self.worker_events.push_back(worker::Event::Job { owner, event: tooling::Event::Spawned { owner } });
         }
         let exit =
@@ -403,4 +540,21 @@ impl World {
 /// The job IO face and the fake git face spell the same workspace directory differently.
 fn disk_path(path: &[u8]) -> Vec<u8> {
     [b"ws/".as_slice(), path.strip_prefix(b"workspaces/").expect("job workspace path")].concat()
+}
+
+fn producer(files: &[Vec<u8>], content: &str) -> Script {
+    let mut turns: Vec<_> = files
+        .iter()
+        .map(|path| {
+            call(
+                b"write",
+                &serde_json::to_vec(&serde_json::json!({
+                    "path": core::str::from_utf8(path).expect("file path"), "content": content,
+                }))
+                .expect("write JSON"),
+            )
+        })
+        .collect();
+    turns.push(call(b"finish", br#"{"title":"Edit files","body":"Keep the edit."}"#));
+    Script { cue: b"Read only what the change needs".as_slice().into(), turns: turns.into_boxed_slice() }
 }
