@@ -2,6 +2,14 @@
 
 2026-11-08. Where temper's code lags or departs from [playground.md](playground.md).
 
+Section 9's walk of story A in the one-process world, by the terminal
+client, from the welcome to the CSV change landed and the three replies
+seen, runs (`temper/tests/one-process/tests/suite/story_a.rs`): the
+world lays the story's disk and handovers through the playground world's
+`temper_playground::story::prepare` (section 4), and walks it in 44.8
+simulated seconds, its person waiting up to 60 s for each line it
+looks for.
+
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
     box (`domain/forge.md`, 4.1, and its status).

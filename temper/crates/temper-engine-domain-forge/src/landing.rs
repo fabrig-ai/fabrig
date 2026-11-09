@@ -32,7 +32,7 @@ pub(crate) struct State {
 #[derive(Hash, Debug)]
 pub(crate) struct Pending {
     task: u64,
-    entry: u64,
+    pub(crate) entry: u64,
     heard: LandingHeard,
     facts: Box<[policy::MemberFacts]>,
     stage: Stage,

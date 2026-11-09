@@ -38,10 +38,10 @@ rehearsal and going back are not built (`protocol/store.md`,
 application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, so a
-project's owner alone reads no row of it, the
-core world's restore stories are ignored, and a setting reset to a
-default its connector does not report loses its state at the next start
-(`domain/engine.md`, `domain/connectors.md`). A run's fresh settings proposal replaces its own
+project's owner alone reads no row of it, and the
+core world's restore stories are ignored; a setting reset to a default
+its connector neither reports nor names as dropped keeps its state at the
+next start (`domain/engine.md`, `domain/connectors.md`). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
 `domain/engine.md`, 17.6). Derived run-wait refusals carry admitted hosts'

@@ -1244,3 +1244,44 @@ fn list_op_kinds(ops: &[Op]) -> Vec<&str> {
         })
         .collect()
 }
+
+#[test]
+fn two_drawings_paint_their_fades_by_ids_of_their_own() {
+    let (mut page, mut view) =
+        (Page::new(fixtures::drawing_look(), &LIMITS, b"/", Primary::Control), View::new(&LIMITS));
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            main(b);
+            for _ in 0..2 {
+                b.drawing(DrawingKind { owner: OWNER, kind: 0 }, b"Chart", b"fade", 128);
+                b.text(Run::Plain, b"Fallback");
+                b.close();
+            }
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    let drawings: Vec<_> =
+        view.tree().nodes().iter().filter(|node| node.role == Role::Drawing).map(|node| node.id).collect();
+    assert_eq!(drawings.len(), 2, "the two drawings in this page");
+    for node in &drawings {
+        page.resized(*node, 100, 50, &mut Vec::new());
+    }
+    let html = page.html();
+    assert_eq!(html.matches("<linearGradient ").count(), 2, "one gradient per drawing");
+    let figures: Vec<_> =
+        html.split("<figure").skip(1).map(|figure| figure.split("</figure>").next().unwrap()).collect();
+    assert_eq!(figures.len(), 2, "the two figures in tree order");
+    for (node, figure) in drawings.iter().zip(figures) {
+        let id = format!("skein-ui-fade-{}-0", node.0);
+        assert!(figure.contains(&format!("<linearGradient id=\"{id}\"")), "drawing {} owns its gradient", node.0);
+        assert!(
+            figure.contains(&format!(
+                "<line x1=\"0\" y1=\"0\" x2=\"100\" y2=\"50\" stroke=\"url(#{id})\" data-fade=\"\""
+            )),
+            "drawing {} paints by its own gradient",
+            node.0
+        );
+        assert_eq!(html.matches(&format!("id=\"{id}\"")).count(), 1, "drawing {} has a unique id", node.0);
+    }
+}

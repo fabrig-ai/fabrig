@@ -35,7 +35,8 @@
 //! (simulator.md, 5), counting what grew within their own calls and leaving
 //! out the simulator's. A process frees what it allocated in earlier calls,
 //! so the heap may fall below where a call began: a [`Span`] measures the
-//! growth around one call, signed, at its peak and in all.
+//! growth around one call, signed, at its peak and in all. It also counts
+//! the allocations its thread made, a reallocation as one (testing.md, 5).
 //!
 //! # The runtime's own
 //!
@@ -494,6 +495,7 @@ impl Default for Meter {
 #[derive(Debug)]
 pub struct Span {
     start: i64,
+    before: u64,
 }
 
 /// What a [`Span`] measured, in bytes: the most the heap grew by at once,
@@ -514,8 +516,15 @@ impl Span {
             warm_runtime();
             let live = counts.live.get();
             counts.peak.set(live);
-            Span { start: live }
+            Span { start: live, before: counts.made.get() }
         })
+    }
+
+    /// The allocations this thread made since the start, a reallocation
+    /// as one: none shows a table kept rather than replaced (testing.md, 5).
+    #[must_use]
+    pub fn made(&self) -> u64 {
+        COUNTS.with(|counts| counts.made.get().wrapping_sub(self.before))
     }
 
     /// What the heap grew by since the start: at its peak, and now.

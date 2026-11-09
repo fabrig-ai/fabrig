@@ -403,20 +403,42 @@ fn view_read(out: &mut Queue<Request>) -> Option<(Handle, u32, Box<[u8]>)> {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one view-read table covers opening, revisions, refusal and leaving")]
 fn role_pages_read_the_named_view_once_and_keep_the_answer() {
     use crate::pages::roles::Read;
     use temper_client_protocol_wire::{self as wire, v1 as w};
     for (address, wanted) in [
+        (Address::Settings { project: 3 }, b"roles".as_slice()),
         (Address::Role { project: 3, charter: 4 }, b"charter 4".as_slice()),
         (Address::Rule { project: 3, kind: 2, number: 1 }, b"rule 2/1".as_slice()),
     ] {
         let mut f = fixture();
+        let mut watching = Queue::uncapped();
+        f.root.client.step_unlinked(
+            skein_lib::Time::ZERO,
+            skein_lib::Wall::EPOCH,
+            jig_client::Event::Watch {
+                handle: crate::forge::ways::handle(),
+                subject: Watchable::Jig(c::Subject::Settings),
+            },
+            &mut watching,
+        );
+        let mut settings = None;
+        for request in &watching {
+            if let jig_client::UnlinkedRequest::Down {
+                down: jig_client::Down::Open { watch, subject: Watchable::Jig(c::Subject::Settings) },
+            } = request
+            {
+                settings = Some(*watch);
+            }
+        }
+        let settings = settings.expect("settings watch");
         event(&mut f, Event::Went { address: address.clone() });
         assert!(match f.pages.roles().unwrap().read() {
             Read::Reading => true,
             Read::Drawn(_) | Read::Unreadable => false,
         });
-        let (handle, project, text) = view_read(&mut f.out).expect("view read");
+        let (mut handle, project, text) = view_read(&mut f.out).expect("view read");
         assert_eq!(project, 3);
         assert_eq!(text.as_ref(), wanted);
         event(&mut f, Event::Went { address: address.clone() });
@@ -431,6 +453,19 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
         )
         .unwrap();
         let view = match address {
+            Address::Settings { .. } => w::View::Roles(
+                w::RolesView::new(
+                    &w::CEILINGS,
+                    w::RolesViewParts {
+                        roles: List::from_boxed(Box::new([w::CharterView::new(
+                            &w::CEILINGS,
+                            w::CharterViewParts { charter: 4, card },
+                        )
+                        .unwrap()])),
+                    },
+                )
+                .unwrap(),
+            ),
             Address::Role { .. } => {
                 w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 4, card }).unwrap())
             }
@@ -454,7 +489,6 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             | Address::Home { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
-            | Address::Settings { .. }
             | Address::Repositories { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
@@ -473,7 +507,46 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
         );
         let Read::Drawn(drawn) = f.pages.roles().unwrap().read() else { panic!("drawn view") };
         assert_eq!(drawn, &view);
-        event(&mut f, Event::Went { address: Address::Settings { project: 3 } });
+        for (newest, refresh) in [(1, true), (1, false), (2, true)] {
+            f.root.client.step_unlinked(
+                skein_lib::Time::ZERO,
+                skein_lib::Wall::EPOCH,
+                jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: settings,
+                        event: c::WatchEvent::Delivered(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest,
+                            settings: List::with_capacity(0),
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))),
+                    },
+                },
+                &mut Queue::uncapped(),
+            );
+            event(&mut f, Event::Told { told: Told::Changed { handle: crate::forge::ways::handle() } });
+            let read = view_read(&mut f.out);
+            assert_eq!(read.is_some(), refresh, "revision {newest}, {address:?}");
+            if let Some((next, scope, words)) = read {
+                assert_ne!(next, handle);
+                assert_eq!(scope, project);
+                assert_eq!(words.as_ref(), wanted);
+                handle = next;
+                event(
+                    &mut f,
+                    Event::Told {
+                        told: Told::Page {
+                            handle,
+                            page: jig_client::Readout::Family {
+                                family: wire::FORGE,
+                                record: Some(wire::view_answer(&answer)),
+                            },
+                        },
+                    },
+                );
+            }
+        }
+        event(&mut f, Event::Went { address: Address::Repositories { project: 3 } });
         assert!(f.pages.roles().is_none());
         let mut unwatched = false;
         for request in &f.out {

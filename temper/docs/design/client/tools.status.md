@@ -54,6 +54,13 @@ the JSON member is `stored_policy`. The refusal table holds charter 5,
 supplied 70112 and maximum 65536. Malformed parts still name no part
 in the engine's refusal, as the draft's status records.
 
+Section 11.2's joined story of a settings file of each kind proposed,
+shown, accepted and restored (`tests/client`'s `settings_tools.rs`,
+`each_kind_through_ctl_proposed_shown_accepted_and_restored`) runs
+through its restart: a project's rule 1 reset to the every-project
+default keeps its retained state (`../protocol/configuration.status.md`,
+13.2 and 13.4).
+
 Sections 5.2 and 6.1 have no known gap in next-run bounds explanations,
 hello figures, charter-bearing shortfalls or their JSON. The waiting
 tables check each named ctl call through the parser, each help page by

@@ -5,10 +5,11 @@ pub(crate) fn bounds(path: &Path) {
     assert_eq!(path.stops.last().expect("bar").actor, Actor::Bar, "final bar");
     for stop in &path.stops {
         assert!(stop.words.len() <= WORDS, "words bound");
+        assert!(stop.over.len() <= OVER, "over bound");
         assert!(stop.card.who.len() <= WHO, "who bound");
         assert!(stop.card.name.len() <= NAME, "name bound");
         assert!(stop.card.facts.len() <= FACTS, "facts bound");
-        for text in [&stop.words, &stop.card.who, &stop.card.name] {
+        for text in [&stop.words, &stop.over, &stop.card.who, &stop.card.name] {
             assert!(skein_lib::bytes::is_utf8(text), "text ends at a character boundary");
         }
         for fact in &stop.card.facts {

@@ -11,8 +11,16 @@
   7.1's path printed for both widths adds to it: the print test alone took
   1.483 s of wall time before the second drawing and 4.069 s after
   (`look-round-24`'s `gallery-narrow`, at `436533537a`); no CPU figure is
-  on record. How work runs' six states, `how` to `night-how`, add to it,
-  with no CPU figure on record either.
+  on record. How work runs' six states, `how` to `night-how`, and the
+  fifteen of the rail, Work and Deployment, `rail-new-change` to
+  `night-limits`, and the thirteen of Home and Needs you across projects,
+  `all-home` to `night-needs`, add to it, with no CPU figure on record
+  either.
+
+- **Departs:** 2.5: A role's model is drawn among its opened terms, not
+  at its summary's right: skein's disclosure summary holds its name and
+  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  right-hand model waits for a structured summary in skein.
 
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
@@ -70,6 +78,22 @@ prints `how`, `how-approve`, `how-draft`, `how-yours`, `how-card` and
 `night-how` at both widths, and its table checks each. The rendered
 comparison follows landing (`README.md`, section 11).
 
+Sections 2.3, 2.5 and 7.2 have no known implementation gap in the rail,
+Work and Deployment, by plan `ui-p1-rail`: Work's path with `?show=drafts`
+for Drafts, a query of another name or value dropped, and Members' and
+Limits' paths under `/deployment`, which the domain's address table
+parses and prints; `temper.css`'s `/* ==== ui: rail ==== */` holding the
+hairline, the new box filling its dashed box, its plus drawn by style and
+no text of a control's name (`the_new_box_plus_is_drawn_without_accessible_text`,
+by the repair `red-84` after landing), and "Deployment" at the foot;
+`/* ==== ui: work ==== */` holding Work's head, chips, section heads,
+cards and landed rows; Deployment's frame and Members' and Limits' lines
+under the settings marker; the tab bar's four columns, Home, Needs you,
+Work and Ask; and the gallery's `rail-new-change` to `night-limits`, with
+`rail-new-menu` redrawn, which its table checks. The rendered comparison
+follows landing (`README.md`, section 11, *The rail, Work and Deployment
+after landing*).
+
 Sections 2.3, 2.5 and 7.1 have no known implementation gap in
 `look-round-24`'s repairs: a path's marks and labels take no stroke but
 their own rules', by one rule under `.temper-ways-path`, skein's rule
@@ -88,7 +112,8 @@ the address, visibility, focus and call-line checks. No implementation
 gap remains in those reads. The client takes its filter from the address;
 Drafts arriving before Closed is section 5's deferred row movement, not
 a loss of the selected filter. After each new load of `/` and of an
-address that is no page, the story awaits the rail's "New chat" link,
+address that is no page, the story awaits the rail's "New draft or
+change" button,
 drawn with the page once `me` is read (`README.md`, 5.1), before its
 unchanged main and Needs checks, so the empty busy main meets none of
 them. The whole story, its phone Ask, call-line and night rows with it,
@@ -128,8 +153,10 @@ old link after restarting serve; no runtime result is supplied here.
 Cookie fallback remains deferred in section 5.
 
 Section 7.2's `settings-all-hidden` sample names every switch off,
-separately from the drafts-on stock. The view tables hold Goals in the
-rail and phone tab bar with kind 7's Goals hidden and a goal present.
+separately from the drafts-on stock. The view tables hold that kind 7's
+switches change no entry of the rail and the tab bar
+(`kind_seven_changes_no_navigation_entry`), and that Goals' and Changes'
+hide Work's filters of those names alone.
 The fresh-project flow's browser check is deferred in section 5.
 
 Sections 2.5 and 7.2 have no known implementation gap in Goals opening
@@ -408,6 +435,17 @@ reads the rules, whose effect is rendered; that comparison is section
   request does not draw, so that no source of the bundle names the old
   mark's `#b8664e`, as its test asks.
 
-- **Not yet:** 2.3: no `/home`. 7.2: none of the `all-home-*`,
-  `night-all-home`, `home-step-*`, `needs-list*`, `needs-tell`,
-  `needs-approval-first` or `night-needs` states.
+Sections 2.3 and 7.2 have no known implementation gap in Home and Needs
+you across projects, by plan `ui-p2-home`: `/home` for `AllHome`, which
+the domain's address table parses and prints; `temper.css`'s `/*
+==== ui: home ==== */` and `/* ==== ui: needs ==== */` holding Home's
+cards, Projects, the Ask temper line, Needs you's list, its closed rows,
+its *Tell it something else* and Decided for you, with their phone
+forms; and the gallery's `all-home`, `all-home-nothing-new`,
+`all-home-one-project`, `night-all-home`, the four `home-step-*`,
+`needs-list`, `needs-list-second`, `needs-tell`, `needs-approval-first`
+and `night-needs`, which its table checks. 7.2's states hold no red
+"owned", no Home at the standing roles' step, and no need's why, offer
+or Only you, which nothing yet draws (`../draft/surfaces.status.md`,
+14). The rendered comparison follows landing (`README.md`, section 11,
+*Home and Needs you across projects after landing*).
