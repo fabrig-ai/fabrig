@@ -370,7 +370,8 @@ pub(crate) fn is_reading(domain: &Domain, right: Token) -> bool {
         | FlightRender::Amended(_)
         | FlightRender::Change(_)
         | FlightRender::PersonRoles(_)
-        | FlightRender::Document(_) => false,
+        | FlightRender::Document(_)
+        | FlightRender::Remember(_) => false,
     }
 }
 
@@ -396,7 +397,8 @@ fn flight_context(render: &mut FlightRender) -> (&mut SeeFlight, u32) {
         | FlightRender::Amended(_)
         | FlightRender::Change(_)
         | FlightRender::PersonRoles(_)
-        | FlightRender::Document(_) => unreachable!("see person context"),
+        | FlightRender::Document(_)
+        | FlightRender::Remember(_) => unreachable!("see person context"),
     }
 }
 

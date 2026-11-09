@@ -82,7 +82,8 @@ pub(crate) fn call(
                 | Read::InputCheck(_)
                 | Read::GoalWords(_)
                 | Read::Notes { .. }
-                | Read::SettingsNote { .. },
+                | Read::SettingsNote { .. }
+                | Read::Remember(_),
             )
             | None,
         ) => unreachable!("document read insertion"),
