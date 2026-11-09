@@ -211,7 +211,11 @@ pub(crate) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
                 };
                 out.push(Request::Now(Box::new(Now::WatchRefused { watcher: external, why })));
             }
-            views::Request::Stream { watcher, turn, from, to, text, cut, call, writing } => {
+            views::Request::Stream { watcher, turn, from, to, text, cut, mut call, mut writing } => {
+                let binding = core.watch_binding(watcher).expect("stream has a bound watcher");
+                let subject = &core.view_names.get(binding.subject).expect("bound stream subject").subject;
+                let Subject::Run { task } = subject else { unreachable!("only runs stream text") };
+                crate::reads::withheld::live(core, binding.party, *task, &mut call, &mut writing);
                 out.push(Request::Now(Box::new(Now::RunText {
                     watcher: core.watcher(watcher).expect("bound watcher"),
                     turn,

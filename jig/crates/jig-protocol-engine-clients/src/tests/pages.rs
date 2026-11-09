@@ -4,7 +4,13 @@ use jig_client_protocol_wire::v19 as w;
 use jig_domain_core::reads;
 
 fn activity(read: &reads::Page, limits: &w::Limits) -> Result<w::ReadValue, w::Problem> {
-    pages::page(&fixtures::models(), &reads::Read::Activity { task: 7, before: None }, read, limits)
+    pages::page(
+        &fixtures::models(),
+        &reads::Read::Activity { task: 7, before: None },
+        read,
+        &crate::Private::none(),
+        limits,
+    )
 }
 #[test]
 fn an_activity_page_carries_each_turn_s_bytes() {
@@ -14,6 +20,35 @@ fn an_activity_page_carries_each_turn_s_bytes() {
         activity(&source, &limits),
         Ok(w::ReadValue::Activity(jig_client_test_records::carried_activity_page()))
     );
+    for withheld in [false, true] {
+        let source = fixtures::private_activity(withheld);
+        let w::ReadValue::Activity(page) = pages::page(
+            &fixtures::models(),
+            &reads::Read::Activity { task: 7, before: None },
+            &source,
+            &fixtures::private(),
+            &limits,
+        )
+        .unwrap() else {
+            panic!("activity page")
+        };
+        let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(page.rows())).unwrap().unwrap();
+        let line = w::DecodedActivityLine::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
+        let archive = line.decoded().as_ref().unwrap();
+        let w::TurnBytes::Carried(turn) = archive.turn() else { panic!("carried projection") };
+        assert_eq!(turn.bytes(), fixtures::private_transcript(withheld).as_ref(), "withheld {withheld}");
+        assert_eq!(
+            (
+                archive.task(),
+                archive.name().attempt(),
+                archive.name().number(),
+                archive.cumulative(),
+                *archive.read(),
+                archive.at()
+            ),
+            (7, 31, 37, 19, Some(0), 23)
+        );
+    }
     for (label, limits, path) in [
         ("turn bytes", w::Limits { turn_carried_bytes: 2, ..limits }, w::Path::TurnCarriedBytes),
         ("page pieces", w::Limits { activity_page_rows: 0, ..limits }, w::Path::ActivityPageRows),
@@ -45,6 +80,7 @@ fn a_history_page_keeps_its_cut_flag() {
                 &fixtures::models(),
                 &reads::Read::History { task: 7, subtree: false, from: None },
                 &source,
+                &crate::Private::none(),
                 &limits
             ),
             Ok(w::ReadValue::History(w::HistoryPage::new(&limits, expected).expect(label))),
@@ -64,7 +100,7 @@ fn an_inbox_page_keeps_its_two_groups_apart() {
     ] {
         let read = reads::Read::Inbox { group, filter: reads::Filter { project: None, goal: None }, from: None };
         assert_eq!(
-            pages::page(&fixtures::models(), &read, source, &limits),
+            pages::page(&fixtures::models(), &read, source, &crate::Private::none(), &limits),
             Ok(w::ReadValue::Inbox(record)),
             "{label}"
         );
@@ -76,7 +112,7 @@ fn a_notes_page_becomes_its_record() {
     let source = fixtures::notes_page();
     let read = reads::Read::Notes { project: 13, from: None };
     assert_eq!(
-        pages::page(&fixtures::models(), &read, &source, &limits),
+        pages::page(&fixtures::models(), &read, &source, &crate::Private::none(), &limits),
         Ok(w::ReadValue::Notes(jig_client_test_records::scoped_notes_page()))
     );
 }
