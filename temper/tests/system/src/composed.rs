@@ -38,6 +38,7 @@ mod agreement;
 mod chat;
 mod link;
 mod long_chat;
+pub mod merge_job;
 mod next_turn;
 mod parked;
 mod process;
@@ -96,6 +97,7 @@ enum Adoption {
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
     seed: u64,
+    merge_job: Option<merge_job::Story>,
     scripts: VecDeque<Script>,
     parked: std::collections::BTreeMap<u64, Process>,
     period_budget: u64,
@@ -437,16 +439,22 @@ impl World {
             (config, bounds)
         });
         let forge = repository_forge(seed);
-        let worker_limits =
+        let mut worker_limits =
             if config.core.defaults.charters.len() > 1 { agreement::worker_limits(&limits) } else { worker_limits() };
+        if !config.core.jobs.is_empty() {
+            // One completed answer can remain on the link while the other slot advances the goal.
+            worker_limits.host.slots = 2;
+        }
         // The engine waits for a lost worker longer than it may take to stop.
         limits.fleet.grace = worker_limits.stop_bound.saturating_add(Duration::from_secs(1));
         assert!(engine::valid(&limits));
         assert!(worker::valid(&worker_limits));
+        let kinds = if config.core.jobs.is_empty() { Box::new([]) } else { temper_service::limits::job_kinds() };
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
             seed,
+            merge_job: None,
             scripts: VecDeque::new(),
             parked: std::collections::BTreeMap::new(),
             period_budget: config.core.defaults.rules.period_spend,
@@ -460,7 +468,7 @@ impl World {
             store,
             party: signed_in_party(),
             protocol: Protocol::default(),
-            worker: worker::Domain::new(&worker_limits, Box::new([])),
+            worker: worker::Domain::new(&worker_limits, kinds),
             worker_out: Queue::uncapped(),
             worker_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: worker_limits },
             // The worker's link has a channel open to the engine.
@@ -980,6 +988,16 @@ impl World {
     }
 
     fn assigned(&mut self, channel: Token, assignment: engine::Assignment) {
+        if let Some(story) = &mut self.merge_job {
+            // This story ends when the resolution is made, before its agent runs.
+            if assignment.task > 5 {
+                return;
+            }
+            if assignment.task == 5 && story.held.is_none() && story.base.is_none() {
+                story.pending = Some((channel, assignment));
+                return;
+            }
+        }
         assert_eq!(channel, CHANNEL);
         let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)));
         assert!(self.store.rows.contains_key(&live), "assignment follows durable task");
@@ -1035,8 +1053,8 @@ impl World {
             }
             // A live notice to the requester, with no reply right.
             Delivery::Result { .. } => {}
-            other @ (Delivery::AssignedJob { .. }
-            | Delivery::PlaygroundNote { .. }
+            Delivery::AssignedJob { channel, job, workspace } => self.assigned_job(channel, job, workspace.as_ref()),
+            other @ (Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
             | Delivery::Procedure { .. }
             | Delivery::Forges { .. }
@@ -1162,7 +1180,15 @@ impl World {
             assert!(work.landed.is_empty(), "an inspecting run lands nothing");
         }
         let parts = link::parts(work, preparation);
-        self.up(engine::Link::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts });
+        let link = engine::Link::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts };
+        if let Some(story) = &mut self.merge_job
+            && run.raw() == 4
+            && story.base.is_none()
+        {
+            story.held = Some(link);
+        } else {
+            self.up(link);
+        }
     }
 
     fn remember_call(&mut self, up: &host::LinkUp) {
@@ -1201,12 +1227,17 @@ impl World {
         match request {
             worker::Request::ReadList { .. }
             | worker::Request::CancelRead { .. }
-            | worker::Request::Job { .. }
             | worker::Request::Source { .. }
             | worker::Request::SourceFault => {
                 panic!("this fixture declares no program sources")
             }
-            worker::Request::Hello(hello) => self.up(engine::Link::Hello { worker: 0, hello }),
+            worker::Request::Job { owner, op } => self.job_operation(owner, op),
+            worker::Request::Hello(hello) => {
+                if let Some(story) = &mut self.merge_job {
+                    story.hello = hello.jobs.to_vec();
+                }
+                self.up(engine::Link::Hello { worker: 0, hello });
+            }
             worker::Request::Link(up) => {
                 self.remember_call(&up);
                 match &up {
