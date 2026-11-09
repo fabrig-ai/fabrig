@@ -153,6 +153,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Now::TaskRead { to, key: _, answer } => super::host_route::read(domain, to, CallAnswer::TaskRead(answer)),
         core::Now::ProposalRead { to, key: _, answer } => super::see::proposal::answered(domain, to, answer),
         core::Now::SettingsAnswer { to, key: _, answer } => super::host_route::settings(domain, to, answer),
+        core::Now::PersonAnswer { .. } => unreachable!("temper's root asks no person read yet"),
         core::Now::EffectAnswer { to, key: _, part } => {
             let answer = CallAnswer::from_core(&part).expect("effect wait answer");
             relay_call(domain, &env.limits, decision, to, answer);

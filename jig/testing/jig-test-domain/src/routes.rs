@@ -522,6 +522,7 @@ fn route_now(
         | core::Now::TaskRead { .. }
         | core::Now::ProposalRead { .. }
         | core::Now::SettingsAnswer { .. }
+        | core::Now::PersonAnswer { .. }
         | core::Now::SignInRefused { .. }
         | core::Now::WatchRefused { .. }
         | core::Now::Account(_)
