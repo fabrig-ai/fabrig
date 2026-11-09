@@ -135,7 +135,15 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
                 assert!(text.contains(&needle));
                 text = text.replace(&needle, &format!("\"{key}\":{after}"));
             }
-            document = text.into_bytes().into_boxed_slice();
+            let mut value: serde_json::Value = serde_json::from_str(&text).unwrap();
+            let overrides = &mut value["workers"][0]["limits"]["overrides"];
+            let bodies = jig_protocol_worker_wire::v9::Limits {
+                turn_body: turn,
+                turn_refused: u32::try_from(overrides["tasks.run_inbox"].as_u64().unwrap()).unwrap(),
+                ..jig_protocol_worker_wire::v9::CEILINGS
+            };
+            overrides["io.output"] = (jig_protocol_worker_wire::v9::Turn::encoded_bound(&bodies).unwrap() + 8).into();
+            document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
         }
         let store = crate::store_limits(&document, &config::Directories::working(), Some(&agent)).unwrap().store;
         let page = u64::from(store.store.page.bytes);
