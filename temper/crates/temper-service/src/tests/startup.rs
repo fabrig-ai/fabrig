@@ -135,7 +135,15 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
                 assert!(text.contains(&needle));
                 text = text.replace(&needle, &format!("\"{key}\":{after}"));
             }
-            document = text.into_bytes().into_boxed_slice();
+            let mut value: serde_json::Value = serde_json::from_str(&text).unwrap();
+            let overrides = &mut value["workers"][0]["limits"]["overrides"];
+            let bodies = jig_protocol_worker_wire::v9::Limits {
+                turn_body: turn,
+                turn_refused: u32::try_from(overrides["tasks.run_inbox"].as_u64().unwrap()).unwrap(),
+                ..jig_protocol_worker_wire::v9::CEILINGS
+            };
+            overrides["io.output"] = (jig_protocol_worker_wire::v9::Turn::encoded_bound(&bodies).unwrap() + 8).into();
+            document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
         }
         let store = crate::store_limits(&document, &config::Directories::working(), Some(&agent)).unwrap().store;
         let page = u64::from(store.store.page.bytes);
@@ -1051,6 +1059,12 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     agent.host_limits.message_bytes = 10_662;
     agent.host_limits.messages = 82;
     let part = crate::startup::worker_part(&input, &directories).unwrap();
+    let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
+    let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.forge.forges).unwrap();
+    assert_eq!(
+        link.room,
+        jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8
+    );
     let operations = crate::system::worker_alone_operations(
         &part.worker.jig.limits.io,
         crate::worker_settings::operations(&part.limits.git_component.into()).unwrap(),

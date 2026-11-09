@@ -1918,6 +1918,7 @@ fn turn_bounds() {
     let root = skein_scratch::paths::tree();
     for (deployment, agent) in [
         ("crates/temper-init/template/temper.json", "crates/temper-init/template/agent.json"),
+        ("crates/temper-init/template/bare.json", "crates/temper-init/template/bare-agent.json"),
         ("docs/examples/owned.json", "docs/examples/owned/agent.json"),
     ] {
         let agent: serde_json::Value =

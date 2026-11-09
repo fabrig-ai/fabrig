@@ -17,6 +17,8 @@ pub(crate) struct Net {
     bytes: VecDeque<u8>,
     right: Option<Token>,
     pub write_room: WriteRoom,
+    pub cap: Option<u32>,
+    asked: u32,
     pub ended: bool,
     pub gone: bool,
     pub taken: bool,
@@ -32,6 +34,8 @@ impl Net {
             bytes: VecDeque::new(),
             right: None,
             write_room: WriteRoom::Free,
+            cap: None,
+            asked: 0,
             ended: false,
             gone: false,
             taken: false,
@@ -48,7 +52,8 @@ impl Net {
             Lower::Read(stream::Down::Finish) => {}
             Lower::Read(stream::Down::Send(_)) | Lower::FinishWrite => panic!("one stream, independent output"),
             Lower::Write(write) => match write {
-                stream::OutputDown::Room { right, .. } => {
+                stream::OutputDown::Room { right, bytes } => {
+                    self.asked = bytes;
                     assert!(self.right.replace(right).is_none());
                 }
                 stream::OutputDown::Cancel { right } => {
@@ -89,7 +94,8 @@ impl Net {
         if let Some(event) = self.events.pop_front() {
             return Some(event);
         }
-        if !matches!(self.write_room, WriteRoom::Withheld | WriteRoom::Held)
+        if self.cap.is_none_or(|cap| self.asked <= cap)
+            && !matches!(self.write_room, WriteRoom::Withheld | WriteRoom::Held)
             && let Some(right) = self.right.take()
         {
             if self.write_room == WriteRoom::One {

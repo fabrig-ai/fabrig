@@ -450,6 +450,57 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
                 engine_worker_loss(why)
             )
         }
+        temper_service::Note::WorkerUnsent { worker, channel, unsent } => {
+            use jig_protocol_engine_workers::Bound;
+            use jig_protocol_worker_wire::Kind;
+            let record = match unsent.kind {
+                Kind::Hello => "hello",
+                Kind::Turn => "turn",
+                Kind::Call => "call",
+                Kind::Answer => "answer",
+                Kind::Fact => "fact",
+                Kind::Unauthorized => "unauthorized",
+                Kind::Limited => "limited",
+                Kind::AccountRefused => "account-refused",
+                Kind::Assignment => "assignment",
+                Kind::Message => "message",
+                Kind::Relayed => "relayed",
+                Kind::TurnKept => "turn-kept",
+                Kind::TurnBusy => "turn-busy",
+                Kind::Acknowledge => "acknowledge",
+                Kind::Cancel => "cancel",
+                Kind::Grant => "grant",
+                Kind::Sources => "sources",
+                Kind::Check => "check",
+                Kind::ReadList => "read-list",
+                Kind::ListRead => "list-read",
+                Kind::Draining => "draining",
+                Kind::SignOut => "sign-out",
+                Kind::Logins => "logins",
+                Kind::SignedOut => "signed-out",
+                Kind::Job => "job",
+                Kind::JobAnswer => "job-answer",
+            };
+            let bound = match unsent.bound {
+                Bound::Room(room) => format!("past the room of {room} bytes"),
+                Bound::Channel(why) => {
+                    let reason = match why {
+                        skein_channel::Unsent::WrongDirection => "wrong-direction",
+                        skein_channel::Unsent::PeerDoesNotTake => "not-taken",
+                        skein_channel::Unsent::TooLarge => "too-large",
+                        skein_channel::Unsent::Closed => "closed",
+                        skein_channel::Unsent::Full => "full",
+                    };
+                    format!("refused: {reason}")
+                }
+            };
+            format!(
+                "{binary} serve: worker unsent worker={} channel={}: {record} of {} bytes {bound}\n",
+                worker_name(Some(&worker)),
+                channel.raw(),
+                unsent.bytes
+            )
+        }
         temper_service::Note::WorkerOpeningEnded { worker, why } => {
             format!(
                 "{binary} serve: worker opening ended worker={}: {}\n",
@@ -1203,6 +1254,38 @@ fn engine_worker_loss_lines_name_each_cause_and_refusal_exactly() {
         ),
         "temper serve: worker opening ended worker=worker-a: silence\n"
     );
+}
+
+#[test]
+fn worker_unsent_lines_name_the_record_bytes_and_bound() {
+    use jig_protocol_engine_workers::{Bound, Unsent};
+    use jig_protocol_worker_wire::Kind;
+    for (kind, bytes, bound, expected) in [
+        (
+            Kind::Assignment,
+            1_300_000,
+            Bound::Room(1_048_576),
+            "temper serve: worker unsent worker=worker-a channel=7: assignment of 1300000 bytes past the room of 1048576 bytes\n",
+        ),
+        (
+            Kind::Message,
+            4_200,
+            Bound::Channel(skein_channel::Unsent::TooLarge),
+            "temper serve: worker unsent worker=worker-a channel=7: message of 4200 bytes refused: too-large\n",
+        ),
+    ] {
+        assert_eq!(
+            note_line(
+                "temper",
+                temper_service::Note::WorkerUnsent {
+                    worker: b"worker-a".as_slice().into(),
+                    channel: skein_lib::Token::new(7),
+                    unsent: Unsent { kind, bytes, bound },
+                }
+            ),
+            expected
+        );
+    }
 }
 
 #[test]

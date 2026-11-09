@@ -18,6 +18,10 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
         driver.client.sign_in_time = millis(value)?;
         return Ok(());
     }
+    if name == b"io.output" {
+        limits.io.output = count(value)?;
+        return Ok(());
+    }
     let dot = bytes::find(name, b".").ok_or(What::Override)?;
     let owner = name.get(..dot).ok_or(What::Override)?;
     let field = name.get(dot.checked_add(1).ok_or(What::Override)?..).ok_or(What::Override)?;
@@ -872,6 +876,7 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
         return false;
     };
     match name.get(..dot) {
+        Some(b"io") => skein_io::valid(&limits.io),
         Some(b"hub") => {
             if fits.hub.is_none() {
                 fits.hub = Some(jig_domain_host::valid_hub(&limits.hub));

@@ -43,6 +43,7 @@ pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wi
 pub const LIMITS: Limits = Limits {
     sizes: SIZES,
     chunk: 64,
+    room: u32::MAX,
     handshake: Duration::from_secs(1),
     ping: Duration::from_secs(5),
     silence: Duration::from_secs(15),

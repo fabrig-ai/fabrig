@@ -5653,8 +5653,11 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
+ "jig-protocol-engine-workers",
  "jig-protocol-store",
+ "jig-protocol-worker-wire",
  "serde_json",
+ "skein-channel",
  "skein-forge",
  "skein-forge-connection",
  "skein-io",
@@ -5987,6 +5990,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
+ "jig-protocol-worker-wire",
  "serde_json",
  "skein-channel",
  "skein-fake-forge-domain",
@@ -6041,6 +6045,7 @@ name = "temper-playground-world"
 version = "0.0.0"
 dependencies = [
  "jig-client-shell-web",
+ "jig-protocol-config",
  "serde_json",
  "skein-fake-forge-domain",
  "skein-fake-person",

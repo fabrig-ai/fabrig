@@ -162,6 +162,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                     || name == "core.resume_bytes"
                     || name.starts_with("root.loads.")
                     || name == "root.journal.transcript_bytes"
+                    || name == "io.output"
                 {
                     expected.pointer_mut(pointer).expect("owned overrides")[name] = bytes.clone();
                 }

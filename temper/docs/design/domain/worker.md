@@ -296,6 +296,20 @@ jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
   which the engine counts as permanent (jig's `domain/tasks.md`, 5.5). A
   start smith refuses as busy, an agent or a run it has no room for, is
   refused busy, as at the entrance (jig's `domain/hosts.md`, section 8).
+- **A start the link cannot carry** never reaches the worker. An
+  assignment or job whose frame is past the room the engine's stream
+  grants at once, `io.largest_room` (its `io.output`), is answered on the
+  engine's side by jig's workers' component, refused as an invalid start
+  whose words name the record, its frame's bytes and the room (jig's
+  `protocol/channel.md`, 5.2 and 9). The run fails as any invalid start
+  does, with serve's operator line below, and serve writes the link's
+  `worker unsent` line too (`../protocol/README.md`, 15.3). The link, its
+  pings and the worker's other runs go on; nothing waits for an answer
+  the worker was never sent. Both profiles admit a resumed start past
+  their room: a whole charter and window with every call committed since
+  the last turn and a full inbox. Such a start fails so, with its
+  numbers, rather than silencing the link until the worker's silence
+  deadline drops it and every run on it.
 - **An answer past the agent's reply bound** (`Limits::reply_bytes`,
   smith's `host_reply_bytes`) is given to smith as its `TooLarge`,
   never as a body its host codec would refuse: such a send would
