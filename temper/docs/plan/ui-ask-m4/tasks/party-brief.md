@@ -85,3 +85,21 @@ Acceptance:
 
 As the implementer's text asks; give the first request's parts as the
 temper-service test prints them.
+
+## Answers
+
+2026-11-09. *May party-brief change the notes child's `Index` read so a
+party's scope is bounded by `notes.party_entries` rather than `notes.lines`?*
+Yes; the change is this task's, since the twelve-line row cannot hold without
+it, and engine.md 10.1 says the section holds the scope's lines, every one.
+In `jig/crates/jig-domain-notes/src/read.rs`, `drive`'s `Kind::Index` arm
+bounds an index whose scopes are exactly one `Scope::Party { .. }` by
+`most.min(limits.party_entries)`, and every other index by
+`most.min(limits.lines)` as now; every `match` on `Scope` lists every
+variant. Also edit the `lines` doc line in
+`jig/crates/jig-domain-notes/src/limits.rs` to say a party's scope answers up
+to `party_entries`. Don't raise any profile's `notes.lines` or change a
+fixture's bound to get round it. Don't touch `jig-domain-notes/src/tests.rs`,
+`domain.rs` or `boundary.rs` (`party-runs` owns them): the story's
+twelve-line row in the small profile is the check, and `heavy cargo nextest
+run -p jig-domain-notes --lib` must still pass. Name both edits in the report.
