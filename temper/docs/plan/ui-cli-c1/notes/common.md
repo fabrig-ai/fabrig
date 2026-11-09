@@ -17,6 +17,10 @@
 - **Made-up names in tests' data take no tree's prefix**
   (`skein/docs/foundation/cli.md`, 9, check 5): a test's variable is
   `DEMO_CONFIG`, never `TEMPER_CONFIG`, `SKEIN_X` or `JIG_X`.
+- **Write no `<TREE>_…` name the trunk doesn't hold already,** in code,
+  a comment or a lint's reason: check 5 (`checks-names`) fails on a new
+  one. Name a variable by today's name (`TEMPER_DUMP_LLM`), never by the
+  one a later milestone gives it.
 - **Only the focused and fuzzy suites run.** Never `tools/tiers/run`, a
   `<tier>-<tree>` profile, `scripts/browser.sh`, a browser, process or
   live tier story, a walk, a render check or a throwaway driver.
