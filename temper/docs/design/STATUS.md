@@ -62,6 +62,18 @@ pseudo-terminal; `--no-tui` and a box off a terminal run as before
 for `again` to start the box in the pseudo-terminal
 (`client/tui/journeys.status.md`, 8.3), and its real-terminal check
 follows landing (`client/README.md`, section 11).
+The user's requests of 2026-11-09 are built: what is typed in the box
+shows from the first frame and the sign-in keeps it, Enter before it
+lands saying "Still signing in"; the box's words in the terminal's ink,
+the accent on "❯" alone, by skein's focused value's paint; `/theme`'s
+list of Auto, Light and Dark, the choice kept in the TUI's small store;
+`/quit`, `/exit` still taking it unlisted; and a notice standing 6
+seconds at the quiet line's right end (`client/README.md`, 6.13 to
+6.17). In front, Enter on the welcome's box with no command leaves
+`/log`'s note standing, and the commands reference still names `/exit`
+(`client/README.status.md`, 6.14 and 6.17); the committed journeys'
+`screen` keeps `dark` (`client/tui/journeys.status.md`, 3.2). Their
+real-terminal check follows landing (`client/README.md`, section 11).
 The launchpad as drawn and views printed, the whole story's T1, are
 built by plan `tui-whole-t1`: the brief and `/brief`, Where you left off
 with each row's project and the person's newest goal, Needs you marked

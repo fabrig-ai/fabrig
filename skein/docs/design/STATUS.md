@@ -4,8 +4,8 @@
 design from its drafts, from the status files below. The full-screen
 shell's renderer, keys, drawing and simulated terminal are built, with
 panic restoration and simulated resizes. Rules, border-end titles, bands,
-options menus, marks, unlabelled fields and paging by the visible body
-are present, with end following and Escape released after the background
+options menus, marks, unlabelled fields, a token's focused value's
+paint and paging by the visible body are present, with end following and Escape released after the background
 wait. Log-edge reporting and the other rendering and input extensions
 remain deferred (`ui-screen.md`, section 10; `ui-screen.status.md`). The kernel's records of a tree's metadata,
 the filesystem's status and btrfs's
