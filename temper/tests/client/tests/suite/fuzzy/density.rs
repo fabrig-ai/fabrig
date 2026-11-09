@@ -585,6 +585,7 @@ fn check_rules(home: Option<&parts::HomeFacts>, needs: &parts::NeedsFacts) {
             list: needs.known && needs.open != 0,
             done: needs.known && needs.open == 0,
             decided: needs.showing != 0,
+            only: needs.known && needs.only != 0,
         },
         "Needs you's independent part rules: {needs:?}"
     );
