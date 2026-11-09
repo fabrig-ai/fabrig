@@ -58,7 +58,14 @@ pub(super) fn agent(domain: &Domain, project: u32, party: u64, number: u32) -> O
         model: name,
         effort,
         usable,
-        can: ways::can(policy.inspect, policy.modify, policy.shell, policy.agents).into(),
+        can: ways::can(
+            policy.inspect,
+            policy.modify,
+            policy.shell,
+            policy.agents,
+            policy.tools.0 & jig_domain_core::ToolFamilies::JIG.settings != 0,
+        )
+        .into(),
         asked: ways::first_sentence(&policy.instructions, ways::ASKED.checked_sub("“”".len()).expect("quote room")),
     })
 }

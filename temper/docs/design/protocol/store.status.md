@@ -1,6 +1,6 @@
 # store: status
 
-2026-11-07. Where temper's code lags or departs from [store.md](store.md).
+2026-11-08. Where temper's code lags or departs from [store.md](store.md).
 
 Section 2 has no known implementation gap in provider 0's subject.
 The forge's codec writes the 10-byte forge and user pair, reads it only

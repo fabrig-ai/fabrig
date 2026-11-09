@@ -12,7 +12,7 @@ use temper_engine_domain_ways::{Actor, Inputs, Repository, Role, Start, Step, Ti
 #[test]
 #[expect(clippy::too_many_lines, reason = "one seeded sweep builds inputs and checks their path invariants")]
 fn paths_end_at_a_bar_and_only_code_lands() {
-    let mut updates = 0_u32;
+    let mut conflicts = 0_u32;
     for seed in 0..64 {
         let mut rng = Rng::new(seed);
         let by = if rng.chance(500) { Way::Queue } else { Way::Turn };
@@ -25,6 +25,7 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                 ci: rng.chance(500),
                 checks: Box::default(),
                 contexts: Box::default(),
+                workflows: Box::default(),
                 tiers: Box::default(),
                 gates: if rng.chance(500) { Box::new([b"unit".as_slice().into()]) } else { Box::default() },
             }),
@@ -33,6 +34,7 @@ fn paths_end_at_a_bar_and_only_code_lands() {
             producer: 1,
             reviewer: 2,
             by,
+            merge_job: rng.chance(500),
             roles: Box::new([Role { number: 0, name: b"owner".as_slice().into(), yours: rng.chance(500) }]),
             agents: Box::default(),
         };
@@ -47,6 +49,13 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                     0 => b"build".as_slice().into(),
                     1 => b"lint".as_slice().into(),
                     _ => b"ci / test".as_slice().into(),
+                })
+                .collect();
+            repository.workflows = (0..rng.below(4))
+                .map(|_| match rng.below(3) {
+                    0 => b"ci.yml".as_slice().into(),
+                    1 => b"lint.yml".as_slice().into(),
+                    _ => b"release.yaml".as_slice().into(),
                 })
                 .collect();
             repository.checks = (0..rng.below(3)).map(|_| u32::try_from(rng.below(4)).unwrap()).collect();
@@ -106,12 +115,35 @@ fn paths_end_at_a_bar_and_only_code_lands() {
         bounds(&path);
         assert!(path.stops.iter().filter(|stop| stop.step == Step::Repair).count() <= 1, "seed {seed}: one repair");
         assert_eq!(path.stops.last().unwrap().step, Step::Branch, "seed {seed}: landing bar");
+        let goal = match input.start {
+            Start::Chat => false,
+            Start::Goal { .. } => true,
+        };
+        let mut goal_segment = goal;
         for stop in &path.stops {
+            if stop.step == Step::Branch {
+                goal_segment = false;
+            }
+            assert_eq!(
+                stop.needed,
+                [Step::Repair, Step::Conflict, Step::Resolve, Step::CatchUp].contains(&stop.step),
+                "seed {seed}: needed {:?}",
+                stop.step
+            );
+            assert!(stop.over.len() <= temper_engine_domain_ways::OVER, "seed {seed}: over bound");
+            assert!(
+                stop.over.is_empty() || (stop.step == Step::Repair || (stop.step == Step::Merge && goal_segment)),
+                "seed {seed}: over only on repair or goal merge"
+            );
+            if stop.step == Step::Merge && !stop.over.is_empty() {
+                assert_eq!(stop.over.as_ref(), b"into goal", "seed {seed}: goal merge");
+                assert!(goal, "seed {seed}: goal only");
+            }
             match stop.step {
-                Step::Update | Step::Merge | Step::Prepare | Step::Prove | Step::Turn => {
+                Step::Conflict | Step::CatchUp | Step::Merge | Step::Prepare | Step::Prove | Step::Turn => {
                     assert_eq!(stop.actor, Actor::Code, "seed {seed}: {:?} belongs to code", stop.step);
-                    if stop.step == Step::Update {
-                        updates += 1;
+                    if stop.step == Step::Conflict {
+                        conflicts += 1;
                     }
                 }
                 Step::Ask
@@ -129,5 +161,5 @@ fn paths_end_at_a_bar_and_only_code_lands() {
             }
         }
     }
-    assert!(updates > 0, "the sweep exercises updates");
+    assert!(conflicts > 0, "the sweep exercises conflicts");
 }

@@ -12,11 +12,12 @@ use jig_domain_brief as brief;
 use temper_engine_domain_forge_landing as landing;
 pub(crate) const GOAL_BRANCH_SYMBOL: u16 = 1;
 pub(crate) const CHANGE_CODE: u32 = 2;
-const FOREMAN_CHARTER: u32 = 6;
+pub(super) const ASKING_TEMPLATE: u32 = 5;
+pub(super) const FOREMAN_CHARTER: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 pub(crate) const STATUS_CODE: u32 = 5;
-const STATUS_CHARTER: u32 = 9;
+pub(super) const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
 mod change_llm;

@@ -56,6 +56,8 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         }
     }
     value["application"]["limits"]["overrides"]["forge.judge_projects"] = 3.into();
+    // Workflow discovery can share the fixture's four foreground logical-call slots.
+    value["application"]["limits"]["overrides"]["forge.client.pending"] = 5.into();
     value["application"]["clients"]["public"] = "https://one.example".into();
     value["application"]["landing"] = serde_json::json!({"projects": [{"project": 1, "by": "turn"}]});
     for (name, count) in [

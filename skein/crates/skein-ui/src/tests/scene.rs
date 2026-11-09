@@ -1,5 +1,5 @@
 use super::fixtures::LIMITS;
-use crate::scene::{Anchor, Command, Mark, Point, Scene};
+use crate::scene::{Anchor, Command, FadeStop, Mark, Point, Scene, fade_bytes};
 use crate::{Limits, Owner, Style};
 const ZERO: Point = Point { x: 0, y: 0 };
 #[test]
@@ -43,7 +43,7 @@ fn a_scene_says_its_size_until_cleared_or_refused() {
 #[test]
 fn bytes_past_scene_bytes_refuse_the_scene() {
     let limits = Limits { scene_bytes: 4, ..LIMITS };
-    for kind in 0_u8..6 {
+    for kind in 0_u8..7 {
         let mut scene = Scene::new(&limits);
         let accepted = match kind {
             0 => scene.text(ZERO, Anchor::Start, b"12345", &[]),
@@ -58,6 +58,10 @@ fn bytes_past_scene_bytes_refuse_the_scene() {
                 scene.act(b"12345")
             }
             5 => scene.scene_act(b"12345"),
+            6 => {
+                assert!(scene.line(ZERO, ZERO, &[]));
+                scene.fade(ZERO, ZERO, &[FadeStop { offset: 0, styles: &[] }])
+            }
             _ => unreachable!(),
         };
         assert!(!accepted, "byte source {kind}");
@@ -100,6 +104,11 @@ fn too_many_tokens_on_a_mark_refuse_the_scene() {
     let style = Style { owner: Owner { number: 1 }, token: 2 };
     let mut scene = Scene::new(&limits);
     assert!(!scene.circle(ZERO, 1, &[style, style]));
+    assert!(scene.refused());
+    assert_eq!(scene.marks(), &[]);
+    let mut scene = Scene::new(&limits);
+    assert!(scene.line(ZERO, ZERO, &[style]));
+    assert!(!scene.fade(ZERO, ZERO, &[FadeStop { offset: 0, styles: &[style] }]));
     assert!(scene.refused());
     assert_eq!(scene.marks(), &[]);
 }
@@ -176,6 +185,15 @@ fn a_scene_prints_one_line_per_mark() {
         &[Command::Move(ZERO), Command::Line(a), Command::Quadratic(a, b), Command::Cubic(ZERO, a, b), Command::Close],
         &[]
     ));
+    assert!(scene.fade(
+        ZERO,
+        b,
+        &[
+            FadeStop { offset: 0, styles: &styles[..1] },
+            FadeStop { offset: 500, styles: &[] },
+            FadeStop { offset: 1000, styles: &styles[1..] },
+        ]
+    ));
     assert!(scene.rect(a, b, 5, &[]));
     assert!(scene.circle(b, 6, &[]));
     assert!(scene.text(a, Anchor::Start, b"hello\n\xC3\xA9", &[]));
@@ -185,4 +203,81 @@ fn a_scene_prints_one_line_per_mark() {
     assert!(scene.line(b, ZERO, &[]));
     let expected = std::fs::read_to_string("src/tests/golden/scene.txt").expect("hand-written golden scene");
     assert_eq!(alloc::fmt::format(format_args!("{scene}")), expected);
+}
+
+#[test]
+fn a_fade_is_taken_or_refused_as_ui_md_says() {
+    #[derive(Clone, Copy, Debug)]
+    enum Shape {
+        None,
+        Line,
+        Polyline,
+        Path,
+        Group,
+        Rectangle,
+        Circle,
+        Text,
+    }
+    let style = Style { owner: Owner { number: 7 }, token: 9 };
+    let stops = [
+        FadeStop { offset: 0, styles: &[style] },
+        FadeStop { offset: 500, styles: &[] },
+        FadeStop { offset: 500, styles: &[style] },
+        FadeStop { offset: 1000, styles: &[] },
+    ];
+    let end = Point { x: 3, y: 4 };
+    assert_eq!(fade_bytes(3), Some(20));
+    for (name, shape, stops, twice, accepted) in [
+        ("line hard edge", Shape::Line, stops.as_slice(), false, true),
+        ("polyline hard edge", Shape::Polyline, stops.as_slice(), false, true),
+        ("path hard edge", Shape::Path, stops.as_slice(), false, true),
+        ("line one stop", Shape::Line, &stops[3..], false, true),
+        ("polyline one stop", Shape::Polyline, &stops[3..], false, true),
+        ("path one stop", Shape::Path, &stops[3..], false, true),
+        ("no mark", Shape::None, stops.as_slice(), false, false),
+        ("group", Shape::Group, stops.as_slice(), false, false),
+        ("rectangle", Shape::Rectangle, stops.as_slice(), false, false),
+        ("circle", Shape::Circle, stops.as_slice(), false, false),
+        ("text", Shape::Text, stops.as_slice(), false, false),
+        ("no stop", Shape::Line, &[], false, false),
+        ("place 1001", Shape::Line, &[FadeStop { offset: 1001, styles: &[] }], false, false),
+        (
+            "places 500 then 0",
+            Shape::Line,
+            &[FadeStop { offset: 500, styles: &[] }, FadeStop { offset: 0, styles: &[] }],
+            false,
+            false,
+        ),
+        ("second fade", Shape::Line, stops.as_slice(), true, false),
+    ] {
+        let mut scene = Scene::new(&LIMITS);
+        let made = match shape {
+            Shape::None => true,
+            Shape::Line => scene.line(ZERO, end, &[]),
+            Shape::Polyline => scene.polyline(&[ZERO, end], &[]),
+            Shape::Path => scene.path(&[Command::Move(ZERO), Command::Line(end)], &[]),
+            Shape::Group => scene.group(ZERO, 0, &[]),
+            Shape::Rectangle => scene.rect(ZERO, end, 0, &[]),
+            Shape::Circle => scene.circle(ZERO, 1, &[]),
+            Shape::Text => scene.text(ZERO, Anchor::Start, b"text", &[]),
+        };
+        assert!(made, "{name}");
+        if twice {
+            assert!(scene.fade(ZERO, end, stops), "{name}");
+        }
+        assert_eq!(scene.fade(ZERO, end, stops), accepted, "{name}");
+        assert_eq!(scene.refused(), !accepted, "{name}");
+        if accepted {
+            let fade = scene.mark_fade(0).expect("accepted fade");
+            assert_eq!(fade.from, ZERO, "{name}");
+            assert_eq!(fade.to, end, "{name}");
+            assert!(fade.stops().eq(stops.iter().copied()), "{name}");
+            scene.clear();
+            assert!(scene.mark_fade(0).is_none(), "{name}");
+        } else {
+            assert_eq!(scene.marks(), &[], "{name}");
+            assert!(scene.mark_fade(0).is_none(), "{name}");
+            assert!(!scene.fade(ZERO, end, stops), "{name}: already refused");
+        }
+    }
 }

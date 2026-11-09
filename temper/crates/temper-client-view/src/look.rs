@@ -1337,7 +1337,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-view-muted",
         b"temper-view-card",
         b"temper-ways-path",
-        b"temper-ways-rise",
+        b"temper-reserved-620",
         b"temper-ways-stop",
         b"temper-ways-hit",
         b"temper-ways-halo",
@@ -1396,15 +1396,15 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-675",
         b"temper-how-wide",
         b"temper-how-way",
-        b"temper-how-scroll",
-        b"temper-how-path",
-        b"temper-how-head",
-        b"temper-how-lane",
-        b"temper-how-person",
-        b"temper-how-agent",
-        b"temper-how-code",
-        b"temper-how-bar",
-        b"temper-how-line",
+        b"temper-how-roles",
+        b"temper-how-role",
+        b"temper-how-role-more",
+        b"temper-reserved-681",
+        b"temper-reserved-682",
+        b"temper-reserved-683",
+        b"temper-reserved-684",
+        b"temper-reserved-685",
+        b"temper-reserved-686",
         b"temper-how-row",
         b"temper-need-row",
         b"temper-need-tell",
@@ -1420,6 +1420,16 @@ pub const NAMES: Names<'static> = Names {
         b"temper-home-phone",
         b"temper-home-wide",
         b"temper-ask-line",
+        b"temper-ways-maybe",
+        b"temper-ways-why",
+        b"temper-ways-rise-person",
+        b"temper-ways-rise-agent",
+        b"temper-ways-fade-person",
+        b"temper-ways-fade-person-faint",
+        b"temper-ways-fade-agent",
+        b"temper-ways-fade-agent-faint",
+        b"temper-ways-fade-base",
+        b"temper-ways-kind-maybe",
         b"temper-needs-bar",
         b"temper-needs-bar-at",
         b"temper-tabbar-ask",
@@ -1793,7 +1803,6 @@ pub const VIEW_CARD: Style = Style { owner: owner(), token: 618 };
 
 /// Path layout and presses (temper/docs/design/client/README.md, 5.16).
 pub const WAYS_PATH: Style = Style { owner: owner(), token: 619 };
-pub const WAYS_RISE: Style = Style { owner: owner(), token: 620 };
 pub const WAYS_STOP: Style = Style { owner: owner(), token: 621 };
 pub const WAYS_HIT: Style = Style { owner: owner(), token: 622 };
 pub const WAYS_HALO: Style = Style { owner: owner(), token: 623 };
@@ -1825,15 +1834,9 @@ pub const WAYS_REFUSED: Style = Style { owner: owner(), token: 645 };
 /// How work runs (temper/docs/design/client/browser.md, 2.5).
 pub const HOW_WIDE: Style = Style { owner: owner(), token: 676 };
 pub const HOW_WAY: Style = Style { owner: owner(), token: 677 };
-pub const HOW_SCROLL: Style = Style { owner: owner(), token: 678 };
-pub const HOW_PATH: Style = Style { owner: owner(), token: 679 };
-pub const HOW_HEAD: Style = Style { owner: owner(), token: 680 };
-pub const HOW_LANE: Style = Style { owner: owner(), token: 681 };
-pub const HOW_PERSON: Style = Style { owner: owner(), token: 682 };
-pub const HOW_AGENT: Style = Style { owner: owner(), token: 683 };
-pub const HOW_CODE: Style = Style { owner: owner(), token: 684 };
-pub const HOW_BAR: Style = Style { owner: owner(), token: 685 };
-pub const HOW_LINE: Style = Style { owner: owner(), token: 686 };
+pub const HOW_ROLES: Style = Style { owner: owner(), token: 678 };
+pub const HOW_ROLE: Style = Style { owner: owner(), token: 679 };
+pub const HOW_ROLE_MORE: Style = Style { owner: owner(), token: 680 };
 pub const HOW_ROW: Style = Style { owner: owner(), token: 687 };
 /// Needs you's list, reply and project identity (client/README.md, 3.5).
 pub const NEED_ROW: Style = Style { owner: owner(), token: 688 };
@@ -1855,13 +1858,24 @@ pub const HOME_WIDE: Style = Style { owner: owner(), token: 700 };
 /// The wide Homes' question field (client/README.md, 3.5).
 pub const ASK_LINE: Style = Style { owner: owner(), token: 701 };
 
+/// Path marks and fades (temper/docs/design/client/README.md, 5.16).
+pub const WAYS_MAYBE: Style = Style { owner: owner(), token: 702 };
+pub const WAYS_WHY: Style = Style { owner: owner(), token: 703 };
+pub const WAYS_RISE_PERSON: Style = Style { owner: owner(), token: 704 };
+pub const WAYS_RISE_AGENT: Style = Style { owner: owner(), token: 705 };
+pub const WAYS_FADE_PERSON: Style = Style { owner: owner(), token: 706 };
+pub const WAYS_FADE_PERSON_FAINT: Style = Style { owner: owner(), token: 707 };
+pub const WAYS_FADE_AGENT: Style = Style { owner: owner(), token: 708 };
+pub const WAYS_FADE_AGENT_FAINT: Style = Style { owner: owner(), token: 709 };
+pub const WAYS_FADE_BASE: Style = Style { owner: owner(), token: 710 };
+pub const WAYS_KIND_MAYBE: Style = Style { owner: owner(), token: 711 };
 /// Needs you's phone bar (temper/docs/design/client/README.md, 3.5).
-pub const NEEDS_BAR: Style = Style { owner: owner(), token: 702 };
+pub const NEEDS_BAR: Style = Style { owner: owner(), token: 712 };
 /// Its place in the open cards (temper/docs/design/client/README.md, 3.5).
-pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 703 };
+pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 713 };
 
 /// The phone's Ask tab (temper/docs/design/client/README.md, 5.3).
-pub const TABBAR_ASK: Style = Style { owner: owner(), token: 704 };
+pub const TABBAR_ASK: Style = Style { owner: owner(), token: 714 };
 
 #[cfg(test)]
 mod tests {
