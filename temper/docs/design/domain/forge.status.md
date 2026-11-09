@@ -30,6 +30,12 @@ draft's lags (`../draft/what-reaches-you.status.md`, 4).
   the change's landing branch only on its push branch's start and on a merge in
   progress (`temper-engine-domain-forge`'s `items.rs`, `Domain::workspace_item`),
   not on a fresh, early or saved start, so those checkouts hold no landing pin.
+- **Design lags:** 8.11, *From what*: a dependency's pushed head may be its
+  producer's save, a tree no check ran on (`agent.md`, 4.3 and section 6), and
+  an early start merges it as any pushed head. Nothing records which heads a
+  check passed, which would need temper's store and worker wire to change; the
+  dependent's own checks cover its whole tree at its delivery meanwhile (the
+  owner, 2026-11-09).
 - **Not yet:** 5.9: a call answered ask at the bound, with no row past
   its day, erases the project's rows older than 7 days without marking
   `decided`, so its document lists them until the next mark

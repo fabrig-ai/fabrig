@@ -1,5 +1,7 @@
 # channel: status
 
-2026-11-03. Where smith's code lags or departs from [channel.md](channel.md).
+2026-11-09. Where smith's code lags or departs from [channel.md](channel.md).
 
-No gap.
+- **Not yet:** 3, 4: `channel-v6.schema`'s `Ask` has no `save`, and no
+  host side (`smith-host-domain`'s `channel::Ask`, `smith-host-protocol`)
+  decodes one.

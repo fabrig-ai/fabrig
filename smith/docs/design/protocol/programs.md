@@ -315,8 +315,8 @@ open is section 9.
   call of a built-in tool reaches the permission prompt, and smith's
   policy (5.4), before it runs.
 - **The agent's own MCP server** serves the run's tools: each host tool
-  the charter declares, `finish`, and `deliver` and `wait` when granted
-  (domain/run.md, 5.1), `remove` with modify, and the prompt tool. It is
+  the charter declares, `finish`, and `deliver`, `save` and `wait` when
+  granted (domain/run.md, 5.1), `remove` with modify, and the prompt tool. It is
   a mode of the agent's own binary, which Claude Code starts over
   standard input and output from the MCP configuration, and it relays
   each call to its agent, which answers it as on the direct backend.

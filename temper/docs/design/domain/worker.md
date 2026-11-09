@@ -612,6 +612,15 @@ runs as contained processes and whose output it parses.
   branch since the run started goes unseen. Saved starts use the fetched
   delivery head when none was supplied; for other starts without one,
   a rewind of the branch to an ancestor goes unseen (section 12).
+- **A save pushes unchecked.** A run's `save` (`agent.md`, 4.3 and
+  section 6) is a push to the same branch, with no check run before it, its
+  commit titled as unchecked; its landing is this hold's last push as a
+  delivery's is. The hold records that its last push was a save while its
+  head is that commit: the next commit of the hold, a checked delivery's or
+  the save of saved work, is made even when the tree is unchanged
+  (`../protocol/git.md`, 4.7, `always`), with that commit's own message,
+  so a save's commit is never what the hold's next delivery or saved work
+  names. A checked delivery's landing clears the record.
 - **Each repository lands on its own.** Pushing several is not atomic:
   the run is told done only if every repository with a change landed it,
   moved if a branch cannot take the commit as a fast-forward, and nothing

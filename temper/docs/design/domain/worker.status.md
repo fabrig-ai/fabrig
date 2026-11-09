@@ -68,6 +68,9 @@ Section 6 has no known gap in every temper worker naming its agent's
 them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
+- **Not yet:** 5, *A save pushes unchecked*: the checkout's hold
+  (`temper-worker-domain-checkout`'s `hold.rs`, `Tips`) records no save,
+  and its next commit after one is `Unchanged` on an unchanged tree.
 - **Not yet:** 4.1, 5: the landing pin. The engine names a landing branch only for
   an inherited producer's start on its push branch and a producer's or a goal's
   later run's merge in progress, not for a producer's fresh, early (heads merged
