@@ -692,10 +692,7 @@ fn a_goal_decides_while_away_then_waits_on_home_after_overturn_and_off() {
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one story follows classes, Away, money and Stop asking through both roots"
-)]
+#[expect(clippy::too_many_lines, reason = "one story follows classes, Away, money and Stop asking through both roots")]
 fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
     use forge::settings::{Edit, SettingKey, SettingSlot, Value};
     use temper_protocol_reaches::{Class, Kind, Reason, Subject};
