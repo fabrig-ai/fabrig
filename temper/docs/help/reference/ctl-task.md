@@ -81,7 +81,7 @@ task turn TASK TURN [--part PART] [--from OFFSET]
   --part PART: a number; optional. Only this part
   --from OFFSET: a number; optional. From this byte of the part
 Read one turn of a task's run, part by part
-Prints: With --part, a cut part first prints `part P page N of M holds B bytes;` and the bytes left with the call that reads on, or `no more`; then a turn's header, then its words including the brief supplied to the run, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`
+Prints: With --part, a cut part first prints `part P page N of M holds B bytes;` and the bytes left with the call that reads on, or `no more`; then a turn's header, then its words including the brief supplied to the run, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET` or `no more`
 --json: the record turn.
 Key: none.
 Read task activity TASK to find the attempt and turn as A.T, then

@@ -43,12 +43,14 @@ pub(super) fn text(
             out.put(b" \xc2\xb7 unreadable; report it\n");
         }
         c::TurnRead::Decoded(turn) => {
+            let mut final_part = false;
             if call.tool == 6
                 && let Some(part) = number(call, 2)
                 && let Some(bytes) = part_bytes(turn, part)
             {
                 let room = out.room();
                 let (start, end, left) = cut(bytes, number(call, 3).unwrap_or(0), room, limits.part);
+                final_part = start > 0 && left == 0;
                 if start > 0 || left > 0 {
                     out.put(b"part ");
                     out.number(part);
@@ -85,6 +87,9 @@ pub(super) fn text(
                 for block in &message.blocks {
                     block_text(task, turn_name, &mut part, block, call, limits, out);
                 }
+            }
+            if final_part {
+                out.put(b"no more\n");
             }
         }
     }
@@ -187,8 +192,6 @@ fn words(task: u64, turn: c::TurnName, part: &mut u64, bytes: &[u8], call: &Call
             out,
         );
         out.put(b"\n");
-    } else if call.tool == 6 && from > 0 {
-        out.put(b"no more\n");
     }
 }
 
