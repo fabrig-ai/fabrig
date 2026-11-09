@@ -2,7 +2,7 @@
 use crate::{
     bridge::{Printed, Stream},
     fetch::Report,
-    log::Saying,
+    log::{self, Saying},
 };
 use skein_lib::sha256;
 
@@ -124,6 +124,25 @@ fn golden_log() -> Log {
 #[test]
 fn the_text_is_the_designs() {
     assert_eq!(golden_log().text().as_ref(), GOLDEN.as_bytes());
+    let read = read(GOLDEN.as_bytes()).expect("golden log");
+    for (line, entry) in GOLDEN.lines().skip(1).zip(&read.entries) {
+        assert!(line.ends_with(&log::input_text(&entry.input)));
+        assert!(line.contains(&format!("said={}", digest_text(&entry.said.0))));
+        assert_eq!(format!("{:?}", entry.said), format!("Said({})", digest_text(&entry.said.0)));
+    }
+    let End::At { said, .. } = read.end else { panic!("golden log has an end") };
+    assert!(GOLDEN.contains(&format!("said={}\n", digest_text(&said.0))));
+    assert_eq!(format!("{said:?}"), format!("Said({})", digest_text(&said.0)));
+    assert_eq!(
+        log::report_line(&Report::Answered {
+            exchange: 7,
+            status: 200,
+            body: b"ok".as_slice().into(),
+            headers: Vec::new(),
+        }),
+        "answered id=7 status=200 body=b2s=\n"
+    );
+    assert_eq!(log::printed_line(&printed(Stream::Error)), "error process=cA== line=eA==\n");
 }
 
 #[test]

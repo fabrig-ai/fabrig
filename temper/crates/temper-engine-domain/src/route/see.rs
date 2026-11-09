@@ -146,6 +146,7 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"model", number] => setting_number(b"model", number),
         [b"settings", b"charter-words", number] => setting_number(b"charter-words", number),
         [b"settings", b"forge-charter", number] => setting_number(b"forge-charter", number),
+        [b"settings", b"template-goal", number] => setting_number(b"template-goal", number),
         [b"settings", b"landing-rule", number] => setting_number(b"landing-rule", number),
         [b"settings", b"landing-rule", number, b"project"] => match small(number) {
             Some(number) => Address::Setting(Setting::Application { kind: 2, scope: project, number }),
@@ -217,6 +218,7 @@ fn setting_number(kind: &[u8], word: &[u8]) -> Address {
         b"model" => Setting::Model(number),
         b"charter-words" => Setting::Application { kind: 9, scope: 0, number },
         b"forge-charter" => Setting::Application { kind: 3, scope: 0, number },
+        b"template-goal" => Setting::Application { kind: 11, scope: 0, number },
         b"landing-rule" => Setting::Application { kind: 1, scope: 0, number },
         _ => unreachable!("setting grammar names its kinds"),
     };

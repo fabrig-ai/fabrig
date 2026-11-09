@@ -283,18 +283,20 @@ mod tests {
 
     #[test]
     fn a_clients_project_ways_reaches_the_root_typed() {
-        use temper_engine_domain_forge::settings::{ProjectWays, Value};
-        for (kind, scope, value) in [
-            (7, 1, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: 4 })),
-            (9, 0, Value::CharterWords(b"Reviews changes".as_slice().into())),
+        use temper_engine_domain_forge::settings::{ProjectWays, TemplateGoal, Value};
+        for (kind, scope, number, value) in [
+            (7, 1, 1, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: 4 })),
+            (9, 0, 1, Value::CharterWords(b"Reviews changes".as_slice().into())),
             (
                 10,
+                1,
                 1,
                 Value::ProjectWords(temper_engine_domain_forge::settings::ProjectWords {
                     headline: b"Our way".as_slice().into(),
                     lede: b"We review changes.".as_slice().into(),
                 }),
             ),
+            (11, 0, 4, Value::Goal(TemplateGoal { design: true, close_out: true })),
         ] {
             let bytes = temper_engine_smith::kinds::encode(&value);
             let size = u32::try_from(bytes.len()).expect("ways encoding");
@@ -307,7 +309,7 @@ mod tests {
                     against: 5,
                     running: core::settings::Running::Stays,
                     items: Box::new([core::settings::Item {
-                        setting: core::settings::Setting::Application { kind, scope, number: 1 },
+                        setting: core::settings::Setting::Application { kind, scope, number },
                         edit: core::settings::Edit::Set(core::settings::Value::Application(bytes)),
                     }]),
                 }),
@@ -320,7 +322,7 @@ mod tests {
                 &[root::KindValue {
                     kind,
                     scope,
-                    number: 1,
+                    number,
                     value: temper_engine_domain_forge::settings::SizedValue { value, size }
                 }]
             );

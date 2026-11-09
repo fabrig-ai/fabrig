@@ -17,7 +17,8 @@ pub fn forge_items(stock: &[temper_engine_domain_forge::settings::Stock]) -> Vec
         }
         let value = match &stock.value.value {
             settings::Value::Charter(charter) => json!(charter),
-            settings::Value::Questions(_)
+            settings::Value::Goal(_)
+            | settings::Value::Questions(_)
             | settings::Value::Ways(_)
             | settings::Value::CharterWords(_)
             | settings::Value::ProjectWords(_) => {

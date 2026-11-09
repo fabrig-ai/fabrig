@@ -48,6 +48,18 @@ pub(super) fn agent_card(inputs: &Inputs, charter: u32, who: &[u8], name: &[u8])
     card(who, name, Box::new([fact(b"Charter", &value)]))
 }
 
+/// The coordinator's agent facts followed by its order or landing (temper/docs/design/domain/forge.md, 8.13).
+pub(super) fn coordinator_card(inputs: &Inputs, charter: u32, who: &[u8], extra: Fact) -> Card {
+    let mut card = agent_card(inputs, charter, who, b"the coordinator");
+    let mut facts = List::uncapped();
+    for fact in card.facts {
+        facts.push(fact).expect("agent facts fit memory");
+    }
+    facts.push(extra).expect("one coordinator fact follows the agent facts");
+    card.facts = facts.into_boxed();
+    card
+}
+
 /// An agent’s role facts (temper/docs/design/domain/forge.md, 8.13).
 #[must_use]
 pub fn role_card(agent: &super::Agent, who: &[u8], name: &[u8]) -> Card {

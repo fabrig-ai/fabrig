@@ -105,6 +105,10 @@ section 7).
   | 27 | `Playground` | `Playground`: one row | the playground's state, starting, running, or resetting at its step, the project's, the forge's or the account's; its fake forge's number; and its project's and scripted account's numbers once its start has made them (setup.md, 8.4). Written at its start, at each act its start makes, and at each step of its reset; erased when the reset ends; no row is no playground | one row |
 
 - **Reserved bytes:** 17 and 19 keep no family and are never reused.
+- **Family 20 also keeps kind 11,** a goal template's work
+  (configuration.md, 13.2), at the deployment's scope, numbered by its
+  template: its value a `TemplateGoal`, `design` and `close_out`, in
+  the record's `SettingValue` as `goal`, the variant after every other.
 - **Provider 0's subject,** in jig's party rows, which hold it opaque (jig's
   `domain/people.md`): 10 bytes, the forge's 2-byte number then the user's
   8-byte number, each big-endian (`../domain/forge.md`, section 4).

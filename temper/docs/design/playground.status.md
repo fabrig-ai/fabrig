@@ -1,6 +1,6 @@
 # playground: status
 
-2026-11-08. Where temper's code lags or departs from [playground.md](playground.md).
+2026-11-09. Where temper's code lags or departs from [playground.md](playground.md).
 
 Section 9's walk of story A in the one-process world, by the terminal
 client, from the welcome to the CSV change landed and the three replies
@@ -29,12 +29,20 @@ looks for.
     high water, which does not say what reserves it. The download:
     6,882,055 B gzipped, within its 8 MB
     (`temper/docs/development/playground-figures.md`).
+  - 8, *Clear of the bounds that count slots*: story A's deployment
+    keeps byte bounds tight to the story (`core.load_bytes` 8192,
+    `core.run_bytes` 16384, `documents.text_bytes` 128 and others),
+    some counted with `size_of` of their slots, and nothing shows
+    whether the story reaches one natively; the browser story's native
+    replay of its downloaded log differs now and then (red-87).
   - 9: story A's high water in the one-process world:
     `temper/tests/one-process/tests/memory.rs` remains ignored: the
     story walks, but a service world's observer has no way to keep its
     storage outside the process's span (`skein/docs/design/testing.md`,
     5), so process 0's exact release check fails
     (`temper/docs/development/playground-memory.md`).
+  - 9, *Clear of its byte bounds*: no test replays the kept log over
+    story A's deployment with its byte bounds doubled.
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing
     records a walk; within its bars, the memory's and the slice's unset
     (section 11); and published.

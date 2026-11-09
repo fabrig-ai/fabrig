@@ -942,6 +942,7 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::ProjectPolicy { project } => (b"project policy".as_slice(), Some(project)),
         c::Setting::Application { kind: 1 | 2, number, .. } => (b"landing rule".as_slice(), Some(number)),
         c::Setting::Application { kind: 3, number, .. } => (b"forge charter".as_slice(), Some(number)),
+        c::Setting::Application { kind: 11, number, .. } => (b"template-goal".as_slice(), Some(number)),
         c::Setting::Application { kind: 6, scope, .. } => (b"project-questions".as_slice(), Some(scope)),
         c::Setting::Application { kind: 7, scope, .. } => (b"project-ways".as_slice(), Some(scope)),
         c::Setting::Application { kind: 9, number, .. } => (b"charter-words".as_slice(), Some(number)),

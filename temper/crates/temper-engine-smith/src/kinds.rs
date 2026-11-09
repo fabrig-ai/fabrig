@@ -61,6 +61,10 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let parts = v1::ProjectWords::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
             settings::Value::ProjectWords(settings::ProjectWords { headline: parts.headline, lede: parts.lede })
         }
+        11 => {
+            let record = v1::TemplateGoal::decode(&v1::CEILINGS, &mut reader).ok()?;
+            settings::Value::Goal(settings::TemplateGoal { design: record.design(), close_out: record.close_out() })
+        }
         _ => return None,
     };
     if !reader.is_empty() {
@@ -87,6 +91,12 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
         }
         settings::Value::Questions(route) => {
             let record = wire_questions(*route);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Goal(goal) => {
+            let record = wire_goal(*goal);
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
             record.encode(&mut writer).expect("measured room");
             writer.finish()
@@ -122,6 +132,7 @@ pub fn size(value: &settings::Value) -> u32 {
         settings::Value::Ways(ways) => wire_ways(*ways).measure(),
         settings::Value::CharterWords(line) => wire_charter_words(line).measure(),
         settings::Value::ProjectWords(words) => wire_project_words(words).measure(),
+        settings::Value::Goal(goal) => wire_goal(*goal).measure(),
     }
 }
 
@@ -266,4 +277,10 @@ fn wire_project_words(words: &settings::ProjectWords) -> v1::ProjectWords {
         v1::ProjectWordsParts { headline: words.headline.clone(), lede: words.lede.clone() },
     )
     .expect("words within schema ceilings")
+}
+
+// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
+    v1::TemplateGoal::new(&v1::CEILINGS, v1::TemplateGoalParts { design: goal.design, close_out: goal.close_out })
+        .expect("fixed goal fields")
 }

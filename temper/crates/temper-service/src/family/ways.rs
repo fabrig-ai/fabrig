@@ -135,6 +135,8 @@ fn path(value: ways::Path, limits: &w::Limits) -> Option<w::BranchPath> {
             ways::Step::Turn => w::PathStep::Turn,
             ways::Step::Verify => w::PathStep::Verify,
             ways::Step::Branch => w::PathStep::Branch,
+            ways::Step::Design => w::PathStep::Design,
+            ways::Step::CloseOut => w::PathStep::CloseOut,
         };
         let opens = match stop.opens {
             ways::Opens::Nothing => w::Opens::Nothing,

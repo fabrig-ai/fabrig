@@ -32,7 +32,11 @@ pub(crate) fn inputs(way: usize, ci: bool, tiers: bool, by: Way, prove: bool) ->
             },
         }),
         rules: laid(&[], &[], PROJECT, &items),
-        start: if ways.goals && ways.way == 4 { Start::Goal { charter: 5 } } else { Start::Chat },
+        start: if ways.goals && ways.way == 4 {
+            Start::Goal { charter: 5, design: false, close_out: false }
+        } else {
+            Start::Chat
+        },
         producer: 1,
         reviewer: 2,
         by,
@@ -117,6 +121,10 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
     owner.roles.get_mut(1).unwrap().name = b"Owner".as_slice().into();
     let mut catch_up = inputs(2, true, true, Way::Queue, false);
     catch_up.merge_job = true;
+    let mut designed = catch_up.clone();
+    designed.start = Start::Goal { charter: 5, design: true, close_out: true };
+    let mut close_turn = inputs(2, true, true, Way::Turn, true);
+    close_turn.start = Start::Goal { charter: 5, design: false, close_out: true };
     let rows: &[(&str, Inputs, &[(Actor, &str)])] = &[
         (
             "Agents review, CI and tiers",
@@ -168,6 +176,47 @@ fn paths_follow_the_stock_and_branch_rules_in_order() {
                 (C, "conflict"),
                 (A, "resolve"),
                 (C, "merge"),
+                (C, "verify"),
+                (B, "main"),
+            ],
+        ),
+        (
+            "Draft first, design and close-out, CI and tiers",
+            designed,
+            &[
+                (P, "draft"),
+                (A, "design"),
+                (A, "produce ×n"),
+                (C, "merge;into goal"),
+                (C, "check"),
+                (A, "repair;tests"),
+                (C, "catch up"),
+                (B, "goal branch"),
+                (C, "check"),
+                (C, "conflict"),
+                (A, "resolve"),
+                (C, "merge"),
+                (A, "close-out"),
+                (C, "verify"),
+                (B, "main"),
+            ],
+        ),
+        (
+            "goal close-out after landing turn",
+            close_turn,
+            &[
+                (P, "draft"),
+                (A, "plan"),
+                (A, "produce ×n"),
+                (C, "merge;into goal"),
+                (C, "check"),
+                (A, "repair;tests"),
+                (B, "goal branch"),
+                (C, "prepare"),
+                (A, "resolve"),
+                (C, "prove"),
+                (C, "turn"),
+                (A, "close-out"),
                 (C, "verify"),
                 (B, "main"),
             ],
@@ -460,7 +509,77 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     goal_conflict.rules.get_mut(1).unwrap().rule.up_to_date = true;
     let mut other = review.clone();
     other.branch = b"release".as_slice().into();
+    let mut designed = goal.clone();
+    designed.start = Start::Goal { charter: 5, design: true, close_out: true };
+    let mut missing_coordinator = designed.clone();
+    missing_coordinator.agents = Box::default();
+    let mut release = designed.clone();
+    release.branch = b"release".as_slice().into();
     let rows = [
+        (
+            &designed,
+            Step::Design,
+            Opens::Charter(5),
+            "an agent · designs the goal, then cuts it into changes",
+            "the coordinator",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge"),
+                ("Asked to", "“Review the change.”"),
+                (
+                    "Its order",
+                    "the design is delivered first, as a change into the goal's branch; the changes start from it and merge after it",
+                ),
+            ]),
+        ),
+        (
+            &designed,
+            Step::CloseOut,
+            Opens::Charter(5),
+            "an agent · after the landing, brings what the goal leaves up to date",
+            "the coordinator",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge"),
+                ("Asked to", "“Review the change.”"),
+                ("Lands", "as one change into main, by main's rules"),
+            ]),
+        ),
+        (
+            &release,
+            Step::CloseOut,
+            Opens::Charter(5),
+            "an agent · after the landing, brings what the goal leaves up to date",
+            "the coordinator",
+            facts(&[
+                ("Model", "Model · high"),
+                ("Can", "read the code and the forge; never merge"),
+                ("Asked to", "“Review the change.”"),
+                ("Lands", "as one change into release, by release's rules"),
+            ]),
+        ),
+        (
+            &missing_coordinator,
+            Step::Design,
+            Opens::Charter(5),
+            "an agent · designs the goal, then cuts it into changes",
+            "the coordinator",
+            facts(&[
+                ("Charter", "charter 5"),
+                (
+                    "Its order",
+                    "the design is delivered first, as a change into the goal's branch; the changes start from it and merge after it",
+                ),
+            ]),
+        ),
+        (
+            &missing_coordinator,
+            Step::CloseOut,
+            Opens::Charter(5),
+            "an agent · after the landing, brings what the goal leaves up to date",
+            "the coordinator",
+            facts(&[("Charter", "charter 5"), ("Lands", "as one change into main, by main's rules")]),
+        ),
         (
             &goal_conflict,
             Step::Conflict,
@@ -733,7 +852,7 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
     for length in [0, WORDS, VALUE, VALUE + 7, ASKED, ASKED + 7] {
         let mut inputs = inputs(0, true, true, Way::Queue, false);
         inputs.branch = "é".repeat(length).into_bytes().into();
-        inputs.start = Start::Goal { charter: 5 };
+        inputs.start = Start::Goal { charter: 5, design: true, close_out: true };
         inputs.merge_job = true;
         inputs.repository.as_mut().unwrap().contexts = [(); 3].map(|()| inputs.branch.clone()).into();
         inputs.repository.as_mut().unwrap().workflows = [(); 3].map(|()| inputs.branch.clone()).into();
@@ -746,6 +865,10 @@ fn cards_open_the_setting_and_stay_within_the_bounds() {
             agent.can = inputs.branch.clone();
             agent.asked = inputs.branch.clone();
         }
+        let path = derive(&inputs);
+        bounds(&path);
+        assert_eq!(find(&path, Step::Design).card.facts.len(), FACTS);
+        assert_eq!(find(&path, Step::CloseOut).card.facts.len(), FACTS);
         let rule = &mut inputs.rules.first_mut().unwrap().rule;
         rule.gates =
             (0..40).map(|number| RuleGate { number, blocking: true, freshness: JudgeFreshness::Exact }).collect();

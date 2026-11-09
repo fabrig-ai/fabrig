@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};
 
-use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, Value};
+use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, TemplateGoal, Value};
 use crate::{Domain, ForgeCharters, Key, Limits, Request, Stored};
 
 impl Domain {
@@ -318,7 +318,12 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Questions(route), .. }) => *route,
             Some(settings::SizedValue {
                 value:
-                    Value::Rule(_) | Value::Charter(_) | Value::Ways(_) | Value::CharterWords(_) | Value::ProjectWords(_),
+                    Value::Goal(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_),
                 ..
             })
             | None => Route::None,
@@ -333,7 +338,12 @@ impl Domain {
             Some(settings::SizedValue { value: Value::CharterWords(line), .. }) => Some(line),
             Some(settings::SizedValue {
                 value:
-                    Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::ProjectWords(_),
+                    Value::Goal(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::ProjectWords(_),
                 ..
             })
             | None => None,
@@ -347,7 +357,32 @@ impl Domain {
             Some(settings::SizedValue { value: Value::ProjectWords(words), .. }) => Some(words),
             Some(settings::SizedValue {
                 value:
-                    Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::CharterWords(_),
+                    Value::Goal(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_),
+                ..
+            })
+            | None => None,
+        }
+    }
+
+    /// A goal template's work as held: its change, else the stock's; none where removed
+    /// or never given (temper/docs/design/protocol/configuration.md, 13.2).
+    #[must_use]
+    pub fn template_goal(&self, template: u32) -> Option<TemplateGoal> {
+        match self.setting(11, 0, template) {
+            Some(settings::SizedValue { value: Value::Goal(goal), .. }) => Some(*goal),
+            Some(settings::SizedValue {
+                value:
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_),
                 ..
             })
             | None => None,
@@ -521,7 +556,12 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Charter(charter), .. }) => *charter,
             Some(settings::SizedValue {
                 value:
-                    Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::CharterWords(_) | Value::ProjectWords(_),
+                    Value::Rule(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_),
                 ..
             })
             | None => 0,
@@ -561,7 +601,12 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
         Some(settings::SizedValue { value: Value::Charter(charter), size }) => (*size, Some(*charter)),
         Some(settings::SizedValue {
             value:
-                Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::CharterWords(_) | Value::ProjectWords(_),
+                Value::Rule(_)
+                | Value::Goal(_)
+                | Value::Questions(_)
+                | Value::Ways(_)
+                | Value::CharterWords(_)
+                | Value::ProjectWords(_),
             size,
         }) => (*size, None),
         None => (0, None),

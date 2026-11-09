@@ -12,6 +12,7 @@
 //! (temper/docs/design/client/forge.md, 11).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(clippy::disallowed_macros, reason = "kind 11 requires Default: both flags false with none")]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 
@@ -442,7 +443,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 bytes(&words.headline).checked_add(bytes(&words.lede))
             }
             settings::Edit::Set(settings::SizedValue {
-                value: settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_),
+                value:
+                    settings::Value::Charter(_)
+                    | settings::Value::Questions(_)
+                    | settings::Value::Ways(_)
+                    | settings::Value::Goal(_),
                 ..
             })
             | settings::Edit::Remove

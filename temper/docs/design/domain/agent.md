@@ -1140,6 +1140,15 @@ otherwise teach.
   the forge's charters and a project's own policy are proposed as its
   charters are. `see` reads them at the chat's own project (8.4.1); a
   project's own policy is no address of its (section 10).
+- **A goal template's work,** `template-goal` with the template's number
+  (`../protocol/configuration.md`, 13.2, kind 11), `{"design": BOOL,
+  "close_out": BOOL}`, is read and proposed as a template is, beside it:
+  a proposal of a goal template whose charter designs the goal first or
+  makes a close-out carries the template's work saying so, and a read of
+  one with none stored answers that its coordinator plans and makes no
+  close-out, never unknown. The tools' declarations name it, as they
+  name every kind they take; Ask temper's instructions add no words for
+  it, as they stand at their bound.
 - **Structure and rules:** a sentence of a description that changes what
   temper's engine wakes, schedules, permits, pays for, lands or holds is
   structure, and becomes settings; one that only changes how an agent
@@ -1525,6 +1534,7 @@ are its second milestone's (section 10).
 |---|---|---|---|
 | `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings charter-words N · settings project-words · revisions · help settings` |
 | `settings charter N`, `template N`, `policy N`, `model N`, `forge-charter N`, `settings rules` | that setting whole, at the newest revision, as `settings` gives it | the family's setting read | `settings · revisions · help settings-fields` |
+| `settings template-goal N` | template N's work: whether its coordinator designs first and makes a close-out, or, with none stored, that it plans and makes none, marked so (8.1) | the family's setting read, kind 11 | `settings template N · ways · help settings-fields` |
 | `settings landing-rule N [project]` | a landing rule whole: the deployment's, or with `project` the chat's project's | the family's setting read, kinds 1 and 2 | `settings landing · settings · help landing-rule` |
 | `settings project-ways`, `settings project-questions` | the chat's project's ways or questions, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7 and 6 | `settings · revisions · help settings-fields` |
 | `settings charter-words N`, `settings project-words` | a charter's words, at the stock's where none is stored, marked so, or that it has none; the chat's project's words, or that it has none (8.1) | the family's setting read, kinds 9 and 10 | `settings · revisions · help settings-fields` |
