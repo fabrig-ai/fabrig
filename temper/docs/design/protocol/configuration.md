@@ -2628,11 +2628,13 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 - **A brief:** `standard`'s `hub.charter_bytes` is 262,144, and smith's
   charter allowance is the larger of 65,536 and twice the payload (smith's
   `protocol/limits.md`, 3.10). The reference's is 127,480, so this receiving
-  allowance binds before the hub's 262,144. Its coding charter holds a
-  63,740-byte spec beside its instructions and tools. A section past the
-  room those leave is cut at the worker with its `[cut N bytes; whole: READ]`
-  line, including a 131,072-byte section, whatever the hub admits
-  (`../domain/agent.md`, 4.3). The box's charter allowance stays at 65,536.
+  allowance binds before the hub's 262,144: the engine fits a charter to
+  the smaller of the two where its process has the agent, and to 65,536
+  where it doesn't know its worker's (`../domain/agent.md`, 4.3 and
+  section 10). Its coding charter holds a 63,740-byte spec beside its
+  instructions and tools. A section past the room those leave is cut with
+  its `[cut N bytes; whole: READ]` line, including a 131,072-byte section,
+  whatever the hub admits. The box's charter allowance stays at 65,536.
 - **A report:** a change's `body` follows the call's payload
   (`../domain/agent.md`, 4.4).
 
