@@ -85,7 +85,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         projects,
         needs: needs.count,
         needs_cut: needs.cut,
-        members: None,
+        members: super::team::people(root, project),
         standing_roles: None,
         asking,
         away: if across(root) { super::away_all::across(root, wall).shown } else { root.away_shown(project, wall) },

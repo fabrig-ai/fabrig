@@ -1,6 +1,6 @@
 # stock-ways: status
 
-2026-11-08. Where the design lags or departs from [stock-ways.md](stock-ways.md).
+2026-11-09. Where the design lags or departs from [stock-ways.md](stock-ways.md).
 
 Section 3 is designed in `../protocol/configuration.md`, 13.2 to 13.4
 and 13.9, with the forge and setup contracts following it; sections 4 to
@@ -10,7 +10,11 @@ and 13.9, with the forge and setup contracts following it; sections 4 to
 the `ways` read, its acts and the views) and `../domain/agent.md`, 8.4 and 8.4.1 (`see ways` and the
 instructions); section 7 orders the steps.
 
-- **Design lags:** none.
+- **Design lags:** 4, *What a goal's charter adds*: `../domain/forge.md`,
+  8.13, words a goal's coordinator's stop "plan" alone, with no "design"
+  where its charter designs first and no agent's "close-out" after
+  main's merge, which the whole story's P3f takes
+  (`whole-story.execution.md`, section 3).
 - **Design departs:** 8: the three ways' paths over a project with CI and
   both tiers are the look request's pages but for "verify" after "merge"
   on You approve and Agents review, since main's tier follows main

@@ -1591,7 +1591,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
     assert!(failures.is_empty(), "host rows: {failures:?}");
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum LaunchAt {
     Home,
     Aside,
@@ -1672,9 +1672,20 @@ fn the_launchpad_takes_its_own_words() {
         match want {
             LaunchWant::Started { label, words: expected, from } => {
                 assert_eq!(host.root.pages().address(), &from, "{words:?}");
-                let duties = admit(&mut host, duties);
+                let mut duties = admit(&mut host, duties);
+                if sent_ask(&duties).is_empty() {
+                    // Returning from New Chat can fill the exchange slots with page reads.
+                    host.clocks(
+                        host.env.now.saturating_add(host.env.limits.client.domain.backoff.first),
+                        host.env.wall,
+                    );
+                    let more = host.report(Report::Due);
+                    duties.asked.extend(admit(&mut host, more).asked);
+                }
                 let asks = sent_ask(&duties);
-                let [(exchange, w::Ask::Create(create))] = asks.as_slice() else { panic!("{words:?}: {asks:?}") };
+                let [(exchange, w::Ask::Create(create))] = asks.as_slice() else {
+                    panic!("{at:?}, {words:?}: {asks:?}")
+                };
                 let mut reader = Reader::new(create.tasks());
                 let bytes = skein_codec::piece::split(&mut reader).expect("task piece").expect("created task");
                 let task = w::NewTask::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("new task");

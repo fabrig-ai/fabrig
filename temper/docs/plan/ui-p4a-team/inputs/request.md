@@ -1,29 +1,32 @@
-# look-round-25: How work runs as the final mockup, and the ways page's last misses
+# ui-p4a-team: Team, its people, what waits on each, and the triager
 
-A look plan following P3a (`ui-p3a-how`, landed 2026-11-08 19:29Z). P3a was cut before the mockups' last changes landed: `370f1be9ab`, then the audit's `d8f321422b`. So it draws an earlier `how.html`. This plan brings How work runs and the ways page to the mockups on main, `temper/docs/design/client/web/whole-story/how.html` with its `README.md`, and to `temper/docs/design/draft/stock-ways.md` 4 and `surfaces.md` 7 as amended there. The rule of every whole-story milestone holds (`whole-story.execution.md`, section 2): draw what the engine holds, and nothing a later milestone adds. Follow `temper/docs/design/draft/look-requests.md`, sections 3 and 5.
+Milestone P4a of `temper/docs/design/draft/whole-story.execution.md`: `temper/docs/design/draft/surfaces.md`, section 6, for its people, what waits on each, and the project's triager. The user's go of 2026-11-08, cut into steps by laptop/web. It's step 1, "the new shape, on today's engine". Its look is the mockups on main, `temper/docs/design/client/web/whole-story/team.html`, `team/`, and their `README.md`. Nothing in the drafts is reopened.
 
-## Tasks
+## What it executes
 
-1. **The path as amended:**
-   - who acts by mark: a person's ring orange, an agent's star ink, code grey, and no blue;
-   - "update" folds into the cards, with no stop of its own;
-   - "conflict" and "resolve" are where a goal's landing meets main in the queue, and "catch up" is where a goal's branch takes main, with a repair and a conflict told apart;
-   - vsr's path drawn as `how.html` has it.
+- **The rule of every milestone** (the execution's section 2): draw what the engine holds when it lands, and no more. A role's card (P4b) and areas and owners (P4c) wait for standing roles, so leave them out, with no empty section, no placeholder and no made-up value.
+- **The design first:** `client/README.md`'s Team, `client/browser.md` where the browser differs, and the greenfield mock's README.
+- **Then the build:** Team as `team.html` draws it, for its people, from the project's roles and people as the engine holds them; what waits on each person; and the project's triager.
 
-   The one engine-side derivation changes, and every client draws what it gives.
-2. **Roles on How work runs** (`surfaces.md` 7): every agent the project runs, the foreman and the status agent among them. Each one's "can" line: "never merge or update" becomes "never merge". "Finish alone" is reworded for Ask temper and the status agent. The status agent's line reads "When you look at Home after landings", as `status.rs` does.
-3. **The ways page's last misses,** from its render check after `look-round-24`:
-   - two small card positions, at 1000 and on a phone;
-   - the CI card naming the repository's CI workflows;
-   - the line painted as the request's continuous gradient;
-   - with a fourth "Yours" tab, the tabs fitting under 760 px, as "Agents review" doesn't fit a quarter of a phone today.
+The rail is `ui-p1-rail`'s, running beside this. Keep off its files, and meet it at Team's row in the rail.
 
-A browser case is a row of an existing table test, within the cap of 12. The gallery's prints are regenerated as the common notes say. Words saved with a setting (P3e) and a goal's "design" and "close-out" stops (P3f) are milestones of their own, not this plan's.
+## Its tests
+
+Focused and fuzzy only, as the execution's P1 to P6 entry says:
+- the gallery's states at a laptop's and a phone's width, day and night;
+- the client's joint world for Team with two people;
+- a fuzz test of its parts against `surfaces.md` section 12's rules.
+
+New journeys and the walk come after landing.
+
+## Who hears first
+
+`plan.md` names every change to `temper-client-domain` for the TUI's owner, and every change to `temper-engine-domain` or `forge_route.rs` for the owner of coding runs.
 
 ## Sources
 
-- `temper/docs/design/draft/stock-ways.md`
 - `temper/docs/design/draft/surfaces.md`
+- `temper/docs/design/draft/whole-story.execution.md`
 - `temper/docs/design/client/web/whole-story/README.md`
 
 

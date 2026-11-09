@@ -1,6 +1,6 @@
 # whole-story: execution
 
-2026-11-08. How [whole-story.md](whole-story.md) and the four drafts
+2026-11-09. How [whole-story.md](whole-story.md) and the four drafts
 written with it, `standing-roles.md`, `what-reaches-you.md`, `follows.md`
 and `surfaces.md`, reach the design and the code by v0.1.0, in tracks
 that run side by side. It designs nothing: each milestone writes its own
@@ -287,17 +287,19 @@ lands when it's ready.
 As read on 2026-11-08 at 17:14Z, from the areas' work in flight,
 P3's rows at 19:45Z, as P3a retired, P6's at 22:21Z, as it retired, and
 P1's and P8's at 22:55Z, as P1 retired, and P2's, P5a's and P7's at
-23:32Z, as P2 retired. Plans
+23:32Z, as P2 retired, and P3a's and P3e's on 2026-11-09 at 00:10Z,
+as P3a's repair, `look-round-25`, retired, and P1's at 00:42Z, as
+`ui-away-all` retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
 |---|---|---|
 | M0 | done | |
-| P1 | landed; its repair waits | `ui-p1-rail` drew the rail as this draft stood at its cut; a repair draws To begin's rail with its hairline and "How work runs", turns the words that still send a person to Settings, and takes the phone's "Needs" and Away across projects (`surfaces.status.md`, 2 and 10); Team in the rail waits for a read of a project's members or roles (P4a); Needs you's count across projects, and "Home" and "Needs you" kept across projects under All projects, are its repair's too, P2 having landed (`surfaces.status.md`, 2) |
+| P1 | landed; its repair waits | `ui-p1-rail` drew the rail as this draft stood at its cut; a repair draws To begin's rail with its hairline and "How work runs", turns the words that still send a person to Settings, and takes the phone's "Needs" (`surfaces.status.md`, 2 and 10); Away across projects landed by `ui-away-all`; Team in the rail waits for a read of a project's members or roles (P4a); Needs you's count across projects, and "Home" and "Needs you" kept across projects under All projects, are its repair's too, P2 having landed (`surfaces.status.md`, 2) |
 | P2 | landed; its repair starts | `ui-p2-home` drew the byline across projects as this draft stood at its cut; a repair, or a look request, words it as section 3 now does and gives the phone's headline `phone-home.html`'s words (`surfaces.status.md`, 3); the launchpad's brief across projects is T1's repair, temper/tui's (`surfaces.status.md`, 11) |
-| P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes; its repair draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles (`surfaces.status.md`, 7 and 13) |
+| P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes, and its repair, `look-round-25`, draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles; a second repair gives the drafter, in the stock since P6, its place among Roles (`surfaces.status.md`, 7) |
 | P3b, P3c, P3d | wait | N1, N2 or F1 and R1, by their needs |
-| P3e, P3f | start | but for P3e's line on Roles, which waits for P3a's repair to draw Roles |
+| P3e, P3f | start | |
 | P4a | starts | |
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
 | P5a | starts | |

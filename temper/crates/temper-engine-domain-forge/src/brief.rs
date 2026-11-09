@@ -294,6 +294,14 @@ pub(crate) fn brief_answer(
             let mut changed = List::with_capacity(u32::try_from(files.len()).expect("bounded file list"));
             for file in files {
                 changed.push(file.path.clone()).expect("sized from bounded file list");
+                match fetch.mode {
+                    PullMode::Conflict(_) => {
+                        if name_conflict_if_past_room(&mut fetch.words, &file) {
+                            continue;
+                        }
+                    }
+                    PullMode::Review | PullMode::Semantic(_) | PullMode::Other => {}
+                }
                 append(&mut fetch.words, b"File: ");
                 append(&mut fetch.words, &file.path);
                 append(&mut fetch.words, b"\nBefore:\n");
@@ -440,6 +448,46 @@ pub(crate) fn brief_answer(
         let read = brief_part(&fetch.words, fetch.parts, fetch.bytes);
         crate::held::ready(domain, fetch.owner, read, out);
     }
+    true
+}
+
+/// Name a conflicting file whose whole contents exceed the section's room
+/// (temper/docs/design/domain/forge.md, 8.4, A resolution).
+fn name_conflict_if_past_room(words: &mut BriefWords, file: &skein_forge::api::File) -> bool {
+    let before = match file.before.as_deref() {
+        Some(bytes) => bytes,
+        None => b"",
+    };
+    let after = match file.after.as_deref() {
+        Some(bytes) => bytes,
+        None => b"",
+    };
+    let mut whole = 0_u64;
+    for part in [b"File: ".as_slice(), &file.path, b"\nBefore:\n", before, b"\nAfter:\n", after, b"\n"] {
+        whole = whole.saturating_add(u64::try_from(part.len()).expect("bounded file bytes"));
+    }
+    if whole <= u64::from(words.bytes.room()) {
+        return false;
+    }
+    append(words, b"File: ");
+    append(words, &file.path);
+    append(words, b"\n[not carried, past the brief's room: ");
+    match file.before.as_deref() {
+        Some(bytes) => {
+            append(words, &decimal(u64::try_from(bytes.len()).expect("bounded file bytes")));
+            append(words, b" bytes before");
+        }
+        None => append(words, b"absent before"),
+    }
+    append(words, b", ");
+    match file.after.as_deref() {
+        Some(bytes) => {
+            append(words, &decimal(u64::try_from(bytes.len()).expect("bounded file bytes")));
+            append(words, b" bytes after");
+        }
+        None => append(words, b"absent after"),
+    }
+    append(words, b"; read it in your checkout]\n");
     true
 }
 
