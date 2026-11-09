@@ -2508,7 +2508,14 @@ impl Front<Temper> for Joint {
         std::mem::take(&mut self.callbacks)
     }
     fn next_due(&self) -> Option<Time> {
-        self.offline_until.or(self.due).or_else(|| Some(self.now.saturating_add(Duration::from_millis(100))))
+        self.offline_until.or(self.due).or_else(|| {
+            // Ready engine replies and callbacks precede the harness's delivery latency.
+            Some(if self.callbacks.is_empty() && self.engine.delivered.is_empty() && self.engine.immediate.is_empty() {
+                self.now.saturating_add(Duration::from_millis(100))
+            } else {
+                self.now
+            })
+        })
     }
     fn observed(&mut self) -> Vec<Observed> {
         std::mem::take(&mut self.observed)
