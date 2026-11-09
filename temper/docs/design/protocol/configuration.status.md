@@ -244,6 +244,16 @@ projectless task and the client's remaining trial gaps are
 Section 7 has no known gap in the stream-derived watch rooms, refused
 watch-room overrides or the domain stories and heap ceilings.
 
+Section 7 has no known gap in the smallest resumed start: the start
+measures it with the worker wire's `sizes::smallest_resumed` from
+`core.call_records`, `core.fleet.call_name_bytes`, the wire's
+`call_tool` ceiling and `core.call_answer_bytes`, 6,817 bytes on
+`small` and 27,201 on `standard`, and refuses an engine whose
+`io.output` is short of it, `engine.limits.io.output: N bytes, short of
+the smallest resumed start, S bytes` (`temper-service/src/startup/checks.rs`,
+`resumed_start`). `the_smallest_resumed_start_fits_the_engines_room_or_names_it`
+holds the stock room, the floor met and one byte short on each profile.
+
 Section 13.2 has no gap in judging project ways against prospective templates
 or in the terminal refusal naming the item and rejected way.
 
