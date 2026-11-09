@@ -1,4 +1,5 @@
 //! The box's steps and kind slots (temper/docs/design/protocol/setup.md, 7.1).
+use crate::directories::jig_directories;
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
 use std::{fmt::Write, os::unix::ffi::OsStrExt};
@@ -85,7 +86,7 @@ pub(crate) fn run_configuration(
             })
             .collect();
         let (steps, limits) = configuration_steps(directories, bytes, first)?;
-        let named = super::setup::check(bytes, &directories.jig())?.named;
+        let named = super::setup::check(bytes, &jig_directories(directories))?.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let mut first_link = first_link(&named, &steps)?;
         let terminals =
@@ -399,7 +400,13 @@ pub(crate) fn machine(
         return Err("application.machine: missing member".into());
     };
     let mut problems = problem::Problems::empty();
-    let machine = machine::read(&document, at, &temper_forge_setup::limits::small(), &directories.jig(), &mut problems);
+    let machine = machine::read(
+        &document,
+        at,
+        &temper_forge_setup::limits::small(),
+        &jig_directories(directories),
+        &mut problems,
+    );
     if !problems.is_empty() {
         return Err(String::from_utf8_lossy(&problem::lines(&problems)).into_owned());
     }
@@ -412,7 +419,8 @@ pub fn configuration_steps(
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box::limits::Limits), String> {
-    let super::setup::Deployment { named, demo, limits, .. } = super::setup::check(bytes, &directories.jig())?;
+    let super::setup::Deployment { named, demo, limits, .. } =
+        super::setup::check(bytes, &jig_directories(directories))?;
     let mut serve = vec![super::address(&named.clients)?];
     if let Some(webhooks) = &named.webhooks {
         serve.push(super::address(&webhooks.listener)?);
@@ -446,7 +454,7 @@ pub fn configuration_steps(
                 machine,
                 0,
                 temper_forge_setup::machine::BoxKind::Owned,
-                &directories.jig(),
+                &jig_directories(directories),
             )
             .expect("owned machine");
             let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode else { unreachable!("owned kind") };

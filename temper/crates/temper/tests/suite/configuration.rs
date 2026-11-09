@@ -1,4 +1,5 @@
 use crate::support;
+use temper::directories::jig_directories;
 #[path = "creating.rs"]
 mod creating;
 
@@ -203,15 +204,15 @@ fn the_clusters_documents_check_as_their_shapes() {
             &root.join("cache"),
         ]);
         let bytes = std::fs::read(root.join("config/temper.json")).expect("cluster document");
-        let shape = startup::shape(&bytes, &directories.jig())
+        let shape = startup::shape(&bytes, &jig_directories(&directories))
             .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
         assert_eq!(shape, expected, "{process}");
         match shape {
             Shape::EngineAlone => {
-                startup::named(&bytes, &directories.jig()).expect("checked engine alone");
+                startup::named(&bytes, &jig_directories(&directories)).expect("checked engine alone");
             }
             Shape::WorkerAlone => {
-                let part = startup::worker_part(&bytes, &directories.jig()).expect("checked worker alone");
+                let part = startup::worker_part(&bytes, &jig_directories(&directories)).expect("checked worker alone");
                 let worker = &part.worker.jig;
                 let stop = jig_protocol_config::stop_bound(
                     &worker.graces,

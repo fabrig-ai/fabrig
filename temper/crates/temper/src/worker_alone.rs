@@ -1,3 +1,4 @@
+use crate::directories::jig_directories;
 use std::os::unix::ffi::OsStrExt;
 use temper_service as service;
 /// Prepare a worker's own directories and program sources, with no deployment.
@@ -6,7 +7,7 @@ pub(super) fn prepare(
     bytes: &[u8],
     owned: &mut Vec<skein_io::kernel::Fd>,
 ) -> Result<service::Service, String> {
-    let mut part = service::startup::worker_part(bytes, &directories.jig())
+    let mut part = service::startup::worker_part(bytes, &jig_directories(directories))
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let agent = crate::agent::preflight_worker(&part.named)?;
     let configuration = crate::agent::configuration(crate::path(&part.named.agent))?;

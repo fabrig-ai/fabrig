@@ -1,4 +1,5 @@
 //! The deployment and document forms' files and peer loop (protocol/setup.md, 8.4).
+use crate::directories::jig_directories;
 pub(crate) mod check;
 mod control;
 pub mod git;
@@ -354,7 +355,13 @@ fn forge_entry(
         .member(&document, b"machine")
         .ok_or("application.machine: missing member")?;
     let mut problems = problem::Problems::empty();
-    let machine = machine::read(&document, at, &temper_forge_setup::limits::small(), &directories.jig(), &mut problems);
+    let machine = machine::read(
+        &document,
+        at,
+        &temper_forge_setup::limits::small(),
+        &jig_directories(directories),
+        &mut problems,
+    );
     if !problems.is_empty() {
         return Err(String::from_utf8_lossy(&problem::lines(&problems)).into_owned());
     }
@@ -362,7 +369,7 @@ fn forge_entry(
     let path = super::path(&directories.data).join(super::path(&machine::group_path(forge)));
     let group = skein_shell::read_file(&path, 64).map_err(|why| format!("{}: {why:?}", path.display()))?;
     let kind = machine::parse_group_file(&group).ok_or_else(|| format!("{}: invalid group kind", path.display()))?;
-    machine::entry(&machine, forge, kind, &directories.jig()).ok_or("the machine has no entry for it".into())
+    machine::entry(&machine, forge, kind, &jig_directories(directories)).ok_or("the machine has no entry for it".into())
 }
 fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(forge::Document, [u8; 40]), String> {
     match source {
@@ -418,7 +425,7 @@ fn llm_configuration(source: &Source, seed: u64, created: &mut Created) -> Resul
         }
         Source::Demo { directories } => {
             let bytes = read_document(&directories.document(), super::CONFIG_BYTES)?;
-            let deployment = super::setup::check(&bytes, &directories.jig())?;
+            let deployment = super::setup::check(&bytes, &jig_directories(directories))?;
             let demo = deployment.demo.ok_or("application.demo is null: the deployment has no demo")?;
             let path = super::path(demo.llm().key());
             let file = skein_shell::read_private_file(path, demo::KEY_FILE_BYTES, skein_shell::effective_user())

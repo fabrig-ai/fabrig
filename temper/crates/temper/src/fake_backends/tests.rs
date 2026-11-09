@@ -1,4 +1,5 @@
 use super::*;
+use crate::directories::jig_directories;
 use std::ffi::OsString;
 
 const PAGE: &[u8] = b"<!doctype html><html><head></head><body>effective fixture</body></html>";
@@ -120,7 +121,7 @@ fn untouched_box_init_imports_with_and_without_sign_in() {
         for pointer in ["/engine/clients/provider", "/application/machine/owned/sign_in"] {
             assert_eq!(rebased.pointer(pointer), original_tree.pointer(pointer), "{pointer}");
         }
-        let checked = crate::setup::check(&temper, &effective.jig()).expect("ordinary effective admission");
+        let checked = crate::setup::check(&temper, &jig_directories(&effective)).expect("ordinary effective admission");
         assert_eq!(checked.named.deployment, bytes(&crate::path(&effective.data).join("deployment")));
         assert_rebased_box_paths(&Json::decode(&temper).expect("effective JSON"), &agent, &effective, sign_in);
         assert_eq!(fs::read(source.document()).expect("source unchanged"), original);
@@ -949,7 +950,7 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
 fn fake_github_machine_passes_ordinary_admission_without_document_forges() {
     let scratch = Scratch::new("four-forge-admission-r2");
     let (_source, first) = prepared_source(&scratch);
-    crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
+    crate::setup::check(&first.bytes, &jig_directories(&first.directories)).expect("ordinary admission");
     let machine = crate::box_command::machine(&first.bytes, &first.directories).expect("machine");
     assert_eq!(crate::address(&machine.github.expect("fake GitHub").api).expect("socket"), first.peers.github);
     validate(&first.directories, &first.bytes, &scratch.0.join("fake-claude")).expect("sandbox validation");

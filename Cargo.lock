@@ -6274,7 +6274,6 @@ dependencies = [
 name = "temper-shell"
 version = "0.0.0"
 dependencies = [
- "jig-protocol-config",
  "skein-io",
  "skein-lib",
  "skein-scratch",

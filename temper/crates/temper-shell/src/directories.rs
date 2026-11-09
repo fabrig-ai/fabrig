@@ -89,11 +89,6 @@ pub type Paths = Directories;
 
 impl Directories {
     #[must_use]
-    pub fn jig(&self) -> jig_protocol_config::Directories {
-        jig_protocol_config::Directories::given(&self.config, &self.data, &self.cache)
-            .expect("resolved absolute bounded directories")
-    }
-    #[must_use]
     pub fn document(&self) -> PathBuf {
         super::path(&self.config).join("temper.json")
     }

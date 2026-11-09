@@ -1,4 +1,5 @@
 use super::make_missing;
+use crate::jig_directories;
 use crate::test_configuration as configuration;
 use std::{
     fs,
@@ -53,7 +54,7 @@ fn a_public_client_refuses_before_creating_any_file() {
     });
     let bytes = serde_json::to_vec(&value).expect("configuration");
     let directories = configuration::directories(&directory);
-    let named = temper_service::startup::named(&bytes, &directories.jig()).expect("named public client");
+    let named = temper_service::startup::named(&bytes, &jig_directories(&directories)).expect("named public client");
     let refusal = super::run(&directories, &bytes, &named, 1);
     let files = fs::read_dir(&directory).expect("scratch entries").count();
     let configuration = directory.join("temper.json");

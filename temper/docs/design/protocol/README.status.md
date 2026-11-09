@@ -144,10 +144,6 @@ temper-client`). No test holds that closure yet: its row in
 story is written and compiled in the process tier, and runs after
 landing.
 
-- **Not yet:** 4.3, 4.4, 5: `temper-shell` links `jig-protocol-config`
-  for `Directories::jig` (`crates/temper-shell/src/directories.rs`), in
-  place of `temper-engine-shell`'s `jig_directories`, so `temper-agent`
-  links sixteen of jig's crates and `closure.rs` fails.
 - **Departs:** 4: `temper-client`'s story runs the box's `temper serve` as its engine
   (`crates/temper/tests/suite/client_binary.rs`), written before `temper-engine`
   was built; M5 switches it to `temper-engine`

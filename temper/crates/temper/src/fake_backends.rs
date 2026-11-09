@@ -1,4 +1,5 @@
 //! Retained isolated startup for `box --fake-backends` (configuration.md, 12.1).
+use crate::directories::jig_directories;
 mod import;
 pub(crate) mod json;
 use crate::directories::{Directories, make_private, private_root};
@@ -388,7 +389,7 @@ fn source_forgejo(bytes: &[u8]) -> Result<temper_fake::forge::Document, temper_f
     Ok(document)
 }
 fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), String> {
-    let deployment = crate::setup::check(bytes, &dirs.jig())?;
+    let deployment = crate::setup::check(bytes, &jig_directories(dirs))?;
     let named = &deployment.named;
     for file in named.files.iter().chain(&named.asked_files) {
         if !(contained(&dirs.config, &file.path) && !file.private || contained(&dirs.data, &file.path)) {

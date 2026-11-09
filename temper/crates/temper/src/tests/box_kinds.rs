@@ -1,4 +1,5 @@
 //! The box's held listeners and slot boundaries (temper/docs/design/protocol/setup.md, 7.1).
+use crate::directories::jig_directories;
 use crate::forge::remove_directory;
 use std::fs;
 
@@ -9,8 +10,11 @@ fn first_link_named() -> temper_service::startup::Named {
     document["engine"]["clients"]["link"] = true.into();
     document["application"]["clients"]["listener"] = serde_json::json!({"socket":"127.0.0.1:8367"});
     document["application"]["clients"]["public"] = "https://temper.example.invalid:8443".into();
-    temper_service::startup::named(&serde_json::to_vec(&document).expect("fixture document"), &directories.jig())
-        .expect("checked first-link settings")
+    temper_service::startup::named(
+        &serde_json::to_vec(&document).expect("fixture document"),
+        &jig_directories(&directories),
+    )
+    .expect("checked first-link settings")
 }
 
 fn first_link_steps() -> temper_forge_setup::Steps {
@@ -263,7 +267,7 @@ fn a_checked_machine_keeps_resolved_programs_for_both_group_kinds() {
         "listen":{"socket":"127.0.0.1:8369"}, "remote":"http://127.0.0.1:8369", "git":"demo/bin/git"
     });
     let bytes = serde_json::to_vec(&document).expect("document JSON");
-    let checked = crate::setup::check(&bytes, &directories.jig()).expect("checked deployment");
+    let checked = crate::setup::check(&bytes, &jig_directories(&directories)).expect("checked deployment");
     assert_eq!(
         checked.named.machine,
         crate::box_command::machine(&bytes, &directories).expect("separate machine read")

@@ -1,4 +1,5 @@
 use crate::support;
+use temper::directories::jig_directories;
 
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -446,8 +447,12 @@ fn stock_charters_choose_claude_before_the_demo_model() {
         .expect("object")
         .member(&document, b"engine")
         .expect("engine");
-    let engine = temper_service::startup::engine(&document, at, &support::configuration::directories(&paths[0]).jig())
-        .expect("engine schema");
+    let engine = temper_service::startup::engine(
+        &document,
+        at,
+        &jig_directories(&support::configuration::directories(&paths[0])),
+    )
+    .expect("engine schema");
     let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
         assert_eq!(
@@ -491,8 +496,12 @@ fn live_claude_world() -> (
         .expect("object")
         .member(&document, b"engine")
         .expect("engine");
-    let engine = temper_service::startup::engine(&document, at, &support::configuration::directories(&paths[0]).jig())
-        .expect("engine schema");
+    let engine = temper_service::startup::engine(
+        &document,
+        at,
+        &jig_directories(&support::configuration::directories(&paths[0])),
+    )
+    .expect("engine schema");
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut limits = engine_limits();
     limits.people.initial_owners = 2;
