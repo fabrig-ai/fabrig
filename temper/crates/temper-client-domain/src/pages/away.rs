@@ -13,6 +13,7 @@ use skein_lib::{Env, List, Queue, Wall};
 pub enum Act {
     Overturn { project: u32, number: u32 },
     Toggle { project: u32 },
+    ToggleAll,
     Kinds { project: u32, kinds: u8 },
     Until { project: u32, eight: bool },
     Limits { project: u32 },
@@ -58,11 +59,15 @@ impl Pages {
     }
     #[must_use]
     pub const fn away_busy(&self) -> bool {
-        self.away.is_some()
+        self.away.is_some() || self.away_all.is_some()
     }
 }
 pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
     let project = match act {
+        Act::ToggleAll => {
+            super::away_all::act(root, env, out);
+            return;
+        }
         Act::Overturn { project, number } => {
             overturn(root, env, project, number, out);
             return;
@@ -74,9 +79,23 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
         }
         Act::Toggle { project } | Act::Kinds { project, .. } | Act::Until { project, .. } => project,
     };
-    if root.pages.away.is_some() || !root.forge.away_available() {
+    if root.pages.away_busy() || !root.forge.away_available() {
         return;
     }
+    let Some((request, on, until)) = request(root, env, project, act) else { return };
+    root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
+    let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
+    root.pages.away = Some(Pending { key, project, on, until });
+    root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown fits");
+    crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
+}
+/// The project's request, with the state its answer will toast.
+pub(super) fn request(
+    root: &Domain,
+    env: &Env<Limits>,
+    project: u32,
+    act: Act,
+) -> Option<(jig_client::Ask, bool, Option<Wall>)> {
     let row = root.forge.away(project);
     let mut on = root.away_on(project, env.wall);
     let (mut until, mut kinds) = match row {
@@ -94,14 +113,12 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
         Act::Until { eight, .. } => {
             until = if eight { Some(away::next_eight(env.wall, root.zone_minutes())) } else { None };
         }
-        Act::Overturn { .. } | Act::Limits { .. } => unreachable!("Limits returned before requesting"),
+        Act::ToggleAll | Act::Overturn { .. } | Act::Limits { .. } => {
+            unreachable!("only project settings build an Away request")
+        }
     }
-    let Some(request) = away::ask(project, on, until, kinds, &env.limits.forge) else { return };
-    root.pages.serial = root.pages.serial.checked_add(1).expect("page keys fit");
-    let key = Key { asker: Owner::Pages.asker(), number: root.pages.serial };
-    root.pages.away = Some(Pending { key, project, on, until });
-    root.pages.shown = root.pages.shown.checked_add(1).expect("pages shown fits");
-    crate::route::client(root, env, jig_client::Event::Send { key, name: None, request }, out);
+    let request = away::ask(project, on, until, kinds, &env.limits.forge)?;
+    Some((request, on, until))
 }
 pub(super) fn told(
     pages: &mut Pages,
@@ -110,7 +127,7 @@ pub(super) fn told(
     told: &Told,
     out: &mut Queue<super::Request>,
 ) -> bool {
-    if overturn_told(pages, env, client, told, out) {
+    if super::away_all::told(pages, env, client, told, out) || overturn_told(pages, env, client, told, out) {
         return true;
     }
     let Some(pending) = &pages.away else { return false };
@@ -171,6 +188,7 @@ fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out
             }
         }
         Address::Home { .. }
+        | Address::Team { .. }
         | Address::Ask { .. }
         | Address::NewChat { .. }
         | Address::Chats { .. }

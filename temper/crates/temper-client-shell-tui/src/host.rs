@@ -695,6 +695,7 @@ impl Host {
             | Address::Repositories { project }
             | Address::Models { project }
             | Address::Builders { project }
+            | Address::Team { project }
             | Address::Role { project, .. }
             | Address::Rule { project, .. }
             | Address::Ask { project }

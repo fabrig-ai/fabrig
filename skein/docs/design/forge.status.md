@@ -1,6 +1,15 @@
 # forge: status
 
-2026-11-06. Where skein's code lags or departs from [forge.md](forge.md).
+2026-11-09. Where skein's code lags or departs from [forge.md](forge.md).
+
+Section 5.2 has no known gap in Forgejo's `Read::Commits`: its plan keeps
+the oldest commits the answer's rows and bytes hold, giving up the newest
+as older ones come, counts every row Forgejo gives against
+`total_commits`, and answers a page those hold whole with `more`, a page
+they don't, or a range whose oldest commit alone passes the answer,
+`TooLarge` (`skein-forge/src/forgejo/plans/commits.rs`;
+`a_range_past_the_answer_keeps_its_oldest_commits`). The pin's `compare`
+transcript lists its three commits newest first, as the plan reads them.
 
 - **Not yet:** 9: no conformance fact records a `style=merge` update of a
   head already holding its base, or what a rebase's push does to a push

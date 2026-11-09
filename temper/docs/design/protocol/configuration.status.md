@@ -1,6 +1,6 @@
 # configuration: status
 
-2026-11-08. Where temper's code lags or departs from [configuration.md](configuration.md).
+2026-11-09. Where temper's code lags or departs from [configuration.md](configuration.md).
 
 Sections 13.2 to 13.4 have the branch-relative project patterns and the
 forge's every-project rule defaults, including removal and reset, held
@@ -259,3 +259,8 @@ Sections 3 and 10 have `engine.clients.approval` enabled beside `link`
 in both init templates and the owned example, with the listener's member
 line naming approvals. The service table checks an ask enabled, disabled
 and absent; standalone's loopback admission remains in force.
+
+Section 13.8 has no known gap in a brief's charter bound: the engine
+fits a charter to the smaller of `hub.charter_bytes` and its worker's
+allowance, 65,536 where its process has no local agent
+(`../domain/agent.status.md`, 4.3).

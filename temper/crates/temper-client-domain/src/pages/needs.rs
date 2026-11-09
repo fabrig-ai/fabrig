@@ -80,6 +80,11 @@ pub enum Toasted {
     },
     AwayOff,
     AwayRefused,
+    AwayAll {
+        on: bool,
+        changed: u32,
+        sent: u32,
+    },
     Overturned,
     OverturnEnded,
     OverturnAlready,
@@ -232,6 +237,9 @@ impl Session {
         }
         open.first().copied()
     }
+    pub(crate) fn answered_here(&self, object: ObjectKey) -> bool {
+        self.line(object).is_some()
+    }
     #[must_use]
     pub fn later(&self, object: ObjectKey) -> bool {
         self.later.as_slice().contains(&object)
@@ -307,6 +315,7 @@ impl Session {
             | Address::Work { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
+            | Address::Team { .. }
             | Address::Chats { .. }
             | Address::Members
             | Address::Limits
@@ -691,6 +700,7 @@ pub(crate) fn act(
                     Toasted::Way { .. }
                     | Toasted::AwayOn { .. }
                     | Toasted::AwayOff
+                    | Toasted::AwayAll { .. }
                     | Toasted::AwayRefused
                     | Toasted::Overturned
                     | Toasted::OverturnEnded
@@ -709,6 +719,7 @@ pub(crate) fn act(
             match pages.address {
                 Address::Inbox { .. } => return,
                 Address::Home { .. }
+                | Address::Team { .. }
                 | Address::AllHome
                 | Address::NewChat { .. }
                 | Address::Goals { .. }
@@ -742,6 +753,7 @@ pub(crate) fn act(
                 | Address::Goals { .. }
                 | Address::Chats { .. }
                 | Address::Changes { .. }
+                | Address::Team { .. }
                 | Address::Members
                 | Address::Limits
                 | Address::Accounts

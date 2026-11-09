@@ -2544,6 +2544,28 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 
 
 
+/* ==== ui: team ==== */
+/* The column includes 40 px gutters around the mock's 1020 px content. */
+#app:has(> .temper-rail) .temper-team { width: 100%; max-width: 1100px; min-width: 0; margin: 0 auto; padding: 56px 40px 80px; display: flex; flex-direction: column; gap: 48px; font: 15px/1.55 var(--gf-sans); letter-spacing: normal; color: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-team p { margin: 0; }
+#app:has(> .temper-rail) .temper-team-intro { display: flex; flex-direction: column; gap: 14px; }
+#app:has(> .temper-rail) .temper-team-intro > p:first-child { font-size: 13px; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-team-intro > h1 { margin: 0; font: 500 32px/1.25 var(--gf-sans); letter-spacing: -.02em; }
+#app:has(> .temper-rail) .temper-team-intro > p:last-child { font-size: 17px; line-height: 1.65; color: var(--gf-ink-2); }
+#app:has(> .temper-rail) .temper-team > .temper-settings-section { display: flex; flex-direction: column; gap: 14px; }
+#app:has(> .temper-rail) .temper-team .temper-settings-section-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
+#app:has(> .temper-rail) .temper-team .temper-settings-section-title { margin: 0; font: 600 15px/1.55 var(--gf-sans); letter-spacing: normal; text-transform: none; color: var(--gf-ink); }
+#app:has(> .temper-rail) .temper-team .temper-settings-empty { color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-team-people { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+#app:has(> .temper-rail) .temper-team-person { min-width: 0; background: var(--gf-surface); border: 1px solid var(--gf-line); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 8px; overflow-wrap: anywhere; }
+#app:has(> .temper-rail) .temper-team-person strong { font-weight: 700; }
+#app:has(> .temper-rail) .temper-team-role { font-size: 13px; color: var(--gf-muted); }
+#app:has(> .temper-rail) .temper-team-line { font-size: 13px; }
+@media (max-width: 760px) {
+  #app:has(> .temper-rail) .temper-team { padding: 24px 20px 112px; }
+  #app:has(> .temper-rail) .temper-team-people { grid-template-columns: minmax(0, 1fr); }
+}
+
 /* ==== ui: settings ==== */
 #app > .temper-settings .temper-models-add { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
 #app > .temper-settings .temper-models-add > input { flex: 1 1 200px; min-width: 0; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: inherit; font-size: 14px; }
