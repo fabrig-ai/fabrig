@@ -1389,6 +1389,25 @@ fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
     }
 }
 
+/// temper/docs/design/protocol/README.md, 15.3: every unsent record has one operator note.
+#[test]
+fn each_unsent_record_reaches_the_operator_once() {
+    use jig_protocol_engine_workers::{Bound, Unsent, host::Output};
+    let mut service = fixtures::started();
+    let workers = &mut service.engine.as_mut().unwrap().workers;
+    let mut events = skein_lib::Queue::uncapped();
+    let worker = b"worker-a".as_slice().into();
+    let channel = Token::new(7);
+    let unsent = Unsent {
+        kind: jig_protocol_worker_wire::Kind::Assignment,
+        bytes: 1_300_000,
+        bound: Bound::Room(1_048_576),
+    };
+    workers.route(Output::Unsent { worker, channel, unsent }, &mut events);
+    assert_eq!(workers.notes.len(), 1, "one unsent record produces one operator note");
+    assert!(events.is_empty(), "an operator note is outside the domain");
+}
+
 fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Output {
     jig_protocol_engine_workers::host::Output::Hello {
         worker,
